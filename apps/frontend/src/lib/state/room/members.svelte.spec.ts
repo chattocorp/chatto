@@ -73,15 +73,26 @@ describe('RoomMembersStore', () => {
     expect(ROOM_MEMBERS_PAGE_SIZE).toBe(250);
   });
 
-  it('eagerly loads every room member page into the canonical member list', async () => {
+  it('publishes the first page before hydrating the canonical member list in the background', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
-      pageResult([user('u2', 'boris'), user('u3', 'cora')], false, 3)
+      backgroundPage.promise
     ]);
     const store = new RoomMembersStore(fakeAPI);
 
     store.setRoom('room-1');
-    await store.loadInitial();
+    const loading = store.loadInitial();
+
+    await vi.waitFor(() => {
+      expect(store.hasFirstPage).toBe(true);
+      expect(store.isInitialLoading).toBe(false);
+      expect(store.isBackgroundLoading).toBe(true);
+      expect(store.members.map((member) => member.login)).toEqual(['alice']);
+    });
+
+    backgroundPage.resolve(pageResult([user('u2', 'boris'), user('u3', 'cora')], false, 3));
+    await loading;
 
     expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
       1,
@@ -101,6 +112,8 @@ describe('RoomMembersStore', () => {
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
     expect(store.hasLoaded).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
+    expect(store.isBackgroundLoading).toBe(false);
   });
 
   it('filters loaded members locally without changing the canonical count', async () => {
@@ -117,7 +130,104 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
-  it('marks failed initial loads as loaded to avoid immediate ensureLoaded retries', async () => {
+  it('searches the server for an unhydrated member and merges the result', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice')], true, 3),
+      backgroundPage.promise,
+      pageResult([user('u3', 'cora')], false, 1)
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    await store.setSearch('cor');
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      3,
+      'room-1',
+      'cor',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
+    expect(store.filteredMembers.map((member) => member.login)).toEqual(['cora']);
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
+
+    backgroundPage.resolve(pageResult([user('u2', 'boris'), user('u3', 'cora')], false, 3));
+    await loading;
+
+    expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
+    expect(new Set(store.members.map((member) => member.id)).size).toBe(3);
+  });
+
+  it('discards an in-flight search when a same-room refresh starts', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const staleSearch = deferred<MemberDirectoryPage>();
+    const refreshedPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice')], true, 2),
+      backgroundPage.promise,
+      staleSearch.promise,
+      refreshedPage.promise
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const initialLoad = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    const searching = store.searchMembers('departed');
+    const refreshing = store.refresh();
+    refreshedPage.resolve(pageResult([user('u1', 'alice')], false, 1));
+    await refreshing;
+
+    staleSearch.resolve(pageResult([user('u2', 'departed')], false, 1));
+    await expect(searching).resolves.toEqual([]);
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
+
+    backgroundPage.resolve(pageResult([user('u2', 'departed')], false, 2));
+    await initialLoad;
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
+  });
+
+  it('pages through every sidebar search match while hydration is incomplete', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice')], true, 3),
+      backgroundPage.promise,
+      pageResult([user('u2', 'match-a')], true, 2),
+      pageResult([user('u3', 'match-b')], false, 2)
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    await store.setSearch('match');
+
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      3,
+      'room-1',
+      'match',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      4,
+      'room-1',
+      'match',
+      ROOM_MEMBERS_PAGE_SIZE,
+      1
+    );
+    expect(store.filteredMembers.map((member) => member.login)).toEqual(['match-a', 'match-b']);
+
+    backgroundPage.resolve(pageResult([user('u2', 'match-a'), user('u3', 'match-b')], false, 3));
+    await loading;
+  });
+
+  it('records failed initial loads to avoid immediate ensureLoaded retries', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeAPI = new FakeMemberDirectoryAPI([Promise.reject(new Error('network failed'))]);
     const store = new RoomMembersStore(fakeAPI);
@@ -127,7 +237,7 @@ describe('RoomMembersStore', () => {
       store.ensureLoaded();
 
       await vi.waitFor(() => {
-        expect(store.hasLoaded).toBe(true);
+        expect(store.loadError).toBe('network failed');
         expect(store.isInitialLoading).toBe(false);
       });
 
@@ -139,7 +249,7 @@ describe('RoomMembersStore', () => {
     }
   });
 
-  it('does not expose partial members when a later eager page fails', async () => {
+  it('keeps the published first page when background hydration fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
@@ -151,11 +261,11 @@ describe('RoomMembersStore', () => {
       store.setRoom('room-1');
       await store.loadInitial();
 
-      expect(store.members).toEqual([]);
-      expect(store.totalCount).toBe(0);
-      expect(store.hasLoaded).toBe(true);
-      expect(store.filteredMembers).toEqual([]);
-      expect(await store.searchMembers('alice')).toEqual([]);
+      expect(store.members.map((member) => member.login)).toEqual(['alice']);
+      expect(store.totalCount).toBe(3);
+      expect(store.hasFirstPage).toBe(true);
+      expect(store.hasLoadedAll).toBe(false);
+      expect(store.loadError).toBe('network failed');
       expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
     } finally {
       consoleErrorSpy.mockRestore();
@@ -236,7 +346,7 @@ describe('RoomMembersStore', () => {
     });
   });
 
-  it('preserves the previous complete snapshot when refresh fails mid-load', async () => {
+  it('publishes a refreshed first page when later refresh hydration fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'initial')], false, 1),
@@ -250,9 +360,10 @@ describe('RoomMembersStore', () => {
       await store.loadInitial();
       await store.refresh();
 
-      expect(store.members.map((member) => member.login)).toEqual(['initial']);
-      expect(store.totalCount).toBe(1);
-      expect(store.hasLoaded).toBe(true);
+      expect(store.members.map((member) => member.login)).toEqual(['refresh-a']);
+      expect(store.totalCount).toBe(3);
+      expect(store.hasLoadedAll).toBe(false);
+      expect(store.loadError).toBe('network failed');
     } finally {
       consoleErrorSpy.mockRestore();
     }

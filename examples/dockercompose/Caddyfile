@@ -1,6 +1,12 @@
 {$PUBLIC_URL:chat.example.com} {
-	reverse_proxy chatto:4000 {
-		# Load balance across replicas
+	reverse_proxy {
+		# Discover all Chatto replicas through Docker's internal DNS.
+		dynamic a chatto 4000 {
+			refresh 5s
+			versions ipv4
+		}
+
+		# Distribute new requests across the discovered replicas.
 		lb_policy round_robin
 
 		# Passive health checks (mark unhealthy after failures)

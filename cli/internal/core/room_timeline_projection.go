@@ -21,8 +21,7 @@ type RoomTimelineProjection struct {
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
-	appliedEventIDs    eventIDSet
-	strings            projectionStringInterner
+	replayGuard        projectionReplayGuard
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
 	// LatestBody resolves in O(1) instead of an O(room size) walk
@@ -77,10 +76,6 @@ type projectedRoomAttachmentMessage struct {
 	Body  *corev1.MessageBody
 }
 
-func (p *RoomTimelineProjection) intern(value string) string {
-	return p.strings.intern(value)
-}
-
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *corev1.Event) int {
 	idx := len(p.entries)
 	p.entries = append(p.entries, TimelineEntry{StreamSeq: seq, Event: event})
@@ -112,8 +107,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
-		appliedEventIDs:            newEventIDSet(),
-		strings:                    newProjectionStringInterner(),
+		replayGuard:                newProjectionReplayGuard(),
 		latestBody:                 make(map[string]*corev1.MessageBody),
 		bodyEventSeqs:              make(map[string][]uint64),
 		currentBodySeq:             make(map[string]uint64),
@@ -152,7 +146,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	roomID := p.intern(p.roomIDOfEventLocked(event))
+	roomID := p.roomIDOfEventLocked(event)
 	if roomID == "" {
 		return nil
 	}
@@ -160,15 +154,14 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	// Idempotency: a re-applied event with the same envelope id is a
-	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
-	// Apply(e,n) once"; this is how we honour it.
-	if p.appliedEventIDs.seenOrMark(event) {
+	// Idempotency is envelope-ID based during startup replay. A clean history
+	// switches to the monotonic stream-sequence guard once replay completes.
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
 	if ev := event.GetMessageBody(); ev != nil {
-		targetID := p.intern(ev.GetEventId())
+		targetID := ev.GetEventId()
 		body := ev.GetBody()
 		if targetID != "" && body != nil {
 			if body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
@@ -200,7 +193,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	entryIdx := -1
 	if shouldIndexRoomTimelineEvent(event) {
 		entryIdx = p.appendEntryLocked(seq, event)
-		if eid := p.intern(event.GetId()); eid != "" {
+		if eid := event.GetId(); eid != "" {
 			p.byEventID[eid] = entryIdx
 		}
 	}
@@ -221,7 +214,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	// LatestBody is O(1) instead of an O(room) walk per lookup.
 	switch ev := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
-		targetID := p.intern(event.GetId())
+		targetID := event.GetId()
 		if targetID != "" {
 			authorID := messageAuthorID(event)
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
@@ -237,11 +230,11 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
 		// rendering echoes.
-		if origID := p.intern(ev.MessagePosted.GetEchoOfEventId()); origID != "" && targetID != "" {
+		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
 			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
 		}
 	case *corev1.Event_MessageRetracted:
-		targetID := p.intern(ev.MessageRetracted.GetEventId())
+		targetID := ev.MessageRetracted.GetEventId()
 		if targetID != "" {
 			p.setTombstonedAtLocked(targetID, eventCreatedAt(event))
 			if origID := p.echoOriginalIDLocked(targetID); origID != "" {
@@ -261,6 +254,12 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	return nil
 }
 
+func (p *RoomTimelineProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
+}
+
 func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -278,7 +277,6 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 	if userID == "" {
 		return
 	}
-	userID = p.intern(userID)
 	p.shreddedUsers[userID] = struct{}{}
 	if !at.IsZero() {
 		if existing, ok := p.shreddedAt[userID]; !ok || at.Before(existing) {

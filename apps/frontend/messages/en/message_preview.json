@@ -1,7 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "message_preview": {
-    "deleted_user": "Deleted user",
     "attachments_count": "{count} attachments",
     "attachment_image": "Image",
     "attachment_video": "Video",

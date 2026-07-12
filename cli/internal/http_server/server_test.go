@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -27,6 +29,121 @@ import (
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
+
+func TestEnsureAutocertCacheDir(t *testing.T) {
+	t.Run("creates a private directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "nested", "autocert")
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("preserves a private directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("repairs a permissive directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, 0o755); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("rejects a non-directory path", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.WriteFile(cacheDir, []byte("not a directory"), 0o600); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil {
+			t.Fatal("ensureAutocertCacheDir() error = nil, want non-directory error")
+		}
+	})
+
+	t.Run("rejects a symlink", func(t *testing.T) {
+		parent := t.TempDir()
+		target := filepath.Join(parent, "target")
+		if err := os.Mkdir(target, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Symlink(target, cacheDir); err != nil {
+			t.Fatalf("Symlink() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "is not a directory") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want symlink rejection", err)
+		}
+	})
+
+	t.Run("rejects a replaceable cache path", func(t *testing.T) {
+		parent := t.TempDir()
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chmod(parent, 0o777); err != nil {
+			t.Fatalf("Chmod() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "writable by group or other users") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want unsafe-parent rejection", err)
+		}
+	})
+
+	t.Run("rejects a directory owned by another user", func(t *testing.T) {
+		if os.Geteuid() != 0 {
+			t.Skip("changing directory ownership requires root")
+		}
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chown(cacheDir, 1, -1); err != nil {
+			t.Fatalf("Chown() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "is owned by uid") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want ownership rejection", err)
+		}
+	})
+
+	t.Run("rejects a parent directory owned by another user", func(t *testing.T) {
+		if os.Geteuid() != 0 {
+			t.Skip("changing directory ownership requires root")
+		}
+		parent := t.TempDir()
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chown(parent, 1, -1); err != nil {
+			t.Fatalf("Chown() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "parent directory") || !strings.Contains(err.Error(), "is owned by uid") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want parent ownership rejection", err)
+		}
+	})
+}
+
+func assertPathMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%q) error = %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("mode = %04o, want %04o", got, want)
+	}
+}
 
 // ============================================================================
 // Content Type Detection Tests
@@ -122,6 +239,65 @@ func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	}
 	if srv.WriteTimeout != 0 {
 		t.Fatalf("WriteTimeout = %s, want 0", srv.WriteTimeout)
+	}
+}
+
+func TestLimitLegacyRequestBodyRejectsOversizedBodies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/legacy", limitLegacyRequestBody(), func(c *gin.Context) {
+		var body map[string]any
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/legacy", strings.NewReader(strings.Repeat("x", legacyRequestBodyLimit+1)))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
+func TestLimitRequestBodyTimesOutSlowClients(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	completed := make(chan struct{})
+	router.POST("/legacy", limitRequestBody(1024, 50*time.Millisecond), func(c *gin.Context) {
+		defer close(completed)
+		var body map[string]any
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := newHTTPServer(listener.Addr().String(), router)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if _, err := io.WriteString(conn, "POST /legacy HTTP/1.1\r\nHost: test\r\nContent-Type: application/json\r\nContent-Length: 10\r\n\r\n{"); err != nil {
+		t.Fatalf("write partial request: %v", err)
+	}
+	select {
+	case <-completed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler remained blocked reading a slow request body")
 	}
 }
 
@@ -2002,6 +2178,74 @@ func TestAuthRoutes_ForgotPassword_SendsEmail(t *testing.T) {
 	}
 	if strings.Contains(email.Body, "The Chatto Team") {
 		t.Errorf("Expected password reset email not to use generic Chatto signoff, got: %s", email.Body)
+	}
+}
+
+func TestAuthRoutes_ForgotPassword_ThrottlesRepeatedDelivery(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "forgot-throttle", "Forgot Throttle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "forgot-throttle@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "forgot-throttle@example.com"})
+	for i := 0; i < 2; i++ {
+		resp, err := client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("forgot-password request %d: %v", i+1, err)
+		}
+		var result map[string]string
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			t.Fatalf("decode forgot-password response %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || !strings.Contains(result["message"], "If that email is registered") {
+			t.Fatalf("request %d status/message = %d/%q, want generic success", i+1, resp.StatusCode, result["message"])
+		}
+	}
+	if messages := mockMailer.Messages(); len(messages) != 1 {
+		t.Fatalf("delivered password-reset emails = %d, want 1", len(messages))
+	}
+}
+
+func TestAuthRoutes_ForgotPassword_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "forgot-send-failure", "Forgot Send Failure", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "forgot-send-failure@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "forgot-send-failure@example.com"})
+	mockMailer.SendError = errors.New("smtp unavailable")
+	resp, err := client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("failed forgot-password delivery: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed delivery status = %d, want generic 200", resp.StatusCode)
+	}
+
+	mockMailer.SendError = nil
+	resp, err = client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("forgot-password after SMTP recovery: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("recovered delivery status = %d, want 200", resp.StatusCode)
+	}
+	if messages := mockMailer.Messages(); len(messages) != 1 {
+		t.Fatalf("delivered password-reset emails after recovery = %d, want 1", len(messages))
 	}
 }
 

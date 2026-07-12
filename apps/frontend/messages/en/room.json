@@ -97,6 +97,42 @@
         "deleted": "This message has been deleted."
       }
     },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "joined the room",
+            "countPlural=other": "joined the room"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "left the room",
+            "countPlural=other": "left the room"
+          }
+        }
+      ],
+      "archived": "archived the room",
+      "unarchived": "unarchived the room",
+      "and": "and",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "other",
+            "countPlural=other": "others"
+          }
+        }
+      ],
+      "show_less": "show less"
+    },
     "attachment": {
       "delete_title": "Delete Attachment",
       "delete_prompt": "Are you sure you want to delete this attachment? This cannot be undone.",
@@ -132,7 +168,6 @@
       "jump_to_file": "Jump to {filename}",
       "loading_files": "Loading files...",
       "calls_unavailable": "Calls are not available on this server.",
-      "deleted_user": "Deleted User",
       "view_profile": "View profile of {name}",
       "in_voice_call": "In a voice call",
       "in_video_call": "In a video call",
@@ -152,6 +187,7 @@
       "reply_placeholder": "Reply in thread..."
     },
     "jump_to_present": "Jump to Present",
+    "jump_failed": "Could not jump to that message.",
     "unread_separator": "New messages",
     "close_extras": "Close room extras"
   }

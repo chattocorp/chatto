@@ -374,13 +374,27 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		return nil, false, false
 	}
 
+	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+	if strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		if err := s.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(events.RBACSubjectFilter(), seq)); err != nil {
+			s.core.logger.Warn("Live EVT RBAC projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
+		}
+		if err := s.populateMemberRoomsCache(waitCtx, userID, memberRooms); err != nil {
+			s.core.logger.Warn("Live EVT room visibility refresh failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
+		}
+		return nil, false, false
+	}
+
 	if roomID, ok := events.ParseRoomSubject(msg.Subject); ok {
 		if !isDeliverableLiveEVTRoomEvent(event) {
 			return nil, false, false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
 			s.core.logger.Warn("Live EVT projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true
@@ -396,7 +410,6 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTAssetEvent(waitCtx, evtSubject, seq); err != nil {
 			s.core.logger.Warn("Live EVT asset projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true
@@ -416,7 +429,6 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTUserEvent(waitCtx, evtSubject, seq); err != nil {
 			s.core.logger.Warn("Live EVT user projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true

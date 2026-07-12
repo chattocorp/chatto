@@ -18,4 +18,27 @@ test.describe('drag and drop image upload', () => {
     await roomPage.expectMessageVisible(testMessage);
     await expect(roomPage.attachmentImage).toBeVisible();
   });
+
+  test('drops an image into the thread composer', async ({ page, chatPage, roomPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootText = `Thread drag drop root ${Date.now()}`;
+    const rootMessage = await roomPage.sendMessage(rootText);
+    await rootMessage.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    await roomPage.dropFileInThread('e2e/fixtures/brighton.jpg');
+    await expect(roomPage.roomAttachmentPreview).toHaveCount(0);
+
+    const replyText = `Thread drag drop reply ${Date.now()}`;
+    await roomPage.threadReplyInput.fill(replyText);
+    await roomPage.threadReplyInput.press('Enter');
+
+    await expect(roomPage.threadAttachmentPreview).toHaveCount(0);
+    const reply = roomPage.getMessage(replyText);
+    await expect(reply.locator).toBeVisible();
+    await expect(reply.attachmentImage).toBeVisible();
+  });
 });

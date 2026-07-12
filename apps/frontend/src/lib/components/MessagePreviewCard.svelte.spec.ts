@@ -195,6 +195,20 @@ beforeEach(() => {
 });
 
 describe('MessagePreviewCard', () => {
+  it('renders a deleted author as an italicized placeholder', async () => {
+    timelineResults.push(bodyPreviewResult('A deleted user message'));
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="message-preview-card"] em')?.textContent).toBe(
+        '[deleted user]'
+      );
+    });
+  });
+
   it('renders the linked message body as markdown in a scrollable preview', async () => {
     timelineResults.push(
       bodyPreviewResult('# Release notes\n\n- **Breaking** change\n- More details')

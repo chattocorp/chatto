@@ -45,6 +45,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
 	if errors.Is(err, core.ErrCustomStatusEmojiRequired) ||
+		errors.Is(err, core.ErrCustomStatusEmojiInvalid) ||
 		errors.Is(err, core.ErrCustomStatusTextRequired) ||
 		errors.Is(err, core.ErrCustomStatusEmojiTooLong) ||
 		errors.Is(err, core.ErrCustomStatusTextTooLong) ||

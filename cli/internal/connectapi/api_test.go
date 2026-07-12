@@ -228,6 +228,46 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
 
+func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	path, handler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
+	mux.Handle(path, handler)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
+	maxIDs := make([]string, core.MaxMessageAttachmentAssetIDs)
+	for i := range maxIDs {
+		maxIDs[i] = strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength)
+	}
+
+	tests := []struct {
+		name     string
+		assetIDs []string
+		wantCode connect.Code
+	}{
+		{name: "at limits reaches authentication", assetIDs: maxIDs, wantCode: connect.CodeUnauthenticated},
+		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantCode: connect.CodeInvalidArgument},
+		{name: "empty", assetIDs: []string{""}, wantCode: connect.CodeInvalidArgument},
+		{name: "too long", assetIDs: []string{strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength+1)}, wantCode: connect.CodeInvalidArgument},
+		{name: "too many multibyte bytes", assetIDs: []string{strings.Repeat("é", core.MaxMessageAttachmentAssetIDLength/2+1)}, wantCode: connect.CodeInvalidArgument},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.CreateMessage(context.Background(), connect.NewRequest(&apiv1.CreateMessageRequest{
+				RoomId:             "room",
+				Body:               "hello",
+				AttachmentAssetIds: tt.assetIDs,
+			}))
+			if connect.CodeOf(err) != tt.wantCode {
+				t.Fatalf("CreateMessage() code = %v, want %v", connect.CodeOf(err), tt.wantCode)
+			}
+		})
+	}
+}
+
 func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
@@ -1053,7 +1093,7 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetUser().GetPresenceStatus())
 	}
 
-	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
+	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "👋", "around", nil); err != nil {
 		t.Fatalf("SetUserCustomStatus: %v", err)
 	}
 	if err := env.core.SetPresenceWithOptions(env.ctx, env.viewer.Id, "ONLINE", true); err != nil {
@@ -4082,6 +4122,14 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
+	}
+
+	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+		Emoji: "e",
+		Text:  "Invalid emoji",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateCustomStatus invalid emoji error = %v, want InvalidArgument", err)
 	}
 
 	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))

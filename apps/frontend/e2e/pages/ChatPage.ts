@@ -67,8 +67,14 @@ export class ChatPage {
     // Check if already in this room (aria-current="page" indicates active link)
     const isActive = await link.getAttribute('aria-current');
     if (isActive !== 'page') {
-      await link.click();
-      await this.page.waitForURL(routes.patterns.anyRoom);
+      const href = await link.getAttribute('href');
+      if (!href) throw new Error(`Room link for ${roomName} has no href`);
+
+      const destination = new URL(href, this.page.url());
+      await Promise.all([
+        this.page.waitForURL((url) => url.pathname === destination.pathname),
+        link.click()
+      ]);
     }
 
     // Wait for room UI to be fully loaded (header and message input)

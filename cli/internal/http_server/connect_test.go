@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -692,6 +693,14 @@ func TestConnectAPIAuthenticatesBeforeValidation(t *testing.T) {
 }
 
 func TestAuthenticateConnectRequest(t *testing.T) {
+	t.Run("reports credential validation failures as unavailable", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), authenticationValidationErrorKey{}, errors.New("storage unavailable"))
+		_, err := authenticateConnectRequest(ctx, nil)
+		if connect.CodeOf(err) != connect.CodeUnavailable {
+			t.Fatalf("authenticateConnectRequest err = %v, want unavailable", err)
+		}
+	})
+
 	t.Run("rejects missing injected user", func(t *testing.T) {
 		_, err := authenticateConnectRequest(context.Background(), nil)
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
@@ -716,6 +725,29 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 			t.Fatalf("caller = %+v, want user id only", caller)
 		}
 	})
+}
+
+func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
+	s, _ := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "auth-storage-failure", "Auth Storage Failure", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := s.core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	_, ok, err := s.bearerPresentedCredential(canceled, token)
+	if ok {
+		t.Fatal("bearerPresentedCredential authenticated with canceled storage context")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("bearerPresentedCredential err = %v, want context canceled", err)
+	}
 }
 
 func TestConnectRequestBaseURLTrustModel(t *testing.T) {

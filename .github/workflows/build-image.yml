@@ -65,6 +65,7 @@ jobs:
           cp docker/Dockerfile.goreleaser "$context/Dockerfile"
           mkdir -p "$context/docker"
           cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+          cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
           mkdir -p "$context/LICENSES"
           cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
           cp NOTICE "$context/NOTICE"

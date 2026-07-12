@@ -38,6 +38,11 @@ export type RoomMembersPage = {
   hasMore: boolean;
 };
 
+type MemberSearchCacheEntry = {
+  members: RoomMember[];
+  complete: boolean;
+};
+
 function memberMatchesSearch(member: RoomMember, search: string): boolean {
   const query = search.trim().toLowerCase();
   if (!query) return true;
@@ -62,17 +67,19 @@ function eventRoomId(eventData: EventEnvelope['event']): string | null {
 /**
  * Room member store for the current room.
  *
- * The store uses the paginated Connect member directory API internally, but room initialization
- * eagerly fills `members` with the complete room member list. Message rendering,
- * mention highlighting, popovers, and moderation checks all treat this as
- * canonical room context, not as a lazy sidebar page. Partial page results are
- * never exposed as canonical state.
+ * The store publishes the first paginated Connect response immediately, then fills `members` with
+ * the remaining pages in the background. `hasFirstPage` marks interactive readiness while
+ * `hasLoadedAll` marks complete membership for mention rendering and other exhaustive consumers.
+ * Searches use a separate cache until their matching directory page enters canonical order.
  */
 export class RoomMembersStore {
   members = $state.raw<RoomMember[]>([]);
   totalCount = $state(0);
-  hasLoaded = $state(false);
+  hasFirstPage = $state(false);
+  hasLoadedAll = $state(false);
   isInitialLoading = $state(false);
+  isBackgroundLoading = $state(false);
+  loadError = $state<string | null>(null);
   searchInput = $state('');
   activeSearch = $state('');
   livePresence = new SvelteMap<string, PresenceStatus>();
@@ -81,6 +88,7 @@ export class RoomMembersStore {
   private readonly api: MemberDirectoryAPI | null;
   private roomId = '';
   #loadId = 0;
+  #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
 
   constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
     if (!source) {
@@ -102,11 +110,28 @@ export class RoomMembersStore {
   }
 
   get filteredMembers(): RoomMember[] {
+    const query = this.activeSearch.trim().toLowerCase();
+    if (query && !this.hasLoadedAll) {
+      const searched = this.#searchCache.get(query);
+      if (searched) return searched.members;
+    }
     return this.filterLoadedMembers(this.activeSearch);
   }
 
+  /** Compatibility alias for consumers that only care whether hydration is complete. */
+  get hasLoaded(): boolean {
+    return this.hasLoadedAll;
+  }
+
   ensureLoaded(): void {
-    if (!this.roomId || this.isInitialLoading || this.hasLoaded) return;
+    if (
+      !this.roomId ||
+      this.isInitialLoading ||
+      this.isBackgroundLoading ||
+      this.hasLoadedAll ||
+      this.loadError
+    )
+      return;
     void this.loadInitial();
   }
 
@@ -115,26 +140,28 @@ export class RoomMembersStore {
     this.searchInput = search;
     if (nextSearch === this.activeSearch) return;
     this.activeSearch = nextSearch;
+    if (nextSearch && !this.hasLoadedAll) {
+      await this.searchAllMembers(nextSearch);
+    }
   }
 
   async loadInitial(): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = true;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
     try {
-      const page = await this.fetchAllPages();
-      if (loadId !== this.#loadId) return;
-      this.members = page.members;
-      this.totalCount = page.totalCount;
-      this.hasLoaded = true;
+      await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
+        this.loadError = error instanceof Error ? error.message : 'Failed to load room members';
         console.error('Failed to load room members:', error);
       }
     } finally {
       if (loadId === this.#loadId) {
-        this.hasLoaded = true;
         this.isInitialLoading = false;
+        this.isBackgroundLoading = false;
       }
     }
   }
@@ -143,21 +170,79 @@ export class RoomMembersStore {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.hasLoadedAll = false;
+    this.loadError = null;
+    this.#searchCache.clear();
     try {
-      const page = await this.fetchAllPages();
-      if (loadId !== this.#loadId) return;
-      this.members = page.members;
-      this.totalCount = page.totalCount;
-      this.hasLoaded = true;
+      await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
+        this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
         console.error('Failed to refresh room members:', error);
+      }
+    } finally {
+      if (loadId === this.#loadId) {
+        this.isInitialLoading = false;
+        this.isBackgroundLoading = false;
       }
     }
   }
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
-    return this.filteredLoadedMembers(search, limit);
+    const normalizedSearch = search.trim();
+    if (!normalizedSearch || this.hasLoadedAll || !this.roomId || !this.api) {
+      return this.filteredLoadedMembers(normalizedSearch, limit);
+    }
+
+    const roomId = this.roomId;
+    const loadId = this.#loadId;
+    const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
+    if (cached && (cached.complete || cached.members.length >= limit)) {
+      return cached.members.slice(0, limit);
+    }
+    let page: RoomMembersPage;
+    try {
+      page = await this.fetchPage(0, limit, normalizedSearch);
+    } catch (error) {
+      console.error('Failed to search room members:', error);
+      return this.filteredLoadedMembers(normalizedSearch, limit);
+    }
+    if (roomId !== this.roomId || loadId !== this.#loadId) return [];
+    this.#searchCache.set(normalizedSearch.toLowerCase(), {
+      members: page.members,
+      complete: !page.hasMore
+    });
+    return page.members.slice(0, limit);
+  }
+
+  private async searchAllMembers(search: string): Promise<void> {
+    const query = search.trim().toLowerCase();
+    const loadId = this.#loadId;
+    let members: RoomMember[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let page: RoomMembersPage;
+      try {
+        page = await this.fetchPage(offset, ROOM_MEMBERS_PAGE_SIZE, search);
+      } catch (error) {
+        console.error('Failed to search room members:', error);
+        return;
+      }
+      if (
+        loadId !== this.#loadId ||
+        query !== this.activeSearch.trim().toLowerCase() ||
+        !this.roomId
+      )
+        return;
+
+      members = appendPageMembers(members, page.members);
+      hasMore = page.hasMore && page.members.length > 0;
+      offset += page.members.length;
+      this.#searchCache.set(query, { members, complete: !hasMore });
+    }
   }
 
   ingestServerEvent(serverEvent: EventEnvelope): void {
@@ -178,25 +263,38 @@ export class RoomMembersStore {
     this.presenceVersion++;
   }
 
-  private async fetchAllPages(): Promise<RoomMembersPage> {
-    const members: RoomMember[] = [];
-    let totalCount = 0;
-    let hasMore = true;
+  private async loadPages(loadId: number): Promise<void> {
     let nextOffset = 0;
+    let hasMore = true;
+    let firstPage = true;
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
-      members.push(...page.members);
-      totalCount = page.totalCount;
+      if (loadId !== this.#loadId) return;
+
+      this.members = firstPage ? page.members : appendPageMembers(this.members, page.members);
+      this.totalCount = page.totalCount;
       hasMore = page.hasMore;
       nextOffset += page.members.length;
 
+      if (firstPage) {
+        firstPage = false;
+        this.hasFirstPage = true;
+        this.hasLoadedAll = !hasMore;
+        this.isInitialLoading = false;
+        this.isBackgroundLoading = hasMore;
+      }
+
       if (page.members.length === 0) {
+        hasMore = false;
         break;
       }
     }
 
-    return { members, totalCount, hasMore };
+    if (loadId === this.#loadId) {
+      this.hasLoadedAll = true;
+      this.isBackgroundLoading = false;
+    }
   }
 
   private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
@@ -217,13 +315,23 @@ export class RoomMembersStore {
     this.#loadId++;
     this.members = [];
     this.totalCount = 0;
-    this.hasLoaded = false;
+    this.hasFirstPage = false;
+    this.hasLoadedAll = false;
     this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
     this.searchInput = '';
     this.activeSearch = '';
+    this.#searchCache.clear();
     this.livePresence.clear();
     this.presenceVersion = 0;
   }
+}
+
+function appendPageMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
+  if (incoming.length === 0) return current;
+  const incomingIds = new Set(incoming.map((member) => member.id));
+  return [...current.filter((member) => !incomingIds.has(member.id)), ...incoming];
 }
 
 const [getMembersStoreContext, setMembersStoreContext] = createContext<RoomMembersStore>();

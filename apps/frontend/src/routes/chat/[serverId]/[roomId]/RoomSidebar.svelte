@@ -15,6 +15,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import * as m from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/render/types';
@@ -142,26 +143,28 @@ calls, and similar room-specific panels can plug into the same shell. See the
     return status !== 'OFFLINE';
   }
 
-  // Sort members alphabetically by display name within each presence group.
-  // Reading presenceVersion ensures $derived re-runs on any presence change —
-  // SvelteMap.size only changes when keys are added/removed, not when existing
-  // values change, so it would miss updates like OFFLINE→ONLINE.
+  // Sort names once when membership/search/profile data changes. Presence updates only repartition
+  // this stable ordering below, avoiding two full O(n log n) sorts per update.
   function sortByName(list: RoomMember[]): RoomMember[] {
     return [...list].sort((a, b) =>
       getLiveDisplayName(a.id, a.displayName).localeCompare(getLiveDisplayName(b.id, b.displayName))
     );
   }
 
-  const onlineMembers = $derived(
-    (presenceCache.version,
-    membersStore.presenceVersion,
-    sortByName(members.filter((m) => isOnlineStatus(getPresence(m)))))
-  );
-  const offlineMembers = $derived(
-    (presenceCache.version,
-    membersStore.presenceVersion,
-    sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
-  );
+  const sortedMembers = $derived(sortByName(members));
+  const groupedMembers = $derived.by(() => {
+    // Explicit versions include value-only presence transitions such as OFFLINE→ONLINE.
+    void presenceCache.version;
+    void membersStore.presenceVersion;
+    const online: RoomMember[] = [];
+    const offline: RoomMember[] = [];
+    for (const member of sortedMembers) {
+      (isOnlineStatus(getPresence(member)) ? online : offline).push(member);
+    }
+    return { online, offline };
+  });
+  const onlineMembers = $derived(groupedMembers.online);
+  const offlineMembers = $derived(groupedMembers.offline);
 
   // Look up the selected member for the popover (rendered outside the {#each} loop
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
@@ -333,7 +336,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </div>
       </div>
 
-      {#if loading || membersStore.isInitialLoading}
+      {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
         <ul role="list">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
@@ -457,13 +460,19 @@ calls, and similar room-specific panels can plug into the same shell. See the
       if (!member.deleted) togglePopover(member.id, e);
     }}
     title={member.deleted
-      ? m['room.sidebar.deleted_user']()
+      ? m['common.deleted_user']()
       : m['room.sidebar.view_profile']({ name: getLiveDisplayName(member.id, member.displayName) })}
   >
     <UserAvatar user={member} size="sm" showPresence />
     <div class="min-w-0 flex-1">
       <div class="flex min-w-0 items-center gap-1.5">
-        <span class="min-w-0 truncate">{getLiveDisplayName(member.id, member.displayName)}</span>
+        <span class="min-w-0 truncate">
+          {#if member.deleted}
+            <DeletedUserLabel />
+          {:else}
+            {getLiveDisplayName(member.id, member.displayName)}
+          {/if}
+        </span>
         <UserCustomStatusBadge
           status={getLiveCustomStatus(member.id, member.customStatus)}
           class="shrink-0 text-xs"

@@ -388,6 +388,10 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
 	options := collectPostMessageOptions(opts)
 
+	if err := validateMessageAttachmentAssetIDs(assetIDs); err != nil {
+		return nil, err
+	}
+
 	// Validate message body length to prevent DoS via oversized messages
 	if len(body) > MaxMessageBodyLength {
 		return nil, ErrMessageTooLong
@@ -751,6 +755,21 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	return event, nil
+}
+
+func validateMessageAttachmentAssetIDs(assetIDs []string) error {
+	if len(assetIDs) > MaxMessageAttachmentAssetIDs {
+		return invalidArgument(fmt.Sprintf("message attachment asset IDs exceed maximum count of %d", MaxMessageAttachmentAssetIDs))
+	}
+	for _, assetID := range assetIDs {
+		if assetID == "" {
+			return invalidArgument("message attachment asset ID must not be empty")
+		}
+		if len(assetID) > MaxMessageAttachmentAssetIDLength {
+			return invalidArgument(fmt.Sprintf("message attachment asset ID exceeds maximum length of %d bytes", MaxMessageAttachmentAssetIDLength))
+		}
+	}
+	return nil
 }
 
 // notifyAllMessageSubscribers creates notifications for room members who have the

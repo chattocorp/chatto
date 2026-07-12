@@ -58,6 +58,74 @@ func TestManifestIncludesEncryptionKeys(t *testing.T) {
 	}
 }
 
+func TestValidateBackupManifest(t *testing.T) {
+	tests := []struct {
+		name    string
+		streams []StreamBackupInfo
+		wantErr bool
+	}{
+		{name: "valid", streams: []StreamBackupInfo{{Name: "EVT"}, {Name: "KV_RUNTIME_STATE"}}},
+		{name: "empty", streams: []StreamBackupInfo{{Name: ""}}, wantErr: true},
+		{name: "parent traversal", streams: []StreamBackupInfo{{Name: "../../outside"}}, wantErr: true},
+		{name: "absolute", streams: []StreamBackupInfo{{Name: "/tmp/outside"}}, wantErr: true},
+		{name: "windows separator", streams: []StreamBackupInfo{{Name: `..\outside`}}, wantErr: true},
+		{name: "invalid NATS punctuation", streams: []StreamBackupInfo{{Name: "bad.name"}}, wantErr: true},
+		{name: "duplicate", streams: []StreamBackupInfo{{Name: "EVT"}, {Name: "EVT"}}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBackupManifest(BackupManifest{Streams: tt.streams})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateBackupManifest() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestOpenRestoreArchive(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "backup.tar.gz")
+	if err := os.WriteFile(file, []byte("archive"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := openRestoreArchive(file)
+	if err != nil {
+		t.Fatalf("valid archive rejected: %v", err)
+	}
+	opened.Close()
+	if opened, err := openRestoreArchive(t.TempDir()); err == nil {
+		opened.Close()
+		t.Fatal("directory accepted as restore archive")
+	}
+	if opened, err := openRestoreArchive(filepath.Join(t.TempDir(), "missing")); err == nil {
+		opened.Close()
+		t.Fatal("missing archive accepted")
+	}
+	symlink := filepath.Join(t.TempDir(), "backup-link")
+	if err := os.Symlink(file, symlink); err != nil {
+		t.Fatal(err)
+	}
+	if opened, err := openRestoreArchive(symlink); err == nil {
+		opened.Close()
+		t.Fatal("symlink accepted as restore archive")
+	}
+	large := filepath.Join(t.TempDir(), "too-large.tar.gz")
+	largeFile, err := os.Create(large)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := largeFile.Truncate(maxRestoreArchiveCompressedBytes + 1); err != nil {
+		largeFile.Close()
+		t.Fatal(err)
+	}
+	if err := largeFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if opened, err := openRestoreArchive(large); err == nil {
+		opened.Close()
+		t.Fatal("oversized compressed archive accepted")
+	}
+}
+
 func TestRestoreConfigForTargetOverridesReplicas(t *testing.T) {
 	streamDir := t.TempDir()
 	writeRestoreMetadata(t, streamDir, api.JSApiStreamRestoreRequest{

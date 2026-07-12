@@ -69,6 +69,8 @@ chatto backup -c chatto.toml
 chatto backup -c chatto.toml -o /mnt/backups/chatto-daily.tar.gz
 ```
 
+Chatto stages snapshots in a private temporary directory next to the destination archive and removes the plaintext staging data whether archive creation succeeds or fails. The completed archive is written with owner-only permissions and moved into place atomically, so a failed run does not replace an existing backup with a partial file.
+
 ### Encrypted backups
 
 Use `--encrypt` to protect the backup archive with a passphrase. For small self-hosted servers, also pass `--include-keys` so the archive is self-contained:
@@ -81,14 +83,19 @@ You'll be prompted to enter and confirm the passphrase.
 
 Encrypted backups use `.tar.gz.age` as the file extension. The encryption format is [age](https://age-encryption.org) — a modern, audited file encryption tool. This means you can also inspect or decrypt your backups using the standalone `age` CLI if needed (see [Using the age CLI](#using-the-age-cli) below).
 
-For scripted or automated backups, pass the passphrase via flag or pipe it from stdin:
+For scripted or automated backups, read the passphrase from a restricted file or explicitly from stdin:
 
 ```bash
-chatto backup -c chatto.toml --encrypt --include-keys --passphrase "$BACKUP_PASSPHRASE"
+chatto backup -c chatto.toml --encrypt --include-keys \
+  --passphrase-file /run/secrets/chatto-backup-passphrase
 
 # Or pipe from a secrets manager
-vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --encrypt --include-keys
+vault kv get -field=passphrase secret/chatto | \
+  chatto backup -c chatto.toml --encrypt --include-keys --passphrase-stdin
 ```
+
+The legacy `--passphrase` argument is deprecated because command-line secrets can appear in shell history and process listings. Migrate unattended jobs to `--passphrase-file` or `--passphrase-stdin` before Chatto 0.5.
+Non-interactive commands do not consume stdin unless `--passphrase-stdin` is present; this prevents inherited pipes from hanging a backup or becoming an accidental secret source.
 
 <Aside type="caution">
   A backup made with `--include-keys` contains the keys needed to decrypt message bodies and durable user PII after restore. Always combine `--include-keys` with `--encrypt`, and treat the archive as sensitive material.
@@ -99,6 +106,8 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 <Aside type="caution">
   Make sure Chatto is **not running** before restoring. For embedded NATS setups, the restore command starts its own temporary NATS server. For external NATS, stop the Chatto application but keep NATS running.
 </Aside>
+
+Restore accepts regular files and directories only, rejects unsafe manifest and archive paths, and stops archives that exceed the built-in entry-count or expanded-size safety limits. These limits are intentionally generous for production backups while preventing malformed archives from expanding without a bound.
 
 <Aside type="tip">
   Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
@@ -122,10 +131,11 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
    chatto restore backup.tar.gz.age -c chatto.toml
    ```
 
-   You can also pass the passphrase via flag:
+   For non-interactive restore, read it from a restricted file:
 
    ```bash
-   chatto restore backup.tar.gz.age -c chatto.toml --passphrase "$BACKUP_PASSPHRASE"
+   chatto restore backup.tar.gz.age -c chatto.toml \
+     --passphrase-file /run/secrets/chatto-backup-passphrase
    ```
 
 3. **Start Chatto normally**
@@ -170,13 +180,15 @@ chatto keys export -c chatto.toml -o keys.backup
 
 You'll be prompted for a passphrase. The export file is encrypted using age, so it's safe to store — but use a strong passphrase.
 
-For scripted/automated backups, pass the passphrase via flag or pipe it from stdin:
+For scripted/automated exports, read the passphrase from a restricted file or explicitly from stdin:
 
 ```bash
-chatto keys export -c chatto.toml -o keys.backup --passphrase "$KEY_BACKUP_PASSPHRASE"
+chatto keys export -c chatto.toml -o keys.backup \
+  --passphrase-file /run/secrets/chatto-key-passphrase
 
 # Or pipe from a secrets manager
-vault kv get -field=passphrase secret/chatto | chatto keys export -c chatto.toml -o keys.backup
+vault kv get -field=passphrase secret/chatto | \
+  chatto keys export -c chatto.toml -o keys.backup --passphrase-stdin
 ```
 
 ### Importing keys
@@ -232,14 +244,12 @@ BACKUP_DIR="/mnt/backups/chatto"
 PASSPHRASE_FILE="/etc/chatto/backup-passphrase"  # chmod 600
 RETENTION_DAYS=14
 
-# Read passphrase from file
-PASSPHRASE=$(cat "$PASSPHRASE_FILE")
-
 # Create timestamped encrypted backup with keys included
 TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 BACKUP_FILE="$BACKUP_DIR/$TIMESTAMP.tar.gz.age"
 
-chatto backup -c "$CONFIG" --encrypt --include-keys --passphrase "$PASSPHRASE" -o "$BACKUP_FILE"
+chatto backup -c "$CONFIG" --encrypt --include-keys \
+  --passphrase-file "$PASSPHRASE_FILE" -o "$BACKUP_FILE"
 
 # Remove backups older than retention period
 find "$BACKUP_DIR" -name "*.age" -mtime +$RETENTION_DAYS -delete
@@ -250,8 +260,9 @@ echo "Backup complete: $BACKUP_FILE"
 For split data and key backups, run a key export with the same retention policy:
 
 ```bash
-chatto backup -c "$CONFIG" --encrypt --passphrase "$PASSPHRASE" -o "$BACKUP_FILE"
-chatto keys export -c "$CONFIG" -o "$BACKUP_DIR/$TIMESTAMP-keys.age" --passphrase "$PASSPHRASE"
+chatto backup -c "$CONFIG" --encrypt --passphrase-file "$PASSPHRASE_FILE" -o "$BACKUP_FILE"
+chatto keys export -c "$CONFIG" -o "$BACKUP_DIR/$TIMESTAMP-keys.age" \
+  --passphrase-file "$PASSPHRASE_FILE"
 ```
 
 ## Using the age CLI

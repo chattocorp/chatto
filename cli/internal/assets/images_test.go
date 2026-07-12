@@ -3,7 +3,9 @@ package assets
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/gif"
@@ -14,6 +16,37 @@ import (
 
 	_ "golang.org/x/image/webp" // Register WebP decoder for tests
 )
+
+func createPNGHeader(width, height uint32) []byte {
+	var out bytes.Buffer
+	out.Write([]byte("\x89PNG\r\n\x1a\n"))
+	data := make([]byte, 13)
+	binary.BigEndian.PutUint32(data[0:4], width)
+	binary.BigEndian.PutUint32(data[4:8], height)
+	data[8], data[9] = 8, 6
+	_ = binary.Write(&out, binary.BigEndian, uint32(len(data)))
+	out.WriteString("IHDR")
+	out.Write(data)
+	_ = binary.Write(&out, binary.BigEndian, crc32.ChecksumIEEE(append([]byte("IHDR"), data...)))
+	return out.Bytes()
+}
+
+func TestImageProcessingRejectsOversizedDecodedDimensions(t *testing.T) {
+	data := createPNGHeader(MaxDecodedImageDimension+1, 1)
+	if _, err := ProcessAttachmentImage(bytes.NewReader(data)); err == nil {
+		t.Fatal("ProcessAttachmentImage accepted oversized decoded dimensions")
+	}
+	if _, err := TransformImage(data, 100, 100, FitContain); err == nil {
+		t.Fatal("TransformImage accepted oversized decoded dimensions")
+	}
+}
+
+func TestTransformImageRejectsTooManyAnimationFrames(t *testing.T) {
+	data := createAnimatedGIF(1, 1, MaxAnimatedImageFrames+1)
+	if _, err := TransformImage(data, 1, 1, FitContain); err == nil {
+		t.Fatal("TransformImage accepted too many animation frames")
+	}
+}
 
 // createTestImage creates a test PNG image with the specified dimensions.
 func createTestImage(width, height int) []byte {

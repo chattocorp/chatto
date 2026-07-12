@@ -95,6 +95,15 @@ type ReplaySubjectProjection interface {
 	ReplaySubjects() []string
 }
 
+// StartupReplayCompleter can be implemented by projections that retain
+// temporary state only while replaying the stream at process startup. The
+// Projector calls CompleteStartupReplay exactly once after every event through
+// the captured startup target has been applied. It is also called for an empty
+// or already-current projection.
+type StartupReplayCompleter interface {
+	CompleteStartupReplay()
+}
+
 // Projector runs the consumer + apply loop for one projection.
 type Projector struct {
 	js     jetstream.JetStream
@@ -666,11 +675,13 @@ func (p *Projector) countStartupMessage() {
 func (p *Projector) maybeCompleteStartup(now time.Time) {
 	p.mu.Lock()
 	shouldLog := false
+	shouldCompleteReplay := false
 	var duration time.Duration
 	var targetSeq, lastSeq, messages uint64
 	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
 		p.startupEndedAt = now
 		p.startupCompleted = true
+		shouldCompleteReplay = true
 	}
 	if p.started && p.startupCompleted && !p.startupLogged {
 		p.startupLogged = true
@@ -681,6 +692,12 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 		messages = p.startupMessages
 	}
 	p.mu.Unlock()
+
+	if shouldCompleteReplay {
+		if projection, ok := p.proj.(StartupReplayCompleter); ok {
+			projection.CompleteStartupReplay()
+		}
+	}
 
 	if shouldLog {
 		var rate float64

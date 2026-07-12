@@ -111,7 +111,13 @@ Projection implementations should be boring and replay-safe:
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
-When optimizing projection replay, measure first with the local profiling knobs from the `chatto-debugging` skill; preserve read-your-writes and OCC semantics even if a cheaper consumer/filter shape looks attractive.
+When optimizing projection replay or retained memory, follow the projection
+benchmark workflow in `cli/AGENTS.md`: capture repeated before/after results
+with `mise bench-projections`, use `mise bench-projections-profile` for exact
+heap attribution, and confirm meaningful wins against a restored real EVT
+history. Treat synthetic retained-heap results as regression signals rather
+than production RSS measurements. Preserve read-your-writes and OCC semantics
+even if a cheaper consumer, filter, or in-memory shape looks attractive.
 
 ## Read-Your-Writes
 

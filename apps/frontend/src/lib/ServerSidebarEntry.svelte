@@ -70,7 +70,10 @@
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
     return {
       name: displayName || refreshedName || registeredServer?.name || stores.serverInfo.name,
-      logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
+      logoUrl:
+        stores.isAuthenticated && privateDataLoaded
+          ? logoUrl
+          : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);

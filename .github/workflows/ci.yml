@@ -18,13 +18,85 @@ on:
       - 'release-[0-9]*'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # PRs share a group so superseded revisions are cancelled. Pushes use their
+  # immutable commit SHA so every main commit can publish an image.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
+  build-main-image-contexts:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      image-version: ${{ steps.image-version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Derive main image version
+        id: image-version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
+          if [[ -z "$base_version" ]]; then
+            echo "::error::Could not read the base version from cli/version.go."
+            exit 1
+          fi
+
+          echo "version=${base_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend for production image
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.image-version.outputs.version }}
+        run: mise build-frontend
+
+      - name: Verify frontend build version
+        env:
+          EXPECTED_VERSION: ${{ steps.image-version.outputs.version }}
+        shell: bash
+        run: |
+          jq -e --arg expected "$EXPECTED_VERSION" \
+            '.version == $expected' \
+            apps/frontend/build/_app/version.json
+
+      - name: Build production image contexts
+        shell: bash
+        env:
+          VERSION: ${{ steps.image-version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          for arch in amd64 arm64; do
+            context=".context/ci/docker/linux-${arch}"
+            mkdir -p "$context/docker" "$context/LICENSES"
+            cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+            cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+            cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
+            cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+            cp NOTICE "$context/NOTICE"
+            (
+              cd cli
+              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -ldflags="-s -w -X main.Version=${VERSION}" \
+                -o "../$context/chatto" .
+            )
+          done
+
+      - name: Upload production image contexts
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-image-contexts
+          path: .context/ci/docker
+          retention-days: 1
+
   license-check:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -219,3 +291,89 @@ jobs:
           name: playwright-report-media
           path: apps/frontend/playwright-report/
           retention-days: 14
+
+  publish-main-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - build-main-image-contexts
+      - license-check
+      - codegen-proto-drift
+      - test-frontend-unit
+      - test-cli
+      - test-e2e
+      - test-e2e-media
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download production image contexts
+        uses: actions/download-artifact@v8
+        with:
+          name: production-image-contexts
+          path: docker-contexts
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive immutable main image tag
+        id: main-image
+        shell: bash
+        run: echo "tag=main-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/linux-amd64
+          file: docker-contexts/linux-amd64/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/chattocorp/chatto:${{ github.sha }}-amd64
+          cache-from: type=gha,scope=chatto-main-amd64
+          cache-to: type=gha,scope=chatto-main-amd64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Build and push arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/linux-arm64
+          file: docker-contexts/linux-arm64/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: ghcr.io/chattocorp/chatto:${{ github.sha }}-arm64
+          cache-from: type=gha,scope=chatto-main-arm64
+          cache-to: type=gha,scope=chatto-main-arm64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Publish multi-platform commit image
+        shell: bash
+        run: |
+          docker buildx imagetools create \
+            --tag "ghcr.io/chattocorp/chatto:${GITHUB_SHA}" \
+            --tag "ghcr.io/chattocorp/chatto:${{ steps.main-image.outputs.tag }}" \
+            "ghcr.io/chattocorp/chatto:${GITHUB_SHA}-amd64" \
+            "ghcr.io/chattocorp/chatto:${GITHUB_SHA}-arm64"
+
+          {
+            echo "### Main commit image"
+            echo
+            echo "\`ghcr.io/chattocorp/chatto:${GITHUB_SHA}\`"
+            echo "\`ghcr.io/chattocorp/chatto:${{ steps.main-image.outputs.tag }}\`"
+            echo
+            echo "Version: \`${{ needs.build-main-image-contexts.outputs.image-version }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

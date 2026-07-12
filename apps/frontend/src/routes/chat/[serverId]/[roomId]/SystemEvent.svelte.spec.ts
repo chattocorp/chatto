@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { RoomEventView } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEvent from './SystemEvent.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -39,6 +41,11 @@ function systemEvent(
 }
 
 describe('SystemEvent', () => {
+  beforeEach(async () => {
+    await loadLocaleMessages('en');
+    setReactiveLocale('en');
+  });
+
   it('renders member join copy with the actor name', () => {
     const { container } = render(SystemEvent, {
       props: { event: systemEvent(RoomEventKind.UserJoinedRoom, 'Alice') }
@@ -53,5 +60,26 @@ describe('SystemEvent', () => {
     });
 
     expect(container.textContent).toContain('Alice left the room');
+  });
+
+  it('renders a deleted actor as an italicized placeholder', () => {
+    const event = systemEvent(RoomEventKind.UserJoinedRoom);
+    event.actor = null;
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('[deleted user] joined the room');
+    expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+  });
+
+  it('localizes event copy and deleted-user labels in German', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+    const event = systemEvent(RoomEventKind.UserJoinedRoom);
+    event.actor = null;
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('[gelöschter Benutzer] ist dem Raum beigetreten');
   });
 });
