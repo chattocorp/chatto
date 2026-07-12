@@ -21,6 +21,12 @@ func newTrustedProxySet(entries []string) (trustedProxySet, error) {
 			}
 			prefix = netip.PrefixFrom(addr, addr.BitLen())
 		}
+		if prefix.Addr().Is4In6() {
+			if prefix.Bits() < 96 {
+				return nil, fmt.Errorf("invalid trusted proxy %q: IPv4-mapped CIDR prefix must be at least /96", entry)
+			}
+			prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+		}
 		proxies = append(proxies, prefix.Masked())
 	}
 	return proxies, nil
