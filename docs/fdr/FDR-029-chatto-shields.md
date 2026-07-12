@@ -9,7 +9,7 @@ Chatto Shields are opt-in public badges that self-hosted communities can embed i
 
 ## Behavior
 
-- Operators enable shields explicitly in configuration. Disabled servers return Not Found for shield URLs.
+- Operators enable shields explicitly with `[webserver.shields].enabled` or `CHATTO_WEBSERVER_SHIELDS_ENABLED`. Disabled servers return Not Found for shield URLs.
 - `/.well-known/chatto/shields/online.json` returns Shields.io endpoint-badge JSON for the number of users with any current live presence record. Online, Away, and Do Not Disturb all count because the badge answers "how many members are currently present," not which availability state each member selected.
 - `/.well-known/chatto/shields/registered.json` returns Shields.io endpoint-badge JSON for the number of verified accounts. Unverified accounts are excluded.
 - The matching `.png` URLs are convenience redirects to Shields.io's endpoint badge renderer, using the matching Chatto JSON endpoint as the data source.

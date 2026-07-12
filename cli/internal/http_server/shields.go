@@ -40,7 +40,7 @@ func (s *HTTPServer) setupShieldRoutes() {
 }
 
 func (s *HTTPServer) serveShield(c *gin.Context) {
-	if !s.config.Shields.Enabled {
+	if !s.config.Webserver.Shields.Enabled {
 		c.Status(http.StatusNotFound)
 		return
 	}

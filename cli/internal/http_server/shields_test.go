@@ -151,7 +151,7 @@ func setupShieldTestServer(t *testing.T, enabled bool) *HTTPServer {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	server := setupHTTPServerTestServer(t, config.AuthConfig{})
-	server.config.Shields.Enabled = enabled
+	server.config.Webserver.Shields.Enabled = enabled
 	server.setupShieldRoutes()
 	return server
 }

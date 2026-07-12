@@ -46,7 +46,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	if cfg.Core.SecretKey != "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789" {
 		t.Errorf("expected core secret to be set from env var")
 	}
-	if cfg.Shields.Enabled {
+	if cfg.Webserver.Shields.Enabled {
 		t.Errorf("expected shields to default disabled")
 	}
 }
@@ -66,14 +66,52 @@ func TestReadConfig_ShieldsEnabledFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
-	t.Setenv("CHATTO_SHIELDS_ENABLED", "true")
+	t.Setenv("CHATTO_WEBSERVER_SHIELDS_ENABLED", "true")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
 	}
-	if !cfg.Shields.Enabled {
+	if !cfg.Webserver.Shields.Enabled {
 		t.Fatal("expected shields enabled from env")
+	}
+}
+
+func TestReadConfig_ShieldsEnabledFromNestedWebserverConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 4000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[webserver.shields]
+enabled = true
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Webserver.Shields.Enabled {
+		t.Fatal("expected shields enabled from [webserver.shields]")
 	}
 }
 
