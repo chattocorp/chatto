@@ -82,7 +82,7 @@
   {#each items as actor, index (actor.id)}
     {#if index > 0}
       {#if index === items.length - 1}
-        {items.length > 2 ? ', ' : ''}{m['room.system_events.and']()}
+        {items.length > 2 ? ', ' : ' '}{m['room.system_events.and']()}
       {:else}
         ,
       {/if}
@@ -112,7 +112,8 @@
 
     <span class="text-sm text-muted">
       {#if !isTruncatable || expanded}
-        {@render actorNames(actors)} {action}
+        {@render actorNames(actors)}
+        {action}
         {#if isTruncatable}
           <button
             type="button"
@@ -123,11 +124,13 @@
           </button>
         {/if}
       {:else}
-        {@render actorNames(headActors)}, {m['room.system_events.and']()} <button
+        {@render actorNames(headActors)}, {m['room.system_events.and']()}
+        <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={() => (expanded = true)}
-        >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button>
+          >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button
+        >
         {action}
       {/if}
     </span>
