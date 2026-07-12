@@ -160,6 +160,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
+		s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-no-email",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -171,6 +172,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 			AutoProvision: boolPtr(true),
 		}}
 		s.setupOIDCRoutes()
+		s.setupOAuthRoutes()
 	})
 
 	issuer.SetSubject("subject-create")
@@ -201,6 +203,66 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 	if got, err := chattoCore.CountVerifiedAccounts(t.Context()); err != nil || got != 1 {
 		t.Fatalf("CountVerifiedAccounts = %d, %v; want 1", got, err)
+	}
+
+	if err := chattoCore.GrantOAuthConsent(t.Context(), user.Id, "https://client.example"); err != nil {
+		t.Fatalf("GrantOAuthConsent: %v", err)
+	}
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	redirectURI := "https://client.example/servers/callback"
+	state := "multi-server-provider-state"
+	authorizeResp, err := client.Get(ts.URL + "/oauth/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {redirectURI},
+		"code_challenge":        {core.GenerateCodeChallenge(verifier)},
+		"code_challenge_method": {"S256"},
+		"state":                 {state},
+	}.Encode())
+	if err != nil {
+		t.Fatalf("start multi-server authorize: %v", err)
+	}
+	authorizeResp.Body.Close()
+	if authorizeResp.StatusCode != http.StatusTemporaryRedirect || !strings.HasPrefix(authorizeResp.Header.Get("Location"), "/login?redirect=") {
+		t.Fatalf("multi-server authorize status/location = %d/%q, want login redirect", authorizeResp.StatusCode, authorizeResp.Header.Get("Location"))
+	}
+
+	callbackLocation := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-no-email", "/oauth/authorize")
+	callbackURL, err := url.Parse(callbackLocation)
+	if err != nil {
+		t.Fatalf("parse multi-server callback Location %q: %v", callbackLocation, err)
+	}
+	if got := callbackURL.Scheme + "://" + callbackURL.Host + callbackURL.Path; got != redirectURI {
+		t.Fatalf("multi-server callback URI = %q, want %q", got, redirectURI)
+	}
+	if callbackURL.Query().Get("state") != state || callbackURL.Query().Get("code") == "" || callbackURL.Query().Has("token") {
+		t.Fatalf("multi-server callback query = %q, want code and state without token", callbackURL.RawQuery)
+	}
+
+	tokenRequest, err := json.Marshal(oauthTokenRequest{
+		GrantType:    "authorization_code",
+		Code:         callbackURL.Query().Get("code"),
+		CodeVerifier: verifier,
+		RedirectURI:  redirectURI,
+	})
+	if err != nil {
+		t.Fatalf("encode multi-server token exchange: %v", err)
+	}
+	tokenResp, err := client.Post(ts.URL+"/oauth/token", "application/json", strings.NewReader(string(tokenRequest)))
+	if err != nil {
+		t.Fatalf("exchange multi-server authorization code: %v", err)
+	}
+	defer tokenResp.Body.Close()
+	if tokenResp.StatusCode != http.StatusOK {
+		t.Fatalf("multi-server token exchange status = %d", tokenResp.StatusCode)
+	}
+	var tokenResult struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tokenResult); err != nil {
+		t.Fatalf("decode multi-server token exchange: %v", err)
+	}
+	if tokenResult.AccessToken == "" {
+		t.Fatal("multi-server token exchange returned no access token")
 	}
 
 	issuanceSubject := events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued)
