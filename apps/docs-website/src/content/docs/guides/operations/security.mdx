@@ -112,7 +112,7 @@ Chatto encrypts message text and selected durable user-PII fields before writing
 Chatto has **built-in Let's Encrypt** support via Go's `autocert` package — no Caddy or external reverse proxy required for HTTPS. When `webserver.tls.enabled = true`:
 
 - Certificates are obtained and renewed automatically for the configured domain.
-- On Unix, the autocert cache directory must be owned by the Chatto process user and is restricted to `0700` at startup, including when the directory already exists. Symlinked cache paths and paths in group- or world-writable parent directories are rejected.
+- On Unix, the autocert cache directory must be owned by the Chatto process user and is restricted to `0700` at startup, including when the directory already exists. The cache directory and its immediate parent cannot be symlinks; the parent must be owned by the process user or root and cannot be group- or world-writable.
 - `MinVersion: TLS 1.2` is enforced.
 - Plain HTTP requests are 301-redirected to HTTPS (except ACME challenges).
 

@@ -115,6 +115,23 @@ func TestEnsureAutocertCacheDir(t *testing.T) {
 			t.Fatalf("ensureAutocertCacheDir() error = %v, want ownership rejection", err)
 		}
 	})
+
+	t.Run("rejects a parent directory owned by another user", func(t *testing.T) {
+		if os.Geteuid() != 0 {
+			t.Skip("changing directory ownership requires root")
+		}
+		parent := t.TempDir()
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chown(parent, 1, -1); err != nil {
+			t.Fatalf("Chown() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "parent directory") || !strings.Contains(err.Error(), "is owned by uid") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want parent ownership rejection", err)
+		}
+	})
 }
 
 func assertPathMode(t *testing.T, path string, want os.FileMode) {

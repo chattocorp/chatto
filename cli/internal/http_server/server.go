@@ -390,6 +390,13 @@ func ensureAutocertCacheDir(cacheDir string) error {
 		if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
 			return fmt.Errorf("certificate cache parent path %q is not a directory", parent)
 		}
+		parentUID, _, ok := fileOwnerIDs(parentInfo)
+		if !ok {
+			return fmt.Errorf("failed to inspect owner of certificate cache parent directory %q", parent)
+		}
+		if parentUID != uint32(os.Geteuid()) && parentUID != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is owned by uid %d, want uid %d or root", parent, parentUID, os.Geteuid())
+		}
 		if got := parentInfo.Mode().Perm(); got&0o022 != 0 {
 			return fmt.Errorf("certificate cache parent directory %q is writable by group or other users; mode is %04o", parent, got)
 		}
