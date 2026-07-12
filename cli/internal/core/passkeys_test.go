@@ -48,3 +48,29 @@ func TestChattoCore_PasskeysAreDurableAndUniquelyLinked(t *testing.T) {
 		t.Fatal("credential remains in passkey projection after unlink")
 	}
 }
+
+func TestChattoCore_DeleteUserReleasesPasskeyCredential(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	first, err := core.CreateUser(ctx, SystemActorID, "passkey-delete-first", "Passkey Delete First", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser first: %v", err)
+	}
+	second, err := core.CreateUser(ctx, SystemActorID, "passkey-delete-second", "Passkey Delete Second", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser second: %v", err)
+	}
+	credentialID := []byte("deleted-user-credential")
+	if _, err := core.LinkPasskey(ctx, first.GetId(), credentialID, []byte("credential"), "Laptop"); err != nil {
+		t.Fatalf("LinkPasskey: %v", err)
+	}
+	if err := core.DeleteUser(ctx, SystemActorID, first.GetId()); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	if _, ok := core.Passkeys.Get(passkeyHash(credentialID)); ok {
+		t.Fatal("deleted user's credential remains claimed")
+	}
+	if _, err := core.LinkPasskey(ctx, second.GetId(), credentialID, []byte("credential"), "Replacement"); err != nil {
+		t.Fatalf("LinkPasskey replacement: %v", err)
+	}
+}

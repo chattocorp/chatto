@@ -20,7 +20,9 @@ func NewPasskeyProjection() *PasskeyProjection {
 	return &PasskeyProjection{credentials: make(map[string]Passkey)}
 }
 
-func (p *PasskeyProjection) Subjects() []string { return []string{events.PasskeySubjectFilter()} }
+func (p *PasskeyProjection) Subjects() []string {
+	return []string{events.PasskeySubjectFilter(), events.AggregateEventTypeFilter(events.AggregateUser, events.EventUserAccountDeleted)}
+}
 
 func (p *PasskeyProjection) Apply(event *corev1.Event, _ uint64) error {
 	if event == nil {
@@ -29,6 +31,14 @@ func (p *PasskeyProjection) Apply(event *corev1.Event, _ uint64) error {
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
+	case *corev1.Event_UserAccountDeleted:
+		if v := e.UserAccountDeleted; v != nil {
+			for hash, credential := range p.credentials {
+				if credential.UserID == v.GetUserId() {
+					delete(p.credentials, hash)
+				}
+			}
+		}
 	case *corev1.Event_PasskeyCredentialRegistered:
 		v := e.PasskeyCredentialRegistered
 		if v != nil && v.GetCredentialHash() != "" && v.GetUserId() != "" && len(v.GetCredentialId()) > 0 && len(v.GetCredential()) > 0 {
