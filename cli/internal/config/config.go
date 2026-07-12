@@ -99,6 +99,11 @@ type ExporterConfig struct {
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
 }
 
+// ShieldsConfig controls public README-style PNG shields.
+type ShieldsConfig struct {
+	Enabled bool `toml:"enabled" env:"CHATTO_SHIELDS_ENABLED" comment:"Expose public README-style PNG shields for aggregate community counts. Default: false."`
+}
+
 // DiagnosticsConfig controls opt-in local/operator diagnostics.
 type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
@@ -861,6 +866,7 @@ type ChattoConfig struct {
 	Webserver   WebserverConfig   `toml:"webserver"`
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
+	Shields     ShieldsConfig     `toml:"shields,commented" comment:"Public README-style PNG shields. Disabled by default."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
 	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`

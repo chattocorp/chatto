@@ -125,6 +125,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Timeout for one S3 bucket-size refresh.
 </EnvVar>
 
+## Shields
+
+<EnvVar name="CHATTO_SHIELDS_ENABLED" toml="shields.enabled" default="false">
+  Expose public PNG shield URLs for aggregate community counts. When enabled, `/shields/online.png` shows users with any live presence record and `/shields/registered.png` shows verified accounts. Leave disabled for private communities that should not publish size or activity counts.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

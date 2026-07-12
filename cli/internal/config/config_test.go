@@ -46,6 +46,35 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	if cfg.Core.SecretKey != "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789" {
 		t.Errorf("expected core secret to be set from env var")
 	}
+	if cfg.Shields.Enabled {
+		t.Errorf("expected shields to default disabled")
+	}
+}
+
+func TestReadConfig_ShieldsEnabledFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_SHIELDS_ENABLED", "true")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Shields.Enabled {
+		t.Fatal("expected shields enabled from env")
+	}
 }
 
 func TestReadConfig_WithConfigFile(t *testing.T) {

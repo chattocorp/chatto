@@ -1,0 +1,36 @@
+---
+title: Community Shields
+description: Embed public PNG badges for aggregate Chatto community counts.
+---
+
+Chatto can serve public PNG shields for project READMEs, websites, and other pages that can embed images.
+
+Shields are disabled by default because they publish aggregate community size and current activity.
+
+## Enable Shields
+
+Set the option in `chatto.toml`:
+
+```toml
+[shields]
+enabled = true
+```
+
+Or use the environment variable:
+
+```sh
+CHATTO_SHIELDS_ENABLED=true
+```
+
+## Badge URLs
+
+Embed the shields with normal Markdown image syntax:
+
+```md
+![Chatto online](https://chat.example/shields/online.png)
+![Chatto registered](https://chat.example/shields/registered.png)
+```
+
+`online.png` counts users with any current live presence record, including Online, Away, and Do Not Disturb. `registered.png` counts verified accounts.
+
+The badge style is fixed in v1. Query parameters for custom labels, colors, or styles are ignored.
