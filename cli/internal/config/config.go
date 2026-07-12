@@ -100,9 +100,9 @@ type ExporterConfig struct {
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
 }
 
-// ShieldsConfig controls public README-style PNG shields.
+// ShieldsConfig controls public Shields.io-compatible community badges.
 type ShieldsConfig struct {
-	Enabled bool `toml:"enabled" env:"CHATTO_SHIELDS_ENABLED" comment:"Expose public README-style PNG shields for aggregate community counts. Default: false."`
+	Enabled bool `toml:"enabled" env:"CHATTO_SHIELDS_ENABLED" comment:"Expose public Shields.io-compatible badge endpoints for aggregate community counts. Disabled by default because counts reveal server size and activity."`
 }
 
 // DiagnosticsConfig controls opt-in local/operator diagnostics.
@@ -867,7 +867,7 @@ type ChattoConfig struct {
 	Webserver   WebserverConfig   `toml:"webserver"`
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
-	Shields     ShieldsConfig     `toml:"shields,commented" comment:"Public README-style PNG shields. Disabled by default."`
+	Shields     ShieldsConfig     `toml:"shields,commented" comment:"Public Shields.io-compatible community badges. Disabled by default."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
 	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`

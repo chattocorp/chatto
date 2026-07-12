@@ -13,6 +13,7 @@ import (
 
 const shieldCacheControl = "public, max-age=60"
 const shieldsIOEndpointURL = "https://img.shields.io/endpoint"
+const shieldRoutePrefix = "/.well-known/chatto/shields"
 
 const (
 	shieldLabelColor      = "555"
@@ -35,7 +36,7 @@ type shieldEndpointResponse struct {
 }
 
 func (s *HTTPServer) setupShieldRoutes() {
-	s.router.GET("/shields/:name", s.serveShield)
+	s.router.GET(shieldRoutePrefix+"/:name", s.serveShield)
 }
 
 func (s *HTTPServer) serveShield(c *gin.Context) {
@@ -155,7 +156,7 @@ func shieldRedirectURL(baseURL, metric string) string {
 		panic(err)
 	}
 	q := endpoint.Query()
-	q.Set("url", strings.TrimRight(baseURL, "/")+"/shields/"+metric+".json")
+	q.Set("url", strings.TrimRight(baseURL, "/")+shieldRoutePrefix+"/"+metric+".json")
 	endpoint.RawQuery = q.Encode()
 	return endpoint.String()
 }

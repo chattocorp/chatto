@@ -17,7 +17,7 @@ import (
 func TestShieldsDisabledReturnsNotFound(t *testing.T) {
 	server := setupShieldTestServer(t, false)
 
-	for _, path := range []string{"/shields/online.json", "/shields/online.png"} {
+	for _, path := range []string{shieldRoutePrefix + "/online.json", shieldRoutePrefix + "/online.png"} {
 		t.Run(path, func(t *testing.T) {
 			w := performShieldRequest(server.router, "GET", path, "")
 			if w.Code != http.StatusNotFound {
@@ -30,7 +30,7 @@ func TestShieldsDisabledReturnsNotFound(t *testing.T) {
 func TestShieldsUnknownMetricReturnsNotFound(t *testing.T) {
 	server := setupShieldTestServer(t, true)
 
-	for _, path := range []string{"/shields/unknown.json", "/shields/unknown.png"} {
+	for _, path := range []string{shieldRoutePrefix + "/unknown.json", shieldRoutePrefix + "/unknown.png"} {
 		t.Run(path, func(t *testing.T) {
 			w := performShieldRequest(server.router, "GET", path, "")
 			if w.Code != http.StatusNotFound {
@@ -73,8 +73,8 @@ func TestShieldsServeOnlineAndRegisteredEndpointJSON(t *testing.T) {
 		msg   string
 		color string
 	}{
-		{path: "/shields/online.json", etag: `"chatto-shield-online-3"`, label: "online", msg: "3", color: shieldOnlineColor},
-		{path: "/shields/registered.json", etag: `"chatto-shield-registered-1"`, label: "registered", msg: "1", color: shieldRegisteredColor},
+		{path: shieldRoutePrefix + "/online.json", etag: `"chatto-shield-online-3"`, label: "online", msg: "3", color: shieldOnlineColor},
+		{path: shieldRoutePrefix + "/registered.json", etag: `"chatto-shield-registered-1"`, label: "registered", msg: "1", color: shieldRegisteredColor},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +109,7 @@ func TestShieldsServeOnlineAndRegisteredEndpointJSON(t *testing.T) {
 func TestShieldsPNGRedirectsToShieldsIOEndpoint(t *testing.T) {
 	server := setupShieldTestServer(t, true)
 
-	w := performShieldRequest(server.router, "GET", "/shields/online.png", "")
+	w := performShieldRequest(server.router, "GET", shieldRoutePrefix+"/online.png", "")
 	if w.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusFound)
 	}
@@ -127,7 +127,7 @@ func TestShieldsPNGRedirectsToShieldsIOEndpoint(t *testing.T) {
 	if got := u.Scheme + "://" + u.Host + u.Path; got != shieldsIOEndpointURL {
 		t.Fatalf("redirect endpoint = %q, want %q", got, shieldsIOEndpointURL)
 	}
-	if got := u.Query().Get("url"); got != "http://example.com/shields/online.json" {
+	if got := u.Query().Get("url"); got != "http://example.com"+shieldRoutePrefix+"/online.json" {
 		t.Fatalf("redirect endpoint url query = %q", got)
 	}
 }
@@ -135,7 +135,7 @@ func TestShieldsPNGRedirectsToShieldsIOEndpoint(t *testing.T) {
 func TestShieldsETagConditionalRequest(t *testing.T) {
 	server := setupShieldTestServer(t, true)
 
-	w := performShieldRequest(server.router, "GET", "/shields/registered.json", `"chatto-shield-registered-0"`)
+	w := performShieldRequest(server.router, "GET", shieldRoutePrefix+"/registered.json", `"chatto-shield-registered-0"`)
 	if w.Code != http.StatusNotModified {
 		t.Fatalf("conditional status = %d, want %d", w.Code, http.StatusNotModified)
 	}
