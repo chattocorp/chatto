@@ -82,19 +82,31 @@ func TestValidateBackupManifest(t *testing.T) {
 	}
 }
 
-func TestValidateRestoreArchiveFile(t *testing.T) {
+func TestOpenRestoreArchive(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "backup.tar.gz")
 	if err := os.WriteFile(file, []byte("archive"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateRestoreArchiveFile(file); err != nil {
+	opened, err := openRestoreArchive(file)
+	if err != nil {
 		t.Fatalf("valid archive rejected: %v", err)
 	}
-	if err := validateRestoreArchiveFile(t.TempDir()); err == nil {
+	opened.Close()
+	if opened, err := openRestoreArchive(t.TempDir()); err == nil {
+		opened.Close()
 		t.Fatal("directory accepted as restore archive")
 	}
-	if err := validateRestoreArchiveFile(filepath.Join(t.TempDir(), "missing")); err == nil {
+	if opened, err := openRestoreArchive(filepath.Join(t.TempDir(), "missing")); err == nil {
+		opened.Close()
 		t.Fatal("missing archive accepted")
+	}
+	symlink := filepath.Join(t.TempDir(), "backup-link")
+	if err := os.Symlink(file, symlink); err != nil {
+		t.Fatal(err)
+	}
+	if opened, err := openRestoreArchive(symlink); err == nil {
+		opened.Close()
+		t.Fatal("symlink accepted as restore archive")
 	}
 	large := filepath.Join(t.TempDir(), "too-large.tar.gz")
 	largeFile, err := os.Create(large)
@@ -108,7 +120,8 @@ func TestValidateRestoreArchiveFile(t *testing.T) {
 	if err := largeFile.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateRestoreArchiveFile(large); err == nil {
+	if opened, err := openRestoreArchive(large); err == nil {
+		opened.Close()
 		t.Fatal("oversized compressed archive accepted")
 	}
 }

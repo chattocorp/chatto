@@ -475,6 +475,17 @@ func writeArchiveAtomically(destFile string, write func(io.Writer) error) (err e
 	if err = os.Rename(tempPath, destFile); err != nil {
 		return fmt.Errorf("failed to publish archive atomically: %w", err)
 	}
+	parent, err := os.Open(filepath.Dir(destFile))
+	if err != nil {
+		return fmt.Errorf("failed to open archive directory for sync: %w", err)
+	}
+	if err = parent.Sync(); err != nil {
+		parent.Close()
+		return fmt.Errorf("failed to sync archive directory: %w", err)
+	}
+	if err = parent.Close(); err != nil {
+		return fmt.Errorf("failed to close archive directory: %w", err)
+	}
 	return nil
 }
 
