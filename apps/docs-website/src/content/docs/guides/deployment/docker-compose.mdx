@@ -287,6 +287,26 @@ turn:
   udp_port: 3478
 ```
 
+The Compose example uses LiveKit's embedded TURN/UDP server; you do not need a
+separate coturn service for a standard deployment. The generated configuration
+also sets `rtc.use_external_ip: true` for internet-facing deployments. LiveKit
+uses outbound STUN requests to discover the public IP it advertises to clients,
+so allow UDP egress from the LiveKit container to its configured or default STUN
+servers. This is separate from the inbound UDP 3478 listener used by the
+embedded TURN/UDP relay.
+
+If the deployment has a stable, known public IP, you can avoid that discovery
+traffic by setting the following in the LiveKit config:
+
+```yaml
+rtc:
+  use_external_ip: false
+  node_ip: 203.0.113.10
+```
+
+Use this only when the advertised address and media port forwarding are stable.
+For NATed or dynamic deployments, keep `use_external_ip: true`.
+
 Direct UDP provides the best media path. TCP 7881 gives LiveKit an ICE/TCP
 fallback when UDP is unavailable, while TURN/UDP helps with symmetric NATs and
 many mobile, Firefox, and restrictive-network failures. This keeps the Compose
@@ -314,7 +334,7 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 
 **Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
-**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
+**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall. When `rtc.use_external_ip: true`, also allow outbound UDP from LiveKit to its configured or default STUN servers. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
 
 **Calls fail for some users** — Confirm the built-in TURN/UDP relay is reachable on UDP 3478. Users behind firewalls that block UDP entirely need TURN/TLS. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
 

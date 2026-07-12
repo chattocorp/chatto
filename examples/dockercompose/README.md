@@ -98,6 +98,16 @@ The Compose `ports` entries publish LiveKit media directly on the host, so no L4
 Caddy configuration is needed. Do not expose NATS port 4222 publicly; Chatto and
 NATS communicate only over the private Compose network.
 
+The generated LiveKit configuration sets `rtc.use_external_ip: true` for
+internet-facing deployments. LiveKit uses outbound STUN requests to discover
+the public IP it advertises to clients, so allow UDP egress from the LiveKit
+container to its configured or default STUN servers. This is separate from the
+inbound UDP 3478 listener used by the embedded TURN/UDP relay.
+
+For a stable, known public IP, you can avoid that discovery traffic by setting
+`use_external_ip: false` and configuring `rtc.node_ip` to the advertised public
+address. Keep external IP discovery enabled for NATed or dynamic deployments.
+
 ## Configuration
 
 1. Generate `.env` and the LiveKit config:
@@ -255,6 +265,6 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 
 **Calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 
-**LiveKit media ports**: The example exposes UDP 50000-50200 for direct WebRTC media, UDP 3478 for LiveKit's embedded TURN/STUN relay, and TCP 7881 as a media fallback. Ensure your firewall allows all three.
+**LiveKit media ports**: The example exposes UDP 50000-50200 for direct WebRTC media, UDP 3478 for LiveKit's embedded TURN/STUN relay, and TCP 7881 as a media fallback. Ensure your firewall allows all three. When `rtc.use_external_ip: true`, also allow outbound UDP from LiveKit to its configured or default STUN servers.
 
 **Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need an advanced TURN/TLS setup, such as a dedicated TURN host or L4 TLS forwarding with matching certificates.

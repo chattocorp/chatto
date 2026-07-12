@@ -130,7 +130,10 @@ rtc:
   tcp_port: 7881
   port_range_start: 50000
   port_range_end: 50200
+  # Discover the public IP through STUN when the container is behind NAT.
+  # For a stable, known public IP, set this to false and configure node_ip.
   use_external_ip: true
+  # node_ip: 203.0.113.10
 
 turn:
   enabled: true
