@@ -95,6 +95,14 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			got:  NewMentionablesProjection(nil, nil).Subjects(),
 			want: []string{events.EventSubjectFilter()},
 		},
+		{
+			name: "passkeys use credential aggregates with account-deletion cleanup",
+			got:  NewPasskeyProjection().Subjects(),
+			want: []string{
+				events.PasskeySubjectFilter(),
+				events.AggregateEventTypeFilter(events.AggregateUser, events.EventUserAccountDeleted),
+			},
+		},
 	}
 
 	for _, tc := range cases {

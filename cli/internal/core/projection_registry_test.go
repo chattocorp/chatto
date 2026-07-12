@@ -11,8 +11,8 @@ var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 12 {
-		t.Fatalf("registered projections = %d, want 12", len(core.projections))
+	if len(core.projections) != 13 {
+		t.Fatalf("registered projections = %d, want 13", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -63,6 +63,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["Mentionables"]; !ok {
 		t.Fatal("Mentionables projection is not registered")
+	}
+	if _, ok := registryNames["Passkeys"]; !ok {
+		t.Fatal("Passkeys projection is not registered")
 	}
 
 	states, err := core.ProjectionAdminStates(testContext(t))
