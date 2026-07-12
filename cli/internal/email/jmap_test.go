@@ -168,6 +168,55 @@ func TestJMAPMailer_RejectsInsecureAPIURL(t *testing.T) {
 	}
 }
 
+func TestJMAPMailer_TreatsDraftCleanupFailureAsSubmitted(t *testing.T) {
+	var apiCalls int
+	var server *httptest.Server
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			writeJMAPJSON(t, w, map[string]any{
+				"apiUrl": server.URL + "/api",
+				"capabilities": map[string]any{
+					jmapCoreCapability:       map[string]any{},
+					jmapMailCapability:       map[string]any{},
+					jmapSubmissionCapability: map[string]any{},
+				},
+				"accounts": map[string]any{"account-1": map[string]any{"accountCapabilities": map[string]any{
+					jmapMailCapability:       map[string]any{},
+					jmapSubmissionCapability: map[string]any{},
+				}}},
+				"primaryAccounts": map[string]string{jmapSubmissionCapability: "account-1"},
+			})
+		case "/api":
+			apiCalls++
+			if apiCalls == 1 {
+				writeJMAPJSON(t, w, map[string]any{"methodResponses": []any{
+					[]any{"Identity/get", map[string]any{"list": []any{map[string]any{"id": "identity-1", "email": "sender@example.com"}}}, "identities"},
+					[]any{"Mailbox/get", map[string]any{"list": []any{map[string]any{"id": "drafts-1", "role": "drafts"}}}, "mailboxes"},
+				}})
+				return
+			}
+			writeJMAPJSON(t, w, map[string]any{"methodResponses": []any{
+				[]any{"Email/set", map[string]any{"created": map[string]any{"email": map[string]any{"id": "email-1"}}}, "create-email"},
+				[]any{"EmailSubmission/set", map[string]any{"created": map[string]any{"submission": map[string]any{"id": "submission-1"}}}, "submit-email"},
+				[]any{"Email/set", map[string]any{"notDestroyed": map[string]any{"email-1": map[string]any{"type": "forbidden"}}}, "submit-email"},
+			}})
+		default:
+			t.Errorf("unexpected JMAP request path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	mailer := newJMAPMailer(config.JMAPConfig{
+		SessionURL:  server.URL + "/session",
+		AccessToken: "token-1",
+		From:        "sender@example.com",
+	}, server.Client())
+	if err := mailer.Send(Message{To: "recipient@example.com"}); err != nil {
+		t.Fatalf("Send() error = %v, want accepted submission", err)
+	}
+}
+
 func TestJMAPMailer_SelectIdentityUsesWildcardDomain(t *testing.T) {
 	mailer := NewJMAPMailer(config.JMAPConfig{})
 	identityID, err := mailer.selectIdentity([]jmapIdentity{{ID: "identity-1", Email: "*@example.com"}}, "sender@example.com")

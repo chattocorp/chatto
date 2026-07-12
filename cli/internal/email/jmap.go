@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	"hmans.de/chatto/internal/config"
 )
 
@@ -24,8 +26,8 @@ const (
 )
 
 // JMAPMailer sends transactional email through the JMAP submission API. It
-// creates a plaintext draft, submits it, and removes the draft after a
-// successful submission.
+// creates a plaintext draft, submits it, and requests removal of the draft
+// after a successful submission.
 type JMAPMailer struct {
 	config config.JMAPConfig
 	client *http.Client
@@ -135,7 +137,11 @@ func (m *JMAPMailer) SendContext(ctx context.Context, msg Message) error {
 		return err
 	}
 	if err := response.requireDestroyedEmail("submit-email", emailID); err != nil {
-		return err
+		// The JMAP server has already accepted the submission, so reporting this
+		// cleanup failure to the account workflow would invalidate a credential
+		// that may have reached the recipient. The response errors contain only
+		// JMAP error types, never message contents or recipient addresses.
+		log.Warn("JMAP transactional email draft cleanup failed after submission", "error", err)
 	}
 
 	return nil

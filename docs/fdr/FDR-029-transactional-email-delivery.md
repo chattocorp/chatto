@@ -11,7 +11,7 @@ Chatto sends transactional email for account registration, email-address verific
 
 - Local-account registration, email-address verification, and password-reset flows use the selected transactional email transport without changing their user-facing workflow.
 - Existing SMTP configuration continues to work unchanged. Operators select JMAP explicitly and configure an HTTPS JMAP session URL, bearer token, and sender address.
-- JMAP uses an available sending identity matching the configured sender and a Drafts mailbox. Operators can explicitly select the account, identity, or Drafts mailbox when automatic selection is unsuitable.
+- JMAP uses an available sending identity matching the configured sender and a Drafts mailbox. Operators can explicitly select the account, identity, or Drafts mailbox when automatic selection is unsuitable. Chatto requests removal of the temporary draft after submission and records a safe operator warning if that cleanup fails.
 - A successful JMAP request means the JMAP server accepted the submission. Chatto does not claim final delivery to every recipient.
 
 ## Design Decisions
@@ -24,9 +24,9 @@ Chatto sends transactional email for account registration, email-address verific
 
 ### 2. JMAP is submission-only
 
-**Decision:** JMAP support creates and submits a plain-text transactional message, then removes the temporary draft after successful submission. It does not synchronize a mailbox or track final delivery status.
+**Decision:** JMAP support creates and submits a plain-text transactional message, then requests removal of the temporary draft after successful submission. A cleanup failure does not turn an accepted submission into a failed account flow. It does not synchronize a mailbox or track final delivery status.
 **Why:** Chatto needs outbound account-flow messages, not a general-purpose mail client. Keeping the integration narrow avoids mailbox state and user-data concerns while meeting the transactional use case.
-**Tradeoff:** Operators cannot use Chatto to inspect sent mail or final per-recipient delivery results.
+**Tradeoff:** Operators cannot use Chatto to inspect sent mail or final per-recipient delivery results. A provider-side cleanup failure can leave a temporary draft that the operator must investigate from the safe warning log.
 
 ### 3. Use a bearer token rather than a mailbox password
 
