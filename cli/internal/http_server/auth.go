@@ -431,7 +431,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Validate login format
 		if !isValidLogin(req.Login) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive periods)"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive or trailing periods)"})
 			return
 		}
 
@@ -745,12 +745,15 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 // isValidLogin validates that a login name meets the requirements:
 // 2-32 characters, alphanumeric with dots, dashes, or underscores.
-// Consecutive periods (..) are not allowed.
+// Consecutive periods (..) and a trailing period are not allowed.
 func isValidLogin(login string) bool {
 	if len(login) < 2 || len(login) > 32 {
 		return false
 	}
 	if strings.Contains(login, "..") {
+		return false
+	}
+	if strings.HasSuffix(login, ".") {
 		return false
 	}
 	return validLoginRegex.MatchString(login)

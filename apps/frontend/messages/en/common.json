@@ -29,6 +29,7 @@
       "username_min": "Must be at least 2 characters",
       "username_max": "Must be at most 32 characters",
       "username_charset": "Only letters, numbers, dots, dashes, underscores",
+      "username_end_alphanumeric": "Must end with a letter or number",
       "username_no_consecutive_periods": "No consecutive periods allowed",
       "passwords_match": "Passwords do not match",
       "fix_errors": "Please fix the errors above"

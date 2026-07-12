@@ -108,7 +108,7 @@ func NormalizeDisplayName(name string) string {
 
 // ValidateLogin validates a login/username for allowed characters and length.
 // Allowed: ASCII letters, digits, periods, underscores, hyphens.
-// Must start with a letter or digit.
+// Must start with a letter or digit and must not end with a period.
 // Length: MinLoginLength to MaxLoginLength characters.
 func ValidateLogin(login string) error {
 	if len(login) < MinLoginLength {
@@ -128,6 +128,10 @@ func ValidateLogin(login string) error {
 		if !isLetterOrDigit && r != '.' && r != '_' && r != '-' {
 			return ErrLoginInvalidCharacter
 		}
+	}
+
+	if strings.HasSuffix(login, ".") {
+		return ErrLoginInvalidCharacter
 	}
 
 	return nil
