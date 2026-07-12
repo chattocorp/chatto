@@ -259,10 +259,11 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
 
-		// Ensure certificate cache directory exists
+		// Ensure certificate cache directory exists and remains private even when
+		// reusing a path created with more permissive permissions.
 		cacheDir := tlsConfig.CacheDirOrDefault()
-		if err := os.MkdirAll(cacheDir, 0700); err != nil {
-			return fmt.Errorf("failed to create certificate cache directory: %w", err)
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			return err
 		}
 
 		// Create autocert manager for Let's Encrypt
@@ -360,6 +361,34 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 		return nil
 	}
+}
+
+const autocertCacheDirMode os.FileMode = 0o700
+
+func ensureAutocertCacheDir(cacheDir string) error {
+	if err := os.MkdirAll(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to create certificate cache directory: %w", err)
+	}
+
+	info, err := os.Stat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to inspect certificate cache directory: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q is not a directory", cacheDir)
+	}
+
+	if err := os.Chmod(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to secure certificate cache directory: %w", err)
+	}
+	info, err = os.Stat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to verify certificate cache directory permissions: %w", err)
+	}
+	if got := info.Mode().Perm(); got != autocertCacheDirMode {
+		return fmt.Errorf("certificate cache directory has mode %04o after securing, want %04o", got, autocertCacheDirMode)
+	}
+	return nil
 }
 
 func metricsServerURL(addr, path string) string {

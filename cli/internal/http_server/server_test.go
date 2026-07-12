@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -27,6 +29,59 @@ import (
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
+
+func TestEnsureAutocertCacheDir(t *testing.T) {
+	t.Run("creates a private directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "nested", "autocert")
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("preserves a private directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("repairs a permissive directory", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, 0o755); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			t.Fatalf("ensureAutocertCacheDir() error = %v", err)
+		}
+		assertPathMode(t, cacheDir, autocertCacheDirMode)
+	})
+
+	t.Run("rejects a non-directory path", func(t *testing.T) {
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.WriteFile(cacheDir, []byte("not a directory"), 0o600); err != nil {
+			t.Fatalf("WriteFile() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil {
+			t.Fatal("ensureAutocertCacheDir() error = nil, want non-directory error")
+		}
+	})
+}
+
+func assertPathMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat(%q) error = %v", path, err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("mode = %04o, want %04o", got, want)
+	}
+}
 
 // ============================================================================
 // Content Type Detection Tests
