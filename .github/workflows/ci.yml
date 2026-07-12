@@ -31,7 +31,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      image-version: ${{ steps.production-image-contexts.outputs.version }}
+      image-version: ${{ steps.image-version.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -39,11 +39,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Build frontend for production image
-        run: mise build-frontend
-
-      - name: Build production image contexts
-        id: production-image-contexts
+      - name: Derive main image version
+        id: image-version
         shell: bash
         run: |
           set -euo pipefail
@@ -54,8 +51,28 @@ jobs:
             exit 1
           fi
 
-          version="${base_version}+${GITHUB_SHA:0:12}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "version=${base_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend for production image
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.image-version.outputs.version }}
+        run: mise build-frontend
+
+      - name: Verify frontend build version
+        env:
+          EXPECTED_VERSION: ${{ steps.image-version.outputs.version }}
+        shell: bash
+        run: |
+          jq -e --arg expected "$EXPECTED_VERSION" \
+            '.version == $expected' \
+            apps/frontend/build/_app/version.json
+
+      - name: Build production image contexts
+        shell: bash
+        env:
+          VERSION: ${{ steps.image-version.outputs.version }}
+        run: |
+          set -euo pipefail
 
           for arch in amd64 arm64; do
             context=".context/ci/docker/linux-${arch}"
@@ -68,7 +85,7 @@ jobs:
             (
               cd cli
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
-                -ldflags="-s -w -X main.Version=${version}" \
+                -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
           done
