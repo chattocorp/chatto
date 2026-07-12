@@ -54,7 +54,17 @@ func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, prov
 	}
 
 	_, err := c.appendRBACBatchWithUserCheck(ctx, userID, func() ([]events.BatchEntry, error) {
-		return c.oidcRoleClaimSyncEntries(userID, providerID, provider.OIDCRoleClaimModeOrDefault(), enabled, desired), nil
+		// This check intentionally runs inside the global EVT OCC retry loop.
+		// A callback may have resolved an identity just before it is disconnected;
+		// it must not recreate that provider's source after the unlink batch.
+		providerLinked := false
+		for _, identity := range c.Users.ExternalIdentities(userID) {
+			if identity.ProviderID == providerID {
+				providerLinked = true
+				break
+			}
+		}
+		return c.oidcRoleClaimSyncEntries(userID, providerID, provider.OIDCRoleClaimModeOrDefault(), enabled && providerLinked, desired), nil
 	})
 	return err
 }
@@ -67,24 +77,26 @@ func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, mode string, e
 		desiredRoles = append(desiredRoles, roleName)
 	}
 	sort.Strings(desiredRoles)
-	for _, roleName := range desiredRoles {
-		if !c.RBAC.RoleExists(roleName) {
-			continue
-		}
-		found := false
-		for _, existing := range current {
-			if existing == roleName {
-				found = true
-				break
+	if enabled {
+		for _, roleName := range desiredRoles {
+			if !c.RBAC.RoleExists(roleName) {
+				continue
 			}
+			found := false
+			for _, existing := range current {
+				if existing == roleName {
+					found = true
+					break
+				}
+			}
+			if found {
+				continue
+			}
+			event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleGranted{
+				RbacOidcRoleGranted: &corev1.RbacOIDCRoleGrantedEvent{UserId: userID, RoleName: roleName, ProviderId: providerID},
+			}})
+			entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 		}
-		if found {
-			continue
-		}
-		event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleGranted{
-			RbacOidcRoleGranted: &corev1.RbacOIDCRoleGrantedEvent{UserId: userID, RoleName: roleName, ProviderId: providerID},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 	if !enabled || mode == config.OIDCRoleClaimModeReconcile {
 		for _, roleName := range current {

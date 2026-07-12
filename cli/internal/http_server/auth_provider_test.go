@@ -501,6 +501,39 @@ func TestOIDCRoleClaimMalformedIDTokenPreservesManagedRoles(t *testing.T) {
 	}
 }
 
+func TestOIDCRoleClaimMalformedUserInfoPreservesManagedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetSubject("malformed-userinfo-role-subject")
+	issuer.SetRoleClaims(nil, map[string]string{"role": core.RoleModerator})
+	provider := config.AuthProviderConfig{
+		ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+		IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret",
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{provider}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-malformed-userinfo-role", "OIDC Malformed UserInfo Role", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), provider.ID, "oidc", issuer.URL(), "malformed-userinfo-role-subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := chattoCore.SyncOIDCRoleClaims(t.Context(), user.Id, provider, true, []string{core.RoleModerator}); err != nil {
+		t.Fatalf("initial SyncOIDCRoleClaims: %v", err)
+	}
+
+	_ = completeNoEmailOIDCLogin(t, client, ts.URL, provider.ID, "/chat")
+	if !chattoCore.RBAC.HasRole(user.Id, core.RoleModerator) {
+		t.Fatal("a malformed UserInfo claim must preserve managed roles")
+	}
+}
+
 func TestOIDCRoleClaimPendingFlowStoresOnlyAcceptedRoles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	issuer := newNoEmailOIDCIssuer(t, "client-id")
@@ -825,7 +858,7 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 	profileClaims := struct {
 		Name          string `json:"name"`
 		PreferredUser string `json:"preferred_username"`
-		Roles         any    `json:"roles"`
+		Roles         any    `json:"roles,omitempty"`
 	}{
 		Name:          "No Email User",
 		PreferredUser: "no-email-user",

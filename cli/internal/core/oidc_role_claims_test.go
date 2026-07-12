@@ -7,6 +7,13 @@ import (
 	"hmans.de/chatto/internal/config"
 )
 
+func linkOIDCTestIdentity(t *testing.T, chatto *ChattoCore, userID, providerID string) {
+	t.Helper()
+	if err := chatto.LinkExternalIdentity(t.Context(), providerID, "oidc", "https://"+providerID+".example", userID, userID); err != nil {
+		t.Fatalf("LinkExternalIdentity(%q): %v", providerID, err)
+	}
+}
+
 func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -23,6 +30,8 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 		ID: "oidc-b", Type: config.AuthProviderTypeOpenIDConnect,
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleModerator},
 	}
+	linkOIDCTestIdentity(t, chatto, user.Id, providerA.ID)
+	linkOIDCTestIdentity(t, chatto, user.Id, providerB.ID)
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, providerA, true, []string{RoleAdmin, "unknown"}); err != nil {
 		t.Fatalf("SyncOIDCRoleClaims provider A: %v", err)
 	}
@@ -91,6 +100,7 @@ func TestChattoCore_SyncOIDCRoleClaimsWildcardIncludesOwner(t *testing.T) {
 		ID: "oidc-owner", Type: config.AuthProviderTypeOpenIDConnect,
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{"*"},
 	}
+	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleOwner, RoleEveryone, "does-not-exist"}); err != nil {
 		t.Fatalf("SyncOIDCRoleClaims: %v", err)
 	}
@@ -116,6 +126,7 @@ func TestChattoCore_SyncOIDCRoleClaimsDoesNotRestoreDeletedRole(t *testing.T) {
 		ID: "oidc", Type: config.AuthProviderTypeOpenIDConnect,
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{"idp-editor"}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
 	}
+	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{"idp-editor"}); err != nil {
 		t.Fatalf("initial SyncOIDCRoleClaims: %v", err)
 	}
@@ -165,5 +176,11 @@ func TestChattoCore_DisconnectExternalIdentityRevokesOIDCRoleSources(t *testing.
 	}
 	if got := chatto.RBAC.OIDCRolesForProvider(user.Id, provider.ID); len(got) != 0 {
 		t.Fatalf("OIDC roles after disconnect = %v, want none", got)
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleAdmin}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims after disconnect: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, RoleAdmin) {
+		t.Fatal("a callback that completes after disconnect must not recreate its OIDC role source")
 	}
 }
