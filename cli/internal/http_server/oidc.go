@@ -484,14 +484,14 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	if err := idToken.Claims(&rawClaims); err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("parse raw id token claims: %w", err)
 	}
-	roleClaimPresent, roleClaims := oidcStringClaim(rawClaims, r.config.RoleClaim)
+	roleClaimState, roleClaims := oidcStringClaim(rawClaims, r.config.RoleClaim)
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
 	// Some providers (e.g. Zitadel) don't include email or custom role claims
 	// in the ID token. Fall back to UserInfo, but only accept a response whose
 	// subject matches the verified ID token.
-	if claims.Email == "" || (r.config.RoleClaim != "" && !roleClaimPresent) {
+	if claims.Email == "" || (r.config.RoleClaim != "" && roleClaimState == oidcStringClaimAbsent) {
 		log.Info("OIDC ID token needs userinfo fallback", "provider_id", r.config.ID)
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
@@ -511,12 +511,12 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 			} else if claims.Email == "" {
 				claims = userInfoClaims
 			}
-			if !roleClaimPresent && r.config.RoleClaim != "" {
+			if roleClaimState == oidcStringClaimAbsent && r.config.RoleClaim != "" {
 				var rawUserInfoClaims map[string]json.RawMessage
 				if err := userInfo.Claims(&rawUserInfoClaims); err != nil {
 					log.Warn("OIDC userinfo role claim ignored", "provider_id", r.config.ID, "error", err)
 				} else {
-					roleClaimPresent, roleClaims = oidcStringClaim(rawUserInfoClaims, r.config.RoleClaim)
+					roleClaimState, roleClaims = oidcStringClaim(rawUserInfoClaims, r.config.RoleClaim)
 				}
 			}
 		}
@@ -533,35 +533,44 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		avatarURL:            claims.Picture,
 		loginHint:            loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
 		displayNameHint:      displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
-		oidcRoleClaimPresent: roleClaimPresent,
+		oidcRoleClaimPresent: roleClaimState == oidcStringClaimPresent,
 		oidcRoles:            roleClaims,
 	}, nil
 }
 
-// oidcStringClaim returns whether a named custom OIDC claim was present and,
-// when well-formed, its string values. Malformed claims are treated as absent
-// so callers preserve existing managed grants.
-func oidcStringClaim(claims map[string]json.RawMessage, name string) (bool, []string) {
+type oidcStringClaimState uint8
+
+const (
+	oidcStringClaimAbsent oidcStringClaimState = iota
+	oidcStringClaimPresent
+	oidcStringClaimMalformed
+)
+
+// oidcStringClaim returns the state of a named custom OIDC claim and, when
+// well-formed, its string values. Callers must preserve grants for malformed
+// claims and must not substitute a UserInfo value for a malformed ID-token
+// claim.
+func oidcStringClaim(claims map[string]json.RawMessage, name string) (oidcStringClaimState, []string) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return false, nil
+		return oidcStringClaimAbsent, nil
 	}
 	raw, ok := claims[name]
 	if !ok {
-		return false, nil
+		return oidcStringClaimAbsent, nil
 	}
 	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-		return false, nil
+		return oidcStringClaimMalformed, nil
 	}
 	var single string
 	if err := json.Unmarshal(raw, &single); err == nil {
-		return true, []string{single}
+		return oidcStringClaimPresent, []string{single}
 	}
 	var values []string
 	if err := json.Unmarshal(raw, &values); err != nil {
-		return false, nil
+		return oidcStringClaimMalformed, nil
 	}
-	return true, values
+	return oidcStringClaimPresent, values
 }
 
 func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {

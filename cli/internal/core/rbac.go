@@ -219,7 +219,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if c.RBAC.HasRole(userID, roleName) {
+		if c.RBAC.HasManualRole(userID, roleName) {
 			return errRBACNoop
 		}
 		return nil
@@ -251,7 +251,7 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if c.RBAC.HasRole(userID, roleName) {
+		if c.RBAC.HasManualRole(userID, roleName) {
 			return errRBACNoop
 		}
 		return nil

@@ -29,6 +29,9 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 	if !chatto.RBAC.HasRole(user.Id, RoleAdmin) {
 		t.Fatal("OIDC provider A should grant admin")
 	}
+	if err := chatto.AssignServerRoleToExistingUser(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
+		t.Fatalf("manual admin assignment over OIDC source: %v", err)
+	}
 	if err := chatto.AssignServerRoleToExistingUser(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
 		t.Fatalf("AssignServerRoleToExistingUser: %v", err)
 	}
@@ -39,8 +42,14 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, providerA, true, nil); err != nil {
 		t.Fatalf("reconcile provider A empty roles: %v", err)
 	}
+	if !chatto.RBAC.HasRole(user.Id, RoleAdmin) {
+		t.Fatal("manual admin grant must survive provider A reconciliation")
+	}
+	if err := chatto.RevokeServerRoleFromExistingUser(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
+		t.Fatalf("manual admin revoke: %v", err)
+	}
 	if chatto.RBAC.HasRole(user.Id, RoleAdmin) {
-		t.Fatal("reconcile should revoke provider A's admin grant")
+		t.Fatal("admin should be gone after its manual source is revoked")
 	}
 	if !chatto.RBAC.HasRole(user.Id, RoleModerator) {
 		t.Fatal("manual and provider B moderator grants must survive provider A reconciliation")
@@ -124,5 +133,37 @@ func TestChattoCore_SyncOIDCRoleClaimsDoesNotRestoreDeletedRole(t *testing.T) {
 	}
 	if chatto.RBAC.HasRole(user.Id, "idp-editor") {
 		t.Fatal("recreating a deleted role must not restore an old OIDC assignment")
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentityRevokesOIDCRoleSources(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "oidc-disconnect", "OIDC Disconnect", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chatto.LinkExternalIdentity(ctx, "oidc", "oidc", "https://issuer.example", "subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	provider := config.AuthProviderConfig{
+		ID: "oidc", Type: config.AuthProviderTypeOpenIDConnect,
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleAdmin}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleAdmin}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims: %v", err)
+	}
+	identities, err := chatto.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+	if err := chatto.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+		t.Fatalf("DisconnectExternalIdentity: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, RoleAdmin) {
+		t.Fatal("disconnecting an OIDC identity must revoke its managed role sources")
+	}
+	if got := chatto.RBAC.OIDCRolesForProvider(user.Id, provider.ID); len(got) != 0 {
+		t.Fatalf("OIDC roles after disconnect = %v, want none", got)
 	}
 }

@@ -360,37 +360,7 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 	if userID == "" || subjectHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityUnlinked{
-		UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{
-			UserId:      userID,
-			SubjectHash: subjectHash,
-		},
-	}})
-	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		_, ok, err := c.Users.GetContext(ctx, userID)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return ErrNotFound
-		}
-		identities := c.Users.ExternalIdentities(userID)
-		found := false
-		for _, identity := range identities {
-			if identity.SubjectHash == subjectHash {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return ErrExternalIdentityNotFound
-		}
-		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
-			return ErrExternalIdentityLastMethod
-		}
-		return nil
-	})
-	if err != nil {
+	if err := c.appendExternalIdentityDisconnect(ctx, userID, subjectHash); err != nil {
 		return err
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "external_identity_disconnected"); err != nil {
@@ -400,4 +370,94 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "external_identity_disconnected", "error", err)
 	}
 	return nil
+}
+
+// appendExternalIdentityDisconnect atomically unlinks an identity and revokes
+// the now-unbacked OIDC role sources for its provider. The global EVT OCC
+// boundary prevents a concurrent login or link from leaving a stale source.
+func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string) error {
+	filter := events.EventSubjectFilter()
+	userFilter := events.UserAggregate(userID).AllEventsFilter()
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("read external identity disconnect OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsersCurrent(ctx, "external identity disconnect", userFilter); err != nil {
+			return err
+		}
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return fmt.Errorf("read RBAC projection seq: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+			return fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+
+		if _, ok := c.Users.Get(userID); !ok {
+			return ErrNotFound
+		}
+		identities := c.Users.ExternalIdentities(userID)
+		var disconnected ExternalIdentity
+		found := false
+		for _, identity := range identities {
+			if identity.SubjectHash == subjectHash {
+				disconnected = identity
+				found = true
+				break
+			}
+		}
+		if !found {
+			return ErrExternalIdentityNotFound
+		}
+		providerStillLinked := false
+		for _, identity := range identities {
+			if identity.SubjectHash != subjectHash && identity.ProviderID == disconnected.ProviderID {
+				providerStillLinked = true
+				break
+			}
+		}
+		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
+			return ErrExternalIdentityLastMethod
+		}
+
+		unlink := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityUnlinked{
+			UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{UserId: userID, SubjectHash: subjectHash},
+		}})
+		userSubject := events.UserAggregate(userID).SubjectFor(unlink)
+		entries := []events.BatchEntry{{Subject: userSubject, Event: unlink}}
+		if !providerStillLinked {
+			for _, roleName := range c.RBAC.OIDCRolesForProvider(userID, disconnected.ProviderID) {
+				revoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
+					RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: roleName, ProviderId: disconnected.ProviderID},
+				}})
+				entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(revoke), Event: revoke})
+			}
+		}
+		entries[0].HasOCC = true
+		entries[0].ExpectedSeq = filterSeq
+		entries[0].FilterSubject = filter
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userSubject, seqs[0])); err != nil {
+				return fmt.Errorf("wait for user projection: %w", err)
+			}
+			if len(entries) > 1 {
+				last := len(entries) - 1
+				if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {
+					return fmt.Errorf("wait for RBAC projection: %w", err)
+				}
+			}
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("external identity disconnect OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
