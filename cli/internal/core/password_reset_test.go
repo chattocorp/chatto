@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -122,7 +123,9 @@ func TestChattoCore_CancelPasswordResetTokenReleasesThrottle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePasswordResetToken: %v", err)
 	}
-	if err := core.CancelPasswordResetToken(ctx, token); err != nil {
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := core.CancelPasswordResetToken(canceledCtx, token); err != nil {
 		t.Fatalf("CancelPasswordResetToken: %v", err)
 	}
 	if _, err := core.ValidatePasswordResetToken(ctx, token); !errors.Is(err, ErrPasswordResetTokenNotFound) {
