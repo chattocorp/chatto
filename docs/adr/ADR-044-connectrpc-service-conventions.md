@@ -75,8 +75,8 @@ typing, and moderation.
 Public resource messages should be canonical per resource. Add narrower,
 expanded, or package-specific messages only when visibility, security, lifecycle,
 or transport semantics are genuinely different. Prefer returning or embedding
-the canonical resource plus explicit related fields or include maps over
-creating multiple frontend-shaped flavors of the same resource.
+the canonical resource plus explicit related fields over creating multiple
+frontend-shaped flavors of the same resource.
 
 Request messages should make client intent explicit. `Update*` operations use
 patch semantics by default, with proto3 `optional` scalar fields or a field mask
@@ -99,9 +99,13 @@ resource is unavailable or not meaningful.
 
 Performance is part of the public API shape. Resources that are commonly
 rendered together, referenced from other resources, emitted in realtime events,
-or hydrated by ID should provide either batch lookup methods, documented
-include-map responses, or another bounded fanout pattern so well-behaved clients
-do not need N+1 RPC calls.
+or hydrated by ID should provide batch lookup methods or another bounded fanout
+pattern so well-behaved clients do not need N+1 RPC calls. `includes`-style
+response properties are intentionally discouraged as a default convention:
+prefer direct resource fields plus `BatchGet*` follow-up hydration. Use include
+maps only for proven hot paths where one paginated response contains many rows
+that repeatedly reference the same related render data and the extra batch call
+would be materially harmful.
 
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 

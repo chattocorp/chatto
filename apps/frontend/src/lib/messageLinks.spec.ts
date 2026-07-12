@@ -3,6 +3,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 import { classifyMessageBodyChatLink, copyMessageLinkToClipboard } from './messageLinks';
 
 const origin = 'https://chat.example.test';
+const registeredRemoteOrigin = 'https://chat.chatto.run';
 const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
@@ -14,8 +15,25 @@ function resolveServerSegment(segment: string): string | null {
   return null;
 }
 
+function resolveUrlOrigin(urlOrigin: string): string | null {
+  if (urlOrigin === registeredRemoteOrigin) return 'chatto-run';
+  return null;
+}
+
+function serverSegmentForId(serverId: string): string {
+  if (serverId === 'origin') return '-';
+  if (serverId === 'remote') return 'remote.example.test';
+  if (serverId === 'chatto-run') return 'chat.chatto.run';
+  return serverId;
+}
+
 function classify(input: string) {
-  return classifyMessageBodyChatLink(input, { origin, resolveServerSegment });
+  return classifyMessageBodyChatLink(input, {
+    origin,
+    resolveServerSegment,
+    resolveUrlOrigin,
+    serverSegmentForId
+  });
 }
 
 describe('copyMessageLinkToClipboard', () => {
@@ -92,6 +110,35 @@ describe('classifyMessageBodyChatLink', () => {
     });
   });
 
+  it('maps registered-server absolute room URLs back to local app routes', () => {
+    expect(classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}`)).toMatchObject({
+      kind: 'room',
+      serverId: 'chatto-run',
+      serverSegment: 'chat.chatto.run',
+      roomId: channelRoomId,
+      path: `/chat/chat.chatto.run/${channelRoomId}`
+    });
+  });
+
+  it('maps registered-server absolute message URLs back to local app routes', () => {
+    expect(
+      classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}/m/${messageId}`)
+    ).toMatchObject({
+      kind: 'message',
+      serverId: 'chatto-run',
+      serverSegment: 'chat.chatto.run',
+      roomId: channelRoomId,
+      messageId,
+      path: `/chat/chat.chatto.run/${channelRoomId}/m/${messageId}`
+    });
+  });
+
+  it('preserves search and hash when mapping registered-server links', () => {
+    expect(classify(`${registeredRemoteOrigin}/chat/-/${channelRoomId}?a=1#bottom`)).toMatchObject({
+      path: `/chat/chat.chatto.run/${channelRoomId}?a=1#bottom`
+    });
+  });
+
   it('rejects same-origin non-chat and reserved chat URLs', () => {
     const rejected = [
       `${origin}/chat/-/settings`,
@@ -124,7 +171,7 @@ describe('classifyMessageBodyChatLink', () => {
     expect(classify(`${origin}/chat/unknown.example.test/${channelRoomId}`)).toBeNull();
   });
 
-  it('rejects cross-origin URLs', () => {
+  it('rejects unregistered cross-origin URLs', () => {
     expect(classify(`https://other.example.test/chat/-/${channelRoomId}`)).toBeNull();
   });
 });

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { PermissionGrant } from "./permissions_pb.js";
 import { Room } from "./rooms_pb.js";
 
 /**
@@ -50,6 +51,63 @@ proto3.util.setEnumType(RoomDirectoryScope, "chatto.api.v1.RoomDirectoryScope", 
 ]);
 
 /**
+ * Viewer-specific state and permission decisions for one room.
+ *
+ * @generated from message chatto.api.v1.RoomViewerState
+ */
+export class RoomViewerState extends Message<RoomViewerState> {
+  /**
+   * True when the current user is an effective room member.
+   *
+   * @generated from field: bool is_member = 1;
+   */
+  isMember = false;
+
+  /**
+   * True when the room has unread root messages for the current user.
+   *
+   * @generated from field: bool has_unread = 2;
+   */
+  hasUnread = false;
+
+  /**
+   * Effective room-scoped permission decisions after room state constraints.
+   *
+   * @generated from field: repeated chatto.api.v1.PermissionGrant permissions = 3;
+   */
+  permissions: PermissionGrant[] = [];
+
+  constructor(data?: PartialMessage<RoomViewerState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomViewerState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "is_member", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {
+    return new RoomViewerState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomViewerState {
+    return new RoomViewerState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomViewerState {
+    return new RoomViewerState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomViewerState | PlainMessage<RoomViewerState> | undefined, b: RoomViewerState | PlainMessage<RoomViewerState> | undefined): boolean {
+    return proto3.util.equals(RoomViewerState, a, b);
+  }
+}
+
+/**
  * Room metadata plus state and capabilities resolved for the authenticated
  * viewer.
  *
@@ -64,88 +122,11 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
   room?: Room;
 
   /**
-   * True when the current user is an effective room member.
+   * State and permission decisions resolved for the current user.
    *
-   * @generated from field: bool is_member = 2;
+   * @generated from field: chatto.api.v1.RoomViewerState viewer_state = 14;
    */
-  isMember = false;
-
-  /**
-   * True when the room has unread root messages for the current user.
-   *
-   * @generated from field: bool has_unread = 3;
-   */
-  hasUnread = false;
-
-  /**
-   * True when the room can appear in directory surfaces for the current user.
-   *
-   * @generated from field: bool can_list_room = 4;
-   */
-  canListRoom = false;
-
-  /**
-   * True when the current user can join this room.
-   *
-   * @generated from field: bool can_join_room = 5;
-   */
-  canJoinRoom = false;
-
-  /**
-   * True when the current user can post new root messages.
-   *
-   * @generated from field: bool can_post_message = 6;
-   */
-  canPostMessage = false;
-
-  /**
-   * True when the current user can post thread replies.
-   *
-   * @generated from field: bool can_post_in_thread = 7;
-   */
-  canPostInThread = false;
-
-  /**
-   * True when the current user can attach files to messages.
-   *
-   * @generated from field: bool can_attach = 8;
-   */
-  canAttach = false;
-
-  /**
-   * True when the current user can add and remove reactions.
-   *
-   * @generated from field: bool can_react = 9;
-   */
-  canReact = false;
-
-  /**
-   * True when the current user can echo thread replies to the main room.
-   *
-   * @generated from field: bool can_echo_message = 10;
-   */
-  canEchoMessage = false;
-
-  /**
-   * True when the current user can edit or delete other users' messages.
-   *
-   * @generated from field: bool can_manage_others_message = 11;
-   */
-  canManageOthersMessage = false;
-
-  /**
-   * True when the current user can configure this room.
-   *
-   * @generated from field: bool can_manage_room = 12;
-   */
-  canManageRoom = false;
-
-  /**
-   * True when the current user can ban members from this room.
-   *
-   * @generated from field: bool can_ban_room_members = 13;
-   */
-  canBanRoomMembers = false;
+  viewerState?: RoomViewerState;
 
   constructor(data?: PartialMessage<RoomWithViewerState>) {
     super();
@@ -156,18 +137,7 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
   static readonly typeName = "chatto.api.v1.RoomWithViewerState";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room", kind: "message", T: Room },
-    { no: 2, name: "is_member", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "can_list_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "can_join_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "can_post_message", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "can_post_in_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 8, name: "can_attach", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 9, name: "can_react", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 10, name: "can_echo_message", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 11, name: "can_manage_others_message", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 12, name: "can_manage_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 13, name: "can_ban_room_members", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 14, name: "viewer_state", kind: "message", T: RoomViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomWithViewerState {
@@ -307,11 +277,11 @@ export class RoomGroupItem extends Message<RoomGroupItem> {
  */
 export class RoomGroupViewerState extends Message<RoomGroupViewerState> {
   /**
-   * True when the current user can create rooms in this group.
+   * Effective group-scoped permission decisions after group state constraints.
    *
-   * @generated from field: bool can_create_room = 1;
+   * @generated from field: repeated chatto.api.v1.PermissionGrant permissions = 2;
    */
-  canCreateRoom = false;
+  permissions: PermissionGrant[] = [];
 
   constructor(data?: PartialMessage<RoomGroupViewerState>) {
     super();
@@ -321,7 +291,7 @@ export class RoomGroupViewerState extends Message<RoomGroupViewerState> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomGroupViewerState";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "can_create_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupViewerState {

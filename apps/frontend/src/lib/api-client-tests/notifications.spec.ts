@@ -128,7 +128,10 @@ describe('createNotificationAPI', () => {
       notifications: [
         {
           id: 'n2',
-          kind: { case: 'directMessage', value: { roomId: 'dm-1', eventId: 'event-2' } }
+          kind: {
+            case: 'directMessage',
+            value: { room: { id: 'dm-1', name: 'Alice' }, eventId: 'event-2' }
+          }
         }
       ]
     });

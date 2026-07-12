@@ -16,20 +16,17 @@ import {
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
 import {
-  handleAssetProxyFetch,
-  handleAssetProxyMessage,
-  parseAssetProxyRequest
-} from '$lib/pwa/assetProxy.worker';
-import {
+  normalizeUnknownBadgeIntent,
   ServiceWorkerBadgeCoordinator,
-  createCacheForegroundNotificationCountStorage
+  createCacheForegroundBadgeIntentStorage,
+  type ServiceWorkerBadgeIntent
 } from '$lib/pwa/notificationBadge.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v1';
+const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
 const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
@@ -41,7 +38,7 @@ type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
 const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
   self.registration,
   navigator as ServiceWorkerAppBadgeNavigator,
-  createCacheForegroundNotificationCountStorage(caches, BADGE_STATE_CACHE_NAME)
+  createCacheForegroundBadgeIntentStorage(caches, BADGE_STATE_CACHE_NAME)
 );
 
 /**
@@ -74,7 +71,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (handleAssetProxyMessage(event)) return;
   handleBadgeStateMessage(event);
 });
 
@@ -86,19 +82,6 @@ self.addEventListener('message', (event) => {
  * requests stay network-only so stale data never masquerades as live state.
  */
 self.addEventListener('fetch', (event) => {
-  const assetProxyRequest = parseAssetProxyRequest(event.request.url, self.location.origin);
-  if (assetProxyRequest) {
-    event.respondWith(
-      handleAssetProxyFetch(event.request, assetProxyRequest, {
-        navigationFallback: async () => {
-          const cache = await caches.open(CACHE_NAME);
-          return getCachedOfflineShell(cache);
-        }
-      })
-    );
-    return;
-  }
-
   const policy = classifyServiceWorkerRequest(
     event.request,
     event.request.url,
@@ -170,17 +153,130 @@ interface PushPayload {
   action?: 'dismiss';
 }
 
+interface DeclarativePushPayload extends PushPayload {
+  web_push?: number;
+  mutable?: boolean;
+  notification?: DeclarativeNotificationPayload;
+}
+
+interface DeclarativeNotificationPayload {
+  title?: string;
+  body?: string;
+  icon?: string;
+  badge?: string;
+  app_badge?: string | number;
+  tag?: string;
+  navigate?: string;
+  data?: {
+    notificationId?: string;
+    url?: string;
+  };
+}
+
+type NormalizedPushNotification = {
+  title: string;
+  options: NotificationOptions;
+  appBadgeIntent: ServiceWorkerBadgeIntent;
+};
+
+type DeclarativePushEventNotification = Pick<
+  Notification,
+  'title' | 'body' | 'icon' | 'tag' | 'data'
+> & {
+  badge?: string;
+  app_badge?: string | number;
+};
+
+type PushEventWithDeclarativeNotification = PushEvent & {
+  notification?: DeclarativePushEventNotification | null;
+};
+
 function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
   const message = event.data as Record<string, unknown> | undefined;
   if (!message || message.type !== 'chatto-badge-state') return false;
-  if (typeof message.notificationCount !== 'number') return false;
+
+  const badgeIntent =
+    normalizeUnknownBadgeIntent(message.badgeIntent) ??
+    (typeof message.notificationCount === 'number'
+      ? legacyBadgeIntentFromCount(message.notificationCount)
+      : null);
+  if (!badgeIntent) return false;
 
   event.waitUntil(
-    badgeCoordinator.applyForegroundNotificationCount(message.notificationCount, {
+    badgeCoordinator.applyForegroundBadgeIntent(badgeIntent, {
       serviceWorkerAppBadgeEnabled: message.serviceWorkerAppBadgeEnabled === true
     })
   );
   return true;
+}
+
+function normalizePushNotification(payload: DeclarativePushPayload): NormalizedPushNotification {
+  const notification = payload.notification;
+  const notificationId = payload.notificationId ?? notification?.data?.notificationId;
+  const url = payload.url ?? notification?.data?.url ?? notification?.navigate;
+
+  return {
+    title: payload.title ?? notification?.title ?? 'New notification',
+    options: {
+      body: payload.body ?? notification?.body,
+      icon: payload.icon ?? notification?.icon ?? '/icons/icon-192.png',
+      badge: payload.badge ?? notification?.badge ?? '/icons/icon-192.png',
+      tag: payload.tag ?? notification?.tag,
+      data: {
+        notificationId,
+        url
+      }
+    },
+    appBadgeIntent: declarativeAppBadgeIntent(notification?.app_badge)
+  };
+}
+
+function declarativePayloadFromEventNotification(
+  notification: DeclarativePushEventNotification
+): DeclarativePushPayload {
+  return {
+    notification: {
+      title: notification.title,
+      body: notification.body,
+      icon: notification.icon,
+      badge: notification.badge,
+      app_badge: notification.app_badge,
+      tag: notification.tag,
+      data: notificationData(notification.data)
+    }
+  };
+}
+
+function legacyBadgeIntentFromCount(notificationCount: number): ServiceWorkerBadgeIntent {
+  if (!Number.isFinite(notificationCount)) return { kind: 'clear' };
+  const count = Math.max(0, Math.floor(notificationCount));
+  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
+}
+
+function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
+  if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
+    const count = Math.max(0, Math.floor(appBadge));
+    return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
+  }
+  if (typeof appBadge !== 'string' || appBadge.trim() === '') return { kind: 'flag' };
+
+  const count = Number(appBadge);
+  if (!Number.isFinite(count)) return { kind: 'flag' };
+  const normalized = Math.max(0, Math.floor(count));
+  return normalized > 0 ? { kind: 'count', count: normalized } : { kind: 'clear' };
+}
+
+function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
+  if (typeof data !== 'object' || data === null) return undefined;
+  return {
+    notificationId: stringProperty(data, 'notificationId'),
+    url: stringProperty(data, 'url')
+  };
+}
+
+function stringProperty(record: object, key: string): string | undefined {
+  const value = (record as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
 }
 
 /**
@@ -188,16 +284,19 @@ function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
  * Parse the payload and display a native notification, or dismiss existing ones.
  */
 self.addEventListener('push', (event) => {
-  if (!event.data) {
-    console.warn('Push event received with no data');
-    return;
-  }
-
-  let payload: PushPayload;
-  try {
-    payload = event.data.json() as PushPayload;
-  } catch {
-    console.error('Failed to parse push payload');
+  const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
+  let payload: DeclarativePushPayload;
+  if (event.data) {
+    try {
+      payload = event.data.json() as DeclarativePushPayload;
+    } catch {
+      console.error('Failed to parse push payload');
+      return;
+    }
+  } else if (declarativeNotification) {
+    payload = declarativePayloadFromEventNotification(declarativeNotification);
+  } else {
+    console.warn('Push event received with no data or declarative notification');
     return;
   }
 
@@ -214,24 +313,16 @@ self.addEventListener('push', (event) => {
   }
 
   badgeCoordinator.recordRegularPush();
-
-  // Regular notification display
-  const options: NotificationOptions = {
-    body: payload.body,
-    icon: payload.icon ?? '/icons/icon-192.png',
-    badge: payload.badge ?? '/icons/icon-192.png',
-    tag: payload.tag,
-    // Pass notificationId and url in data for the click handler
-    data: {
-      notificationId: payload.notificationId,
-      url: payload.url
-    }
-  };
+  const notification = normalizePushNotification(payload);
 
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification(payload.title ?? 'New notification', options),
-      badgeCoordinator.setProvisionalPushFlagBadge()
+      self.registration.showNotification(notification.title, notification.options),
+      notification.appBadgeIntent.kind === 'count'
+        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeIntent.count)
+        : notification.appBadgeIntent.kind === 'flag'
+          ? badgeCoordinator.setProvisionalPushFlagBadge()
+          : badgeCoordinator.setPushAppBadgeCount(0)
     ])
   );
 });
@@ -249,13 +340,16 @@ self.addEventListener('notificationclick', (event) => {
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
     (async () => {
-      await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
-      await routeNotificationClick(
-        rawUrl,
-        self.location.origin,
-        self.clients as unknown as NotificationClickClients,
-        { logger: console }
-      );
+      try {
+        await routeNotificationClick(
+          rawUrl,
+          self.location.origin,
+          self.clients as unknown as NotificationClickClients,
+          { logger: console }
+        );
+      } finally {
+        await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
+      }
     })().catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })

@@ -131,7 +131,7 @@ func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.AssignRoleResponse{Assigned: true, Member: member}), nil
+	return connect.NewResponse(&adminv1.AssignRoleResponse{Member: member}), nil
 }
 
 func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connect.Request[adminv1.RevokeRoleRequest]) (*connect.Response[adminv1.RevokeRoleResponse], error) {
@@ -152,7 +152,7 @@ func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.RevokeRoleResponse{Revoked: true, Member: member}), nil
+	return connect.NewResponse(&adminv1.RevokeRoleResponse{Member: member}), nil
 }
 
 func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connect.Request[adminv1.UpdateUserRequest]) (*connect.Response[adminv1.UpdateUserResponse], error) {

@@ -8,6 +8,12 @@
 import { createContext } from 'svelte';
 import { TimeFormat } from '$lib/render/types';
 
+export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
+  if (timeFormat === TimeFormat.TwelveHour) return true;
+  if (timeFormat === TimeFormat.TwentyFourHour) return false;
+  return undefined;
+}
+
 export class UserSettingsState {
   /** IANA timezone name, or null for browser default. */
   timezone = $state<string | null>(null);
@@ -28,9 +34,7 @@ export class UserSettingsState {
    * Returns undefined when unset, which tells Intl to use locale default.
    */
   get effectiveHour12(): boolean | undefined {
-    if (this.timeFormat === TimeFormat.TwelveHour) return true;
-    if (this.timeFormat === TimeFormat.TwentyFourHour) return false;
-    return undefined;
+    return hour12ForTimeFormat(this.timeFormat);
   }
 
   /** Update from server settings data. */

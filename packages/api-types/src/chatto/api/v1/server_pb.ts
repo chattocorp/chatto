@@ -5,74 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-
-/**
- * Describes one login provider exposed by the server discovery endpoint.
- *
- * Clients can render these providers before a user has authenticated.
- *
- * @generated from message chatto.api.v1.AuthProvider
- */
-export class AuthProvider extends Message<AuthProvider> {
-  /**
-   * Stable provider identifier used by clients when starting login.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Provider category, such as "password" or "oidc". Clients should treat
-   * unknown provider types as unsupported.
-   *
-   * @generated from field: string type = 2;
-   */
-  type = "";
-
-  /**
-   * Human-readable provider label for login UI.
-   *
-   * @generated from field: string label = 3;
-   */
-  label = "";
-
-  /**
-   * URL that starts login for this provider.
-   *
-   * @generated from field: string login_url = 4;
-   */
-  loginUrl = "";
-
-  constructor(data?: PartialMessage<AuthProvider>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.AuthProvider";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AuthProvider {
-    return new AuthProvider().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AuthProvider {
-    return new AuthProvider().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AuthProvider {
-    return new AuthProvider().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AuthProvider | PlainMessage<AuthProvider> | undefined, b: AuthProvider | PlainMessage<AuthProvider> | undefined): boolean {
-    return proto3.util.equals(AuthProvider, a, b);
-  }
-}
+import { ProviderMetadata } from "./common_pb.js";
 
 /**
  * Public server profile, identity, and branding fields.
@@ -171,9 +104,9 @@ export class ServerLogin extends Message<ServerLogin> {
   /**
    * Configured login providers.
    *
-   * @generated from field: repeated chatto.api.v1.AuthProvider providers = 2;
+   * @generated from field: repeated chatto.api.v1.ProviderMetadata providers = 2;
    */
-  providers: AuthProvider[] = [];
+  providers: ProviderMetadata[] = [];
 
   /**
    * URL for the legacy authorization flow, when enabled.
@@ -191,7 +124,7 @@ export class ServerLogin extends Message<ServerLogin> {
   static readonly typeName = "chatto.api.v1.ServerLogin";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "direct_registration_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "providers", kind: "message", T: AuthProvider, repeated: true },
+    { no: 2, name: "providers", kind: "message", T: ProviderMetadata, repeated: true },
     { no: 3, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

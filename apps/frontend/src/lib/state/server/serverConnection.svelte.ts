@@ -166,10 +166,7 @@ export class ServerConnection {
 
   handleAuthenticationRequired(): void {
     if (this.#serverId) {
-      if (
-        isExplicitSignOutRedirectInProgress() &&
-        serverRegistry.isOriginServer(this.#serverId)
-      ) {
+      if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(this.#serverId)) {
         return;
       }
       serverRegistry.handleAuthenticationRequired(this.#serverId);
@@ -184,31 +181,20 @@ export class ServerConnection {
     this.#token = token;
     this.#serverId = serverId;
 
-    // Reconnect when tab becomes visible after being backgrounded.
-    // If the tab was hidden for >30s, force-terminate the WebSocket regardless of
-    // reported status. This catches silently-dead connections where the OS killed
-    // the socket during sleep but the client never received a close event.
+    // Track tab visibility for diagnostics. Browser resume signals are handled
+    // by resumeCoordinator; liveness stays with actual close events and the
+    // heartbeat watchdog so a healthy hidden-tab socket is not torn down.
     if (typeof document !== 'undefined') {
       this.#visibilityHandler = () => {
         if (document.visibilityState === 'visible') {
           const hiddenDuration = Date.now() - this.#lastVisibleAt;
 
-          if (this.status === 'disconnected' || hiddenDuration > 30_000) {
-            console.debug(
-              '[ws:%s] visibility=visible after %ds hidden, status=%s → forceReconnect',
-              this.#host,
-              Math.round(hiddenDuration / 1000),
-              this.status
-            );
-            this.forceReconnect(`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`);
-          } else {
-            console.debug(
-              '[ws:%s] visibility=visible after %ds hidden, status=%s → no reconnect',
-              this.#host,
-              Math.round(hiddenDuration / 1000),
-              this.status
-            );
-          }
+          console.debug(
+            '[ws:%s] visibility=visible after %ds hidden, status=%s',
+            this.#host,
+            Math.round(hiddenDuration / 1000),
+            this.status
+          );
 
           this.#lastVisibleAt = Date.now();
         } else {
@@ -224,8 +210,8 @@ export class ServerConnection {
     //
     // Background-tab throttling produces the same signal (Chrome/Firefox
     // throttle setInterval to ~1/min in hidden tabs), so the gap is only
-    // meaningful while the tab is visible. The visibility handler covers
-    // the hidden case on resume.
+    // meaningful while the tab is visible. If the socket still reports
+    // connected, the heartbeat watchdog owns silent-dead detection.
     if (typeof window !== 'undefined') {
       let lastTick = Date.now();
       this.#suspendDetectorInterval = setInterval(() => {
@@ -233,7 +219,7 @@ export class ServerConnection {
         const gap = now - lastTick;
         lastTick = now;
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-        if (gap > 30_000) {
+        if (gap > 30_000 && this.status !== 'connected') {
           console.debug(
             '[ws:%s] Suspend detector fired (timer gap %ds)',
             this.#host,

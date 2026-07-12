@@ -1,12 +1,140 @@
 package core
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestChattoCore_ResetPasswordConcurrentSingleUse(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-reset", "Concurrent Reset", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "concurrent-reset@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+	token, err := core.CreatePasswordResetToken(ctx, "concurrent-reset@example.com")
+	if err != nil {
+		t.Fatalf("CreatePasswordResetToken: %v", err)
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+
+	const attempts = 8
+	start := make(chan struct{})
+	results := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			results <- core.ResetPassword(ctx, token, string(hash))
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+			continue
+		}
+		if !errors.Is(err, ErrPasswordResetTokenNotFound) {
+			t.Fatalf("ResetPassword returned unexpected error: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful resets = %d, want 1", successes)
+	}
+}
+
+func TestChattoCore_CreatePasswordResetTokenThrottlesConcurrentRequests(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "reset-throttle", "Reset Throttle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "reset-throttle@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	const attempts = 8
+	start := make(chan struct{})
+	results := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			token, err := core.CreatePasswordResetToken(ctx, "reset-throttle@example.com")
+			if err == nil && token == "" {
+				err = errors.New("successful request returned empty token")
+			}
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	throttled := 0
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrPasswordResetRequestThrottled):
+			throttled++
+		default:
+			t.Fatalf("CreatePasswordResetToken returned unexpected error: %v", err)
+		}
+	}
+	if successes != 1 || throttled != attempts-1 {
+		t.Fatalf("results = %d successful, %d throttled; want 1 and %d", successes, throttled, attempts-1)
+	}
+}
+
+func TestChattoCore_CancelPasswordResetTokenReleasesThrottle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "reset-cancel", "Reset Cancel", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "reset-cancel@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	token, err := core.CreatePasswordResetToken(ctx, "reset-cancel@example.com")
+	if err != nil {
+		t.Fatalf("CreatePasswordResetToken: %v", err)
+	}
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := core.CancelPasswordResetToken(canceledCtx, token); err != nil {
+		t.Fatalf("CancelPasswordResetToken: %v", err)
+	}
+	if _, err := core.ValidatePasswordResetToken(ctx, token); !errors.Is(err, ErrPasswordResetTokenNotFound) {
+		t.Fatalf("ValidatePasswordResetToken after cancel = %v, want not found", err)
+	}
+	if retryToken, err := core.CreatePasswordResetToken(ctx, "reset-cancel@example.com"); err != nil || retryToken == "" {
+		t.Fatalf("CreatePasswordResetToken after cancel = %q, %v; want token", retryToken, err)
+	}
+}
 
 // ============================================================================
 // Password Reset Tests

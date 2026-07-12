@@ -40,7 +40,7 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists one role's permission decisions by permission and scope. Requires
+     * Lists one role's permission decisions as resource-oriented rows. Requires
      * role.manage. Returns NOT_FOUND when the role does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions
@@ -64,7 +64,7 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists one user's permission decisions by permission and scope. Requires
+     * Lists one user's permission decisions as resource-oriented rows. Requires
      * user.manage-permissions. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions

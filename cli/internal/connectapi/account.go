@@ -48,11 +48,12 @@ func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	if len(req.Msg.GetImage()) == 0 {
+	image := req.Msg.GetImage()
+	if image == nil || len(image.GetImage()) == 0 {
 		return nil, invalidArgument("image is required")
 	}
 
-	asset, err := s.api.core.UploadUserAvatar(ctx, caller.UserID, bytes.NewReader(req.Msg.GetImage()))
+	asset, err := s.api.core.UploadUserAvatar(ctx, caller.UserID, bytes.NewReader(image.GetImage()))
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -33,7 +33,7 @@ File attachments require:
 Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.
 
 <Aside type="note">
-  Signed attachment URLs are bearer capabilities until they expire. The bundled PWA uses same-origin virtual asset URLs where possible so normal page markup does not expose portable remote attachment URLs.
+  Signed attachment URLs are bearer capabilities until they expire. Chatto keeps their TTL bounded and checks the signed user's current room access on every protected asset fetch.
 </Aside>
 
 ## Room Files
@@ -87,5 +87,5 @@ Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are serv
   <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Configure S3-compatible storage for persisted assets." />
   <LinkCard title="Video Processing" href="/guides/infrastructure/video-processing/" description="Enable ffmpeg-backed video and animated-GIF processing." />
   <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Plan backups that include asset storage and encryption keys." />
-  <LinkCard title="Attachment API" href="/reference/connectrpc-api/attachments/" description="Typed API reference for room attachment reads and URL refreshes." />
+  <LinkCard title="Room Attachment API" href="/reference/connectrpc-api/rooms/#chatto-api-v1-RoomService-ListRoomAttachments" description="Typed API reference for room attachment list reads." />
 </CardGrid>

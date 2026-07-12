@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/rooms.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -12,7 +13,7 @@ service VoiceCallService {
   // runtime snapshot. Rooms the caller is not a member of are omitted.
   //
   // Returns an empty list when LiveKit is not configured.
-  rpc ListActiveCallRooms(ListActiveCallRoomsRequest) returns (ListActiveCallRoomsResponse);
+  rpc ListActiveCalls(ListActiveCallsRequest) returns (ListActiveCallsResponse);
 
   // Gets the current active call snapshot for one room.
   //
@@ -57,18 +58,21 @@ service VoiceCallService {
 }
 
 // Request for active channel call snapshots.
-message ListActiveCallRoomsRequest {}
+message ListActiveCallsRequest {}
 
-// Finite runtime snapshot of active channel call rooms.
-message ListActiveCallRoomsResponse {
+// Finite runtime snapshot of active channel calls.
+message ListActiveCallsResponse {
   // Active calls in room order returned by the call-state projection.
   repeated ActiveCall calls = 1;
 }
 
 // Current active call snapshot for one room.
 message ActiveCall {
+  reserved 1;
+  reserved "room_id";
+
   // Room containing the active call.
-  string room_id = 1;
+  RoomSummary room = 4;
   // Active call session ID.
   string call_id = 2;
   // Participants currently projected for this call.

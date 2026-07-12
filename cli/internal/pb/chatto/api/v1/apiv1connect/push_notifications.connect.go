@@ -75,6 +75,7 @@ func NewPushNotificationServiceClient(httpClient connect.HTTPClient, baseURL str
 			httpClient,
 			baseURL+PushNotificationServiceUnsubscribeProcedure,
 			connect.WithSchema(pushNotificationServiceMethods.ByName("Unsubscribe")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -127,6 +128,7 @@ func NewPushNotificationServiceHandler(svc PushNotificationServiceHandler, opts 
 		PushNotificationServiceUnsubscribeProcedure,
 		svc.Unsubscribe,
 		connect.WithSchema(pushNotificationServiceMethods.ByName("Unsubscribe")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chatto.api.v1.PushNotificationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

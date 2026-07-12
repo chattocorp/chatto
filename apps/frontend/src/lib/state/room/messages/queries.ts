@@ -1,1 +1,2 @@
 export const PAGE_SIZE = 50;
+export const INITIAL_ROOM_MESSAGE_BACKFILL_TARGET = 10;

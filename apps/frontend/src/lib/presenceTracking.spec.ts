@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { APIPresenceStatus } from '$lib/api-client/presence';
 import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
-import { initPresenceTracking, setPresenceMode } from './presenceTracking';
+import { __presenceTrackingTest, initPresenceTracking, setPresenceMode } from './presenceTracking';
 
 type UpdatePresence = (
 	status: APIPresenceStatus,
@@ -38,6 +38,15 @@ function dispatchDocumentEvent(type: string) {
 
 function dispatchWindowEvent(type: string) {
 	windowTarget.dispatchEvent(new Event(type));
+}
+
+function dispatchStorageMode(mode: string) {
+	const event = new Event('storage') as StorageEvent;
+	Object.defineProperties(event, {
+		key: { value: __presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY },
+		newValue: { value: mode }
+	});
+	windowTarget.dispatchEvent(event);
 }
 
 function setVisibility(next: DocumentVisibilityState) {
@@ -191,6 +200,23 @@ describe('initPresenceTracking', () => {
 		expect(sentStatuses().slice(1)).not.toContain(APIPresenceStatus.ONLINE);
 		expect(sentUserSelectedFlags().at(1)).toBe(true);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+	});
+
+	it('returns online when another tab clears explicit away while this tab is hidden', () => {
+		startTracking();
+		setVisibility('hidden');
+		vi.advanceTimersByTime(10_000);
+		dispatchStorageMode('away');
+
+		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+
+		dispatchStorageMode('auto');
+
+		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
+		expect(sentUserSelectedFlags().at(-1)).toBe(true);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.Online);
 	});
 
 	it('keeps do not disturb through activity and refreshes it', () => {

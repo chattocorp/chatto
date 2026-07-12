@@ -16,12 +16,18 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
-// raw EVT republish and realtime delivery. In the normal case the local
-// projectors have already advanced and WaitFor returns immediately; the
-// timeout covers replica lag or a stuck projector without wedging a
-// subscription goroutine forever.
-const liveEVTProjectionWaitTimeout = 2 * time.Second
+const (
+	// liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
+	// raw EVT republish and realtime delivery. In the normal case the local
+	// projectors have already advanced and WaitFor returns immediately; the
+	// timeout covers replica lag or a stuck projector without wedging a
+	// subscription goroutine forever.
+	liveEVTProjectionWaitTimeout = 2 * time.Second
+
+	// MyEventsHeartbeatInterval controls the synthetic heartbeat cadence used by
+	// StreamMyEvents and advertised by the realtime WebSocket protocol.
+	MyEventsHeartbeatInterval = 15 * time.Second
+)
 
 // MyEventsModel owns the server-side myEvents live stream machinery.
 //
@@ -105,7 +111,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //
 // The subscription also tracks presence liveness: subscribing implies the user
 // is online, and a ticker refreshes the KV TTL while the connection lives. A
-// synthetic Heartbeat is emitted every 25s so clients can detect a dead
+// synthetic Heartbeat is emitted every 15s so clients can detect a dead
 // subscription on an otherwise-healthy WebSocket.
 //
 // The returned channel closes when the context is cancelled or when a
@@ -176,14 +182,8 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 			defer presenceTicker.Stop()
 		}
 
-		heartbeatTicker := time.NewTicker(25 * time.Second)
+		heartbeatTicker := time.NewTicker(MyEventsHeartbeatInterval)
 		defer heartbeatTicker.Stop()
-
-		lastKnownPresence := presenceSub.Snapshot
-		presenceSub.Snapshot = nil
-		if lastKnownPresence == nil {
-			lastKnownPresence = make(map[string]string)
-		}
 
 		defer func() {
 			s.activeStreams.Add(-1)
@@ -256,14 +256,6 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 				}
 
 			case update := <-presenceSub.C:
-				if last, exists := lastKnownPresence[update.UserID]; exists && last == update.Status {
-					continue
-				}
-				if update.Status == PresenceStatusOffline {
-					delete(lastKnownPresence, update.UserID)
-				} else {
-					lastKnownPresence[update.UserID] = update.Status
-				}
 				live := newLiveEvent(update.UserID, &corev1.LiveEvent{
 					Event: &corev1.LiveEvent_PresenceChanged{
 						PresenceChanged: &corev1.PresenceChangedEvent{Status: update.Status},
@@ -382,13 +374,27 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		return nil, false, false
 	}
 
+	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+	if strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		if err := s.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(events.RBACSubjectFilter(), seq)); err != nil {
+			s.core.logger.Warn("Live EVT RBAC projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
+		}
+		if err := s.populateMemberRoomsCache(waitCtx, userID, memberRooms); err != nil {
+			s.core.logger.Warn("Live EVT room visibility refresh failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
+			return nil, false, true
+		}
+		return nil, false, false
+	}
+
 	if roomID, ok := events.ParseRoomSubject(msg.Subject); ok {
 		if !isDeliverableLiveEVTRoomEvent(event) {
 			return nil, false, false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
 			s.core.logger.Warn("Live EVT projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true
@@ -404,7 +410,6 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTAssetEvent(waitCtx, evtSubject, seq); err != nil {
 			s.core.logger.Warn("Live EVT asset projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true
@@ -424,7 +429,6 @@ func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, m
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 		if err := s.waitForLiveEVTUserEvent(waitCtx, evtSubject, seq); err != nil {
 			s.core.logger.Warn("Live EVT user projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
 			return nil, false, true

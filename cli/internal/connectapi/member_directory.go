@@ -13,16 +13,25 @@ import (
 )
 
 const (
-	defaultMemberDirectoryLimit = 20
-	maxMemberDirectoryLimit     = 500
+	defaultUserDirectoryLimit       = 20
+	defaultRoomMemberDirectoryLimit = 250
+	maxMemberDirectoryLimit         = 500
 )
+
+func userDirectoryPagination(page *apiv1.PageRequest) (int, int) {
+	return apiPagination(page, defaultUserDirectoryLimit, maxMemberDirectoryLimit)
+}
+
+func roomMemberDirectoryPagination(page *apiv1.PageRequest) (int, int) {
+	return apiPagination(page, defaultRoomMemberDirectoryLimit, maxMemberDirectoryLimit)
+}
 
 func (s *userService) ListUsers(ctx context.Context, req *connect.Request[apiv1.ListUsersRequest]) (*connect.Response[apiv1.ListUsersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
 
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+	limit, offset := userDirectoryPagination(req.Msg.GetPage())
 	members, totalCount, err := s.api.core.GetServerMembers(ctx, req.Msg.GetSearch(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
@@ -138,7 +147,7 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 		return left < right
 	})
 
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+	limit, offset := roomMemberDirectoryPagination(req.Msg.GetPage())
 	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
 	out := make([]*apiv1.DirectoryMember, 0, len(page))
 	for _, user := range page {
@@ -231,10 +240,10 @@ func serverMemberForUser(ctx context.Context, api *API, user *corev1.User) (*api
 
 func directoryMember(ctx context.Context, api *API, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
 	avatarSize := 96
-	avatar := &apiv1.UserAvatarOptions{
+	avatar := &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
-		Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
+		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
 	}
 	apiUser, err := (&userService{api: api}).userSummary(ctx, user, avatar)
 	if err != nil {

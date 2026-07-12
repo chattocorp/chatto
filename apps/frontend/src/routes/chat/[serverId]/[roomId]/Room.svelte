@@ -6,7 +6,6 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import type { EventEnvelope } from '$lib/eventBus.svelte';
   import { createRoleAPI } from '$lib/api-client/roles';
   import {
     useRoomData,
@@ -15,7 +14,7 @@
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
-  import { appState } from '$lib/state/globals.svelte';
+  import { appState, sidebarNav } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import {
     createComposerContext,
@@ -44,9 +43,10 @@
     type RoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import { onDestroy, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
@@ -72,6 +72,8 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
+  let pendingMainHighlightId = $state<string | null>(null);
+  let mainHighlightRequestId = 0;
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
@@ -291,56 +293,29 @@
     if (threadId) {
       pendingThreadHighlight = eventId;
     } else {
-      tick().then(() => {
-        jumpState.jumpToMessage(eventId);
+      const requestId = ++mainHighlightRequestId;
+      pendingMainHighlightId = eventId;
+      tick().then(async () => {
+        const jumped = await jumpState.jumpToMessage(eventId);
+        if (
+          !jumped &&
+          mainHighlightRequestId === requestId &&
+          pendingMainHighlightId === eventId
+        ) {
+          pendingMainHighlightId = null;
+          toast.error(m['room.jump_failed']());
+        }
       });
     }
   }
 
-  function scopedRoomId(event: EventEnvelope['event']): string | null {
-    if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
-    return event.roomId;
-  }
-
-  function shouldRevealAwaySeparator(event: EventEnvelope): boolean {
-    const eventData = event.event;
-    if (!eventData) return false;
-    if (event.actorId === currentUser.user?.id) return false;
-
-    switch (roomEventKind(eventData)) {
-      case RoomEventKind.MessagePosted:
-        if (!isMessagePostedEvent(eventData)) return false;
-        return (
-          eventData.roomId === roomId && (!!eventData.echoOfEventId || !eventData.threadRootEventId)
-        );
-      case RoomEventKind.UserJoinedRoom:
-      case RoomEventKind.UserLeftRoom:
-      case RoomEventKind.RoomUpdated:
-      case RoomEventKind.RoomDeleted:
-      case RoomEventKind.RoomArchived:
-      case RoomEventKind.RoomUnarchived:
-        return scopedRoomId(eventData) === roomId;
-      default:
-        return false;
-    }
-  }
-
-  // Keep the read cursor in sync with incoming root messages:
-  // - Other users' messages mark the room read (with explicit event ID, so
-  //   the server cursor matches what the client rendered) while the user is
-  //   actually present (focused + visible).
-  // - The user's own posts already auto-mark the room read server-side, so
-  //   we just mirror that onto the local cursor — without it, backgrounding
-  //   the tab would strand the user's own latest message below the unread
-  //   separator.
+  // Keep the server read cursor in sync with incoming root messages. Other
+  // users' messages mark the room read while the user is actually present;
+  // own messages are already auto-marked read by the post mutation.
   useEvent((event) => {
     roomFilesStore.ingestServerEvent(event);
     roomMembersStore.ingestServerEvent(event);
     if (!event.event) return;
-
-    if (!appState.isPresent && shouldRevealAwaySeparator(event)) {
-      unread.noteAwayEvent();
-    }
 
     if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
       const actorId = event.actorId;
@@ -352,9 +327,7 @@
       }
 
       if (!event.event.threadRootEventId && currentUser.user) {
-        if (actorId === currentUser.user.id) {
-          unread.noteReadCursor(event.createdAt);
-        } else if (appState.isPresent) {
+        if (actorId !== currentUser.user.id && appState.isPresent) {
           unread.markRoomAsRead(roomId, event.id);
         }
       }
@@ -495,6 +468,7 @@
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
+    if (sidebarNav.isMobile && target.closest('[data-app-sidebar]')) return;
     closeThread();
   }}
 />
@@ -571,9 +545,15 @@
         <RoomEventsPane
           {roomId}
           messageStore={roomMessageStore}
-          unreadAfterTime={unread.unreadAfterTime}
-          unreadBeforeTime={unread.unreadBeforeTime}
+          unreadMarkerEventId={unread.unreadMarkerEventId}
+          unreadMarkerWindow={unread.unreadMarkerWindow}
+          onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
+          onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
+          pendingHighlightId={pendingMainHighlightId}
+          onHighlightComplete={() => {
+            pendingMainHighlightId = null;
+          }}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />
@@ -593,13 +573,6 @@
             typingIndicator?.resetDebounce();
             if (event) {
               roomMessageStore.ingestEvent(event);
-              if (
-                isMessagePostedEvent(event.event) &&
-                event.event.roomId === roomId &&
-                !event.event.threadRootEventId
-              ) {
-                unread.noteReadCursor(event.createdAt);
-              }
             } else {
               void roomMessageStore.refreshCurrentWindow(null);
             }

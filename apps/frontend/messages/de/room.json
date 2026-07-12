@@ -20,6 +20,7 @@
       "title": "Raum beitreten",
       "action": "Raum beitreten",
       "prompt": "Tritt #{room} bei, um diesen Raum zu lesen und daran teilzunehmen.",
+      "inline_prompt": "Tritt diesem Raum bei, um ihn zu lesen und daran teilzunehmen.",
       "success": "#{room} beigetreten",
       "success_generic": "Raum beigetreten",
       "failed": "Raum konnte nicht beigetreten werden",
@@ -65,6 +66,7 @@
       "delete_title": "Nachricht löschen",
       "delete_prompt": "Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
       "delete_failed": "Nachricht konnte nicht gelöscht werden",
+      "reaction_failed": "Reaktion konnte nicht aktualisiert werden",
       "deleted": "Nachricht gelöscht",
       "actions": {
         "toolbar": "Nachrichtenaktionen",
@@ -88,11 +90,48 @@
         "unfollow_thread": "Thread nicht mehr folgen",
         "add_reaction_label": "{emoji}-Reaktion hinzufügen ({count})",
         "remove_reaction_label": "{emoji}-Reaktion entfernen ({count})",
+        "reaction_users_more": "+ {count} weitere",
         "copy_link_title": "Klicken, um den Link zu dieser Nachricht zu kopieren",
         "in_reply_to": "als Antwort auf",
         "reply_preview_fallback": "Nachricht",
         "deleted": "Diese Nachricht wurde gelöscht."
       }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "ist dem Raum beigetreten",
+            "countPlural=other": "sind dem Raum beigetreten"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "hat den Raum verlassen",
+            "countPlural=other": "haben den Raum verlassen"
+          }
+        }
+      ],
+      "archived": "hat den Raum archiviert",
+      "unarchived": "hat die Archivierung des Raums aufgehoben",
+      "and": "und",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "weitere Person",
+            "countPlural=other": "weitere"
+          }
+        }
+      ],
+      "show_less": "weniger anzeigen"
     },
     "attachment": {
       "delete_title": "Anhang löschen",
@@ -129,7 +168,6 @@
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
       "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar.",
-      "deleted_user": "Gelöschter Benutzer",
       "view_profile": "Profil von {name} anzeigen",
       "in_voice_call": "In einem Sprachanruf",
       "in_video_call": "In einem Videoanruf",
@@ -149,6 +187,7 @@
       "reply_placeholder": "Im Thread antworten..."
     },
     "jump_to_present": "Zur Gegenwart springen",
+    "jump_failed": "Zu dieser Nachricht konnte nicht gesprungen werden.",
     "unread_separator": "Neue Nachrichten",
     "close_extras": "Raumdetails schließen"
   }

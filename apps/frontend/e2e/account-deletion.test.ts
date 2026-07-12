@@ -77,7 +77,7 @@ test.describe('Account Deletion', () => {
   });
 
   test.describe('Deleted User Effects', () => {
-    test('messages from deleted user show "Deleted User" and content is unavailable', async ({
+    test('messages from deleted users show an italicized placeholder and unavailable content', async ({
       page,
       chatPage,
       roomPage,
@@ -192,7 +192,7 @@ test.describe('Account Deletion', () => {
       );
     });
 
-    test('system events from deleted user show "Deleted User"', async ({
+    test('system events from deleted users show an italicized placeholder', async ({
       page,
       chatPage,
       browser,
@@ -228,10 +228,11 @@ test.describe('Account Deletion', () => {
           await page.reload();
           await waitForRoomReady(page, 'general');
 
-          // User A should now see "Deleted User joined the room"
-          await expect(page.getByText(/Deleted User joined the room/)).toBeVisible({
+          // User A should now see an italicized deleted-user placeholder.
+          await expect(page.getByText(/\[deleted user\] joined the room/)).toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT
           });
+          await expect(page.locator('em').filter({ hasText: '[deleted user]' }).first()).toBeVisible();
 
           // User B's original display name should no longer be visible in system events
           await expect(page.getByText(new RegExp(`${userB.displayName} joined`))).not.toBeVisible();

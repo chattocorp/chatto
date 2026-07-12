@@ -3,7 +3,7 @@
 
 Quick actions toolbar that appears on hover at the upper-right of a message.
 Shows quick reaction emoji and action icons (reply, edit, more menu) inline.
-Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
+Hover-capable input only; pure touch devices use the long-press action sheet instead.
 
 **Props:**
 - `serverId` - Server ID (scopes the recent-emoji slots per server)
@@ -26,6 +26,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
+  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
@@ -39,6 +40,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
+    messageStore = null,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -59,6 +61,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
+    messageStore?: MessagesStore | null;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -71,7 +74,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     onOpenMenu?: (e: MouseEvent) => void;
   } = $props();
 
-  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
+  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const quickReactions = $derived(recentEmojis.quickReactions);
 
   const actions = useMessageActions();
   const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
@@ -88,7 +92,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     messageBody,
     threadRootEventId,
     channelEchoEventId,
-    canAddChannelEcho
+    canAddChannelEcho,
+    messageStore
   });
 
   const hasActions = $derived(!!onReplyInRoom || !!onReply || canEdit || !!onOpenMenu);
@@ -121,8 +126,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
 <div
   class={[
-    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface-100 p-0.5 md:flex',
-    'pointer-fine:group-hover:visible'
+    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface-100 p-0.5 hover-actions:flex',
+    'hover-actions:group-hover:visible'
   ]}
   class:!visible={forceVisible}
   role="toolbar"

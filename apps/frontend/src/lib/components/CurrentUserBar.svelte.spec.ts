@@ -171,6 +171,35 @@ describe('CurrentUserBar', () => {
     expect(container.textContent).toContain('@alice');
   });
 
+  it('uses the presence cache instead of local presence preference for the current user dot', () => {
+    presencePreference.effectiveStatus = PresenceStatus.Away;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
+    const presenceDot = q(
+      container,
+      '[data-testid="current-user-presence-menu"] [aria-label="Online"] span'
+    )!;
+    expect(presenceDot.className).toContain('bg-presence-online');
+    expect(presenceDot.className).not.toContain('bg-presence-away');
+  });
+
+  it('renders the current user dot from the seeded away presence cache value', () => {
+    presencePreference.effectiveStatus = PresenceStatus.Online;
+
+    const { container } = render(CurrentUserBarTestHarness, {
+      cachedPresence: PresenceStatus.Away
+    });
+
+    expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
+    const presenceDot = q(
+      container,
+      '[data-testid="current-user-presence-menu"] [aria-label="Away"] span'
+    )!;
+    expect(presenceDot.className).toContain('bg-presence-away');
+  });
+
   it('keeps the username line when display name and username match', () => {
     currentUserState.user = {
       ...currentUserState.user!,

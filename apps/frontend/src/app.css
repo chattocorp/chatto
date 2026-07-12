@@ -13,6 +13,8 @@
 /* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
    Usage: pointer-fine:select-text - enables selection only on desktop */
 @custom-variant pointer-fine (@media (pointer: fine));
+/* Hover affordances should follow input capability, not viewport width. */
+@custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
 
 /*
  * Theme tokens.
@@ -171,6 +173,56 @@
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */
 @utility surface-box {
   @apply rounded-lg border border-border bg-surface-100;
+}
+
+/* Message composer mode surface. Simple mode is intentionally unadorned;
+   data-composer-mode="rich" reveals the accent ring and glow. */
+@utility composer-mode-surface {
+  --composer-ring-opacity: 0;
+  @apply relative isolate;
+  box-shadow:
+    0 0 0 1px transparent,
+    0 0 0 transparent;
+  transition: box-shadow 240ms cubic-bezier(0.2, 0, 0, 1);
+
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -2px;
+    padding: 2px;
+    border-radius: calc(0.75rem + 2px);
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-accent) 72%, white),
+      var(--color-accent),
+      color-mix(in srgb, var(--color-accent) 72%, #a855f7),
+      color-mix(in srgb, var(--color-accent) 72%, white)
+    );
+    background-size: 220% 100%;
+    opacity: var(--composer-ring-opacity);
+    pointer-events: none;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    transition: opacity 240ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  &[data-composer-mode='rich'] {
+    --composer-ring-opacity: 1;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0ms;
+
+    &::before {
+      transition-duration: 0ms;
+    }
+  }
 }
 
 /* Panel header band — tinted background, hairline divider underneath, and
@@ -347,7 +399,7 @@
 }
 
 @utility attachment-remove-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 outline-none transition-[opacity,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 transition-[opacity,scale] outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.96] md:opacity-0;
 
   &::before {
     content: '';
@@ -400,6 +452,20 @@
 @utility meta-badge {
   @apply inline-flex items-center rounded-sm border leading-none;
   @apply bg-surface group-hover/badges:bg-surface-200 hover:bg-surface-300;
+}
+
+/* Chat message row primitives. These keep the hover-highlight shell and its
+   child content stack aligned across the app and Storybook fixtures. */
+@utility message-row {
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface-100 md:mx-2 md:rounded-md md:pr-8;
+}
+
+@utility message-row-footer {
+  @apply pb-0.5;
+}
+
+@utility message-content-stack {
+  @apply min-w-0 flex-1 space-y-1;
 }
 
 /* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.

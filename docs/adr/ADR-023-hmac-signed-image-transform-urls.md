@@ -5,7 +5,7 @@
 **Update:** This ADR now describes the low-level HMAC transform-signing
 primitive, not the whole current browser-facing asset URL model. Attachment
 URLs later moved to stable `/assets/files/{assetId}` paths with signed per-user
-access tickets (ADR-032, ADR-039, FDR-008).
+access tickets (ADR-032, ADR-047, FDR-008).
 
 ## Context
 

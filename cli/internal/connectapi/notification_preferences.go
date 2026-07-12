@@ -13,7 +13,7 @@ type notificationPreferencesService struct {
 	api *API
 }
 
-func (s *notificationPreferencesService) GetServerNotificationPreference(ctx context.Context, _ *connect.Request[apiv1.GetServerNotificationPreferenceRequest]) (*connect.Response[apiv1.GetServerNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) GetServerNotificationPreference(ctx context.Context, _ *connect.Request[apiv1.GetServerNotificationPreferenceRequest]) (*connect.Response[apiv1.GetNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,12 @@ func (s *notificationPreferencesService) GetServerNotificationPreference(ctx con
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return connect.NewResponse(&apiv1.GetServerNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(level),
-		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	return connect.NewResponse(&apiv1.GetNotificationPreferenceResponse{
+		Preference: apiNotificationPreference(level, effectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) UpdateServerNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateServerNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateServerNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) UpdateServerNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateServerNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -50,13 +49,12 @@ func (s *notificationPreferencesService) UpdateServerNotificationPreference(ctx 
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return connect.NewResponse(&apiv1.UpdateServerNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(level),
-		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	return connect.NewResponse(&apiv1.UpdateNotificationPreferenceResponse{
+		Preference: apiNotificationPreference(level, effectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetRoomNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.GetRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.GetNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -69,13 +67,12 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.GetRoomNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(pref.Level),
-		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+	return connect.NewResponse(&apiv1.GetNotificationPreferenceResponse{
+		Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
 	}), nil
 }
 
-func (s *notificationPreferencesService) UpdateRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateRoomNotificationPreferenceResponse], error) {
+func (s *notificationPreferencesService) UpdateRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,10 +89,16 @@ func (s *notificationPreferencesService) UpdateRoomNotificationPreference(ctx co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateRoomNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(pref.Level),
-		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+	return connect.NewResponse(&apiv1.UpdateNotificationPreferenceResponse{
+		Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
 	}), nil
+}
+
+func apiNotificationPreference(level, effectiveLevel corev1.NotificationLevel) *apiv1.NotificationPreference {
+	return &apiv1.NotificationPreference{
+		Level:          coreNotificationLevelToAPI(level),
+		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	}
 }
 
 func apiNotificationLevelToCore(level apiv1.NotificationLevel) (corev1.NotificationLevel, error) {

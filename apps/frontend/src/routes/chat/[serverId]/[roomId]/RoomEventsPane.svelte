@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useEvent } from '$lib/hooks';
+  import { useEvent, type UnreadMarkerWindow } from '$lib/hooks';
   import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
   import {
     getComposerContext,
@@ -7,8 +7,10 @@
     type RoomMember
   } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
-  import EventList from './EventList.svelte';
+  import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import * as m from '$lib/i18n/messages';
+  import { toast } from '$lib/ui/toast';
 
   type MessageRetractedEventPayload = {
     roomId?: string | null;
@@ -26,17 +28,25 @@
   let {
     roomId,
     messageStore: store,
-    unreadAfterTime = null,
-    unreadBeforeTime = null,
+    unreadMarkerEventId = null,
+    unreadMarkerWindow = null,
+    onUnreadMarkerResolved,
+    onUnreadMarkerCleared,
     onOpenThread,
+    pendingHighlightId = null,
+    onHighlightComplete,
     typingUserIds = [],
     typingMembers = []
   }: {
     roomId: string;
     messageStore: MessagesStore;
-    unreadAfterTime?: string | null;
-    unreadBeforeTime?: string | null;
+    unreadMarkerEventId?: string | null;
+    unreadMarkerWindow?: UnreadMarkerWindow | null;
+    onUnreadMarkerResolved?: (eventId: string) => void;
+    onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
+    pendingHighlightId?: string | null;
+    onHighlightComplete?: () => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();
@@ -47,20 +57,6 @@
 
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
-
-  // Resolve time-based unread boundary to an event ID for EventList
-  let unreadAfterEventId = $derived.by(() => {
-    if (unreadAfterTime === null) return null;
-    const afterMs = new Date(unreadAfterTime).getTime();
-    const beforeMs = unreadBeforeTime ? new Date(unreadBeforeTime).getTime() : Infinity;
-    for (const event of roomEvents) {
-      const eventMs = new Date(event.createdAt).getTime();
-      if (eventMs > afterMs && eventMs <= beforeMs) {
-        return event.id;
-      }
-    }
-    return null;
-  });
 
   // Wire jumpState handlers to the store
   if (jumpState) {
@@ -123,7 +119,7 @@
   }
 </script>
 
-<EventList
+<TimelineEventsPane
   {roomId}
   messageStore={store}
   events={roomEvents}
@@ -137,12 +133,16 @@
   {onOpenThread}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
-  {unreadAfterEventId}
+  {unreadMarkerEventId}
+  {unreadMarkerWindow}
+  {onUnreadMarkerResolved}
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}
-  onScrollToEventComplete={() => {
+  onScrollToEventComplete={(landed) => {
     if (jumpState) jumpState.scrollToEventId = null;
+    onHighlightComplete?.();
+    if (!landed) toast.error(m['room.jump_failed']());
   }}
   isJumpedMode={jumpState?.isJumpedMode ?? false}
   isLoadingNewer={jumpState?.isLoadingNewer ?? false}
@@ -150,5 +150,7 @@
   onLoadNewer={() => store.loadNewer(jumpState)}
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
   onReachedPresent={handleReachedPresent}
+  {onUnreadMarkerCleared}
   onSoftRefresh={handleSoftRefresh}
+  {pendingHighlightId}
 />

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/config"
 )
@@ -46,6 +47,7 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 
 	for _, want := range []string{
 		`chatto_build_info{version="test-version"} 1`,
+		`chatto_realtime_websocket_connections 0`,
 		`chatto_nats_connected 0`,
 		`chatto_ready 0`,
 	} {
@@ -176,4 +178,59 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if strings.Contains(text, `model="Message Model"`) {
 		t.Fatalf("metrics body used human model name as label\n%s", text)
 	}
+}
+
+func TestMetricsServerTracksRealtimeWebSocketConnections(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+
+	metricsServer, err := env.httpServer.newMetricsServer()
+	if err != nil {
+		t.Fatalf("newMetricsServer() error = %v", err)
+	}
+	ts := httptest.NewServer(metricsServer.Handler)
+	t.Cleanup(ts.Close)
+
+	assertMetricsContainsEventually(t, ts.URL+"/metrics", `chatto_realtime_websocket_connections 0`)
+
+	conn := env.connectRealtime(t)
+	assertMetricsContainsEventually(t, ts.URL+"/metrics", `chatto_realtime_websocket_connections 1`)
+
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close realtime websocket: %v", err)
+	}
+	assertMetricsContainsEventually(t, ts.URL+"/metrics", `chatto_realtime_websocket_connections 0`)
+}
+
+func assertMetricsContainsEventually(t *testing.T, url, want string) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	var text string
+	for time.Now().Before(deadline) {
+		text = scrapeMetricsText(t, url)
+		if strings.Contains(text, want) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("metrics body missing %q\n%s", want, text)
+}
+
+func scrapeMetricsText(t *testing.T, url string) string {
+	t.Helper()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET metrics error = %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET metrics status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read metrics body: %v", err)
+	}
+	return string(body)
 }

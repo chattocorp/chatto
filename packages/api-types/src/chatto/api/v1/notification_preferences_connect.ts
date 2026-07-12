@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResponse, GetServerNotificationPreferenceRequest, GetServerNotificationPreferenceResponse, UpdateRoomNotificationPreferenceRequest, UpdateRoomNotificationPreferenceResponse, UpdateServerNotificationPreferenceRequest, UpdateServerNotificationPreferenceResponse } from "./notification_preferences_pb.js";
+import { GetNotificationPreferenceResponse, GetRoomNotificationPreferenceRequest, GetServerNotificationPreferenceRequest, UpdateNotificationPreferenceResponse, UpdateRoomNotificationPreferenceRequest, UpdateServerNotificationPreferenceRequest } from "./notification_preferences_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const NotificationPreferencesService = {
     getServerNotificationPreference: {
       name: "GetServerNotificationPreference",
       I: GetServerNotificationPreferenceRequest,
-      O: GetServerNotificationPreferenceResponse,
+      O: GetNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -34,7 +34,7 @@ export const NotificationPreferencesService = {
     updateServerNotificationPreference: {
       name: "UpdateServerNotificationPreference",
       I: UpdateServerNotificationPreferenceRequest,
-      O: UpdateServerNotificationPreferenceResponse,
+      O: UpdateNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -49,7 +49,7 @@ export const NotificationPreferencesService = {
     getRoomNotificationPreference: {
       name: "GetRoomNotificationPreference",
       I: GetRoomNotificationPreferenceRequest,
-      O: GetRoomNotificationPreferenceResponse,
+      O: GetNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -61,7 +61,7 @@ export const NotificationPreferencesService = {
     updateRoomNotificationPreference: {
       name: "UpdateRoomNotificationPreference",
       I: UpdateRoomNotificationPreferenceRequest,
-      O: UpdateRoomNotificationPreferenceResponse,
+      O: UpdateNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
   }

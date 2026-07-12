@@ -1,10 +1,11 @@
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';
-import { getComposerContext } from '$lib/state/room';
+import { getComposerContext, type MessagesStore } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
 import { createReactionAPI } from '$lib/api-client/reactions';
+import * as m from '$lib/i18n/messages';
 
 export type MessageActionParams = {
   serverId: string;
@@ -16,23 +17,29 @@ export type MessageActionParams = {
   threadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
+  messageStore?: MessagesStore | null;
 };
 
-/**
- * Shared message action handlers for context menu and action sheet.
- * Must be called during component initialization (uses getEditState context).
- */
-export function useMessageActions() {
-  const editState = getComposerContext().editState;
+/** Shared reaction mutation handlers for all message reaction controls. */
+export function useReactionActions() {
   const connection = useConnection();
 
-  async function addReaction(params: MessageActionParams, emoji: string) {
-    const name = emojiToName(emoji);
+  function reactionName(emojiOrName: string): string | null {
+    return emojiToName(emojiOrName) ?? emojiOrName;
+  }
+
+  async function addReaction(params: MessageActionParams, emojiOrName: string) {
+    const name = reactionName(emojiOrName);
     if (!name) return;
+    const optimistic = params.messageStore?.beginOptimisticReaction({
+      messageEventId: params.messageEventId,
+      emoji: name,
+      action: 'add'
+    });
 
     try {
       const conn = connection();
-      await createReactionAPI({
+      const result = await createReactionAPI({
         serverId: conn.serverId ?? params.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
@@ -41,18 +48,25 @@ export function useMessageActions() {
         messageEventId: params.messageEventId,
         emoji: name
       });
+      optimistic?.applyServerReaction(result.reaction);
     } catch {
-      toast.error('Failed to add reaction');
+      optimistic?.rollback();
+      toast.error(m['room.message.reaction_failed']());
     }
   }
 
-  async function removeReaction(params: MessageActionParams, emoji: string) {
-    const name = emojiToName(emoji);
+  async function removeReaction(params: MessageActionParams, emojiOrName: string) {
+    const name = reactionName(emojiOrName);
     if (!name) return;
+    const optimistic = params.messageStore?.beginOptimisticReaction({
+      messageEventId: params.messageEventId,
+      emoji: name,
+      action: 'remove'
+    });
 
     try {
       const conn = connection();
-      await createReactionAPI({
+      const result = await createReactionAPI({
         serverId: conn.serverId ?? params.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
@@ -61,8 +75,10 @@ export function useMessageActions() {
         messageEventId: params.messageEventId,
         emoji: name
       });
+      optimistic?.applyServerReaction(result.reaction);
     } catch {
-      toast.error('Failed to remove reaction');
+      optimistic?.rollback();
+      toast.error(m['room.message.reaction_failed']());
     }
   }
 
@@ -73,6 +89,21 @@ export function useMessageActions() {
       await addReaction(params, emoji);
     }
   }
+
+  return {
+    addReaction,
+    removeReaction,
+    toggleReaction
+  };
+}
+
+/**
+ * Shared message action handlers for context menu and action sheet.
+ * Must be called during component initialization (uses getEditState context).
+ */
+export function useMessageActions() {
+  const editState = getComposerContext().editState;
+  const reactionActions = useReactionActions();
 
   function startEdit(params: MessageActionParams) {
     editState.startEdit(params.eventId, params.messageBody, {
@@ -97,9 +128,7 @@ export function useMessageActions() {
   }
 
   return {
-    addReaction,
-    removeReaction,
-    toggleReaction,
+    ...reactionActions,
     startEdit,
     openDeleteConfirmation,
     copyMessageLink

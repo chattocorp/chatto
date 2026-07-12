@@ -4,6 +4,8 @@
   import { useRenderData } from '$lib/render/data';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { event }: { event: RoomEventView } = $props();
 
@@ -19,7 +21,7 @@
 
   const subject = $derived.by<Subject>(() => {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
@@ -30,25 +32,21 @@
     if (!event?.event) return null;
     switch (roomEventKind(event.event)) {
       case RoomEventKind.UserJoinedRoom:
-        return 'joined the room';
+        return m['room.system_events.joined']({ count: 1 });
       case RoomEventKind.UserLeftRoom:
-        return 'left the room';
+        return m['room.system_events.left']({ count: 1 });
       case RoomEventKind.RoomArchived:
-        return 'archived the room';
+        return m['room.system_events.archived']();
       case RoomEventKind.RoomUnarchived:
-        return 'unarchived the room';
+        return m['room.system_events.unarchived']();
       default:
         return null;
     }
   });
 
-  const message = $derived.by(() => {
-    if (!action) return null;
-    return `${subject.name} ${action}`;
-  });
 </script>
 
-{#if message}
+{#if action}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
@@ -64,6 +62,13 @@
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{message}</span>
+    <span class="text-sm text-muted">
+      {#if subject.user}
+        {subject.name}
+      {:else}
+        <DeletedUserLabel />
+      {/if}
+      {action}
+    </span>
   </div>
 {/if}

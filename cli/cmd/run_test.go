@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -44,6 +45,59 @@ func TestShouldPrintBannerOnlyForTextLogs(t *testing.T) {
 	}
 	if shouldPrintBanner("auto", false) {
 		t.Fatal("expected auto logs off terminal to suppress banner")
+	}
+}
+
+func TestPushNotificationUsesCountBadgeOnlyForDMs(t *testing.T) {
+	tests := []struct {
+		name         string
+		notification *corev1.Notification
+		want         bool
+	}{
+		{
+			name: "direct message",
+			notification: &corev1.Notification{
+				Notification: &corev1.Notification_DmMessage{
+					DmMessage: &corev1.DMMessageNotification{RoomId: "dm-room", EventId: "event-1"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "mention",
+			notification: &corev1.Notification{
+				Notification: &corev1.Notification_Mention{
+					Mention: &corev1.MentionNotification{RoomId: "room-1", EventId: "event-1"},
+				},
+			},
+		},
+		{
+			name: "reply",
+			notification: &corev1.Notification{
+				Notification: &corev1.Notification_Reply{
+					Reply: &corev1.ReplyNotification{RoomId: "room-1", EventId: "event-1"},
+				},
+			},
+		},
+		{
+			name: "room message",
+			notification: &corev1.Notification{
+				Notification: &corev1.Notification_RoomMessage{
+					RoomMessage: &corev1.RoomMessageNotification{
+						RoomId:  "room-1",
+						EventId: "event-1",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := pushNotificationUsesCountBadge(tt.notification); got != tt.want {
+				t.Fatalf("pushNotificationUsesCountBadge() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

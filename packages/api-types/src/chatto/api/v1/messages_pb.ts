@@ -29,6 +29,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
 
   /**
    * Existing room-scoped attachment asset IDs to include with the message.
+   * At most 10 IDs may be supplied.
    *
    * @generated from field: repeated string attachment_asset_ids = 3;
    */
@@ -211,13 +212,6 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
  */
 export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   /**
-   * True when the edit was accepted.
-   *
-   * @generated from field: bool updated = 1;
-   */
-  updated = false;
-
-  /**
    * Renderable message after the edit.
    *
    * @generated from field: chatto.api.v1.Message message = 2;
@@ -232,7 +226,6 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UpdateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "message", kind: "message", T: Message$1 },
   ]);
 

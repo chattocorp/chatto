@@ -43,6 +43,8 @@ type transformRequest struct {
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
+	// JPEGQuality overrides the default quality for opaque static derivatives.
+	JPEGQuality int
 	// FetchAsset returns the asset data and content type.
 	// The reader will be closed if it implements io.Closer.
 	FetchAsset func(ctx context.Context) (io.Reader, string, error)
@@ -60,8 +62,8 @@ const (
 
 const largeAttachmentRedirectThreshold = 32 << 20
 
-func protectedAssetDeliveryMode(attachment *corev1.Attachment, req *http.Request) assetDeliveryMode {
-	if attachment == nil || req.Header.Get("X-Chatto-Asset-Proxy") == "1" {
+func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode {
+	if attachment == nil {
 		return deliveryChattoStream
 	}
 	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
@@ -145,16 +147,12 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
 	assetID := c.Param("assetID")
 
-	if s.failAssetProxyRequest(c) {
-		return
-	}
-
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
 	if !ok {
 		return
 	}
 
-	if protectedAssetDeliveryMode(attachment, c.Request) == deliveryS3Redirect {
+	if protectedAssetDeliveryMode(attachment) == deliveryS3Redirect {
 		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment, core.S3AssetRedirectTTL); err == nil {
 			c.Header("Cache-Control", protectedAssetCacheControl)
 			c.Redirect(http.StatusFound, presignedURL)
@@ -180,7 +178,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
-	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
@@ -227,10 +225,6 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		return
 	}
 
-	if s.failAssetProxyRequest(c) {
-		return
-	}
-
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, params)
 	if !ok {
 		return
@@ -239,6 +233,7 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	s.serveTransformedAssetWithParams(c, transformRequest{
 		CachePrefix: AttachmentStableCachePrefix,
 		AssetID:     assetID,
+		JPEGQuality: AttachmentDerivativeJPEGQuality,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 			if err != nil {
@@ -250,24 +245,14 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	}, params)
 }
 
-func (s *HTTPServer) failAssetProxyRequest(c *gin.Context) bool {
-	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
-		return false
-	}
-
-	for {
-		remaining := s.failAssetProxyRequests.Load()
-		if remaining <= 0 {
-			return false
-		}
-		if s.failAssetProxyRequests.CompareAndSwap(remaining, remaining-1) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "expired asset access ticket"})
-			return true
-		}
-	}
-}
-
-const AttachmentStableCachePrefix = "attachment-stable"
+const (
+	// AttachmentDerivativeJPEGQuality keeps displayed attachment images compact
+	// without changing the encoding quality of public server assets.
+	AttachmentDerivativeJPEGQuality = 75
+	// AttachmentStableCachePrefix is versioned whenever attachment derivative
+	// encoding changes so older cached bytes cannot be reused.
+	AttachmentStableCachePrefix = core.AttachmentDerivativeCacheResource
+)
 
 func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformParams, error) {
 	widthText, heightText, ok := strings.Cut(dimensions, "x")
@@ -373,6 +358,10 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 	}
 
 	reqWithUser := s.injectUserIntoContext(c)
+	if authenticationValidationError(reqWithUser.Context()) != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+		return "", false
+	}
 	user := authctx.ForContext(reqWithUser.Context())
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -456,7 +445,14 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	}
 
 	// Transform the image
-	result, err := assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	var result *assets.TransformResult
+	if req.JPEGQuality > 0 {
+		result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
+			JPEGQuality: req.JPEGQuality,
+		})
+	} else {
+		result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	}
 	if err != nil {
 		s.logger.Error("Failed to transform image", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})

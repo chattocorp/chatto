@@ -18,12 +18,12 @@ type ServiceWorkerRegistrationSnapshot = {
 
 type BadgeStateSnapshot = {
   cacheExists: boolean;
-  notificationCount: number | null;
+  badgeIntent: { kind: 'clear' } | { kind: 'flag' } | { kind: 'count'; count: number } | null;
   serviceWorkerAppBadgeEnabled: boolean | null;
 };
 
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v1';
-const BADGE_STATE_REQUEST = '/__chatto/foreground-notification-count';
+const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
+const BADGE_STATE_REQUEST = '/__chatto/foreground-badge-intent';
 
 test('service worker caches only the app shell and serves it offline', async ({
   page,
@@ -94,8 +94,8 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
     return {
       controlled: Boolean(navigator.serviceWorker.controller),
       pageBadgingApiPresent: 'setAppBadge' in navigator,
-      installedAppDisplayMode: standaloneDisplayModes.some((mode) =>
-        window.matchMedia(`(display-mode: ${mode})`).matches
+      installedAppDisplayMode: standaloneDisplayModes.some(
+        (mode) => window.matchMedia(`(display-mode: ${mode})`).matches
       )
     };
   });
@@ -115,7 +115,7 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
   });
   await expectBadgeState(page, {
     cacheExists: true,
-    notificationCount: 3,
+    badgeIntent: { kind: 'count', count: 3 },
     serviceWorkerAppBadgeEnabled: false
   });
   await expectPageStillResponsive(page);
@@ -125,7 +125,7 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
   await ensureServiceWorkerControlsPage(page);
   await expectBadgeState(page, {
     cacheExists: true,
-    notificationCount: 3,
+    badgeIntent: { kind: 'count', count: 3 },
     serviceWorkerAppBadgeEnabled: false
   });
 
@@ -135,7 +135,7 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
   });
   await expectBadgeState(page, {
     cacheExists: true,
-    notificationCount: 2,
+    badgeIntent: { kind: 'count', count: 2 },
     serviceWorkerAppBadgeEnabled: false
   });
   await expectPageStillResponsive(page);
@@ -147,7 +147,7 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
   });
   await expectBadgeState(page, {
     cacheExists: true,
-    notificationCount: 0,
+    badgeIntent: { kind: 'clear' },
     serviceWorkerAppBadgeEnabled: false
   });
   await expectPageStillResponsive(page);
@@ -258,24 +258,35 @@ async function readBadgeState(page: Page): Promise<BadgeStateSnapshot> {
       if (!response) {
         return {
           cacheExists: false,
-          notificationCount: null,
+          badgeIntent: null,
           serviceWorkerAppBadgeEnabled: null
         };
       }
 
       const payload = (await response.json()) as {
+        badgeIntent?: unknown;
         notificationCount?: unknown;
         serviceWorkerAppBadgeEnabled?: unknown;
       };
       return {
         cacheExists: true,
-        notificationCount:
-          typeof payload.notificationCount === 'number' ? payload.notificationCount : null,
+        badgeIntent: normalizeBadgeIntent(payload.badgeIntent),
         serviceWorkerAppBadgeEnabled:
           typeof payload.serviceWorkerAppBadgeEnabled === 'boolean'
             ? payload.serviceWorkerAppBadgeEnabled
             : null
       };
+
+      function normalizeBadgeIntent(value: unknown): BadgeStateSnapshot['badgeIntent'] {
+        if (!value || typeof value !== 'object') return null;
+        const intent = value as { kind?: unknown; count?: unknown };
+        if (intent.kind === 'clear') return { kind: 'clear' };
+        if (intent.kind === 'flag') return { kind: 'flag' };
+        if (intent.kind === 'count' && typeof intent.count === 'number') {
+          return { kind: 'count', count: intent.count };
+        }
+        return null;
+      }
     },
     { cacheName: BADGE_STATE_CACHE_NAME, request: BADGE_STATE_REQUEST }
   );

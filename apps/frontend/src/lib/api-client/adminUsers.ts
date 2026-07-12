@@ -28,12 +28,12 @@ export type AdminMember = AdminManagedUser & {
   lastLoginChange?: string | null;
 };
 
-export type AdminRoleReference = {
+export type AdminRoleSummary = {
   name: string;
   displayName: string;
 };
 
-export type AdminMemberRole = AdminRoleReference & {
+export type AdminRoleDetails = AdminRoleSummary & {
   position: number;
   permissions: string[];
   permissionDenials: string[];
@@ -41,14 +41,14 @@ export type AdminMemberRole = AdminRoleReference & {
 
 export type AdminMemberList = {
   users: AdminMember[];
-  roles: AdminRoleReference[];
+  roles: AdminRoleSummary[];
   totalCount: number;
   hasMore: boolean;
 };
 
 export type AdminMemberDetails = {
   member: AdminMember | null;
-  roles: AdminMemberRole[];
+  roles: AdminRoleDetails[];
   availablePermissions: string[];
   viewerCanAssignRoles: boolean;
   viewerCanManageRoles: boolean;
@@ -105,7 +105,7 @@ export function createAdminUserManagementAPI(
       );
       return {
         users: response.members.map(adminMember),
-        roles: response.roles.map(adminRoleReference),
+        roles: response.roles.map(adminRoleSummary),
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false,
       };
@@ -120,7 +120,7 @@ export function createAdminUserManagementAPI(
       );
       return {
         member: response.member ? adminMember(response.member) : null,
-        roles: response.roles.map(adminMemberRole),
+        roles: response.roles.map(adminRoleDetails),
         availablePermissions: [...response.availablePermissions],
         viewerCanAssignRoles: response.viewerCanAssignRoles,
         viewerCanManageRoles: response.viewerCanManageRoles,
@@ -137,7 +137,7 @@ export function createAdminUserManagementAPI(
         { headers: headers() },
       );
       return {
-        changed: response.assigned,
+        changed: true,
         member: response.member ? adminMember(response.member) : null,
       };
     },
@@ -151,7 +151,7 @@ export function createAdminUserManagementAPI(
         { headers: headers() },
       );
       return {
-        changed: response.revoked,
+        changed: true,
         member: response.member ? adminMember(response.member) : null,
       };
     },
@@ -238,21 +238,21 @@ function adminMember(member: APIAdminMember): AdminMember {
   };
 }
 
-function adminRoleReference(role: APIRole): AdminRoleReference {
+function adminRoleSummary(role: APIRole): AdminRoleSummary {
   return {
     name: role.name,
     displayName: role.displayName,
   };
 }
 
-function adminMemberRole(role: APIAdminRole): AdminMemberRole {
+function adminRoleDetails(role: APIAdminRole): AdminRoleDetails {
   if (!role.role) {
     throw new Error(
       "admin member role response did not include public role metadata",
     );
   }
   return {
-    ...adminRoleReference(role.role),
+    ...adminRoleSummary(role.role),
     position: role.role.position,
     permissions: [...role.permissions],
     permissionDenials: [...role.permissionDenials],

@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type assetUploadService struct {
@@ -85,7 +84,7 @@ func (s *assetUploadService) CompleteUpload(ctx context.Context, req *connect.Re
 	}
 	return connect.NewResponse(&apiv1.CompleteUploadResponse{
 		Upload: apiAssetUpload(upload),
-		Asset:  apiUploadedAttachmentAsset(attachment),
+		Asset:  (&attachmentMapper{api: s.api}).asset(attachment, caller.UserID, assetThumbnailOptions(nil)),
 	}), nil
 }
 
@@ -131,19 +130,5 @@ func apiAssetUploadStatus(status core.AssetUploadStatus) apiv1.AssetUploadStatus
 		return apiv1.AssetUploadStatus_ASSET_UPLOAD_STATUS_CANCELLED
 	default:
 		return apiv1.AssetUploadStatus_ASSET_UPLOAD_STATUS_UNSPECIFIED
-	}
-}
-
-func apiUploadedAttachmentAsset(attachment *corev1.Attachment) *apiv1.UploadedAttachmentAsset {
-	if attachment == nil {
-		return nil
-	}
-	return &apiv1.UploadedAttachmentAsset{
-		AssetId:     attachment.GetId(),
-		Filename:    attachment.GetFilename(),
-		ContentType: attachment.GetContentType(),
-		Size:        attachment.GetSize(),
-		Width:       attachment.GetWidth(),
-		Height:      attachment.GetHeight(),
 	}
 }

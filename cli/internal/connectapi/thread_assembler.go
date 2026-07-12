@@ -2,7 +2,9 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
@@ -53,6 +55,11 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		kind := core.RoomKindFromLegacySpaceID(thread.SpaceID)
 		room, err := a.api.core.GetRoom(ctx, kind, thread.RoomID)
 		if err != nil {
+			// List responses omit resources that disappear between the core page
+			// snapshot and response hydration instead of failing the whole page.
+			if errors.Is(err, core.ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+				return nil, nil
+			}
 			return nil, err
 		}
 
@@ -73,14 +80,24 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		if thread.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*thread.LastReplyAt)
 		}
+		participantPreviewUserIDs := firstN(thread.ParticipantIDs, 5)
+		h.addUserIDs(participantPreviewUserIDs)
+		following := true
+		hasUnread := thread.HasUnread
 		return &apiv1.FollowedThread{
-			RoomId:            thread.RoomID,
-			RoomName:          room.GetName(),
-			ThreadRootEventId: thread.ThreadRootEventID,
-			RootMessage:       rootMessage,
-			ReplyCount:        int32(thread.ReplyCount),
-			LastReplyAt:       lastReplyAt,
-			HasUnread:         thread.HasUnread,
+			RootMessage: rootMessage,
+			Room:        apiRoomSummary(room),
+			Thread: &apiv1.ThreadSummary{
+				ThreadRootEventId:         thread.ThreadRootEventID,
+				ReplyCount:                int32(thread.ReplyCount),
+				LastReplyAt:               lastReplyAt,
+				ParticipantPreviewUserIds: participantPreviewUserIDs,
+				ParticipantCount:          int32(len(thread.ParticipantIDs)),
+				ViewerState: &apiv1.ThreadViewerState{
+					IsFollowing: &following,
+					HasUnread:   &hasUnread,
+				},
+			},
 		}, nil
 	})
 	if err != nil {

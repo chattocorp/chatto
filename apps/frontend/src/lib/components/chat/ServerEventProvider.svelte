@@ -1,8 +1,13 @@
 <script lang="ts">
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { usePresenceChange, useReconnectCallback } from '$lib/hooks';
+  import { presencePreference } from '$lib/state/presencePreference.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
+  import {
+    authenticatedCurrentUserPresenceEntries,
+    getPresenceCache
+  } from '$lib/state/presenceCache.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
@@ -27,14 +32,32 @@
   // Clear presence cache after WebSocket reconnection
   useReconnectCallback(() => {
     console.log('WebSocket reconnected, clearing presence cache');
-    presenceCache.clear();
+    presenceCache.clear(
+      authenticatedCurrentUserPresenceEntries(
+        currentUserPresenceStores(),
+        presencePreference.effectiveStatus
+      )
+    );
   });
 
   // Populate global presence cache from server events so that any UserAvatar
   // (including newly-mounted ones like popovers) sees the latest presence.
   usePresenceChange((userId, status) => {
-    presenceCache.update(userId, status);
+    presenceCache.update({ serverId: getActiveServer(), userId }, status);
   });
+
+  function currentUserPresenceStores() {
+    return serverRegistry.servers.map((server) => {
+      const store = serverRegistry.tryGetStore(server.id);
+      return store
+        ? {
+            serverId: server.id,
+            isAuthenticated: store.isAuthenticated,
+            currentUser: store.currentUser
+          }
+        : null;
+    });
+  }
 </script>
 
 <div data-testid="server-subscription-active" class="hidden"></div>

@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
@@ -365,6 +366,9 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	_, err = s3Client.StatObject(ctx, s3Key)
 	if err == nil {
 		t.Error("Object should be deleted from S3")
+	}
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		t.Fatalf("Second S3 deletion should be idempotent: %v", err)
 	}
 }
 
@@ -1004,12 +1008,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	// Simulate cached resizes by storing them directly. The HTTP handler
-	// signs transform URLs with AttachmentSignResource and the cache uses
-	// that same prefix.
+	// Simulate cached resizes from both the original cache namespace and the
+	// current versioned attachment derivative namespace.
 	cacheKey1 := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
 	cacheKey2 := ImageCacheKey(AttachmentSignResource, attachment.Id, 400, 300, "cover")
 	cacheKey3 := ImageCacheKey(AttachmentSignResource, attachment.Id, 100, 100, "contain")
+	cacheKey4 := ImageCacheKey(AttachmentDerivativeCacheResource, attachment.Id, 960, 400, "contain")
 
 	// Store fake cached data
 	fakeWebP := []byte("fake webp data")
@@ -1022,9 +1026,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	if err := core.StoreCachedResize(ctx, cacheKey3, fakeWebP); err != nil {
 		t.Fatalf("Failed to store cached resize 3: %v", err)
 	}
+	if err := core.StoreCachedResize(ctx, cacheKey4, fakeWebP); err != nil {
+		t.Fatalf("Failed to store cached resize 4: %v", err)
+	}
 
 	// Verify cache entries exist
-	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3} {
+	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3, cacheKey4} {
 		data, err := core.GetCachedResize(ctx, key)
 		if err != nil {
 			t.Fatalf("Failed to get cached resize %s: %v", key, err)
@@ -1040,7 +1047,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Verify all cache entries are deleted
-	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3} {
+	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3, cacheKey4} {
 		data, err := core.GetCachedResize(ctx, key)
 		if err != nil {
 			t.Fatalf("Unexpected error getting cached resize %s: %v", key, err)
@@ -1151,7 +1158,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
 	}
 	inheritedRoomDerivativeID := "A-inherited-room-derivative"
-	if err := core.Assets.Apply(&corev1.Event{
+	inheritedCreated := &corev1.Event{
 		Id: "E-inherited-room-derivative-created",
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -1165,8 +1172,14 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
-	}, 999); err != nil {
-		t.Fatalf("Failed to project inherited-room derivative: %v", err)
+	}
+	inheritedSubject := events.AssetAggregate(inheritedRoomDerivativeID).SubjectFor(inheritedCreated)
+	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
+	if err != nil {
+		t.Fatalf("Failed to append inherited-room derivative: %v", err)
+	}
+	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+		t.Fatalf("Failed to wait for inherited-room derivative: %v", err)
 	}
 
 	thumbnailCacheKey := ImageCacheKey(AttachmentSignResource, thumbnail.Id, 128, 128, "cover")

@@ -57,12 +57,17 @@ export interface E2ENotificationPreference {
 }
 
 interface NotificationPreferenceResponse {
-  level?: unknown;
-  effectiveLevel?: unknown;
+  preference?: {
+    level?: unknown;
+    effectiveLevel?: unknown;
+  };
 }
 
 interface ListRoomsResponse {
-  rooms?: Array<{ room?: { id?: string; name?: string }; hasUnread?: boolean }>;
+  rooms?: Array<{
+    room?: { id?: string; name?: string };
+    viewerState?: { hasUnread?: boolean };
+  }>;
 }
 
 interface ListRoomGroupsResponse {
@@ -189,7 +194,7 @@ async function getRoomUnreadViaConnect(client: ConnectClient, roomId: string): P
   if (!room) {
     throw new Error(`Room "${roomId}" not found`);
   }
-  return room.hasUnread ?? false;
+  return room.viewerState?.hasUnread ?? false;
 }
 
 export async function waitForServerUnreadViaConnect(
@@ -198,10 +203,7 @@ export async function waitForServerUnreadViaConnect(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await connectPost<ViewerResponse>(
-      page,
-      'chatto.api.v1.ViewerService/GetViewer'
-    );
+    const data = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
     expect(data.viewerState?.hasUnreadRooms ?? false).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
@@ -419,9 +421,13 @@ export async function updateRoomNotificationPreference(
 function normalizeNotificationPreference(
   data: NotificationPreferenceResponse
 ): E2ENotificationPreference {
+  if (!data.preference) {
+    throw new Error('Notification preference response did not include preference metadata');
+  }
+
   return {
-    level: normalizeNotificationLevel(data.level),
-    effectiveLevel: normalizeNotificationLevel(data.effectiveLevel)
+    level: normalizeNotificationLevel(data.preference.level),
+    effectiveLevel: normalizeNotificationLevel(data.preference.effectiveLevel)
   };
 }
 

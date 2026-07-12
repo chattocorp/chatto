@@ -270,7 +270,8 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 
 func eventNeedsCallStateProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *corev1.Event_VoiceCallStarted,
+	case *corev1.Event_UserLeftRoom,
+		*corev1.Event_VoiceCallStarted,
 		*corev1.Event_VoiceCallParticipantJoined,
 		*corev1.Event_VoiceCallParticipantLeft,
 		*corev1.Event_VoiceCallEnded:

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Reads and dismisses pending notifications for the authenticated viewer.
@@ -92,6 +92,7 @@ export const NotificationService = {
       I: DismissNotificationRequest,
       O: DismissNotificationResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Dismisses all pending notifications.

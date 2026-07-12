@@ -22,14 +22,8 @@ path-specific guidance.
 ## Project Status
 
 - Chatto is public, self-hosted, and has real user data.
-- The project is pre-1.0, so breaking changes can be acceptable, but storage,
-  protobuf, discovery, and client compatibility still need an explicit plan.
-- Some self-hosters track `:latest`; assume mixed deployed versions can exist.
-- The ConnectRPC API is still settling. Prefer making `chatto.api.v1` a clean,
-  broad base API and `chatto.admin.v1` a clearly administrative public API,
-  with explicit compatibility notes over moving ordinary frontend-used features
-  into an app-only namespace.
-- As long as we haven't released 0.4.0, breaking changes to the ConnectRPC are not only okay, but even encouraged (if they are for cleanup/DRY/etc.) - after we've released 0.4.0, we'll want to be more careful.
+- The project is pre-1.0, but people are already self-hosting Chatto, so we want to avoid breaking changes where possible. For new API surface, prefer new protobuf fields on existing protobuf types, then new protobuf types. Only implement _breaking_ API changes if absolutely necessary, but discuss this with the user first. Changes to the `core` protobuf messages (used by our persistence layer) must never be breaking.
+- Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
 
 ## Prime Directives
 
@@ -45,6 +39,10 @@ path-specific guidance.
 - Never log PII: no raw login names, display names, email addresses, submitted
   auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes,
   reset links, raw IPs, or full query strings.
+- Treat optional operational telemetry as best-effort: its failure must not make
+  broader diagnostics unavailable. Preserve an explicit unavailable state across
+  API and UI boundaries instead of replacing unknown values with healthy-looking
+  zeroes, empty strings, or timestamps.
 
 ## Tooling
 
@@ -109,9 +107,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   repeatable `List`/`Get`/`BatchGet`/`Create`/`Update`/`Delete` pattern, with
   domain verbs only when CRUD names would hide important semantics.
 - Prefer rich protobuf messages over scalar acknowledgements when returning the
-  affected resource is cheap and does not change authorization. Provide batch
-  hydration or include-map patterns where clients would otherwise need N+1
-  reads.
+  affected resource is cheap and does not change authorization. Prefer explicit
+  `BatchGet*` hydration over `includes` maps. Add `includes`-style properties
+  only for proven hot paths where many rows repeatedly reference the same
+  related render data and follow-up batch hydration would be materially worse.
 - Reuse public protobuf shapes for repeated semantics. Offset list RPCs should
   use `PageRequest page` and return `PageInfo page`; singular lookups should
   return `NOT_FOUND` when absence is the error result, while batch/list RPCs can
@@ -140,6 +139,18 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   deployment behavior, or public APIs.
 - Keep `NOTICE` current when adding, removing, or materially changing bundled
   dependencies or shipped assets.
+
+## License Metadata
+
+- Chatto uses REUSE/SPDX license metadata. Keep `mise license-check` passing
+  when adding files or changing license boundaries.
+- Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
+  or an adjacent `.license` file says otherwise.
+- Apache-2.0 is reserved for explicit integration and documentation surfaces,
+  such as the standalone frontend source and image, public protocol/API
+  definitions, generated TypeScript API clients, documentation, and examples.
+- The Chatto server, CLI, and bundled server release artifacts should stay
+  AGPL-3.0-or-later unless the license boundary is deliberately changed.
 
 ## Code Generation
 

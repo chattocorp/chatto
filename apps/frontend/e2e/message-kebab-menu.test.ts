@@ -25,6 +25,28 @@ test.describe('Message hover toolbar', () => {
     await expect(message.hoverToolbar.getByLabel('More actions')).toBeVisible();
   });
 
+  test('toolbar appears on hover in a narrow desktop window', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const testMessage = `Narrow toolbar test ${Date.now()}`;
+    const message = await roomPage.sendMessage(testMessage);
+
+    await page.setViewportSize({ width: 640, height: 720 });
+    await page.mouse.move(0, 0);
+    await expect(message.hoverToolbar).not.toBeVisible();
+
+    await message.locator.hover();
+    await expect(message.hoverToolbar).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(message.hoverToolbar.getByLabel('More actions')).toBeVisible();
+  });
+
   test('can edit message directly through toolbar', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

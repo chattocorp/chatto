@@ -142,6 +142,32 @@ func TestOAuthAuthorize_ValidParams(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_ReturnsUnavailableWhenCookieValidationStorageFails(t *testing.T) {
+	s := setupOAuthServer(t)
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-storage-unavailable")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://chatto.example/servers/callback"},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	canceled, cancel := context.WithCancel(req.Context())
+	cancel()
+	req = req.WithContext(canceled)
+
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("authorize status = %d, want 503: %s", w.Code, w.Body.String())
+	}
+	if location := w.Header().Get("Location"); location != "" {
+		t.Fatalf("authorize redirected during storage failure: %q", location)
+	}
+}
+
 func TestOAuthAuthorize_MissingParams(t *testing.T) {
 	s := setupOAuthServer(t)
 

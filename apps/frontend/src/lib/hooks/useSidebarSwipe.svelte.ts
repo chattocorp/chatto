@@ -8,18 +8,17 @@ import { panGesture } from './panGesture.svelte';
  * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
  * rightward drags claim; when open, only leftward drags claim. Taps and
  * long-presses are forwarded to the element directly underneath the host so
- * dedicated overlay zones (the 24px edge strip, the backdrop) still let
- * underlying content receive clicks and context menus.
+ * dedicated overlay zones still let underlying content receive clicks and
+ * context menus. Use {@link sidebarEdgeSwipe} for the screen-edge open target:
+ * edge taps are too ambiguous and must not synthesize clicks into overlays.
  *
  * The host MUST have `touch-action: none` along the X axis — without it,
  * Chrome / iOS Safari fire `pointercancel` ~8px in when they decide a touch
  * is a back-navigation / text-selection drag.
  */
-export function sidebarSwipe(node: HTMLElement) {
+function createSidebarSwipe(node: HTMLElement, passthrough: boolean) {
   function elementBelow(x: number, y: number) {
-    return document
-      .elementsFromPoint(x, y)
-      .find((el) => el !== node && !node.contains(el));
+    return document.elementsFromPoint(x, y).find((el) => el !== node && !node.contains(el));
   }
 
   function tappedChild(x: number, y: number) {
@@ -69,9 +68,17 @@ export function sidebarSwipe(node: HTMLElement) {
     onUpdate: (dx) => sidebarNav.updateDrag(dx),
     onEnd: (_dx, vx) => sidebarNav.endDrag(vx),
     onCancel: () => sidebarNav.endDrag(0),
-    onTap: forwardTap,
-    onLongPress: forwardLongPress
+    onTap: passthrough ? forwardTap : undefined,
+    onLongPress: passthrough ? forwardLongPress : undefined
   });
+}
+
+export function sidebarSwipe(node: HTMLElement) {
+  return createSidebarSwipe(node, true);
+}
+
+export function sidebarEdgeSwipe(node: HTMLElement) {
+  return createSidebarSwipe(node, false);
 }
 
 export { SIDEBAR_PANEL_WIDTH_PX };

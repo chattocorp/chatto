@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 type permissionService struct {
@@ -222,14 +223,17 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 	}
 	for _, role := range matrix.Roles {
 		out.Roles = append(out.Roles, &adminv1.TierRole{
-			RoleName:         role.RoleName,
-			DisplayName:      role.DisplayName,
-			Description:      role.Description,
-			IsSystem:         role.IsSystem,
-			Position:         role.Position,
 			Override:         apiTierPermissions(role.Override),
 			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
 			InheritedDenials: append([]string(nil), role.InheritedDenials...),
+			Role: &apiv1.Role{
+				Name:        role.RoleName,
+				DisplayName: role.DisplayName,
+				Description: role.Description,
+				IsSystem:    role.IsSystem,
+				Position:    role.Position,
+				Pingable:    role.Pingable,
+			},
 		})
 	}
 	return out

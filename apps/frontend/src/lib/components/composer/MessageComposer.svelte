@@ -21,7 +21,7 @@
     type RoomMember
   } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { hasVisibleContent } from '$lib/validation';
   import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -41,7 +41,7 @@
   };
 
   function getShortcutHints(): ShortcutHints | null {
-    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
 
     const userAgentDataPlatform =
       'userAgentData' in navigator
@@ -743,7 +743,7 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && isTouchDevice()) {
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
       return false;
     }
 
@@ -752,8 +752,10 @@
         if (isRichComposer) {
           handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
         } else {
-          manualRichMode = true;
           editorApi?.insertBlockBreak();
+          // TipTap reports an empty document while inserting the first block break,
+          // so commit manual rich mode after that update has had a chance to clear it.
+          manualRichMode = true;
         }
         return true;
       }
@@ -894,7 +896,10 @@
               <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
-            <div class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200">
+            <div
+              data-testid="file-attachment-preview"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
+            >
               <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
             </div>
           {/if}
@@ -915,7 +920,6 @@
     <input
       bind:this={fileInputElement}
       type="file"
-      accept={attachments.accept}
       multiple
       onchange={handleFileSelect}
       class="hidden"
@@ -924,8 +928,10 @@
 
   <!-- Unified input container -->
   <div
+    data-testid="composer-input-surface"
+    data-composer-mode={isRichComposer ? 'rich' : 'simple'}
     class={[
-      'relative flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
+      'composer-mode-surface flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}

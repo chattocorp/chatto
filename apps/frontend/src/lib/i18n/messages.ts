@@ -94,6 +94,7 @@ const msg_common_confirm = (): LocalizedString => messages().common_confirm(empt
 const msg_common_back = (): LocalizedString => messages().common_back(empty());
 const msg_common_clear = (): LocalizedString => messages().common_clear(empty());
 const msg_common_unknown = (): LocalizedString => messages().common_unknown(empty());
+const msg_common_deleted_user = (): LocalizedString => messages().common_deleted_user(empty());
 const msg_common_got_it = (): LocalizedString => messages().common_got_it(empty());
 const msg_common_saved = (): LocalizedString => messages().common_saved(empty());
 const msg_common_rooms = (): LocalizedString => messages().common_rooms(empty());
@@ -181,6 +182,7 @@ const msg_settings_profile_presence_title = (): LocalizedString => messages().se
 const msg_settings_profile_presence_auto = (): LocalizedString => messages().settings_profile_presence_auto(empty());
 const msg_settings_profile_presence_away = (): LocalizedString => messages().settings_profile_presence_away(empty());
 const msg_settings_profile_presence_do_not_disturb = (): LocalizedString => messages().settings_profile_presence_do_not_disturb(empty());
+const msg_settings_profile_presence_offline = (): LocalizedString => messages().settings_profile_presence_offline(empty());
 const msg_settings_profile_presence_invisible = (): LocalizedString => messages().settings_profile_presence_invisible(empty());
 const msg_settings_profile_saved = (): LocalizedString => messages().settings_profile_saved(empty());
 const msg_settings_profile_save_failed = (): LocalizedString => messages().settings_profile_save_failed(empty());
@@ -555,6 +557,7 @@ const msg_room_join_action = (): LocalizedString => messages().room_join_action(
 const msg_room_join_prompt = (
   inputs: Parameters<LocaleMessages['room_join_prompt']>[0]
 ): LocalizedString => messages().room_join_prompt(inputs);
+const msg_room_join_inline_prompt = (): LocalizedString => messages().room_join_inline_prompt(empty());
 const msg_room_join_success = (
   inputs: Parameters<LocaleMessages['room_join_success']>[0]
 ): LocalizedString => messages().room_join_success(inputs);
@@ -610,6 +613,7 @@ const msg_room_message_empty = (): LocalizedString => messages().room_message_em
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
 const msg_room_message_delete_prompt = (): LocalizedString => messages().room_message_delete_prompt(empty());
 const msg_room_message_delete_failed = (): LocalizedString => messages().room_message_delete_failed(empty());
+const msg_room_message_reaction_failed = (): LocalizedString => messages().room_message_reaction_failed(empty());
 const msg_room_message_deleted = (): LocalizedString => messages().room_message_deleted(empty());
 const msg_room_message_actions_toolbar = (): LocalizedString => messages().room_message_actions_toolbar(empty());
 const msg_room_message_actions_react_with = (
@@ -640,10 +644,26 @@ const msg_room_message_meta_add_reaction_label = (
 const msg_room_message_meta_remove_reaction_label = (
   inputs: Parameters<LocaleMessages['room_message_meta_remove_reaction_label']>[0]
 ): LocalizedString => messages().room_message_meta_remove_reaction_label(inputs);
+const msg_room_message_meta_reaction_users_more = (
+  inputs: Parameters<LocaleMessages['room_message_meta_reaction_users_more']>[0]
+): LocalizedString => messages().room_message_meta_reaction_users_more(inputs);
 const msg_room_message_meta_copy_link_title = (): LocalizedString => messages().room_message_meta_copy_link_title(empty());
 const msg_room_message_meta_in_reply_to = (): LocalizedString => messages().room_message_meta_in_reply_to(empty());
 const msg_room_message_meta_reply_preview_fallback = (): LocalizedString => messages().room_message_meta_reply_preview_fallback(empty());
 const msg_room_message_meta_deleted = (): LocalizedString => messages().room_message_meta_deleted(empty());
+const msg_room_system_events_joined = (
+  inputs: Parameters<LocaleMessages['room_system_events_joined']>[0]
+): LocalizedString => messages().room_system_events_joined(inputs);
+const msg_room_system_events_left = (
+  inputs: Parameters<LocaleMessages['room_system_events_left']>[0]
+): LocalizedString => messages().room_system_events_left(inputs);
+const msg_room_system_events_archived = (): LocalizedString => messages().room_system_events_archived(empty());
+const msg_room_system_events_unarchived = (): LocalizedString => messages().room_system_events_unarchived(empty());
+const msg_room_system_events_and = (): LocalizedString => messages().room_system_events_and(empty());
+const msg_room_system_events_other_people = (
+  inputs: Parameters<LocaleMessages['room_system_events_other_people']>[0]
+): LocalizedString => messages().room_system_events_other_people(inputs);
+const msg_room_system_events_show_less = (): LocalizedString => messages().room_system_events_show_less(empty());
 const msg_room_attachment_delete_title = (): LocalizedString => messages().room_attachment_delete_title(empty());
 const msg_room_attachment_delete_prompt = (): LocalizedString => messages().room_attachment_delete_prompt(empty());
 const msg_room_attachment_delete_label = (): LocalizedString => messages().room_attachment_delete_label(empty());
@@ -686,7 +706,6 @@ const msg_room_sidebar_jump_to_file = (
 ): LocalizedString => messages().room_sidebar_jump_to_file(inputs);
 const msg_room_sidebar_loading_files = (): LocalizedString => messages().room_sidebar_loading_files(empty());
 const msg_room_sidebar_calls_unavailable = (): LocalizedString => messages().room_sidebar_calls_unavailable(empty());
-const msg_room_sidebar_deleted_user = (): LocalizedString => messages().room_sidebar_deleted_user(empty());
 const msg_room_sidebar_view_profile = (
   inputs: Parameters<LocaleMessages['room_sidebar_view_profile']>[0]
 ): LocalizedString => messages().room_sidebar_view_profile(inputs);
@@ -707,6 +726,7 @@ const msg_room_thread_close = (): LocalizedString => messages().room_thread_clos
 const msg_room_thread_not_found = (): LocalizedString => messages().room_thread_not_found(empty());
 const msg_room_thread_reply_placeholder = (): LocalizedString => messages().room_thread_reply_placeholder(empty());
 const msg_room_jump_to_present = (): LocalizedString => messages().room_jump_to_present(empty());
+const msg_room_jump_failed = (): LocalizedString => messages().room_jump_failed(empty());
 const msg_room_unread_separator = (): LocalizedString => messages().room_unread_separator(empty());
 const msg_room_close_extras = (): LocalizedString => messages().room_close_extras(empty());
 const msg_server_settings_loading = (): LocalizedString => messages().server_settings_loading(empty());
@@ -831,7 +851,6 @@ const msg_preview_youtube_dismiss = (): LocalizedString => messages().preview_yo
 const msg_preview_youtube_delete = (): LocalizedString => messages().preview_youtube_delete(empty());
 const msg_preview_youtube_open = (): LocalizedString => messages().preview_youtube_open(empty());
 const msg_preview_youtube_delete_embed = (): LocalizedString => messages().preview_youtube_delete_embed(empty());
-const msg_message_preview_deleted_user = (): LocalizedString => messages().message_preview_deleted_user(empty());
 const msg_message_preview_attachments_count = (
   inputs: Parameters<LocaleMessages['message_preview_attachments_count']>[0]
 ): LocalizedString => messages().message_preview_attachments_count(inputs);
@@ -1414,6 +1433,31 @@ const msg_admin_system_stopped = (): LocalizedString => messages().admin_system_
 const msg_admin_system_failed_at = (
   inputs: Parameters<LocaleMessages['admin_system_failed_at']>[0]
 ): LocalizedString => messages().admin_system_failed_at(inputs);
+const msg_admin_system_asset_cleanup = (): LocalizedString => messages().admin_system_asset_cleanup(empty());
+const msg_admin_system_asset_cleanup_healthy = (): LocalizedString => messages().admin_system_asset_cleanup_healthy(empty());
+const msg_admin_system_asset_cleanup_retrying = (): LocalizedString => messages().admin_system_asset_cleanup_retrying(empty());
+const msg_admin_system_asset_cleanup_initializing = (): LocalizedString => messages().admin_system_asset_cleanup_initializing(empty());
+const msg_admin_system_asset_cleanup_stalled = (): LocalizedString => messages().admin_system_asset_cleanup_stalled(empty());
+const msg_admin_system_asset_cleanup_inactive = (): LocalizedString => messages().admin_system_asset_cleanup_inactive(empty());
+const msg_admin_system_asset_cleanup_unavailable = (): LocalizedString => messages().admin_system_asset_cleanup_unavailable(empty());
+const msg_admin_system_asset_cleanup_healthy_summary = (): LocalizedString => messages().admin_system_asset_cleanup_healthy_summary(empty());
+const msg_admin_system_asset_cleanup_retrying_summary = (): LocalizedString => messages().admin_system_asset_cleanup_retrying_summary(empty());
+const msg_admin_system_asset_cleanup_initializing_summary = (): LocalizedString => messages().admin_system_asset_cleanup_initializing_summary(empty());
+const msg_admin_system_asset_cleanup_stalled_summary = (): LocalizedString => messages().admin_system_asset_cleanup_stalled_summary(empty());
+const msg_admin_system_asset_cleanup_inactive_summary = (): LocalizedString => messages().admin_system_asset_cleanup_inactive_summary(empty());
+const msg_admin_system_asset_cleanup_unavailable_summary = (): LocalizedString => messages().admin_system_asset_cleanup_unavailable_summary(empty());
+const msg_admin_system_asset_cleanup_pending = (): LocalizedString => messages().admin_system_asset_cleanup_pending(empty());
+const msg_admin_system_asset_cleanup_oldest = (): LocalizedString => messages().admin_system_asset_cleanup_oldest(empty());
+const msg_admin_system_asset_cleanup_last_pass = (): LocalizedString => messages().admin_system_asset_cleanup_last_pass(empty());
+const msg_admin_system_asset_cleanup_last_success = (
+  inputs: Parameters<LocaleMessages['admin_system_asset_cleanup_last_success']>[0]
+): LocalizedString => messages().admin_system_asset_cleanup_last_success(inputs);
+const msg_admin_system_asset_cleanup_event_scan = (): LocalizedString => messages().admin_system_asset_cleanup_event_scan(empty());
+const msg_admin_system_asset_cleanup_caught_up = (): LocalizedString => messages().admin_system_asset_cleanup_caught_up(empty());
+const msg_admin_system_asset_cleanup_events_waiting = (): LocalizedString => messages().admin_system_asset_cleanup_events_waiting(empty());
+const msg_admin_system_asset_cleanup_never = (): LocalizedString => messages().admin_system_asset_cleanup_never(empty());
+const msg_admin_system_asset_cleanup_none = (): LocalizedString => messages().admin_system_asset_cleanup_none(empty());
+const msg_admin_system_asset_cleanup_in_progress = (): LocalizedString => messages().admin_system_asset_cleanup_in_progress(empty());
 const msg_admin_event_log_title = (): LocalizedString => messages().admin_event_log_title(empty());
 const msg_admin_event_log_subtitle = (): LocalizedString => messages().admin_event_log_subtitle(empty());
 const msg_admin_event_log_filters = (): LocalizedString => messages().admin_event_log_filters(empty());
@@ -1513,6 +1557,7 @@ export { msg_common_confirm as 'common.confirm' };
 export { msg_common_back as 'common.back' };
 export { msg_common_clear as 'common.clear' };
 export { msg_common_unknown as 'common.unknown' };
+export { msg_common_deleted_user as 'common.deleted_user' };
 export { msg_common_got_it as 'common.got_it' };
 export { msg_common_saved as 'common.saved' };
 export { msg_common_rooms as 'common.rooms' };
@@ -1592,6 +1637,7 @@ export { msg_settings_profile_presence_title as 'settings.profile.presence.title
 export { msg_settings_profile_presence_auto as 'settings.profile.presence.auto' };
 export { msg_settings_profile_presence_away as 'settings.profile.presence.away' };
 export { msg_settings_profile_presence_do_not_disturb as 'settings.profile.presence.do_not_disturb' };
+export { msg_settings_profile_presence_offline as 'settings.profile.presence.offline' };
 export { msg_settings_profile_presence_invisible as 'settings.profile.presence.invisible' };
 export { msg_settings_profile_saved as 'settings.profile.saved' };
 export { msg_settings_profile_save_failed as 'settings.profile.save_failed' };
@@ -1928,6 +1974,7 @@ export { msg_room_create_submit as 'room.create.submit' };
 export { msg_room_join_title as 'room.join.title' };
 export { msg_room_join_action as 'room.join.action' };
 export { msg_room_join_prompt as 'room.join.prompt' };
+export { msg_room_join_inline_prompt as 'room.join.inline_prompt' };
 export { msg_room_join_success as 'room.join.success' };
 export { msg_room_join_success_generic as 'room.join.success_generic' };
 export { msg_room_join_failed as 'room.join.failed' };
@@ -1965,6 +2012,7 @@ export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
 export { msg_room_message_delete_prompt as 'room.message.delete_prompt' };
 export { msg_room_message_delete_failed as 'room.message.delete_failed' };
+export { msg_room_message_reaction_failed as 'room.message.reaction_failed' };
 export { msg_room_message_deleted as 'room.message.deleted' };
 export { msg_room_message_actions_toolbar as 'room.message.actions.toolbar' };
 export { msg_room_message_actions_react_with as 'room.message.actions.react_with' };
@@ -1985,10 +2033,18 @@ export { msg_room_message_meta_follow_thread as 'room.message.meta.follow_thread
 export { msg_room_message_meta_unfollow_thread as 'room.message.meta.unfollow_thread' };
 export { msg_room_message_meta_add_reaction_label as 'room.message.meta.add_reaction_label' };
 export { msg_room_message_meta_remove_reaction_label as 'room.message.meta.remove_reaction_label' };
+export { msg_room_message_meta_reaction_users_more as 'room.message.meta.reaction_users_more' };
 export { msg_room_message_meta_copy_link_title as 'room.message.meta.copy_link_title' };
 export { msg_room_message_meta_in_reply_to as 'room.message.meta.in_reply_to' };
 export { msg_room_message_meta_reply_preview_fallback as 'room.message.meta.reply_preview_fallback' };
 export { msg_room_message_meta_deleted as 'room.message.meta.deleted' };
+export { msg_room_system_events_joined as 'room.system_events.joined' };
+export { msg_room_system_events_left as 'room.system_events.left' };
+export { msg_room_system_events_archived as 'room.system_events.archived' };
+export { msg_room_system_events_unarchived as 'room.system_events.unarchived' };
+export { msg_room_system_events_and as 'room.system_events.and' };
+export { msg_room_system_events_other_people as 'room.system_events.other_people' };
+export { msg_room_system_events_show_less as 'room.system_events.show_less' };
 export { msg_room_attachment_delete_title as 'room.attachment.delete_title' };
 export { msg_room_attachment_delete_prompt as 'room.attachment.delete_prompt' };
 export { msg_room_attachment_delete_label as 'room.attachment.delete_label' };
@@ -2019,7 +2075,6 @@ export { msg_room_sidebar_call as 'room.sidebar.call' };
 export { msg_room_sidebar_jump_to_file as 'room.sidebar.jump_to_file' };
 export { msg_room_sidebar_loading_files as 'room.sidebar.loading_files' };
 export { msg_room_sidebar_calls_unavailable as 'room.sidebar.calls_unavailable' };
-export { msg_room_sidebar_deleted_user as 'room.sidebar.deleted_user' };
 export { msg_room_sidebar_view_profile as 'room.sidebar.view_profile' };
 export { msg_room_sidebar_in_voice_call as 'room.sidebar.in_voice_call' };
 export { msg_room_sidebar_in_video_call as 'room.sidebar.in_video_call' };
@@ -2034,6 +2089,7 @@ export { msg_room_thread_close as 'room.thread.close' };
 export { msg_room_thread_not_found as 'room.thread.not_found' };
 export { msg_room_thread_reply_placeholder as 'room.thread.reply_placeholder' };
 export { msg_room_jump_to_present as 'room.jump_to_present' };
+export { msg_room_jump_failed as 'room.jump_failed' };
 export { msg_room_unread_separator as 'room.unread_separator' };
 export { msg_room_close_extras as 'room.close_extras' };
 export { msg_server_settings_loading as 'server_settings.loading' };
@@ -2150,7 +2206,6 @@ export { msg_preview_youtube_dismiss as 'preview.youtube_dismiss' };
 export { msg_preview_youtube_delete as 'preview.youtube_delete' };
 export { msg_preview_youtube_open as 'preview.youtube_open' };
 export { msg_preview_youtube_delete_embed as 'preview.youtube_delete_embed' };
-export { msg_message_preview_deleted_user as 'message_preview.deleted_user' };
 export { msg_message_preview_attachments_count as 'message_preview.attachments_count' };
 export { msg_message_preview_attachment_image as 'message_preview.attachment_image' };
 export { msg_message_preview_attachment_video as 'message_preview.attachment_video' };
@@ -2641,6 +2696,29 @@ export { msg_admin_system_failed as 'admin.system.failed' };
 export { msg_admin_system_started as 'admin.system.started' };
 export { msg_admin_system_stopped as 'admin.system.stopped' };
 export { msg_admin_system_failed_at as 'admin.system.failed_at' };
+export { msg_admin_system_asset_cleanup as 'admin.system.asset_cleanup' };
+export { msg_admin_system_asset_cleanup_healthy as 'admin.system.asset_cleanup_healthy' };
+export { msg_admin_system_asset_cleanup_retrying as 'admin.system.asset_cleanup_retrying' };
+export { msg_admin_system_asset_cleanup_initializing as 'admin.system.asset_cleanup_initializing' };
+export { msg_admin_system_asset_cleanup_stalled as 'admin.system.asset_cleanup_stalled' };
+export { msg_admin_system_asset_cleanup_inactive as 'admin.system.asset_cleanup_inactive' };
+export { msg_admin_system_asset_cleanup_unavailable as 'admin.system.asset_cleanup_unavailable' };
+export { msg_admin_system_asset_cleanup_healthy_summary as 'admin.system.asset_cleanup_healthy_summary' };
+export { msg_admin_system_asset_cleanup_retrying_summary as 'admin.system.asset_cleanup_retrying_summary' };
+export { msg_admin_system_asset_cleanup_initializing_summary as 'admin.system.asset_cleanup_initializing_summary' };
+export { msg_admin_system_asset_cleanup_stalled_summary as 'admin.system.asset_cleanup_stalled_summary' };
+export { msg_admin_system_asset_cleanup_inactive_summary as 'admin.system.asset_cleanup_inactive_summary' };
+export { msg_admin_system_asset_cleanup_unavailable_summary as 'admin.system.asset_cleanup_unavailable_summary' };
+export { msg_admin_system_asset_cleanup_pending as 'admin.system.asset_cleanup_pending' };
+export { msg_admin_system_asset_cleanup_oldest as 'admin.system.asset_cleanup_oldest' };
+export { msg_admin_system_asset_cleanup_last_pass as 'admin.system.asset_cleanup_last_pass' };
+export { msg_admin_system_asset_cleanup_last_success as 'admin.system.asset_cleanup_last_success' };
+export { msg_admin_system_asset_cleanup_event_scan as 'admin.system.asset_cleanup_event_scan' };
+export { msg_admin_system_asset_cleanup_caught_up as 'admin.system.asset_cleanup_caught_up' };
+export { msg_admin_system_asset_cleanup_events_waiting as 'admin.system.asset_cleanup_events_waiting' };
+export { msg_admin_system_asset_cleanup_never as 'admin.system.asset_cleanup_never' };
+export { msg_admin_system_asset_cleanup_none as 'admin.system.asset_cleanup_none' };
+export { msg_admin_system_asset_cleanup_in_progress as 'admin.system.asset_cleanup_in_progress' };
 export { msg_admin_event_log_title as 'admin.event_log.title' };
 export { msg_admin_event_log_subtitle as 'admin.event_log.subtitle' };
 export { msg_admin_event_log_filters as 'admin.event_log.filters' };

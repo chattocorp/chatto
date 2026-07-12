@@ -25,14 +25,6 @@ const (
 // Public metadata for a configured external login provider.
 type ExternalIdentityProvider struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable configured provider ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Provider type, such as "oidc", "github", or "discord".
-	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	// Human-readable label.
-	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	// URL that starts login for this provider.
-	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
 	// URL that starts authenticated account linking for this provider. Clients
 	// should use StartExternalIdentityLink instead of navigating here directly.
 	LinkUrl string `protobuf:"bytes,5,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
@@ -40,8 +32,10 @@ type ExternalIdentityProvider struct {
 	Linked bool `protobuf:"varint,6,opt,name=linked,proto3" json:"linked,omitempty"`
 	// Linked identity subject hash for this provider, when linked.
 	LinkedIdentitySubjectHash string `protobuf:"bytes,7,opt,name=linked_identity_subject_hash,json=linkedIdentitySubjectHash,proto3" json:"linked_identity_subject_hash,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Shared provider metadata.
+	Provider      *ProviderMetadata `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExternalIdentityProvider) Reset() {
@@ -74,34 +68,6 @@ func (*ExternalIdentityProvider) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ExternalIdentityProvider) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetLoginUrl() string {
-	if x != nil {
-		return x.LoginUrl
-	}
-	return ""
-}
-
 func (x *ExternalIdentityProvider) GetLinkUrl() string {
 	if x != nil {
 		return x.LinkUrl
@@ -121,6 +87,13 @@ func (x *ExternalIdentityProvider) GetLinkedIdentitySubjectHash() string {
 		return x.LinkedIdentitySubjectHash
 	}
 	return ""
+}
+
+func (x *ExternalIdentityProvider) GetProvider() *ProviderMetadata {
+	if x != nil {
+		return x.Provider
+	}
+	return nil
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.
@@ -399,98 +372,6 @@ func (x *StartExternalIdentityLinkResponse) GetStartUrl() string {
 	return ""
 }
 
-// Request to link a pending provider identity to the authenticated user.
-type LinkExternalIdentityRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Raw pending link token from the provider callback redirect.
-	Token         string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *LinkExternalIdentityRequest) Reset() {
-	*x = LinkExternalIdentityRequest{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LinkExternalIdentityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LinkExternalIdentityRequest) ProtoMessage() {}
-
-func (x *LinkExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LinkExternalIdentityRequest.ProtoReflect.Descriptor instead.
-func (*LinkExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *LinkExternalIdentityRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-// Result of linking a provider identity.
-type LinkExternalIdentityResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Linked identity metadata.
-	LinkedIdentity *LinkedExternalIdentity `protobuf:"bytes,1,opt,name=linked_identity,json=linkedIdentity,proto3" json:"linked_identity,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *LinkExternalIdentityResponse) Reset() {
-	*x = LinkExternalIdentityResponse{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LinkExternalIdentityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LinkExternalIdentityResponse) ProtoMessage() {}
-
-func (x *LinkExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LinkExternalIdentityResponse.ProtoReflect.Descriptor instead.
-func (*LinkExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *LinkExternalIdentityResponse) GetLinkedIdentity() *LinkedExternalIdentity {
-	if x != nil {
-		return x.LinkedIdentity
-	}
-	return nil
-}
-
 // Request to disconnect a linked provider identity from the authenticated user.
 type DisconnectExternalIdentityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -505,7 +386,7 @@ type DisconnectExternalIdentityRequest struct {
 
 func (x *DisconnectExternalIdentityRequest) Reset() {
 	*x = DisconnectExternalIdentityRequest{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +398,7 @@ func (x *DisconnectExternalIdentityRequest) String() string {
 func (*DisconnectExternalIdentityRequest) ProtoMessage() {}
 
 func (x *DisconnectExternalIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +411,7 @@ func (x *DisconnectExternalIdentityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use DisconnectExternalIdentityRequest.ProtoReflect.Descriptor instead.
 func (*DisconnectExternalIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DisconnectExternalIdentityRequest) GetSubjectHash() string {
@@ -558,7 +439,7 @@ type DisconnectExternalIdentityResponse struct {
 
 func (x *DisconnectExternalIdentityResponse) Reset() {
 	*x = DisconnectExternalIdentityResponse{}
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +451,7 @@ func (x *DisconnectExternalIdentityResponse) String() string {
 func (*DisconnectExternalIdentityResponse) ProtoMessage() {}
 
 func (x *DisconnectExternalIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_external_identities_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +464,7 @@ func (x *DisconnectExternalIdentityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use DisconnectExternalIdentityResponse.ProtoReflect.Descriptor instead.
 func (*DisconnectExternalIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DisconnectExternalIdentityResponse) GetDisconnected() bool {
@@ -597,15 +478,12 @@ var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xe5\x01\n" +
-	"\x18ExternalIdentityProvider\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
-	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\x19\n" +
+	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\"\xed\x01\n" +
+	"\x18ExternalIdentityProvider\x12\x19\n" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
-	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\"\xa8\x01\n" +
+	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xa8\x01\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
@@ -622,11 +500,7 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\x12)\n" +
 	"\x10current_password\x18\x03 \x01(\tR\x0fcurrentPassword\"@\n" +
 	"!StartExternalIdentityLinkResponse\x12\x1b\n" +
-	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"<\n" +
-	"\x1bLinkExternalIdentityRequest\x12\x1d\n" +
-	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"n\n" +
-	"\x1cLinkExternalIdentityResponse\x12N\n" +
-	"\x0flinked_identity\x18\x01 \x01(\v2%.chatto.api.v1.LinkedExternalIdentityR\x0elinkedIdentity\"z\n" +
+	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"z\n" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"H\n" +
@@ -646,7 +520,7 @@ func file_chatto_api_v1_external_identities_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_external_identities_proto_rawDescData
 }
 
-var file_chatto_api_v1_external_identities_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_api_v1_external_identities_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(*ExternalIdentityProvider)(nil),           // 0: chatto.api.v1.ExternalIdentityProvider
 	(*LinkedExternalIdentity)(nil),             // 1: chatto.api.v1.LinkedExternalIdentity
@@ -654,15 +528,14 @@ var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(*ListExternalIdentitiesResponse)(nil),     // 3: chatto.api.v1.ListExternalIdentitiesResponse
 	(*StartExternalIdentityLinkRequest)(nil),   // 4: chatto.api.v1.StartExternalIdentityLinkRequest
 	(*StartExternalIdentityLinkResponse)(nil),  // 5: chatto.api.v1.StartExternalIdentityLinkResponse
-	(*LinkExternalIdentityRequest)(nil),        // 6: chatto.api.v1.LinkExternalIdentityRequest
-	(*LinkExternalIdentityResponse)(nil),       // 7: chatto.api.v1.LinkExternalIdentityResponse
-	(*DisconnectExternalIdentityRequest)(nil),  // 8: chatto.api.v1.DisconnectExternalIdentityRequest
-	(*DisconnectExternalIdentityResponse)(nil), // 9: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*DisconnectExternalIdentityRequest)(nil),  // 6: chatto.api.v1.DisconnectExternalIdentityRequest
+	(*DisconnectExternalIdentityResponse)(nil), // 7: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*ProviderMetadata)(nil),                   // 8: chatto.api.v1.ProviderMetadata
 }
 var file_chatto_api_v1_external_identities_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
-	1, // 1: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
-	1, // 2: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
+	8, // 0: chatto.api.v1.ExternalIdentityProvider.provider:type_name -> chatto.api.v1.ProviderMetadata
+	0, // 1: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
+	1, // 2: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -675,13 +548,14 @@ func file_chatto_api_v1_external_identities_proto_init() {
 	if File_chatto_api_v1_external_identities_proto != nil {
 		return
 	}
+	file_chatto_api_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_external_identities_proto_rawDesc), len(file_chatto_api_v1_external_identities_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import Room from './Room.svelte';
+  import RoomJoinScreen from './RoomJoinScreen.svelte';
 
   let { data, children } = $props();
 
@@ -20,9 +22,21 @@
   let threadId = $derived(page.params.threadId);
 
   const isMessageLinkMode = $derived(/\/m\/[^/]+$/.test(page.url.pathname));
+  const roomAccess = $derived.by(() => {
+    if (!ready || !roomId) return { kind: 'unknown' } as const;
+    return roomRouteAccess({
+      rooms: roomsStore.rooms,
+      roomId
+    });
+  });
+  const canRenderRoom = $derived(
+    ready && roomId && (roomAccess.kind === 'member' || roomAccess.kind === 'unknown')
+  );
 </script>
 
-{#if ready && roomId}
+{#if ready && roomId && roomAccess.kind === 'nonmember'}
+  <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+{:else if canRenderRoom && roomId}
   {#if isMessageLinkMode}
     <!-- Message link resolver: renders +page.svelte which fetches + redirects -->
     {@render children?.()}

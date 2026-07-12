@@ -789,6 +789,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     const rootMessage = `Root for delete-thread test ${Date.now()}`;
     const replyMessage = `Reply to delete via thread ${Date.now()}`;
+    let replyEventId: string | null = null;
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
@@ -800,6 +801,9 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     await test.step('Delete the reply in the thread pane', async () => {
       const threadReply = roomPage.getThreadMessage(replyMessage);
+      replyEventId = await threadReply.getEventId();
+      expect(replyEventId).not.toBeNull();
+      await page.clock.install({ time: Date.now() });
       await threadReply.delete();
     });
 
@@ -816,6 +820,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       await expect(page.getByText(replyMessage)).not.toBeVisible();
       await expect(page.getByText('This message has been deleted').first()).toBeVisible();
+    });
+
+    await test.step('Natural expiry removes both the channel echo and thread reply', async () => {
+      await page.clock.fastForward(61 * 60 * 1000);
+      await expect(page.getByText('This message has been deleted')).toHaveCount(0);
+      await expect(page.getByText(rootMessage)).toBeVisible();
+
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await expect(roomPage.getMessageByEventId(replyEventId!).locator).toHaveCount(0);
     });
   });
 

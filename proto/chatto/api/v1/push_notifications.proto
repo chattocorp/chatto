@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/descriptor.proto";
 
 // Browser Web Push subscription commands for the current user.
 service PushNotificationService {
@@ -15,7 +16,9 @@ service PushNotificationService {
   // Removes the caller's browser push subscription by endpoint.
   //
   // The call is idempotent: removing an unknown endpoint still succeeds.
-  rpc Unsubscribe(UnsubscribePushRequest) returns (UnsubscribePushResponse);
+  rpc Unsubscribe(UnsubscribePushRequest) returns (UnsubscribePushResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }
 
 // Request to store a PushSubscription returned by the browser Push API.

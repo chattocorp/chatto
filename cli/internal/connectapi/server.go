@@ -2,14 +2,21 @@ package connectapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 )
+
+const discoveryCacheControl = "public, no-cache"
 
 type serverDiscoveryService struct {
 	api *API
@@ -32,7 +39,47 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			AuthorizeUrl:              "/oauth/authorize",
 		},
 	}
+	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
+		etag, err := discoveryResponseETag(response)
+		if err != nil {
+			return nil, connectInternalError(fmt.Errorf("marshal discovery response for ETag: %w", err))
+		}
+		cacheHeaders := http.Header{
+			"Cache-Control": []string{discoveryCacheControl},
+			"Etag":          []string{etag},
+		}
+		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
+			return nil, connect.NewNotModifiedError(cacheHeaders)
+		}
+		for name, values := range cacheHeaders {
+			callInfo.ResponseHeader()[name] = values
+		}
+	}
 	return connect.NewResponse(response), nil
+}
+
+func discoveryResponseETag(response *discoveryv1.GetServerResponse) (string, error) {
+	data, err := (proto.MarshalOptions{Deterministic: true}).Marshal(response)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return `"` + hex.EncodeToString(sum[:]) + `"`, nil
+}
+
+// ifNoneMatch applies the weak comparison required for If-None-Match. It
+// accepts wildcard and comma-separated validators emitted by HTTP caches.
+func ifNoneMatch(headerValue, etag string) bool {
+	for candidate := range strings.SplitSeq(headerValue, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || candidate == etag {
+			return true
+		}
+		if len(candidate) >= 2 && strings.EqualFold(candidate[:2], "W/") && strings.TrimSpace(candidate[2:]) == etag {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *API) effectiveServerName(ctx context.Context) string {
@@ -87,17 +134,21 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 	return profile, nil
 }
 
-func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.AuthProvider {
-	result := make([]*apiv1.AuthProvider, 0, len(providers))
+func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMetadata {
+	result := make([]*apiv1.ProviderMetadata, 0, len(providers))
 	for _, provider := range providers {
-		result = append(result, &apiv1.AuthProvider{
-			Id:       provider.ID,
-			Type:     provider.Type,
-			Label:    provider.LabelOrDefault(),
-			LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
-		})
+		result = append(result, apiProviderMetadata(provider))
 	}
 	return result
+}
+
+func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
+	return &apiv1.ProviderMetadata{
+		Id:       provider.ID,
+		Type:     provider.Type,
+		Label:    provider.LabelOrDefault(),
+		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
+	}
 }
 
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {

@@ -300,7 +300,7 @@ export async function postMessageAttachmentOnRemote(
     { uploadId: upload.uploadId },
     { headers: authHeaders(token) }
   );
-  const assetId = completed.asset?.assetId;
+  const assetId = completed.asset?.id;
   if (!assetId) {
     throw new Error(
       `No asset returned from remote CompleteUpload: ${JSON.stringify(completed.toJson())}`
@@ -448,7 +448,7 @@ export async function setMotdOnRemote(
     { motd },
     { headers: authHeaders(token) }
   );
-  if (response.profile?.motd !== motd) {
+  if (response.config?.motd !== motd) {
     throw new Error(`Failed to set MOTD on remote: ${JSON.stringify(response.toJson())}`);
   }
 }

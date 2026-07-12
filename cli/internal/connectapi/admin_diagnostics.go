@@ -3,8 +3,10 @@ package connectapi
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 )
@@ -25,9 +27,51 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 	}
 
 	return connect.NewResponse(&adminv1.GetSystemInfoResponse{
-		SystemInfo:  adminSystemInfo(diagnostics),
-		Projections: adminProjectionStates(diagnostics.Projections),
+		SystemInfo:   adminSystemInfo(diagnostics),
+		Projections:  adminProjectionStates(diagnostics.Projections),
+		AssetCleanup: adminAssetCleanupStatus(diagnostics.AssetCleanup),
 	}), nil
+}
+
+func adminAssetCleanupStatus(status core.AssetCleanupAdminStatus) *adminv1.AdminAssetCleanupStatus {
+	return &adminv1.AdminAssetCleanupStatus{
+		Health:                 adminAssetCleanupHealth(status.Health),
+		PendingCount:           int64(status.PendingCount),
+		OldestPendingAt:        optionalTimestamp(status.OldestPendingAt),
+		PassInProgress:         status.PassInProgress,
+		LastPassAt:             optionalTimestamp(status.LastPassAt),
+		LastSuccessfulPassAt:   optionalTimestamp(status.LastSuccessfulPassAt),
+		UpdatedAt:              optionalTimestamp(status.UpdatedAt),
+		LastPassFailed:         status.LastPassFailed,
+		LastInspectedSequence:  strconv.FormatUint(status.LastInspectedSeq, 10),
+		LatestDeletionSequence: strconv.FormatUint(status.LatestDeletionSeq, 10),
+	}
+}
+
+func adminAssetCleanupHealth(health core.AssetCleanupHealth) adminv1.AdminAssetCleanupHealth {
+	switch health {
+	case core.AssetCleanupHealthInactive:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE
+	case core.AssetCleanupHealthInitializing:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING
+	case core.AssetCleanupHealthHealthy:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY
+	case core.AssetCleanupHealthRetrying:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_RETRYING
+	case core.AssetCleanupHealthStalled:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_STALLED
+	case core.AssetCleanupHealthUnavailable:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE
+	default:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED
+	}
+}
+
+func optionalTimestamp(value time.Time) *timestamppb.Timestamp {
+	if value.IsZero() {
+		return nil
+	}
+	return timestamppb.New(value)
 }
 
 func adminSystemInfo(diagnostics *core.AdminDiagnostics) *adminv1.AdminSystemInfo {

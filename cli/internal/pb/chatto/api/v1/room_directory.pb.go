@@ -79,43 +79,85 @@ func (RoomDirectoryScope) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{0}
 }
 
+// Viewer-specific state and permission decisions for one room.
+type RoomViewerState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the current user is an effective room member.
+	IsMember bool `protobuf:"varint,1,opt,name=is_member,json=isMember,proto3" json:"is_member,omitempty"`
+	// True when the room has unread root messages for the current user.
+	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
+	// Effective room-scoped permission decisions after room state constraints.
+	Permissions   []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomViewerState) Reset() {
+	*x = RoomViewerState{}
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomViewerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomViewerState) ProtoMessage() {}
+
+func (x *RoomViewerState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomViewerState.ProtoReflect.Descriptor instead.
+func (*RoomViewerState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RoomViewerState) GetIsMember() bool {
+	if x != nil {
+		return x.IsMember
+	}
+	return false
+}
+
+func (x *RoomViewerState) GetHasUnread() bool {
+	if x != nil {
+		return x.HasUnread
+	}
+	return false
+}
+
+func (x *RoomViewerState) GetPermissions() []*PermissionGrant {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
 // Room metadata plus state and capabilities resolved for the authenticated
 // viewer.
 type RoomWithViewerState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public room metadata.
 	Room *Room `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
-	// True when the current user is an effective room member.
-	IsMember bool `protobuf:"varint,2,opt,name=is_member,json=isMember,proto3" json:"is_member,omitempty"`
-	// True when the room has unread root messages for the current user.
-	HasUnread bool `protobuf:"varint,3,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
-	// True when the room can appear in directory surfaces for the current user.
-	CanListRoom bool `protobuf:"varint,4,opt,name=can_list_room,json=canListRoom,proto3" json:"can_list_room,omitempty"`
-	// True when the current user can join this room.
-	CanJoinRoom bool `protobuf:"varint,5,opt,name=can_join_room,json=canJoinRoom,proto3" json:"can_join_room,omitempty"`
-	// True when the current user can post new root messages.
-	CanPostMessage bool `protobuf:"varint,6,opt,name=can_post_message,json=canPostMessage,proto3" json:"can_post_message,omitempty"`
-	// True when the current user can post thread replies.
-	CanPostInThread bool `protobuf:"varint,7,opt,name=can_post_in_thread,json=canPostInThread,proto3" json:"can_post_in_thread,omitempty"`
-	// True when the current user can attach files to messages.
-	CanAttach bool `protobuf:"varint,8,opt,name=can_attach,json=canAttach,proto3" json:"can_attach,omitempty"`
-	// True when the current user can add and remove reactions.
-	CanReact bool `protobuf:"varint,9,opt,name=can_react,json=canReact,proto3" json:"can_react,omitempty"`
-	// True when the current user can echo thread replies to the main room.
-	CanEchoMessage bool `protobuf:"varint,10,opt,name=can_echo_message,json=canEchoMessage,proto3" json:"can_echo_message,omitempty"`
-	// True when the current user can edit or delete other users' messages.
-	CanManageOthersMessage bool `protobuf:"varint,11,opt,name=can_manage_others_message,json=canManageOthersMessage,proto3" json:"can_manage_others_message,omitempty"`
-	// True when the current user can configure this room.
-	CanManageRoom bool `protobuf:"varint,12,opt,name=can_manage_room,json=canManageRoom,proto3" json:"can_manage_room,omitempty"`
-	// True when the current user can ban members from this room.
-	CanBanRoomMembers bool `protobuf:"varint,13,opt,name=can_ban_room_members,json=canBanRoomMembers,proto3" json:"can_ban_room_members,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// State and permission decisions resolved for the current user.
+	ViewerState   *RoomViewerState `protobuf:"bytes,14,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomWithViewerState) Reset() {
 	*x = RoomWithViewerState{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -127,7 +169,7 @@ func (x *RoomWithViewerState) String() string {
 func (*RoomWithViewerState) ProtoMessage() {}
 
 func (x *RoomWithViewerState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -140,7 +182,7 @@ func (x *RoomWithViewerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomWithViewerState.ProtoReflect.Descriptor instead.
 func (*RoomWithViewerState) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RoomWithViewerState) GetRoom() *Room {
@@ -150,88 +192,11 @@ func (x *RoomWithViewerState) GetRoom() *Room {
 	return nil
 }
 
-func (x *RoomWithViewerState) GetIsMember() bool {
+func (x *RoomWithViewerState) GetViewerState() *RoomViewerState {
 	if x != nil {
-		return x.IsMember
+		return x.ViewerState
 	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetHasUnread() bool {
-	if x != nil {
-		return x.HasUnread
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanListRoom() bool {
-	if x != nil {
-		return x.CanListRoom
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanJoinRoom() bool {
-	if x != nil {
-		return x.CanJoinRoom
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanPostMessage() bool {
-	if x != nil {
-		return x.CanPostMessage
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanPostInThread() bool {
-	if x != nil {
-		return x.CanPostInThread
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanAttach() bool {
-	if x != nil {
-		return x.CanAttach
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanReact() bool {
-	if x != nil {
-		return x.CanReact
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanEchoMessage() bool {
-	if x != nil {
-		return x.CanEchoMessage
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanManageOthersMessage() bool {
-	if x != nil {
-		return x.CanManageOthersMessage
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanManageRoom() bool {
-	if x != nil {
-		return x.CanManageRoom
-	}
-	return false
-}
-
-func (x *RoomWithViewerState) GetCanBanRoomMembers() bool {
-	if x != nil {
-		return x.CanBanRoomMembers
-	}
-	return false
+	return nil
 }
 
 // Sidebar link metadata for room group navigation.
@@ -249,7 +214,7 @@ type SidebarLink struct {
 
 func (x *SidebarLink) Reset() {
 	*x = SidebarLink{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +226,7 @@ func (x *SidebarLink) String() string {
 func (*SidebarLink) ProtoMessage() {}
 
 func (x *SidebarLink) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +239,7 @@ func (x *SidebarLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SidebarLink.ProtoReflect.Descriptor instead.
 func (*SidebarLink) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SidebarLink) GetId() string {
@@ -312,7 +277,7 @@ type RoomGroupItem struct {
 
 func (x *RoomGroupItem) Reset() {
 	*x = RoomGroupItem{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +289,7 @@ func (x *RoomGroupItem) String() string {
 func (*RoomGroupItem) ProtoMessage() {}
 
 func (x *RoomGroupItem) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +302,7 @@ func (x *RoomGroupItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroupItem.ProtoReflect.Descriptor instead.
 func (*RoomGroupItem) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RoomGroupItem) GetItem() isRoomGroupItem_Item {
@@ -386,15 +351,15 @@ func (*RoomGroupItem_SidebarLink) isRoomGroupItem_Item() {}
 // Viewer-specific state for one room group.
 type RoomGroupViewerState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the current user can create rooms in this group.
-	CanCreateRoom bool `protobuf:"varint,1,opt,name=can_create_room,json=canCreateRoom,proto3" json:"can_create_room,omitempty"`
+	// Effective group-scoped permission decisions after group state constraints.
+	Permissions   []*PermissionGrant `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomGroupViewerState) Reset() {
 	*x = RoomGroupViewerState{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -406,7 +371,7 @@ func (x *RoomGroupViewerState) String() string {
 func (*RoomGroupViewerState) ProtoMessage() {}
 
 func (x *RoomGroupViewerState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -419,14 +384,14 @@ func (x *RoomGroupViewerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroupViewerState.ProtoReflect.Descriptor instead.
 func (*RoomGroupViewerState) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RoomGroupViewerState) GetCanCreateRoom() bool {
+func (x *RoomGroupViewerState) GetPermissions() []*PermissionGrant {
 	if x != nil {
-		return x.CanCreateRoom
+		return x.Permissions
 	}
-	return false
+	return nil
 }
 
 // Ordered group of channel rooms and sidebar links.
@@ -448,7 +413,7 @@ type RoomGroup struct {
 
 func (x *RoomGroup) Reset() {
 	*x = RoomGroup{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +425,7 @@ func (x *RoomGroup) String() string {
 func (*RoomGroup) ProtoMessage() {}
 
 func (x *RoomGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +438,7 @@ func (x *RoomGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomGroup.ProtoReflect.Descriptor instead.
 func (*RoomGroup) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RoomGroup) GetId() string {
@@ -522,7 +487,7 @@ type ListRoomsRequest struct {
 
 func (x *ListRoomsRequest) Reset() {
 	*x = ListRoomsRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +499,7 @@ func (x *ListRoomsRequest) String() string {
 func (*ListRoomsRequest) ProtoMessage() {}
 
 func (x *ListRoomsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +512,7 @@ func (x *ListRoomsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListRoomsRequest) GetScope() RoomDirectoryScope {
@@ -568,7 +533,7 @@ type ListRoomsResponse struct {
 
 func (x *ListRoomsResponse) Reset() {
 	*x = ListRoomsResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +545,7 @@ func (x *ListRoomsResponse) String() string {
 func (*ListRoomsResponse) ProtoMessage() {}
 
 func (x *ListRoomsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +558,7 @@ func (x *ListRoomsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoomsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListRoomsResponse) GetRooms() []*RoomWithViewerState {
@@ -612,7 +577,7 @@ type ListRoomGroupsRequest struct {
 
 func (x *ListRoomGroupsRequest) Reset() {
 	*x = ListRoomGroupsRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -624,7 +589,7 @@ func (x *ListRoomGroupsRequest) String() string {
 func (*ListRoomGroupsRequest) ProtoMessage() {}
 
 func (x *ListRoomGroupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -637,7 +602,7 @@ func (x *ListRoomGroupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomGroupsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomGroupsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{8}
 }
 
 // Finite snapshot of ordered room groups visible to the current user.
@@ -651,7 +616,7 @@ type ListRoomGroupsResponse struct {
 
 func (x *ListRoomGroupsResponse) Reset() {
 	*x = ListRoomGroupsResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -663,7 +628,7 @@ func (x *ListRoomGroupsResponse) String() string {
 func (*ListRoomGroupsResponse) ProtoMessage() {}
 
 func (x *ListRoomGroupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -676,7 +641,7 @@ func (x *ListRoomGroupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomGroupsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoomGroupsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListRoomGroupsResponse) GetGroups() []*RoomGroup {
@@ -697,7 +662,7 @@ type GetRoomGroupRequest struct {
 
 func (x *GetRoomGroupRequest) Reset() {
 	*x = GetRoomGroupRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +674,7 @@ func (x *GetRoomGroupRequest) String() string {
 func (*GetRoomGroupRequest) ProtoMessage() {}
 
 func (x *GetRoomGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +687,7 @@ func (x *GetRoomGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomGroupRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomGroupRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetRoomGroupRequest) GetGroupId() string {
@@ -743,7 +708,7 @@ type GetRoomGroupResponse struct {
 
 func (x *GetRoomGroupResponse) Reset() {
 	*x = GetRoomGroupResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +720,7 @@ func (x *GetRoomGroupResponse) String() string {
 func (*GetRoomGroupResponse) ProtoMessage() {}
 
 func (x *GetRoomGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,7 +733,7 @@ func (x *GetRoomGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomGroupResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomGroupResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetRoomGroupResponse) GetGroup() *RoomGroup {
@@ -789,7 +754,7 @@ type BatchGetRoomGroupsRequest struct {
 
 func (x *BatchGetRoomGroupsRequest) Reset() {
 	*x = BatchGetRoomGroupsRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +766,7 @@ func (x *BatchGetRoomGroupsRequest) String() string {
 func (*BatchGetRoomGroupsRequest) ProtoMessage() {}
 
 func (x *BatchGetRoomGroupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +779,7 @@ func (x *BatchGetRoomGroupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetRoomGroupsRequest.ProtoReflect.Descriptor instead.
 func (*BatchGetRoomGroupsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *BatchGetRoomGroupsRequest) GetGroupIds() []string {
@@ -835,7 +800,7 @@ type BatchGetRoomGroupsResponse struct {
 
 func (x *BatchGetRoomGroupsResponse) Reset() {
 	*x = BatchGetRoomGroupsResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -847,7 +812,7 @@ func (x *BatchGetRoomGroupsResponse) String() string {
 func (*BatchGetRoomGroupsResponse) ProtoMessage() {}
 
 func (x *BatchGetRoomGroupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -860,7 +825,7 @@ func (x *BatchGetRoomGroupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetRoomGroupsResponse.ProtoReflect.Descriptor instead.
 func (*BatchGetRoomGroupsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *BatchGetRoomGroupsResponse) GetGroups() []*RoomGroup {
@@ -881,7 +846,7 @@ type GetRoomRequest struct {
 
 func (x *GetRoomRequest) Reset() {
 	*x = GetRoomRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +858,7 @@ func (x *GetRoomRequest) String() string {
 func (*GetRoomRequest) ProtoMessage() {}
 
 func (x *GetRoomRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +871,7 @@ func (x *GetRoomRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetRoomRequest) GetRoomId() string {
@@ -927,7 +892,7 @@ type GetRoomResponse struct {
 
 func (x *GetRoomResponse) Reset() {
 	*x = GetRoomResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -939,7 +904,7 @@ func (x *GetRoomResponse) String() string {
 func (*GetRoomResponse) ProtoMessage() {}
 
 func (x *GetRoomResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -952,7 +917,7 @@ func (x *GetRoomResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetRoomResponse) GetRoom() *RoomWithViewerState {
@@ -975,7 +940,7 @@ type BatchGetRoomsRequest struct {
 
 func (x *BatchGetRoomsRequest) Reset() {
 	*x = BatchGetRoomsRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -987,7 +952,7 @@ func (x *BatchGetRoomsRequest) String() string {
 func (*BatchGetRoomsRequest) ProtoMessage() {}
 
 func (x *BatchGetRoomsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +965,7 @@ func (x *BatchGetRoomsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetRoomsRequest.ProtoReflect.Descriptor instead.
 func (*BatchGetRoomsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BatchGetRoomsRequest) GetRoomIds() []string {
@@ -1021,7 +986,7 @@ type BatchGetRoomsResponse struct {
 
 func (x *BatchGetRoomsResponse) Reset() {
 	*x = BatchGetRoomsResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +998,7 @@ func (x *BatchGetRoomsResponse) String() string {
 func (*BatchGetRoomsResponse) ProtoMessage() {}
 
 func (x *BatchGetRoomsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +1011,7 @@ func (x *BatchGetRoomsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetRoomsResponse.ProtoReflect.Descriptor instead.
 func (*BatchGetRoomsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *BatchGetRoomsResponse) GetRooms() []*RoomWithViewerState {
@@ -1060,24 +1025,17 @@ var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/rooms.proto\"\x93\x04\n" +
+	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/rooms.proto\"\x8f\x01\n" +
+	"\x0fRoomViewerState\x12\x1b\n" +
+	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
+	"\n" +
+	"has_unread\x18\x02 \x01(\bR\thasUnread\x12@\n" +
+	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\"\xcd\x02\n" +
 	"\x13RoomWithViewerState\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12\x1b\n" +
-	"\tis_member\x18\x02 \x01(\bR\bisMember\x12\x1d\n" +
-	"\n" +
-	"has_unread\x18\x03 \x01(\bR\thasUnread\x12\"\n" +
-	"\rcan_list_room\x18\x04 \x01(\bR\vcanListRoom\x12\"\n" +
-	"\rcan_join_room\x18\x05 \x01(\bR\vcanJoinRoom\x12(\n" +
-	"\x10can_post_message\x18\x06 \x01(\bR\x0ecanPostMessage\x12+\n" +
-	"\x12can_post_in_thread\x18\a \x01(\bR\x0fcanPostInThread\x12\x1d\n" +
-	"\n" +
-	"can_attach\x18\b \x01(\bR\tcanAttach\x12\x1b\n" +
-	"\tcan_react\x18\t \x01(\bR\bcanReact\x12(\n" +
-	"\x10can_echo_message\x18\n" +
-	" \x01(\bR\x0ecanEchoMessage\x129\n" +
-	"\x19can_manage_others_message\x18\v \x01(\bR\x16canManageOthersMessage\x12&\n" +
-	"\x0fcan_manage_room\x18\f \x01(\bR\rcanManageRoom\x12/\n" +
-	"\x14can_ban_room_members\x18\r \x01(\bR\x11canBanRoomMembers\"E\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
+	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerStateJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
+	"has_unreadR\rcan_list_roomR\rcan_join_roomR\x10can_post_messageR\x12can_post_in_threadR\n" +
+	"can_attachR\tcan_reactR\x10can_echo_messageR\x19can_manage_others_messageR\x0fcan_manage_roomR\x14can_ban_room_members\"E\n" +
 	"\vSidebarLink\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
@@ -1085,9 +1043,9 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\rRoomGroupItem\x128\n" +
 	"\x04room\x18\x01 \x01(\v2\".chatto.api.v1.RoomWithViewerStateH\x00R\x04room\x12?\n" +
 	"\fsidebar_link\x18\x02 \x01(\v2\x1a.chatto.api.v1.SidebarLinkH\x00R\vsidebarLinkB\x06\n" +
-	"\x04item\">\n" +
-	"\x14RoomGroupViewerState\x12&\n" +
-	"\x0fcan_create_room\x18\x01 \x01(\bR\rcanCreateRoom\"\xda\x01\n" +
+	"\x04item\"o\n" +
+	"\x14RoomGroupViewerState\x12@\n" +
+	"\vpermissions\x18\x02 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissionsJ\x04\b\x01\x10\x02R\x0fcan_create_room\"\xda\x01\n" +
 	"\tRoomGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1146,58 +1104,63 @@ func file_chatto_api_v1_room_directory_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_room_directory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(RoomDirectoryScope)(0),            // 0: chatto.api.v1.RoomDirectoryScope
-	(*RoomWithViewerState)(nil),        // 1: chatto.api.v1.RoomWithViewerState
-	(*SidebarLink)(nil),                // 2: chatto.api.v1.SidebarLink
-	(*RoomGroupItem)(nil),              // 3: chatto.api.v1.RoomGroupItem
-	(*RoomGroupViewerState)(nil),       // 4: chatto.api.v1.RoomGroupViewerState
-	(*RoomGroup)(nil),                  // 5: chatto.api.v1.RoomGroup
-	(*ListRoomsRequest)(nil),           // 6: chatto.api.v1.ListRoomsRequest
-	(*ListRoomsResponse)(nil),          // 7: chatto.api.v1.ListRoomsResponse
-	(*ListRoomGroupsRequest)(nil),      // 8: chatto.api.v1.ListRoomGroupsRequest
-	(*ListRoomGroupsResponse)(nil),     // 9: chatto.api.v1.ListRoomGroupsResponse
-	(*GetRoomGroupRequest)(nil),        // 10: chatto.api.v1.GetRoomGroupRequest
-	(*GetRoomGroupResponse)(nil),       // 11: chatto.api.v1.GetRoomGroupResponse
-	(*BatchGetRoomGroupsRequest)(nil),  // 12: chatto.api.v1.BatchGetRoomGroupsRequest
-	(*BatchGetRoomGroupsResponse)(nil), // 13: chatto.api.v1.BatchGetRoomGroupsResponse
-	(*GetRoomRequest)(nil),             // 14: chatto.api.v1.GetRoomRequest
-	(*GetRoomResponse)(nil),            // 15: chatto.api.v1.GetRoomResponse
-	(*BatchGetRoomsRequest)(nil),       // 16: chatto.api.v1.BatchGetRoomsRequest
-	(*BatchGetRoomsResponse)(nil),      // 17: chatto.api.v1.BatchGetRoomsResponse
-	(*Room)(nil),                       // 18: chatto.api.v1.Room
+	(*RoomViewerState)(nil),            // 1: chatto.api.v1.RoomViewerState
+	(*RoomWithViewerState)(nil),        // 2: chatto.api.v1.RoomWithViewerState
+	(*SidebarLink)(nil),                // 3: chatto.api.v1.SidebarLink
+	(*RoomGroupItem)(nil),              // 4: chatto.api.v1.RoomGroupItem
+	(*RoomGroupViewerState)(nil),       // 5: chatto.api.v1.RoomGroupViewerState
+	(*RoomGroup)(nil),                  // 6: chatto.api.v1.RoomGroup
+	(*ListRoomsRequest)(nil),           // 7: chatto.api.v1.ListRoomsRequest
+	(*ListRoomsResponse)(nil),          // 8: chatto.api.v1.ListRoomsResponse
+	(*ListRoomGroupsRequest)(nil),      // 9: chatto.api.v1.ListRoomGroupsRequest
+	(*ListRoomGroupsResponse)(nil),     // 10: chatto.api.v1.ListRoomGroupsResponse
+	(*GetRoomGroupRequest)(nil),        // 11: chatto.api.v1.GetRoomGroupRequest
+	(*GetRoomGroupResponse)(nil),       // 12: chatto.api.v1.GetRoomGroupResponse
+	(*BatchGetRoomGroupsRequest)(nil),  // 13: chatto.api.v1.BatchGetRoomGroupsRequest
+	(*BatchGetRoomGroupsResponse)(nil), // 14: chatto.api.v1.BatchGetRoomGroupsResponse
+	(*GetRoomRequest)(nil),             // 15: chatto.api.v1.GetRoomRequest
+	(*GetRoomResponse)(nil),            // 16: chatto.api.v1.GetRoomResponse
+	(*BatchGetRoomsRequest)(nil),       // 17: chatto.api.v1.BatchGetRoomsRequest
+	(*BatchGetRoomsResponse)(nil),      // 18: chatto.api.v1.BatchGetRoomsResponse
+	(*PermissionGrant)(nil),            // 19: chatto.api.v1.PermissionGrant
+	(*Room)(nil),                       // 20: chatto.api.v1.Room
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
-	18, // 0: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
-	1,  // 1: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
-	2,  // 2: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	3,  // 3: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
-	4,  // 4: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
-	0,  // 5: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
-	1,  // 6: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	5,  // 7: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	5,  // 8: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
-	5,  // 9: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	1,  // 10: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
-	1,  // 11: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	6,  // 12: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
-	8,  // 13: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
-	10, // 14: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
-	12, // 15: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
-	14, // 16: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	16, // 17: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
-	7,  // 18: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	9,  // 19: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	11, // 20: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
-	13, // 21: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
-	15, // 22: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	17, // 23: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
-	18, // [18:24] is the sub-list for method output_type
-	12, // [12:18] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	19, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	20, // 1: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
+	1,  // 2: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
+	2,  // 3: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
+	3,  // 4: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	19, // 5: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	4,  // 6: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
+	5,  // 7: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
+	0,  // 8: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
+	2,  // 9: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	6,  // 10: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	6,  // 11: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
+	6,  // 12: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	2,  // 13: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
+	2,  // 14: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	7,  // 15: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
+	9,  // 16: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
+	11, // 17: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
+	13, // 18: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
+	15, // 19: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	17, // 20: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
+	8,  // 21: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	10, // 22: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	12, // 23: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
+	14, // 24: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
+	16, // 25: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	18, // 26: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_directory_proto_init() }
@@ -1205,8 +1168,9 @@ func file_chatto_api_v1_room_directory_proto_init() {
 	if File_chatto_api_v1_room_directory_proto != nil {
 		return
 	}
+	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
-	file_chatto_api_v1_room_directory_proto_msgTypes[2].OneofWrappers = []any{
+	file_chatto_api_v1_room_directory_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomGroupItem_Room)(nil),
 		(*RoomGroupItem_SidebarLink)(nil),
 	}
@@ -1216,7 +1180,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_room_directory_proto_rawDesc), len(file_chatto_api_v1_room_directory_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

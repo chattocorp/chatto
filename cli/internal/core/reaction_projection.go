@@ -22,7 +22,7 @@ type ReactionProjection struct {
 	messageRoom  map[string]string
 	echoOriginal map[string]string
 	assetRoom    map[string]string
-	seen         eventIDSet
+	replayGuard  projectionReplayGuard
 }
 
 type ReactionMutationSnapshot struct {
@@ -37,7 +37,7 @@ func NewReactionProjection() *ReactionProjection {
 		messageRoom:  make(map[string]string),
 		echoOriginal: make(map[string]string),
 		assetRoom:    make(map[string]string),
-		seen:         newEventIDSet(),
+		replayGuard:  newProjectionReplayGuard(),
 	}
 }
 
@@ -67,7 +67,7 @@ func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	if p.seen.seenOrMark(event) {
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -78,6 +78,12 @@ func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}
 	return nil
+}
+
+func (p *ReactionProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func (p *ReactionProjection) roomSeqIDLocked(event *corev1.Event) string {

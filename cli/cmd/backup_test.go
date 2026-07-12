@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +21,139 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/testutil"
 )
+
+func TestBackupStagingIsPrivateAndRemoved(t *testing.T) {
+	archivePath := filepath.Join(t.TempDir(), "backup.tar.gz")
+	staging, err := newBackupStaging(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := staging.root
+	for _, path := range []string{staging.root, staging.backupDir, staging.streamsDir} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0700 {
+			t.Fatalf("%s mode = %o, want 700", path, got)
+		}
+	}
+	staging.cleanup()
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("staging directory still exists after cleanup: %v", err)
+	}
+}
+
+func TestSecureBackupStagingRestrictsFiles(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "streams")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "snapshot.bin")
+	if err := os.WriteFile(file, []byte("secret"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := secureBackupStaging(root); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]os.FileMode{root: 0700, dir: 0700, file: 0600} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Fatalf("%s mode = %o, want %o", path, got, want)
+		}
+	}
+}
+
+func TestWriteArchiveAtomically(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "backup.tar.gz")
+	if err := os.WriteFile(dest, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wantErr := errors.New("write failed")
+	if err := writeArchiveAtomically(dest, func(w io.Writer) error {
+		_, _ = w.Write([]byte("partial"))
+		return wantErr
+	}); !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "old" {
+		t.Fatalf("destination changed after failed write: data=%q err=%v", data, err)
+	}
+
+	if err := writeArchiveAtomically(dest, func(w io.Writer) error {
+		_, err := w.Write([]byte("complete"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("archive mode = %o, want 600", info.Mode().Perm())
+	}
+	if matches, _ := filepath.Glob(filepath.Join(dir, ".backup.tar.gz.tmp-*")); len(matches) != 0 {
+		t.Fatalf("temporary archive files remain: %v", matches)
+	}
+}
+
+type testTarEntry struct {
+	name     string
+	typeflag byte
+	data     string
+}
+
+func makeTarGz(t *testing.T, entries ...testTarEntry) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	gz := gzip.NewWriter(&out)
+	tw := tar.NewWriter(gz)
+	for _, entry := range entries {
+		header := &tar.Header{Name: entry.name, Typeflag: entry.typeflag, Mode: 0600, Size: int64(len(entry.data))}
+		if err := tw.WriteHeader(header); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write([]byte(entry.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return out.Bytes()
+}
+
+func TestReadTarGzRejectsUnsafeOrOversizedArchives(t *testing.T) {
+	tests := []struct {
+		name       string
+		entries    []testTarEntry
+		maxEntries int
+		maxFile    int64
+		maxTotal   int64
+	}{
+		{name: "path traversal", entries: []testTarEntry{{name: "../escape", typeflag: tar.TypeReg, data: "x"}}, maxEntries: 10, maxFile: 10, maxTotal: 10},
+		{name: "symlink", entries: []testTarEntry{{name: "backup/link", typeflag: tar.TypeSymlink}}, maxEntries: 10, maxFile: 10, maxTotal: 10},
+		{name: "entry count", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg}, {name: "backup/b", typeflag: tar.TypeReg}}, maxEntries: 1, maxFile: 10, maxTotal: 10},
+		{name: "file size", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg, data: "12345"}}, maxEntries: 10, maxFile: 4, maxTotal: 10},
+		{name: "total size", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg, data: "123"}, {name: "backup/b", typeflag: tar.TypeReg, data: "456"}}, maxEntries: 10, maxFile: 10, maxTotal: 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := readTarGzWithLimits(bytes.NewReader(makeTarGz(t, tt.entries...)), t.TempDir(), tt.maxEntries, tt.maxFile, tt.maxTotal); err == nil {
+				t.Fatal("readTarGzWithLimits accepted unsafe archive")
+			}
+		})
+	}
+}
 
 func TestSkipReason(t *testing.T) {
 	tests := []struct {

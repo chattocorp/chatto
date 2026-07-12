@@ -27,9 +27,8 @@ function classify(pathOrUrl: string, method = 'GET', mode: RequestMode = 'same-o
 
 describe('classifyServiceWorkerRequest', () => {
   it('marks same-origin app shell assets as cacheable', () => {
-    expect(classify('/manifest.webmanifest')).toEqual({
+    expect(classify('/icons/icon-192.png')).toMatchObject({
       cacheableShellAsset: true,
-      navigationRequest: false,
       networkOnly: false
     });
     expect(classify('/_app/immutable/app.js')).toMatchObject({
@@ -38,16 +37,27 @@ describe('classifyServiceWorkerRequest', () => {
     });
   });
 
-  it.each(['/api/connect', '/auth/login', '/assets/avatar.png', '/webhooks/livekit'])(
-    'keeps %s network-only',
-    (path) => {
-      expect(classify(path)).toMatchObject({
-        cacheableShellAsset: false,
-        navigationRequest: false,
-        networkOnly: true
-      });
-    }
-  );
+  it('keeps the web manifest network-only because server branding can change it', () => {
+    expect(classify('/manifest.webmanifest')).toEqual({
+      cacheableShellAsset: false,
+      navigationRequest: false,
+      networkOnly: true
+    });
+  });
+
+  it.each([
+    '/api/connect',
+    '/auth/login',
+    '/oauth/authorize',
+    '/assets/avatar.png',
+    '/webhooks/livekit'
+  ])('keeps %s network-only', (path) => {
+    expect(classify(path)).toMatchObject({
+      cacheableShellAsset: false,
+      navigationRequest: false,
+      networkOnly: true
+    });
+  });
 
   it('keeps cross-origin and non-GET requests network-only', () => {
     expect(classify('https://other.example/manifest.webmanifest')).toMatchObject({

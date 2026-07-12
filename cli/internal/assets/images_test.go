@@ -3,7 +3,9 @@ package assets
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/gif"
@@ -14,6 +16,37 @@ import (
 
 	_ "golang.org/x/image/webp" // Register WebP decoder for tests
 )
+
+func createPNGHeader(width, height uint32) []byte {
+	var out bytes.Buffer
+	out.Write([]byte("\x89PNG\r\n\x1a\n"))
+	data := make([]byte, 13)
+	binary.BigEndian.PutUint32(data[0:4], width)
+	binary.BigEndian.PutUint32(data[4:8], height)
+	data[8], data[9] = 8, 6
+	_ = binary.Write(&out, binary.BigEndian, uint32(len(data)))
+	out.WriteString("IHDR")
+	out.Write(data)
+	_ = binary.Write(&out, binary.BigEndian, crc32.ChecksumIEEE(append([]byte("IHDR"), data...)))
+	return out.Bytes()
+}
+
+func TestImageProcessingRejectsOversizedDecodedDimensions(t *testing.T) {
+	data := createPNGHeader(MaxDecodedImageDimension+1, 1)
+	if _, err := ProcessAttachmentImage(bytes.NewReader(data)); err == nil {
+		t.Fatal("ProcessAttachmentImage accepted oversized decoded dimensions")
+	}
+	if _, err := TransformImage(data, 100, 100, FitContain); err == nil {
+		t.Fatal("TransformImage accepted oversized decoded dimensions")
+	}
+}
+
+func TestTransformImageRejectsTooManyAnimationFrames(t *testing.T) {
+	data := createAnimatedGIF(1, 1, MaxAnimatedImageFrames+1)
+	if _, err := TransformImage(data, 1, 1, FitContain); err == nil {
+		t.Fatal("TransformImage accepted too many animation frames")
+	}
+}
 
 // createTestImage creates a test PNG image with the specified dimensions.
 func createTestImage(width, height int) []byte {
@@ -463,6 +496,57 @@ func TestTransformImage_OutputFormat(t *testing.T) {
 	// Check JPEG magic bytes (SOI marker)
 	if data[0] != 0xFF || data[1] != 0xD8 || data[2] != 0xFF {
 		t.Error("Output does not have JPEG magic bytes (FFD8FF)")
+	}
+}
+
+func TestTransformImageWithOptions_UsesSelectedJPEGQuality(t *testing.T) {
+	testImg := createTestImage(1200, 800)
+
+	defaultResult, err := TransformImage(testImg, 960, 400, FitContain)
+	if err != nil {
+		t.Fatalf("TransformImage failed: %v", err)
+	}
+	defaultData, err := io.ReadAll(defaultResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read default transform: %v", err)
+	}
+
+	explicitDefaultResult, err := TransformImageWithOptions(testImg, 960, 400, FitContain, TransformOptions{
+		JPEGQuality: DefaultTransformJPEGQuality,
+	})
+	if err != nil {
+		t.Fatalf("TransformImageWithOptions default quality failed: %v", err)
+	}
+	explicitDefaultData, err := io.ReadAll(explicitDefaultResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read explicit default transform: %v", err)
+	}
+	if !bytes.Equal(defaultData, explicitDefaultData) {
+		t.Fatal("TransformImage did not preserve the default JPEG quality")
+	}
+
+	compressedResult, err := TransformImageWithOptions(testImg, 960, 400, FitContain, TransformOptions{
+		JPEGQuality: 75,
+	})
+	if err != nil {
+		t.Fatalf("TransformImageWithOptions quality 75 failed: %v", err)
+	}
+	compressedData, err := io.ReadAll(compressedResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read compressed transform: %v", err)
+	}
+	if len(compressedData) >= len(defaultData) {
+		t.Fatalf("quality 75 output size = %d, want less than quality %d output size %d", len(compressedData), DefaultTransformJPEGQuality, len(defaultData))
+	}
+}
+
+func TestTransformImageWithOptions_RejectsInvalidJPEGQuality(t *testing.T) {
+	testImg := createTestImage(100, 100)
+	if _, err := TransformImageWithOptions(testImg, 50, 50, FitContain, TransformOptions{}); err == nil {
+		t.Fatal("TransformImageWithOptions accepted zero JPEG quality")
+	}
+	if _, err := TransformImageWithOptions(testImg, 50, 50, FitContain, TransformOptions{JPEGQuality: 101}); err == nil {
+		t.Fatal("TransformImageWithOptions accepted JPEG quality above 100")
 	}
 }
 

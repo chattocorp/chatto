@@ -18,12 +18,14 @@ export {
 } from './useEvent.svelte';
 
 // Message actions
-export { useMessageActions } from './useMessageActions.svelte';
+export { useMessageActions, useReactionActions } from './useMessageActions.svelte';
 export type { MessageActionParams } from './useMessageActions.svelte';
 
 // Data hooks
 export { useRoomData } from './useRoomData.svelte';
 export { useRoomUnread } from './useRoomUnread.svelte';
+export { useUnreadMarker } from './useUnreadMarker.svelte';
+export type { UnreadMarkerWindow } from './useUnreadMarker.svelte';
 
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -87,6 +88,130 @@ func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
 				RoomId: roomID,
 			},
 		},
+	}
+}
+
+func TestIncrementalEffectConsumer_RetriesOnlyFailedEffectsAndAdvances(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-consumer").Subject(EventUserJoinedRoom)
+
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	fail := true
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if fail && event.GetActorId() == "U2" {
+			return errors.New("effect unavailable")
+		}
+		return nil
+	})
+
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for failed effect batch")
+	}
+	fail = false
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume retry: %v", err)
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume incremental event: %v", err)
+	}
+
+	want := []string{"U1", "U2", "U2", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-independent").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if event.GetActorId() == "U1" {
+			return errors.New("permanent effect failure")
+		}
+		return nil
+	})
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for permanent effect failure")
+	}
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 || status.AfterSeq == 0 {
+		t.Fatalf("status after failure = %+v, want initialized with one pending effect and cursor", status)
+	}
+	if status.OldestPendingAt.IsZero() {
+		t.Fatal("oldest pending time is zero")
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume retry returned nil for permanent effect failure")
+	}
+
+	want := []string{"U1", "U2", "U1", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-serialized").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-serialized", "U1")); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(context.Context, *corev1.Event) error {
+		calls++
+		if calls == 1 {
+			close(started)
+			<-release
+		}
+		return nil
+	})
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- consumer.Consume(ctx) }()
+	<-started
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 {
+		t.Fatalf("status during active handler = %+v, want initialized with one pending effect", status)
+	}
+	go func() { errCh <- consumer.Consume(ctx) }()
+	close(release)
+	for range 2 {
+		if err := <-errCh; err != nil {
+			t.Fatalf("Consume: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("handler calls = %d, want 1", calls)
 	}
 }
 
@@ -411,10 +536,11 @@ func TestPublisher_AppendBatch_EmptyIsNoOp(t *testing.T) {
 // trackingProjection records every Apply call so tests can assert on the
 // observed event stream.
 type trackingProjection struct {
-	mu     sync.Mutex
-	events []*corev1.Event
-	seqs   []uint64
-	subs   []string
+	mu                sync.Mutex
+	events            []*corev1.Event
+	seqs              []uint64
+	subs              []string
+	replayCompletions int
 }
 
 func newTrackingProjection(subs ...string) *trackingProjection {
@@ -434,10 +560,22 @@ func (p *trackingProjection) Apply(e *corev1.Event, seq uint64) error {
 func (p *trackingProjection) Snapshot() ([]byte, error) { return nil, nil }
 func (p *trackingProjection) Restore(_ []byte) error    { return nil }
 
+func (p *trackingProjection) CompleteStartupReplay() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.replayCompletions++
+}
+
 func (p *trackingProjection) Count() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.events)
+}
+
+func (p *trackingProjection) ReplayCompletions() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.replayCompletions
 }
 
 type replayTrackingProjection struct {
@@ -532,6 +670,28 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	if got := projector.LastSeq(); got != msg.Sequence {
 		t.Errorf("LastSeq=%d, want %d", got, msg.Sequence)
 	}
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Errorf("startup replay completions = %d, want 1", got)
+	}
+}
+
+func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
+	js, stream := setupTestStream(t)
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete && proj.ReplayCompletions() == 1
+	})
+	projector.maybeCompleteStartup(time.Now())
+	projector.maybeCompleteStartup(time.Now())
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Fatalf("startup replay completions = %d, want 1", got)
+	}
 }
 
 func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) {
@@ -568,6 +728,9 @@ func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) 
 	}
 	if statusA.LastSeq != statusB.LastSeq {
 		t.Fatalf("last seq mismatch = %d/%d", statusA.LastSeq, statusB.LastSeq)
+	}
+	if gotA, gotB := projA.ReplayCompletions(), projB.ReplayCompletions(); gotA != 1 || gotB != 1 {
+		t.Fatalf("startup replay completions = %d/%d, want 1/1", gotA, gotB)
 	}
 }
 

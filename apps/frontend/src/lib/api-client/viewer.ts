@@ -1,13 +1,9 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
-import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
-import { NotificationLevel as APINotificationLevel } from "@chatto/api-types/api/v1/notification_preferences_pb";
-import { TimeFormat as APITimeFormat } from "@chatto/api-types/api/v1/viewer_pb";
-import {
-  NotificationLevel,
-  PresenceStatus,
-  TimeFormat,
-} from "./renderTypes.js";
+import { authHeaders, createChattoClient } from './connect.js';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { NotificationLevel, PresenceStatus, TimeFormat } from './renderTypes.js';
 
 export type ViewerAPIConfig = {
   serverId?: string;
@@ -68,39 +64,35 @@ export type ViewerState = ViewerCapabilities & {
 };
 
 const capabilityKeys = {
-  adminView: "admin.view",
-  dmStart: "dm.start",
-  adminViewUsers: "admin.view-users",
-  adminManageAccounts: "user.manage-accounts",
-  assignRoles: "role.assign",
-  adminViewRoles: "role.view",
-  adminManageRoles: "role.manage",
-  adminViewSystem: "admin.view-system",
-  adminViewAudit: "admin.view-audit",
-  manageUserPermissions: "user.manage-permissions",
+  adminView: 'admin.view',
+  dmStart: 'dm.start',
+  adminViewUsers: 'admin.view-users',
+  adminManageAccounts: 'user.manage-accounts',
+  assignRoles: 'role.assign',
+  adminViewRoles: 'role.view',
+  adminManageRoles: 'role.manage',
+  adminViewSystem: 'admin.view-system',
+  adminViewAudit: 'admin.view-audit',
+  manageUserPermissions: 'user.manage-permissions'
 } as const;
 
-export async function getViewerStateViaConnect(
-  config: ViewerAPIConfig,
-): Promise<ViewerState> {
+export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {
   const client = createChattoClient(ViewerService, config);
   const response = await client.getViewer(
     {},
     {
-      headers: authHeaders(config),
-    },
+      headers: authHeaders(config)
+    }
   );
   if (!response.user) {
-    throw new Error("viewer response did not include a user");
+    throw new Error('viewer response did not include a user');
   }
   if (!response.user.profile) {
-    throw new Error("viewer response did not include a user profile");
+    throw new Error('viewer response did not include a user profile');
   }
   const user = response.user.profile;
   const grants = mapCapabilityGrants(response.capabilities?.grants);
-  const viewerPermissions = mapPermissionGrants(
-    response.viewerPermissions?.permissions,
-  );
+  const viewerPermissions = mapPermissionGrants(response.viewerPermissions?.permissions);
   const can = (capability: string) => grants[capability] ?? false;
   return {
     user: {
@@ -112,22 +104,20 @@ export async function getViewerStateViaConnect(
         ? {
             emoji: user.customStatus.emoji,
             text: user.customStatus.text,
-            expiresAt:
-              user.customStatus.expiresAt?.toDate().toISOString() ?? null,
+            expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
           }
         : null,
       presenceStatus: apiPresenceStatus(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
-      lastLoginChange:
-        response.user.lastLoginChange?.toDate().toISOString() ?? null,
+      lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
       settings: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
-            timeFormat: apiTimeFormat(response.user.settings.timeFormat),
+            timeFormat: apiTimeFormat(response.user.settings.timeFormat)
           }
-        : null,
+        : null
     },
     canViewAdmin: can(capabilityKeys.adminView),
     canStartDMs: can(capabilityKeys.dmStart),
@@ -143,45 +133,48 @@ export async function getViewerStateViaConnect(
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
     serverNotificationPreference: {
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
-      effectiveLevel: apiNotificationLevel(
-        response.serverNotificationPreference?.effectiveLevel,
-      ),
+      effectiveLevel: apiNotificationLevel(response.serverNotificationPreference?.effectiveLevel)
     },
     roomNotificationPreferences: response.roomNotificationPreferences.map(
-      (pref) => ({
-        roomId: pref.roomId,
-        level: apiNotificationLevel(pref.level),
-        effectiveLevel: apiNotificationLevel(pref.effectiveLevel),
-      }),
-    ),
+      roomNotificationPreference
+    )
   };
 }
 
 function mapPermissionGrants(
-  grants: Array<{ permission: string; granted: boolean }> | undefined,
+  grants: Array<{ permission: string; granted: boolean }> | undefined
 ): Record<string, boolean> {
-  return Object.fromEntries(
-    (grants ?? []).map((grant) => [grant.permission, grant.granted]),
-  );
+  return Object.fromEntries((grants ?? []).map((grant) => [grant.permission, grant.granted]));
 }
 
 function mapCapabilityGrants(
-  grants: Array<{ capability: string; granted: boolean }> | undefined,
+  grants: Array<{ capability: string; granted: boolean }> | undefined
 ): Record<string, boolean> {
-  return Object.fromEntries(
-    (grants ?? []).map((grant) => [grant.capability, grant.granted]),
-  );
+  return Object.fromEntries((grants ?? []).map((grant) => [grant.capability, grant.granted]));
 }
 
-export async function getCurrentUserViaConnect(
-  config: ViewerAPIConfig,
-): Promise<CurrentUser> {
+export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
   return (await getViewerStateViaConnect(config)).user;
 }
 
-function apiNotificationLevel(
-  level: APINotificationLevel | undefined,
-): NotificationLevel {
+function roomNotificationPreference(pref: {
+  roomId: string;
+  preference?: {
+    level: APINotificationLevel;
+    effectiveLevel: APINotificationLevel;
+  };
+}): RoomNotificationPreference {
+  if (!pref.preference) {
+    throw new Error('room notification preference response did not include preference metadata');
+  }
+  return {
+    roomId: pref.roomId,
+    level: apiNotificationLevel(pref.preference.level),
+    effectiveLevel: apiNotificationLevel(pref.preference.effectiveLevel)
+  };
+}
+
+function apiNotificationLevel(level: APINotificationLevel | undefined): NotificationLevel {
   switch (level) {
     case APINotificationLevel.MUTED:
       return NotificationLevel.Muted;

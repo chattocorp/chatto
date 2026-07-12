@@ -3,7 +3,12 @@ package core
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
@@ -53,6 +58,23 @@ func TestPushSubscriptionKey(t *testing.T) {
 	key3 := pushSubscriptionKey("user-123", "https://push.example.com/abc")
 	if key1 != key3 {
 		t.Error("Same endpoint should produce same key")
+	}
+}
+
+func TestPushEndpointOwnerKey(t *testing.T) {
+	endpoint := "https://push.example.com/owner"
+	key := pushEndpointOwnerKey(endpoint)
+	if !strings.HasPrefix(key, pushEndpointOwnerKeyPrefix) {
+		t.Fatalf("owner key %q does not use prefix %q", key, pushEndpointOwnerKeyPrefix)
+	}
+	if len(strings.TrimPrefix(key, pushEndpointOwnerKeyPrefix)) != 64 {
+		t.Fatalf("owner key should use the full SHA-256 hash, got %q", key)
+	}
+	if key != pushEndpointOwnerKey(endpoint) {
+		t.Fatal("owner key should be stable for the same endpoint")
+	}
+	if key == pushEndpointOwnerKey(endpoint+"-other") {
+		t.Fatal("different endpoints should have different owner keys")
 	}
 }
 
@@ -296,6 +318,239 @@ func TestGetUserPushSubscriptions(t *testing.T) {
 	})
 }
 
+func TestPushSubscriptionEndpointOwnershipTransfer(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	endpoint := "https://push.example.com/shared-browser"
+	userA := "push-owner-a"
+	userB := "push-owner-b"
+
+	if _, err := core.SavePushSubscription(ctx, userA, endpoint, "key-a", "auth-a", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription user A: %v", err)
+	}
+	staleSubscriptions, err := core.GetUserPushSubscriptions(ctx, userA)
+	if err != nil || len(staleSubscriptions) != 1 {
+		t.Fatalf("expected user A to initially own subscription, got %d, %v", len(staleSubscriptions), err)
+	}
+
+	if _, err := core.SavePushSubscription(ctx, userB, endpoint, "key-b", "auth-b", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription user B: %v", err)
+	}
+
+	ownedByA, err := core.PushSubscriptionOwnedByUser(ctx, userA, staleSubscriptions[0].Endpoint)
+	if err != nil {
+		t.Fatalf("PushSubscriptionOwnedByUser user A: %v", err)
+	}
+	ownedByB, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint)
+	if err != nil {
+		t.Fatalf("PushSubscriptionOwnedByUser user B: %v", err)
+	}
+	if ownedByA || !ownedByB {
+		t.Fatalf("expected ownership to transfer from A to B, got ownedByA=%t ownedByB=%t", ownedByA, ownedByB)
+	}
+
+	userASubscriptions, err := core.GetUserPushSubscriptions(ctx, userA)
+	if err != nil {
+		t.Fatalf("GetUserPushSubscriptions user A: %v", err)
+	}
+	userBSubscriptions, err := core.GetUserPushSubscriptions(ctx, userB)
+	if err != nil {
+		t.Fatalf("GetUserPushSubscriptions user B: %v", err)
+	}
+	if len(userASubscriptions) != 0 || len(userBSubscriptions) != 1 {
+		t.Fatalf("expected only B's subscription to be active, got A=%d B=%d", len(userASubscriptions), len(userBSubscriptions))
+	}
+
+	// A stale client must not release the endpoint after B has claimed it.
+	if err := core.DeletePushSubscription(ctx, userA, endpoint); err != nil {
+		t.Fatalf("DeletePushSubscription stale user A: %v", err)
+	}
+	ownedByB, err = core.PushSubscriptionOwnedByUser(ctx, userB, endpoint)
+	if err != nil || !ownedByB {
+		t.Fatalf("stale unsubscribe released B's owner claim: owned=%t err=%v", ownedByB, err)
+	}
+	userBSubscriptions, err = core.GetUserPushSubscriptions(ctx, userB)
+	if err != nil || len(userBSubscriptions) != 1 {
+		t.Fatalf("stale unsubscribe removed B's subscription: count=%d err=%v", len(userBSubscriptions), err)
+	}
+}
+
+func TestPushSubscriptionCurrentForUserRejectsRotatedCredentials(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-rotation-user"
+	endpoint := "https://push.example.com/rotated-credentials"
+
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "old-key", "old-auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription old credentials: %v", err)
+	}
+	stale, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil || len(stale) != 1 {
+		t.Fatalf("GetUserPushSubscriptions old credentials: count=%d err=%v", len(stale), err)
+	}
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "new-key", "new-auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription new credentials: %v", err)
+	}
+
+	current, err := core.PushSubscriptionCurrentForUser(ctx, userID, stale[0])
+	if err != nil {
+		t.Fatalf("PushSubscriptionCurrentForUser stale credentials: %v", err)
+	}
+	if current {
+		t.Fatal("rotated push credentials should make a prepared subscription stale")
+	}
+
+	fresh, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil || len(fresh) != 1 {
+		t.Fatalf("GetUserPushSubscriptions new credentials: count=%d err=%v", len(fresh), err)
+	}
+	current, err = core.PushSubscriptionCurrentForUser(ctx, userID, fresh[0])
+	if err != nil || !current {
+		t.Fatalf("fresh push credentials should be current: current=%t err=%v", current, err)
+	}
+}
+
+func TestStaleSubscriptionRevisionCannotReleaseRefreshedOwnership(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-refresh-race-user"
+	endpoint := "https://push.example.com/refresh-race"
+
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "old-key", "old-auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription old credentials: %v", err)
+	}
+	staleEntry, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint))
+	if err != nil {
+		t.Fatalf("get stale subscription entry: %v", err)
+	}
+
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "new-key", "new-auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription new credentials: %v", err)
+	}
+	if err := core.releasePushEndpointOwnership(ctx, userID, endpoint, staleEntry.Revision()); err != nil {
+		t.Fatalf("releasePushEndpointOwnership stale revision: %v", err)
+	}
+
+	owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint)
+	if err != nil || !owned {
+		t.Fatalf("stale revision released refreshed ownership: owned=%t err=%v", owned, err)
+	}
+	subscriptions, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil || len(subscriptions) != 1 || subscriptions[0].Auth != "new-auth" {
+		t.Fatalf("refreshed subscription is not active: subscriptions=%v err=%v", subscriptions, err)
+	}
+}
+
+func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-legacy-user"
+	endpoint := "https://push.example.com/legacy-unclaimed"
+	data, err := proto.Marshal(&corev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
+	if err != nil {
+		t.Fatalf("marshal legacy subscription: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Put(ctx, pushSubscriptionKey(userID, endpoint), data); err != nil {
+		t.Fatalf("store legacy subscription: %v", err)
+	}
+
+	subscriptions, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPushSubscriptions: %v", err)
+	}
+	if len(subscriptions) != 0 {
+		t.Fatalf("unclaimed legacy subscription should be inactive, got %d", len(subscriptions))
+	}
+}
+
+func TestConcurrentPushEndpointOwnershipClaimsHaveOneWinner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	endpoint := "https://push.example.com/concurrent-owner"
+	users := []string{"push-concurrent-a", "push-concurrent-b"}
+	start := make(chan struct{})
+	errs := make(chan error, len(users))
+	var wg sync.WaitGroup
+
+	for _, userID := range users {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser")
+			errs <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent SavePushSubscription: %v", err)
+		}
+	}
+
+	active := 0
+	owners := 0
+	for _, userID := range users {
+		subscriptions, err := core.GetUserPushSubscriptions(ctx, userID)
+		if err != nil {
+			t.Fatalf("GetUserPushSubscriptions %s: %v", userID, err)
+		}
+		active += len(subscriptions)
+		owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint)
+		if err != nil {
+			t.Fatalf("PushSubscriptionOwnedByUser %s: %v", userID, err)
+		}
+		if owned {
+			owners++
+		}
+	}
+	if active != 1 || owners != 1 {
+		t.Fatalf("expected one active subscription owner, got active=%d owners=%d", active, owners)
+	}
+}
+
+func TestConcurrentSameUserPushSavesKeepLatestRecordActive(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-concurrent-same-user"
+	endpoint := "https://push.example.com/concurrent-same-user"
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+
+	for _, auth := range []string{"auth-a", "auth-b"} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := core.SavePushSubscription(ctx, userID, endpoint, "key", auth, "browser")
+			errs <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent SavePushSubscription: %v", err)
+		}
+	}
+
+	subscriptions, err := core.GetUserPushSubscriptions(ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUserPushSubscriptions: %v", err)
+	}
+	if len(subscriptions) != 1 {
+		t.Fatalf("latest same-user record should remain active, got %d", len(subscriptions))
+	}
+	current, err := core.PushSubscriptionCurrentForUser(ctx, userID, subscriptions[0])
+	if err != nil || !current {
+		t.Fatalf("latest same-user record should be current: current=%t err=%v", current, err)
+	}
+}
+
 func TestDeletePushSubscription(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
@@ -331,6 +586,13 @@ func TestDeletePushSubscription(t *testing.T) {
 		subs, _ = core.GetUserPushSubscriptions(ctx, userID)
 		if len(subs) != initialCount-1 {
 			t.Errorf("Expected %d subscriptions after delete, got %d", initialCount-1, len(subs))
+		}
+		owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint)
+		if err != nil {
+			t.Fatalf("PushSubscriptionOwnedByUser after delete: %v", err)
+		}
+		if owned {
+			t.Error("deleting the current subscription should release endpoint ownership")
 		}
 	})
 }
@@ -370,6 +632,16 @@ func TestDeleteAllUserPushSubscriptions(t *testing.T) {
 		subs, _ := core.GetUserPushSubscriptions(ctx, userID)
 		if len(subs) != 0 {
 			t.Errorf("Expected 0 remaining, got %d", len(subs))
+		}
+		for i := 0; i < 3; i++ {
+			endpoint := "https://push.example.com/device" + string(rune('a'+i))
+			owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint)
+			if err != nil {
+				t.Fatalf("PushSubscriptionOwnedByUser after delete all: %v", err)
+			}
+			if owned {
+				t.Errorf("DeleteAllUserPushSubscriptions left owner for %s", endpoint)
+			}
 		}
 	})
 }

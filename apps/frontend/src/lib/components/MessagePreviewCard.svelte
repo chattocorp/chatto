@@ -41,6 +41,7 @@ unknown instance) the component renders nothing.
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
+  import DeletedUserLabel from './DeletedUserLabel.svelte';
 
   let {
     link,
@@ -391,13 +392,11 @@ unknown instance) the component renders nothing.
             </span>
           {/if}
           <div class="flex min-w-0 items-center gap-2">
-            {#if preview.actor}
+            {#if preview.actor && !preview.actor.deleted}
               <UserAvatar user={preview.actor} size="xs" />
               <span class="truncate text-sm font-medium">{displayName}</span>
             {:else}
-              <span class="truncate text-sm font-medium text-muted">
-                {m['message_preview.deleted_user']()}
-              </span>
+              <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
             {/if}
           </div>
         </div>

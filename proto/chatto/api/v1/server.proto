@@ -2,20 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-// Describes one login provider exposed by the server discovery endpoint.
-//
-// Clients can render these providers before a user has authenticated.
-message AuthProvider {
-  // Stable provider identifier used by clients when starting login.
-  string id = 1;
-  // Provider category, such as "password" or "oidc". Clients should treat
-  // unknown provider types as unsupported.
-  string type = 2;
-  // Human-readable provider label for login UI.
-  string label = 3;
-  // URL that starts login for this provider.
-  string login_url = 4;
-}
+import "chatto/api/v1/common.proto";
 
 // Public server profile, identity, and branding fields.
 message ServerPublicProfile {
@@ -38,7 +25,7 @@ message ServerLogin {
   // Whether users can create accounts through the public UI.
   bool direct_registration_enabled = 1;
   // Configured login providers.
-  repeated AuthProvider providers = 2;
+  repeated ProviderMetadata providers = 2;
   // URL for the legacy authorization flow, when enabled.
   string authorize_url = 3;
 }

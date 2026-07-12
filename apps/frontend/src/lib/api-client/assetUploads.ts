@@ -7,7 +7,7 @@ import {
   type ConnectAPIConfig
 } from './connect.js';
 
-export type UploadedAttachmentAsset = {
+export type UploadedAsset = {
   assetId: string;
   filename: string;
   contentType: string;
@@ -29,7 +29,7 @@ export function createAssetUploadAPI(config: ConnectAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async uploadAttachment(options: UploadAttachmentOptions): Promise<UploadedAttachmentAsset> {
+    async uploadAttachment(options: UploadAttachmentOptions): Promise<UploadedAsset> {
       try {
         const fullHash = await fileSHA256(options.file);
         const created = await client.createUpload(
@@ -92,11 +92,11 @@ export function createAssetUploadAPI(config: ConnectAPIConfig) {
           { uploadId: upload.uploadId },
           { headers: headers() }
         );
-        if (!completed.asset?.assetId) {
+        if (!completed.asset?.id) {
           throw new Error('completed upload did not return an asset id');
         }
         return {
-          assetId: completed.asset.assetId,
+          assetId: completed.asset.id,
           filename: completed.asset.filename,
           contentType: completed.asset.contentType,
           size: completed.asset.size,

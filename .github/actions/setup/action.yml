@@ -44,7 +44,23 @@ runs:
 
     # pnpm is not available as a mise plugin, so install via npm (comes with Node)
     - name: Install pnpm
+      if: inputs.install-frontend-deps == 'true'
       uses: pnpm/action-setup@v5
+
+    - name: Resolve pnpm store path
+      if: inputs.install-frontend-deps == 'true'
+      id: pnpm-store
+      shell: bash
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache pnpm store
+      if: inputs.install-frontend-deps == 'true'
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-store-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Install ffmpeg (required for video processing e2e tests)
       if: inputs.install-ffmpeg == 'true'

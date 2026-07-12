@@ -16,5 +16,7 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine
 
 COPY apps/docs-website/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/docs-website/dist /usr/share/nginx/html
+COPY LICENSES/Apache-2.0.txt /usr/share/doc/chatto-docs/LICENSE
+COPY NOTICE /usr/share/doc/chatto-docs/NOTICE
 
 EXPOSE 8080

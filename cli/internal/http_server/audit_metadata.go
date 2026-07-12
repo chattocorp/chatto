@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"net"
 	"strings"
 	"unicode/utf8"
 
@@ -50,28 +49,10 @@ func capAuditUserAgent(userAgent string) string {
 }
 
 func auditSourceIP(c *gin.Context) string {
-	if forwardedFor := c.GetHeader("X-Forwarded-For"); forwardedFor != "" {
-		for _, part := range strings.Split(forwardedFor, ",") {
-			if ip := strings.TrimSpace(part); ip != "" {
-				return ip
-			}
-		}
-	}
-	if realIP := strings.TrimSpace(c.GetHeader("X-Real-IP")); realIP != "" {
-		return realIP
-	}
-	if c.Request == nil {
+	if c == nil || c.Request == nil {
 		return ""
 	}
-	remoteAddr := strings.TrimSpace(c.Request.RemoteAddr)
-	if remoteAddr == "" {
-		return ""
-	}
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err == nil {
-		return host
-	}
-	return remoteAddr
+	return c.ClientIP()
 }
 
 func hmacSHA256Hex(secret, value string) string {

@@ -20,8 +20,8 @@ a leaked URL granted access for the full TTL, so locator URLs were kept to
 was being rendered. Considered and rejected at the time:
 two scoped session cookies (third-party-cookie blocking risk), a
 service worker that proxies remote-server fetches with the bearer
-token (more upfront work but ages best — likely the long-term
-direction), and a same-origin asset proxy (incompatible with the
+token (more upfront work but likely too much moving state for the
+benefit), and a same-origin asset proxy (incompatible with the
 "standalone frontend with no backing server" deployment shape, and
 poor fit for GDPR data-residency expectations).
 
@@ -32,6 +32,11 @@ URLs once a Service Worker controls the page, while keeping direct
 ticketed URLs as the explicit fallback for non-controlled clients,
 and media Range redirects.
 
+**Update (2026-07-05):** ADR-039 was superseded by
+[ADR-047](ADR-047-direct-ticketed-asset-urls.md). Browser media now uses direct
+ticketed stable asset URLs, with foreground client refresh before expiry and
+after media load failures.
+
 **Update (2026-07-02):** The signed locator route was removed before 0.4.0.
 Protected attachments now use stable `/assets/files/{assetId}` paths with
 `AssetAccessTicket` authorization for originals, image derivatives, thumbnails,
@@ -40,7 +45,7 @@ redirects heavy passive originals to short-lived S3 URLs after authorizing the
 stable asset request.
 
 See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md) and
-[ADR-039](ADR-039-service-worker-virtual-asset-urls.md) for the current flow
+[ADR-047](ADR-047-direct-ticketed-asset-urls.md) for the current flow
 and trade-offs.
 
 ## Context
@@ -107,7 +112,7 @@ No standalone-record bucket is consulted.
 
 - **One source of truth per attachment.** No write-amplification, no drift surface. A message-body mutation (rare today, but a possibility tomorrow) updates the only copy.
 - **No second KV namespace.** `SERVER_BODIES` reverts to holding just bodies. Existing `attachment.*` records are historical dead weight; current boot no longer reads them as a migration source.
-- **Authorization surface changed by the ticket update.** For the 2026-05-24 ticket-bearing locator flow, the signed URL was a short-lived capability: a leaked URL could be used until it expired or the signed user lost room membership. Stable `/assets/files/...` URLs use the same ticket capability model, but ADR-039 hides those tickets behind Service Worker virtual URLs in controlled browser sessions.
+- **Authorization surface changed by the ticket update.** For the 2026-05-24 ticket-bearing locator flow, the signed URL was a short-lived capability: a leaked URL could be used until it expired or the signed user lost room membership. Stable `/assets/files/...` URLs use the same ticket capability model directly in browser media URLs.
 - **Forgery prevention.** The previous URL shape (`/assets/attachments/{id}`) let attackers probe arbitrary attachment IDs to enumerate the space. The locator URL requires a valid HMAC; only IDs the server has issued URLs for can be tested.
 - **Longer URLs.** ~150 chars vs ~30. Irrelevant for our use case (URLs aren't human-typed and aren't shared as bare share-links outside the app).
 - **URLs weren't individually revocable.** Rotating `[core.assets].signing_secret` invalidated *all* URLs at once. Ticketed URL leaks were bounded by expiry and the signed user's current room membership. If we ever want share links with single-use semantics, we'd extend the payload or add server-side revocation state; none of that is needed today.
@@ -119,5 +124,5 @@ No standalone-record bucket is consulted.
 
 - [ADR-023](ADR-023-hmac-signed-image-transform-urls.md) — HMAC-signed image transform URLs (same primitive, layered with this one for transforms)
 - [ADR-021](ADR-021-dual-asset-storage.md) — Dual asset storage (now reads `Storage` directly instead of probing)
-- [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) — Service Worker virtual asset URLs with ticketed fallback
+- [ADR-047](ADR-047-direct-ticketed-asset-urls.md) — Direct ticketed asset URLs for browser media
 - [FDR-008](../fdr/FDR-008-file-attachments-and-video.md) — File attachments & video processing

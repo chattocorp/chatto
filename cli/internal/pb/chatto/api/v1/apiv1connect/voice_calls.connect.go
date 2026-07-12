@@ -33,9 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// VoiceCallServiceListActiveCallRoomsProcedure is the fully-qualified name of the
-	// VoiceCallService's ListActiveCallRooms RPC.
-	VoiceCallServiceListActiveCallRoomsProcedure = "/chatto.api.v1.VoiceCallService/ListActiveCallRooms"
+	// VoiceCallServiceListActiveCallsProcedure is the fully-qualified name of the VoiceCallService's
+	// ListActiveCalls RPC.
+	VoiceCallServiceListActiveCallsProcedure = "/chatto.api.v1.VoiceCallService/ListActiveCalls"
 	// VoiceCallServiceGetActiveCallProcedure is the fully-qualified name of the VoiceCallService's
 	// GetActiveCall RPC.
 	VoiceCallServiceGetActiveCallProcedure = "/chatto.api.v1.VoiceCallService/GetActiveCall"
@@ -62,7 +62,7 @@ type VoiceCallServiceClient interface {
 	// runtime snapshot. Rooms the caller is not a member of are omitted.
 	//
 	// Returns an empty list when LiveKit is not configured.
-	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
+	ListActiveCalls(context.Context, *connect.Request[v1.ListActiveCallsRequest]) (*connect.Response[v1.ListActiveCallsResponse], error)
 	// Gets the current active call snapshot for one room.
 	//
 	// The caller must be a member of the room. Returns NOT_FOUND when the room
@@ -111,10 +111,10 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	voiceCallServiceMethods := v1.File_chatto_api_v1_voice_calls_proto.Services().ByName("VoiceCallService").Methods()
 	return &voiceCallServiceClient{
-		listActiveCallRooms: connect.NewClient[v1.ListActiveCallRoomsRequest, v1.ListActiveCallRoomsResponse](
+		listActiveCalls: connect.NewClient[v1.ListActiveCallsRequest, v1.ListActiveCallsResponse](
 			httpClient,
-			baseURL+VoiceCallServiceListActiveCallRoomsProcedure,
-			connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCallRooms")),
+			baseURL+VoiceCallServiceListActiveCallsProcedure,
+			connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCalls")),
 			connect.WithClientOptions(opts...),
 		),
 		getActiveCall: connect.NewClient[v1.GetActiveCallRequest, v1.GetActiveCallResponse](
@@ -158,7 +158,7 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // voiceCallServiceClient implements VoiceCallServiceClient.
 type voiceCallServiceClient struct {
-	listActiveCallRooms  *connect.Client[v1.ListActiveCallRoomsRequest, v1.ListActiveCallRoomsResponse]
+	listActiveCalls      *connect.Client[v1.ListActiveCallsRequest, v1.ListActiveCallsResponse]
 	getActiveCall        *connect.Client[v1.GetActiveCallRequest, v1.GetActiveCallResponse]
 	batchGetActiveCalls  *connect.Client[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse]
 	listCallParticipants *connect.Client[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse]
@@ -167,9 +167,9 @@ type voiceCallServiceClient struct {
 	leaveCall            *connect.Client[v1.LeaveCallRequest, v1.LeaveCallResponse]
 }
 
-// ListActiveCallRooms calls chatto.api.v1.VoiceCallService.ListActiveCallRooms.
-func (c *voiceCallServiceClient) ListActiveCallRooms(ctx context.Context, req *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error) {
-	return c.listActiveCallRooms.CallUnary(ctx, req)
+// ListActiveCalls calls chatto.api.v1.VoiceCallService.ListActiveCalls.
+func (c *voiceCallServiceClient) ListActiveCalls(ctx context.Context, req *connect.Request[v1.ListActiveCallsRequest]) (*connect.Response[v1.ListActiveCallsResponse], error) {
+	return c.listActiveCalls.CallUnary(ctx, req)
 }
 
 // GetActiveCall calls chatto.api.v1.VoiceCallService.GetActiveCall.
@@ -208,7 +208,7 @@ type VoiceCallServiceHandler interface {
 	// runtime snapshot. Rooms the caller is not a member of are omitted.
 	//
 	// Returns an empty list when LiveKit is not configured.
-	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
+	ListActiveCalls(context.Context, *connect.Request[v1.ListActiveCallsRequest]) (*connect.Response[v1.ListActiveCallsResponse], error)
 	// Gets the current active call snapshot for one room.
 	//
 	// The caller must be a member of the room. Returns NOT_FOUND when the room
@@ -253,10 +253,10 @@ type VoiceCallServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	voiceCallServiceMethods := v1.File_chatto_api_v1_voice_calls_proto.Services().ByName("VoiceCallService").Methods()
-	voiceCallServiceListActiveCallRoomsHandler := connect.NewUnaryHandler(
-		VoiceCallServiceListActiveCallRoomsProcedure,
-		svc.ListActiveCallRooms,
-		connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCallRooms")),
+	voiceCallServiceListActiveCallsHandler := connect.NewUnaryHandler(
+		VoiceCallServiceListActiveCallsProcedure,
+		svc.ListActiveCalls,
+		connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCalls")),
 		connect.WithHandlerOptions(opts...),
 	)
 	voiceCallServiceGetActiveCallHandler := connect.NewUnaryHandler(
@@ -297,8 +297,8 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 	)
 	return "/chatto.api.v1.VoiceCallService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case VoiceCallServiceListActiveCallRoomsProcedure:
-			voiceCallServiceListActiveCallRoomsHandler.ServeHTTP(w, r)
+		case VoiceCallServiceListActiveCallsProcedure:
+			voiceCallServiceListActiveCallsHandler.ServeHTTP(w, r)
 		case VoiceCallServiceGetActiveCallProcedure:
 			voiceCallServiceGetActiveCallHandler.ServeHTTP(w, r)
 		case VoiceCallServiceBatchGetActiveCallsProcedure:
@@ -320,8 +320,8 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 // UnimplementedVoiceCallServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedVoiceCallServiceHandler struct{}
 
-func (UnimplementedVoiceCallServiceHandler) ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.ListActiveCallRooms is not implemented"))
+func (UnimplementedVoiceCallServiceHandler) ListActiveCalls(context.Context, *connect.Request[v1.ListActiveCallsRequest]) (*connect.Response[v1.ListActiveCallsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.ListActiveCalls is not implemented"))
 }
 
 func (UnimplementedVoiceCallServiceHandler) GetActiveCall(context.Context, *connect.Request[v1.GetActiveCallRequest]) (*connect.Response[v1.GetActiveCallResponse], error) {

@@ -13,7 +13,6 @@
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import { Button } from '$lib/ui/form';
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createMessageAPI } from '$lib/api-client/messages';
@@ -21,7 +20,11 @@
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
-  import { refreshAttachmentUrlsForAssets } from '$lib/attachments/attachmentUrls';
+  import {
+    LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
+    refreshAttachmentUrlsForAssets
+  } from '$lib/attachments/attachmentUrls';
+  import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
@@ -53,14 +56,13 @@
   }
 
   let leavingRoom = $state(false);
-  let joiningRoom = $state(false);
   let leavingServer = $state(false);
   let deletingMessage = $state(false);
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
-  // Keep the lightbox ahead of the one-hour access ticket expiry.
-  const IMAGE_MODAL_URL_REFRESH_MS = 50 * 60 * 1000;
+  // Keep the lightbox ahead of the 24-hour access ticket expiry.
+  const IMAGE_MODAL_URL_REFRESH_MS = 23 * 60 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
@@ -83,28 +85,6 @@
 
     clearLastRoom(activeInstanceId);
     goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
-  }
-
-  async function handleJoinRoom(roomId: string) {
-    joiningRoom = true;
-    const stores = serverRegistry.getStore(activeInstanceId);
-    const result = await stores.roomDirectory.joinRoom(roomId);
-    joiningRoom = false;
-
-    if (!result.ok) {
-      toast.error(m['room.join.failed']());
-      console.error('Error joining room:', result.error);
-      closeModal();
-      return;
-    }
-
-    toast.success(
-      result.room
-        ? m['room.join.success']({ room: result.room.name })
-        : m['room.join.success_generic']()
-    );
-    await stores.rooms.refresh();
-    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   async function handleLeaveServer() {
@@ -186,7 +166,8 @@
     const freshUrls = await refreshAttachmentUrlsForAssets(
       getActiveAttachmentAPI(),
       refreshRoomId,
-      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id)
+      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id),
+      LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
     if (freshUrls.size === 0) {
       return;
@@ -201,13 +182,18 @@
       return;
     }
     const imageItems = currentModal.imageItems
-      .map((item) => ({
-        ...item,
-        src:
-          item.id && freshUrls.has(item.id)
-            ? (freshUrls.get(item.id)!.assetUrl?.url ?? '')
-            : item.src
-      }))
+      .map((item) => {
+        const refreshed = item.id ? freshUrls.get(item.id) : undefined;
+        return {
+          ...item,
+          src: refreshed
+            ? (assetUrlForServer(activeInstanceId, refreshed.thumbnailAssetUrl?.url) ?? '')
+            : item.src,
+          originalSrc: refreshed
+            ? (assetUrlForServer(activeInstanceId, refreshed.assetUrl?.url) ?? undefined)
+            : item.originalSrc
+        };
+      })
       .filter((item) => item.src !== '');
     if (imageItems.length === 0) {
       closeModal();
@@ -263,33 +249,6 @@
   </Dialog>
 {:else if modalType === 'logout'}
   <SignOutDialog onclose={closeModal} />
-{:else if modalType === 'joinRoom' && roomId}
-  {#if page.state.modal?.viewerCanJoinRoom}
-    <ConfirmDialog
-      title={m['room.join.title']()}
-      tone="info"
-      actionLabel={m['room.join.action']()}
-      actionIcon="iconify uil--plus"
-      loading={joiningRoom}
-      onconfirm={() => handleJoinRoom(roomId)}
-      onclose={closeModal}
-    >
-      {m['room.join.prompt']({ room: roomName ?? '' })}
-    </ConfirmDialog>
-  {:else}
-    <Dialog visible title={m['room.join.access_title']()} size="sm" onclose={closeModal}>
-      {#snippet footer()}
-        <div class="flex justify-end">
-          <Button variant="accent" onclick={closeModal}>
-            <span class="iconify uil--check"></span>
-            {m['common.got_it']()}
-          </Button>
-        </div>
-      {/snippet}
-
-      <p class="text-muted">{m['room.join.access_denied']()}</p>
-    </Dialog>
-  {/if}
 {:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
     title={m['room.leave.title']()}

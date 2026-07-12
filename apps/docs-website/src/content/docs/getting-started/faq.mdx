@@ -1,0 +1,54 @@
+---
+title: Frequently Asked Questions
+description: Answers to common questions about Chatto, its licensing, funding, encryption, clients, and approach to federation.
+---
+
+## How is Chatto licensed?
+
+Chatto is open-source software that you can use, self-host, and modify. The server, CLI, and bundled server releases use the [GNU Affero General Public License 3.0 or later](https://github.com/chattocorp/chatto/blob/main/LICENSE). If you modify AGPL-covered code and make it available to users over a network, the license generally requires you to offer those users the corresponding source code under the same license.
+
+Selected parts of the project use the more permissive Apache License 2.0 so they can be reused easily. These include the standalone frontend, public API and protocol definitions, generated TypeScript clients and types, documentation, integrations, and examples. See [LICENSING.md](https://github.com/chattocorp/chatto/blob/main/LICENSING.md) for an overview and [REUSE.toml](https://github.com/chattocorp/chatto/blob/main/REUSE.toml) for the exact per-file license boundary. The licenses do not grant permission to present a fork or modified version as an official Chatto product; the repository's [NOTICE](https://github.com/chattocorp/chatto/blob/main/NOTICE) explains the branding rules.
+
+## How is Chatto funded?
+
+Chatto is developed by [ChattoCorp GmbH](https://chatto.run), which also operates Chatto Cloud. The open-source Chatto server is free to self-host; Chatto Cloud funds development by charging customers who want ChattoCorp to host and operate their server for them.
+
+We have no plans for premium member subscriptions, paid feature tiers, advertising, or similar monetization inside Chatto. Chatto Cloud customers pay for managed hosting, not for a more capable edition of Chatto. You can also move a server between Chatto Cloud and your own infrastructure without changing the product or its data format. Read the [open-source announcement](https://www.hmans.dev/blog/chatto-is-open-source/) for more about this model.
+
+## Is Chatto ready for production use?
+
+Yes, with some pre-1.0 caveats. Chatto already runs in production, including our own communities, and we consider it safe and stable enough for real use. It is still evolving quickly, however, so you should expect some bugs, missing features, and occasional breaking changes before version 1.0.
+
+Self-hosters should keep Chatto up to date, read the release notes before upgrading, and maintain regular, tested [backups](/guides/operations/backup-restore/). The public API is currently the part most likely to change, so integrations may need updates between releases. See the [Chatto roadmap](https://github.com/orgs/chattocorp/projects/1) for planned work.
+
+## Does Chatto collect telemetry or track its users?
+
+No. Chatto does not include product analytics or third-party tracking, and self-hosted servers do not send usage data, personal information, or chat data to ChattoCorp.
+
+Server operators can optionally expose local [Prometheus metrics](/guides/operations/server-operations/#metrics) for monitoring their own deployment. Those metrics remain under the operator's control and are not sent to ChattoCorp.
+
+## Is Chatto end-to-end encrypted?
+
+With the exception of voice and video calls, Chatto is not end-to-end encrypted. A running Chatto server must be able to decrypt messages before sending them to authorized clients.
+
+Chatto instead encrypts message text and selected personal data at rest with per-user keys. Deleting an account shreds those keys so the protected data can no longer be decrypted. Attachments and some event metadata are outside this application-level encryption boundary and must be protected by the underlying NATS or S3-compatible storage. See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the exact coverage and threat model.
+
+We may layer end-to-end-encrypted features on top of Chatto in the future, but there is no general end-to-end encryption mode today.
+
+## Does Chatto federate data between servers?
+
+No. Chatto does not federate data, and we have no plans to add data federation. Each Chatto server powers one independent community and acts as its own data boundary. Personally identifiable information, chat data, assets, and other community data are never copied, synchronized, or forwarded to another Chatto server. They remain under the control of that server and its configured storage.
+
+When you use more than one community, the Chatto client connects to each server directly and receives only the data you are authorized to access there. This provides a convenient multi-server experience without the servers exchanging data or even needing to know about each other. It also keeps each community's privacy, moderation, and data-protection boundaries clear.
+
+## Is there a desktop app? Are there mobile apps?
+
+Not yet. Dedicated desktop and mobile apps are planned, but we do not have an estimated release date for them.
+
+In the meantime, Chatto is an excellent Progressive Web App (PWA) on both desktop and mobile devices. You can install it from a supported browser or add it to your Home Screen, then launch it like any other app. Installed PWAs also support features such as app badges and [push notifications](/guides/operations/notifications-web-push/) where the operating system and browser allow them.
+
+## Where can I get help or report a problem?
+
+Join the [official Chatto community](https://chat.chatto.run) and visit the `#self-hosting-support` room for setup questions, operational help, or general feedback. You can report reproducible bugs through [GitHub Issues](https://github.com/chattocorp/chatto/issues).
+
+Do not open a public issue for a security vulnerability. Follow the repository's [security policy](https://github.com/chattocorp/chatto/blob/main/SECURITY.md) to report it privately instead.

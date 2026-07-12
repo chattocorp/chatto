@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,6 +21,16 @@ import (
 // Push Subscription Key Helpers
 // ============================================================================
 
+const (
+	pushEndpointOwnerKeyPrefix  = "push_endpoint_owner."
+	pushEndpointOwnerMaxRetries = 8
+)
+
+type pushEndpointOwner struct {
+	UserID               string `json:"user_id"`
+	SubscriptionRevision uint64 `json:"subscription_revision"`
+}
+
 // pushSubscriptionKey returns the KV key for a push subscription.
 // Format: push_subscription.{userId}.{hash}
 // The hash is derived from the endpoint URL to allow multiple devices per user.
@@ -31,6 +42,13 @@ func pushSubscriptionKey(userID, endpoint string) string {
 // pushSubscriptionKeyFilter returns the NATS subject filter for all push subscriptions for a user.
 func pushSubscriptionKeyFilter(userID string) string {
 	return "push_subscription." + userID + ".*"
+}
+
+// pushEndpointOwnerKey returns the KV key that exclusively assigns a browser
+// push endpoint to the account that most recently registered it.
+func pushEndpointOwnerKey(endpoint string) string {
+	h := sha256.Sum256([]byte(endpoint))
+	return pushEndpointOwnerKeyPrefix + hex.EncodeToString(h[:])
 }
 
 // hashEndpoint returns a short hash of the endpoint URL for use in the key.
@@ -72,12 +90,162 @@ func (c *ChattoCore) SavePushSubscription(
 	if err != nil {
 		return nil, fmt.Errorf("failed to store push subscription: %w", err)
 	}
+	if err := c.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
+		return nil, err
+	}
 
 	c.logger.Debug("Push subscription saved",
 		"user_id", userID,
 		"endpoint_hash", hashEndpoint(endpoint))
 
 	return subscription, nil
+}
+
+func isPushRuntimeStateKeyAbsent(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
+}
+
+func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, endpoint string) error {
+	ownerKey := pushEndpointOwnerKey(endpoint)
+	subscriptionKey := pushSubscriptionKey(userID, endpoint)
+	for range pushEndpointOwnerMaxRetries {
+		subscriptionEntry, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey)
+		if isPushRuntimeStateKeyAbsent(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get current push subscription: %w", err)
+		}
+
+		owner := pushEndpointOwner{UserID: userID, SubscriptionRevision: subscriptionEntry.Revision()}
+		value, err := json.Marshal(owner)
+		if err != nil {
+			return fmt.Errorf("failed to marshal push endpoint owner: %w", err)
+		}
+		entry, err := c.storage.runtimeStateKV.Get(ctx, ownerKey)
+		if isPushRuntimeStateKeyAbsent(err) {
+			if _, err := c.storage.runtimeStateKV.Create(ctx, ownerKey, value); err == nil {
+				if current, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && current.Revision() == owner.SubscriptionRevision {
+					return nil
+				}
+				continue
+			} else if errors.Is(err, jetstream.ErrKeyExists) {
+				continue
+			} else {
+				return fmt.Errorf("failed to create push endpoint owner: %w", err)
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get push endpoint owner: %w", err)
+		}
+		var current pushEndpointOwner
+		if err := json.Unmarshal(entry.Value(), &current); err != nil {
+			return fmt.Errorf("failed to unmarshal push endpoint owner: %w", err)
+		}
+		if current == owner {
+			if latest, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && latest.Revision() == owner.SubscriptionRevision {
+				return nil
+			}
+			continue
+		}
+		if _, err := c.storage.runtimeStateKV.Update(ctx, ownerKey, value, entry.Revision()); err == nil {
+			if latest, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && latest.Revision() == owner.SubscriptionRevision {
+				return nil
+			}
+			continue
+		} else if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		} else {
+			return fmt.Errorf("failed to update push endpoint owner: %w", err)
+		}
+	}
+	return fmt.Errorf("failed to claim push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
+}
+
+// PushSubscriptionOwnedByUser reports whether the endpoint is currently claimed
+// by userID.
+func (c *ChattoCore) PushSubscriptionOwnedByUser(ctx context.Context, userID, endpoint string) (bool, error) {
+	owner, err := c.getPushEndpointOwner(ctx, endpoint)
+	if err != nil {
+		return false, err
+	}
+	return owner != nil && owner.UserID == userID, nil
+}
+
+// PushSubscriptionCurrentForUser reports whether subscription is still the
+// exact active record for userID. Callers should recheck this immediately before
+// delivery because browsers can transfer or rotate a subscription while a push
+// is being prepared.
+func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID string, subscription *corev1.PushSubscription) (bool, error) {
+	key := pushSubscriptionKey(userID, subscription.Endpoint)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if isPushRuntimeStateKeyAbsent(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to get push subscription: %w", err)
+	}
+
+	var current corev1.PushSubscription
+	if err := proto.Unmarshal(entry.Value(), &current); err != nil {
+		return false, fmt.Errorf("failed to unmarshal push subscription: %w", err)
+	}
+	if !proto.Equal(&current, subscription) {
+		return false, nil
+	}
+	return c.pushSubscriptionRevisionOwnedByUser(ctx, userID, subscription.Endpoint, entry.Revision())
+}
+
+func (c *ChattoCore) getPushEndpointOwner(ctx context.Context, endpoint string) (*pushEndpointOwner, error) {
+	entry, err := c.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint))
+	if isPushRuntimeStateKeyAbsent(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get push endpoint owner: %w", err)
+	}
+	var owner pushEndpointOwner
+	if err := json.Unmarshal(entry.Value(), &owner); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal push endpoint owner: %w", err)
+	}
+	return &owner, nil
+}
+
+func (c *ChattoCore) pushSubscriptionRevisionOwnedByUser(ctx context.Context, userID, endpoint string, subscriptionRevision uint64) (bool, error) {
+	owner, err := c.getPushEndpointOwner(ctx, endpoint)
+	if err != nil {
+		return false, err
+	}
+	return owner != nil && owner.UserID == userID && owner.SubscriptionRevision == subscriptionRevision, nil
+}
+
+func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, endpoint string, subscriptionRevision uint64) error {
+	key := pushEndpointOwnerKey(endpoint)
+	for range pushEndpointOwnerMaxRetries {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if isPushRuntimeStateKeyAbsent(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get push endpoint owner: %w", err)
+		}
+		var owner pushEndpointOwner
+		if err := json.Unmarshal(entry.Value(), &owner); err != nil {
+			return fmt.Errorf("failed to unmarshal push endpoint owner: %w", err)
+		}
+		if owner.UserID != userID || owner.SubscriptionRevision != subscriptionRevision {
+			return nil
+		}
+		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		if err == nil || isPushRuntimeStateKeyAbsent(err) {
+			return nil
+		}
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			continue
+		}
+		return fmt.Errorf("failed to delete push endpoint owner: %w", err)
+	}
+	return fmt.Errorf("failed to release push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
 }
 
 func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
@@ -100,10 +268,22 @@ func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoint string) error {
 	key := pushSubscriptionKey(userID, endpoint)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil && !isPushRuntimeStateKeyAbsent(err) {
+		return fmt.Errorf("failed to get push subscription before deleting: %w", err)
+	}
 
-	err := c.storage.runtimeStateKV.Delete(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to delete push subscription: %w", err)
+	if entry != nil {
+		if err := c.releasePushEndpointOwnership(ctx, userID, endpoint, entry.Revision()); err != nil {
+			return err
+		}
+	}
+
+	if entry != nil {
+		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		if err != nil && !isPushRuntimeStateKeyAbsent(err) && !errors.Is(err, jetstream.ErrKeyExists) {
+			return fmt.Errorf("failed to delete push subscription: %w", err)
+		}
 	}
 
 	c.logger.Debug("Push subscription deleted",
@@ -138,6 +318,13 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 			c.logger.Warn("Failed to unmarshal push subscription", "key", key, "error", err)
 			continue
 		}
+		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.Endpoint, entry.Revision())
+		if err != nil {
+			return nil, err
+		}
+		if !owned {
+			continue
+		}
 		subscriptions = append(subscriptions, &sub)
 	}
 
@@ -165,8 +352,25 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 
 	deleted := 0
 	for _, key := range keys {
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-			if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if isPushRuntimeStateKeyAbsent(err) {
+			continue
+		}
+		if err != nil {
+			c.logger.Warn("Failed to get push subscription before deleting", "key", key, "error", err)
+			continue
+		}
+
+		var sub corev1.PushSubscription
+		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
+			c.logger.Warn("Failed to unmarshal push subscription before deleting", "key", key, "error", err)
+		} else if err := c.releasePushEndpointOwnership(ctx, userID, sub.Endpoint, entry.Revision()); err != nil {
+			c.logger.Warn("Failed to release push endpoint owner", "key", key, "error", err)
+		}
+
+		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		if err != nil {
+			if !isPushRuntimeStateKeyAbsent(err) && !errors.Is(err, jetstream.ErrKeyExists) {
 				c.logger.Warn("Failed to delete push subscription", "key", key, "error", err)
 			}
 			continue
@@ -213,6 +417,13 @@ func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscr
 		// Extract userID from key: push_subscription.{userId}.{hash}
 		userID := extractUserIDFromPushKey(key)
 		if userID == "" {
+			continue
+		}
+		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.Endpoint, entry.Revision())
+		if err != nil {
+			return nil, err
+		}
+		if !owned {
 			continue
 		}
 

@@ -466,9 +466,42 @@ func (p *Publisher) LastSubjectPosition(ctx context.Context, subjectOrFilter str
 // SubjectEvents returns events currently published on a subject, in stream
 // order, plus the stream sequence of the last matching event.
 func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev1.Event, uint64, error) {
+	return p.SubjectEventsAfter(ctx, subject, 0)
+}
+
+// SubjectEventsAfter returns events on a subject whose stream sequence is
+// greater than afterSeq, plus the last matching stream sequence.
+func (p *Publisher) SubjectEventsAfter(ctx context.Context, subject string, afterSeq uint64) ([]*corev1.Event, uint64, error) {
+	subjectEvents, lastSeq, err := p.SubjectEventsWithSubjectsAfter(ctx, subject, afterSeq)
+	if err != nil {
+		return nil, lastSeq, err
+	}
+	events := make([]*corev1.Event, 0, len(subjectEvents))
+	for _, subjectEvent := range subjectEvents {
+		events = append(events, subjectEvent.Event)
+	}
+	return events, lastSeq, nil
+}
+
+// SubjectEvent preserves the durable subject alongside a decoded event.
+type SubjectEvent struct {
+	Subject string
+	Event   *corev1.Event
+}
+
+// SubjectEventsWithSubjectsAfter is SubjectEventsAfter for consumers whose
+// correctness depends on validating the matched aggregate identity.
+func (p *Publisher) SubjectEventsWithSubjectsAfter(ctx context.Context, subject string, afterSeq uint64) ([]*SubjectEvent, uint64, error) {
+	deliverPolicy := jetstream.DeliverAllPolicy
+	var startSeq uint64
+	if afterSeq > 0 {
+		deliverPolicy = jetstream.DeliverByStartSequencePolicy
+		startSeq = afterSeq + 1
+	}
 	consumer, err := p.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},
-		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		DeliverPolicy:     deliverPolicy,
+		OptStartSeq:       startSeq,
 		AckPolicy:         jetstream.AckNonePolicy,
 		MemoryStorage:     true,
 		InactiveThreshold: 30 * time.Second,
@@ -484,7 +517,7 @@ func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev
 	}
 
 	remaining := int(info.NumPending)
-	events := make([]*corev1.Event, 0, remaining)
+	events := make([]*SubjectEvent, 0, remaining)
 	var lastSeq uint64
 	for remaining > 0 {
 		batchSize := remaining
@@ -512,7 +545,7 @@ func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev
 			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 				return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", lastSeq, err)
 			}
-			events = append(events, &event)
+			events = append(events, &SubjectEvent{Subject: msg.Subject(), Event: &event})
 		}
 		if fetched == 0 {
 			break

@@ -3,11 +3,13 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
+import "google/protobuf/descriptor.proto";
 
 // Request to update the authenticated user's profile. At least one field must
 // be present.
@@ -31,12 +33,11 @@ message UpdateProfileResponse {
 
 // Request to upload and set the authenticated user's avatar.
 message UploadAvatarRequest {
-  // Raw image bytes. The server validates, resizes, and stores a WebP avatar.
-  bytes image = 1;
-  // Original browser filename, for diagnostics and future compatibility.
-  string filename = 2;
-  // Browser-provided content type, for diagnostics and future compatibility.
-  string content_type = 3;
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP avatar.
+  ImageUpload image = 4;
 }
 
 // Result of uploading the authenticated user's avatar.
@@ -119,7 +120,9 @@ service MyAccountService {
   // Uploads and sets the authenticated user's avatar.
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
   // Deletes the authenticated user's avatar. The call is idempotent.
-  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Updates or adds the authenticated user's password.
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.
@@ -128,10 +131,9 @@ service MyAccountService {
   // authenticated account.
   rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
   // Creates a short-lived browser handoff URL for linking a provider identity
-  // to the authenticated account.
+  // to the authenticated account. The provider callback completes through
+  // chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
   rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
-  // Links a pending provider identity to the authenticated account.
-  rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
   // Disconnects a provider identity from the authenticated account.
   rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
   // Updates the current user's live presence status. This state is transient:
@@ -143,7 +145,9 @@ service MyAccountService {
   rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
   // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
-  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse);
+  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Issues a short-lived token used to confirm self-deletion.
   rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
   // Permanently deletes the authenticated account after token validation.

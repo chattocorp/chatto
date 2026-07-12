@@ -9,8 +9,9 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
-  import { classifyMessageBodyChatLink, buildMessageLinkPath } from '$lib/messageLinks';
+  import { classifyMessageBodyChatLink } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
+  import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
 
   let {
     body,
@@ -36,7 +37,7 @@
   );
 
   function injectEditedMarker(html: string): string {
-    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const doc = parseTrustedMarkdownHtml(`<div>${html}</div>`);
     const root = doc.body.firstElementChild;
     if (!root) return html;
     const badge = doc.createElement('span');
@@ -92,11 +93,6 @@
       event.preventDefault();
 
       const chatLink = classifyMessageBodyChatLink(anchor.href);
-      if (chatLink?.kind === 'message') {
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath returns a resolved app route.
-        goto(buildMessageLinkPath(chatLink.serverId, chatLink.roomId, chatLink.messageId));
-        return;
-      }
       if (chatLink) {
         // eslint-disable-next-line svelte/no-navigation-without-resolve -- classifyMessageBodyChatLink returns an allow-listed resolved app path.
         goto(chatLink.path);

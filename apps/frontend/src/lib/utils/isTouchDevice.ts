@@ -1,9 +1,10 @@
+import { prefersTouchActions } from './inputCapabilities';
+
 /**
- * Returns true if the device's primary pointer is coarse (touch).
- * Uses the `(pointer: coarse)` media query, which reliably detects
- * touch-primary devices without relying on viewport width.
+ * Returns true if the device's primary pointer is coarse. Kept as a
+ * compatibility wrapper; new interaction decisions should prefer the explicit
+ * helpers in `inputCapabilities.ts`.
  */
 export function isTouchDevice(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(pointer: coarse)').matches;
+  return prefersTouchActions();
 }

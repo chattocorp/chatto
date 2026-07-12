@@ -46,6 +46,8 @@ export type MessageBodyChatLink =
 export interface MessageBodyChatLinkOptions {
   origin?: string;
   resolveServerSegment?: (segment: string) => string | null;
+  resolveUrlOrigin?: (origin: string) => string | null;
+  serverSegmentForId?: (serverId: string) => string;
 }
 
 const channelRoomIdPattern = /^R[a-zA-Z0-9]{14}$/;
@@ -54,6 +56,87 @@ const eventIdPattern = /^E[a-zA-Z0-9]{14}$/;
 
 function isMessageRoomId(value: string): boolean {
   return channelRoomIdPattern.test(value) || dmRoomIdPattern.test(value);
+}
+
+function serverIdForUrlOrigin(origin: string): string | null {
+  for (const server of serverRegistry.servers) {
+    try {
+      if (new URL(server.url).origin === origin) {
+        return server.id;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function routeSuffix(url: URL): string {
+  return `${url.search}${url.hash}`;
+}
+
+function roomPath(
+  serverId: string,
+  roomId: string,
+  suffix: string,
+  options: MessageBodyChatLinkOptions
+): string {
+  const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
+  return `${resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })}${suffix}`;
+}
+
+function threadPath(
+  serverId: string,
+  roomId: string,
+  threadRootEventId: string,
+  suffix: string,
+  options: MessageBodyChatLinkOptions
+): string {
+  const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
+  return `${resolve('/chat/[serverId]/[roomId]/[threadId]', {
+    serverId: serverSegment,
+    roomId,
+    threadId: threadRootEventId
+  })}${suffix}`;
+}
+
+function messagePath(
+  serverId: string,
+  roomId: string,
+  messageId: string,
+  suffix: string,
+  options: MessageBodyChatLinkOptions
+): string {
+  const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
+  return `${resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+    serverId: serverSegment,
+    roomId,
+    messageId
+  })}${suffix}`;
+}
+
+function resolveChatLinkServerId(
+  url: URL,
+  serverSegment: string,
+  origin: string,
+  options: MessageBodyChatLinkOptions
+): string | null {
+  const resolveServerSegment = options.resolveServerSegment ?? segmentToServerId;
+
+  if (url.origin === origin) {
+    return resolveServerSegment(serverSegment);
+  }
+
+  const resolveUrlOrigin = options.resolveUrlOrigin ?? serverIdForUrlOrigin;
+  const urlOriginServerId = resolveUrlOrigin(url.origin);
+  if (!urlOriginServerId) return null;
+
+  if (serverSegment === '-') {
+    return urlOriginServerId;
+  }
+
+  return resolveServerSegment(serverSegment);
 }
 
 export function buildMessageLinkPath(serverId: string, roomId: string, messageId: string): string {
@@ -100,9 +183,9 @@ export async function copyMessageLinkToClipboard(
 /**
  * Classify message-body URLs that may navigate in the current tab.
  *
- * This deliberately allows only same-origin Chatto room, thread, and message
- * URLs with Chatto-looking IDs. Other same-origin URLs, such as settings or
- * admin pages, should keep opening out-of-band like external links.
+ * This deliberately allows only registered-server Chatto room, thread, and
+ * message URLs with Chatto-looking IDs. Other URLs, such as settings or admin
+ * pages, should keep opening out-of-band like external links.
  */
 export function classifyMessageBodyChatLink(
   input: string,
@@ -119,8 +202,6 @@ export function classifyMessageBodyChatLink(
     return null;
   }
 
-  if (url.origin !== origin) return null;
-
   const parts = url.pathname.split('/').filter(Boolean);
   if (parts[0] !== 'chat') return null;
   if (parts.length !== 3 && parts.length !== 4 && parts.length !== 5) return null;
@@ -128,14 +209,20 @@ export function classifyMessageBodyChatLink(
   const [, serverSegment, roomId] = parts;
   if (!serverSegment || !isMessageRoomId(roomId)) return null;
 
-  const resolveServerSegment = options.resolveServerSegment ?? segmentToServerId;
-  const serverId = resolveServerSegment(serverSegment);
+  const serverId = resolveChatLinkServerId(url, serverSegment, origin, options);
   if (!serverId) return null;
 
-  const path = `${url.pathname}${url.search}${url.hash}`;
+  const suffix = routeSuffix(url);
+  const localServerSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
 
   if (parts.length === 3) {
-    return { kind: 'room', serverSegment, serverId, roomId, path };
+    return {
+      kind: 'room',
+      serverSegment: localServerSegment,
+      serverId,
+      roomId,
+      path: roomPath(serverId, roomId, suffix, options)
+    };
   }
 
   if (parts.length === 4) {
@@ -143,17 +230,24 @@ export function classifyMessageBodyChatLink(
     if (!eventIdPattern.test(threadRootEventId)) return null;
     return {
       kind: 'thread',
-      serverSegment,
+      serverSegment: localServerSegment,
       serverId,
       roomId,
       threadRootEventId,
-      path
+      path: threadPath(serverId, roomId, threadRootEventId, suffix, options)
     };
   }
 
   const [, , , marker, messageId] = parts;
   if (marker !== 'm' || !eventIdPattern.test(messageId)) return null;
-  return { kind: 'message', serverSegment, serverId, roomId, messageId, path };
+  return {
+    kind: 'message',
+    serverSegment: localServerSegment,
+    serverId,
+    roomId,
+    messageId,
+    path: messagePath(serverId, roomId, messageId, suffix, options)
+  };
 }
 
 /**

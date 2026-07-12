@@ -5,57 +5,9 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { RoomSummary } from "./rooms_pb.js";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-
-/**
- * Room summary embedded in notification responses.
- *
- * @generated from message chatto.api.v1.NotificationRoom
- */
-export class NotificationRoom extends Message<NotificationRoom> {
-  /**
-   * Stable room ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Room display name. Empty for DM rooms.
-   *
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  constructor(data?: PartialMessage<NotificationRoom>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationRoom";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationRoom {
-    return new NotificationRoom().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationRoom {
-    return new NotificationRoom().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationRoom {
-    return new NotificationRoom().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationRoom | PlainMessage<NotificationRoom> | undefined, b: NotificationRoom | PlainMessage<NotificationRoom> | undefined): boolean {
-    return proto3.util.equals(NotificationRoom, a, b);
-  }
-}
 
 /**
  * Direct-message notification payload.
@@ -64,18 +16,18 @@ export class NotificationRoom extends Message<NotificationRoom> {
  */
 export class DirectMessageNotification extends Message<DirectMessageNotification> {
   /**
-   * DM room where the message was posted.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
    * Message event ID.
    *
    * @generated from field: string event_id = 2;
    */
   eventId = "";
+
+  /**
+   * DM room where the message was posted.
+   *
+   * @generated from field: chatto.api.v1.RoomSummary room = 3;
+   */
+  room?: RoomSummary;
 
   constructor(data?: PartialMessage<DirectMessageNotification>) {
     super();
@@ -85,8 +37,8 @@ export class DirectMessageNotification extends Message<DirectMessageNotification
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DirectMessageNotification";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "room", kind: "message", T: RoomSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DirectMessageNotification {
@@ -115,9 +67,9 @@ export class MentionNotification extends Message<MentionNotification> {
   /**
    * Room where the mention occurred.
    *
-   * @generated from field: chatto.api.v1.NotificationRoom room = 1;
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
    */
-  room?: NotificationRoom;
+  room?: RoomSummary;
 
   /**
    * Message event ID.
@@ -141,7 +93,7 @@ export class MentionNotification extends Message<MentionNotification> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.MentionNotification";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: NotificationRoom },
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
@@ -172,9 +124,9 @@ export class ReplyNotification extends Message<ReplyNotification> {
   /**
    * Room where the reply occurred.
    *
-   * @generated from field: chatto.api.v1.NotificationRoom room = 1;
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
    */
-  room?: NotificationRoom;
+  room?: RoomSummary;
 
   /**
    * Reply event ID.
@@ -205,7 +157,7 @@ export class ReplyNotification extends Message<ReplyNotification> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ReplyNotification";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: NotificationRoom },
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "in_reply_to_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
@@ -237,9 +189,9 @@ export class RoomMessageNotification extends Message<RoomMessageNotification> {
   /**
    * Room where the message was posted.
    *
-   * @generated from field: chatto.api.v1.NotificationRoom room = 1;
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
    */
-  room?: NotificationRoom;
+  room?: RoomSummary;
 
   /**
    * Message event ID.
@@ -256,7 +208,7 @@ export class RoomMessageNotification extends Message<RoomMessageNotification> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomMessageNotification";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: NotificationRoom },
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

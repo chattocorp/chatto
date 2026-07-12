@@ -8,7 +8,7 @@
   import {
     createAdminUserManagementAPI,
     type AdminMember,
-    type AdminMemberRole
+    type AdminRoleDetails
   } from '$lib/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { CopyId, Panel } from '$lib/components/admin';
@@ -44,7 +44,7 @@
   const canAdminManageAccounts = $derived(serverPerms.current.canAdminManageAccounts);
 
   let member = $state<AdminMember | null>(null);
-  let allRoles = $state<AdminMemberRole[]>([]);
+  let allRoles = $state<AdminRoleDetails[]>([]);
   let memberServerRoles = $state<string[]>([]); // Member's roles (separate from member object)
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);

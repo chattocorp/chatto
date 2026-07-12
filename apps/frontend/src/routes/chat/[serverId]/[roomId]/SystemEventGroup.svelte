@@ -4,6 +4,8 @@
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     events,
@@ -13,12 +15,12 @@
     kind: SystemGroupKind;
   } = $props();
 
-  const action = $derived.by(() => {
+  const actionKind = $derived.by(() => {
     switch (kind) {
       case 'join':
-        return 'joined the room';
+        return 'joined';
       case 'leave':
-        return 'left the room';
+        return 'left';
     }
   });
 
@@ -34,7 +36,7 @@
 
   function eventSubject(event: RoomEventView): Actor {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
@@ -59,17 +61,35 @@
 
   let expanded = $state(false);
 
-  function joinNames(names: string[]): string {
-    if (names.length === 0) return '';
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-  }
-
-  const allNames = $derived(joinNames(actors.map((a) => a.name)));
-  const headNames = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION).map((a) => a.name).join(', '));
+  const headActors = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION));
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
+  const action = $derived(
+    actionKind === 'joined'
+      ? m['room.system_events.joined']({ count: actors.length })
+      : m['room.system_events.left']({ count: actors.length })
+  );
 </script>
+
+{#snippet actorName(actor: Actor)}
+  {#if actor.user}
+    {actor.name}
+  {:else}
+    <DeletedUserLabel />
+  {/if}
+{/snippet}
+
+{#snippet actorNames(items: Actor[])}
+  {#each items as actor, index (actor.id)}
+    {#if index > 0}
+      {#if index === items.length - 1}
+        {items.length > 2 ? ', ' : ''}{m['room.system_events.and']()}
+      {:else}
+        ,
+      {/if}
+    {/if}
+    {@render actorName(actor)}
+  {/each}
+{/snippet}
 
 {#if actors.length > 0}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={events[0].id}>
@@ -92,22 +112,22 @@
 
     <span class="text-sm text-muted">
       {#if !isTruncatable || expanded}
-        {allNames} {action}
+        {@render actorNames(actors)} {action}
         {#if isTruncatable}
           <button
             type="button"
             class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
             onclick={() => (expanded = false)}
           >
-            show less
+            {m['room.system_events.show_less']()}
           </button>
         {/if}
       {:else}
-        {headNames}, and <button
+        {@render actorNames(headActors)}, {m['room.system_events.and']()} <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={() => (expanded = true)}
-        >{extraCount} {extraCount === 1 ? 'other' : 'others'}</button>
+        >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button>
         {action}
       {/if}
     </span>

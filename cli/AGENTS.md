@@ -56,6 +56,10 @@ authorization, live events, backup/restore, and backend tests.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- When a committed EVT fact requires a KMS, LiveKit, object-store, or other
+  external side effect, that fact must provide a durable recovery path. Verify
+  crash recovery, multi-replica discovery, lease handover, and bounded
+  request-path cost.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
@@ -147,6 +151,10 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Tests that mutate a projection wired into a running `ChattoCore` must append
+  the fact through `EventPublisher` and wait for the owning projector. Reserve
+  direct `Apply` calls for isolated projection tests, using monotonically
+  increasing stream sequences.
 - Permission tests need positive and negative cases.
 - DM behavior needs explicit coverage when touching room/message/permission logic.
 - Endpoint tests for `/auth/test/*` or `/webhooks/test/*` require
@@ -157,6 +165,28 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ## Local Profiling
 
 - Store local benchmark/profiling artifacts under `.context/bench/`.
+- Run `mise bench-projections` for projection replay throughput, allocations,
+  and retained Go heap. It uses a versioned deterministic protobuf fixture and
+  reports room timeline, threads, and combined results at multiple history
+  sizes. Benchmarks are explicit and do not run as part of `mise test`;
+  ordinary tests only run the small fixture-validation test.
+- Compare projection changes with repeated before/after runs on the same
+  machine and Go version. Keep the fixture version constant, check both 10,000
+  and 50,000-message retained-heap results, and reject memory improvements that
+  cause an unacceptable replay-throughput regression.
+- Run `mise bench-projections-profile` for exact retained-heap attribution.
+  Profiles are written under `.context/bench/projections/`; exact allocation
+  sampling is intentionally slower than the normal benchmark.
+- Treat the synthetic projection benchmark as a regression and attribution
+  tool, not a production RSS model. Confirm meaningful wins against a restored
+  real EVT history before shipping them. If the fixture event mix changes,
+  bump its version so results from different workloads are not compared.
+- For realtime connection-memory work, negotiate production WebSocket
+  compression and use an external load generator so client allocations do not
+  enter the server profile.
+- Validate connection-scaled memory with server RSS/runtime `Sys` deltas and
+  active-connection heap profiles. Treat in-process `HeapAlloc` benchmarks as
+  regression signals, not production RSS models.
 - Startup CPU profile:
   `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof`.
 - Runtime pprof: set `CHATTO_METRICS_ENABLED=true`,

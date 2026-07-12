@@ -1,11 +1,11 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
-import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
+import { authHeaders, createChattoClient } from './connect.js';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
+import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import {
   TimeFormat as APITimeFormat,
-  type UserSettings as APIUserSettings,
-} from "@chatto/api-types/api/v1/viewer_pb";
-import { TimeFormat } from "./renderTypes.js";
+  type UserSettings as APIUserSettings
+} from '@chatto/api-types/api/v1/viewer_pb';
+import { TimeFormat } from './renderTypes.js';
 
 export type AccountAPIConfig = {
   baseUrl: string;
@@ -47,7 +47,7 @@ export function createAccountAPI(config: AccountAPIConfig) {
   return {
     async updateProfile(input: UpdateProfileInput): Promise<AccountUser> {
       const response = await client.updateProfile(input, {
-        headers: headers(),
+        headers: headers()
       });
       return accountUser(response.user);
     },
@@ -55,11 +55,13 @@ export function createAccountAPI(config: AccountAPIConfig) {
     async uploadAvatar(file: File): Promise<AccountUser> {
       const response = await client.uploadAvatar(
         {
-          image: new Uint8Array(await file.arrayBuffer()),
-          filename: file.name,
-          contentType: file.type,
+          image: {
+            image: new Uint8Array(await file.arrayBuffer()),
+            filename: file.name,
+            contentType: file.type
+          }
         },
-        { headers: headers() },
+        { headers: headers() }
       );
       return accountUser(response.user);
     },
@@ -72,29 +74,23 @@ export function createAccountAPI(config: AccountAPIConfig) {
     async updatePassword(input: UpdatePasswordInput): Promise<void> {
       await client.updatePassword(
         { password: input.password, currentPassword: input.currentPassword },
-        { headers: headers() },
+        { headers: headers() }
       );
     },
 
-    async updateSettings(
-      input: UpdateSettingsInput,
-    ): Promise<AccountUserSettings> {
+    async updateSettings(input: UpdateSettingsInput): Promise<AccountUserSettings> {
       const response = await client.updateSettings(
         {
-          timezone: input.timezone === null ? "" : input.timezone,
-          timeFormat:
-            input.timeFormat === undefined
-              ? undefined
-              : timeFormatToAPI(input.timeFormat),
+          timezone: input.timezone === null ? '' : input.timezone,
+          timeFormat: input.timeFormat === undefined ? undefined : timeFormatToAPI(input.timeFormat)
         },
-        { headers: headers() },
+        { headers: headers() }
       );
       return userSettings(response.settings);
     },
 
     async requestAccountDeletion(): Promise<string> {
-      return (await client.requestAccountDeletion({}, { headers: headers() }))
-        .confirmationToken;
+      return (await client.requestAccountDeletion({}, { headers: headers() })).confirmationToken;
     },
 
     async deleteMyAccount(confirmationToken: string): Promise<boolean> {
@@ -102,11 +98,11 @@ export function createAccountAPI(config: AccountAPIConfig) {
         await client.deleteMyAccount(
           { confirmationToken },
           {
-            headers: headers(),
-          },
+            headers: headers()
+          }
         )
       ).deleted;
-    },
+    }
   };
 }
 
@@ -114,22 +110,20 @@ export type AccountAPI = ReturnType<typeof createAccountAPI>;
 
 function accountUser(user: APIUser | undefined): AccountUser {
   if (!user) {
-    throw new Error("account response did not include a user");
+    throw new Error('account response did not include a user');
   }
   return {
     id: user.id,
     login: user.login,
     displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null,
+    avatarUrl: user.avatarUrl ?? null
   };
 }
 
-function userSettings(
-  settings: APIUserSettings | undefined,
-): AccountUserSettings {
+function userSettings(settings: APIUserSettings | undefined): AccountUserSettings {
   return {
     timezone: settings?.timezone ?? null,
-    timeFormat: settings ? apiTimeFormat(settings.timeFormat) : TimeFormat.Auto,
+    timeFormat: settings ? apiTimeFormat(settings.timeFormat) : TimeFormat.Auto
   };
 }
 

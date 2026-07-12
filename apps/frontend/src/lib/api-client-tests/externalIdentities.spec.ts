@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   confirmExternalIdentityLink: vi.fn(),
   listExternalIdentities: vi.fn(),
   startExternalIdentityLink: vi.fn(),
-  linkExternalIdentity: vi.fn(),
   disconnectExternalIdentity: vi.fn()
 }));
 
@@ -95,13 +94,11 @@ describe('createExternalIdentityAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listExternalIdentities.mockReset();
     mocks.startExternalIdentityLink.mockReset();
-    mocks.linkExternalIdentity.mockReset();
     mocks.disconnectExternalIdentity.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listExternalIdentities: mocks.listExternalIdentities,
       startExternalIdentityLink: mocks.startExternalIdentityLink,
-      linkExternalIdentity: mocks.linkExternalIdentity,
       disconnectExternalIdentity: mocks.disconnectExternalIdentity
     });
   });
@@ -110,10 +107,12 @@ describe('createExternalIdentityAPI', () => {
     mocks.listExternalIdentities.mockResolvedValue({
       providers: [
         {
-          id: 'github-main',
-          type: 'github',
-          label: 'GitHub',
-          loginUrl: '/auth/providers/github-main',
+          provider: {
+            id: 'github-main',
+            type: 'github',
+            label: 'GitHub',
+            loginUrl: '/auth/providers/github-main'
+          },
           linkUrl: '/auth/providers/github-main?intent=link',
           linked: true,
           linkedIdentitySubjectHash: 'abc123'
@@ -159,6 +158,23 @@ describe('createExternalIdentityAPI', () => {
     expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
+  it('rejects provider rows without shared provider metadata', async () => {
+    mocks.listExternalIdentities.mockResolvedValue({
+      providers: [{ linkUrl: '/auth/providers/github-main?intent=link' }],
+      linkedIdentities: []
+    });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.list()).rejects.toThrow(
+      'external identity provider response did not include provider metadata'
     );
   });
 

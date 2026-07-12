@@ -213,7 +213,7 @@ type ListUsersResponse struct {
 	// Matching users.
 	Users []*v1.AdminMember `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
 	// Roles for display-name lookup.
-	Roles []*v1.AdminRoleReference `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	Roles []*v11.Role `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Page metadata.
 	Page          *v11.PageInfo `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -257,7 +257,7 @@ func (x *ListUsersResponse) GetUsers() []*v1.AdminMember {
 	return nil
 }
 
-func (x *ListUsersResponse) GetRoles() []*v1.AdminRoleReference {
+func (x *ListUsersResponse) GetRoles() []*v11.Role {
 	if x != nil {
 		return x.Roles
 	}
@@ -341,7 +341,7 @@ type GetUserResponse struct {
 	// Member record.
 	Member *v1.AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
 	// Roles for assignment.
-	Roles []*v1.AdminMemberRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	Roles []*v1.AdminRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Permissions available for per-user overrides.
 	AvailablePermissions []string `protobuf:"bytes,3,rep,name=available_permissions,json=availablePermissions,proto3" json:"available_permissions,omitempty"`
 	unknownFields        protoimpl.UnknownFields
@@ -385,7 +385,7 @@ func (x *GetUserResponse) GetMember() *v1.AdminMember {
 	return nil
 }
 
-func (x *GetUserResponse) GetRoles() []*v1.AdminMemberRole {
+func (x *GetUserResponse) GetRoles() []*v1.AdminRole {
 	if x != nil {
 		return x.Roles
 	}
@@ -457,8 +457,6 @@ func (x *AssignRoleRequest) GetRoleName() string {
 // Result of assigning a role.
 type AssignRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Assigned bool `protobuf:"varint,1,opt,name=assigned,proto3" json:"assigned,omitempty"`
 	// Updated member row.
 	Member        *v1.AdminMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -493,13 +491,6 @@ func (x *AssignRoleResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AssignRoleResponse.ProtoReflect.Descriptor instead.
 func (*AssignRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *AssignRoleResponse) GetAssigned() bool {
-	if x != nil {
-		return x.Assigned
-	}
-	return false
 }
 
 func (x *AssignRoleResponse) GetMember() *v1.AdminMember {
@@ -567,8 +558,6 @@ func (x *RevokeRoleRequest) GetRoleName() string {
 // Result of revoking a role.
 type RevokeRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Revoked bool `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
 	// Updated member row.
 	Member        *v1.AdminMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -603,13 +592,6 @@ func (x *RevokeRoleResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RevokeRoleResponse.ProtoReflect.Descriptor instead.
 func (*RevokeRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *RevokeRoleResponse) GetRevoked() bool {
-	if x != nil {
-		return x.Revoked
-	}
-	return false
 }
 
 func (x *RevokeRoleResponse) GetMember() *v1.AdminMember {
@@ -1128,7 +1110,7 @@ var File_chatto_operator_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\"\xe0\x01\n" +
+	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\xe0\x01\n" +
 	"\x11CreateUserRequest\x12\x1f\n" +
 	"\x05login\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05login\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12$\n" +
@@ -1140,31 +1122,29 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Z\n" +
 	"\x10ListUsersRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xaf\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x9f\x01\n" +
 	"\x11ListUsersResponse\x122\n" +
-	"\x05users\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\x05users\x129\n" +
-	"\x05roles\x18\x02 \x03(\v2#.chatto.admin.v1.AdminRoleReferenceR\x05roles\x12+\n" +
+	"\x05users\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\x05users\x12)\n" +
+	"\x05roles\x18\x02 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\x12+\n" +
 	"\x04page\x18\x03 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"U\n" +
 	"\x0eGetUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
-	"\x05email\x18\x03 \x01(\tR\x05email\"\xb4\x01\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\"\xae\x01\n" +
 	"\x0fGetUserResponse\x124\n" +
-	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x126\n" +
-	"\x05roles\x18\x02 \x03(\v2 .chatto.admin.v1.AdminMemberRoleR\x05roles\x123\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x120\n" +
+	"\x05roles\x18\x02 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x123\n" +
 	"\x15available_permissions\x18\x03 \x03(\tR\x14availablePermissions\"[\n" +
 	"\x11AssignRoleRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12$\n" +
-	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"f\n" +
-	"\x12AssignRoleResponse\x12\x1a\n" +
-	"\bassigned\x18\x01 \x01(\bR\bassigned\x124\n" +
-	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"[\n" +
+	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"Z\n" +
+	"\x12AssignRoleResponse\x124\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06memberJ\x04\b\x01\x10\x02R\bassigned\"[\n" +
 	"\x11RevokeRoleRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12$\n" +
-	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"d\n" +
-	"\x12RevokeRoleResponse\x12\x18\n" +
-	"\arevoked\x18\x01 \x01(\bR\arevoked\x124\n" +
-	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x93\x01\n" +
+	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"Y\n" +
+	"\x12RevokeRoleResponse\x124\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06memberJ\x04\b\x01\x10\x02R\arevoked\"\x93\x01\n" +
 	"\x11UpdateUserRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12&\n" +
 	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\x19\n" +
@@ -1249,19 +1229,19 @@ var file_chatto_operator_v1_users_proto_goTypes = []any{
 	(*ClearUsernameCooldownResponse)(nil), // 19: chatto.operator.v1.ClearUsernameCooldownResponse
 	(*v1.AdminMember)(nil),                // 20: chatto.admin.v1.AdminMember
 	(*v11.PageRequest)(nil),               // 21: chatto.api.v1.PageRequest
-	(*v1.AdminRoleReference)(nil),         // 22: chatto.admin.v1.AdminRoleReference
+	(*v11.Role)(nil),                      // 22: chatto.api.v1.Role
 	(*v11.PageInfo)(nil),                  // 23: chatto.api.v1.PageInfo
-	(*v1.AdminMemberRole)(nil),            // 24: chatto.admin.v1.AdminMemberRole
+	(*v1.AdminRole)(nil),                  // 24: chatto.admin.v1.AdminRole
 	(*v11.User)(nil),                      // 25: chatto.api.v1.User
 }
 var file_chatto_operator_v1_users_proto_depIdxs = []int32{
 	20, // 0: chatto.operator.v1.CreateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
 	21, // 1: chatto.operator.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
 	20, // 2: chatto.operator.v1.ListUsersResponse.users:type_name -> chatto.admin.v1.AdminMember
-	22, // 3: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.admin.v1.AdminRoleReference
+	22, // 3: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.api.v1.Role
 	23, // 4: chatto.operator.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
 	20, // 5: chatto.operator.v1.GetUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	24, // 6: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminMemberRole
+	24, // 6: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminRole
 	20, // 7: chatto.operator.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
 	20, // 8: chatto.operator.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
 	25, // 9: chatto.operator.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User

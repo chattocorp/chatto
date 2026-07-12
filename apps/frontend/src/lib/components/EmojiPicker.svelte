@@ -13,7 +13,7 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { getRecentEmojis, MAX_RECENT_EMOJIS } from '$lib/state/recentEmojis.svelte';
 
   let {
@@ -27,7 +27,7 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   } = $props();
 
   let query = $state('');
-  const isTouch = isTouchDevice();
+  const canUseHoverActions = supportsHoverActions();
 
   const recentStore = $derived(getRecentEmojis(serverId));
   const recent = $derived(recentStore.recent.slice(0, MAX_RECENT_EMOJIS));
@@ -36,7 +36,7 @@ Uses the same section styling as MessageContextMenu (rounded-md bg-background se
   const isSearching = $derived(query.trim().length > 0);
 
   function focusSearchInput(node: HTMLInputElement) {
-    if (!isTouch) queueMicrotask(() => node.focus());
+    if (canUseHoverActions) queueMicrotask(() => node.focus());
   }
 
   function handleKeydown(e: KeyboardEvent) {

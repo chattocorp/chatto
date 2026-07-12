@@ -21,7 +21,13 @@ export type AttachmentThumbnailRefreshOptions = {
 
 export const DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH: AttachmentThumbnailRefreshOptions = {
   width: 960,
-  height: 800,
+  height: 400,
+  fit: FitMode.Contain
+};
+
+export const LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: AttachmentThumbnailRefreshOptions = {
+  width: 2048,
+  height: 2048,
   fit: FitMode.Contain
 };
 

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { SubscribePushRequest, SubscribePushResponse, UnsubscribePushRequest, UnsubscribePushResponse } from "./push_notifications_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Browser Web Push subscription commands for the current user.
@@ -40,6 +40,7 @@ export const PushNotificationService = {
       I: UnsubscribePushRequest,
       O: UnsubscribePushResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

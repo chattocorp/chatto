@@ -111,7 +111,13 @@ Projection implementations should be boring and replay-safe:
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
-When optimizing projection replay, measure first with the local profiling knobs from the `chatto-debugging` skill; preserve read-your-writes and OCC semantics even if a cheaper consumer/filter shape looks attractive.
+When optimizing projection replay or retained memory, follow the projection
+benchmark workflow in `cli/AGENTS.md`: capture repeated before/after results
+with `mise bench-projections`, use `mise bench-projections-profile` for exact
+heap attribution, and confirm meaningful wins against a restored real EVT
+history. Treat synthetic retained-heap results as regression signals rather
+than production RSS measurements. Preserve read-your-writes and OCC semantics
+even if a cheaper consumer, filter, or in-memory shape looks attractive.
 
 ## Read-Your-Writes
 
@@ -123,6 +129,32 @@ Check:
 - Composite write paths wait for all affected projections, not just the one that owns the Service.
 - Live `live.evt.>` delivery waits for projection readiness before authorizing or shaping realtime events.
 - Reconnect replay waits for projections through the global cutoff before planning replay.
+
+## Post-Commit Side Effects
+
+Treat the interval between an EVT commit and completion of any KMS, LiveKit,
+object-store, webhook, or other external side effect as a crash boundary.
+
+- External side effects required by a committed fact must be retryable from
+  durable state after process restart and lease-holder turnover.
+- A process-local retry queue may reduce recovery latency, but must not be the
+  only way to discover unfinished work.
+- An elected worker must discover facts committed later by non-holder replicas;
+  a one-time startup scan is not sufficient on a stable multi-replica cluster.
+- Use an incremental stream cursor or durable consumer for ongoing recovery.
+  Do not repeatedly materialize unbounded event history.
+- Before a destructive external action based on projected state, wait for the
+  relevant aggregate tail and re-check the decision.
+- Order recovery so the durable retry signal exists before an irreversible or
+  externally visible cleanup step can make the work undiscoverable.
+- Before copying recovery metadata into a new event field, check whether the
+  event's aggregate ID can locate an existing immutable fact that already
+  carries it. Prefer that durable lookup when its cost is bounded and the
+  historical subject shape is compatible; document any legacy lanes that
+  cannot be located from the current aggregate ID.
+- Keep history-wide repair and reconciliation out of request paths. A request
+  may attempt the side effect for the fact it just committed, while background
+  recovery owns scanning, retries, and cross-replica discovery.
 
 ## Live Delivery And Reconnect Replay
 
@@ -164,6 +196,17 @@ For event-sourced changes, look for focused tests in addition to end-to-end beha
 - Live delivery authorization tests, especially when the subject is not room-scoped.
 - Reconnect replay tests for cursor ordering, deduplication, limits, and authorization.
 - Deployment compatibility tests when old and new subject families can coexist.
+- Failure-injection tests for errors immediately after EVT commit and before an
+  external side effect completes.
+- Restart tests proving unfinished external work is rediscovered from durable
+  state rather than a process-local queue.
+- Multi-replica tests where the lease holder starts first and another replica
+  later commits work whose immediate side effect fails.
+- Partial-success tests where external cleanup succeeds but local acknowledgement
+  or a later cleanup step fails.
+- Bounded-cost tests or measurements when recovery may traverse historical
+  events, especially to ensure normal request latency does not grow with stream
+  history.
 
 ## Documentation Touchpoints
 

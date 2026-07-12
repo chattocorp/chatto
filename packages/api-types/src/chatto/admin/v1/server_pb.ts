@@ -5,7 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { ServerProfile } from "../../api/v1/server_state_pb.js";
+import { ServerPublicProfile } from "../../api/v1/server_pb.js";
+import { ImageUpload } from "../../api/v1/common_pb.js";
 
 /**
  * Runtime-editable server profile settings.
@@ -106,7 +107,7 @@ export class GetServerConfigRequest extends Message<GetServerConfigRequest> {
 }
 
 /**
- * Server profile settings plus effective member-visible profile.
+ * Server profile settings plus effective public branding.
  *
  * @generated from message chatto.admin.v1.GetServerConfigResponse
  */
@@ -119,11 +120,11 @@ export class GetServerConfigResponse extends Message<GetServerConfigResponse> {
   config?: ServerConfig;
 
   /**
-   * Effective server profile and branding.
+   * Effective public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 2;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 3;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   constructor(data?: PartialMessage<GetServerConfigResponse>) {
     super();
@@ -134,7 +135,7 @@ export class GetServerConfigResponse extends Message<GetServerConfigResponse> {
   static readonly typeName = "chatto.admin.v1.GetServerConfigResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "config", kind: "message", T: ServerConfig },
-    { no: 2, name: "profile", kind: "message", T: ServerProfile },
+    { no: 3, name: "public_profile", kind: "message", T: ServerPublicProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerConfigResponse {
@@ -228,11 +229,11 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
  */
 export class UpdateServerConfigResponse extends Message<UpdateServerConfigResponse> {
   /**
-   * Updated server profile and branding.
+   * Updated public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 3;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   /**
    * Updated runtime-editable server profile settings.
@@ -249,7 +250,7 @@ export class UpdateServerConfigResponse extends Message<UpdateServerConfigRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateServerConfigResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
+    { no: 3, name: "public_profile", kind: "message", T: ServerPublicProfile },
     { no: 2, name: "config", kind: "message", T: ServerConfig },
   ]);
 
@@ -277,25 +278,11 @@ export class UpdateServerConfigResponse extends Message<UpdateServerConfigRespon
  */
 export class UploadServerLogoRequest extends Message<UploadServerLogoRequest> {
   /**
-   * Raw image bytes. The server validates, resizes, and stores a WebP logo.
+   * Image payload. The server validates, resizes, and stores a WebP logo.
    *
-   * @generated from field: bytes image = 1;
+   * @generated from field: chatto.api.v1.ImageUpload image = 4;
    */
-  image = new Uint8Array(0);
-
-  /**
-   * Original browser filename, for diagnostics and future compatibility.
-   *
-   * @generated from field: string filename = 2;
-   */
-  filename = "";
-
-  /**
-   * Browser-provided content type, for diagnostics and future compatibility.
-   *
-   * @generated from field: string content_type = 3;
-   */
-  contentType = "";
+  image?: ImageUpload;
 
   constructor(data?: PartialMessage<UploadServerLogoRequest>) {
     super();
@@ -305,9 +292,7 @@ export class UploadServerLogoRequest extends Message<UploadServerLogoRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UploadServerLogoRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "image", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "image", kind: "message", T: ImageUpload },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadServerLogoRequest {
@@ -334,11 +319,11 @@ export class UploadServerLogoRequest extends Message<UploadServerLogoRequest> {
  */
 export class UploadServerLogoResponse extends Message<UploadServerLogoResponse> {
   /**
-   * Updated server profile and branding.
+   * Updated public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 2;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   constructor(data?: PartialMessage<UploadServerLogoResponse>) {
     super();
@@ -348,7 +333,7 @@ export class UploadServerLogoResponse extends Message<UploadServerLogoResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UploadServerLogoResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
+    { no: 2, name: "public_profile", kind: "message", T: ServerPublicProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadServerLogoResponse {
@@ -408,11 +393,11 @@ export class DeleteServerLogoRequest extends Message<DeleteServerLogoRequest> {
  */
 export class DeleteServerLogoResponse extends Message<DeleteServerLogoResponse> {
   /**
-   * Updated server profile and branding.
+   * Updated public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 2;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   constructor(data?: PartialMessage<DeleteServerLogoResponse>) {
     super();
@@ -422,7 +407,7 @@ export class DeleteServerLogoResponse extends Message<DeleteServerLogoResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteServerLogoResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
+    { no: 2, name: "public_profile", kind: "message", T: ServerPublicProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteServerLogoResponse {
@@ -449,25 +434,11 @@ export class DeleteServerLogoResponse extends Message<DeleteServerLogoResponse> 
  */
 export class UploadServerBannerRequest extends Message<UploadServerBannerRequest> {
   /**
-   * Raw image bytes. The server validates, resizes, and stores a WebP banner.
+   * Image payload. The server validates, resizes, and stores a WebP banner.
    *
-   * @generated from field: bytes image = 1;
+   * @generated from field: chatto.api.v1.ImageUpload image = 4;
    */
-  image = new Uint8Array(0);
-
-  /**
-   * Original browser filename, for diagnostics and future compatibility.
-   *
-   * @generated from field: string filename = 2;
-   */
-  filename = "";
-
-  /**
-   * Browser-provided content type, for diagnostics and future compatibility.
-   *
-   * @generated from field: string content_type = 3;
-   */
-  contentType = "";
+  image?: ImageUpload;
 
   constructor(data?: PartialMessage<UploadServerBannerRequest>) {
     super();
@@ -477,9 +448,7 @@ export class UploadServerBannerRequest extends Message<UploadServerBannerRequest
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UploadServerBannerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "image", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "image", kind: "message", T: ImageUpload },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadServerBannerRequest {
@@ -506,11 +475,11 @@ export class UploadServerBannerRequest extends Message<UploadServerBannerRequest
  */
 export class UploadServerBannerResponse extends Message<UploadServerBannerResponse> {
   /**
-   * Updated server profile and branding.
+   * Updated public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 2;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   constructor(data?: PartialMessage<UploadServerBannerResponse>) {
     super();
@@ -520,7 +489,7 @@ export class UploadServerBannerResponse extends Message<UploadServerBannerRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UploadServerBannerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
+    { no: 2, name: "public_profile", kind: "message", T: ServerPublicProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadServerBannerResponse {
@@ -580,11 +549,11 @@ export class DeleteServerBannerRequest extends Message<DeleteServerBannerRequest
  */
 export class DeleteServerBannerResponse extends Message<DeleteServerBannerResponse> {
   /**
-   * Updated server profile and branding.
+   * Updated public server profile and branding.
    *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
+   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 2;
    */
-  profile?: ServerProfile;
+  publicProfile?: ServerPublicProfile;
 
   constructor(data?: PartialMessage<DeleteServerBannerResponse>) {
     super();
@@ -594,7 +563,7 @@ export class DeleteServerBannerResponse extends Message<DeleteServerBannerRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteServerBannerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
+    { no: 2, name: "public_profile", kind: "message", T: ServerPublicProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteServerBannerResponse {

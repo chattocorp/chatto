@@ -4,7 +4,61 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+
+/**
+ * Operator-facing state for the elected asset cleanup worker.
+ *
+ * @generated from enum chatto.admin.v1.AdminAssetCleanupHealth
+ */
+export enum AdminAssetCleanupHealth {
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE = 1;
+   */
+  INACTIVE = 1,
+
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING = 2;
+   */
+  INITIALIZING = 2,
+
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY = 3;
+   */
+  HEALTHY = 3,
+
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_RETRYING = 4;
+   */
+  RETRYING = 4,
+
+  /**
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_STALLED = 5;
+   */
+  STALLED = 5,
+
+  /**
+   * Cleanup diagnostics could not be read; other system diagnostics remain valid.
+   *
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE = 6;
+   */
+  UNAVAILABLE = 6,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminAssetCleanupHealth)
+proto3.util.setEnumType(AdminAssetCleanupHealth, "chatto.admin.v1.AdminAssetCleanupHealth", [
+  { no: 0, name: "ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE" },
+  { no: 2, name: "ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING" },
+  { no: 3, name: "ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY" },
+  { no: 4, name: "ADMIN_ASSET_CLEANUP_HEALTH_RETRYING" },
+  { no: 5, name: "ADMIN_ASSET_CLEANUP_HEALTH_STALLED" },
+  { no: 6, name: "ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE" },
+]);
 
 /**
  * Request to read owner-only server diagnostics.
@@ -59,6 +113,13 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
    */
   projections: AdminProjectionState[] = [];
 
+  /**
+   * Recoverable physical deletion worker health.
+   *
+   * @generated from field: chatto.admin.v1.AdminAssetCleanupStatus asset_cleanup = 3;
+   */
+  assetCleanup?: AdminAssetCleanupStatus;
+
   constructor(data?: PartialMessage<GetSystemInfoResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -69,6 +130,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "system_info", kind: "message", T: AdminSystemInfo },
     { no: 2, name: "projections", kind: "message", T: AdminProjectionState, repeated: true },
+    { no: 3, name: "asset_cleanup", kind: "message", T: AdminAssetCleanupStatus },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {
@@ -85,6 +147,119 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
 
   static equals(a: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined, b: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined): boolean {
     return proto3.util.equals(GetSystemInfoResponse, a, b);
+  }
+}
+
+/**
+ * Current health of recoverable message-owned asset deletion.
+ *
+ * @generated from message chatto.admin.v1.AdminAssetCleanupStatus
+ */
+export class AdminAssetCleanupStatus extends Message<AdminAssetCleanupStatus> {
+  /**
+   * Operator-facing worker state derived from lease and heartbeat state.
+   *
+   * @generated from field: chatto.admin.v1.AdminAssetCleanupHealth health = 1;
+   */
+  health = AdminAssetCleanupHealth.UNSPECIFIED;
+
+  /**
+   * Deletion effects currently waiting for a successful retry.
+   *
+   * @generated from field: int64 pending_count = 2;
+   */
+  pendingCount = protoInt64.zero;
+
+  /**
+   * Creation time of the oldest pending deletion, when known.
+   *
+   * @generated from field: google.protobuf.Timestamp oldest_pending_at = 3;
+   */
+  oldestPendingAt?: Timestamp;
+
+  /**
+   * Whether the elected worker is currently running a cleanup pass.
+   *
+   * @generated from field: bool pass_in_progress = 4;
+   */
+  passInProgress = false;
+
+  /**
+   * Completion time of the most recent pass.
+   *
+   * @generated from field: google.protobuf.Timestamp last_pass_at = 5;
+   */
+  lastPassAt?: Timestamp;
+
+  /**
+   * Completion time of the most recent fully successful pass.
+   *
+   * @generated from field: google.protobuf.Timestamp last_successful_pass_at = 6;
+   */
+  lastSuccessfulPassAt?: Timestamp;
+
+  /**
+   * Time of the latest elected-worker heartbeat.
+   *
+   * @generated from field: google.protobuf.Timestamp updated_at = 7;
+   */
+  updatedAt?: Timestamp;
+
+  /**
+   * Whether the most recent completed pass had one or more failures.
+   *
+   * @generated from field: bool last_pass_failed = 8;
+   */
+  lastPassFailed = false;
+
+  /**
+   * Global EVT sequence through which deletion facts were inspected.
+   *
+   * @generated from field: string last_inspected_sequence = 9;
+   */
+  lastInspectedSequence = "";
+
+  /**
+   * Current latest global EVT sequence matching asset deletion facts.
+   *
+   * @generated from field: string latest_deletion_sequence = 10;
+   */
+  latestDeletionSequence = "";
+
+  constructor(data?: PartialMessage<AdminAssetCleanupStatus>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminAssetCleanupStatus";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "health", kind: "enum", T: proto3.getEnumType(AdminAssetCleanupHealth) },
+    { no: 2, name: "pending_count", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "oldest_pending_at", kind: "message", T: Timestamp },
+    { no: 4, name: "pass_in_progress", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "last_pass_at", kind: "message", T: Timestamp },
+    { no: 6, name: "last_successful_pass_at", kind: "message", T: Timestamp },
+    { no: 7, name: "updated_at", kind: "message", T: Timestamp },
+    { no: 8, name: "last_pass_failed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "last_inspected_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "latest_deletion_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminAssetCleanupStatus {
+    return new AdminAssetCleanupStatus().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminAssetCleanupStatus {
+    return new AdminAssetCleanupStatus().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminAssetCleanupStatus {
+    return new AdminAssetCleanupStatus().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminAssetCleanupStatus | PlainMessage<AdminAssetCleanupStatus> | undefined, b: AdminAssetCleanupStatus | PlainMessage<AdminAssetCleanupStatus> | undefined): boolean {
+    return proto3.util.equals(AdminAssetCleanupStatus, a, b);
   }
 }
 

@@ -9,9 +9,9 @@ import {
   AssetUploadStatus,
   CompleteUploadResponse,
   CreateUploadResponse,
-  UploadChunkResponse,
-  UploadedAttachmentAsset
+  UploadChunkResponse
 } from '@chatto/api-types/api/v1/asset_uploads_pb';
+import { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 
 const mocks = vi.hoisted(() => ({
@@ -94,7 +94,7 @@ describe('createMessageAPI', () => {
           createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
           roomId: 'room-1',
           body: 'hello',
-          viewerIsFollowingThread: true
+          thread: { viewerState: { isFollowing: true } }
         })
       })
     );
@@ -195,11 +195,10 @@ describe('createMessageAPI', () => {
           size: 5n,
           assetId: 'asset-note'
         }),
-        asset: new UploadedAttachmentAsset({
-          assetId: 'asset-note',
+        asset: new Asset({
+          id: 'asset-note',
           filename: 'note.txt',
-          contentType: 'text/plain',
-          size: 5n
+          contentType: 'text/plain'
         })
       })
     );
@@ -280,7 +279,6 @@ describe('createMessageAPI', () => {
   it('updates a message through MessageService', async () => {
     mocks.updateMessage.mockResolvedValue(
       new UpdateMessageResponse({
-        updated: true,
         message: new Message({
           id: 'event-1',
           actorId: 'user-1',
@@ -340,7 +338,7 @@ describe('createMessageAPI', () => {
   });
 
   it('can patch message echo state without sending a body', async () => {
-    mocks.updateMessage.mockResolvedValue(new UpdateMessageResponse({ updated: true }));
+    mocks.updateMessage.mockResolvedValue(new UpdateMessageResponse());
 
     const api = createMessageAPI({
       baseUrl: 'https://remote.example.test/api/connect',

@@ -49,12 +49,16 @@ describe('notificationPreferences API', () => {
 
   it('gets and sets server notification preferences with bearer auth', async () => {
     mocks.getServerNotificationPreference.mockResolvedValue({
-      level: NotificationLevel.NORMAL,
-      effectiveLevel: NotificationLevel.NORMAL
+      preference: {
+        level: NotificationLevel.NORMAL,
+        effectiveLevel: NotificationLevel.NORMAL
+      }
     });
     mocks.updateServerNotificationPreference.mockResolvedValue({
-      level: NotificationLevel.ALL_MESSAGES,
-      effectiveLevel: NotificationLevel.ALL_MESSAGES
+      preference: {
+        level: NotificationLevel.ALL_MESSAGES,
+        effectiveLevel: NotificationLevel.ALL_MESSAGES
+      }
     });
 
     const config = {
@@ -94,8 +98,10 @@ describe('notificationPreferences API', () => {
 
   it('sets room notification levels with bearer auth', async () => {
     mocks.updateRoomNotificationPreference.mockResolvedValue({
-      level: NotificationLevel.MUTED,
-      effectiveLevel: NotificationLevel.MUTED
+      preference: {
+        level: NotificationLevel.MUTED,
+        effectiveLevel: NotificationLevel.MUTED
+      }
     });
 
     const response = await updateRoomNotificationPreference(
@@ -125,6 +131,18 @@ describe('notificationPreferences API', () => {
       level: NotificationLevel.MUTED,
       effectiveLevel: NotificationLevel.MUTED
     });
+  });
+
+  it('rejects notification preference responses without shared preference metadata', async () => {
+    mocks.getServerNotificationPreference.mockResolvedValue({});
+
+    await expect(
+      getServerNotificationPreference({
+        serverId: 'remote',
+        baseUrl: 'https://remote.example.test/api/connect',
+        bearerToken: 'remote-token'
+      })
+    ).rejects.toThrow('notification preference response did not include preference metadata');
   });
 
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {

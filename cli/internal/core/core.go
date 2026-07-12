@@ -303,6 +303,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
+	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })
 
 	return g.Wait()
@@ -1038,10 +1039,22 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
+	assetCleanupLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
+		Name:       assetCleanupLeaseName,
+		Bucket:     "MEMORY_CACHE",
+		TTL:        assetCleanupLeaseTTL,
+		RenewEvery: assetCleanupLeaseRenewEvery,
+		RetryEvery: assetCleanupLeaseRetryEvery,
+		Logger:     logger.WithPrefix("core.AssetCleanupLease"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
+	}
 
 	core.mediaModel = NewMediaModel(core)
 	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
 	core.assetModel = NewAssetModel(core)
+	core.assetModel.cleanupLease = assetCleanupLease
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}

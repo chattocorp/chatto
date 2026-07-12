@@ -56,7 +56,8 @@ describe('getPublicServerInfo', () => {
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://chat.example.test/api/connect',
-      useBinaryFormat: false
+      useBinaryFormat: false,
+      useHttpGet: true
     });
     expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
     expect(info).toEqual({

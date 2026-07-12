@@ -431,21 +431,21 @@ describe('MessageComposer', () => {
   });
 
   describe('file input configuration', () => {
-    it('accepts image and audio files when video processing is disabled', async () => {
+    it('allows selecting any file type', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
-      await expect
-        .element(q(container, 'input[type="file"]'))
-        .toHaveAttribute('accept', 'image/*,audio/*');
+      await expect.element(q(container, 'input[type="file"]')).not.toHaveAttribute('accept');
     });
 
-    it('accepts image, video, and audio files when video processing is enabled', async () => {
-      mockInstanceStores.serverInfo.videoProcessingEnabled = true;
+    it('stages selected document files', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [new File(['document'], 'report.pdf', { type: 'application/pdf' })]);
 
       await expect
-        .element(q(container, 'input[type="file"]'))
-        .toHaveAttribute('accept', 'image/*,video/*,audio/*');
+        .poll(() => q(container, '[data-testid="file-attachment-preview"]')?.textContent)
+        .toBe('pdf');
     });
 
     it('allows multiple file selection', async () => {
@@ -548,6 +548,55 @@ describe('MessageComposer', () => {
       await typeEditorLiteralText(editor, 'hint me');
 
       expect(q(container, '[title$="Return to Send"]')).toBeNull();
+    });
+
+    it('exposes simple and rich visual modes', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]');
+
+      expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
+
+      await typeEditorLiteralText(editor, 'make this rich');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => {
+        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
+      });
+    });
+
+    it('keeps an empty composer in rich mode after Ctrl+Enter', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]');
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => {
+        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
+      });
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('tracks rich structure and returns to simple mode when cleared', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]');
+
+      await typeEditorLiteralText(editor, '- ');
+      await vi.waitFor(() => {
+        expect(editor.querySelector('ul li')).toBeTruthy();
+        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
+      });
+
+      editor.focus();
+      document.execCommand('selectAll');
+      document.execCommand('delete');
+      await tick();
+
+      await vi.waitFor(() => {
+        expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
+      });
     });
 
     it('shows the enter-again hint after manually activating rich mode', async () => {

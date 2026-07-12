@@ -1,14 +1,16 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
-  import { createReadStateAPI } from '$lib/api-client/readState';
+  import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { createThreadAPI } from '$lib/api-client/threads';
-  import { useEvent, createTypingIndicator } from '$lib/hooks';
+  import { useEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
+  import { dropZone } from '$lib/attachments/dropZone.svelte';
+  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
   import {
@@ -23,7 +25,7 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import EventList from './EventList.svelte';
+  import TimelineEventsPane from './TimelineEventsPane.svelte';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
 
@@ -80,25 +82,10 @@
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);
 
-  // Track the timestamp when the thread was last opened (for unread separator)
-  let unreadAfterTime = $state<Date | null>(null);
-  // Upper bound - messages arriving after we opened the thread don't show the separator
-  let unreadBeforeTime = $state<Date | null>(null);
-
-  // Resolve time-based unread boundary to an event ID for EventList
-  let unreadAfterEventId = $derived.by(() => {
-    if (unreadAfterTime === null) return null;
-    const currentUserId = currentUser.user?.id ?? null;
-    const afterTime = unreadAfterTime.getTime();
-    const beforeTime = unreadBeforeTime?.getTime() ?? Infinity;
-    for (const event of threadEvents) {
-      if (currentUserId && event.actorId === currentUserId) continue;
-      const eventTime = new Date(event.createdAt).getTime();
-      if (eventTime > afterTime && eventTime <= beforeTime) {
-        return event.id;
-      }
-    }
-    return null;
+  const unread = useUnreadMarker(() => threadRootEventId, {
+    markAsRead: markThreadAsRead,
+    markerWindowFromReadResult: (result, markedAtMs) =>
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
   });
 
   // Typing indicator for this thread
@@ -117,11 +104,23 @@
   let consumedQuoteId = 0;
   let consumedReplyId = 0;
   let composerApi = $state<MessageComposerApi | null>(null);
+  let isDraggingFiles = $state(false);
+
+  const threadDropZone = $derived(
+    canPostInThread && canAttach
+      ? dropZone({
+          onDrop: (files) => composerApi?.addFiles(files),
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
+          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+        })
+      : undefined
+  );
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
   const jumpState = composerContext.jumpState;
   jumpState.setJumpHandler(async (eventId: string) => {
     jumpState.scrollToEventId = eventId;
+    return true;
   });
 
   let canPost = $derived(canPostInThread);
@@ -183,8 +182,10 @@
         typingIndicator.removeTypingUser(actorId);
       }
 
-      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        void markThreadAsRead(threadRootEventId, serverEvent.id);
+      if (currentUser.user && actorId !== currentUser.user.id) {
+        if (appState.isPresent) {
+          void unread.markAsRead(threadRootEventId, serverEvent.id);
+        }
       }
     }
 
@@ -199,16 +200,26 @@
   let isFollowingThread = $state(false);
   let _followSeededForThread = '';
   let _followSubFiredForThread = '';
+  let threadFollowRequestId = 0;
+  let isThreadFollowPending = $state(false);
+
+  function setAuthoritativeThreadFollowState(value: boolean) {
+    threadFollowRequestId += 1;
+    isThreadFollowPending = false;
+    isFollowingThread = value;
+  }
 
   $effect(() => {
     const threadId = threadRootEventId;
 
     if (threadId !== _followSeededForThread) {
+      threadFollowRequestId += 1;
+      isThreadFollowPending = false;
       // Only reset if the subscription hasn't already authoritatively set the
       // state for this thread (auto-follow can fire before the initial query
       // resolves).
       if (_followSubFiredForThread !== threadId) {
-        isFollowingThread = false;
+        setAuthoritativeThreadFollowState(false);
       }
 
       // Wait until data has loaded before reading follow state
@@ -217,7 +228,7 @@
         if (_followSubFiredForThread !== threadId) {
           const rootEvent = threadEvents.find((e) => e.id === threadId);
           if (isMessagePostedEvent(rootEvent?.event)) {
-            isFollowingThread = rootEvent.event.viewerIsFollowingThread ?? false;
+            setAuthoritativeThreadFollowState(rootEvent.event.viewerIsFollowingThread ?? false);
           }
         }
       }
@@ -225,8 +236,14 @@
   });
 
   async function toggleThreadFollow() {
+    if (isThreadFollowPending) return;
+
     const wasFollowing = isFollowingThread;
-    isFollowingThread = !wasFollowing;
+    const nextFollowing = !wasFollowing;
+    const requestId = ++threadFollowRequestId;
+
+    isThreadFollowPending = true;
+    isFollowingThread = nextFollowing;
 
     try {
       const conn = connection();
@@ -235,12 +252,13 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      if (wasFollowing) {
-        await api.unfollowThread({ roomId, threadRootEventId });
-      } else {
-        await api.followThread({ roomId, threadRootEventId });
-      }
+      const input = { roomId, threadRootEventId };
+      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
+      if (threadFollowRequestId !== requestId) return;
+      setAuthoritativeThreadFollowState(result.following);
     } catch {
+      if (threadFollowRequestId !== requestId) return;
+      isThreadFollowPending = false;
       isFollowingThread = wasFollowing;
     }
   }
@@ -249,13 +267,16 @@
   $effect(() =>
     onThreadFollowChanged((update) => {
       if (update.threadRootEventId === threadRootEventId) {
-        isFollowingThread = update.isFollowing;
+        setAuthoritativeThreadFollowState(update.isFollowing);
         _followSubFiredForThread = update.threadRootEventId;
       }
     })
   );
 
-  async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
+  async function markThreadAsRead(
+    currentThreadId: string,
+    upToEventId?: string
+  ): Promise<MarkThreadAsReadResult | null> {
     try {
       const conn = connection();
       return await createReadStateAPI({
@@ -268,53 +289,15 @@
       return null;
     }
   }
-
-  // Fire mark-thread-as-read on every presence-true edge (fresh open or
-  // refocus/tab-reveal) and on thread changes while present. The result
-  // drives the unread separator so a refocus shows what arrived during
-  // the away period.
-  let lastFiredThreadId = '';
-  let wasPresentThread = false;
-
-  $effect(() => {
-    const currentThreadId = threadRootEventId;
-    const present = appState.isPresent;
-
-    if (!present) {
-      // Presence-false edge: anchor the unread separator at "now" with no
-      // upper bound so replies arriving while the user is away show up
-      // below the marker in real time, rather than only on return. The
-      // presence-true edge below refines it when the user comes back.
-      if (wasPresentThread) {
-        unreadAfterTime = new Date();
-        unreadBeforeTime = null;
-      }
-      wasPresentThread = false;
-      return;
-    }
-
-    if (wasPresentThread && lastFiredThreadId === currentThreadId) return;
-    wasPresentThread = true;
-    lastFiredThreadId = currentThreadId;
-
-    unreadAfterTime = null;
-    unreadBeforeTime = null;
-
-    const openedAt = new Date();
-    markThreadAsRead(currentThreadId).then((data) => {
-      if (!data) return;
-      const prevTime = data.previousReadAt;
-      unreadAfterTime = prevTime ? new Date(prevTime) : null;
-      unreadBeforeTime = openedAt;
-    });
-  });
 </script>
 
 <div
   class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
+  {@attach threadDropZone}
 >
+  <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m['room.thread.title']({ room: roomName })}
     onBack={onClose}
@@ -326,12 +309,13 @@
         label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
         tone={isFollowingThread ? 'active' : 'default'}
         onclick={toggleThreadFollow}
+        disabled={isThreadFollowPending}
       />
       <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
-  <EventList
+  <TimelineEventsPane
     {roomId}
     messageStore={store}
     events={threadEvents}
@@ -347,7 +331,11 @@
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
     emptyMessage={m['room.thread.not_found']()}
-    {unreadAfterEventId}
+    unreadMarkerEventId={unread.unreadMarkerEventId}
+    unreadMarkerWindow={unread.unreadMarkerWindow}
+    unreadMarkerSkipActorId={currentUser.user?.id ?? null}
+    onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
+    onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
     scrollToEventId={jumpState.scrollToEventId}
@@ -378,7 +366,7 @@
       typingIndicator?.resetDebounce();
       if (event) {
         store.ingestEvent(event);
-        void markThreadAsRead(threadRootEventId, event.id);
+        void unread.markAsRead(threadRootEventId, event.id);
       } else {
         void store.refreshCurrentWindow(null);
       }

@@ -125,8 +125,16 @@ test.describe('User Settings - Display', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Select 24-hour format
+    const timezoneInput = page.getByTestId('timezone-input');
+    await timezoneInput.fill('Europe/Berlin');
+
+    const currentTime = page.getByText(/^Current time there:/);
+    await page.getByRole('button', { name: '12-hour' }).click();
+    await expect(currentTime).toContainText(/[AP]M$/);
+
+    // Select 24-hour format and verify the unsaved preview updates.
     await page.getByRole('button', { name: '24-hour' }).click();
+    await expect(currentTime).not.toContainText(/[AP]M$/);
 
     // Save
     const saveButton = page.getByRole('button', { name: 'Save Display Settings' });

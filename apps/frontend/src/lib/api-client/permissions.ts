@@ -1,5 +1,5 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { AdminPermissionService } from "@chatto/api-types/admin/v1/permissions_connect";
+import { authHeaders, createChattoClient } from './connect.js';
+import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
 import {
   PermissionDecision,
   PermissionScopeKind,
@@ -10,8 +10,8 @@ import {
   type ScopedPermissionDecision as APIScopedPermissionDecision,
   type TierRole as APITierRole,
   type TierRoles as APITierRoles,
-  type UserPermissionMatrix as APIUserPermissionMatrix,
-} from "@chatto/api-types/admin/v1/permissions_pb";
+  type UserPermissionMatrix as APIUserPermissionMatrix
+} from '@chatto/api-types/admin/v1/permissions_pb';
 
 export type PermissionAPIConfig = {
   baseUrl: string;
@@ -19,14 +19,14 @@ export type PermissionAPIConfig = {
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type PermissionState = "allow" | "deny" | "neutral";
-export type MatrixDecision = "ALLOW" | "DENY" | "NONE";
-export type MatrixScopeKind = "SERVER" | "GROUP" | "ROOM";
+export type PermissionState = 'allow' | 'deny' | 'neutral';
+export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
+export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
 
 export type PermissionScope =
-  | { tier: "server" }
-  | { tier: "group"; groupId: string }
-  | { tier: "room"; roomId: string };
+  | { tier: 'server' }
+  | { tier: 'group'; groupId: string }
+  | { tier: 'room'; roomId: string };
 
 export type TierPermissions = {
   permissions: string[];
@@ -39,6 +39,7 @@ export type TierRole = {
   description: string;
   isSystem: boolean;
   position: number;
+  pingable: boolean;
   override: TierPermissions;
   inheritedAllows: string[];
   inheritedDenials: string[];
@@ -111,56 +112,39 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
     }): Promise<TierRoles | null> {
       const response = await client.getRolePermissionTierMatrix(
         {
-          scope: apiTierMatrixScope(input),
+          scope: apiTierMatrixScope(input)
         },
-        { headers: headers() },
+        { headers: headers() }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
     },
 
-    async getRolePermissionMatrix(
-      roleName: string,
-    ): Promise<RolePermissionMatrix | null> {
-      const response = await client.getRolePermissionMatrix(
-        { roleName },
-        { headers: headers() },
-      );
+    async getRolePermissionMatrix(roleName: string): Promise<RolePermissionMatrix | null> {
+      const response = await client.getRolePermissionMatrix({ roleName }, { headers: headers() });
       return response.matrix ? rolePermissionMatrix(response.matrix) : null;
     },
 
-    async listRolePermissionDecisions(
-      roleName: string,
-    ): Promise<RolePermissionDecisions> {
+    async listRolePermissionDecisions(roleName: string): Promise<RolePermissionDecisions> {
       const response = await client.listRolePermissionDecisions(
         { roleName },
-        { headers: headers() },
+        { headers: headers() }
       );
       return {
         roleName: response.roleName,
-        decisions: response.decisions.map(permissionDecisionEntry),
+        decisions: response.decisions.map(permissionDecisionEntry)
       };
     },
 
-    async getUserPermissionMatrix(
-      userId: string,
-    ): Promise<UserPermissionMatrix | null> {
-      const response = await client.getUserPermissionMatrix(
-        { userId },
-        { headers: headers() },
-      );
+    async getUserPermissionMatrix(userId: string): Promise<UserPermissionMatrix | null> {
+      const response = await client.getUserPermissionMatrix({ userId }, { headers: headers() });
       return response.matrix ? userPermissionMatrix(response.matrix) : null;
     },
 
-    async listUserPermissionDecisions(
-      userId: string,
-    ): Promise<UserPermissionDecisions> {
-      const response = await client.listUserPermissionDecisions(
-        { userId },
-        { headers: headers() },
-      );
+    async listUserPermissionDecisions(userId: string): Promise<UserPermissionDecisions> {
+      const response = await client.listUserPermissionDecisions({ userId }, { headers: headers() });
       return {
         userId: response.userId,
-        decisions: response.decisions.map(permissionDecisionEntry),
+        decisions: response.decisions.map(permissionDecisionEntry)
       };
     },
 
@@ -175,9 +159,9 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           roleName: input.roleName,
           permission: input.permission,
           decision: apiDecision(input.state),
-          scope: apiScope(input.scope),
+          scope: apiScope(input.scope)
         },
-        { headers: headers() },
+        { headers: headers() }
       );
       return permissionDecisionUpdate(response.decision);
     },
@@ -193,12 +177,12 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           userId: input.userId,
           permission: input.permission,
           decision: apiDecision(input.state),
-          scope: apiScope(input.scope),
+          scope: apiScope(input.scope)
         },
-        { headers: headers() },
+        { headers: headers() }
       );
       return permissionDecisionUpdate(response.decision);
-    },
+    }
   };
 }
 
@@ -207,45 +191,46 @@ export type PermissionAPI = ReturnType<typeof createPermissionAPI>;
 function tierRoles(matrix: APITierRoles): TierRoles {
   return {
     applicablePermissions: [...matrix.applicablePermissions],
-    roles: matrix.roles.map(tierRole),
+    roles: matrix.roles.map(tierRole)
   };
 }
 
 function tierRole(role: APITierRole): TierRole {
+  const apiRole = role.role;
+  if (!apiRole) {
+    throw new Error('permission tier role response did not include role metadata');
+  }
   return {
-    roleName: role.roleName,
-    displayName: role.displayName,
-    description: role.description,
-    isSystem: role.isSystem,
-    position: role.position,
+    roleName: apiRole.name,
+    displayName: apiRole.displayName,
+    description: apiRole.description,
+    isSystem: apiRole.isSystem,
+    position: apiRole.position,
+    pingable: apiRole.pingable,
     override: {
       permissions: [...(role.override?.permissions ?? [])],
-      permissionDenials: [...(role.override?.permissionDenials ?? [])],
+      permissionDenials: [...(role.override?.permissionDenials ?? [])]
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials],
+    inheritedDenials: [...role.inheritedDenials]
   };
 }
 
-function rolePermissionMatrix(
-  matrix: APIRolePermissionMatrix,
-): RolePermissionMatrix {
+function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMatrix {
   return {
     roleName: matrix.roleName,
     applicablePermissions: [...matrix.applicablePermissions],
     scopes: matrix.scopes.map(matrixScope),
-    cells: matrix.cells.map(matrixCell),
+    cells: matrix.cells.map(matrixCell)
   };
 }
 
-function userPermissionMatrix(
-  matrix: APIUserPermissionMatrix,
-): UserPermissionMatrix {
+function userPermissionMatrix(matrix: APIUserPermissionMatrix): UserPermissionMatrix {
   return {
     userId: matrix.userId,
     applicablePermissions: [...matrix.applicablePermissions],
     scopes: matrix.scopes.map(matrixScope),
-    cells: matrix.cells.map(matrixCell),
+    cells: matrix.cells.map(matrixCell)
   };
 }
 
@@ -254,7 +239,7 @@ function matrixScope(scope: APIPermissionMatrixScope): MatrixScope {
     id: scope.id,
     label: scope.label,
     kind: scopeKind(scope.kind),
-    parentGroupId: scope.parentGroupId,
+    parentGroupId: scope.parentGroupId
   };
 }
 
@@ -263,61 +248,59 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     permission: cell.permission,
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
-    effective: matrixDecision(cell.effective),
+    effective: matrixDecision(cell.effective)
   };
 }
 
-function permissionDecisionEntry(
-  decision: APIScopedPermissionDecision,
-): PermissionDecisionEntry {
+function permissionDecisionEntry(decision: APIScopedPermissionDecision): PermissionDecisionEntry {
   return {
     permission: decision.permission,
     scope: permissionScope(decision.scope),
     override: matrixDecision(decision.override),
-    effective: matrixDecision(decision.effective),
+    effective: matrixDecision(decision.effective)
   };
 }
 
 function permissionDecisionUpdate(
-  decision: APIPermissionDecisionUpdate | undefined,
+  decision: APIPermissionDecisionUpdate | undefined
 ): PermissionDecisionUpdate {
   if (!decision) {
-    throw new Error("permission write response did not include a decision");
+    throw new Error('permission write response did not include a decision');
   }
   return {
     permission: decision.permission,
     scope: permissionScope(decision.scope),
-    decision: matrixDecision(decision.decision),
+    decision: matrixDecision(decision.decision)
   };
 }
 
 function permissionScope(
-  scope: { kind: PermissionScopeKind; id: string } | undefined,
+  scope: { kind: PermissionScopeKind; id: string } | undefined
 ): PermissionScope {
   if (scope?.kind === PermissionScopeKind.GROUP) {
-    return { tier: "group", groupId: scope.id };
+    return { tier: 'group', groupId: scope.id };
   }
   if (scope?.kind === PermissionScopeKind.ROOM) {
-    return { tier: "room", roomId: scope.id };
+    return { tier: 'room', roomId: scope.id };
   }
-  return { tier: "server" };
+  return { tier: 'server' };
 }
 
 function scopeKind(kind: PermissionScopeKind): MatrixScopeKind {
-  if (kind === PermissionScopeKind.GROUP) return "GROUP";
-  if (kind === PermissionScopeKind.ROOM) return "ROOM";
-  return "SERVER";
+  if (kind === PermissionScopeKind.GROUP) return 'GROUP';
+  if (kind === PermissionScopeKind.ROOM) return 'ROOM';
+  return 'SERVER';
 }
 
 function matrixDecision(decision: PermissionDecision): MatrixDecision {
-  if (decision === PermissionDecision.ALLOW) return "ALLOW";
-  if (decision === PermissionDecision.DENY) return "DENY";
-  return "NONE";
+  if (decision === PermissionDecision.ALLOW) return 'ALLOW';
+  if (decision === PermissionDecision.DENY) return 'DENY';
+  return 'NONE';
 }
 
 function apiDecision(state: PermissionState): PermissionDecision {
-  if (state === "allow") return PermissionDecision.ALLOW;
-  if (state === "deny") return PermissionDecision.DENY;
+  if (state === 'allow') return PermissionDecision.ALLOW;
+  if (state === 'deny') return PermissionDecision.DENY;
   return PermissionDecision.NONE;
 }
 
@@ -325,24 +308,24 @@ function apiScope(scope: PermissionScope): {
   kind: PermissionScopeKind;
   id: string;
 } {
-  if (scope.tier === "group") {
+  if (scope.tier === 'group') {
     return { kind: PermissionScopeKind.GROUP, id: scope.groupId };
   }
-  if (scope.tier === "room") {
+  if (scope.tier === 'room') {
     return { kind: PermissionScopeKind.ROOM, id: scope.roomId };
   }
-  return { kind: PermissionScopeKind.SERVER, id: "" };
+  return { kind: PermissionScopeKind.SERVER, id: '' };
 }
 
-function apiTierMatrixScope(input: {
-  roomId?: string | null;
-  groupId?: string | null;
-}): { kind: PermissionScopeKind; id: string } {
+function apiTierMatrixScope(input: { roomId?: string | null; groupId?: string | null }): {
+  kind: PermissionScopeKind;
+  id: string;
+} {
   if (input.roomId) {
     return { kind: PermissionScopeKind.ROOM, id: input.roomId };
   }
   if (input.groupId) {
     return { kind: PermissionScopeKind.GROUP, id: input.groupId };
   }
-  return { kind: PermissionScopeKind.SERVER, id: "" };
+  return { kind: PermissionScopeKind.SERVER, id: '' };
 }

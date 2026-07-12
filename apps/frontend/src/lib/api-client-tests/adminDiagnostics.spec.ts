@@ -1,4 +1,5 @@
-import { protoInt64 } from '@bufbuild/protobuf';
+import { protoInt64, Timestamp } from '@bufbuild/protobuf';
+import { AdminAssetCleanupHealth } from '@chatto/api-types/admin/v1/diagnostics_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
 
@@ -141,7 +142,19 @@ describe('getAdminSystemInfo', () => {
           averageEntryBytes: protoInt64.zero,
           metrics: []
         }
-      ]
+      ],
+      assetCleanup: {
+        health: AdminAssetCleanupHealth.RETRYING,
+        pendingCount: protoInt64.parse(2),
+        oldestPendingAt: Timestamp.fromDate(new Date('2026-07-10T10:00:00Z')),
+        passInProgress: false,
+        lastPassAt: Timestamp.fromDate(new Date('2026-07-10T11:00:00Z')),
+        lastSuccessfulPassAt: Timestamp.fromDate(new Date('2026-07-10T09:00:00Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-07-10T11:00:05Z')),
+        lastPassFailed: true,
+        lastInspectedSequence: '41',
+        latestDeletionSequence: '44'
+      }
     });
 
     const info = await getAdminSystemInfo({
@@ -166,6 +179,19 @@ describe('getAdminSystemInfo', () => {
     expect(info.projections[0].startupDurationSeconds).toBe(0.25);
     expect(info.projections[0].metrics[0].bytes).toBe(768);
     expect(info.projections[1].startupDurationSeconds).toBeNull();
+    expect(info.assetCleanup).toEqual({
+      available: true,
+      health: 'retrying',
+      pendingCount: 2,
+      oldestPendingAt: new Date('2026-07-10T10:00:00Z'),
+      passInProgress: false,
+      lastPassAt: new Date('2026-07-10T11:00:00Z'),
+      lastSuccessfulPassAt: new Date('2026-07-10T09:00:00Z'),
+      updatedAt: new Date('2026-07-10T11:00:05Z'),
+      lastPassFailed: true,
+      lastInspectedSequence: '41',
+      latestDeletionSequence: '44'
+    });
   });
 
   it('maps missing nested sections to empty defaults and omits auth headers without a token', async () => {
@@ -184,5 +210,35 @@ describe('getAdminSystemInfo', () => {
     expect(info.nats.streams).toEqual([]);
     expect(info.stats.userCount).toBe(0);
     expect(info.projections).toEqual([]);
+    expect(info.assetCleanup).toEqual({
+      available: false,
+      health: 'unavailable',
+      pendingCount: 0,
+      oldestPendingAt: null,
+      passInProgress: false,
+      lastPassAt: null,
+      lastSuccessfulPassAt: null,
+      updatedAt: null,
+      lastPassFailed: false,
+      lastInspectedSequence: '0',
+      latestDeletionSequence: '0'
+    });
+  });
+
+  it('treats explicitly unavailable cleanup diagnostics as unavailable', async () => {
+    mocks.getSystemInfo.mockResolvedValue({
+      projections: [],
+      assetCleanup: {
+        health: AdminAssetCleanupHealth.UNAVAILABLE,
+        pendingCount: protoInt64.parse(7),
+        lastInspectedSequence: '41',
+        latestDeletionSequence: '44'
+      }
+    });
+
+    const info = await getAdminSystemInfo({ baseUrl: '/api/connect', bearerToken: null });
+
+    expect(info.assetCleanup.available).toBe(false);
+    expect(info.assetCleanup.health).toBe('unavailable');
   });
 });

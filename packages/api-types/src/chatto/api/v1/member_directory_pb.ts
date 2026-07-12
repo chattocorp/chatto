@@ -366,7 +366,7 @@ export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
   search = "";
 
   /**
-   * Page request. Defaults to 20 results when absent or limit is zero.
+   * Page request. Defaults to 250 results when absent or limit is zero.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 5;
    */

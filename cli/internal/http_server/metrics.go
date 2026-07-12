@@ -6,16 +6,31 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type processMetrics struct{}
+type processMetrics struct {
+	realtimeWebSocketConnections atomic.Int64
+}
 
 func newProcessMetrics() *processMetrics {
 	return &processMetrics{}
+}
+
+func (m *processMetrics) realtimeWebSocketOpened() {
+	m.realtimeWebSocketConnections.Add(1)
+}
+
+func (m *processMetrics) realtimeWebSocketClosed() {
+	m.realtimeWebSocketConnections.Add(-1)
+}
+
+func (m *processMetrics) realtimeWebSocketConnectionCount() int64 {
+	return m.realtimeWebSocketConnections.Load()
 }
 
 func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
@@ -53,6 +68,7 @@ type chattoCollector struct {
 
 	buildInfo               *prometheus.Desc
 	ready                   *prometheus.Desc
+	realtimeWebSockets      *prometheus.Desc
 	myEventsActive          *prometheus.Desc
 	myEventsDelivered       *prometheus.Desc
 	myEventsSlowDisconnects *prometheus.Desc
@@ -90,6 +106,12 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 		ready: prometheus.NewDesc(
 			"chatto_ready",
 			"Whether this Chatto process is ready to serve application traffic.",
+			nil,
+			nil,
+		),
+		realtimeWebSockets: prometheus.NewDesc(
+			"chatto_realtime_websocket_connections",
+			"Current realtime WebSocket connections in this process.",
 			nil,
 			nil,
 		),
@@ -231,6 +253,7 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.buildInfo
 	ch <- c.ready
+	ch <- c.realtimeWebSockets
 	ch <- c.myEventsActive
 	ch <- c.myEventsDelivered
 	ch <- c.myEventsSlowDisconnects
@@ -260,6 +283,7 @@ func (c *chattoCollector) Collect(ch chan<- prometheus.Metric) {
 		version = "unknown"
 	}
 	ch <- prometheus.MustNewConstMetric(c.buildInfo, prometheus.GaugeValue, 1, version)
+	ch <- prometheus.MustNewConstMetric(c.realtimeWebSockets, prometheus.GaugeValue, float64(c.server.metrics.realtimeWebSocketConnectionCount()))
 
 	c.collectNATSMetrics(ch)
 	c.collectCoreMetrics(ch)

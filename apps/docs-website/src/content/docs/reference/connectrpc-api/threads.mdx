@@ -51,7 +51,7 @@ Response containing one followed-thread page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
-| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render root messages. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
 

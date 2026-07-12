@@ -4,13 +4,14 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '$lib/render/types';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { getUserSettings, hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import { formatMessageTime } from '$lib/utils/formatTime';
 
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
@@ -65,12 +66,14 @@
   const selectedTimezoneTime = $derived.by(() => {
     if (!selectedTimezone) return null;
 
-    return new Date().toLocaleTimeString(activeLocale, {
-      timeZone: selectedTimezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: userSettings.effectiveHour12
-    });
+    return formatMessageTime(
+      new Date(),
+      {
+        effectiveTimezone: selectedTimezone,
+        effectiveHour12: hour12ForTimeFormat(selectedTimeFormat)
+      },
+      activeLocale
+    );
   });
 
   function handleTimezoneInput(e: Event) {
@@ -363,7 +366,9 @@
           {/each}
           {#if filteredTimezones.length > 50}
             <li class="px-3 py-1.5 text-xs text-muted">
-              {m['settings.preferences.timezone.more_results']({ count: filteredTimezones.length - 50 })}
+              {m['settings.preferences.timezone.more_results']({
+                count: filteredTimezones.length - 50
+              })}
             </li>
           {/if}
         </ul>

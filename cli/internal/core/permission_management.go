@@ -46,6 +46,7 @@ type TierRole struct {
 	Description      string
 	IsSystem         bool
 	Position         int32
+	Pingable         bool
 	Override         TierPermissions
 	InheritedAllows  []string
 	InheritedDenials []string
@@ -371,6 +372,7 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 		Description: role.Description,
 		IsSystem:    role.IsSystem,
 		Position:    role.Position,
+		Pingable:    role.Pingable,
 	}
 
 	serverGrants, err := c.GetServerRolePermissions(ctx, role.Name)

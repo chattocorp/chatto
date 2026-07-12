@@ -28,7 +28,16 @@ message CreateMessageRequest {
   // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
-  repeated string attachment_asset_ids = 3;
+  // At most 10 IDs may be supplied.
+  repeated string attachment_asset_ids = 3 [(buf.validate.field).repeated = {
+    max_items: 10
+    items: {
+      string: {
+        min_len: 1
+        max_bytes: 15
+      }
+    }
+  }];
   // Event ID of the thread root message when posting a thread reply.
   string thread_root_event_id = 4;
   // Event ID this message replies to for attribution.
@@ -71,13 +80,14 @@ message UpdateMessageRequest {
 
 // Result of editing a message.
 message UpdateMessageResponse {
+  reserved 1;
+  reserved "updated";
+
   // Field 3 was `includes`, used before update responses were narrowed to the
   // edited message.
   reserved 3;
   reserved "includes";
 
-  // True when the edit was accepted.
-  bool updated = 1;
   // Renderable message after the edit.
   Message message = 2;
 }

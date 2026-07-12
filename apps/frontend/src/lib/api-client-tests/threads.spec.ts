@@ -47,13 +47,14 @@ describe('createThreadAPI', () => {
     mocks.listFollowedThreads.mockResolvedValue({
       threads: [
         {
-          roomId: 'room-1',
-          roomName: 'general',
-          threadRootEventId: 'root-1',
-          rootMessage: undefined,
-          replyCount: 2,
-          lastReplyAt: { toDate: () => lastReplyAt },
-          hasUnread: true
+          room: { id: 'room-1', name: 'general' },
+          thread: {
+            threadRootEventId: 'root-1',
+            replyCount: 2,
+            lastReplyAt: { toDate: () => lastReplyAt },
+            viewerState: { hasUnread: true }
+          },
+          rootMessage: undefined
         }
       ],
       page: { totalCount: 3n, hasMore: true },

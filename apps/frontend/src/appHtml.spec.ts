@@ -1,9 +1,18 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 const appHtml = readFileSync(new URL('./app.html', import.meta.url), 'utf8');
+const manifest = JSON.parse(
+  readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf8')
+) as WebAppManifest;
 const themeScript = appHtml.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)?.[1];
+
+type WebAppManifest = {
+  icons?: Array<{ src?: string; sizes?: string; type?: string; purpose?: string }>;
+};
 
 function metaContent(name: string, mediaFragment: string): string | null {
   const tag = appHtml.match(
@@ -11,6 +20,31 @@ function metaContent(name: string, mediaFragment: string): string | null {
   )?.[0];
 
   return tag?.match(/\bcontent="([^"]+)"/i)?.[1] ?? null;
+}
+
+function linkTag(rel: string): string | null {
+  return (
+    appHtml.match(new RegExp(`<link\\s+[^>]*rel="${rel}"[^>]*>`, 'i'))?.[0] ??
+    appHtml.match(new RegExp(`<link\\s+[^>]*rel='${rel}'[^>]*>`, 'i'))?.[0] ??
+    null
+  );
+}
+
+function attributeValue(tag: string | null, attribute: string): string | null {
+  return tag?.match(new RegExp(`\\b${attribute}=["']([^"']+)["']`, 'i'))?.[1] ?? null;
+}
+
+async function transparentPixelCount(path: string): Promise<number> {
+  const { data } = await sharp(fileURLToPath(new URL(path, import.meta.url)))
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let transparent = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) transparent += 1;
+  }
+  return transparent;
 }
 
 function runThemeScript({
@@ -81,6 +115,55 @@ describe('app.html metadata', () => {
   it('defines theme colors matching the outer frame background colors', () => {
     expect(metaContent('theme-color', 'light')).toBe('#e5e7eb');
     expect(metaContent('theme-color', 'dark')).toBe('#262626');
+  });
+
+  it('declares the Safari apple touch icon with an explicit size', () => {
+    const tag = linkTag('apple-touch-icon');
+
+    expect(attributeValue(tag, 'href')).toBe('/icons/apple-touch-icon.png');
+    expect(attributeValue(tag, 'sizes')).toBe('180x180');
+  });
+
+  it('keeps manifest icon paths pointed at the generated PWA assets', () => {
+    expect(manifest.icons).toEqual([
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      {
+        src: '/icons/icon-maskable-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable'
+      },
+      {
+        src: '/icons/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable'
+      }
+    ]);
+  });
+
+  it.each([
+    ['../static/icons/apple-touch-icon.png', 180],
+    ['../static/icons/icon-192.png', 192],
+    ['../static/icons/icon-512.png', 512],
+    ['../static/icons/icon-maskable-192.png', 192],
+    ['../static/icons/icon-maskable-512.png', 512]
+  ])('keeps install-facing icon %s opaque at %i square', async (path, size) => {
+    const metadata = await sharp(fileURLToPath(new URL(path, import.meta.url))).metadata();
+
+    expect(metadata.width).toBe(size);
+    expect(metadata.height).toBe(size);
+    await expect(transparentPixelCount(path)).resolves.toBe(0);
+  });
+
+  it('keeps the favicon at browser tab size', async () => {
+    const metadata = await sharp(
+      fileURLToPath(new URL('../static/icons/favicon.png', import.meta.url))
+    ).metadata();
+
+    expect(metadata.width).toBe(32);
+    expect(metadata.height).toBe(32);
   });
 });
 

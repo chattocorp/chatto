@@ -7,7 +7,9 @@ builds:
     dir: ./cli
     goos:
       - linux
+      - freebsd
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -21,14 +23,22 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    files:
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     # this name template makes the OS and Arch compatible with the results of `uname`.
+    # GoReleaser's `title` renders `freebsd` as `Freebsd`, but `uname` reports `FreeBSD`.
     name_template: >-
       {{ .ProjectName }}_
-      {{- title .Os }}_
+      {{- if eq .Os "freebsd" }}FreeBSD{{ else }}{{ title .Os }}{{ end }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # Use native ZIP archives for Windows releases.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
 changelog:
   # release-please now owns the changelog (CHANGELOG.md + the GitHub
@@ -41,6 +51,9 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - docker/nats-wrapper.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -49,6 +62,7 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: amd64
     goos: linux
@@ -57,6 +71,9 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - docker/nats-wrapper.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
@@ -65,6 +82,7 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: arm64
     goos: linux
@@ -117,9 +135,13 @@ release:
   github:
     owner: chattocorp
     name: chatto
-  # release-please creates the GitHub Release with its changelog body.
-  # GoReleaser must NOT overwrite it — `keep-existing` makes GoReleaser
-  # only attach artifacts to the existing release.
+  # release-please creates a draft GitHub Release with its changelog body.
+  # GoReleaser must NOT overwrite it: it should attach artifacts to that
+  # draft and leave publication to the workflow step that runs after release
+  # artifacts and container images have been pushed.
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
   mode: keep-existing
   # `auto` marks the GitHub Release as prerelease when the tag carries
   # a prerelease suffix (e.g. v0.1.0-alpha.1). release-please-action

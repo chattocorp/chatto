@@ -68,13 +68,13 @@ type AdminPermissionServiceClient interface {
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
-	// Lists one role's permission decisions by permission and scope. Requires
+	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
-	// Lists one user's permission decisions by permission and scope. Requires
+	// Lists one user's permission decisions as resource-oriented rows. Requires
 	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
@@ -212,13 +212,13 @@ type AdminPermissionServiceHandler interface {
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
-	// Lists one role's permission decisions by permission and scope. Requires
+	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
-	// Lists one user's permission decisions by permission and scope. Requires
+	// Lists one user's permission decisions as resource-oriented rows. Requires
 	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.

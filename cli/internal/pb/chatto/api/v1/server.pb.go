@@ -21,82 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Describes one login provider exposed by the server discovery endpoint.
-//
-// Clients can render these providers before a user has authenticated.
-type AuthProvider struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable provider identifier used by clients when starting login.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Provider category, such as "password" or "oidc". Clients should treat
-	// unknown provider types as unsupported.
-	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	// Human-readable provider label for login UI.
-	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	// URL that starts login for this provider.
-	LoginUrl      string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AuthProvider) Reset() {
-	*x = AuthProvider{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AuthProvider) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AuthProvider) ProtoMessage() {}
-
-func (x *AuthProvider) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AuthProvider.ProtoReflect.Descriptor instead.
-func (*AuthProvider) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *AuthProvider) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *AuthProvider) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *AuthProvider) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *AuthProvider) GetLoginUrl() string {
-	if x != nil {
-		return x.LoginUrl
-	}
-	return ""
-}
-
 // Public server profile, identity, and branding fields.
 type ServerPublicProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -118,7 +42,7 @@ type ServerPublicProfile struct {
 
 func (x *ServerPublicProfile) Reset() {
 	*x = ServerPublicProfile{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +54,7 @@ func (x *ServerPublicProfile) String() string {
 func (*ServerPublicProfile) ProtoMessage() {}
 
 func (x *ServerPublicProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +67,7 @@ func (x *ServerPublicProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPublicProfile.ProtoReflect.Descriptor instead.
 func (*ServerPublicProfile) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ServerPublicProfile) GetName() string {
@@ -194,7 +118,7 @@ type ServerLogin struct {
 	// Whether users can create accounts through the public UI.
 	DirectRegistrationEnabled bool `protobuf:"varint,1,opt,name=direct_registration_enabled,json=directRegistrationEnabled,proto3" json:"direct_registration_enabled,omitempty"`
 	// Configured login providers.
-	Providers []*AuthProvider `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
+	Providers []*ProviderMetadata `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
 	// URL for the legacy authorization flow, when enabled.
 	AuthorizeUrl  string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -203,7 +127,7 @@ type ServerLogin struct {
 
 func (x *ServerLogin) Reset() {
 	*x = ServerLogin{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +139,7 @@ func (x *ServerLogin) String() string {
 func (*ServerLogin) ProtoMessage() {}
 
 func (x *ServerLogin) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +152,7 @@ func (x *ServerLogin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerLogin.ProtoReflect.Descriptor instead.
 func (*ServerLogin) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ServerLogin) GetDirectRegistrationEnabled() bool {
@@ -238,7 +162,7 @@ func (x *ServerLogin) GetDirectRegistrationEnabled() bool {
 	return false
 }
 
-func (x *ServerLogin) GetProviders() []*AuthProvider {
+func (x *ServerLogin) GetProviders() []*ProviderMetadata {
 	if x != nil {
 		return x.Providers
 	}
@@ -256,12 +180,7 @@ var File_chatto_api_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/server.proto\x12\rchatto.api.v1\"e\n" +
-	"\fAuthProvider\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
-	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\"\x9c\x02\n" +
+	"\x1achatto/api/v1/server.proto\x12\rchatto.api.v1\x1a\x1achatto/api/v1/common.proto\"\x9c\x02\n" +
 	"\x13ServerPublicProfile\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1e\n" +
@@ -273,10 +192,10 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\t_logo_urlB\r\n" +
 	"\v_banner_urlB\x12\n" +
 	"\x10_welcome_messageB\x0e\n" +
-	"\f_description\"\xad\x01\n" +
+	"\f_description\"\xb1\x01\n" +
 	"\vServerLogin\x12>\n" +
-	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x129\n" +
-	"\tproviders\x18\x02 \x03(\v2\x1b.chatto.api.v1.AuthProviderR\tproviders\x12#\n" +
+	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x12=\n" +
+	"\tproviders\x18\x02 \x03(\v2\x1f.chatto.api.v1.ProviderMetadataR\tproviders\x12#\n" +
 	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrlB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -292,14 +211,14 @@ func file_chatto_api_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_api_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_server_proto_goTypes = []any{
-	(*AuthProvider)(nil),        // 0: chatto.api.v1.AuthProvider
-	(*ServerPublicProfile)(nil), // 1: chatto.api.v1.ServerPublicProfile
-	(*ServerLogin)(nil),         // 2: chatto.api.v1.ServerLogin
+	(*ServerPublicProfile)(nil), // 0: chatto.api.v1.ServerPublicProfile
+	(*ServerLogin)(nil),         // 1: chatto.api.v1.ServerLogin
+	(*ProviderMetadata)(nil),    // 2: chatto.api.v1.ProviderMetadata
 }
 var file_chatto_api_v1_server_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.ServerLogin.providers:type_name -> chatto.api.v1.AuthProvider
+	2, // 0: chatto.api.v1.ServerLogin.providers:type_name -> chatto.api.v1.ProviderMetadata
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -312,14 +231,15 @@ func file_chatto_api_v1_server_proto_init() {
 	if File_chatto_api_v1_server_proto != nil {
 		return
 	}
-	file_chatto_api_v1_server_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_api_v1_common_proto_init()
+	file_chatto_api_v1_server_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_proto_rawDesc), len(file_chatto_api_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

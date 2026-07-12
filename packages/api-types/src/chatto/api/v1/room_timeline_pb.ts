@@ -9,9 +9,12 @@ import { User } from "./users_pb.js";
 import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
- * Related entities included beside timeline events.
+ * Related entities included beside timeline/feed events.
  *
- * Includes avoid repeating the same user data on every event in a page.
+ * Includes are reserved for hot paginated feed paths where many events may
+ * repeatedly reference the same render data. Other APIs should return resources
+ * directly and rely on BatchGet-style follow-up hydration instead of adding
+ * includes maps.
  *
  * @generated from message chatto.api.v1.RoomTimelineIncludes
  */
@@ -319,7 +322,7 @@ export class RoomTimelinePage extends Message<RoomTimelinePage> {
   hasNewer = false;
 
   /**
-   * Related entities needed to render the page.
+   * Hot-path related entities needed to render the page without per-event hydration.
    *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 6;
    */

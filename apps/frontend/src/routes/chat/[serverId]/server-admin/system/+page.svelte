@@ -7,6 +7,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
+  import AssetCleanupPanel from './AssetCleanupPanel.svelte';
 
   const connection = useConnection();
 
@@ -529,6 +530,8 @@
             {/snippet}
           </DataTable>
         </Panel>
+
+        <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}
     </div>
   </div>

@@ -505,8 +505,8 @@ func (c *MediaModel) DeleteAttachmentFromStorage(ctx context.Context, attachment
 	}
 
 	deleteErr := c.deleteAttachmentBinary(ctx, attachment)
-	c.deleteCachedResizesForAttachment(ctx, attachment.Id)
-	return deleteErr
+	_, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachment.Id)
+	return errors.Join(deleteErr, cacheErr)
 }
 
 func (c *MediaModel) deleteAttachmentBinary(ctx context.Context, attachment *corev1.Attachment) error {
@@ -519,7 +519,7 @@ func (c *MediaModel) deleteAttachmentBinary(ctx context.Context, attachment *cor
 		if err != nil {
 			return fmt.Errorf("failed to get attachments store: %w", err)
 		}
-		if err := store.Delete(ctx, storage.Nats.Key); err != nil {
+		if err := store.Delete(ctx, storage.Nats.Key); err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
 			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
 		}
 		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
@@ -549,19 +549,25 @@ func (c *MediaModel) deleteAttachmentBinaryByID(ctx context.Context, attachmentI
 	} else if err := store.Delete(ctx, attachmentID); err == nil {
 		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachmentID, "key", attachmentID)
 		return nil
+	} else if errors.Is(err, jetstream.ErrObjectNotFound) {
+		natsErr = nil
 	} else {
 		natsErr = fmt.Errorf("failed to delete attachment from NATS: %w", err)
 	}
 
 	if c.s3Client != nil {
 		var s3Err error
+		found := false
 		for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
 			if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
-				s3Err = err
+				if !IsNoSuchKeyError(err) {
+					s3Err = errors.Join(s3Err, err)
+				}
 				continue
 			}
+			found = true
 			if err := c.s3Client.DeleteObjectFromBucket(ctx, c.s3Client.Bucket(), s3Key); err != nil {
-				s3Err = err
+				s3Err = errors.Join(s3Err, err)
 				continue
 			}
 			c.logger.Debug("Deleted S3 attachment", "attachment_id", attachmentID, "s3_key", s3Key)
@@ -570,22 +576,12 @@ func (c *MediaModel) deleteAttachmentBinaryByID(ctx context.Context, attachmentI
 		if s3Err != nil {
 			return fmt.Errorf("failed to delete attachment %s from known backends: nats: %v; s3: %w", attachmentID, natsErr, s3Err)
 		}
+		if found {
+			return fmt.Errorf("failed to delete attachment %s from S3", attachmentID)
+		}
 	}
 
 	return natsErr
-}
-
-func (c *MediaModel) deleteCachedResizesForAttachment(ctx context.Context, attachmentID string) {
-	deletedCount, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachmentID)
-	if cacheErr != nil {
-		c.logger.Warn("Failed to delete cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"error", cacheErr)
-	} else if deletedCount > 0 {
-		c.logger.Debug("Deleted cached resizes for attachment",
-			"attachment_id", attachmentID,
-			"deleted_count", deletedCount)
-	}
 }
 
 // TryPresignedAttachmentURL generates a presigned S3 URL for an
@@ -638,9 +634,15 @@ func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachment
 	return "", fmt.Errorf("attachment %s not found in S3", attachmentID)
 }
 
-// AttachmentSignResource is the image-cache namespace for stable attachment
-// transforms. Keep it stable so cached resize keys survive deployments.
+// AttachmentSignResource binds legacy signed attachment transforms and remains
+// a cache-cleanup namespace for derivatives written before stable asset paths.
 const AttachmentSignResource = "attachment"
+
+// AttachmentDerivativeCacheResource versions the current attachment image
+// encoding profile independently from the stable public URL shape.
+const AttachmentDerivativeCacheResource = "attachment-stable-v2"
+
+const attachmentLegacyStableCacheResource = "attachment-stable"
 
 // ServerAssetSignResource is the first resource component fed to the
 // signed-URL signer for server asset transform URLs and the cache prefix for
@@ -649,9 +651,9 @@ const AttachmentSignResource = "attachment"
 const ServerAssetSignResource = "server"
 
 // AssetAccessTicketTTL keeps direct browser/standalone-client asset URLs useful
-// for normal page render and media startup, without turning copied URLs into
-// long-lived bearer links.
-const AssetAccessTicketTTL = time.Hour
+// across long-lived room views and deferred media playback, without turning
+// copied URLs into indefinite bearer links.
+const AssetAccessTicketTTL = 24 * time.Hour
 
 // S3AssetRedirectTTL bounds direct object-store redirects for heavy original
 // asset responses. Chatto authorizes the request first, then hands browsers a
@@ -811,12 +813,23 @@ func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []b
 
 // DeleteCachedResizesForAttachment deletes all cached resizes for an
 // attachment. Returns the number of deleted cache entries and any error
-// encountered. Does nothing if the cache is disabled. Pre-ADR-030-Phase-4
-// cache entries written under a {server|DM} prefix are not cleaned up
-// and are left to age out — the transform-URL signer always uses the
-// kind-less prefix now, so no lookups land on them.
+// encountered. Does nothing if the cache is disabled. Current and earlier
+// stable attachment cache namespaces are removed; older room-kind prefixes
+// remain unaddressable and age out through the configured TTL.
 func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
-	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
+	prefixes := []string{
+		AttachmentDerivativeCacheResource,
+		AttachmentSignResource,
+		attachmentLegacyStableCacheResource,
+	}
+	deleted := 0
+	var deleteErr error
+	for _, prefix := range prefixes {
+		count, err := c.DeleteCachedResizesForKey(ctx, prefix, attachmentID)
+		deleted += count
+		deleteErr = errors.Join(deleteErr, err)
+	}
+	return deleted, deleteErr
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server
@@ -851,20 +864,18 @@ func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, asse
 
 	// Find and delete objects matching our prefix
 	deleted := 0
+	var deleteErr error
 	for _, info := range objects {
 		if strings.HasPrefix(info.Name, keyPrefix) {
-			if err := c.storage.imageCacheStore.Delete(ctx, info.Name); err != nil {
-				// Log but continue deleting other entries
-				c.logger.Warn("Failed to delete cached resize",
-					"cache_key", info.Name,
-					"error", err)
+			if err := c.storage.imageCacheStore.Delete(ctx, info.Name); err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
+				deleteErr = errors.Join(deleteErr, fmt.Errorf("delete cached resize %s: %w", info.Name, err))
 			} else {
 				deleted++
 			}
 		}
 	}
 
-	return deleted, nil
+	return deleted, deleteErr
 }
 
 // AttachmentNeedsVideoProcessing returns whether an attachment should enter the

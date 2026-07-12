@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { ProviderMetadata } from "./common_pb.js";
 
 /**
  * Public metadata for a configured external login provider.
@@ -12,34 +13,6 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  * @generated from message chatto.api.v1.ExternalIdentityProvider
  */
 export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> {
-  /**
-   * Stable configured provider ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Provider type, such as "oidc", "github", or "discord".
-   *
-   * @generated from field: string type = 2;
-   */
-  type = "";
-
-  /**
-   * Human-readable label.
-   *
-   * @generated from field: string label = 3;
-   */
-  label = "";
-
-  /**
-   * URL that starts login for this provider.
-   *
-   * @generated from field: string login_url = 4;
-   */
-  loginUrl = "";
-
   /**
    * URL that starts authenticated account linking for this provider. Clients
    * should use StartExternalIdentityLink instead of navigating here directly.
@@ -62,6 +35,13 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
    */
   linkedIdentitySubjectHash = "";
 
+  /**
+   * Shared provider metadata.
+   *
+   * @generated from field: chatto.api.v1.ProviderMetadata provider = 8;
+   */
+  provider?: ProviderMetadata;
+
   constructor(data?: PartialMessage<ExternalIdentityProvider>) {
     super();
     proto3.util.initPartial(data, this);
@@ -70,13 +50,10 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ExternalIdentityProvider";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "link_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "linked_identity_subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "provider", kind: "message", T: ProviderMetadata },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExternalIdentityProvider {
@@ -339,88 +316,6 @@ export class StartExternalIdentityLinkResponse extends Message<StartExternalIden
 
   static equals(a: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined, b: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined): boolean {
     return proto3.util.equals(StartExternalIdentityLinkResponse, a, b);
-  }
-}
-
-/**
- * Request to link a pending provider identity to the authenticated user.
- *
- * @generated from message chatto.api.v1.LinkExternalIdentityRequest
- */
-export class LinkExternalIdentityRequest extends Message<LinkExternalIdentityRequest> {
-  /**
-   * Raw pending link token from the provider callback redirect.
-   *
-   * @generated from field: string token = 1;
-   */
-  token = "";
-
-  constructor(data?: PartialMessage<LinkExternalIdentityRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.LinkExternalIdentityRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkExternalIdentityRequest {
-    return new LinkExternalIdentityRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LinkExternalIdentityRequest {
-    return new LinkExternalIdentityRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LinkExternalIdentityRequest {
-    return new LinkExternalIdentityRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: LinkExternalIdentityRequest | PlainMessage<LinkExternalIdentityRequest> | undefined, b: LinkExternalIdentityRequest | PlainMessage<LinkExternalIdentityRequest> | undefined): boolean {
-    return proto3.util.equals(LinkExternalIdentityRequest, a, b);
-  }
-}
-
-/**
- * Result of linking a provider identity.
- *
- * @generated from message chatto.api.v1.LinkExternalIdentityResponse
- */
-export class LinkExternalIdentityResponse extends Message<LinkExternalIdentityResponse> {
-  /**
-   * Linked identity metadata.
-   *
-   * @generated from field: chatto.api.v1.LinkedExternalIdentity linked_identity = 1;
-   */
-  linkedIdentity?: LinkedExternalIdentity;
-
-  constructor(data?: PartialMessage<LinkExternalIdentityResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.LinkExternalIdentityResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "linked_identity", kind: "message", T: LinkedExternalIdentity },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkExternalIdentityResponse {
-    return new LinkExternalIdentityResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LinkExternalIdentityResponse {
-    return new LinkExternalIdentityResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LinkExternalIdentityResponse {
-    return new LinkExternalIdentityResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: LinkExternalIdentityResponse | PlainMessage<LinkExternalIdentityResponse> | undefined, b: LinkExternalIdentityResponse | PlainMessage<LinkExternalIdentityResponse> | undefined): boolean {
-    return proto3.util.equals(LinkExternalIdentityResponse, a, b);
   }
 }
 

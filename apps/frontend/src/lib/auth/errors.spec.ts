@@ -9,6 +9,14 @@ describe('isAuthenticationRequiredError', () => {
     ).toBe(true);
   });
 
+  it('does not classify typed unavailable errors by their message', () => {
+    expect(
+      isAuthenticationRequiredError(
+        new ConnectError('authentication required: storage unavailable', Code.Unavailable)
+      )
+    ).toBe(false);
+  });
+
   it('keeps the combined message fallback for older clients and transports', () => {
     expect(isAuthenticationRequiredError({ message: 'authentication required' })).toBe(true);
   });

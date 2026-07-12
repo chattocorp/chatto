@@ -121,19 +121,23 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 	}
 	state := room.ViewerState
 	return &apiv1.RoomWithViewerState{
-		Room:                   apiRoom(room.Room),
-		IsMember:               state.IsMember,
-		HasUnread:              state.HasUnread,
-		CanListRoom:            state.CanListRoom,
-		CanJoinRoom:            state.CanJoinRoom,
-		CanPostMessage:         state.CanPostMessage,
-		CanPostInThread:        state.CanPostInThread,
-		CanAttach:              state.CanAttach,
-		CanReact:               state.CanReact,
-		CanEchoMessage:         state.CanEchoMessage,
-		CanManageOthersMessage: state.CanManageOthersMessage,
-		CanManageRoom:          state.CanManageRoom,
-		CanBanRoomMembers:      state.CanBanRoomMembers,
+		Room: apiRoom(room.Room),
+		ViewerState: &apiv1.RoomViewerState{
+			IsMember:  state.IsMember,
+			HasUnread: state.HasUnread,
+			Permissions: permissionGrants(
+				permissionGrant(core.PermRoomList, state.CanListRoom),
+				permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
+				permissionGrant(core.PermMessagePost, state.CanPostMessage),
+				permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
+				permissionGrant(core.PermMessageAttach, state.CanAttach),
+				permissionGrant(core.PermMessageReact, state.CanReact),
+				permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
+				permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
+				permissionGrant(core.PermRoomManage, state.CanManageRoom),
+				permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
+			),
+		},
 	}
 }
 
@@ -146,7 +150,7 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
 		ViewerState: &apiv1.RoomGroupViewerState{
-			CanCreateRoom: group.ViewerState.CanCreateRoom,
+			Permissions: permissionGrants(permissionGrant(core.PermRoomCreate, group.ViewerState.CanCreateRoom)),
 		},
 	}
 	for _, item := range group.Items {
@@ -162,6 +166,17 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		}
 	}
 	return apiGroup
+}
+
+func permissionGrant(permission core.Permission, granted bool) *apiv1.PermissionGrant {
+	return &apiv1.PermissionGrant{
+		Permission: string(permission),
+		Granted:    granted,
+	}
+}
+
+func permissionGrants(grants ...*apiv1.PermissionGrant) []*apiv1.PermissionGrant {
+	return grants
 }
 
 func roomDirectoryScopeIncludesChannels(scope apiv1.RoomDirectoryScope) bool {

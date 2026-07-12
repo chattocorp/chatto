@@ -4,6 +4,34 @@ import { createAndLoginTestUser, loginAsAdmin, verifyAdminEmail } from './fixtur
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 
+async function touchDrag(
+  page: import('@playwright/test').Page,
+  fromX: number,
+  toX: number,
+  y: number
+) {
+  const client = await page.context().newCDPSession(page);
+  const steps = 6;
+
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: fromX, y }]
+  });
+
+  for (let i = 1; i <= steps; i += 1) {
+    const x = fromX + ((toX - fromX) * i) / steps;
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y }]
+    });
+  }
+
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: []
+  });
+}
+
 test.describe('Mobile Navigation', () => {
   test('hamburger menu toggles sidebar on mobile', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
@@ -66,6 +94,67 @@ test.describe('Mobile Navigation', () => {
 
     // The new room should be active (verify we navigated)
     await expect(roomPage.messageInput).toBeVisible();
+  });
+
+  test('sidebar closes on a leftward mobile swipe', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await expect(roomPage.messageInput).toBeVisible();
+
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const hamburger = page.locator('button[title="Toggle sidebar"]');
+    const roomList = page.locator('.room-list');
+    await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await hamburger.click();
+    await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await touchDrag(page, 320, 20, 160);
+
+    await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('sidebar opens on a rightward mobile edge swipe', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await expect(roomPage.messageInput).toBeVisible();
+
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const hamburger = page.locator('button[title="Toggle sidebar"]');
+    const roomList = page.locator('.room-list');
+    await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await touchDrag(page, 2, 220, 160);
+
+    await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('sidebar closes on a leftward mouse drag on mobile', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await expect(roomPage.messageInput).toBeVisible();
+
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const hamburger = page.locator('button[title="Toggle sidebar"]');
+    const roomList = page.locator('.room-list');
+    await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await hamburger.click();
+    await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await page.mouse.move(320, 160);
+    await page.mouse.down();
+    await page.mouse.move(20, 160, { steps: 6 });
+    await page.mouse.up();
+
+    await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
   test('sidebar is visible by default on desktop', async ({ page, chatPage }) => {
@@ -192,7 +281,9 @@ test.describe('Mobile Navigation', () => {
     await page.waitForURL(routes.admin);
 
     // Wait for the page content to load (General heading visible)
-    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
 
     // Resize to mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });

@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import type { RoomMember } from '$lib/state/room';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
+import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
 
 // Re-export for convenience
 export type { RoomMember };
@@ -195,9 +196,8 @@ export function wrapValidMentions(
     return html;
   }
 
-  // Parse HTML into a DOM tree
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Parse HTML into a DOM tree.
+  const doc = parseTrustedMarkdownHtml(html);
 
   // Collect all text nodes that need processing
   const textNodes: Text[] = [];

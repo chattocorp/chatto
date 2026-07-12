@@ -67,22 +67,15 @@ message ServerViewerState {
   bool has_unread_rooms = 1;
 }
 
-// Server-wide notification preference for the authenticated user.
-message ServerNotificationPreference {
-  // Explicit server-level setting.
-  NotificationLevel level = 1;
-  // Level after applying system defaults.
-  NotificationLevel effective_level = 2;
-}
-
 // Room notification preference for one joined room.
 message RoomNotificationPreference {
+  reserved 2, 3;
+  reserved "level", "effective_level";
+
   // Room whose preference is represented.
   string room_id = 1;
-  // Explicit room-level setting.
-  NotificationLevel level = 2;
-  // Level after applying room/server/system defaults.
-  NotificationLevel effective_level = 3;
+  // Stored and effective notification preference.
+  NotificationPreference preference = 4;
 }
 
 // Request for the authenticated viewer snapshot.
@@ -95,7 +88,7 @@ message GetViewerResponse {
   // Permission-derived capabilities.
   ViewerCapabilities capabilities = 2;
   // Server-wide notification preference.
-  ServerNotificationPreference server_notification_preference = 3;
+  NotificationPreference server_notification_preference = 3;
   // Notification preferences for rooms the user participates in.
   repeated RoomNotificationPreference room_notification_preferences = 4;
   // Effective server/channel permission decisions for the authenticated user.

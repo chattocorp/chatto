@@ -3,12 +3,15 @@ title: Chatto Self-Hosting Documentation
 description: A real-time chat application built for simplicity and scalability.
 template: splash
 hero:
-  tagline: Run a full-featured real-time chat server yourself. Start with one binary and no database, then scale the same system when your community grows.
+  tagline: A fully-featured, compact, and really, <i>really</i> snappy team chat server that you can host on your own infrastructure.
   actions:
     - text: Get Started
       link: /getting-started/introduction/
       icon: right-arrow
       variant: primary
+    - text: Release Notes
+      link: /releases/0-4-0/
+      variant: secondary
     - text: View on GitHub
       link: https://github.com/chattocorp/chatto
       icon: external
@@ -16,22 +19,17 @@ hero:
 ---
 
 import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+import HomeScreenshot from "../../components/HomeScreenshot.astro";
 
-## What is Chatto?
-
-Chatto is a self-hosted real-time chat application for communities, teams, clubs, and organizations that want their own isolated server. It ships as a compact binary with embedded storage, an embedded web app, and built-in operations tooling, so a small server can run it without a database or a stack of side services.
-
-When you need more room, the same Chatto server can move to Docker Compose, Kubernetes, external NATS, S3-compatible asset storage, Prometheus scraping, and multiple replicas.
+<HomeScreenshot />
 
 ## Key Features
 
-- **Own your deployment**: run one binary with embedded NATS, use Docker Compose for a small production server, or scale out with Kubernetes, external NATS, S3-compatible storage, and Prometheus metrics.
-- **Modern chat behavior out of the box**: channel rooms, DMs, threads, replies, reactions, mentions, typing indicators, presence modes, custom statuses, read state, and a keyboard-first quick switcher.
-- **Operator-shaped communities**: room groups, sidebar links, universal announcement rooms, custom roles, server/group/room permissions, user overrides, permission inspection, server branding, and a practical admin dashboard.
-- **Rich media and calls**: attachments, image sizing, room files, storage-backed link previews, optional video and animated-GIF processing, plus voice and video calls with screen sharing.
-- **Notifications that work like an app**: persistent notification center, per-room levels, thread follow notifications, DND-aware alerting, installed-PWA badges, and optional Web Push with self-managed VAPID keys.
-- **Privacy-first operations**: encrypted message bodies and durable user PII, crypto-shredding for account deletion, encrypted backups, key-export workflows, and an explicit boundary between operating the server and reading user content.
-- **Typed integration surface**: ConnectRPC public and admin APIs, protobuf realtime WebSocket delivery, generated API reference, and a local operator socket for trusted recovery automation.
+- **A fully-featured chat experience**: all the features you've come to love (or not) from other chat apps, but without the bloat. Yes, including **file sharing**, **video embeds**, and **voice/video calls** with **screen sharing**!
+- **It's just a single binary**: start simple by throwing the executable on your favorite server -- no separate database required. or scale out with Docker Compose, Kubernetes, or your company's weird homegrown deployment system.
+- **Flexible permissions and roles**: server operators get fine-grained control over who can do what and where. Keep your server simple with just a few channels, or go full monty with hundreds of rooms sorted into room groups, each acting as a permission boundary.
+- **It's crazy fast**: both the backend and the frontend are compact, light on resource usage, and optimized for snappy performance. No, seriously. We really did go hard on performance. Maybe a little too hard.
+- **Focus on data protection and privacy**: Chatto encrypts message text and selected durable account fields with per-user keys, supports crypto-shredding during account deletion, and documents the fields and assets outside that encryption boundary.
 
 ## Get Started
 
@@ -48,7 +46,7 @@ When you need more room, the same Chatto server can move to Docker Compose, Kube
   />
   <LinkCard
     title="Building Your Community Structure"
-    href="/guides/planning/community-structure/"
+    href="/guides/operations/community-structure/"
     description="Plan room groups, universal rooms, permissions, roles, and server branding before inviting members."
   />
   <LinkCard
@@ -58,7 +56,7 @@ When you need more room, the same Chatto server can move to Docker Compose, Kube
   />
   <LinkCard
     title="Notifications & Web Push"
-    href="/guides/planning/notifications-web-push/"
+    href="/guides/operations/notifications-web-push/"
     description="Configure persistent notifications, Web Push, VAPID keys, DND behavior, and device expectations."
   />
   <LinkCard

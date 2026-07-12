@@ -443,6 +443,19 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
   });
 
+  it('renders deleted members with an italicized placeholder', async () => {
+    mockRoomMembers([{ ...member(1), deleted: true }]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('[deleted user]');
+    });
+    expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+  });
+
   it('shows call presence for members active in any room call on the server', async () => {
     mockRoomMembers([member(1), member(2)]);
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockImplementation(
@@ -1334,13 +1347,13 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(presenceCache).toBeTruthy();
     });
-    presenceCache!.update(user.id, PresenceStatus.Away);
+    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.Away);
     await tick();
 
     expect(presenceBadge(container, 'Away')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
 
-    presenceCache!.update(user.id, PresenceStatus.Online);
+    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.Online);
     await tick();
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();

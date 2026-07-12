@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
+  import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import Divider from '$lib/ui/Divider.svelte';
@@ -43,20 +44,6 @@
   const isStandalone = $derived(
     !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
   );
-
-  /**
-   * Same-origin path check; mirrors the validator in +page.ts but applied
-   * to runtime values (sessionStorage.returnUrl) since +page.ts only sees
-   * the URL search params.
-   */
-  function isSafeInternalPath(value: string): boolean {
-    return (
-      typeof value === 'string' &&
-      value.startsWith('/') &&
-      !value.startsWith('//') &&
-      !value.startsWith('/\\')
-    );
-  }
 
   /**
    * Navigate after a successful login. Uses `window.location.href` for backend

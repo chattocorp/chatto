@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -408,6 +409,117 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 	})
 }
 
+func TestConnectServerDiscoveryServiceGetServerGET(t *testing.T) {
+	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+	procedureURL := ts.URL + connectAPIPrefix + discoveryv1connect.ServerDiscoveryServiceGetServerProcedure
+
+	t.Run("serves and revalidates JSON", func(t *testing.T) {
+		query := url.Values{"connect": {"v1"}, "encoding": {"json"}, "message": {"{}"}}
+		req, err := http.NewRequest(http.MethodGet, procedureURL+"?"+query.Encode(), nil)
+		if err != nil {
+			t.Fatalf("new GET request: %v", err)
+		}
+		req.Header.Set("Origin", "https://client.example.com")
+		resp, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatalf("GET discovery: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want 200", resp.StatusCode)
+		}
+		if got := resp.Header.Get("Cache-Control"); got != "public, no-cache" {
+			t.Fatalf("Cache-Control = %q, want %q", got, "public, no-cache")
+		}
+		etag := resp.Header.Get("ETag")
+		if len(etag) != 66 || !strings.HasPrefix(etag, `"`) || !strings.HasSuffix(etag, `"`) {
+			t.Fatalf("ETag = %q, want quoted SHA-256", etag)
+		}
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read JSON response: %v", err)
+		}
+		var msg discoveryv1.GetServerResponse
+		if err := protojson.Unmarshal(data, &msg); err != nil {
+			t.Fatalf("unmarshal JSON response: %v", err)
+		}
+		if msg.GetProfile().GetName() != "Chatto" {
+			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
+		}
+
+		conditionalReq, err := http.NewRequest(http.MethodGet, procedureURL+"?"+query.Encode(), nil)
+		if err != nil {
+			t.Fatalf("new conditional GET request: %v", err)
+		}
+		conditionalReq.Header.Set("Origin", "https://client.example.com")
+		conditionalReq.Header.Set("If-None-Match", `"stale", W/`+etag)
+		conditionalResp, err := ts.Client().Do(conditionalReq)
+		if err != nil {
+			t.Fatalf("conditional GET discovery: %v", err)
+		}
+		defer conditionalResp.Body.Close()
+		if conditionalResp.StatusCode != http.StatusNotModified {
+			t.Fatalf("conditional status = %d, want 304", conditionalResp.StatusCode)
+		}
+		if got := conditionalResp.Header.Get("ETag"); got != etag {
+			t.Fatalf("conditional ETag = %q, want %q", got, etag)
+		}
+		if got := conditionalResp.Header.Values("ETag"); len(got) != 1 {
+			t.Fatalf("conditional ETag values = %q, want one value", got)
+		}
+		if got := conditionalResp.Header.Get("Cache-Control"); got != "public, no-cache" {
+			t.Fatalf("conditional Cache-Control = %q, want %q", got, "public, no-cache")
+		}
+		conditionalBody, err := io.ReadAll(conditionalResp.Body)
+		if err != nil {
+			t.Fatalf("read conditional response: %v", err)
+		}
+		if len(conditionalBody) != 0 {
+			t.Fatalf("conditional body = %q, want empty", conditionalBody)
+		}
+	})
+
+	t.Run("serves protobuf", func(t *testing.T) {
+		query := url.Values{"base64": {"1"}, "connect": {"v1"}, "encoding": {"proto"}, "message": {""}}
+		resp, err := ts.Client().Get(procedureURL + "?" + query.Encode())
+		if err != nil {
+			t.Fatalf("GET protobuf discovery: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want 200", resp.StatusCode)
+		}
+		if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/proto") {
+			t.Fatalf("Content-Type = %q, want application/proto", ct)
+		}
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read protobuf response: %v", err)
+		}
+		var msg discoveryv1.GetServerResponse
+		if err := proto.Unmarshal(data, &msg); err != nil {
+			t.Fatalf("unmarshal protobuf response: %v", err)
+		}
+		if msg.GetProfile().GetName() != "Chatto" {
+			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
+		}
+	})
+
+	t.Run("POST remains uncached", func(t *testing.T) {
+		client := discoveryv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		resp, err := client.GetServer(context.Background(), connect.NewRequest(&discoveryv1.GetServerRequest{}))
+		if err != nil {
+			t.Fatalf("POST discovery: %v", err)
+		}
+		if got := resp.Header().Get("ETag"); got != "" {
+			t.Fatalf("POST ETag = %q, want empty", got)
+		}
+		if got := resp.Header().Get("Cache-Control"); got != "" {
+			t.Fatalf("POST Cache-Control = %q, want empty", got)
+		}
+	})
+}
+
 func TestConnectReflection(t *testing.T) {
 	_, ts := setupConnectHTTP2TestServer(t, config.AuthConfig{})
 
@@ -692,6 +804,14 @@ func TestConnectAPIAuthenticatesBeforeValidation(t *testing.T) {
 }
 
 func TestAuthenticateConnectRequest(t *testing.T) {
+	t.Run("reports credential validation failures as unavailable", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), authenticationValidationErrorKey{}, errors.New("storage unavailable"))
+		_, err := authenticateConnectRequest(ctx, nil)
+		if connect.CodeOf(err) != connect.CodeUnavailable {
+			t.Fatalf("authenticateConnectRequest err = %v, want unavailable", err)
+		}
+	})
+
 	t.Run("rejects missing injected user", func(t *testing.T) {
 		_, err := authenticateConnectRequest(context.Background(), nil)
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
@@ -716,6 +836,29 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 			t.Fatalf("caller = %+v, want user id only", caller)
 		}
 	})
+}
+
+func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
+	s, _ := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "auth-storage-failure", "Auth Storage Failure", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := s.core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	_, ok, err := s.bearerPresentedCredential(canceled, token)
+	if ok {
+		t.Fatal("bearerPresentedCredential authenticated with canceled storage context")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("bearerPresentedCredential err = %v, want context canceled", err)
+	}
 }
 
 func TestConnectRequestBaseURLTrustModel(t *testing.T) {
@@ -910,11 +1053,11 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UpdateRoomNotificationPreference: %v", err)
 		}
-		if resp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Level = %v, want muted", resp.Msg.Level)
+		if resp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Level = %v, want muted", resp.Msg.GetPreference().GetLevel())
 		}
-		if resp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.EffectiveLevel)
+		if resp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.GetPreference().GetEffectiveLevel())
 		}
 
 		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
@@ -925,11 +1068,11 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoomNotificationPreference: %v", err)
 		}
-		if getResp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get level = %v, want muted", getResp.Msg.Level)
+		if getResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Get level = %v, want muted", getResp.Msg.GetPreference().GetLevel())
 		}
-		if getResp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.EffectiveLevel)
+		if getResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.GetPreference().GetEffectiveLevel())
 		}
 
 		got, err := s.core.GetRoomNotificationLevel(ctx, member.Id, room.Id)

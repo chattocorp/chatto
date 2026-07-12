@@ -11,7 +11,7 @@ import (
 
 const (
 	serverDiscoveryConnectPath = connectAPIPrefix + "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
-	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
+	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since"
 )
 
 // buildAllowedOrigins constructs the list of origins that are allowed for CORS
@@ -85,7 +85,7 @@ func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 
 		if c.Request.URL.Path == serverDiscoveryConnectPath {
 			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "POST, OPTIONS")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", corsAllowedHeaders)
 			c.Header("Access-Control-Max-Age", "86400")
 			if c.Request.Method == http.MethodOptions {

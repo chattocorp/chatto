@@ -430,7 +430,7 @@ type ListRoomMembersRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,2,opt,name=search,proto3" json:"search,omitempty"`
-	// Page request. Defaults to 20 results when absent or limit is zero.
+	// Page request. Defaults to 250 results when absent or limit is zero.
 	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

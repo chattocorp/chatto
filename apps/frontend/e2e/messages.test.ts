@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { TIMEOUTS } from './constants';
@@ -13,6 +14,14 @@ type GeneratedImageAttachment = {
   filename: string;
   textPrefix: string;
 };
+
+async function installTombstoneClock(page: Page) {
+  await page.clock.install({ time: Date.now() });
+}
+
+async function advancePastTombstoneGrace(page: Page) {
+  await page.clock.fastForward(61 * 60 * 1000);
+}
 
 async function sendGeneratedImageAttachment(
   roomPage: RoomPage,
@@ -136,6 +145,7 @@ test('deleting first message in group leaves a tombstone as the group leader', a
   // Delete the first message (the group leader). The tombstone takes its place
   // and remains the group leader — avatar/header stay attached to it, so the
   // count is unchanged.
+  await installTombstoneClock(page);
   await msg1.delete();
   if (msg1EventId) {
     await roomPage.getMessageByEventId(msg1EventId).expectDeleted();
@@ -147,6 +157,15 @@ test('deleting first message in group leaves a tombstone as the group leader', a
   // Both remaining messages should still be visible
   await roomPage.expectMessageVisible(message2);
   await roomPage.expectMessageVisible(message3);
+
+  // Natural timer expiry removes the old leader and recomputes grouping for
+  // the remaining rows instead of leaving duplicate/missing attribution.
+  await advancePastTombstoneGrace(page);
+  if (msg1EventId) {
+    await expect(roomPage.getMessageByEventId(msg1EventId).locator).toHaveCount(0);
+  }
+  await roomPage.expectAvatarCount(1);
+  await roomPage.expectUserHeaderCount(testUser.displayName, 1);
 });
 
 test('day separator appears for first message', async ({ page, chatPage, roomPage }) => {
@@ -188,24 +207,24 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
 
   let refreshQueryCount = 0;
 
-  await page.route(
-    '**/api/connect/chatto.api.v1.AssetService/BatchGetAssets',
-    async (route) => {
-      refreshQueryCount += 1;
-      await route.continue();
-    }
-  );
+  await page.route('**/api/connect/chatto.api.v1.AssetService/BatchGetAssets', async (route) => {
+    refreshQueryCount += 1;
+    await route.continue();
+  });
 
-  const failNextAssetResponse = await page.request.post(
-    '/auth/test/fail-next-asset-proxy-request',
-    {
-      data: { count: 1 }
+  let failedAssetLoad = false;
+  await page.route('**/assets/files/**', async (route) => {
+    if (!failedAssetLoad && route.request().method() === 'GET') {
+      failedAssetLoad = true;
+      await route.fulfill({ status: 403, body: 'expired asset access ticket' });
+      return;
     }
-  );
-  expect(failNextAssetResponse.ok()).toBe(true);
+    await route.continue();
+  });
 
   await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Expired lazy image');
 
+  await expect.poll(() => failedAssetLoad, { timeout: TIMEOUTS.UI_STANDARD }).toBe(true);
   await expect.poll(() => refreshQueryCount, { timeout: TIMEOUTS.UI_STANDARD }).toBeGreaterThan(0);
   await expect
     .poll(
@@ -424,6 +443,7 @@ test('user can delete their own message', async ({ page, chatPage, roomPage }) =
   const eventId = await message.getEventId();
 
   // Delete the message
+  await installTombstoneClock(page);
   await message.delete();
 
   // Deleted message should show the tombstone (original text gone, placeholder in place)
@@ -431,6 +451,13 @@ test('user can delete their own message', async ({ page, chatPage, roomPage }) =
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);
     await deletedMessage.expectDeleted();
+
+    // Reload proves the API/protobuf timestamp hydrates into the same timer
+    // behavior; no visibilitychange/resume signal is involved.
+    await page.reload();
+    await deletedMessage.expectDeleted();
+    await advancePastTombstoneGrace(page);
+    await expect(deletedMessage.locator).toHaveCount(0);
   }
 });
 
@@ -510,12 +537,15 @@ test('deleted attachment-only message shows placeholder', async ({ page, chatPag
   const eventId = await message.getEventId();
 
   // Delete the message
+  await installTombstoneClock(page);
   await message.delete();
 
   // Deleted attachment-only message should show the tombstone
   if (eventId) {
     const messageAfterDelete = roomPage.getMessageByEventId(eventId);
     await messageAfterDelete.expectDeleted();
+    await advancePastTombstoneGrace(page);
+    await expect(messageAfterDelete.locator).toHaveCount(0);
   }
 });
 
@@ -594,12 +624,16 @@ test('deleted message with reactions remains visible', async ({ page, chatPage, 
   await message.expectReaction('👍', 1);
 
   // Delete the message
+  await installTombstoneClock(page);
   await message.delete();
 
   // Message should still be visible with "This message has been deleted" because it has a reaction
   await roomPage.expectMessageNotVisible(testMessage);
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);
+    await deletedMessage.expectDeleted();
+    await deletedMessage.expectReaction('👍', 1);
+    await advancePastTombstoneGrace(page);
     await deletedMessage.expectDeleted();
     await deletedMessage.expectReaction('👍', 1);
   }
@@ -678,12 +712,15 @@ test('deleted message with thread replies remains visible', async ({
   await expect(page.getByText('1 reply')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
   // Delete the root message
+  await installTombstoneClock(page);
   await message.delete();
 
   // Message should still be visible with "This message has been deleted" because it has thread replies
   await roomPage.expectMessageNotVisible(testMessage);
   if (eventId) {
     const deletedMessage = roomPage.getMessageByEventId(eventId);
+    await deletedMessage.expectDeleted();
+    await advancePastTombstoneGrace(page);
     await deletedMessage.expectDeleted();
   }
 });
@@ -757,6 +794,10 @@ test('image lightbox supports keyboard navigation with multiple images', async (
 
   // Wait for all attachment images to appear in the message
   await expect(roomPage.attachmentImage).toHaveCount(5, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+  await expect(roomPage.attachmentImage.first()).toHaveAttribute(
+    'src',
+    /\/image\/960x400\/contain\?/
+  );
 
   const gallery = page.getByTestId('message-image-gallery');
   await expect(gallery).toBeVisible();
@@ -828,6 +869,11 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('1 / 5')).toBeVisible();
+  await expect(dialog.locator('img')).toHaveAttribute('src', /\/image\/2048x2048\/contain\?/);
+  await expect(dialog.getByRole('link', { name: 'Open original' })).toHaveAttribute(
+    'href',
+    /\/assets\/files\/[^/?]+\?/
+  );
 
   // Verify the "brighton.jpg" filename is shown
   await expect(dialog.getByText('brighton.jpg')).toBeVisible();

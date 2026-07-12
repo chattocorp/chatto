@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
@@ -43,7 +44,7 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	}
 	response := &operatorv1.ListUsersResponse{
 		Users: make([]*adminv1.AdminMember, 0, len(users.Users)),
-		Roles: []*adminv1.AdminRoleReference{},
+		Roles: []*apiv1.Role{},
 		Page:  apiPageInfo(users.TotalCount, users.HasMore),
 	}
 	for _, user := range users.Users {
@@ -57,9 +58,9 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response.Roles = make([]*adminv1.AdminRoleReference, 0, len(roles))
-	for _, role := range roles {
-		response.Roles = append(response.Roles, operatorAdminRoleReference(role))
+	response.Roles = make([]*apiv1.Role, 0, len(roles))
+	for i := range roles {
+		response.Roles = append(response.Roles, publicAPIRole(&roles[i]))
 	}
 	return connect.NewResponse(response), nil
 }
@@ -119,7 +120,7 @@ func (s *operatorUserService) AssignRole(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&operatorv1.AssignRoleResponse{Assigned: true, Member: member}), nil
+	return connect.NewResponse(&operatorv1.AssignRoleResponse{Member: member}), nil
 }
 
 func (s *operatorUserService) RevokeRole(ctx context.Context, req *connect.Request[operatorv1.RevokeRoleRequest]) (*connect.Response[operatorv1.RevokeRoleResponse], error) {
@@ -137,7 +138,7 @@ func (s *operatorUserService) RevokeRole(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&operatorv1.RevokeRoleResponse{Revoked: true, Member: member}), nil
+	return connect.NewResponse(&operatorv1.RevokeRoleResponse{Member: member}), nil
 }
 
 func (s *operatorUserService) UpdateUser(ctx context.Context, req *connect.Request[operatorv1.UpdateUserRequest]) (*connect.Response[operatorv1.UpdateUserResponse], error) {
@@ -208,23 +209,10 @@ func (s *operatorUserService) operatorMember(ctx context.Context, user *core.Adm
 	return (&adminUserManagementService{api: s.api}).adminMemberForOperator(ctx, user)
 }
 
-func operatorAdminRoleReference(role core.RoleWithPermissions) *adminv1.AdminRoleReference {
-	return &adminv1.AdminRoleReference{
-		Name:        role.Name,
-		DisplayName: role.DisplayName,
-	}
-}
-
-func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminMemberRole {
-	out := make([]*adminv1.AdminMemberRole, 0, len(roles))
-	for _, role := range roles {
-		out = append(out, &adminv1.AdminMemberRole{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Position:          role.Position,
-			Permissions:       corePermissionsToStrings(role.Permissions),
-			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
-		})
+func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {
+	out := make([]*adminv1.AdminRole, 0, len(roles))
+	for i := range roles {
+		out = append(out, adminAPIRole(&roles[i]))
 	}
 	return out
 }

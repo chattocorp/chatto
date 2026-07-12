@@ -581,6 +581,24 @@ func TestReactionKey(t *testing.T) {
 }
 
 func TestEmoji(t *testing.T) {
+	t.Run("IsValidUnicodeEmoji accepts one complete emoji", func(t *testing.T) {
+		valid := []string{"🌿", "👍", "🇩🇪", "👨‍👩‍👧‍👦"}
+		for _, emoji := range valid {
+			if !IsValidUnicodeEmoji(emoji) {
+				t.Errorf("IsValidUnicodeEmoji(%q) = false, want true", emoji)
+			}
+		}
+	})
+
+	t.Run("IsValidUnicodeEmoji rejects text and multiple emoji", func(t *testing.T) {
+		invalid := []string{"", "e", "hello", "🌿🌿", "🌿 status"}
+		for _, emoji := range invalid {
+			if IsValidUnicodeEmoji(emoji) {
+				t.Errorf("IsValidUnicodeEmoji(%q) = true, want false", emoji)
+			}
+		}
+	})
+
 	t.Run("IsValidEmojiName accepts known names", func(t *testing.T) {
 		valid := []string{"thumbsup", "+1", "heart", "joy", "tada", "rocket", "fire", "grinning", "t-rex", "melting_face", "saluting_face"}
 		for _, name := range valid {
