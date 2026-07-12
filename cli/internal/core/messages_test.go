@@ -535,6 +535,7 @@ func TestValidateMessageAttachmentAssetIDs(t *testing.T) {
 		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantErr: true},
 		{name: "empty", assetIDs: []string{""}, wantErr: true},
 		{name: "too long", assetIDs: []string{strings.Repeat("A", MaxMessageAttachmentAssetIDLength+1)}, wantErr: true},
+		{name: "too many multibyte bytes", assetIDs: []string{strings.Repeat("é", MaxMessageAttachmentAssetIDLength/2+1)}, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -560,6 +561,7 @@ func TestChattoCore_PostMessageRejectsInvalidAttachmentAssetIDs(t *testing.T) {
 	}{
 		{name: "too many", assetIDs: make([]string, MaxMessageAttachmentAssetIDs+1)},
 		{name: "too long", assetIDs: []string{strings.Repeat("A", MaxMessageAttachmentAssetIDLength+1)}},
+		{name: "too many multibyte bytes", assetIDs: []string{strings.Repeat("é", MaxMessageAttachmentAssetIDLength/2+1)}},
 	}
 
 	for _, tt := range tests {

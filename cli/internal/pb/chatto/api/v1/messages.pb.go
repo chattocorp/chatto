@@ -823,7 +823,7 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12B\n" +
 	"\x14attachment_asset_ids\x18\x03 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\x10d\"\x06r\x04\x10\x01\x18\x0fR\x12attachmentAssetIds\x12/\n" +
+	"\x10d\"\x06r\x04\x10\x01(\x0fR\x12attachmentAssetIds\x12/\n" +
 	"\x14thread_root_event_id\x18\x04 \x01(\tR\x11threadRootEventId\x12\x1e\n" +
 	"\vin_reply_to\x18\x05 \x01(\tR\tinReplyTo\x12/\n" +
 	"\x14also_send_to_channel\x18\x06 \x01(\bR\x11alsoSendToChannel\x12,\n" +

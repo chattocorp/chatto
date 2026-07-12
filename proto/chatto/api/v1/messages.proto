@@ -34,7 +34,7 @@ message CreateMessageRequest {
     items: {
       string: {
         min_len: 1
-        max_len: 15
+        max_bytes: 15
       }
     }
   }];

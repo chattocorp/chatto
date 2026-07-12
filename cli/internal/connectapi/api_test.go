@@ -251,6 +251,7 @@ func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing
 		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantCode: connect.CodeInvalidArgument},
 		{name: "empty", assetIDs: []string{""}, wantCode: connect.CodeInvalidArgument},
 		{name: "too long", assetIDs: []string{strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength+1)}, wantCode: connect.CodeInvalidArgument},
+		{name: "too many multibyte bytes", assetIDs: []string{strings.Repeat("é", core.MaxMessageAttachmentAssetIDLength/2+1)}, wantCode: connect.CodeInvalidArgument},
 	}
 
 	for _, tt := range tests {
