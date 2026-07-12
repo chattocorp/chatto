@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -435,16 +434,8 @@ func getPassphrase(input passphraseInput, prompt string, confirm bool) (string, 
 		return requirePassphrase(passphrase)
 	}
 
-	// Preserve the existing implicit one-line stdin behavior for compatibility.
 	if !term.IsTerminal(int(syscall.Stdin)) {
-		scanner := bufio.NewScanner(os.Stdin)
-		if !scanner.Scan() {
-			if err := scanner.Err(); err != nil {
-				return "", fmt.Errorf("failed to read passphrase from stdin: %w", err)
-			}
-			return "", fmt.Errorf("passphrase cannot be empty")
-		}
-		return requirePassphrase(scanner.Text())
+		return "", fmt.Errorf("non-interactive passphrase input requires --passphrase-stdin or --passphrase-file")
 	}
 
 	// Interactive: prompt with hidden input.

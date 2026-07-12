@@ -74,6 +74,14 @@ func TestGetPassphraseRejectsUnsafeSourceCombinationsAndEmptyValues(t *testing.T
 	}
 }
 
+func TestGetPassphraseNonInteractiveRequiresExplicitSource(t *testing.T) {
+	withTestStdin(t, "must-not-be-consumed\n", func() {
+		if _, err := getPassphrase(passphraseInput{}, "unused", false); err == nil || err.Error() != "non-interactive passphrase input requires --passphrase-stdin or --passphrase-file" {
+			t.Fatalf("non-interactive source error = %v", err)
+		}
+	})
+}
+
 func TestPassphraseCommandsExposeSecureSourcesAndDeprecateArgument(t *testing.T) {
 	for _, cmd := range []*cobra.Command{backupCmd, restoreCmd, keysExportCmd, keysImportCmd} {
 		if cmd.Flags().Lookup("passphrase-file") == nil || cmd.Flags().Lookup("passphrase-stdin") == nil {

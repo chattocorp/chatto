@@ -95,6 +95,7 @@ vault kv get -field=passphrase secret/chatto | \
 ```
 
 The legacy `--passphrase` argument is deprecated because command-line secrets can appear in shell history and process listings. Migrate unattended jobs to `--passphrase-file` or `--passphrase-stdin` before Chatto 0.5.
+Non-interactive commands do not consume stdin unless `--passphrase-stdin` is present; this prevents inherited pipes from hanging a backup or becoming an accidental secret source.
 
 <Aside type="caution">
   A backup made with `--include-keys` contains the keys needed to decrypt message bodies and durable user PII after restore. Always combine `--include-keys` with `--encrypt`, and treat the archive as sensitive material.
