@@ -4,6 +4,7 @@
   import { useRenderData } from '$lib/render/data';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
 
   let { event }: { event: RoomEventView } = $props();
 
@@ -19,7 +20,7 @@
 
   const subject = $derived.by<Subject>(() => {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
@@ -42,13 +43,9 @@
     }
   });
 
-  const message = $derived.by(() => {
-    if (!action) return null;
-    return `${subject.name} ${action}`;
-  });
 </script>
 
-{#if message}
+{#if action}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
@@ -64,6 +61,13 @@
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{message}</span>
+    <span class="text-sm text-muted">
+      {#if subject.user}
+        {subject.name}
+      {:else}
+        <DeletedUserLabel />
+      {/if}
+      {action}
+    </span>
   </div>
 {/if}

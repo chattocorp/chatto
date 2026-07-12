@@ -132,7 +132,6 @@
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
       "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar.",
-      "deleted_user": "Gelöschter Benutzer",
       "view_profile": "Profil von {name} anzeigen",
       "in_voice_call": "In einem Sprachanruf",
       "in_video_call": "In einem Videoanruf",

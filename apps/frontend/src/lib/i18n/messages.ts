@@ -94,6 +94,7 @@ const msg_common_confirm = (): LocalizedString => messages().common_confirm(empt
 const msg_common_back = (): LocalizedString => messages().common_back(empty());
 const msg_common_clear = (): LocalizedString => messages().common_clear(empty());
 const msg_common_unknown = (): LocalizedString => messages().common_unknown(empty());
+const msg_common_deleted_user = (): LocalizedString => messages().common_deleted_user(empty());
 const msg_common_got_it = (): LocalizedString => messages().common_got_it(empty());
 const msg_common_saved = (): LocalizedString => messages().common_saved(empty());
 const msg_common_rooms = (): LocalizedString => messages().common_rooms(empty());
@@ -692,7 +693,6 @@ const msg_room_sidebar_jump_to_file = (
 ): LocalizedString => messages().room_sidebar_jump_to_file(inputs);
 const msg_room_sidebar_loading_files = (): LocalizedString => messages().room_sidebar_loading_files(empty());
 const msg_room_sidebar_calls_unavailable = (): LocalizedString => messages().room_sidebar_calls_unavailable(empty());
-const msg_room_sidebar_deleted_user = (): LocalizedString => messages().room_sidebar_deleted_user(empty());
 const msg_room_sidebar_view_profile = (
   inputs: Parameters<LocaleMessages['room_sidebar_view_profile']>[0]
 ): LocalizedString => messages().room_sidebar_view_profile(inputs);
@@ -838,7 +838,6 @@ const msg_preview_youtube_dismiss = (): LocalizedString => messages().preview_yo
 const msg_preview_youtube_delete = (): LocalizedString => messages().preview_youtube_delete(empty());
 const msg_preview_youtube_open = (): LocalizedString => messages().preview_youtube_open(empty());
 const msg_preview_youtube_delete_embed = (): LocalizedString => messages().preview_youtube_delete_embed(empty());
-const msg_message_preview_deleted_user = (): LocalizedString => messages().message_preview_deleted_user(empty());
 const msg_message_preview_attachments_count = (
   inputs: Parameters<LocaleMessages['message_preview_attachments_count']>[0]
 ): LocalizedString => messages().message_preview_attachments_count(inputs);
@@ -1520,6 +1519,7 @@ export { msg_common_confirm as 'common.confirm' };
 export { msg_common_back as 'common.back' };
 export { msg_common_clear as 'common.clear' };
 export { msg_common_unknown as 'common.unknown' };
+export { msg_common_deleted_user as 'common.deleted_user' };
 export { msg_common_got_it as 'common.got_it' };
 export { msg_common_saved as 'common.saved' };
 export { msg_common_rooms as 'common.rooms' };
@@ -2030,7 +2030,6 @@ export { msg_room_sidebar_call as 'room.sidebar.call' };
 export { msg_room_sidebar_jump_to_file as 'room.sidebar.jump_to_file' };
 export { msg_room_sidebar_loading_files as 'room.sidebar.loading_files' };
 export { msg_room_sidebar_calls_unavailable as 'room.sidebar.calls_unavailable' };
-export { msg_room_sidebar_deleted_user as 'room.sidebar.deleted_user' };
 export { msg_room_sidebar_view_profile as 'room.sidebar.view_profile' };
 export { msg_room_sidebar_in_voice_call as 'room.sidebar.in_voice_call' };
 export { msg_room_sidebar_in_video_call as 'room.sidebar.in_video_call' };
@@ -2162,7 +2161,6 @@ export { msg_preview_youtube_dismiss as 'preview.youtube_dismiss' };
 export { msg_preview_youtube_delete as 'preview.youtube_delete' };
 export { msg_preview_youtube_open as 'preview.youtube_open' };
 export { msg_preview_youtube_delete_embed as 'preview.youtube_delete_embed' };
-export { msg_message_preview_deleted_user as 'message_preview.deleted_user' };
 export { msg_message_preview_attachments_count as 'message_preview.attachments_count' };
 export { msg_message_preview_attachment_image as 'message_preview.attachment_image' };
 export { msg_message_preview_attachment_video as 'message_preview.attachment_video' };

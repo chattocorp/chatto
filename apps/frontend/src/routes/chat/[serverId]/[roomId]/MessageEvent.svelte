@@ -52,6 +52,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -96,16 +97,19 @@
       .filter((role) => role.pingable && role.name !== 'everyone')
       .map((role) => role.name)
   );
-  // Actor may be null if the user has been deleted.
+  // Deleted actors may be absent or retained as a deleted reference.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null);
+  const deletedActor = $derived(!actor || actor.deleted);
 
   // Display name with live updates from profile cache
   const displayName = $derived(
-    actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
+    !deletedActor && actor
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+      : m['common.deleted_user']()
   );
   const actorCallPresence = $derived(
-    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within
@@ -409,16 +413,19 @@
     const replyToId = messageEvent?.inReplyTo;
     if (!replyToId) return null;
 
-    if (!replyTarget) return { name: 'a message', body: null as string | null, actor: null };
+    if (!replyTarget) {
+      return { name: 'a message', body: null as string | null, actor: null, deleted: false };
+    }
 
     const repliedActor = replyTarget.actor
       ? useRenderData(UserAvatarViewData, replyTarget.actor)
       : null;
-    const name = repliedActor
-      ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
-      : 'Deleted User';
+    const activeRepliedActor = repliedActor && !repliedActor.deleted ? repliedActor : null;
+    const name = activeRepliedActor
+      ? getLiveDisplayName(activeRepliedActor.id, activeRepliedActor.displayName || activeRepliedActor.login)
+      : m['common.deleted_user']();
     const body = isMessagePostedEvent(replyTarget.event) ? (replyTarget.event.body ?? null) : null;
-    return { name, body, actor: repliedActor };
+    return { name, body, actor: activeRepliedActor, deleted: !activeRepliedActor };
   });
 
   // Check if this thread has pending reply notifications
@@ -694,7 +701,7 @@
         <!-- Spacer maintains left column width; avatar is absolutely positioned
 					 so it doesn't inflate row height for short (single-line) messages -->
         <div class="w-11 shrink-0"></div>
-        {#if actor}
+        {#if !deletedActor && actor}
           <button
             type="button"
             class={['absolute left-2 z-10 cursor-pointer', replyPreview ? 'top-8' : 'top-1']}
@@ -726,7 +733,7 @@
         {#if replyPreview}
           {@const replyJumpText =
             replyPreview.body ??
-            (replyPreview.actor
+            (replyPreview.actor || replyPreview.deleted
               ? m['room.message.meta.reply_preview_fallback']()
               : replyPreview.name)}
           {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
@@ -772,8 +779,8 @@
                 <strong class="truncate font-medium">{replyPreview.name}</strong>
                 {@render callPresenceIcon(replyCallPresence)}
               </button>
-            {:else if replyPreview.body}
-              <strong class="max-w-[45%] shrink-0 truncate font-medium">{replyPreview.name}</strong>
+            {:else if replyPreview.deleted}
+              <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong>
             {/if}
             <button
               type="button"
@@ -789,7 +796,7 @@
         <!-- Author and timestamp -->
         {#if !compact}
           <div class="flex min-w-0 items-center gap-2">
-            {#if actor}
+            {#if !deletedActor && actor}
               <button
                 type="button"
                 class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
@@ -805,7 +812,7 @@
                 {@render callPresenceIcon(actorCallPresence)}
               </button>
             {:else}
-              <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
+              <strong class="shrink-0 leading-none font-semibold text-muted"><DeletedUserLabel /></strong>
             {/if}
             <a
               href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {

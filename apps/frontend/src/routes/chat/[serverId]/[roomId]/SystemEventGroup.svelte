@@ -4,6 +4,7 @@
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
 
   let {
     events,
@@ -34,7 +35,7 @@
 
   function eventSubject(event: RoomEventView): Actor {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
@@ -59,17 +60,29 @@
 
   let expanded = $state(false);
 
-  function joinNames(names: string[]): string {
-    if (names.length === 0) return '';
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+  function nameSeparator(index: number, total: number): string {
+    if (index === 0) return '';
+    if (index === total - 1) return total === 2 ? ' and ' : ', and ';
+    return ', ';
   }
 
-  const allNames = $derived(joinNames(actors.map((a) => a.name)));
-  const headNames = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION).map((a) => a.name).join(', '));
+  const headActors = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION));
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
 </script>
+
+{#snippet actorName(actor: Actor)}
+  {#if actor.user}
+    {actor.name}
+  {:else}
+    <DeletedUserLabel />
+  {/if}
+{/snippet}
+
+{#snippet actorNames(items: Actor[])}
+  {#each items as actor, index (actor.id)}
+    {nameSeparator(index, items.length)}{@render actorName(actor)}
+  {/each}
+{/snippet}
 
 {#if actors.length > 0}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={events[0].id}>
@@ -92,7 +105,7 @@
 
     <span class="text-sm text-muted">
       {#if !isTruncatable || expanded}
-        {allNames} {action}
+        {@render actorNames(actors)} {action}
         {#if isTruncatable}
           <button
             type="button"
@@ -103,7 +116,7 @@
           </button>
         {/if}
       {:else}
-        {headNames}, and <button
+        {@render actorNames(headActors)}, and <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={() => (expanded = true)}

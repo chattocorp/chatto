@@ -54,4 +54,14 @@ describe('SystemEvent', () => {
 
     expect(container.textContent).toContain('Alice left the room');
   });
+
+  it('renders a deleted actor as an italicized placeholder', () => {
+    const event = systemEvent(RoomEventKind.UserJoinedRoom);
+    event.actor = null;
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('[deleted user] joined the room');
+    expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+  });
 });

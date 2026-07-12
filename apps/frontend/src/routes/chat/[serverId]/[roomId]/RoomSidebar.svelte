@@ -15,6 +15,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import * as m from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { PresenceStatus } from '$lib/render/types';
@@ -459,13 +460,19 @@ calls, and similar room-specific panels can plug into the same shell. See the
       if (!member.deleted) togglePopover(member.id, e);
     }}
     title={member.deleted
-      ? m['room.sidebar.deleted_user']()
+      ? m['common.deleted_user']()
       : m['room.sidebar.view_profile']({ name: getLiveDisplayName(member.id, member.displayName) })}
   >
     <UserAvatar user={member} size="sm" showPresence />
     <div class="min-w-0 flex-1">
       <div class="flex min-w-0 items-center gap-1.5">
-        <span class="min-w-0 truncate">{getLiveDisplayName(member.id, member.displayName)}</span>
+        <span class="min-w-0 truncate">
+          {#if member.deleted}
+            <DeletedUserLabel />
+          {:else}
+            {getLiveDisplayName(member.id, member.displayName)}
+          {/if}
+        </span>
         <UserCustomStatusBadge
           status={getLiveCustomStatus(member.id, member.customStatus)}
           class="shrink-0 text-xs"

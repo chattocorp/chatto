@@ -1,7 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "message_preview": {
-    "deleted_user": "Gelöschter Benutzer",
     "attachments_count": "{count} Anhänge",
     "attachment_image": "Bild",
     "attachment_video": "Video",
