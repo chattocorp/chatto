@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.8](https://github.com/chattocorp/chatto/compare/v0.4.7...v0.4.8) (2026-07-12)
+
+
+### Bug Fixes
+
+* **api:** bound message attachment asset IDs ([#1458](https://github.com/chattocorp/chatto/issues/1458)) ([f22b343](https://github.com/chattocorp/chatto/commit/f22b343a0b8d4dba97e480a10f107ecb30f90e3a))
+* **auth:** keep provider redirects credential-free ([#1437](https://github.com/chattocorp/chatto/issues/1437)) ([e9c5ebf](https://github.com/chattocorp/chatto/commit/e9c5ebff450704e96acdebb9cfe19f858ccd497b))
+* **auth:** preserve sessions during storage outages ([#1431](https://github.com/chattocorp/chatto/issues/1431)) ([3442f8a](https://github.com/chattocorp/chatto/commit/3442f8aa9f37a21f01c57a7b5c65c7ffa5d833c4))
+* **auth:** throttle password reset requests ([#1441](https://github.com/chattocorp/chatto/issues/1441)) ([67dd1dc](https://github.com/chattocorp/chatto/commit/67dd1dc682d813685efe7454780fe86c09083724))
+* **backup:** harden archive creation and restore ([#1435](https://github.com/chattocorp/chatto/issues/1435)) ([d07672c](https://github.com/chattocorp/chatto/commit/d07672c23ab6023520d2424ecff17bce374c31ca))
+* **cli:** require explicit passphrase sources ([#1451](https://github.com/chattocorp/chatto/issues/1451)) ([6b8b24e](https://github.com/chattocorp/chatto/commit/6b8b24e9679652ddec6d3db93c7d48b93ffd6104))
+* **frontend:** embed main build version ([#1463](https://github.com/chattocorp/chatto/issues/1463)) ([21a20a8](https://github.com/chattocorp/chatto/commit/21a20a856e9ff234b6f74b2045246cfff038cc8d))
+* **frontend:** label deleted users consistently ([#1452](https://github.com/chattocorp/chatto/issues/1452)) ([8e04235](https://github.com/chattocorp/chatto/commit/8e042350b1c6d91c0df3affc4402b46a330bbfcf))
+* **release:** publish sortable main image tags ([030db55](https://github.com/chattocorp/chatto/commit/030db55d60cdd039c30904e460988b6a29cd4485))
+* **security:** harden realtime auth and request handling ([#1433](https://github.com/chattocorp/chatto/issues/1433)) ([75c5a24](https://github.com/chattocorp/chatto/commit/75c5a246d4e6b75c7750b99c19e5e3aa4bbbe3bd))
+* **security:** require explicit proxy trust ([#1447](https://github.com/chattocorp/chatto/issues/1447)) ([234862f](https://github.com/chattocorp/chatto/commit/234862f412943cc481ed0744ed4c7b4e6473aff0))
+* **tls:** secure autocert cache permissions ([#1461](https://github.com/chattocorp/chatto/issues/1461)) ([cef9d29](https://github.com/chattocorp/chatto/commit/cef9d292e722ef6998356419db79a23b4c14c19d))
+
 ## [0.4.7](https://github.com/chattocorp/chatto/compare/v0.4.6...v0.4.7) (2026-07-11)
 
 
