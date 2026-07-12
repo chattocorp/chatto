@@ -69,6 +69,8 @@ chatto backup -c chatto.toml
 chatto backup -c chatto.toml -o /mnt/backups/chatto-daily.tar.gz
 ```
 
+Chatto stages snapshots in a private temporary directory next to the destination archive and removes the plaintext staging data whether archive creation succeeds or fails. The completed archive is written with owner-only permissions and moved into place atomically, so a failed run does not replace an existing backup with a partial file.
+
 ### Encrypted backups
 
 Use `--encrypt` to protect the backup archive with a passphrase. For small self-hosted servers, also pass `--include-keys` so the archive is self-contained:
@@ -99,6 +101,8 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 <Aside type="caution">
   Make sure Chatto is **not running** before restoring. For embedded NATS setups, the restore command starts its own temporary NATS server. For external NATS, stop the Chatto application but keep NATS running.
 </Aside>
+
+Restore accepts regular files and directories only, rejects unsafe manifest and archive paths, and stops archives that exceed the built-in entry-count or expanded-size safety limits. These limits are intentionally generous for production backups while preventing malformed archives from expanding without a bound.
 
 <Aside type="tip">
   Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.

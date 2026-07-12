@@ -699,6 +699,8 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 
 Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process `internal/kms` boundary for KEK creation, DEK wrap/unwrap, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{contentKeyRef}`.
 
+The backup CLI stages JetStream snapshots in an owner-only random directory beside the destination, always removes plaintext staging, and publishes owner-only archives through a same-directory temporary file and atomic rename. Restore extracts into an owner-only temporary directory, rejects non-local manifest stream names and unsupported tar entry types, and bounds archive entry count, individual file size, and total expanded bytes before connecting restored paths to JetStream.
+
 **RUNTIME\_STATE keys:**
 
 `RUNTIME_STATE` is the persisted home for latest-value runtime state that

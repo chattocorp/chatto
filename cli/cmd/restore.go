@@ -59,6 +59,9 @@ func init() {
 func runRestore(cmd *cobra.Command, args []string) {
 	archivePath := args[0]
 	startTime := time.Now()
+	if err := validateRestoreArchiveFile(archivePath); err != nil {
+		log.Fatal("Invalid restore archive", "error", err)
+	}
 
 	// Validate conflict flag
 	switch restoreConflict {
@@ -126,6 +129,9 @@ func runRestore(cmd *cobra.Command, args []string) {
 	var manifest BackupManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		log.Fatal("Failed to parse manifest", "error", err)
+	}
+	if err := validateBackupManifest(manifest); err != nil {
+		log.Fatal("Invalid backup manifest", "error", err)
 	}
 
 	log.Info("Backup info",
@@ -309,6 +315,35 @@ func manifestIncludesEncryptionKeys(m BackupManifest) bool {
 		return s.Type != "skipped" && s.Error == ""
 	}
 	return false
+}
+
+func validateBackupManifest(manifest BackupManifest) error {
+	seen := make(map[string]struct{}, len(manifest.Streams))
+	for _, stream := range manifest.Streams {
+		name := stream.Name
+		if name == "" || filepath.IsAbs(name) || name != filepath.Base(name) || name == "." || name == ".." || strings.ContainsAny(name, "/\\.*> \t\r\n") {
+			return fmt.Errorf("invalid stream name %q", name)
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("duplicate stream name %q", name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
+func validateRestoreArchiveFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("restore archive must be a regular file")
+	}
+	if info.Size() > maxRestoreArchiveCompressedBytes {
+		return fmt.Errorf("restore archive exceeds the compressed-size limit of %d bytes", maxRestoreArchiveCompressedBytes)
+	}
+	return nil
 }
 
 // connectForRestore establishes a NATS connection for restore operations.
