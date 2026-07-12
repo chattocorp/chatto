@@ -55,6 +55,9 @@ func (c *ChattoCore) LinkPasskey(ctx context.Context, userID string, credentialI
 	hash := passkeyHash(credentialID)
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasskeyLinked{UserPasskeyLinked: &corev1.UserPasskeyLinkedEvent{UserId: userID, CredentialHash: hash, CredentialId: credentialID, Credential: credential, Label: label}}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+		if _, ok := c.Users.Get(userID); !ok {
+			return ErrNotFound
+		}
 		for _, candidateID := range c.Users.UserIDs() {
 			for _, existing := range c.Users.Passkeys(candidateID) {
 				if existing.CredentialHash == hash && candidateID != userID {

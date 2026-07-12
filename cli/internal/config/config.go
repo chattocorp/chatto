@@ -523,7 +523,7 @@ func (c *ChattoConfig) PasskeyRelyingParty() (id string, origin string, ok bool)
 		return "", "", false
 	}
 	u, err := url.Parse(c.Webserver.URL)
-	if err != nil || u.Hostname() == "" {
+	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && !isLoopbackHost(u.Hostname())) {
 		return "", "", false
 	}
 	return u.Hostname(), u.Scheme + "://" + u.Host, true

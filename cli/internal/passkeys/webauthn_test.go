@@ -26,3 +26,14 @@ func TestNewDerivesExactRelyingPartyFromPublicURL(t *testing.T) {
 		t.Fatalf("RPOrigins = %#v", got)
 	}
 }
+
+func TestNewRejectsInsecurePublicOriginWithoutPriorConfigValidation(t *testing.T) {
+	enabled := true
+	cfg := config.ChattoConfig{
+		Webserver: config.WebserverConfig{URL: "http://chat.example.test"},
+		Auth:      config.AuthConfig{Passkeys: config.PasskeysConfig{Enabled: &enabled}},
+	}
+	if _, err := New(cfg, "Example Chat"); err == nil {
+		t.Fatal("New() error = nil, want insecure public origin rejection")
+	}
+}

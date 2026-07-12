@@ -31,6 +31,9 @@ func TestChattoCore_PasskeysAreDurableAndUniquelyLinked(t *testing.T) {
 	if _, err := core.LinkPasskey(ctx, second.GetId(), credentialID, []byte("serialized-credential"), "Duplicate"); !errors.Is(err, ErrPasskeyClaimed) {
 		t.Fatalf("LinkPasskey duplicate error = %v, want ErrPasskeyClaimed", err)
 	}
+	if _, err := core.LinkPasskey(ctx, "Umissing", []byte("orphan"), []byte("serialized-credential"), "Orphan"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LinkPasskey missing user error = %v, want ErrNotFound", err)
+	}
 	if err := core.UnlinkPasskey(ctx, first.GetId(), passkeys[0].CredentialHash); err != nil {
 		t.Fatalf("UnlinkPasskey: %v", err)
 	}
