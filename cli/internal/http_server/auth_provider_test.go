@@ -446,6 +446,31 @@ func TestOIDCRoleClaimSynchronizesMatchedLogin(t *testing.T) {
 	}
 }
 
+func TestOIDCRoleClaimPendingFlowStoresOnlyAcceptedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetRoles([]string{core.RoleModerator, "provider-only-role"})
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+			IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: boolPtr(true),
+			RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator},
+		}}
+		s.setupOIDCRoutes()
+	})
+
+	token := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-roles", "/chat")
+	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), token)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if !slices.Equal(flow.OIDCRoles, []string{core.RoleModerator}) {
+		t.Fatalf("pending OIDC roles = %v, want only %q", flow.OIDCRoles, core.RoleModerator)
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

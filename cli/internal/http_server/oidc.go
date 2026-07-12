@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 
@@ -687,7 +688,7 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		LoginHint:            identity.loginHint,
 		DisplayNameHint:      identity.displayNameHint,
 		OIDCRoleClaimPresent: identity.oidcRoleClaimPresent,
-		OIDCRoles:            identity.oidcRoles,
+		OIDCRoles:            s.acceptedOIDCRoleClaims(providerConfig, identity.oidcRoles),
 		RedirectPath:         providerReturnPath(session, "/"),
 	}
 
@@ -714,6 +715,46 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
+}
+
+// acceptedOIDCRoleClaims filters callback claims before a pending account or
+// link flow is stored in RUNTIME_STATE. This keeps unrecognized provider role
+// values out of persisted workflow state; direct login passes values straight
+// to core, where they are likewise filtered before any EVT write.
+func (s *HTTPServer) acceptedOIDCRoleClaims(provider config.AuthProviderConfig, claimedRoles []string) []string {
+	if provider.Type != config.AuthProviderTypeOpenIDConnect || strings.TrimSpace(provider.RoleClaim) == "" {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(provider.RoleClaimAllowedRoles))
+	wildcard := false
+	for _, roleName := range provider.RoleClaimAllowedRoles {
+		roleName = strings.TrimSpace(roleName)
+		if roleName == "*" {
+			wildcard = true
+			continue
+		}
+		allowed[roleName] = struct{}{}
+	}
+	accepted := make(map[string]struct{})
+	for _, roleName := range claimedRoles {
+		roleName = strings.TrimSpace(roleName)
+		if roleName == "" || roleName == core.RoleEveryone || !s.core.RBAC.RoleExists(roleName) {
+			continue
+		}
+		if wildcard {
+			accepted[roleName] = struct{}{}
+			continue
+		}
+		if _, ok := allowed[roleName]; ok {
+			accepted[roleName] = struct{}{}
+		}
+	}
+	roles := make([]string, 0, len(accepted))
+	for roleName := range accepted {
+		roles = append(roles, roleName)
+	}
+	sort.Strings(roles)
+	return roles
 }
 
 func providerReturnPath(session sessions.Session, fallback string) string {
