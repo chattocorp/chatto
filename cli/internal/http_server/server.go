@@ -370,22 +370,45 @@ func ensureAutocertCacheDir(cacheDir string) error {
 		return fmt.Errorf("failed to create certificate cache directory: %w", err)
 	}
 
-	info, err := os.Stat(cacheDir)
+	info, err := os.Lstat(cacheDir)
 	if err != nil {
 		return fmt.Errorf("failed to inspect certificate cache directory: %w", err)
 	}
-	if !info.IsDir() {
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return fmt.Errorf("certificate cache path %q is not a directory", cacheDir)
+	}
+	uid, _, ownerAvailable := fileOwnerIDs(info)
+	if ownerAvailable && uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("certificate cache directory %q is owned by uid %d, want uid %d", cacheDir, uid, os.Geteuid())
+	}
+	if ownerAvailable {
+		parent := filepath.Dir(filepath.Clean(cacheDir))
+		parentInfo, err := os.Lstat(parent)
+		if err != nil {
+			return fmt.Errorf("failed to inspect certificate cache parent directory: %w", err)
+		}
+		if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
+			return fmt.Errorf("certificate cache parent path %q is not a directory", parent)
+		}
+		if got := parentInfo.Mode().Perm(); got&0o022 != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is writable by group or other users; mode is %04o", parent, got)
+		}
 	}
 
 	if err := os.Chmod(cacheDir, autocertCacheDirMode); err != nil {
 		return fmt.Errorf("failed to secure certificate cache directory: %w", err)
 	}
-	info, err = os.Stat(cacheDir)
+	info, err = os.Lstat(cacheDir)
 	if err != nil {
 		return fmt.Errorf("failed to verify certificate cache directory permissions: %w", err)
 	}
-	if got := info.Mode().Perm(); got != autocertCacheDirMode {
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q changed while securing it", cacheDir)
+	}
+	if verifiedUID, _, ok := fileOwnerIDs(info); ownerAvailable && (!ok || verifiedUID != uint32(os.Geteuid())) {
+		return fmt.Errorf("certificate cache directory ownership changed while securing it")
+	}
+	if got := info.Mode().Perm(); ownerAvailable && got != autocertCacheDirMode {
 		return fmt.Errorf("certificate cache directory has mode %04o after securing, want %04o", got, autocertCacheDirMode)
 	}
 	return nil

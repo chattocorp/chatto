@@ -70,6 +70,51 @@ func TestEnsureAutocertCacheDir(t *testing.T) {
 			t.Fatal("ensureAutocertCacheDir() error = nil, want non-directory error")
 		}
 	})
+
+	t.Run("rejects a symlink", func(t *testing.T) {
+		parent := t.TempDir()
+		target := filepath.Join(parent, "target")
+		if err := os.Mkdir(target, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Symlink(target, cacheDir); err != nil {
+			t.Fatalf("Symlink() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "is not a directory") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want symlink rejection", err)
+		}
+	})
+
+	t.Run("rejects a replaceable cache path", func(t *testing.T) {
+		parent := t.TempDir()
+		cacheDir := filepath.Join(parent, "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chmod(parent, 0o777); err != nil {
+			t.Fatalf("Chmod() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "writable by group or other users") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want unsafe-parent rejection", err)
+		}
+	})
+
+	t.Run("rejects a directory owned by another user", func(t *testing.T) {
+		if os.Geteuid() != 0 {
+			t.Skip("changing directory ownership requires root")
+		}
+		cacheDir := filepath.Join(t.TempDir(), "autocert")
+		if err := os.Mkdir(cacheDir, autocertCacheDirMode); err != nil {
+			t.Fatalf("Mkdir() error = %v", err)
+		}
+		if err := os.Chown(cacheDir, 1, -1); err != nil {
+			t.Fatalf("Chown() error = %v", err)
+		}
+		if err := ensureAutocertCacheDir(cacheDir); err == nil || !strings.Contains(err.Error(), "is owned by uid") {
+			t.Fatalf("ensureAutocertCacheDir() error = %v, want ownership rejection", err)
+		}
+	})
 }
 
 func assertPathMode(t *testing.T, path string, want os.FileMode) {
