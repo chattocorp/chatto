@@ -51,6 +51,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_TRUSTED_PROXIES" toml="webserver.trusted_proxies">
+  Comma-separated IP addresses or CIDR ranges for reverse proxies that Chatto may trust to supply `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host`. The default is empty, so direct clients cannot spoof audit attribution or WebSocket same-origin checks with forwarded headers. Configure the narrow network used by your proxy—for example, `127.0.0.1` for a same-host proxy or the specific container-network CIDR—and make the proxy overwrite forwarded headers rather than preserving client-supplied values. This does not make forwarded protocol headers authoritative for public URL generation; continue setting `webserver.url`.
+</EnvVar>
+
 ### TLS
 
 Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certificate provisioning and renewal automatically.

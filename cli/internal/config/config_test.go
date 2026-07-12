@@ -556,6 +556,7 @@ func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 oauth_redirect_origins = ["https://client.example"]
+trusted_proxies = ["127.0.0.1", "10.0.0.0/8"]
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
@@ -574,14 +575,21 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "https://client.example"; got != want {
 		t.Fatalf("expected TOML oauth_redirect_origins %q, got %q", want, got)
 	}
+	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "127.0.0.1,10.0.0.0/8"; got != want {
+		t.Fatalf("expected TOML trusted_proxies %q, got %q", want, got)
+	}
 
 	t.Setenv("CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS", "*")
+	t.Setenv("CHATTO_WEBSERVER_TRUSTED_PROXIES", "192.0.2.10,2001:db8::/32")
 	cfg, err = ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() with env override failed: %v", err)
 	}
 	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "*"; got != want {
 		t.Fatalf("expected env oauth_redirect_origins %q, got %q", want, got)
+	}
+	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "192.0.2.10,2001:db8::/32"; got != want {
+		t.Fatalf("expected env trusted_proxies %q, got %q", want, got)
 	}
 }
 
@@ -1292,7 +1300,15 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 				c.Webserver.URL = "https://chat.example"
 				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
 				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
+				c.Webserver.TrustedProxies = []string{"127.0.0.1", "10.0.0.0/8", "2001:db8::/32"}
 			},
+		},
+		{
+			name: "trusted proxy rejects hostnames",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.TrustedProxies = []string{"proxy.internal"}
+			},
+			wantError: "webserver.trusted_proxies contains invalid IP address or CIDR",
 		},
 		{
 			name: "webserver URL requires http or https",

@@ -73,6 +73,7 @@ type WebserverConfig struct {
 	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
 	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
 	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
+	TrustedProxies         []string  `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
 	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for eligible realtime frames. Default: true."`
 	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Successful requests are debug-level; 4xx responses are warnings; 5xx responses are errors. Useful for debugging but can be noisy in production. Default: false."`
 	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
@@ -1025,6 +1026,13 @@ func (c *ChattoConfig) Validate() error {
 	for _, origin := range c.Webserver.OAuthRedirectOrigins {
 		if err := validateOrigin("webserver.oauth_redirect_origins", origin, true, true); err != nil {
 			errs = append(errs, err.Error())
+		}
+	}
+	for _, proxy := range c.Webserver.TrustedProxies {
+		if net.ParseIP(proxy) == nil {
+			if _, _, err := net.ParseCIDR(proxy); err != nil {
+				errs = append(errs, fmt.Sprintf("webserver.trusted_proxies contains invalid IP address or CIDR %q", proxy))
+			}
 		}
 	}
 

@@ -36,16 +36,17 @@ type HTTPServerConfig struct {
 
 // HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
-	config     config.ChattoConfig
-	nc         *nats.Conn
-	router     *gin.Engine
-	core       *core.ChattoCore
-	mailer     email.Sender
-	mockMailer *email.MockSender // Non-nil when test email endpoint is enabled
-	addr       string
-	version    string
-	logger     *log.Logger
-	metrics    *processMetrics
+	config         config.ChattoConfig
+	nc             *nats.Conn
+	router         *gin.Engine
+	core           *core.ChattoCore
+	mailer         email.Sender
+	mockMailer     *email.MockSender // Non-nil when test email endpoint is enabled
+	addr           string
+	version        string
+	logger         *log.Logger
+	metrics        *processMetrics
+	trustedProxies trustedProxySet
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
@@ -109,22 +110,30 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 
 	// Create Gin router with Recovery middleware, and optionally Logger
 	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.Config.Webserver.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("configure trusted proxies: %w", err)
+	}
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
 		router.Use(requestLogger(logger))
 	}
 
+	trustedProxies, err := newTrustedProxySet(cfg.Config.Webserver.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
 	s := &HTTPServer{
-		config:     cfg.Config,
-		nc:         cfg.NC,
-		router:     router,
-		core:       cfg.Core,
-		mailer:     mailer,
-		mockMailer: mockMailer,
-		addr:       cfg.Addr,
-		version:    cfg.Version,
-		logger:     logger,
-		metrics:    newProcessMetrics(),
+		config:         cfg.Config,
+		nc:             cfg.NC,
+		router:         router,
+		core:           cfg.Core,
+		mailer:         mailer,
+		mockMailer:     mockMailer,
+		addr:           cfg.Addr,
+		version:        cfg.Version,
+		logger:         logger,
+		metrics:        newProcessMetrics(),
+		trustedProxies: trustedProxies,
 	}
 
 	// Set up all routes

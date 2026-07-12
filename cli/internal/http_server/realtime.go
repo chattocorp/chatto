@@ -87,8 +87,10 @@ func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request, allowedOrigin
 		return true
 	}
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
-		host = forwarded
+	if s.trustedProxies.containsRemoteAddr(r.RemoteAddr) {
+		if forwarded := forwardedHost(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
+			host = forwarded
+		}
 	}
 	if parsedOrigin, err := url.Parse(origin); err == nil {
 		if strings.EqualFold(parsedOrigin.Host, host) {
