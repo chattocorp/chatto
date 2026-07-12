@@ -1374,7 +1374,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
 		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
 	}})
-	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
+	if err := c.recordUserDeletionAndReleasePasskeys(ctx, userID, deletedEvent); err != nil {
 		return fmt.Errorf("failed to mark user deleted: %w", err)
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {

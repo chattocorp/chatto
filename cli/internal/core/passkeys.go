@@ -151,3 +151,48 @@ func (c *ChattoCore) UnlinkPasskey(ctx context.Context, userID, credentialHash s
 	}
 	return fmt.Errorf("passkey unlink OCC retry exhausted: %w", events.ErrConflict)
 }
+
+// recordUserDeletionAndReleasePasskeys atomically tombstones the account and
+// all of its credential aggregates. This releases credential hashes without
+// relying on eventual cross-projection cleanup after deletion.
+func (c *ChattoCore) recordUserDeletionAndReleasePasskeys(ctx context.Context, userID string, deletedEvent *corev1.Event) error {
+	userAgg := events.UserAggregate(userID)
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userAgg.AllEventsFilter())
+		if err != nil {
+			return err
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userAgg.AllEventsFilter(), userSeq)); err != nil {
+			return err
+		}
+		links := c.Users.Passkeys(userID)
+		entries := []events.BatchEntry{{Subject: userAgg.Subject(events.EventUserAccountDeleted), Event: deletedEvent, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userAgg.AllEventsFilter()}}
+		for _, link := range links {
+			agg := events.PasskeyAggregate(link.CredentialHash)
+			seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
+			if err != nil {
+				return err
+			}
+			if err := c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(agg.AllEventsFilter(), seq)); err != nil {
+				return err
+			}
+			entries = append(entries, events.BatchEntry{Subject: agg.Subject(events.EventPasskeyCredentialRemoved), Event: newEvent(userID, &corev1.Event{Event: &corev1.Event_PasskeyCredentialRemoved{PasskeyCredentialRemoved: &corev1.PasskeyCredentialRemovedEvent{CredentialHash: link.CredentialHash}}}), HasOCC: true, ExpectedSeq: seq, FilterSubject: agg.AllEventsFilter()})
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(entries[0].Subject, seqs[0])); err != nil {
+				return err
+			}
+			for i := 1; i < len(entries); i++ {
+				if err := c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(entries[i].Subject, seqs[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+	}
+	return fmt.Errorf("user deletion passkey OCC retry exhausted: %w", events.ErrConflict)
+}
