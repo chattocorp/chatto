@@ -14,7 +14,8 @@ export type PublicServerInfo = {
   version: string;
   authorizeUrl: string;
   directRegistrationEnabled: boolean;
-  passkeysEnabled: boolean;
+  /** Omitted by older server/client fixtures; fetched server responses normalize it to false. */
+  passkeysEnabled?: boolean;
   welcomeMessage: string | null;
   description: string | null;
   iconUrl: string | null;
