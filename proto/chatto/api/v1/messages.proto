@@ -28,7 +28,16 @@ message CreateMessageRequest {
   // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
-  repeated string attachment_asset_ids = 3;
+  // At most 100 IDs may be supplied.
+  repeated string attachment_asset_ids = 3 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 15
+      }
+    }
+  }];
   // Event ID of the thread root message when posting a thread reply.
   string thread_root_event_id = 4;
   // Event ID this message replies to for attribution.

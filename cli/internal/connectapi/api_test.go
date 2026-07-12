@@ -228,6 +228,45 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
 
+func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	path, handler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
+	mux.Handle(path, handler)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
+	maxIDs := make([]string, core.MaxMessageAttachmentAssetIDs)
+	for i := range maxIDs {
+		maxIDs[i] = strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength)
+	}
+
+	tests := []struct {
+		name     string
+		assetIDs []string
+		wantCode connect.Code
+	}{
+		{name: "at limits reaches authentication", assetIDs: maxIDs, wantCode: connect.CodeUnauthenticated},
+		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantCode: connect.CodeInvalidArgument},
+		{name: "empty", assetIDs: []string{""}, wantCode: connect.CodeInvalidArgument},
+		{name: "too long", assetIDs: []string{strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength+1)}, wantCode: connect.CodeInvalidArgument},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.CreateMessage(context.Background(), connect.NewRequest(&apiv1.CreateMessageRequest{
+				RoomId:             "room",
+				Body:               "hello",
+				AttachmentAssetIds: tt.assetIDs,
+			}))
+			if connect.CodeOf(err) != tt.wantCode {
+				t.Fatalf("CreateMessage() code = %v, want %v", connect.CodeOf(err), tt.wantCode)
+			}
+		})
+	}
+}
+
 func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()

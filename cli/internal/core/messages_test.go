@@ -519,6 +519,59 @@ func TestChattoCore_PostMessage_BodyTooLong(t *testing.T) {
 	})
 }
 
+func TestValidateMessageAttachmentAssetIDs(t *testing.T) {
+	maxIDs := make([]string, MaxMessageAttachmentAssetIDs)
+	for i := range maxIDs {
+		maxIDs[i] = strings.Repeat("A", MaxMessageAttachmentAssetIDLength)
+	}
+
+	tests := []struct {
+		name     string
+		assetIDs []string
+		wantErr  bool
+	}{
+		{name: "none"},
+		{name: "at limits", assetIDs: maxIDs},
+		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantErr: true},
+		{name: "empty", assetIDs: []string{""}, wantErr: true},
+		{name: "too long", assetIDs: []string{strings.Repeat("A", MaxMessageAttachmentAssetIDLength+1)}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMessageAttachmentAssetIDs(tt.assetIDs)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateMessageAttachmentAssetIDs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("validateMessageAttachmentAssetIDs() error = %v, want ErrInvalidArgument", err)
+			}
+		})
+	}
+}
+
+func TestChattoCore_PostMessageRejectsInvalidAttachmentAssetIDs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	tests := []struct {
+		name     string
+		assetIDs []string
+	}{
+		{name: "too many", assetIDs: make([]string, MaxMessageAttachmentAssetIDs+1)},
+		{name: "too long", assetIDs: []string{strings.Repeat("A", MaxMessageAttachmentAssetIDLength+1)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.PostMessage(ctx, KindChannel, "missing-room", "missing-user", "body", tt.assetIDs, "", "", nil, false)
+			if !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("PostMessage() error = %v, want ErrInvalidArgument", err)
+			}
+		})
+	}
+}
+
 func TestChattoCore_EditMessage_BodyTooLong(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
