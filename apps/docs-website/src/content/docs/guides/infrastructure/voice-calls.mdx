@@ -130,6 +130,19 @@ The port range must match `rtc.port_range_start` and `rtc.port_range_end` in
 your LiveKit configuration. Do not route the TCP or UDP media ports through a
 normal HTTP reverse proxy.
 
+For a LAN-only deployment whose host has no external IP address, disable
+external IP discovery in the LiveKit configuration:
+
+```yaml
+rtc:
+  use_external_ip: false
+```
+
+The generated Docker Compose configuration enables this setting by default for
+internet-facing deployments. If you use that example on a private LAN, change
+`use_external_ip` to `false` in `livekit.generated.yaml` before starting or
+restarting LiveKit.
+
 <Aside type="tip">
   The [Docker Compose guide](/guides/deployment/docker-compose/) provides a
   complete working LiveKit configuration, firewall list, automatic HTTPS, and

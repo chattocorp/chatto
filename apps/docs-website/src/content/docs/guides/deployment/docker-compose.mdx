@@ -314,7 +314,7 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 
 **Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
-**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall.
+**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
 
 **Calls fail for some users** — Confirm the built-in TURN/UDP relay is reachable on UDP 3478. Users behind firewalls that block UDP entirely need TURN/TLS. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
 
