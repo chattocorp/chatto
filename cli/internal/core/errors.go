@@ -297,7 +297,7 @@ const (
 	MaxLinkPreviewImageAssetIDLength = 15
 
 	// MaxMessageAttachmentAssetIDs is the maximum number of attachment asset IDs accepted for one message.
-	MaxMessageAttachmentAssetIDs = 100
+	MaxMessageAttachmentAssetIDs = 10
 
 	// MaxMessageAttachmentAssetIDLength is the maximum length of a message attachment asset ID in bytes.
 	MaxMessageAttachmentAssetIDLength = 15

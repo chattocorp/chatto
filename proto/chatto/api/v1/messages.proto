@@ -28,9 +28,9 @@ message CreateMessageRequest {
   // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
-  // At most 100 IDs may be supplied.
+  // At most 10 IDs may be supplied.
   repeated string attachment_asset_ids = 3 [(buf.validate.field).repeated = {
-    max_items: 100
+    max_items: 10
     items: {
       string: {
         min_len: 1
