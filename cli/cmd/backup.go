@@ -50,11 +50,13 @@ type BackupStats struct {
 }
 
 var (
-	backupConfigFile  string
-	backupOutput      string
-	backupEncrypt     bool
-	backupPassphrase  string
-	backupIncludeKeys bool
+	backupConfigFile      string
+	backupOutput          string
+	backupEncrypt         bool
+	backupPassphrase      string
+	backupPassphraseFile  string
+	backupPassphraseStdin bool
+	backupIncludeKeys     bool
 )
 
 const (
@@ -100,6 +102,9 @@ func init() {
 	backupCmd.Flags().StringVarP(&backupOutput, "output", "o", "", "output path for the backup archive (default: backups/<timestamp>.tar.gz)")
 	backupCmd.Flags().BoolVar(&backupEncrypt, "encrypt", false, "encrypt the backup with a passphrase (age encryption)")
 	backupCmd.Flags().StringVar(&backupPassphrase, "passphrase", "", "encryption passphrase (if not set, prompts interactively)")
+	_ = backupCmd.Flags().MarkDeprecated("passphrase", "use --passphrase-stdin or --passphrase-file so the secret is not exposed in process arguments")
+	backupCmd.Flags().StringVar(&backupPassphraseFile, "passphrase-file", "", "file containing the encryption passphrase")
+	backupCmd.Flags().BoolVar(&backupPassphraseStdin, "passphrase-stdin", false, "read the encryption passphrase from stdin")
 	backupCmd.Flags().BoolVar(&backupIncludeKeys, "include-keys", false, "include KV_ENCRYPTION_KEYS in the archive (treat the archive as sensitive)")
 }
 
@@ -115,7 +120,12 @@ func runBackup(cmd *cobra.Command, args []string) {
 	var passphrase string
 	if backupEncrypt {
 		var err error
-		passphrase, err = getPassphrase(backupPassphrase, "Enter passphrase for backup encryption: ", true)
+		passphrase, err = getPassphrase(passphraseInput{
+			argument:    backupPassphrase,
+			argumentSet: cmd.Flags().Changed("passphrase"),
+			file:        backupPassphraseFile,
+			stdin:       backupPassphraseStdin,
+		}, "Enter passphrase for backup encryption: ", true)
 		if err != nil {
 			log.Fatal("Failed to read passphrase", "error", err)
 		}
