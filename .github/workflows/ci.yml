@@ -124,12 +124,12 @@ jobs:
 
       - name: Fetch protobuf breaking base
         run: |
-          base_ref="${GITHUB_BASE_REF:-main}"
+          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Check storage and internal protobuf breaking changes
         run: |
-          base_ref="${GITHUB_BASE_REF:-main}"
+          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
             --exclude-imports \
@@ -141,7 +141,7 @@ jobs:
       - name: Check public API protobuf breaking changes
         if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
-          base_ref="${GITHUB_BASE_REF:-main}"
+          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
             --path chatto/api/v1 \
