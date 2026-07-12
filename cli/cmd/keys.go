@@ -405,8 +405,8 @@ type passphraseInput struct {
 	stdin       bool
 }
 
-// getPassphrase reads one validated passphrase from an explicit source, a
-// compatibility stdin pipe, or a hidden interactive prompt.
+// getPassphrase reads one validated passphrase from an explicit source or a
+// hidden interactive prompt.
 func getPassphrase(input passphraseInput, prompt string, confirm bool) (string, error) {
 	if err := validateSecretSources(
 		"--passphrase", input.argumentSet,
