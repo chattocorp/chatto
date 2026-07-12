@@ -104,7 +104,8 @@
       "edit": "Edit",
       "assigned_role": "Assigned {role} role",
       "removed_role": "Removed {role} role",
-      "role_update_failed": "Failed to update role assignment"
+      "role_update_failed": "Failed to update role assignment",
+      "role_managed_by_identity_provider": "This role is managed by the identity provider. Change the role claim or provider configuration instead."
     },
     "member_detail": {
       "no_self_rename": "No self-rename recorded.",

@@ -413,6 +413,39 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	}
 }
 
+func TestOIDCRoleClaimSynchronizesMatchedLogin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetSubject("role-subject")
+	issuer.SetRoles([]string{core.RoleModerator})
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+			IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret",
+			RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+		}}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-role-login", "OIDC Role Login", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "oidc-roles", "oidc", issuer.URL(), "role-subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+
+	location := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-roles", "/chat")
+	if !strings.HasPrefix(location, "/chat?token=") {
+		t.Fatalf("OIDC login Location = %q, want /chat?token=...", location)
+	}
+	if !chattoCore.RBAC.HasRole(user.Id, core.RoleModerator) {
+		t.Fatal("matched OIDC login should synchronize moderator role")
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -597,6 +630,7 @@ type noEmailOIDCIssuer struct {
 	key              *rsa.PrivateKey
 	clientID         string
 	subject          string
+	roles            []string
 	failUserInfo     bool
 	userInfoRequests int
 }
@@ -626,6 +660,10 @@ func (i *noEmailOIDCIssuer) URL() string {
 
 func (i *noEmailOIDCIssuer) SetSubject(subject string) {
 	i.subject = subject
+}
+
+func (i *noEmailOIDCIssuer) SetRoles(roles []string) {
+	i.roles = append([]string(nil), roles...)
 }
 
 func (i *noEmailOIDCIssuer) UserInfoRequests() int {
@@ -668,10 +706,11 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"sub":                i.subject,
 			"name":               "No Email User",
 			"preferred_username": "no-email-user",
+			"roles":              i.roles,
 		})
 	default:
 		http.NotFound(w, r)
@@ -695,11 +734,13 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		IssuedAt: josejwt.NewNumericDate(now),
 	}
 	profileClaims := struct {
-		Name          string `json:"name"`
-		PreferredUser string `json:"preferred_username"`
+		Name          string   `json:"name"`
+		PreferredUser string   `json:"preferred_username"`
+		Roles         []string `json:"roles,omitempty"`
 	}{
 		Name:          "No Email User",
 		PreferredUser: "no-email-user",
+		Roles:         i.roles,
 	}
 	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).CompactSerialize()
 	if err != nil {

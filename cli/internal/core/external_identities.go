@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -49,20 +50,22 @@ type PendingExternalIdentityLinkStart struct {
 }
 
 type PendingExternalIdentityFlow struct {
-	Kind            string    `json:"kind"`
-	ProviderID      string    `json:"provider_id"`
-	ProviderType    string    `json:"provider_type"`
-	ProviderLabel   string    `json:"provider_label"`
-	Issuer          string    `json:"issuer"`
-	Subject         string    `json:"subject"`
-	SubjectHash     string    `json:"subject_hash"`
-	VerifiedEmail   string    `json:"verified_email,omitempty"`
-	AvatarURL       string    `json:"avatar_url,omitempty"`
-	LoginHint       string    `json:"login_hint,omitempty"`
-	DisplayNameHint string    `json:"display_name_hint,omitempty"`
-	RedirectPath    string    `json:"redirect_path,omitempty"`
-	BoundUserID     string    `json:"bound_user_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
+	Kind                 string    `json:"kind"`
+	ProviderID           string    `json:"provider_id"`
+	ProviderType         string    `json:"provider_type"`
+	ProviderLabel        string    `json:"provider_label"`
+	Issuer               string    `json:"issuer"`
+	Subject              string    `json:"subject"`
+	SubjectHash          string    `json:"subject_hash"`
+	VerifiedEmail        string    `json:"verified_email,omitempty"`
+	AvatarURL            string    `json:"avatar_url,omitempty"`
+	LoginHint            string    `json:"login_hint,omitempty"`
+	DisplayNameHint      string    `json:"display_name_hint,omitempty"`
+	OIDCRoleClaimPresent bool      `json:"oidc_role_claim_present,omitempty"`
+	OIDCRoles            []string  `json:"oidc_roles,omitempty"`
+	RedirectPath         string    `json:"redirect_path,omitempty"`
+	BoundUserID          string    `json:"bound_user_id,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
@@ -252,6 +255,19 @@ func (c *ChattoCore) DeletePendingExternalIdentityFlow(ctx context.Context, toke
 }
 
 func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*corev1.User, error) {
+	return c.createUserForExternalIdentity(ctx, login, displayName, flow, nil)
+}
+
+// CreateUserForExternalIdentityWithOIDCRoleClaims creates a user and applies
+// the verified, already-parsed OIDC role claim before exposing the account.
+// Any role-sync failure rolls back the newly created account.
+func (c *ChattoCore) CreateUserForExternalIdentityWithOIDCRoleClaims(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow, provider config.AuthProviderConfig) (*corev1.User, error) {
+	return c.createUserForExternalIdentity(ctx, login, displayName, flow, func(userID string) error {
+		return c.SyncOIDCRoleClaims(ctx, userID, provider, flow.OIDCRoleClaimPresent, flow.OIDCRoles)
+	})
+}
+
+func (c *ChattoCore) createUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow, syncRoles func(string) error) (*corev1.User, error) {
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindCreate {
 		return nil, ErrExternalIdentityFlowWrongKind
 	}
@@ -275,6 +291,11 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 	}
 	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, user.Id); err != nil {
 		return nil, err
+	}
+	if syncRoles != nil {
+		if err := syncRoles(user.Id); err != nil {
+			return nil, fmt.Errorf("synchronize OIDC role claims: %w", err)
+		}
 	}
 	if flow.AvatarURL != "" {
 		if err := c.ImportUserAvatarFromURL(ctx, user.Id, flow.AvatarURL); err != nil {

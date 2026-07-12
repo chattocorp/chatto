@@ -136,6 +136,8 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
+**OIDC-managed role assignment** — A durable role source derived from a configured, verified OIDC role claim. It is effective alongside manual and other-provider assignments, and is changed through OIDC synchronization rather than ordinary role revocation. See [ADR-049](adr/ADR-049-oidc-managed-role-sources.md).
+
 **Live Event** — Transient `corev1.LiveEvent` published on `live.sync.>` (typing, notification sync, voice-call presence). Durable EVT facts reach live subscribers through the internal `live.evt.>` republish path after server-side projection readiness and authorization checks.
 
 **Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).

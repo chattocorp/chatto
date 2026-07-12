@@ -335,7 +335,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, `ROLE_CLAIM`, `ROLE_CLAIM_ALLOWED_ROLES`, `ROLE_CLAIM_MODE`, and `PROVIDER_OPTIONS_<KEY>`.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -349,6 +349,11 @@ issuer_url = "https://hub.chatto.dev"
 client_id = "..."
 client_secret = "..."
 auto_provision = false
+# Optional direct OIDC role synchronization.
+scopes = ["openid", "profile", "roles"]
+role_claim = "roles"
+role_claim_allowed_roles = ["moderator"]
+role_claim_mode = "additive"
 ```
 
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
@@ -356,6 +361,8 @@ Provider IDs are used in login URLs and external identity links, so do not chang
 `request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
+
+OIDC providers can synchronize direct role claim values with `role_claim`. Set `ROLE_CLAIM_ALLOWED_ROLES` as a comma-separated list and `ROLE_CLAIM_MODE` to `additive` or `reconcile`. See [External Login Providers](/guides/integrations/external-login-providers/#oidc-role-claims) for the security and wildcard behavior.
 
 See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 

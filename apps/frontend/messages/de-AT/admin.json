@@ -104,7 +104,8 @@
       "edit": "Bearbeiten",
       "assigned_role": "Rolle {role} zugewiesen",
       "removed_role": "Rolle {role} entfernt",
-      "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden"
+      "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden",
+      "role_managed_by_identity_provider": "Diese Rolle wird vom Identitätsanbieter verwaltet. Ändere stattdessen den Rollen-Claim oder die Anbieterkonfiguration."
     },
     "member_detail": {
       "no_self_rename": "Keine Selbstumbenennung erfasst.",

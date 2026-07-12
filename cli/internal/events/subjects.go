@@ -164,6 +164,8 @@ const (
 	EventRBACRolesReordered         = "roles_reordered"
 	EventRBACRoleAssigned           = "role_assigned"
 	EventRBACRoleRevoked            = "role_revoked"
+	EventRBACOIDCRoleGranted        = "oidc_role_granted"
+	EventRBACOIDCRoleRevoked        = "oidc_role_revoked"
 	EventRBACPermissionGranted      = "permission_granted"
 	EventRBACPermissionDenied       = "permission_denied"
 	EventRBACPermissionCleared      = "permission_cleared"
@@ -372,6 +374,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACRoleAssigned
 	case *corev1.Event_RbacRoleRevoked:
 		return EventRBACRoleRevoked
+	case *corev1.Event_RbacOidcRoleGranted:
+		return EventRBACOIDCRoleGranted
+	case *corev1.Event_RbacOidcRoleRevoked:
+		return EventRBACOIDCRoleRevoked
 	case *corev1.Event_RbacPermissionGranted:
 		return EventRBACPermissionGranted
 	case *corev1.Event_RbacPermissionDenied:

@@ -305,7 +305,12 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();
+      error =
+        err instanceof Error && err.message === 'role is managed by an identity provider'
+          ? m['admin.members.role_managed_by_identity_provider']()
+          : err instanceof Error
+            ? err.message
+            : m['admin.members.role_update_failed']();
     }
 
     updating = null;

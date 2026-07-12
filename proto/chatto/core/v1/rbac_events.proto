@@ -55,6 +55,21 @@ message RbacRoleRevokedEvent {
   string role_name = 2;
 }
 
+// Records a role granted from a verified OIDC role claim. Provider IDs are
+// configuration identifiers; raw claim values are intentionally not durable.
+message RbacOIDCRoleGrantedEvent {
+  string user_id = 1;
+  string role_name = 2;
+  string provider_id = 3;
+}
+
+// Removes a role grant previously managed by a specific OIDC provider.
+message RbacOIDCRoleRevokedEvent {
+  string user_id = 1;
+  string role_name = 2;
+  string provider_id = 3;
+}
+
 enum RbacPermissionScopeKind {
   RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
   RBAC_PERMISSION_SCOPE_KIND_SERVER = 1;

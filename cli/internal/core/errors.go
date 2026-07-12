@@ -59,6 +59,10 @@ var (
 	// (owner, moderator, everyone, etc.) which are protected.
 	ErrCannotDeleteSystemRole = errors.New("cannot delete system role")
 
+	// ErrRoleManagedByOIDC is returned when an administrator tries to revoke a
+	// role that is present only through an OIDC-managed source.
+	ErrRoleManagedByOIDC = errors.New("role is managed by an identity provider")
+
 	// ErrInvalidRoleName is returned when a role name doesn't match the required format
 	// (lowercase letters, numbers, and dashes; must start with a letter; 1-32 chars).
 	ErrInvalidRoleName = errors.New("invalid role name: must be lowercase letters, numbers, and dashes, starting with a letter, 1-32 chars")

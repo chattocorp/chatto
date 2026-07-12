@@ -22,6 +22,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
+- OIDC providers can manage configured direct role claims. An OIDC-managed role is effective alongside manual and other-provider grants; reconciling one provider never revokes another source. Administrators change an OIDC-only assignment at the identity provider rather than through the member-role editor.
 
 ## Design Decisions
 
@@ -97,5 +98,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
+- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-051 (OIDC-managed role sources)
 - **FDRs:** Every FDR that mentions a permission depends on this one.

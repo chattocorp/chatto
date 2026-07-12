@@ -82,6 +82,9 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 
 	revokedUsers := make(map[string]struct{})
 	for _, assignment := range c.RBAC.Assignments() {
+		if !c.RBAC.HasManualRole(assignment.userID, assignment.roleName) {
+			continue
+		}
 		key := assignment.userID + "|" + assignment.roleName
 		if _, ok := revokedUsers[key]; ok {
 			continue
@@ -89,6 +92,14 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 		revokedUsers[key] = struct{}{}
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	for _, assignment := range c.RBAC.OIDCRoleAssignments() {
+		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacOidcRoleRevoked{
+			RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{
+				UserId: assignment.userID, RoleName: assignment.roleName, ProviderId: assignment.providerID,
+			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}

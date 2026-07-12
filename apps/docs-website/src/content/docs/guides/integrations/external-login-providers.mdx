@@ -224,12 +224,38 @@ type = "oidc"
 issuer_url = "https://id.example.com"
 client_id = "..."
 client_secret = "..."
-scopes = ["openid", "profile", "groups"]
+scopes = ["openid", "profile", "roles"]
 ```
 
 For OIDC providers, Chatto always includes `openid` even if you omit it from a custom scope list.
 
 `request_email` defaults to `false`. Set `request_email = true` to request provider email scopes. For OIDC, the default request is `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
+
+## OIDC role claims
+
+Use a direct role claim when your provider emits Chatto role names such as `moderator` or `admin`:
+
+```toml
+[[auth.providers]]
+id = "company-oidc"
+type = "oidc"
+issuer_url = "https://id.example.com"
+client_id = "..."
+client_secret = "..."
+scopes = ["openid", "profile", "roles"]
+role_claim = "roles"
+role_claim_allowed_roles = ["moderator", "admin"]
+role_claim_mode = "reconcile"
+```
+
+The configured claim may be a string or a list of strings. Chatto reads it from the verified ID token and falls back to UserInfo only when the returned subject matches that ID token. The claim's values must exactly match listed Chatto role names.
+
+- `additive` is the default. Matching values grant roles but never remove them automatically.
+- `reconcile` grants matching values and removes roles managed by this provider when the claim is present but no longer contains them. It never removes a manual assignment or another provider's grant.
+- A missing or malformed claim does not remove existing managed roles.
+- Synchronization runs when the person completes OIDC login, creates an account, or links the provider. Chatto does not store provider refresh tokens or poll for changes.
+
+You can intentionally delegate every role, including `owner` and roles created later, with `role_claim_allowed_roles = ["*"]`. Do this only when the provider is trusted to control full server access. The implicit `everyone` role is never assignable. Omitting `role_claim_allowed_roles` is invalid; it never means "allow all".
 
 ## Auto-provisioning
 

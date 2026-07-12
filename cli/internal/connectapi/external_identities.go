@@ -11,6 +11,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type externalIdentityAuthService struct {
@@ -33,7 +34,15 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, connectError(err)
 	}
 	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), flow.DisplayNameHint)
-	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
+	provider, providerConfigured := s.api.authProvider(flow.ProviderID)
+	var user *corev1.User
+	if providerConfigured {
+		user, err = s.api.core.CreateUserForExternalIdentityWithOIDCRoleClaims(ctx, req.Msg.GetLogin(), displayName, flow, provider)
+	} else {
+		// A pending flow can outlive a provider configuration change. Preserve
+		// the established account-creation behavior, simply without role sync.
+		user, err = s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
+	}
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -81,6 +90,11 @@ func (s *externalIdentityAuthService) ConfirmExternalIdentityLink(ctx context.Co
 	identity, err := s.api.core.ConfirmPendingExternalIdentityLink(ctx, flow)
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if provider, ok := s.api.authProvider(flow.ProviderID); ok {
+		if err := s.api.core.SyncOIDCRoleClaims(ctx, flow.BoundUserID, provider, flow.OIDCRoleClaimPresent, flow.OIDCRoles); err != nil {
+			return nil, connectError(err)
+		}
 	}
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)

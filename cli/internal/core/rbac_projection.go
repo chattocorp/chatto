@@ -15,10 +15,12 @@ import (
 // explicit permission decisions from durable evt.rbac.> events.
 type RBACProjection struct {
 	events.MemoryProjection
-	roles       map[string]*corev1.Role
-	assignments map[string]map[string]struct{} // userID -> roleName set
-	decisions   map[rbacDecisionKey]DecisionKind
-	replayGuard projectionReplayGuard
+	roles             map[string]*corev1.Role
+	assignments       map[string]map[string]struct{}            // Effective union: userID -> roleName set.
+	manualAssignments map[string]map[string]struct{}            // Legacy/manual role facts.
+	oidcAssignments   map[string]map[string]map[string]struct{} // userID -> roleName -> providerID set.
+	decisions         map[rbacDecisionKey]DecisionKind
+	replayGuard       projectionReplayGuard
 }
 
 type rbacDecisionKey struct {
@@ -31,10 +33,12 @@ type rbacDecisionKey struct {
 
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
-		roles:       make(map[string]*corev1.Role),
-		assignments: make(map[string]map[string]struct{}),
-		decisions:   make(map[rbacDecisionKey]DecisionKind),
-		replayGuard: newProjectionReplayGuard(),
+		roles:             make(map[string]*corev1.Role),
+		assignments:       make(map[string]map[string]struct{}),
+		manualAssignments: make(map[string]map[string]struct{}),
+		oidcAssignments:   make(map[string]map[string]map[string]struct{}),
+		decisions:         make(map[rbacDecisionKey]DecisionKind),
+		replayGuard:       newProjectionReplayGuard(),
 	}
 }
 
@@ -69,6 +73,10 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
 	case *corev1.Event_RbacRoleRevoked:
 		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
+	case *corev1.Event_RbacOidcRoleGranted:
+		p.applyOIDCRoleGranted(e.RbacOidcRoleGranted.GetUserId(), e.RbacOidcRoleGranted.GetRoleName(), e.RbacOidcRoleGranted.GetProviderId())
+	case *corev1.Event_RbacOidcRoleRevoked:
+		p.applyOIDCRoleRevoked(e.RbacOidcRoleRevoked.GetUserId(), e.RbacOidcRoleRevoked.GetRoleName(), e.RbacOidcRoleRevoked.GetProviderId())
 	case *corev1.Event_RbacPermissionGranted:
 		p.applyPermissionDecision(
 			e.RbacPermissionGranted.GetScope(),
@@ -189,6 +197,18 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 			delete(p.assignments, userID)
 		}
 	}
+	for userID, roles := range p.manualAssignments {
+		delete(roles, roleName)
+		if len(roles) == 0 {
+			delete(p.manualAssignments, userID)
+		}
+	}
+	for userID, roles := range p.oidcAssignments {
+		delete(roles, roleName)
+		if len(roles) == 0 {
+			delete(p.oidcAssignments, userID)
+		}
+	}
 	for key := range p.decisions {
 		if key.subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == roleName {
 			delete(p.decisions, key)
@@ -200,20 +220,67 @@ func (p *RBACProjection) applyRoleAssigned(userID, roleName string) {
 	if userID == "" || roleName == "" {
 		return
 	}
-	if p.assignments[userID] == nil {
-		p.assignments[userID] = make(map[string]struct{})
+	if p.manualAssignments[userID] == nil {
+		p.manualAssignments[userID] = make(map[string]struct{})
 	}
-	p.assignments[userID][roleName] = struct{}{}
+	p.manualAssignments[userID][roleName] = struct{}{}
+	p.refreshEffectiveRole(userID, roleName)
 }
 
 func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
 	if userID == "" || roleName == "" {
 		return
 	}
-	delete(p.assignments[userID], roleName)
-	if len(p.assignments[userID]) == 0 {
-		delete(p.assignments, userID)
+	delete(p.manualAssignments[userID], roleName)
+	if len(p.manualAssignments[userID]) == 0 {
+		delete(p.manualAssignments, userID)
 	}
+	p.refreshEffectiveRole(userID, roleName)
+}
+
+func (p *RBACProjection) applyOIDCRoleGranted(userID, roleName, providerID string) {
+	if userID == "" || roleName == "" || providerID == "" {
+		return
+	}
+	if p.oidcAssignments[userID] == nil {
+		p.oidcAssignments[userID] = make(map[string]map[string]struct{})
+	}
+	if p.oidcAssignments[userID][roleName] == nil {
+		p.oidcAssignments[userID][roleName] = make(map[string]struct{})
+	}
+	p.oidcAssignments[userID][roleName][providerID] = struct{}{}
+	p.refreshEffectiveRole(userID, roleName)
+}
+
+func (p *RBACProjection) applyOIDCRoleRevoked(userID, roleName, providerID string) {
+	if userID == "" || roleName == "" || providerID == "" {
+		return
+	}
+	providers := p.oidcAssignments[userID][roleName]
+	delete(providers, providerID)
+	if len(providers) == 0 {
+		delete(p.oidcAssignments[userID], roleName)
+	}
+	if len(p.oidcAssignments[userID]) == 0 {
+		delete(p.oidcAssignments, userID)
+	}
+	p.refreshEffectiveRole(userID, roleName)
+}
+
+func (p *RBACProjection) refreshEffectiveRole(userID, roleName string) {
+	_, manual := p.manualAssignments[userID][roleName]
+	_, oidc := p.oidcAssignments[userID][roleName]
+	if !manual && !oidc {
+		delete(p.assignments[userID], roleName)
+		if len(p.assignments[userID]) == 0 {
+			delete(p.assignments, userID)
+		}
+		return
+	}
+	if p.assignments[userID] == nil {
+		p.assignments[userID] = make(map[string]struct{})
+	}
+	p.assignments[userID][roleName] = struct{}{}
 }
 
 func (p *RBACProjection) applyPermissionDecision(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, decision DecisionKind, legacy proto.Message) {
@@ -412,6 +479,80 @@ func (p *RBACProjection) HasRole(userID, roleName string) bool {
 	defer p.RUnlock()
 	_, ok := p.assignments[userID][roleName]
 	return ok
+}
+
+// HasManualRole reports whether a user holds a role through a manual or
+// historical role-assignment fact, rather than only an OIDC-managed source.
+func (p *RBACProjection) HasManualRole(userID, roleName string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, ok := p.manualAssignments[userID][roleName]
+	return ok
+}
+
+// OIDCRolesForProvider returns roles currently managed for a user by one OIDC
+// provider. The returned values are sorted and safe for callers to retain.
+func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	roles := make([]string, 0)
+	for roleName, providers := range p.oidcAssignments[userID] {
+		if _, ok := providers[providerID]; ok {
+			roles = append(roles, roleName)
+		}
+	}
+	sort.Strings(roles)
+	return roles
+}
+
+// OIDCRoleAssignmentsForUser returns every provider-managed source for a user.
+func (p *RBACProjection) OIDCRoleAssignmentsForUser(userID string) []oidcRoleAssignment {
+	p.RLock()
+	defer p.RUnlock()
+	assignments := make([]oidcRoleAssignment, 0)
+	for roleName, providers := range p.oidcAssignments[userID] {
+		for providerID := range providers {
+			assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: providerID})
+		}
+	}
+	sort.Slice(assignments, func(i, j int) bool {
+		if assignments[i].roleName != assignments[j].roleName {
+			return assignments[i].roleName < assignments[j].roleName
+		}
+		return assignments[i].providerID < assignments[j].providerID
+	})
+	return assignments
+}
+
+type oidcRoleAssignment struct {
+	userID     string
+	roleName   string
+	providerID string
+}
+
+// OIDCRoleAssignments returns every OIDC-managed assignment. It is used by
+// destructive maintenance paths that must remove all durable role sources.
+func (p *RBACProjection) OIDCRoleAssignments() []oidcRoleAssignment {
+	p.RLock()
+	defer p.RUnlock()
+	assignments := make([]oidcRoleAssignment, 0)
+	for userID, roles := range p.oidcAssignments {
+		for roleName, providers := range roles {
+			for providerID := range providers {
+				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: providerID})
+			}
+		}
+	}
+	sort.Slice(assignments, func(i, j int) bool {
+		if assignments[i].userID != assignments[j].userID {
+			return assignments[i].userID < assignments[j].userID
+		}
+		if assignments[i].roleName != assignments[j].roleName {
+			return assignments[i].roleName < assignments[j].roleName
+		}
+		return assignments[i].providerID < assignments[j].providerID
+	})
+	return assignments
 }
 
 func (p *RBACProjection) GetRoleUsers(roleName string) []string {
