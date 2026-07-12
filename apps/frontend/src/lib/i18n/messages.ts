@@ -83,6 +83,7 @@ const msg_common_validation_password_min = (): LocalizedString => messages().com
 const msg_common_validation_username_min = (): LocalizedString => messages().common_validation_username_min(empty());
 const msg_common_validation_username_max = (): LocalizedString => messages().common_validation_username_max(empty());
 const msg_common_validation_username_charset = (): LocalizedString => messages().common_validation_username_charset(empty());
+const msg_common_validation_username_end_alphanumeric = (): LocalizedString => messages().common_validation_username_end_alphanumeric(empty());
 const msg_common_validation_username_no_consecutive_periods = (): LocalizedString => messages().common_validation_username_no_consecutive_periods(empty());
 const msg_common_validation_passwords_match = (): LocalizedString => messages().common_validation_passwords_match(empty());
 const msg_common_validation_fix_errors = (): LocalizedString => messages().common_validation_fix_errors(empty());
@@ -1521,6 +1522,7 @@ export { msg_common_validation_password_min as 'common.validation.password_min' 
 export { msg_common_validation_username_min as 'common.validation.username_min' };
 export { msg_common_validation_username_max as 'common.validation.username_max' };
 export { msg_common_validation_username_charset as 'common.validation.username_charset' };
+export { msg_common_validation_username_end_alphanumeric as 'common.validation.username_end_alphanumeric' };
 export { msg_common_validation_username_no_consecutive_periods as 'common.validation.username_no_consecutive_periods' };
 export { msg_common_validation_passwords_match as 'common.validation.passwords_match' };
 export { msg_common_validation_fix_errors as 'common.validation.fix_errors' };

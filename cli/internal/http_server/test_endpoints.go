@@ -128,7 +128,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			return
 		}
 		if !isValidLogin(req.Login) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive periods)"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive or trailing periods)"})
 			return
 		}
 
