@@ -80,6 +80,8 @@ func TestIsValidLogin(t *testing.T) {
 		{"consecutive periods start", "..john", false},
 		{"consecutive periods end", "john..", false},
 		{"triple periods", "john...doe", false},
+		{"trailing period", "john.", false},
+		{"minimum length trailing period", "j.", false},
 
 		// Invalid - length
 		{"too short", "a", false},
