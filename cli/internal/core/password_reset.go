@@ -21,6 +21,10 @@ import (
 const (
 	// PasswordResetTokenTTL is the duration a password reset token is valid.
 	PasswordResetTokenTTL = 1 * time.Hour
+
+	// PasswordResetRequestThrottleTTL is the minimum interval between delivered
+	// password-reset links for one account.
+	PasswordResetRequestThrottleTTL = 5 * time.Minute
 )
 
 var (
@@ -29,6 +33,10 @@ var (
 
 	// ErrPasswordResetTokenExpired is returned when the reset token has expired.
 	ErrPasswordResetTokenExpired = errors.New("password reset token has expired")
+
+	// ErrPasswordResetRequestThrottled is returned when an account already had
+	// a password-reset link prepared within the throttle window.
+	ErrPasswordResetRequestThrottled = errors.New("password reset request throttled")
 )
 
 // ============================================================================
@@ -46,11 +54,18 @@ type PasswordResetToken struct {
 // KV Key Functions
 // ============================================================================
 
-const passwordResetTokenKeyPrefix = "password_reset."
+const (
+	passwordResetTokenKeyPrefix   = "password_reset."
+	passwordResetRequestKeyPrefix = "password_reset_request."
+)
 
 // passwordResetTokenKey returns the HMAC-derived KV key for a password reset token.
 func (c *ChattoCore) passwordResetTokenKey(token string) string {
 	return c.runtimeTokenKey(passwordResetTokenKeyPrefix, token)
+}
+
+func (c *ChattoCore) passwordResetRequestKey(userID string) string {
+	return passwordResetRequestKeyPrefix + c.runtimeTokenHash("password_reset_request", userID)
 }
 
 // ============================================================================
@@ -78,6 +93,20 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 	// Generate token
 	token := NewPasswordResetToken()
 	createdAt := time.Now()
+	tokenKey := c.passwordResetTokenKey(token)
+	requestKey := c.passwordResetRequestKey(user.Id)
+	requestRevision, err := c.storage.runtimeStateKV.Create(ctx, requestKey, []byte(tokenKey), jetstream.KeyTTL(PasswordResetRequestThrottleTTL))
+	if errors.Is(err, jetstream.ErrKeyExists) {
+		return "", ErrPasswordResetRequestThrottled
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to reserve password reset request: %w", err)
+	}
+	rollbackRequest := func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_ = c.storage.runtimeStateKV.Delete(cleanupCtx, requestKey, jetstream.LastRevision(requestRevision))
+	}
 
 	tokenData := PasswordResetToken{
 		UserID:    user.Id,
@@ -87,20 +116,57 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 
 	data, err := json.Marshal(tokenData)
 	if err != nil {
+		rollbackRequest()
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.runtimeStateKV.Create(ctx, c.passwordResetTokenKey(token), data, jetstream.KeyTTL(PasswordResetTokenTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, tokenKey, data, jetstream.KeyTTL(PasswordResetTokenTTL))
 	if err != nil {
+		rollbackRequest()
 		return "", fmt.Errorf("failed to store password reset token: %w", err)
 	}
 
 	if err := c.recordPasswordResetLinkIssued(ctx, user.Id, normalizedEmail, createdAt); err != nil {
 		_ = c.deletePasswordResetToken(ctx, token)
+		rollbackRequest()
 		return "", err
 	}
 
 	return token, nil
+}
+
+// CancelPasswordResetToken removes an undelivered reset token and releases its
+// request throttle reservation. A newer request reservation is never removed.
+func (c *ChattoCore) CancelPasswordResetToken(ctx context.Context, token string) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+
+	tokenData, revision, err := c.getPasswordResetToken(cleanupCtx, token)
+	if err != nil {
+		if errors.Is(err, ErrPasswordResetTokenNotFound) || errors.Is(err, ErrPasswordResetTokenExpired) {
+			return nil
+		}
+		return err
+	}
+	tokenKey := c.passwordResetTokenKey(token)
+	requestKey := c.passwordResetRequestKey(tokenData.UserID)
+	entry, err := c.storage.runtimeStateKV.Get(cleanupCtx, requestKey)
+	if err != nil {
+		if !isRuntimeStateKeyAbsent(err) {
+			return fmt.Errorf("failed to get password reset request reservation: %w", err)
+		}
+	} else if string(entry.Value()) == tokenKey {
+		if err := c.storage.runtimeStateKV.Delete(cleanupCtx, requestKey, jetstream.LastRevision(entry.Revision())); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+			return fmt.Errorf("failed to release password reset request reservation: %w", err)
+		}
+	}
+
+	// Delete the token after its reservation so a transient reservation failure
+	// leaves cancellation retryable instead of orphaning the throttle record.
+	if err := c.storage.runtimeStateKV.Delete(cleanupCtx, tokenKey, jetstream.LastRevision(revision)); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+		return fmt.Errorf("failed to cancel password reset token: %w", err)
+	}
+	return nil
 }
 
 // getPasswordResetToken retrieves and validates a password reset token.

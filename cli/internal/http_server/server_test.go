@@ -2064,6 +2064,74 @@ func TestAuthRoutes_ForgotPassword_SendsEmail(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_ForgotPassword_ThrottlesRepeatedDelivery(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "forgot-throttle", "Forgot Throttle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "forgot-throttle@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "forgot-throttle@example.com"})
+	for i := 0; i < 2; i++ {
+		resp, err := client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("forgot-password request %d: %v", i+1, err)
+		}
+		var result map[string]string
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			t.Fatalf("decode forgot-password response %d: %v", i+1, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || !strings.Contains(result["message"], "If that email is registered") {
+			t.Fatalf("request %d status/message = %d/%q, want generic success", i+1, resp.StatusCode, result["message"])
+		}
+	}
+	if messages := mockMailer.Messages(); len(messages) != 1 {
+		t.Fatalf("delivered password-reset emails = %d, want 1", len(messages))
+	}
+}
+
+func TestAuthRoutes_ForgotPassword_SendFailureDoesNotConsumeThrottle(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "forgot-send-failure", "Forgot Send Failure", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "forgot-send-failure@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"email": "forgot-send-failure@example.com"})
+	mockMailer.SendError = errors.New("smtp unavailable")
+	resp, err := client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("failed forgot-password delivery: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed delivery status = %d, want generic 200", resp.StatusCode)
+	}
+
+	mockMailer.SendError = nil
+	resp, err = client.Post(ts.URL+"/auth/forgot-password", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("forgot-password after SMTP recovery: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("recovered delivery status = %d, want 200", resp.StatusCode)
+	}
+	if messages := mockMailer.Messages(); len(messages) != 1 {
+		t.Fatalf("delivered password-reset emails after recovery = %d, want 1", len(messages))
+	}
+}
+
 func TestAuthRoutes_ForgotPassword_NoEnumeration(t *testing.T) {
 	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
 

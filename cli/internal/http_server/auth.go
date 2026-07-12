@@ -658,7 +658,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Create token (returns empty string if email not found - no error)
 		token, err := s.core.CreatePasswordResetToken(ctx, normalizedEmail)
-		if err != nil {
+		if errors.Is(err, core.ErrPasswordResetRequestThrottled) {
+			log.Info("Password reset request throttled")
+		} else if err != nil {
 			// Log error but don't expose to user
 			log.Error("Failed to create password reset token", "error", err)
 		}
@@ -674,8 +676,15 @@ func (s *HTTPServer) setupAuthRoutes() {
 			})
 			if err != nil {
 				log.Error("Failed to send password reset email", "error", err)
+				if cancelErr := s.core.CancelPasswordResetToken(ctx, token); cancelErr != nil {
+					log.Error("Failed to cancel undelivered password reset token", "error", cancelErr)
+				}
 			} else {
 				log.Info("Sent password reset email")
+			}
+		} else if token != "" {
+			if cancelErr := s.core.CancelPasswordResetToken(ctx, token); cancelErr != nil {
+				log.Error("Failed to cancel unsendable password reset token", "error", cancelErr)
 			}
 		}
 
