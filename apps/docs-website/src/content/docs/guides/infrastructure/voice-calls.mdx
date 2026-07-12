@@ -130,6 +130,18 @@ The port range must match `rtc.port_range_start` and `rtc.port_range_end` in
 your LiveKit configuration. Do not route the TCP or UDP media ports through a
 normal HTTP reverse proxy.
 
+When `rtc.use_external_ip` is enabled, the LiveKit server also uses outbound
+UDP STUN requests at startup to discover the public IP it advertises. Allow DNS
+and outbound UDP to LiveKit's default STUN services, or point
+`rtc.stun_servers` at a self-hosted
+[coturn](https://github.com/coturn/coturn) instance or another STUN service you
+operate. If discovery fails, LiveKit logs `could not resolve external IP` and
+cannot start.
+
+These server-side discovery requests are separate from browser ICE. When the
+embedded TURN/UDP service is enabled, LiveKit advertises that service to
+browsers instead of falling back to public STUN servers.
+
 For a LAN-only deployment whose host has no external IP address, disable
 external IP discovery in the LiveKit configuration:
 
@@ -142,6 +154,15 @@ The generated Docker Compose configuration enables this setting by default for
 internet-facing deployments. If you use that example on a private LAN, change
 `use_external_ip` to `false` in `livekit.generated.yaml` before starting or
 restarting LiveKit.
+
+For an internet-facing host with a stable public IP, you can avoid STUN-based
+discovery by configuring the address explicitly:
+
+```yaml
+rtc:
+  use_external_ip: false
+  node_ip: 203.0.113.10
+```
 
 <Aside type="tip">
   The [Docker Compose guide](/guides/deployment/docker-compose/) provides a
@@ -168,7 +189,7 @@ block this TCP fallback need TURN/TLS. If your users can only reach outbound TCP
 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS
 certificate must match the advertised TURN domain.
 
-Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration.
+Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration. The same coturn deployment can provide the private STUN endpoint listed in `rtc.stun_servers`, but these settings serve different paths: `stun_servers` discovers the LiveKit host's public IP, while `turn_servers` gives browsers a media relay.
 
 ## Features
 
