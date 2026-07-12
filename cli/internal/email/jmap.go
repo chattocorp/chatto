@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 
@@ -35,7 +36,12 @@ var _ Sender = (*JMAPMailer)(nil)
 
 // NewJMAPMailer creates a JMAP transactional email sender.
 func NewJMAPMailer(cfg config.JMAPConfig) *JMAPMailer {
-	return newJMAPMailer(cfg, &http.Client{Timeout: jmapRequestTimeout})
+	return newJMAPMailer(cfg, &http.Client{
+		Timeout: jmapRequestTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	})
 }
 
 func newJMAPMailer(cfg config.JMAPConfig, client *http.Client) *JMAPMailer {
@@ -121,10 +127,14 @@ func (m *JMAPMailer) SendContext(ctx context.Context, msg Message) error {
 	if err != nil {
 		return err
 	}
-	if err := response.requireCreated("Email/set", "create-email", "email"); err != nil {
+	emailID, err := response.createdID("Email/set", "create-email", "email")
+	if err != nil {
 		return err
 	}
-	if err := response.requireCreated("EmailSubmission/set", "submit-email", "submission"); err != nil {
+	if _, err := response.createdID("EmailSubmission/set", "submit-email", "submission"); err != nil {
+		return err
+	}
+	if err := response.requireDestroyedEmail("submit-email", emailID); err != nil {
 		return err
 	}
 
@@ -141,6 +151,9 @@ func (m *JMAPMailer) IsEnabled() bool {
 }
 
 func (m *JMAPMailer) getSession(ctx context.Context) (jmapSession, error) {
+	if err := validateJMAPHTTPSURL("JMAP session URL", m.config.SessionURL); err != nil {
+		return jmapSession{}, err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, m.config.SessionURL, nil)
 	if err != nil {
 		return jmapSession{}, fmt.Errorf("create JMAP session request: %w", err)
@@ -163,6 +176,9 @@ func (m *JMAPMailer) getSession(ctx context.Context) (jmapSession, error) {
 	}
 	if session.APIURL == "" {
 		return jmapSession{}, fmt.Errorf("JMAP session response has no API URL")
+	}
+	if err := validateJMAPHTTPSURL("JMAP session API URL", session.APIURL); err != nil {
+		return jmapSession{}, err
 	}
 	if !session.hasCapability(jmapCoreCapability) || !session.hasCapability(jmapMailCapability) || !session.hasCapability(jmapSubmissionCapability) {
 		return jmapSession{}, fmt.Errorf("JMAP server does not support mail submission")
@@ -235,7 +251,20 @@ func (m *JMAPMailer) selectIdentity(identities []jmapIdentity, fromAddress strin
 			return identity.ID, nil
 		}
 	}
+	for _, identity := range identities {
+		if jmapIdentityMatches(identity.Email, fromAddress) {
+			return identity.ID, nil
+		}
+	}
 	return "", fmt.Errorf("JMAP account has no identity matching email.jmap.from; set email.jmap.identity_id")
+}
+
+func jmapIdentityMatches(identityAddress, fromAddress string) bool {
+	if !strings.HasPrefix(identityAddress, "*@") {
+		return false
+	}
+	_, fromDomain, found := strings.Cut(fromAddress, "@")
+	return found && strings.EqualFold(strings.TrimPrefix(identityAddress, "*@"), fromDomain)
 }
 
 func (m *JMAPMailer) selectDraftMailbox(mailboxes []jmapMailbox) (string, error) {
@@ -256,6 +285,9 @@ func (m *JMAPMailer) selectDraftMailbox(mailboxes []jmapMailbox) (string, error)
 }
 
 func (m *JMAPMailer) call(ctx context.Context, apiURL string, payload jmapRequest) (jmapResponse, error) {
+	if err := validateJMAPHTTPSURL("JMAP API URL", apiURL); err != nil {
+		return jmapResponse{}, err
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return jmapResponse{}, fmt.Errorf("encode JMAP request: %w", err)
@@ -282,6 +314,14 @@ func (m *JMAPMailer) call(ctx context.Context, apiURL string, payload jmapReques
 		return jmapResponse{}, fmt.Errorf("decode JMAP API response: %w", err)
 	}
 	return decoded, nil
+}
+
+func validateJMAPHTTPSURL(name, raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+		return fmt.Errorf("%s must be an absolute HTTPS URL", name)
+	}
+	return nil
 }
 
 type jmapSession struct {
@@ -378,7 +418,7 @@ type jmapResponse struct {
 	MethodResponses [][]json.RawMessage `json:"methodResponses"`
 }
 
-func (r jmapResponse) find(callID string) ([]json.RawMessage, error) {
+func (r jmapResponse) find(callID, expectedMethod string) ([]json.RawMessage, error) {
 	for _, response := range r.MethodResponses {
 		if len(response) != 3 {
 			continue
@@ -403,9 +443,11 @@ func (r jmapResponse) find(callID string) ([]json.RawMessage, error) {
 			}
 			return nil, fmt.Errorf("JMAP method %q failed: %s", callID, errorResponse.Type)
 		}
-		return response, nil
+		if methodName == expectedMethod {
+			return response, nil
+		}
 	}
-	return nil, fmt.Errorf("JMAP response did not include method %q", callID)
+	return nil, fmt.Errorf("JMAP response did not include method %q for call %q", expectedMethod, callID)
 }
 
 func jmapResponseString(raw json.RawMessage) (string, error) {
@@ -417,7 +459,7 @@ func jmapResponseString(raw json.RawMessage) (string, error) {
 }
 
 func (r jmapResponse) identities(callID string) ([]jmapIdentity, error) {
-	response, err := r.find(callID)
+	response, err := r.find(callID, "Identity/get")
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +477,7 @@ func (r jmapResponse) identities(callID string) ([]jmapIdentity, error) {
 }
 
 func (r jmapResponse) mailboxes(callID string) ([]jmapMailbox, error) {
-	response, err := r.find(callID)
+	response, err := r.find(callID, "Mailbox/get")
 	if err != nil {
 		return nil, err
 	}
@@ -452,14 +494,14 @@ func (r jmapResponse) mailboxes(callID string) ([]jmapMailbox, error) {
 	return payload.List, nil
 }
 
-func (r jmapResponse) requireCreated(methodName, callID, creationID string) error {
-	response, err := r.find(callID)
+func (r jmapResponse) createdID(methodName, callID, creationID string) (string, error) {
+	response, err := r.find(callID, methodName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	returnedMethodName, err := jmapResponseString(response[0])
 	if err != nil || returnedMethodName != methodName {
-		return fmt.Errorf("unexpected JMAP response for method %q", callID)
+		return "", fmt.Errorf("unexpected JMAP response for method %q", callID)
 	}
 	var payload struct {
 		Created map[string]struct {
@@ -470,13 +512,38 @@ func (r jmapResponse) requireCreated(methodName, callID, creationID string) erro
 		} `json:"notCreated"`
 	}
 	if err := json.Unmarshal(response[1], &payload); err != nil {
-		return fmt.Errorf("decode JMAP response for method %q: %w", callID, err)
+		return "", fmt.Errorf("decode JMAP response for method %q: %w", callID, err)
 	}
 	if created, ok := payload.Created[creationID]; ok && created.ID != "" {
-		return nil
+		return created.ID, nil
 	}
 	if failure, ok := payload.NotCreated[creationID]; ok && failure.Type != "" {
-		return fmt.Errorf("JMAP method %q failed: %s", callID, failure.Type)
+		return "", fmt.Errorf("JMAP method %q failed: %s", callID, failure.Type)
 	}
-	return fmt.Errorf("JMAP method %q did not create %q", callID, creationID)
+	return "", fmt.Errorf("JMAP method %q did not create %q", callID, creationID)
+}
+
+func (r jmapResponse) requireDestroyedEmail(callID, emailID string) error {
+	response, err := r.find(callID, "Email/set")
+	if err != nil {
+		return err
+	}
+	var payload struct {
+		Destroyed    []string `json:"destroyed"`
+		NotDestroyed map[string]struct {
+			Type string `json:"type"`
+		} `json:"notDestroyed"`
+	}
+	if err := json.Unmarshal(response[1], &payload); err != nil {
+		return fmt.Errorf("decode JMAP cleanup response: %w", err)
+	}
+	for _, destroyedID := range payload.Destroyed {
+		if destroyedID == emailID {
+			return nil
+		}
+	}
+	if failure, ok := payload.NotDestroyed[emailID]; ok && failure.Type != "" {
+		return fmt.Errorf("JMAP draft cleanup failed: %s", failure.Type)
+	}
+	return fmt.Errorf("JMAP draft cleanup did not destroy the submitted email")
 }

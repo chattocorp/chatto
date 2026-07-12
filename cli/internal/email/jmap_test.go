@@ -14,7 +14,7 @@ import (
 func TestJMAPMailer_SendContext(t *testing.T) {
 	var apiCalls int
 	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer token-1" {
 			t.Errorf("Authorization = %q, want bearer token", got)
 		}
@@ -100,9 +100,9 @@ func TestJMAPMailer_SendContext(t *testing.T) {
 }
 
 func TestJMAPMailer_SendContextRejectsUnsupportedServer(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeJMAPJSON(t, w, map[string]any{
-			"apiUrl": serverURLPlaceholder + "/api",
+			"apiUrl": "https://jmap.test/api",
 			"capabilities": map[string]any{
 				jmapCoreCapability: map[string]any{},
 				jmapMailCapability: map[string]any{},
@@ -132,7 +132,77 @@ func TestJMAPMailer_IsEnabled(t *testing.T) {
 	}
 }
 
-const serverURLPlaceholder = "http://jmap.test"
+func TestJMAPMailer_RejectsInsecureSessionURL(t *testing.T) {
+	mailer := NewJMAPMailer(config.JMAPConfig{
+		SessionURL:  "http://mail.example/.well-known/jmap",
+		AccessToken: "token-1",
+		From:        "sender@example.com",
+	})
+	err := mailer.Send(Message{To: "recipient@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "JMAP session URL must be an absolute HTTPS URL") {
+		t.Fatalf("Send() error = %v, want insecure-session error", err)
+	}
+}
+
+func TestJMAPMailer_RejectsInsecureAPIURL(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJMAPJSON(t, w, map[string]any{
+			"apiUrl": "http://mail.example/api",
+			"capabilities": map[string]any{
+				jmapCoreCapability:       map[string]any{},
+				jmapMailCapability:       map[string]any{},
+				jmapSubmissionCapability: map[string]any{},
+			},
+		})
+	}))
+	defer server.Close()
+
+	mailer := newJMAPMailer(config.JMAPConfig{
+		SessionURL:  server.URL,
+		AccessToken: "token-1",
+		From:        "sender@example.com",
+	}, server.Client())
+	err := mailer.Send(Message{To: "recipient@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "JMAP session API URL must be an absolute HTTPS URL") {
+		t.Fatalf("Send() error = %v, want insecure-API error", err)
+	}
+}
+
+func TestJMAPMailer_SelectIdentityUsesWildcardDomain(t *testing.T) {
+	mailer := NewJMAPMailer(config.JMAPConfig{})
+	identityID, err := mailer.selectIdentity([]jmapIdentity{{ID: "identity-1", Email: "*@example.com"}}, "sender@example.com")
+	if err != nil {
+		t.Fatalf("selectIdentity() error = %v", err)
+	}
+	if identityID != "identity-1" {
+		t.Fatalf("selectIdentity() = %q, want identity-1", identityID)
+	}
+}
+
+func TestJMAPResponse_RequiresDraftCleanup(t *testing.T) {
+	response := jmapResponse{MethodResponses: [][]json.RawMessage{
+		mustJMAPResponse(t, "Email/set", map[string]any{"created": map[string]any{"email": map[string]any{"id": "email-1"}}}, "create-email"),
+		mustJMAPResponse(t, "EmailSubmission/set", map[string]any{"created": map[string]any{"submission": map[string]any{"id": "submission-1"}}}, "submit-email"),
+		mustJMAPResponse(t, "Email/set", map[string]any{"notDestroyed": map[string]any{"email-1": map[string]any{"type": "forbidden"}}}, "submit-email"),
+	}}
+
+	if err := response.requireDestroyedEmail("submit-email", "email-1"); err == nil || !strings.Contains(err.Error(), "JMAP draft cleanup failed") {
+		t.Fatalf("requireDestroyedEmail() error = %v, want cleanup failure", err)
+	}
+}
+
+func mustJMAPResponse(t *testing.T, method string, arguments any, callID string) []json.RawMessage {
+	t.Helper()
+	encoded, err := json.Marshal([3]any{method, arguments, callID})
+	if err != nil {
+		t.Fatalf("marshal JMAP response: %v", err)
+	}
+	var response []json.RawMessage
+	if err := json.Unmarshal(encoded, &response); err != nil {
+		t.Fatalf("unmarshal JMAP response: %v", err)
+	}
+	return response
+}
 
 func writeJMAPJSON(t *testing.T, w http.ResponseWriter, body any) {
 	t.Helper()

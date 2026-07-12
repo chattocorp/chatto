@@ -2469,6 +2469,11 @@ func TestChattoConfig_Validate_JMAPEmail(t *testing.T) {
 			wantError: "email.jmap.access_token is required",
 		},
 		{
+			name:      "requires HTTPS session URL",
+			modify:    func(c *ChattoConfig) { c.Email.JMAP.SessionURL = "http://mail.example/.well-known/jmap" },
+			wantError: "email.jmap.session_url must use https",
+		},
+		{
 			name:      "requires valid sender address",
 			modify:    func(c *ChattoConfig) { c.Email.JMAP.From = "not-an-email" },
 			wantError: "email.jmap.from must be a valid email address",

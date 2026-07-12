@@ -220,6 +220,20 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 	return nil
 }
 
+func validateAbsoluteHTTPSURL(name, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s is invalid: %w", name, err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("%s must use https", name)
+	}
+	if u.Host == "" || u.User != nil {
+		return fmt.Errorf("%s must include a host and must not include user info", name)
+	}
+	return nil
+}
+
 func validateOrigin(name, raw string, allowWildcard bool, requireHTTPSExceptLoopback bool) error {
 	raw = strings.TrimSpace(raw)
 	if allowWildcard && raw == "*" {
@@ -746,7 +760,7 @@ const (
 
 // JMAPConfig contains settings for transactional email submitted through JMAP.
 type JMAPConfig struct {
-	SessionURL     string `toml:"session_url,commented" env:"CHATTO_EMAIL_JMAP_SESSION_URL" comment:"JMAP session resource URL. Must use HTTP or HTTPS."`
+	SessionURL     string `toml:"session_url,commented" env:"CHATTO_EMAIL_JMAP_SESSION_URL" comment:"JMAP session resource URL. Must use HTTPS."`
 	AccessToken    string `toml:"access_token,commented" env:"CHATTO_EMAIL_JMAP_ACCESS_TOKEN" comment:"Bearer access token for the JMAP account. NEVER SHARE THIS!"`
 	From           string `toml:"from,commented" env:"CHATTO_EMAIL_JMAP_FROM" comment:"From address for outgoing emails. It must match a JMAP identity. Example: noreply@example.com"`
 	AccountID      string `toml:"account_id,commented" env:"CHATTO_EMAIL_JMAP_ACCOUNT_ID" comment:"Optional JMAP account ID. Defaults to the session's primary submission account."`
@@ -1163,7 +1177,7 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.Email.JMAP.SessionURL == "" {
 			errs = append(errs, "email.jmap.session_url is required when email.transport is jmap")
-		} else if err := validateAbsoluteHTTPURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
+		} else if err := validateAbsoluteHTTPSURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
 			errs = append(errs, err.Error())
 		}
 		if c.Email.JMAP.AccessToken == "" {

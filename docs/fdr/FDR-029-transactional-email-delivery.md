@@ -10,7 +10,7 @@ Chatto sends transactional email for account registration, email-address verific
 ## Behavior
 
 - Local-account registration, email-address verification, and password-reset flows use the selected transactional email transport without changing their user-facing workflow.
-- Existing SMTP configuration continues to work unchanged. Operators select JMAP explicitly and configure a JMAP session URL, bearer token, and sender address.
+- Existing SMTP configuration continues to work unchanged. Operators select JMAP explicitly and configure an HTTPS JMAP session URL, bearer token, and sender address.
 - JMAP uses an available sending identity matching the configured sender and a Drafts mailbox. Operators can explicitly select the account, identity, or Drafts mailbox when automatic selection is unsuitable.
 - A successful JMAP request means the JMAP server accepted the submission. Chatto does not claim final delivery to every recipient.
 
