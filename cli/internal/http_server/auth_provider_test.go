@@ -24,6 +24,7 @@ import (
 	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/events"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -202,9 +203,21 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("CountVerifiedAccounts = %d, %v; want 1", got, err)
 	}
 
+	issuanceSubject := events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued)
+	issuedBefore, _, err := chattoCore.EventPublisher.SubjectEvents(t.Context(), issuanceSubject)
+	if err != nil {
+		t.Fatalf("SubjectEvents before provider login: %v", err)
+	}
 	loginLocation := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-no-email", "/chat")
-	if !strings.HasPrefix(loginLocation, "/chat?token=") {
-		t.Fatalf("matched no-email OIDC login Location = %q, want /chat?token=...", loginLocation)
+	if loginLocation != "/chat" {
+		t.Fatalf("matched no-email OIDC login Location = %q, want credential-free /chat", loginLocation)
+	}
+	issuedAfter, _, err := chattoCore.EventPublisher.SubjectEvents(t.Context(), issuanceSubject)
+	if err != nil {
+		t.Fatalf("SubjectEvents after provider login: %v", err)
+	}
+	if len(issuedAfter) != len(issuedBefore) {
+		t.Fatalf("provider login appended %d bearer issuance facts, want none", len(issuedAfter)-len(issuedBefore))
 	}
 
 	resp, err := client.Get(ts.URL + "/auth/providers/oidc-no-email?intent=link")

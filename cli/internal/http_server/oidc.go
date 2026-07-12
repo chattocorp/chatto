@@ -774,16 +774,6 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 		_ = session.Save()
 	}
 
-	if bearerToken, err := s.core.CreateAuthTokenWithSource(ctx, userID, source); err == nil {
-		separator := "?"
-		if strings.Contains(redirectURL, "?") {
-			separator = "&"
-		}
-		redirectURL = redirectURL + separator + "token=" + bearerToken
-	} else {
-		log.Warn("Failed to create auth token on provider login", "provider_id", providerConfig.ID, "userId", userID, "error", err)
-	}
-
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 	return nil
 }
