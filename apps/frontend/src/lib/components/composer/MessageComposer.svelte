@@ -214,7 +214,7 @@
       autocomplete.reset();
       draftState.clearText();
       message = originalBody;
-      setManualRichMode(false);
+      manualRichMode = false;
       alsoSendToChannel = editState.channelEchoEventId !== null;
       api?.setContent(originalBody);
       tick().then(() => api?.focus('end'));
@@ -224,7 +224,7 @@
       // Exiting edit mode - clear the input
       autocomplete.reset();
       message = '';
-      setManualRichMode(false);
+      manualRichMode = false;
       alsoSendToChannel = false;
       editSeededForEvent = '';
       api?.setContent('');
@@ -248,7 +248,7 @@
 
     const draft = draftState.switchKey(DRAFT_KEY);
     message = draft;
-    setManualRichMode(false);
+    manualRichMode = false;
     editorApi?.setContent(draft);
     attachments.restore(untrack(() => draftState.takeFiles()));
 
@@ -335,9 +335,6 @@
   let manualRichMode = $state(false);
   let editorHasRichStructure = $state(false);
   let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
-  let composerModeHasChanged = $state(false);
-  let composerModeAnimationTimer: ReturnType<typeof setTimeout> | null = null;
-  let composerModeAnimationRun = 0;
   let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
   let submitHint = $derived(
     shortcutHints && isRichComposer
@@ -346,39 +343,6 @@
         : shortcutHints.submit
       : null
   );
-
-  function animateComposerModeChange() {
-    const animationRun = ++composerModeAnimationRun;
-    composerModeHasChanged = false;
-    void tick().then(() => {
-      if (animationRun !== composerModeAnimationRun) return;
-      composerModeHasChanged = true;
-      if (composerModeAnimationTimer) clearTimeout(composerModeAnimationTimer);
-      composerModeAnimationTimer = setTimeout(() => {
-        composerModeHasChanged = false;
-        composerModeAnimationTimer = null;
-      }, 650);
-    });
-  }
-
-  function setManualRichMode(value: boolean) {
-    const wasRichComposer = untrack(() => manualRichMode || editorHasRichStructure);
-    manualRichMode = value;
-    const isRichComposerNow = untrack(() => manualRichMode || editorHasRichStructure);
-    if (wasRichComposer !== isRichComposerNow) animateComposerModeChange();
-  }
-
-  function setEditorHasRichStructure(value: boolean) {
-    const wasRichComposer = untrack(() => manualRichMode || editorHasRichStructure);
-    editorHasRichStructure = value;
-    const isRichComposerNow = untrack(() => manualRichMode || editorHasRichStructure);
-    if (wasRichComposer !== isRichComposerNow) animateComposerModeChange();
-  }
-
-  onDestroy(() => {
-    composerModeAnimationRun += 1;
-    if (composerModeAnimationTimer) clearTimeout(composerModeAnimationTimer);
-  });
 
   $effect(() => {
     if (!canAttach && attachments.filesWithUrls.length > 0) {
@@ -581,7 +545,7 @@
   function restorePreparedPost(post: PreparedPost) {
     autocomplete.reset();
     message = post.bodyToSend;
-    setManualRichMode(post.wasRichComposer);
+    manualRichMode = post.wasRichComposer;
     editorApi?.setContent(post.bodyToSend);
     if (post.filesToSend) {
       attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
@@ -613,7 +577,7 @@
 
     // Reset "also send to channel" checkbox after successful send
     alsoSendToChannel = false;
-    setManualRichMode(false);
+    manualRichMode = false;
   }
 
   async function submitPreparedPost(preparedPost: PreparedPost) {
@@ -621,7 +585,7 @@
     // message immediately (matches Slack/Discord behavior).
     autocomplete.reset();
     message = '';
-    setManualRichMode(false);
+    manualRichMode = false;
     editorApi?.setContent('');
     attachments.clear();
     linkPreviews.clear();
@@ -758,7 +722,7 @@
     autocomplete.reset();
     editState.cancelEdit();
     message = '';
-    setManualRichMode(false);
+    manualRichMode = false;
     editorApi?.setContent('');
   }
 
@@ -791,7 +755,7 @@
           editorApi?.insertBlockBreak();
           // TipTap reports an empty document while inserting the first block break,
           // so commit manual rich mode after that update has had a chance to clear it.
-          setManualRichMode(true);
+          manualRichMode = true;
         }
         return true;
       }
@@ -856,7 +820,7 @@
     const previousMessage = message;
     message = text;
     if (!text) {
-      setManualRichMode(false);
+      manualRichMode = false;
     }
     // Only trigger typing indicator for actual user input.
     // Programmatic setContent calls suppress TipTap update events, but this
@@ -868,7 +832,7 @@
   }
 
   function handleRichStructureChange(value: boolean) {
-    setEditorHasRichStructure(value);
+    editorHasRichStructure = value;
   }
 
   // Called when TipTap editor is ready - sync any pending state
@@ -966,7 +930,6 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={isRichComposer ? 'rich' : 'simple'}
-    data-mode-transition={composerModeHasChanged ? '' : undefined}
     class={[
       'composer-mode-surface flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'

@@ -35,7 +35,7 @@
   <div class="flex max-w-2xl flex-col gap-5">
     <p class="max-w-prose text-sm text-muted">
       The composer uses the same surface in both modes. Rich mode adds emphasis without changing
-      layout; the live composer briefly shimmers when moving between these states.
+      layout, and fades cleanly as the composer moves between these states.
     </p>
     <div class="grid gap-5 sm:grid-cols-2">
       <section>

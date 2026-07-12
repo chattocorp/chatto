@@ -550,20 +550,18 @@ describe('MessageComposer', () => {
       expect(q(container, '[title$="Return to Send"]')).toBeNull();
     });
 
-    it('exposes simple and rich visual modes without animating on mount', async () => {
+    it('exposes simple and rich visual modes', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const surface = q(container, '[data-testid="composer-input-surface"]');
 
       expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
-      expect(surface?.hasAttribute('data-mode-transition')).toBe(false);
 
       await typeEditorLiteralText(editor, 'make this rich');
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => {
         expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
-        expect(surface?.hasAttribute('data-mode-transition')).toBe(true);
       });
     });
 
@@ -576,7 +574,6 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => {
         expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
-        expect(surface?.hasAttribute('data-mode-transition')).toBe(true);
       });
       expect(mutationMock).not.toHaveBeenCalled();
     });
@@ -599,7 +596,6 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => {
         expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
-        expect(surface?.hasAttribute('data-mode-transition')).toBe(true);
       });
     });
 
