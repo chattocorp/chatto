@@ -1,18 +1,19 @@
 # FDR-029: Chatto Shields
 
 **Status:** Active
-**Last reviewed:** 2026-07-05
+**Last reviewed:** 2026-07-12
 
 ## Overview
 
-Chatto Shields are opt-in public PNG badges that self-hosted communities can embed in READMEs, project pages, and websites. They expose a small aggregate view of community size and current activity without requiring a Chatto session.
+Chatto Shields are opt-in public badges that self-hosted communities can embed in READMEs, project pages, and websites. They expose a small aggregate view of community size and current activity without requiring a Chatto session.
 
 ## Behavior
 
 - Operators enable shields explicitly in configuration. Disabled servers return Not Found for shield URLs.
-- `online.png` shows the number of users with any current live presence record. Online, Away, and Do Not Disturb all count because the badge answers "how many members are currently present," not which availability state each member selected.
-- `registered.png` shows the number of verified accounts. Unverified accounts are excluded.
-- Shields are fixed-style PNG images with short public caching. v1 does not support query-customized labels, colors, or styles.
+- `online.json` returns Shields.io endpoint-badge JSON for the number of users with any current live presence record. Online, Away, and Do Not Disturb all count because the badge answers "how many members are currently present," not which availability state each member selected.
+- `registered.json` returns Shields.io endpoint-badge JSON for the number of verified accounts. Unverified accounts are excluded.
+- `online.png` and `registered.png` are convenience redirects to Shields.io's endpoint badge renderer, using the matching Chatto JSON endpoint as the data source.
+- Chatto controls the metric labels and colors returned by the JSON endpoints. The default `.png` redirect uses Shields.io's default rendering style.
 - Shield responses expose only aggregate counts. They do not expose user identities, per-status presence breakdowns, or per-user activity.
 
 ## Design Decisions
@@ -23,13 +24,19 @@ Chatto Shields are opt-in public PNG badges that self-hosted communities can emb
 **Why:** Public READMEs and websites are unauthenticated, cacheable surfaces. Community size and live activity can be sensitive for private or small servers.
 **Tradeoff:** Operators must configure one extra setting before they can embed badges.
 
-### 2. PNG assets instead of ConnectRPC
+### 2. Shields.io endpoint JSON instead of local image rendering
 
-**Decision:** Shields are served as plain PNG HTTP assets, not as a protobuf API.
-**Why:** The primary consumers are Markdown renderers, static websites, and social/project pages that expect image URLs.
-**Tradeoff:** The surface is intentionally narrow. Integrations that need structured metrics should use the authenticated API or Prometheus/exporter surfaces instead.
+**Decision:** Chatto exposes Shields.io-compatible JSON and redirects the short `.png` URLs to Shields.io's hosted renderer.
+**Why:** The primary consumers are Markdown renderers, static websites, and social/project pages that expect polished image badges. Delegating visual rendering keeps Chatto from owning badge typography, rasterization, and style compatibility.
+**Tradeoff:** Rendering the `.png` badge depends on Shields.io being reachable by the viewer, and Shields.io must be able to fetch the public Chatto JSON endpoint. Operators who do not want this dependency can link to the JSON endpoint only or keep shields disabled.
 
-### 3. Aggregate-only privacy boundary
+### 3. Plain HTTP instead of ConnectRPC
+
+**Decision:** Shields use small public HTTP endpoints rather than a new ConnectRPC service, even though side-effect-free ConnectRPC methods can be served through GET.
+**Why:** Shields.io expects a root JSON document with its endpoint-badge schema. A ConnectRPC GET URL would require protobuf/codegen surface area and an awkward encoded `connect=v1&encoding=json&message=...` URL inside the Shields.io `url` parameter.
+**Tradeoff:** This remains a narrow non-ConnectRPC public surface. It is intentionally scoped to aggregate badge data and does not become a general metrics API.
+
+### 4. Aggregate-only privacy boundary
 
 **Decision:** v1 exposes only the online and registered aggregate counts.
 **Why:** Aggregate badges satisfy the README use case while avoiding per-user identity, per-status presence, and richer operational telemetry on a public endpoint. Presence remains live runtime state; offline is still represented by absence.

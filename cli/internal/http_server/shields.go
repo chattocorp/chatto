@@ -1,35 +1,37 @@
 package http_server
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/png"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/math/fixed"
 )
 
 const shieldCacheControl = "public, max-age=60"
+const shieldsIOEndpointURL = "https://img.shields.io/endpoint"
 
-var (
-	shieldLabelColor      = color.RGBA{R: 85, G: 85, B: 85, A: 255}
-	shieldOnlineColor     = color.RGBA{R: 46, G: 160, B: 67, A: 255}
-	shieldRegisteredColor = color.RGBA{R: 9, G: 105, B: 218, A: 255}
-	shieldTextColor       = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+const (
+	shieldLabelColor      = "555"
+	shieldOnlineColor     = "2ea043"
+	shieldRegisteredColor = "0969da"
 )
 
 type shieldMetric struct {
 	label string
-	color color.Color
+	color string
 	count func() (int, error)
+}
+
+type shieldEndpointResponse struct {
+	SchemaVersion int    `json:"schemaVersion"`
+	Label         string `json:"label"`
+	Message       string `json:"message"`
+	Color         string `json:"color"`
+	LabelColor    string `json:"labelColor"`
 }
 
 func (s *HTTPServer) setupShieldRoutes() {
@@ -42,7 +44,7 @@ func (s *HTTPServer) serveShield(c *gin.Context) {
 		return
 	}
 
-	metricName, ok := parseShieldName(c.Param("name"))
+	metricName, format, ok := parseShieldName(c.Param("name"))
 	if !ok {
 		c.Status(http.StatusNotFound)
 		return
@@ -54,9 +56,15 @@ func (s *HTTPServer) serveShield(c *gin.Context) {
 		return
 	}
 
+	if format == "png" {
+		setShieldRedirectHeaders(c)
+		c.Redirect(http.StatusFound, shieldRedirectURL(s.requestBaseURL(c.Request), metricName))
+		return
+	}
+
 	count, err := metric.count()
 	if err != nil {
-		s.logger.Error("Failed to render shield", "metric", metricName, "error", err)
+		s.logger.Error("Failed to serve shield endpoint", "metric", metricName, "error", err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -68,21 +76,29 @@ func (s *HTTPServer) serveShield(c *gin.Context) {
 		return
 	}
 
-	body, err := renderShieldPNG(metric.label, strconv.Itoa(count), metric.color)
+	body, err := json.Marshal(shieldEndpointResponse{
+		SchemaVersion: 1,
+		Label:         metric.label,
+		Message:       strconv.Itoa(count),
+		Color:         metric.color,
+		LabelColor:    shieldLabelColor,
+	})
 	if err != nil {
-		s.logger.Error("Failed to encode shield", "metric", metricName, "error", err)
+		s.logger.Error("Failed to encode shield endpoint", "metric", metricName, "error", err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	c.Data(http.StatusOK, "image/png", body)
+	c.Data(http.StatusOK, "application/json", body)
 }
 
-func parseShieldName(name string) (string, bool) {
-	metric, ok := strings.CutSuffix(name, ".png")
-	if !ok || metric == "" || strings.Contains(metric, "/") {
-		return "", false
+func parseShieldName(name string) (string, string, bool) {
+	for _, format := range []string{"json", "png"} {
+		metric, ok := strings.CutSuffix(name, "."+format)
+		if ok && metric != "" && !strings.Contains(metric, "/") {
+			return metric, format, true
+		}
 	}
-	return metric, true
+	return "", "", false
 }
 
 func (s *HTTPServer) shieldMetric(name string, c *gin.Context) (shieldMetric, bool) {
@@ -114,6 +130,11 @@ func setShieldHeaders(c *gin.Context, etag string) {
 	c.Header("X-Content-Type-Options", "nosniff")
 }
 
+func setShieldRedirectHeaders(c *gin.Context) {
+	c.Header("Cache-Control", shieldCacheControl)
+	c.Header("X-Content-Type-Options", "nosniff")
+}
+
 func shieldETag(metric string, count int) string {
 	return fmt.Sprintf(`"chatto-shield-%s-%d"`, metric, count)
 }
@@ -128,40 +149,13 @@ func requestETagMatches(header, etag string) bool {
 	return false
 }
 
-func renderShieldPNG(label, value string, valueColor color.Color) ([]byte, error) {
-	const (
-		height      = 20
-		textPadding = 6
-	)
-
-	labelWidth := shieldTextWidth(label) + textPadding*2
-	valueWidth := shieldTextWidth(value) + textPadding*2
-	width := labelWidth + valueWidth
-
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(img, image.Rect(0, 0, labelWidth, height), image.NewUniform(shieldLabelColor), image.Point{}, draw.Src)
-	draw.Draw(img, image.Rect(labelWidth, 0, width, height), image.NewUniform(valueColor), image.Point{}, draw.Src)
-
-	drawShieldText(img, textPadding, label)
-	drawShieldText(img, labelWidth+textPadding, value)
-
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil, err
+func shieldRedirectURL(baseURL, metric string) string {
+	endpoint, err := url.Parse(shieldsIOEndpointURL)
+	if err != nil {
+		panic(err)
 	}
-	return buf.Bytes(), nil
-}
-
-func shieldTextWidth(text string) int {
-	return font.MeasureString(basicfont.Face7x13, text).Ceil()
-}
-
-func drawShieldText(img draw.Image, x int, text string) {
-	d := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(shieldTextColor),
-		Face: basicfont.Face7x13,
-		Dot:  fixed.P(x, 14),
-	}
-	d.DrawString(text)
+	q := endpoint.Query()
+	q.Set("url", strings.TrimRight(baseURL, "/")+"/shields/"+metric+".json")
+	endpoint.RawQuery = q.Encode()
+	return endpoint.String()
 }

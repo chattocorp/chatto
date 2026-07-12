@@ -132,7 +132,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 ## Shields
 
 <EnvVar name="CHATTO_SHIELDS_ENABLED" toml="shields.enabled" default="false">
-  Expose public PNG shield URLs for aggregate community counts. When enabled, `/shields/online.png` shows users with any live presence record and `/shields/registered.png` shows verified accounts. Leave disabled for private communities that should not publish size or activity counts.
+  Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/shields/online.json` and `/shields/registered.json` return endpoint-badge JSON, while `/shields/online.png` and `/shields/registered.png` redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
 ## Diagnostics
