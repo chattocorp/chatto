@@ -3,20 +3,6 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
-## [0.4.9](https://github.com/chattocorp/chatto/compare/v0.4.8...v0.4.9) (2026-07-12)
-
-
-### Bug Fixes
-
-* **auth:** reject usernames ending in dots ([#1474](https://github.com/chattocorp/chatto/issues/1474)) ([d5fb5ce](https://github.com/chattocorp/chatto/commit/d5fb5cea0435531c0cfefd3bbd9266a6635f1ee9))
-* **ci:** use pushed branch as protobuf base ([f385682](https://github.com/chattocorp/chatto/commit/f385682361c50a2b04e1639da311a3f5795767b2))
-* **frontend:** space grouped event conjunctions ([#1469](https://github.com/chattocorp/chatto/issues/1469)) ([c7cc0d9](https://github.com/chattocorp/chatto/commit/c7cc0d9da9025e4cce34a37217597e1240ec3ae9))
-
-
-### Performance Improvements
-
-* **projections:** increase replay pull window ([#1473](https://github.com/chattocorp/chatto/issues/1473)) ([85fe7c6](https://github.com/chattocorp/chatto/commit/85fe7c6daa01536fdb4018131e99445a702f8d4f))
-
 ## [0.4.8](https://github.com/chattocorp/chatto/compare/v0.4.7...v0.4.8) (2026-07-12)
 
 
