@@ -14,6 +14,7 @@ export type PublicServerInfo = {
   version: string;
   authorizeUrl: string;
   directRegistrationEnabled: boolean;
+  passkeysEnabled: boolean;
   welcomeMessage: string | null;
   description: string | null;
   iconUrl: string | null;
@@ -38,6 +39,7 @@ export async function getPublicServerInfo(
     authorizeUrl: response.login?.authorizeUrl ?? "",
     directRegistrationEnabled:
       response.login?.directRegistrationEnabled ?? false,
+    passkeysEnabled: response.login?.passkeysEnabled ?? false,
     welcomeMessage: profile.welcomeMessage,
     description: profile.description,
     iconUrl: profile.logoUrl,

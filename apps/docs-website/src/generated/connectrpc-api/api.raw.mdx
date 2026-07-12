@@ -4148,6 +4148,7 @@ Login and registration options exposed before authentication.
 | `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
 | `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+| `passkeys_enabled` | `bool` | Whether this server has enabled WebAuthn passkey login. Older servers omit this field and clients must treat that as unavailable. |
 
 
 

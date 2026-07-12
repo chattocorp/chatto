@@ -120,9 +120,12 @@ type ServerLogin struct {
 	// Configured login providers.
 	Providers []*ProviderMetadata `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
 	// URL for the legacy authorization flow, when enabled.
-	AuthorizeUrl  string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AuthorizeUrl string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
+	// Whether this server has enabled WebAuthn passkey login. Older servers omit
+	// this field and clients must treat that as unavailable.
+	PasskeysEnabled bool `protobuf:"varint,4,opt,name=passkeys_enabled,json=passkeysEnabled,proto3" json:"passkeys_enabled,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ServerLogin) Reset() {
@@ -176,6 +179,13 @@ func (x *ServerLogin) GetAuthorizeUrl() string {
 	return ""
 }
 
+func (x *ServerLogin) GetPasskeysEnabled() bool {
+	if x != nil {
+		return x.PasskeysEnabled
+	}
+	return false
+}
+
 var File_chatto_api_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_proto_rawDesc = "" +
@@ -192,11 +202,12 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\t_logo_urlB\r\n" +
 	"\v_banner_urlB\x12\n" +
 	"\x10_welcome_messageB\x0e\n" +
-	"\f_description\"\xb1\x01\n" +
+	"\f_description\"\xdc\x01\n" +
 	"\vServerLogin\x12>\n" +
 	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x12=\n" +
 	"\tproviders\x18\x02 \x03(\v2\x1f.chatto.api.v1.ProviderMetadataR\tproviders\x12#\n" +
-	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrlB\xa7\x01\n" +
+	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrl\x12)\n" +
+	"\x10passkeys_enabled\x18\x04 \x01(\bR\x0fpasskeysEnabledB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (

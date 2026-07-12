@@ -39,6 +39,7 @@ type projectedUser struct {
 	authGeneration     uint64
 	verifiedEmail      map[string]VerifiedEmail
 	externalIdentities map[string]ExternalIdentity
+	passkeys           map[string]Passkey
 	oauthConsent       map[string]struct{}
 	preferences        *corev1.ServerUserPreferences
 	loginChanged       time.Time
@@ -104,6 +105,10 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
 	case *corev1.Event_UserExternalIdentityUnlinked:
 		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
+	case *corev1.Event_UserPasskeyLinked:
+		p.applyPasskeyLinked(e.UserPasskeyLinked)
+	case *corev1.Event_UserPasskeyUnlinked:
+		p.applyPasskeyUnlinked(e.UserPasskeyUnlinked, seq)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -142,10 +147,30 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 	if u.externalIdentities == nil {
 		u.externalIdentities = make(map[string]ExternalIdentity)
 	}
+	if u.passkeys == nil {
+		u.passkeys = make(map[string]Passkey)
+	}
 	if u.oauthConsent == nil {
 		u.oauthConsent = make(map[string]struct{})
 	}
 	return u
+}
+
+func (p *UserProjection) applyPasskeyLinked(e *corev1.UserPasskeyLinkedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetCredentialHash() == "" || len(e.GetCredentialId()) == 0 || len(e.GetCredential()) == 0 {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.passkeys[e.GetCredentialHash()] = Passkey{CredentialHash: e.GetCredentialHash(), CredentialID: append([]byte(nil), e.GetCredentialId()...), Credential: append([]byte(nil), e.GetCredential()...), Label: e.GetLabel()}
+}
+
+func (p *UserProjection) applyPasskeyUnlinked(e *corev1.UserPasskeyUnlinkedEvent, seq uint64) {
+	if e == nil || e.GetUserId() == "" || e.GetCredentialHash() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	delete(u.passkeys, e.GetCredentialHash())
+	u.authGeneration = seq
 }
 
 func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
@@ -626,6 +651,23 @@ func (p *UserProjection) ExternalIdentities(userID string) []ExternalIdentity {
 	return identities
 }
 
+// Passkeys returns a defensive snapshot of one account's linked credentials.
+func (p *UserProjection) Passkeys(userID string) []Passkey {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted {
+		return nil
+	}
+	result := make([]Passkey, 0, len(u.passkeys))
+	for _, passkey := range u.passkeys {
+		passkey.CredentialID = append([]byte(nil), passkey.CredentialID...)
+		passkey.Credential = append([]byte(nil), passkey.Credential...)
+		result = append(result, passkey)
+	}
+	return result
+}
+
 func (p *UserProjection) LoginExists(login string) bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -768,6 +810,19 @@ func (p *UserProjection) VerifiedUserIDs() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// UserIDs returns stable IDs for all non-deleted projected users.
+func (p *UserProjection) UserIDs() []string {
+	p.RLock()
+	defer p.RUnlock()
+	result := make([]string, 0, len(p.users))
+	for userID, user := range p.users {
+		if user != nil && !user.deleted {
+			result = append(result, userID)
+		}
+	}
+	return result
 }
 
 func (p *UserProjection) VerifiedAccountIDs() []string {

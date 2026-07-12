@@ -360,7 +360,7 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		if !found {
 			return ErrExternalIdentityNotFound
 		}
-		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
+		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 && !c.Users.HasVerifiedEmail(userID) && len(c.Users.Passkeys(userID)) < 2 {
 			return ErrExternalIdentityLastMethod
 		}
 		return nil

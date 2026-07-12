@@ -48,6 +48,33 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 }
 
+func TestPasskeysRequireSecurePublicURL(t *testing.T) {
+	enabled := true
+	for _, tt := range []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{name: "missing URL", wantErr: true},
+		{name: "plain HTTP public URL", url: "http://chat.example.test", wantErr: true},
+		{name: "HTTPS public URL", url: "https://chat.example.test"},
+		{name: "localhost development URL", url: "http://localhost:5173"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Auth.Passkeys.Enabled = &enabled
+			cfg.Webserver.URL = tt.url
+			err := cfg.Validate()
+			if tt.wantErr && (err == nil || !strings.Contains(err.Error(), "passkeys")) {
+				t.Fatalf("Validate() error = %v, want passkeys validation error", err)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("Validate() error = %v, want nil", err)
+			}
+		})
+	}
+}
+
 func TestReadConfig_WithConfigFile(t *testing.T) {
 	// Create a temp directory with a config file
 	tmpDir := t.TempDir()

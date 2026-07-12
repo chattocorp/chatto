@@ -146,6 +146,8 @@ const (
 	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
 	EventUserExternalIdentityLinked   = "external_identity_linked"
 	EventUserExternalIdentityUnlinked = "external_identity_unlinked"
+	EventUserPasskeyLinked            = "passkey_linked"
+	EventUserPasskeyUnlinked          = "passkey_unlinked"
 	EventUserServerPreferencesChanged = "server_preferences_changed"
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
@@ -339,6 +341,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserExternalIdentityLinked
 	case *corev1.Event_UserExternalIdentityUnlinked:
 		return EventUserExternalIdentityUnlinked
+	case *corev1.Event_UserPasskeyLinked:
+		return EventUserPasskeyLinked
+	case *corev1.Event_UserPasskeyUnlinked:
+		return EventUserPasskeyUnlinked
 	case *corev1.Event_UserServerPreferencesChanged:
 		return EventUserServerPreferencesChanged
 	case *corev1.Event_UserLoginCooldownStarted:

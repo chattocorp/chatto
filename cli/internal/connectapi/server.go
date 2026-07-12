@@ -28,6 +28,7 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		Profile: profile,
 		Login: &apiv1.ServerLogin{
 			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
+			PasskeysEnabled:           s.api.config.Auth.Passkeys.EnabledOrDefault(),
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
 		},

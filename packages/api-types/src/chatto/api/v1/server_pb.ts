@@ -115,6 +115,14 @@ export class ServerLogin extends Message<ServerLogin> {
    */
   authorizeUrl = "";
 
+  /**
+   * Whether this server has enabled WebAuthn passkey login. Older servers omit
+   * this field and clients must treat that as unavailable.
+   *
+   * @generated from field: bool passkeys_enabled = 4;
+   */
+  passkeysEnabled = false;
+
   constructor(data?: PartialMessage<ServerLogin>) {
     super();
     proto3.util.initPartial(data, this);
@@ -126,6 +134,7 @@ export class ServerLogin extends Message<ServerLogin> {
     { no: 1, name: "direct_registration_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "providers", kind: "message", T: ProviderMetadata, repeated: true },
     { no: 3, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "passkeys_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerLogin {
