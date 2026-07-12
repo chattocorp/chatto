@@ -208,9 +208,9 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubjectEvents before provider login: %v", err)
 	}
-	loginLocation := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-no-email", "/chat")
-	if loginLocation != "/chat" {
-		t.Fatalf("matched no-email OIDC login Location = %q, want credential-free /chat", loginLocation)
+	loginLocation := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-no-email", "/chat?view=all")
+	if loginLocation != "/chat?view=all" {
+		t.Fatalf("matched no-email OIDC login Location = %q, want credential-free redirect with query preserved", loginLocation)
 	}
 	issuedAfter, _, err := chattoCore.EventPublisher.SubjectEvents(t.Context(), issuanceSubject)
 	if err != nil {
@@ -218,6 +218,17 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 	if len(issuedAfter) != len(issuedBefore) {
 		t.Fatalf("provider login appended %d bearer issuance facts, want none", len(issuedAfter)-len(issuedBefore))
+	}
+	serverURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookieNames := make(map[string]bool)
+	for _, cookie := range client.Jar.Cookies(serverURL) {
+		cookieNames[cookie.Name] = true
+	}
+	if !cookieNames["chatto_session"] || !cookieNames[csrfCookieName] {
+		t.Fatalf("provider login cookies = %v, want session and CSRF cookies", cookieNames)
 	}
 
 	resp, err := client.Get(ts.URL + "/auth/providers/oidc-no-email?intent=link")
