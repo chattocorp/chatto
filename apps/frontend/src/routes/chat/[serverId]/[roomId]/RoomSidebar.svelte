@@ -142,26 +142,28 @@ calls, and similar room-specific panels can plug into the same shell. See the
     return status !== 'OFFLINE';
   }
 
-  // Sort members alphabetically by display name within each presence group.
-  // Reading presenceVersion ensures $derived re-runs on any presence change —
-  // SvelteMap.size only changes when keys are added/removed, not when existing
-  // values change, so it would miss updates like OFFLINE→ONLINE.
+  // Sort names once when membership/search/profile data changes. Presence updates only repartition
+  // this stable ordering below, avoiding two full O(n log n) sorts per update.
   function sortByName(list: RoomMember[]): RoomMember[] {
     return [...list].sort((a, b) =>
       getLiveDisplayName(a.id, a.displayName).localeCompare(getLiveDisplayName(b.id, b.displayName))
     );
   }
 
-  const onlineMembers = $derived(
-    (presenceCache.version,
-    membersStore.presenceVersion,
-    sortByName(members.filter((m) => isOnlineStatus(getPresence(m)))))
-  );
-  const offlineMembers = $derived(
-    (presenceCache.version,
-    membersStore.presenceVersion,
-    sortByName(members.filter((m) => !isOnlineStatus(getPresence(m)))))
-  );
+  const sortedMembers = $derived(sortByName(members));
+  const groupedMembers = $derived.by(() => {
+    // Explicit versions include value-only presence transitions such as OFFLINE→ONLINE.
+    void presenceCache.version;
+    void membersStore.presenceVersion;
+    const online: RoomMember[] = [];
+    const offline: RoomMember[] = [];
+    for (const member of sortedMembers) {
+      (isOnlineStatus(getPresence(member)) ? online : offline).push(member);
+    }
+    return { online, offline };
+  });
+  const onlineMembers = $derived(groupedMembers.online);
+  const offlineMembers = $derived(groupedMembers.offline);
 
   // Look up the selected member for the popover (rendered outside the {#each} loop
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
@@ -333,7 +335,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </div>
       </div>
 
-      {#if loading || membersStore.isInitialLoading}
+      {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
         <ul role="list">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">

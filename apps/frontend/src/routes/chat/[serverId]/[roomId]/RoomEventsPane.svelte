@@ -9,6 +9,8 @@
   import type { MessagesStore } from '$lib/state/room';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import * as m from '$lib/i18n/messages';
+  import { toast } from '$lib/ui/toast';
 
   type MessageRetractedEventPayload = {
     roomId?: string | null;
@@ -31,6 +33,8 @@
     onUnreadMarkerResolved,
     onUnreadMarkerCleared,
     onOpenThread,
+    pendingHighlightId = null,
+    onHighlightComplete,
     typingUserIds = [],
     typingMembers = []
   }: {
@@ -41,6 +45,8 @@
     onUnreadMarkerResolved?: (eventId: string) => void;
     onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
+    pendingHighlightId?: string | null;
+    onHighlightComplete?: () => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();
@@ -133,8 +139,10 @@
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}
-  onScrollToEventComplete={() => {
+  onScrollToEventComplete={(landed) => {
     if (jumpState) jumpState.scrollToEventId = null;
+    onHighlightComplete?.();
+    if (!landed) toast.error(m['room.jump_failed']());
   }}
   isJumpedMode={jumpState?.isJumpedMode ?? false}
   isLoadingNewer={jumpState?.isLoadingNewer ?? false}
@@ -144,4 +152,5 @@
   onReachedPresent={handleReachedPresent}
   {onUnreadMarkerCleared}
   onSoftRefresh={handleSoftRefresh}
+  {pendingHighlightId}
 />

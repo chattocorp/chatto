@@ -3,6 +3,55 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.7](https://github.com/chattocorp/chatto/compare/v0.4.6...v0.4.7) (2026-07-11)
+
+
+### Bug Fixes
+
+* **frontend:** show server logo before login ([#1416](https://github.com/chattocorp/chatto/issues/1416)) ([577cf17](https://github.com/chattocorp/chatto/commit/577cf179b0a1bb669813a619896c41fb81d24d17))
+* **frontend:** stabilize linked-message navigation ([#1421](https://github.com/chattocorp/chatto/issues/1421)) ([721c974](https://github.com/chattocorp/chatto/commit/721c974bb0e02f62c654389588cdd34346f4fca9))
+* **frontend:** support file drops in threads ([#1417](https://github.com/chattocorp/chatto/issues/1417)) ([6166dc0](https://github.com/chattocorp/chatto/commit/6166dc0a1537ea1c483a8c330b3ee515fc16235c))
+* **release:** add next prerelease channel ([#1414](https://github.com/chattocorp/chatto/issues/1414)) ([6312e39](https://github.com/chattocorp/chatto/commit/6312e392fa1c0f16c74e5dce65166d586a1e76ca))
+
+
+### Performance Improvements
+
+* **frontend:** speed up large room member loading ([#1423](https://github.com/chattocorp/chatto/issues/1423)) ([6d4ce8a](https://github.com/chattocorp/chatto/commit/6d4ce8a5deaef0af8a34373ceae107359d01554a))
+
+## [0.4.6](https://github.com/chattocorp/chatto/compare/v0.4.5...v0.4.6) (2026-07-11)
+
+
+### Bug Fixes
+
+* **api:** validate custom status emoji ([#1408](https://github.com/chattocorp/chatto/issues/1408)) ([cb62f72](https://github.com/chattocorp/chatto/commit/cb62f725eeab071b66d61b599eda0b74e154d573))
+
+
+### Performance Improvements
+
+* **projections:** bound replay idempotency memory ([#1407](https://github.com/chattocorp/chatto/issues/1407)) ([7dd3841](https://github.com/chattocorp/chatto/commit/7dd38411d8f6144f1a7126d13b23440348d09927))
+* **projections:** remove redundant string interning ([#1411](https://github.com/chattocorp/chatto/issues/1411)) ([c69ef30](https://github.com/chattocorp/chatto/commit/c69ef30babce67e6b5ec8fe3d00a490bd626c545))
+
+## [0.4.5](https://github.com/chattocorp/chatto/compare/v0.4.4...v0.4.5) (2026-07-11)
+
+
+### Bug Fixes
+
+* **assets:** recover physical deletion from events ([#1394](https://github.com/chattocorp/chatto/issues/1394)) ([e4d2a85](https://github.com/chattocorp/chatto/commit/e4d2a854ccf7549e423145c7ece0f926fd32d410))
+* **core:** remove room leavers from voice calls ([#1373](https://github.com/chattocorp/chatto/issues/1373)) ([e0b1ad7](https://github.com/chattocorp/chatto/commit/e0b1ad7811eaaeaa3e7821268bbcdab8c73465b1))
+* **docker:** support read-only root filesystems ([#1403](https://github.com/chattocorp/chatto/issues/1403)) ([76462a4](https://github.com/chattocorp/chatto/commit/76462a48b791c2f2b72ee2b2afe2c79ee13b5ef8))
+* **docs:** correct deployment guide redirect ([#1395](https://github.com/chattocorp/chatto/issues/1395)) ([aded4e0](https://github.com/chattocorp/chatto/commit/aded4e093d32dbc94f6fc8046c58ff02aa501497))
+* **frontend:** add optimistic room reads ([#1376](https://github.com/chattocorp/chatto/issues/1376)) ([22ffc62](https://github.com/chattocorp/chatto/commit/22ffc624a07f929b35a117690aef0c920b28294e))
+* **frontend:** keep signed-out servers navigable ([#1397](https://github.com/chattocorp/chatto/issues/1397)) ([c3e281a](https://github.com/chattocorp/chatto/commit/c3e281a39be93639ced703a2943ddc4402c9bcfe))
+* **frontend:** preserve optimistic reads across refresh ([#1393](https://github.com/chattocorp/chatto/issues/1393)) ([b77270d](https://github.com/chattocorp/chatto/commit/b77270d5912594220bd6fc470ae397a529f13b18))
+* **frontend:** respect browser region in timestamps ([#1387](https://github.com/chattocorp/chatto/issues/1387)) ([7ca3b92](https://github.com/chattocorp/chatto/commit/7ca3b9284bc09de0723dff84cdd2a664162a8e29))
+* **release:** restore Windows builds ([#1405](https://github.com/chattocorp/chatto/issues/1405)) ([f95a668](https://github.com/chattocorp/chatto/commit/f95a6680eb48bab7a382e1d95610c1bd6fde91e0))
+
+
+### Performance Improvements
+
+* **realtime:** bound WebSocket compression memory ([#1400](https://github.com/chattocorp/chatto/issues/1400)) ([c794e59](https://github.com/chattocorp/chatto/commit/c794e5925f81eca00b89fe9e06aaea98870b466c))
+* **realtime:** reduce per-connection memory ([#1389](https://github.com/chattocorp/chatto/issues/1389)) ([963287d](https://github.com/chattocorp/chatto/commit/963287d6b16636e7919f8eecf3bd62e7e56759fa))
+
 ## [0.4.4](https://github.com/chattocorp/chatto/compare/v0.4.3...v0.4.4) (2026-07-10)
 
 

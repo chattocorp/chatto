@@ -234,6 +234,7 @@ export class RoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
+    const unreadSnapshotRevision = this.roomUnread.captureSnapshotRevision();
     const [viewer, rooms, roomGroups] = await Promise.all([
       this.viewerStateLoader(),
       this.roomDirectoryAPI.listRooms(RoomDirectoryScope.ALL),
@@ -279,7 +280,7 @@ export class RoomsStore {
       ...visibleDms.map((room) => this.roomListItem(room, dmMembersByRoomId.get(room.id) ?? []))
     ];
     this.applyRooms(nextRooms);
-    this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
+    this.roomUnread.initRooms([...visibleChannels, ...visibleDms], false, unreadSnapshotRevision);
     void this.refreshNotificationCounts();
 
     const nextRoomGroups = roomGroups.map((group) => ({

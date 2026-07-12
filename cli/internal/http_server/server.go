@@ -36,16 +36,17 @@ type HTTPServerConfig struct {
 
 // HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
-	config     config.ChattoConfig
-	nc         *nats.Conn
-	router     *gin.Engine
-	core       *core.ChattoCore
-	mailer     email.Sender
-	mockMailer *email.MockSender // Non-nil when test email endpoint is enabled
-	addr       string
-	version    string
-	logger     *log.Logger
-	metrics    *processMetrics
+	config         config.ChattoConfig
+	nc             *nats.Conn
+	router         *gin.Engine
+	core           *core.ChattoCore
+	mailer         email.Sender
+	mockMailer     *email.MockSender // Non-nil when test email endpoint is enabled
+	addr           string
+	version        string
+	logger         *log.Logger
+	metrics        *processMetrics
+	trustedProxies trustedProxySet
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
@@ -55,7 +56,45 @@ const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
 	httpServerShutdownTimeout   = 5 * time.Second
+	legacyRequestBodyLimit      = 64 * 1024
+	legacyRequestBodyTimeout    = 30 * time.Second
 )
+
+type requestConnectionContextKey struct{}
+
+// limitLegacyRequestBody bounds the small JSON/form requests handled outside
+// ConnectRPC. It deliberately applies only to legacy route groups so uploads
+// and long-lived realtime connections keep their dedicated limits.
+func limitLegacyRequestBody() gin.HandlerFunc {
+	return limitRequestBody(legacyRequestBodyLimit, legacyRequestBodyTimeout)
+}
+
+func limitRequestBody(maxBytes int64, readTimeout time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body == nil {
+			c.Next()
+			return
+		}
+		if c.Request.ContentLength > maxBytes {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Request body is too large"})
+			return
+		}
+
+		controller := http.NewResponseController(c.Writer)
+		deadlineSet := controller.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+		if !deadlineSet && c.Request.ProtoMajor == 1 {
+			if conn, ok := c.Request.Context().Value(requestConnectionContextKey{}).(net.Conn); ok {
+				deadlineSet = conn.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+				defer conn.SetReadDeadline(time.Time{})
+			}
+		}
+		if deadlineSet {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		c.Next()
+	}
+}
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
@@ -71,22 +110,30 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 
 	// Create Gin router with Recovery middleware, and optionally Logger
 	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.Config.Webserver.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("configure trusted proxies: %w", err)
+	}
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
 		router.Use(requestLogger(logger))
 	}
 
+	trustedProxies, err := newTrustedProxySet(cfg.Config.Webserver.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
 	s := &HTTPServer{
-		config:     cfg.Config,
-		nc:         cfg.NC,
-		router:     router,
-		core:       cfg.Core,
-		mailer:     mailer,
-		mockMailer: mockMailer,
-		addr:       cfg.Addr,
-		version:    cfg.Version,
-		logger:     logger,
-		metrics:    newProcessMetrics(),
+		config:         cfg.Config,
+		nc:             cfg.NC,
+		router:         router,
+		core:           cfg.Core,
+		mailer:         mailer,
+		mockMailer:     mockMailer,
+		addr:           cfg.Addr,
+		version:        cfg.Version,
+		logger:         logger,
+		metrics:        newProcessMetrics(),
+		trustedProxies: trustedProxies,
 	}
 
 	// Set up all routes
@@ -103,6 +150,9 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: httpServerReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
+		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+			return context.WithValue(ctx, requestConnectionContextKey{}, conn)
+		},
 	}
 }
 
@@ -395,14 +445,6 @@ func validateOperatorAPISocketParent(parent string) error {
 		return fmt.Errorf("operator API socket directory %s must not be accessible by group or other users; mode is %04o", parent, perm)
 	}
 	return nil
-}
-
-func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, false
-	}
-	return stat.Uid, stat.Gid, true
 }
 
 func isStaleOperatorSocketError(err error) bool {

@@ -132,7 +132,7 @@ func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Errorf("ReplyCount = %d, want 1", got)
 	}
-	if got := len(p.appliedEventIDs); got != 2 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 2 {
 		t.Errorf("appliedEventIDs = %d, want 2 to confirm edit routed through envelope-id fallback", got)
 	}
 }
@@ -262,11 +262,18 @@ func TestThreadProjection_Idempotency(t *testing.T) {
 	if err := p.Apply(reply, 1); err != nil {
 		t.Fatalf("second Apply: %v", err)
 	}
+	p.CompleteStartupReplay()
+	if err := p.Apply(reply, 1); err != nil {
+		t.Fatalf("Apply duplicate after replay: %v", err)
+	}
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Errorf("duplicate Apply doubled ReplyCount: %d, want 1", got)
 	}
 	if got := len(p.ThreadEvents("ROOT")); got != 1 {
 		t.Errorf("duplicate Apply doubled ThreadEvents: %d, want 1", got)
+	}
+	if got := len(p.replayGuard.retainedEventIDs()); got != 1 {
+		t.Errorf("duplicate replay retained event IDs = %d, want 1", got)
 	}
 }
 
@@ -279,7 +286,7 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 	if err := p.Apply(root, 1); err != nil {
 		t.Fatalf("second root Apply: %v", err)
 	}
-	if got := len(p.appliedEventIDs); got != 0 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 0 {
 		t.Fatalf("ignored root events populated appliedEventIDs with %d entries, want 0", got)
 	}
 
@@ -290,7 +297,7 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Fatalf("ReplyCount = %d, want 1", got)
 	}
-	if got := len(p.appliedEventIDs); got != 1 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 1 {
 		t.Fatalf("appliedEventIDs after relevant event = %d, want 1", got)
 	}
 }

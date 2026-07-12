@@ -41,6 +41,57 @@ describe('RoomUnreadStore', () => {
     expect(store.hasAnyUnread).toBe(true);
   });
 
+  it('preserves an optimistic read across a stale directory refresh', () => {
+    const store = new RoomUnreadStore();
+    store.setRoomUnread('room-1', true);
+    const snapshotRevision = store.captureSnapshotRevision();
+
+    const read = store.beginOptimisticRead('room-1');
+    store.initRooms([{ id: 'room-1', hasUnread: true }], false, snapshotRevision);
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    read.commit();
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+  });
+
+  it('reveals refreshed unread state when an optimistic read rolls back', () => {
+    const store = new RoomUnreadStore();
+    const snapshotRevision = store.captureSnapshotRevision();
+
+    const read = store.beginOptimisticRead('room-1');
+    store.initRooms([{ id: 'room-1', hasUnread: true }], false, snapshotRevision);
+    read.rollback();
+
+    expect(store.roomIsUnread('room-1')).toBe(true);
+  });
+
+  it('does not let a stale directory refresh overwrite a successful read', () => {
+    const store = new RoomUnreadStore();
+    store.setRoomUnread('room-1', true);
+    const snapshotRevision = store.captureSnapshotRevision();
+
+    const read = store.beginOptimisticRead('room-1');
+    read.commit();
+    store.initRooms([{ id: 'room-1', hasUnread: true }], false, snapshotRevision);
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+  });
+
+  it('does not let a stale directory refresh overwrite a live read event', () => {
+    const store = new RoomUnreadStore();
+    store.setRoomUnread('room-1', true);
+    const snapshotRevision = store.captureSnapshotRevision();
+
+    const read = store.beginOptimisticRead('room-1');
+    store.setRoomUnread('room-1', false);
+    store.initRooms([{ id: 'room-1', hasUnread: true }], false, snapshotRevision);
+    read.rollback();
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+  });
+
   it('does not let rollback erase a newer unread message', () => {
     const store = new RoomUnreadStore();
     store.setRoomUnread('room-1', true);

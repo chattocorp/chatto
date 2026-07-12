@@ -103,7 +103,7 @@ The email must be verified by the user before Chatto treats the user as an effec
 
 ## Sessions And Logout
 
-Chatto uses opaque runtime credentials, not JWTs. Browser sessions use signed HTTP-only cookies for same-origin flows and bearer tokens for registered cross-origin server connections. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
+Chatto uses opaque runtime credentials, not JWTs. Browser sessions use signed HTTP-only cookies for same-origin flows, including direct external-provider login, and provider redirects never contain bearer credentials. Registered cross-origin server connections use Chatto's OAuth PKCE flow to obtain bearer tokens. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
 
 Operators do not normally manage sessions directly. Use password reset, password set, account deletion, or future dedicated revocation tooling when you need to force a credential cutoff.
 

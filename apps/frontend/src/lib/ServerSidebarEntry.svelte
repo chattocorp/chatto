@@ -63,13 +63,17 @@
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
-  let loaded = $state(false);
+  let privateDataLoaded = $state(false);
+  const loaded = $derived(!stores.isAuthenticated || privateDataLoaded);
 
   const iconServer = $derived.by(() => {
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
     return {
       name: displayName || refreshedName || registeredServer?.name || stores.serverInfo.name,
-      logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
+      logoUrl:
+        stores.isAuthenticated && privateDataLoaded
+          ? logoUrl
+          : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
@@ -90,10 +94,7 @@
   }
 
   async function loadAll() {
-    if (registeredServer?.reauthRequiredAt != null) {
-      loaded = true;
-      return;
-    }
+    const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
     try {
       const [serverState, viewer, rooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
@@ -115,12 +116,13 @@
       );
       roomUnreadStore.initRooms(
         rooms,
-        serverState.viewerHasUnreadRooms && !hasUnreadChannel
+        serverState.viewerHasUnreadRooms && !hasUnreadChannel,
+        unreadSnapshotRevision
       );
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
-      loaded = true;
+      privateDataLoaded = true;
     } catch (err) {
       console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
     }
@@ -139,7 +141,7 @@
   }
 
   onMount(() => {
-    void loadAll();
+    if (stores.isAuthenticated) void loadAll();
   });
 
   // Subscribe to server events. Use $effect (not onMount) so that if the
@@ -244,8 +246,9 @@
     let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
+      const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
       const rooms = await roomDirectoryAPI().listRooms(RoomDirectoryScope.CHANNELS);
-      roomUnreadStore.updateRooms(rooms);
+      roomUnreadStore.updateRooms(rooms, unreadSnapshotRevision);
       roomUnreadStore.resolveUnknownUnread();
       roomId = roomUnreadStore.getFirstUnreadRoomId();
     }

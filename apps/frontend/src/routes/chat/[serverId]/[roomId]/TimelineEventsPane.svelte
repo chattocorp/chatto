@@ -69,12 +69,12 @@
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
     scrollToEventId?: string | null;
-    onScrollToEventComplete?: () => void;
+    onScrollToEventComplete?: (landed: boolean) => void;
     isJumpedMode?: boolean;
     isLoadingNewer?: boolean;
     hasReachedEnd?: boolean;
     onLoadNewer?: () => Promise<void>;
-    onJumpToPresent?: () => void;
+    onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     pendingHighlightId?: string | null;

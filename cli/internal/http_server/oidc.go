@@ -104,6 +104,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 	}
 
 	auth := s.router.Group("/auth")
+	auth.Use(limitLegacyRequestBody())
 	auth.Use(func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()
@@ -771,16 +772,6 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 		}
 		session.Delete("oauth_redirect")
 		_ = session.Save()
-	}
-
-	if bearerToken, err := s.core.CreateAuthTokenWithSource(ctx, userID, source); err == nil {
-		separator := "?"
-		if strings.Contains(redirectURL, "?") {
-			separator = "&"
-		}
-		redirectURL = redirectURL + separator + "token=" + bearerToken
-	} else {
-		log.Warn("Failed to create auth token on provider login", "provider_id", providerConfig.ID, "userId", userID, "error", err)
 	}
 
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)

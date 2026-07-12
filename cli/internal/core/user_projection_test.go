@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,28 @@ import (
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func BenchmarkUserProjectionGetReferences(b *testing.B) {
+	const memberCount = 10_000
+	p := &UserProjection{users: make(map[string]*projectedUser, memberCount)}
+	userIDs := make([]string, memberCount)
+	for i := range memberCount {
+		userID := fmt.Sprintf("user-%05d", i)
+		userIDs[i] = userID
+		p.users[userID] = &projectedUser{user: &corev1.User{
+			Id:          userID,
+			Login:       userID,
+			DisplayName: userID,
+		}}
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if got := p.GetReferences(userIDs); len(got) != memberCount {
+			b.Fatalf("GetReferences() returned %d users, want %d", len(got), memberCount)
+		}
+	}
+}
 
 func userEvent(id string, ts time.Time, event *corev1.Event) *corev1.Event {
 	event.Id = id

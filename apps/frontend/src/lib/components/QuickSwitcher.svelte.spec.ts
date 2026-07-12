@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomType } from '$lib/render/types';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -39,6 +39,16 @@ const mocks = vi.hoisted(() => ({
       user: {
         id: 'user-current'
       }
+    },
+    rooms: {
+      rooms: [] as Array<{
+        id: string;
+        name: string;
+        type: RoomType;
+        viewerIsMember: boolean;
+        members: User[];
+      }>,
+      isInitialLoading: false
     }
   }
 }));
@@ -155,34 +165,29 @@ let originalClose: typeof HTMLDialogElement.prototype.close;
 
 function installQueryMocks() {
   mocks.startDM.mockResolvedValue({ id: 'dm-new' });
-  mocks.listRooms.mockResolvedValue([
+  mocks.store.rooms.rooms = [
     {
       id: 'room-general',
       name: 'general',
-      kind: RoomKind.CHANNEL,
-      isMember: true,
-      hasUnread: false
+      type: RoomType.Channel,
+      viewerIsMember: true,
+      members: []
     },
     {
       id: 'room-xylophone',
       name: 'xylophone-chat',
-      kind: RoomKind.CHANNEL,
-      isMember: true,
-      hasUnread: false
+      type: RoomType.Channel,
+      viewerIsMember: true,
+      members: []
     },
     {
       id: 'dm-existing',
       name: '',
-      kind: RoomKind.DM,
-      isMember: true,
-      hasUnread: false
+      type: RoomType.Dm,
+      viewerIsMember: true,
+      members: [currentUser, teammate]
     }
-  ]);
-  mocks.listRoomMembers.mockImplementation(async (roomId: string) => ({
-    members: roomId === 'dm-existing' ? [currentUser, teammate] : [],
-    totalCount: roomId === 'dm-existing' ? 2 : 0,
-    hasMore: false
-  }));
+  ];
   mocks.listUsers.mockImplementation(async (search: string) => ({
     members:
       search === 'river-login' ? [user('user-river-login', 'river-login', 'River Login')] : [],
@@ -287,6 +292,8 @@ describe('QuickSwitcher', () => {
     expect(container.textContent).toContain('general');
     expect(container.textContent).toContain('River Teammate');
     expect(input(container)).toBe(document.activeElement);
+    expect(mocks.listRooms).not.toHaveBeenCalled();
+    expect(mocks.listRoomMembers).not.toHaveBeenCalled();
   });
 
   it('fuzzy-filters rooms and shows no results for misses', async () => {

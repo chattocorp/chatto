@@ -18,7 +18,7 @@ type RBACProjection struct {
 	roles       map[string]*corev1.Role
 	assignments map[string]map[string]struct{} // userID -> roleName set
 	decisions   map[rbacDecisionKey]DecisionKind
-	eventIDSeen eventIDSet
+	replayGuard projectionReplayGuard
 }
 
 type rbacDecisionKey struct {
@@ -34,7 +34,7 @@ func NewRBACProjection() *RBACProjection {
 		roles:       make(map[string]*corev1.Role),
 		assignments: make(map[string]map[string]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
-		eventIDSeen: newEventIDSet(),
+		replayGuard: newProjectionReplayGuard(),
 	}
 }
 
@@ -42,13 +42,13 @@ func (p *RBACProjection) Subjects() []string {
 	return []string{events.RBACSubjectFilter()}
 }
 
-func (p *RBACProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
-	if p.eventIDSeen.seenOrMark(event) {
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -94,6 +94,12 @@ func (p *RBACProjection) Apply(event *corev1.Event, _ uint64) error {
 		)
 	}
 	return nil
+}
+
+func (p *RBACProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func rbacRoleFromCreated(event *corev1.RbacRoleCreatedEvent) *corev1.Role {

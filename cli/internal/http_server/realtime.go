@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"compress/flate"
 	"context"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ const (
 	realtimeReadLimitBytes           = 64 << 10
 	realtimeReadBufferBytes          = 256
 	realtimeWriteBufferBytes         = 512
+	realtimeCompressionMinBytes      = 1024
 	realtimeHandshakeTimeout         = 10 * time.Second
 	realtimeWriteTimeout             = 10 * time.Second
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
@@ -63,6 +65,14 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 		s.metrics.realtimeWebSocketOpened()
 		defer s.metrics.realtimeWebSocketClosed()
 		defer conn.Close()
+		if upgrader.EnableCompression {
+			// Huffman-only DEFLATE preserves negotiated permessage-deflate while
+			// avoiding Lempel-Ziv match searching for the larger frames that pass
+			// the write-compression threshold below.
+			if err := conn.SetCompressionLevel(flate.HuffmanOnly); err != nil {
+				s.logger.Warn("Failed to configure realtime WebSocket compression", "error", err)
+			}
+		}
 
 		s.serveRealtimeWebSocket(req.Context(), conn)
 	})
@@ -77,8 +87,10 @@ func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request, allowedOrigin
 		return true
 	}
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
-		host = forwarded
+	if s.trustedProxies.containsRemoteAddr(r.RemoteAddr) {
+		if forwarded := forwardedHost(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
+			host = forwarded
+		}
 	}
 	if parsedOrigin, err := url.Parse(origin); err == nil {
 		if strings.EqualFold(parsedOrigin.Host, host) {
@@ -103,6 +115,13 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}
 		writeMu.Lock()
 		defer writeMu.Unlock()
+		// Compression setup is disproportionately expensive for the small
+		// invalidation and heartbeat frames that dominate this protocol. Keep
+		// negotiated compression for larger payloads where it can repay the
+		// compressor state.
+		conn.EnableWriteCompression(
+			shouldCompressRealtimeFrame(s.config.Webserver.WebSocketCompressionEnabled(), len(data)),
+		)
 		if err := conn.SetWriteDeadline(time.Now().Add(realtimeWriteTimeout)); err != nil {
 			return err
 		}
@@ -133,6 +152,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {
+		if !errors.Is(err, core.ErrNotAuthenticated) {
+			writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
+			return
+		}
 		writeError("authentication_required", "authentication required", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 		return
@@ -204,6 +228,10 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 }
 
+func shouldCompressRealtimeFrame(compressionEnabled bool, payloadBytes int) bool {
+	return compressionEnabled && payloadBytes >= realtimeCompressionMinBytes
+}
+
 func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeClientFrame, error) {
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
@@ -263,7 +291,10 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 
 func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *corev1.User, error) {
 	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
-		credential, ok := s.bearerPresentedCredential(ctx, token)
+		credential, ok, err := s.bearerPresentedCredential(ctx, token)
+		if err != nil {
+			return ctx, nil, err
+		}
 		if !ok {
 			return ctx, nil, core.ErrNotAuthenticated
 		}
@@ -273,6 +304,9 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 	}
 	if user := authctx.ForContext(ctx); user != nil {
 		return ctx, user, nil
+	}
+	if err := authenticationValidationError(ctx); err != nil {
+		return ctx, nil, err
 	}
 	return ctx, nil, core.ErrNotAuthenticated
 }

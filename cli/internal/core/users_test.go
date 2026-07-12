@@ -2039,6 +2039,12 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "   ", nil); !errors.Is(err, ErrCustomStatusTextRequired) {
 		t.Fatalf("SetUserCustomStatus blank text error = %v, want ErrCustomStatusTextRequired", err)
 	}
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "e", "Invalid emoji", nil); !errors.Is(err, ErrCustomStatusEmojiInvalid) {
+		t.Fatalf("SetUserCustomStatus invalid emoji error = %v, want ErrCustomStatusEmojiInvalid", err)
+	}
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿🌿", "Too many emoji", nil); !errors.Is(err, ErrCustomStatusEmojiInvalid) {
+		t.Fatalf("SetUserCustomStatus multiple emoji error = %v, want ErrCustomStatusEmojiInvalid", err)
+	}
 
 	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
 	if err != nil {

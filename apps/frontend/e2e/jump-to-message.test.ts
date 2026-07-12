@@ -10,6 +10,71 @@ import {
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
+const GET_ROOM_EVENTS_AROUND_ROUTE = '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
+const ASSET_ROUTE = '**/assets/**';
+
+type DeferredRequest = {
+  waitUntilBlocked: () => Promise<void>;
+  waitUntilDelivered: () => Promise<void>;
+  release: () => void;
+};
+
+async function deferNextResponse(page: Page, url: string): Promise<DeferredRequest> {
+  let releaseRequest: (() => void) | undefined;
+  let markBlocked: (() => void) | undefined;
+  let markDelivered: (() => void) | undefined;
+  const releaseGate = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
+  const blocked = new Promise<void>((resolve) => {
+    markBlocked = resolve;
+  });
+  const delivered = new Promise<void>((resolve) => {
+    markDelivered = resolve;
+  });
+  let deferred = false;
+
+  await page.route(url, async (route) => {
+    if (deferred) {
+      await route.continue();
+      return;
+    }
+
+    deferred = true;
+    const response = await route.fetch();
+    markBlocked?.();
+    await releaseGate;
+    await route.fulfill({ response });
+    markDelivered?.();
+  });
+
+  return {
+    waitUntilBlocked: () => blocked,
+    waitUntilDelivered: () => delivered,
+    release: () => releaseRequest?.()
+  };
+}
+
+async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
+  return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
+}
+
+async function expectMessageCentered(page: Page, eventId: string): Promise<void> {
+  const message = page.locator(`[data-event-id="${eventId}"]`);
+  const container = page.getByTestId('messages-container').first();
+  await expect(message).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+
+  await expect(async () => {
+    const messageBox = await message.boundingBox();
+    const containerBox = await container.boundingBox();
+    expect(messageBox).not.toBeNull();
+    expect(containerBox).not.toBeNull();
+    const messageCenter = messageBox!.y + messageBox!.height / 2;
+    const containerCenter = containerBox!.y + containerBox!.height / 2;
+    expect(Math.abs(messageCenter - containerCenter)).toBeLessThan(containerBox!.height / 6);
+  }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500] });
+}
+
 async function clickReplyAttributionJump(page: Page, replyBody: string): Promise<void> {
   const replyAttribution = page
     .locator('[role="article"]', { hasText: replyBody })
@@ -132,9 +197,19 @@ test.describe('jump to message', () => {
     await page.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
     // Should return to the latest messages
-    await expect(page.getByText(`JTP filler 60 - ${timestamp}`)).toBeVisible({
-      timeout: TIMEOUTS.REALTIME_EVENT
+    await expect(page.getByText(replyBody)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
     });
+    const messagesContainer = page.getByTestId('messages-container').first();
+    await expect
+      .poll(
+        () =>
+          messagesContainer.evaluate(
+            (element) => element.scrollHeight - element.scrollTop - element.clientHeight
+          ),
+        { timeout: TIMEOUTS.UI_STANDARD }
+      )
+      .toBeLessThan(10);
 
     // The "Jump to Present" button should disappear
     await expect(page.getByTestId('jump-to-present')).not.toBeVisible({
@@ -241,5 +316,169 @@ test.describe('jump to message', () => {
 
     // "Jump to Present" should still not be visible
     await expect(page.getByTestId('jump-to-present')).not.toBeVisible();
+  });
+
+  test('direct permalink centers a target across a 200-message timeline', async ({
+    page,
+    chatPage
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const timestamp = Date.now();
+    const targetBody = `Large timeline permalink target - ${timestamp}`;
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from({ length: 200 }, (_, index) => `Large timeline filler ${index + 1} - ${timestamp}`)
+    );
+
+    await page.goto(routes.messageLink(roomId, targetEventId));
+
+    await expectMessageCentered(page, targetEventId);
+    await expect(page.getByTestId('jump-to-present')).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(page.getByText(`Large timeline filler 200 - ${timestamp}`)).not.toBeVisible();
+  });
+
+  test('a newer permalink wins when an older jump response arrives last', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const timestamp = Date.now();
+    const firstBody = `Superseded target A - ${timestamp}`;
+    const firstEventId = await postMessageViaConnect(page, roomId, firstBody);
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from({ length: 60 }, (_, index) => `Supersession filler ${index + 1} - ${timestamp}`)
+    );
+    const secondBody = `Winning target B - ${timestamp}`;
+    const secondEventId = await postMessageViaConnect(page, roomId, secondBody);
+    const latestBody = `Later filler 60 - ${timestamp}`;
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from({ length: 60 }, (_, index) => `Later filler ${index + 1} - ${timestamp}`)
+    );
+
+    // An event append can complete before the room timeline projection has
+    // exposed every seeded row. Establish a fully projected latest window so
+    // this test only exercises response ordering, not projection convergence.
+    await page.reload();
+    await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+    const deferred = await deferNextAroundRequest(page);
+    await page.goto(routes.messageLink(roomId, firstEventId));
+    await deferred.waitUntilBlocked();
+
+    await page.goto(routes.messageLink(roomId, secondEventId));
+    await expectMessageCentered(page, secondEventId);
+    deferred.release();
+    await deferred.waitUntilDelivered();
+
+    await expectMessageCentered(page, secondEventId);
+    await expect(page.locator(`[data-event-id="${firstEventId}"]`)).not.toBeVisible();
+    await expect(page.getByText('Could not jump to that message.')).toHaveCount(0);
+  });
+
+  test('switching rooms wins over an unresolved historical jump', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const timestamp = Date.now();
+    const targetBody = `Interrupted room target - ${timestamp}`;
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from(
+        { length: 60 },
+        (_, index) => `Interrupted room filler ${index + 1} - ${timestamp}`
+      )
+    );
+
+    const deferred = await deferNextAroundRequest(page);
+    await page.goto(routes.messageLink(roomId, targetEventId));
+    await deferred.waitUntilBlocked();
+    await chatPage.enterRoom('announcements');
+    deferred.release();
+    await deferred.waitUntilDelivered();
+
+    await chatPage.enterRoom('general');
+    await expect(page.getByText(`Interrupted room filler 60 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(page.locator(`[data-event-id="${targetEventId}"]`)).not.toBeVisible();
+    await expect(page.getByTestId('jump-to-present')).not.toBeVisible();
+    await expect(page.getByText('Could not jump to that message.')).toHaveCount(0);
+  });
+
+  test('permalink remains centered while variable-height rows are measured', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const timestamp = Date.now();
+    const imageBody = `Image near variable target - ${timestamp}`;
+    await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', imageBody);
+    const targetBody = `Variable height target ${timestamp}\n${'A long wrapped line. '.repeat(30)}`;
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    await postReplyViaConnect(
+      page,
+      roomId,
+      `Reply attribution near variable target - ${timestamp}`,
+      targetEventId
+    );
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from({ length: 80 }, (_, index) => `Variable filler ${index + 1} - ${timestamp}`)
+    );
+
+    const deferredImage = await deferNextResponse(page, ASSET_ROUTE);
+    await page.goto(routes.messageLink(roomId, targetEventId));
+
+    await expectMessageCentered(page, targetEventId);
+    await expect(page.locator(`[data-event-id="${targetEventId}"]`)).toContainText(
+      'A long wrapped line.'
+    );
+    await deferredImage.waitUntilBlocked();
+    deferredImage.release();
+    await deferredImage.waitUntilDelivered();
+    const nearbyImage = page
+      .locator('[role="article"]', { hasText: imageBody })
+      .locator('img')
+      .first();
+    await expect(nearbyImage).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(async () => {
+      expect(
+        await nearbyImage.evaluate(
+          (image: HTMLImageElement) => image.complete && image.naturalHeight > 0
+        )
+      ).toBe(true);
+    }).toPass({ timeout: TIMEOUTS.COMPLEX_OPERATION, intervals: [100, 250, 500] });
+    await expectMessageCentered(page, targetEventId);
+    await expect(page.getByTestId('jump-to-present')).toBeVisible();
   });
 });

@@ -2,10 +2,12 @@ package http_server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 
 	"connectrpc.com/authn"
+	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/authctx"
@@ -78,6 +80,9 @@ func (s *HTTPServer) mountOperatorConnectHandler(router gin.IRouter, servicePath
 }
 
 func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, error) {
+	if err := authenticationValidationError(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authentication service temporarily unavailable"))
+	}
 	user := authctx.ForContext(ctx)
 	if user == nil {
 		return nil, authn.Errorf("authentication required")

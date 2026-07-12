@@ -11,19 +11,11 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
-  import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
+  import { RoomType } from '$lib/render/types';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import {
-    createMemberDirectoryAPI,
-    type DirectoryMember
-  } from '$lib/api-client/memberDirectory';
-  import {
-    createRoomDirectoryAPI,
-    RoomDirectoryScope,
-    RoomKind
-  } from '$lib/api-client/roomDirectory';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
   type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {
@@ -59,82 +51,64 @@
 
   // --- Data loading ---
 
-  async function loadAll() {
+  function loadAll() {
     loading = true;
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
 
-    await Promise.allSettled(
-      instances.map(async (instance) => {
-        const serverConnection = serverConnectionManager.getClient(instance.id);
-        const store = serverRegistry.tryGetStore(instance.id);
-        const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
-        const serverLabel = multiInstance ? serverName : '';
-        const currentUserId = store?.currentUser.user?.id ?? undefined;
-        const directory = createRoomDirectoryAPI({
-          serverId: instance.id,
-          baseUrl: serverConnection.connectBaseUrl,
-          bearerToken: serverConnection.bearerToken
-        });
-        const members = createMemberDirectoryAPI({
-          baseUrl: serverConnection.connectBaseUrl,
-          bearerToken: serverConnection.bearerToken
-        });
+    for (const instance of instances) {
+      const store = serverRegistry.tryGetStore(instance.id);
+      const serverName = store?.serverInfo.name || instance.name || getHostname(instance.url);
+      const serverLabel = multiInstance ? serverName : '';
+      const currentUserId = store?.currentUser.user?.id ?? undefined;
+      const logo: ServerLogo = {
+        name: serverName,
+        logoUrl: store?.serverInfo.iconUrl ?? null
+      };
 
-        const logo: ServerLogo = {
-          name: serverName,
-          logoUrl: store?.serverInfo.iconUrl ?? null
-        };
+      items.push({
+        kind: 'server',
+        id: `server-${instance.id}`,
+        label: logo.name,
+        detail: '',
+        serverId: instance.id,
+        serverName: logo.name,
+        serverLogo: logo,
+        href: resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(instance.id) }),
+        score: 0
+      });
 
+      for (const room of store?.rooms.rooms ?? []) {
+        if (room.type === RoomType.Dm) {
+          const participants = room.members.map(avatarUser);
+          items.push({
+            kind: 'dm',
+            id: room.id,
+            label: dmLabel(participants, currentUserId),
+            detail: serverLabel,
+            serverId: instance.id,
+            serverName,
+            participants,
+            currentUserId,
+            score: 0
+          });
+          continue;
+        }
+
+        if (!room.viewerIsMember) continue;
         items.push({
-          kind: 'server',
-          id: `server-${instance.id}`,
-          label: logo.name,
-          detail: '',
+          kind: 'room',
+          id: room.id,
+          label: room.name,
+          detail: serverLabel || logo.name,
           serverId: instance.id,
-          serverName: logo.name,
+          serverName,
           serverLogo: logo,
-          href: resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(instance.id) }),
           score: 0
         });
-
-        const rooms = await directory.listRooms(RoomDirectoryScope.ALL);
-        await Promise.all(
-          rooms.map(async (room) => {
-            if (room.kind === RoomKind.DM) {
-              const participants = (
-                await members.listRoomMembers(room.id, '', ROOM_MEMBERS_PAGE_SIZE, 0)
-              ).members.map(avatarUser);
-              items.push({
-                kind: 'dm',
-                id: room.id,
-                label: dmLabel(participants, currentUserId),
-                detail: serverLabel,
-                serverId: instance.id,
-                serverName,
-                participants,
-                currentUserId,
-                score: 0
-              });
-              return;
-            }
-
-            if (!room.isMember) return;
-            items.push({
-              kind: 'room',
-              id: room.id,
-              label: room.name,
-              detail: serverLabel || logo.name,
-              serverId: instance.id,
-              serverName,
-              serverLogo: logo,
-              score: 0
-            });
-          })
-        );
-      })
-    );
+      }
+    }
 
     items.push({
       kind: 'destination',
@@ -327,8 +301,6 @@
         userItems = [];
         scheduleUserSearch('');
         if (!node.open) node.showModal();
-        requestAnimationFrame(() => inputEl?.focus());
-        loadAll();
       } else {
         if (userSearchTimer) clearTimeout(userSearchTimer);
         userItems = [];
@@ -339,8 +311,24 @@
     });
   }
 
+  // Rebuild from the canonical per-server room stores when the switcher opens or a store refreshes.
+  $effect(() => {
+    if (!quickSwitcher.visible) return;
+    void serverRegistry.servers;
+    for (const instance of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(instance.id);
+      void store?.rooms.rooms;
+      void store?.rooms.isInitialLoading;
+    }
+    untrack(loadAll);
+  });
+
   function registerInput(node: HTMLInputElement) {
     inputEl = node;
+    queueMicrotask(() => node.focus());
+    return () => {
+      if (inputEl === node) inputEl = undefined;
+    };
   }
 
   // --- Navigation ---

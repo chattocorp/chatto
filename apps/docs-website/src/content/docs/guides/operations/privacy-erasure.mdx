@@ -103,7 +103,7 @@ Removing either a required wrapped DEK or its KEK makes the corresponding cipher
 Crypto-shredding does not remove every historical fact. User IDs, message-posting facts, room and thread relationships, timestamps, and other non-encrypted event metadata can remain in `EVT`. Asset deletion removes backing bytes instead of relying on the per-user encryption keys because Chatto does not encrypt asset bytes with those keys.
 
 <Aside type="caution">
-  Key shredding and several storage cleanup operations are currently best-effort within the broader account-deletion command. The server logs a warning and can continue deleting the account if one of those steps fails. Operators should monitor deletion-time warnings and resolve storage or KMS failures; a successful account-deletion response alone is not proof that every backend cleanup succeeded.
+  Key shredding, avatar deletion, and several runtime cleanup operations remain best-effort within the broader account-deletion command. For canonical message-owned assets, an elected worker resolves storage metadata from durable asset creation facts and retries failed binary and transform-cache cleanup after restart or replica handover. Operators should still monitor deletion-time and cleanup warnings; a successful account-deletion response alone is not proof that every backend cleanup has already completed.
 </Aside>
 
 ## Backups and Recoverability

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ Conflict handling:
   --conflict=skip      Skip streams that already exist
   --conflict=overwrite Delete and recreate existing streams`,
 	Args: cobra.ExactArgs(1),
-	Run:  runRestore,
+	RunE: runRestore,
 }
 
 func init() {
@@ -56,21 +57,26 @@ func init() {
 	restoreCmd.Flags().StringVar(&restorePassphrase, "passphrase", "", "decryption passphrase for encrypted backups (if not set, prompts interactively)")
 }
 
-func runRestore(cmd *cobra.Command, args []string) {
+func runRestore(cmd *cobra.Command, args []string) error {
 	archivePath := args[0]
 	startTime := time.Now()
+	archive, err := openRestoreArchive(archivePath)
+	if err != nil {
+		return fmt.Errorf("invalid restore archive: %w", err)
+	}
+	defer archive.Close()
 
 	// Validate conflict flag
 	switch restoreConflict {
 	case "error", "skip", "overwrite":
 		// valid
 	default:
-		log.Fatal("Invalid --conflict value, must be: error, skip, overwrite", "value", restoreConflict)
+		return fmt.Errorf("invalid --conflict value %q, must be: error, skip, overwrite", restoreConflict)
 	}
 
 	cfg, err := config.ReadConfig(restoreConfigFile)
 	if err != nil {
-		log.Fatal("Failed to read configuration", "error", err)
+		return fmt.Errorf("failed to read configuration: %w", err)
 	}
 
 	log.Info("Starting restore", "archive", archivePath, "conflict", restoreConflict)
@@ -83,36 +89,36 @@ func runRestore(cmd *cobra.Command, args []string) {
 	defer os.RemoveAll(tempDir)
 
 	// Check if the archive is age-encrypted
-	encrypted, err := isAgeEncrypted(archivePath)
+	encrypted, err := isAgeEncryptedReader(archive)
 	if err != nil {
-		log.Fatal("Failed to check archive encryption", "error", err)
+		return fmt.Errorf("failed to check archive encryption: %w", err)
 	}
 
 	if encrypted {
 		log.Info("Archive is encrypted, decryption required")
 		passphrase, err := getPassphrase(restorePassphrase, "Enter passphrase for backup decryption: ", false)
 		if err != nil {
-			log.Fatal("Failed to read passphrase", "error", err)
+			return fmt.Errorf("failed to read passphrase: %w", err)
 		}
 
 		log.Info("Decrypting and extracting archive...")
-		if err := extractEncryptedTarGz(archivePath, tempDir, passphrase); err != nil {
-			log.Fatal("Failed to decrypt/extract archive", "error", err)
+		if err := extractEncryptedTarGzReader(archive, tempDir, passphrase); err != nil {
+			return fmt.Errorf("failed to decrypt/extract archive: %w", err)
 		}
 	} else {
 		log.Info("Extracting archive...")
-		if err := extractTarGz(archivePath, tempDir); err != nil {
-			log.Fatal("Failed to extract archive", "error", err)
+		if err := readTarGz(io.LimitReader(archive, maxRestoreArchiveCompressedBytes+1), tempDir); err != nil {
+			return fmt.Errorf("failed to extract archive: %w", err)
 		}
 	}
 
 	// Find the backup directory inside the temp dir (archive contains a timestamp-named dir)
 	entries, err := os.ReadDir(tempDir)
 	if err != nil {
-		log.Fatal("Failed to read temp directory", "error", err)
+		return fmt.Errorf("failed to read temp directory: %w", err)
 	}
 	if len(entries) != 1 || !entries[0].IsDir() {
-		log.Fatal("Unexpected archive structure: expected a single directory")
+		return fmt.Errorf("unexpected archive structure: expected a single directory")
 	}
 	backupDir := filepath.Join(tempDir, entries[0].Name())
 
@@ -120,12 +126,15 @@ func runRestore(cmd *cobra.Command, args []string) {
 	manifestPath := filepath.Join(backupDir, "manifest.json")
 	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
-		log.Fatal("Failed to read manifest", "error", err)
+		return fmt.Errorf("failed to read manifest: %w", err)
 	}
 
 	var manifest BackupManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		log.Fatal("Failed to parse manifest", "error", err)
+		return fmt.Errorf("failed to parse manifest: %w", err)
+	}
+	if err := validateBackupManifest(manifest); err != nil {
+		return fmt.Errorf("invalid backup manifest: %w", err)
 	}
 
 	log.Info("Backup info",
@@ -137,7 +146,7 @@ func runRestore(cmd *cobra.Command, args []string) {
 	// Connect to NATS
 	nc, embeddedServer, err := connectForRestore(cfg)
 	if err != nil {
-		log.Fatal("Failed to connect to NATS", "error", err)
+		return fmt.Errorf("failed to connect to NATS: %w", err)
 	}
 	defer nc.Close()
 	if embeddedServer != nil {
@@ -152,12 +161,12 @@ func runRestore(cmd *cobra.Command, args []string) {
 
 	js, err := jetstream.New(nc)
 	if err != nil {
-		log.Fatal("Failed to create JetStream context", "error", err)
+		return fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
 	mgr, err := jsm.New(nc)
 	if err != nil {
-		log.Fatal("Failed to create JSM manager", "error", err)
+		return fmt.Errorf("failed to create JSM manager: %w", err)
 	}
 
 	// Build set of existing streams for conflict detection.
@@ -167,7 +176,7 @@ func runRestore(cmd *cobra.Command, args []string) {
 		existingStreams[info.Config.Name] = true
 	}
 	if err := streamLister.Err(); err != nil {
-		log.Fatal("Failed to enumerate existing streams", "error", err)
+		return fmt.Errorf("failed to enumerate existing streams: %w", err)
 	}
 
 	// Restore each stream from the manifest
@@ -197,7 +206,7 @@ func runRestore(cmd *cobra.Command, args []string) {
 		if existingStreams[streamInfo.Name] {
 			switch restoreConflict {
 			case "error":
-				log.Fatal(fmt.Sprintf("Stream %q already exists. Use --conflict=skip or --conflict=overwrite", streamInfo.Name))
+				return fmt.Errorf("stream %q already exists; use --conflict=skip or --conflict=overwrite", streamInfo.Name)
 			case "skip":
 				log.Info(fmt.Sprintf("%s Skipping %s (already exists)", prefix, streamInfo.Name))
 				skipped++
@@ -261,6 +270,7 @@ func runRestore(cmd *cobra.Command, args []string) {
 			"Encrypted message bodies cannot be decrypted without them — restore your " +
 			"encryption keys separately, or recreate the backup with --include-keys.")
 	}
+	return nil
 }
 
 type restoreConfigOverride struct {
@@ -309,6 +319,49 @@ func manifestIncludesEncryptionKeys(m BackupManifest) bool {
 		return s.Type != "skipped" && s.Error == ""
 	}
 	return false
+}
+
+func validateBackupManifest(manifest BackupManifest) error {
+	seen := make(map[string]struct{}, len(manifest.Streams))
+	for _, stream := range manifest.Streams {
+		name := stream.Name
+		if name == "" || filepath.IsAbs(name) || name != filepath.Base(name) || name == "." || name == ".." || strings.ContainsAny(name, "/\\.*> \t\r\n") {
+			return fmt.Errorf("invalid stream name %q", name)
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("duplicate stream name %q", name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
+func openRestoreArchive(path string) (*os.File, error) {
+	pathInfo, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !pathInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("restore archive must be a regular file, not a symlink or special file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	fileInfo, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	if !fileInfo.Mode().IsRegular() || !os.SameFile(pathInfo, fileInfo) {
+		file.Close()
+		return nil, fmt.Errorf("restore archive changed while it was being opened")
+	}
+	if fileInfo.Size() > maxRestoreArchiveCompressedBytes {
+		file.Close()
+		return nil, fmt.Errorf("restore archive exceeds the compressed-size limit of %d bytes", maxRestoreArchiveCompressedBytes)
+	}
+	return file, nil
 }
 
 // connectForRestore establishes a NATS connection for restore operations.
@@ -364,14 +417,23 @@ func connectForRestore(cfg config.ChattoConfig) (*nats.Conn, *server.Server, err
 
 // isAgeEncrypted checks if a file starts with the age encryption header.
 func isAgeEncrypted(filePath string) (bool, error) {
-	f, err := os.Open(filePath)
+	f, err := openRestoreArchive(filePath)
 	if err != nil {
 		return false, err
 	}
 	defer f.Close()
+	return isAgeEncryptedReader(f)
+}
 
+func isAgeEncryptedReader(r io.ReadSeeker) (bool, error) {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return false, err
+	}
 	header := make([]byte, 30)
-	n, err := f.Read(header)
+	n, err := r.Read(header)
+	if _, seekErr := r.Seek(0, io.SeekStart); seekErr != nil {
+		return false, seekErr
+	}
 	if n == 0 || err != nil {
 		return false, nil
 	}
@@ -381,18 +443,21 @@ func isAgeEncrypted(filePath string) (bool, error) {
 
 // extractEncryptedTarGz decrypts an age-encrypted .tar.gz archive and extracts it.
 func extractEncryptedTarGz(archiveFile, destDir, passphrase string) error {
-	inFile, err := os.Open(archiveFile)
+	inFile, err := openRestoreArchive(archiveFile)
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
 	defer inFile.Close()
+	return extractEncryptedTarGzReader(inFile, destDir, passphrase)
+}
 
+func extractEncryptedTarGzReader(r io.Reader, destDir, passphrase string) error {
 	identity, err := age.NewScryptIdentity(passphrase)
 	if err != nil {
 		return fmt.Errorf("failed to create age identity: %w", err)
 	}
 
-	ageReader, err := age.Decrypt(inFile, identity)
+	ageReader, err := age.Decrypt(io.LimitReader(r, maxRestoreArchiveCompressedBytes+1), identity)
 	if err != nil {
 		return fmt.Errorf("decryption failed (wrong passphrase?): %w", err)
 	}

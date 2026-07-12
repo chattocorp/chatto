@@ -34,6 +34,16 @@ export class RoomPage {
     return this.page.locator('img.h-16.w-16');
   }
 
+  /** Attachment preview staged in the main room composer. */
+  get roomAttachmentPreview(): Locator {
+    return this.roomDropZone.locator('img.h-16.w-16');
+  }
+
+  /** Attachment preview staged in the thread composer. */
+  get threadAttachmentPreview(): Locator {
+    return this.threadDropZone.locator('img.h-16.w-16');
+  }
+
   /** The attach file button */
   get attachButton(): Locator {
     return this.page.getByTitle('Attach file');
@@ -892,6 +902,11 @@ export class RoomPage {
     });
   }
 
+  /** The active thread pane, which owns its thread-scoped drop zone. */
+  get threadDropZone(): Locator {
+    return this.page.getByTestId('thread-pane');
+  }
+
   /**
    * Simulate dragging files over the room drop zone.
    * This triggers the dragenter event with file types.
@@ -935,6 +950,15 @@ export class RoomPage {
    * Uses a real file from the e2e fixtures.
    */
   async simulateFileDrop(filePath: string): Promise<void> {
+    await this.simulateFileDropOn(this.roomDropZone, filePath);
+  }
+
+  /** Simulate dropping a file on the active thread pane. */
+  async simulateThreadFileDrop(filePath: string): Promise<void> {
+    await this.simulateFileDropOn(this.threadDropZone, filePath);
+  }
+
+  private async simulateFileDropOn(dropTarget: Locator, filePath: string): Promise<void> {
     // Read the file and convert to base64
     const fs = await import('fs/promises');
     const path = await import('path');
@@ -963,7 +987,7 @@ export class RoomPage {
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
-    await this.roomDropZone.evaluate(
+    await dropTarget.evaluate(
       (el, { base64Data, fileName, mimeType }) => {
         // Convert base64 to Uint8Array
         const binaryString = atob(base64Data);
@@ -1013,5 +1037,12 @@ export class RoomPage {
     const currentCount = await this.attachmentPreview.count();
     await this.simulateFileDrop(filePath);
     await expect(this.attachmentPreview).toHaveCount(currentCount + 1);
+  }
+
+  /** Drop a file into the thread composer and wait for its preview. */
+  async dropFileInThread(filePath: string): Promise<void> {
+    const currentCount = await this.threadAttachmentPreview.count();
+    await this.simulateThreadFileDrop(filePath);
+    await expect(this.threadAttachmentPreview).toHaveCount(currentCount + 1);
   }
 }

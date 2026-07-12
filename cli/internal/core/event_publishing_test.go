@@ -172,6 +172,62 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, SystemActorID, "rbac-stream-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "rbac-stream-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "rbac-stream-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	if err := core.DenyUserRoomPermission(ctx, author.Id, room.Id, viewer.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "secret after revocation", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	timer := time.NewTimer(500 * time.Millisecond)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-eventChan:
+			if !ok {
+				t.Fatal("event stream closed while refreshing RBAC visibility")
+			}
+			if envelope.ID() == posted.Id {
+				t.Fatal("viewer received a room event after room.join was revoked")
+			}
+		case <-timer.C:
+			return
+		}
+	}
+}
+
 func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -45,6 +45,7 @@ const { mocks } = vi.hoisted(() => {
         addedAt: 0
       },
       store: {
+        isAuthenticated: true,
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
@@ -55,6 +56,7 @@ const { mocks } = vi.hoisted(() => {
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
+          captureSnapshotRevision: vi.fn().mockReturnValue(0),
           clear: vi.fn(),
           initRooms: vi.fn(),
           updateRooms: vi.fn(),
@@ -72,7 +74,7 @@ const { mocks } = vi.hoisted(() => {
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
           name: 'Chatto',
-          iconUrl: null
+          iconUrl: null as string | null
         },
         setPermissions: vi.fn(),
         serverIndicator: vi.fn().mockReturnValue(null)
@@ -226,6 +228,7 @@ describe('ServerSidebarEntry', () => {
     mocks.registrar.onNotificationLevelChanged.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
+    mocks.store.isAuthenticated = true;
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
     mocks.store.notifications.fetch.mockClear();
@@ -237,6 +240,8 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.dismiss.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
+    mocks.store.roomUnread.captureSnapshotRevision.mockClear();
+    mocks.store.roomUnread.captureSnapshotRevision.mockReturnValue(0);
     mocks.store.roomUnread.initRooms.mockClear();
     mocks.store.roomUnread.updateRooms.mockClear();
     mocks.store.roomUnread.resolveUnknownUnread.mockClear();
@@ -253,6 +258,28 @@ describe('ServerSidebarEntry', () => {
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  it('renders an unauthenticated server without loading private sidebar state', async () => {
+    mocks.store.isAuthenticated = false;
+    mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/logo.webp';
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote'
+      }
+    });
+
+    const icon = q(container, '[data-testid="server-icon"]');
+    const image = q(container, '[data-testid="server-icon"] img');
+    await expect.element(icon).toBeInTheDocument();
+    await expect.element(icon).toHaveAttribute('href', '/chat/remote.example.com');
+    await expect
+      .element(image)
+      .toHaveAttribute('src', 'https://remote.example.com/assets/server/logo.webp');
+    expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
+    expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
   });
 
   it('keeps a failed server in the gutter as a dimmed icon', async () => {
@@ -277,11 +304,15 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('removes the dimmed state after sidebar init succeeds', async () => {
+    mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/public-logo.webp';
     mocks.store.notifications.fetch.mockImplementationOnce(async () => {
       mocks.store.notifications.setUnreadNotificationCount(3);
     });
     mocks.getAuthenticatedServerState.mockResolvedValue(
-      serverState({ viewerHasUnreadRooms: true })
+      serverState({
+        logoUrl: 'https://remote.example.com/assets/server/private-logo.webp',
+        viewerHasUnreadRooms: true
+      })
     );
     mocks.getViewerStateViaConnect.mockResolvedValue(
       viewerState({
@@ -309,10 +340,13 @@ describe('ServerSidebarEntry', () => {
     });
 
     const icon = q(container, '[data-testid="server-icon"]');
+    const image = q(container, '[data-testid="server-icon"] img');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).not.toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
-    expect(container.textContent).toContain('L');
+    await expect
+      .element(image)
+      .toHaveAttribute('src', 'https://remote.example.com/assets/server/private-logo.webp');
     await vi.waitFor(() => {
       expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
     });
@@ -341,7 +375,8 @@ describe('ServerSidebarEntry', () => {
     );
     expect(mocks.store.roomUnread.initRooms).toHaveBeenCalledWith(
       [{ id: 'dm-1', kind: 2, hasUnread: true }],
-      true
+      true,
+      0
     );
   });
 

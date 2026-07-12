@@ -23,6 +23,10 @@ Chatto can consume external OAuth and OIDC providers for sign-in. Providers are 
 
 Other provider types are not exposed as curated providers yet. Use `oidc` for standards-compatible OIDC providers.
 
+<Aside type="tip" title="Self-hosted OIDC providers">
+  Options you may want to explore include [Pocket ID](https://pocket-id.org/), [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth), [Portier](https://portier.github.io/), [Authelia](https://www.authelia.com/), [Dex](https://dexidp.io/), [Authentik](https://goauthentik.io/), and [Keycloak](https://www.keycloak.org/). Their account models and OIDC capabilities differ, so confirm that your chosen provider supports Chatto's generic OIDC configuration.
+</Aside>
+
 ## Provider IDs
 
 Every provider needs a stable `id`. The ID appears in login URLs and is stored in external identity links, so changing it after users link accounts will strand those links.

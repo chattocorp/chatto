@@ -56,6 +56,14 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 		router: router,
 		core:   chattoCore,
 	}
+	router.Use(func(c *gin.Context) {
+		if c.GetHeader("X-Test-Cancel-Authentication") == "true" {
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			cancel()
+			c.Request = c.Request.WithContext(ctx)
+		}
+		c.Next()
+	})
 	router.Use(s.csrfMiddleware())
 
 	router.GET("/login-test", func(c *gin.Context) {
@@ -169,6 +177,52 @@ func TestCSRFMiddleware(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("returns unavailable when cookie validation storage fails", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		token := csrfCookieValue(t, client, server.URL)
+
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/auth/verify-email/request-code", strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("create unsafe request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(csrfHeaderName, token)
+		req.Header.Set("X-Test-Cancel-Authentication", "true")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("unsafe request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 503; body=%s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("returns unavailable when safe-request cookie validation fails", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		req, err := http.NewRequest(http.MethodGet, server.URL+"/csrf-refresh", nil)
+		if err != nil {
+			t.Fatalf("create safe request: %v", err)
+		}
+		req.Header.Set("X-Test-Cancel-Authentication", "true")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("safe request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 503; body=%s", resp.StatusCode, body)
 		}
 	})
 

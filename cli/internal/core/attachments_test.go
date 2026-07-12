@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
@@ -365,6 +366,9 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	_, err = s3Client.StatObject(ctx, s3Key)
 	if err == nil {
 		t.Error("Object should be deleted from S3")
+	}
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		t.Fatalf("Second S3 deletion should be idempotent: %v", err)
 	}
 }
 
@@ -1154,7 +1158,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
 	}
 	inheritedRoomDerivativeID := "A-inherited-room-derivative"
-	if err := core.Assets.Apply(&corev1.Event{
+	inheritedCreated := &corev1.Event{
 		Id: "E-inherited-room-derivative-created",
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -1168,8 +1172,14 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
-	}, 999); err != nil {
-		t.Fatalf("Failed to project inherited-room derivative: %v", err)
+	}
+	inheritedSubject := events.AssetAggregate(inheritedRoomDerivativeID).SubjectFor(inheritedCreated)
+	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
+	if err != nil {
+		t.Fatalf("Failed to append inherited-room derivative: %v", err)
+	}
+	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+		t.Fatalf("Failed to wait for inherited-room derivative: %v", err)
 	}
 
 	thumbnailCacheKey := ImageCacheKey(AttachmentSignResource, thumbnail.Id, 128, 128, "cover")

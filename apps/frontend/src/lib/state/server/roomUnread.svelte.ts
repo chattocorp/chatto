@@ -26,6 +26,7 @@ export class RoomUnreadStore {
   private optimisticReadRooms = new SvelteSet<string>();
   private optimisticReads = new OptimisticMutationRegistry();
   private roomRevisions = new SvelteMap<string, number>();
+  private revision = 0;
   // Server-level unknown-unread flag (set when we know there's unread but
   // not which room — e.g. on initial load before rooms are queried).
   private serverHasUnknownUnread = $state(false);
@@ -38,6 +39,11 @@ export class RoomUnreadStore {
     return this.roomRevisions.get(roomId) ?? 0;
   }
 
+  private advanceRoomRevision(roomId: string): void {
+    this.revision += 1;
+    this.roomRevisions.set(roomId, this.revision);
+  }
+
   private invalidateOptimisticRead(roomId: string): void {
     this.optimisticReads.clear(this.optimisticReadKey(roomId));
     this.optimisticReadRooms.delete(roomId);
@@ -47,7 +53,7 @@ export class RoomUnreadStore {
    * Set unread status for a specific room.
    */
   setRoomUnread(roomId: string, unread: boolean): void {
-    this.roomRevisions.set(roomId, this.roomRevision(roomId) + 1);
+    this.advanceRoomRevision(roomId);
     this.invalidateOptimisticRead(roomId);
 
     if (unread) {
@@ -74,6 +80,7 @@ export class RoomUnreadStore {
         if (!this.optimisticReads.isCurrent(key, token)) return;
         if (this.roomRevision(roomId) !== roomRevision) return;
 
+        this.advanceRoomRevision(roomId);
         this.unreadRooms.delete(roomId);
         this.optimisticReads.clear(key);
         this.optimisticReadRooms.delete(roomId);
@@ -114,28 +121,38 @@ export class RoomUnreadStore {
     return this.unreadRooms.has(roomId) && !this.optimisticReadRooms.has(roomId);
   }
 
+  /** Capture before loading a snapshot so newer room events win on arrival. */
+  captureSnapshotRevision(): number {
+    return this.revision;
+  }
+
   /**
    * Initialize unread state from room data.
    * Call this when loading rooms.
    */
   initRooms(
     rooms: Array<{ id: string; hasUnread: boolean }>,
-    serverHasUnknownUnread = false
+    serverHasUnknownUnread = false,
+    snapshotRevision = this.captureSnapshotRevision()
   ): void {
-    this.optimisticReads.clearAll();
-    this.optimisticReadRooms.clear();
-    this.roomRevisions.clear();
-    this.unreadRooms.clear();
-    this.serverHasUnknownUnread = false;
-    this.updateRooms(rooms);
+    const snapshotRoomIds = new SvelteSet(rooms.map((room) => room.id));
+    for (const roomId of this.unreadRooms) {
+      if (!snapshotRoomIds.has(roomId) && this.roomRevision(roomId) <= snapshotRevision) {
+        this.unreadRooms.delete(roomId);
+      }
+    }
+
+    this.updateRooms(rooms, snapshotRevision);
     this.serverHasUnknownUnread = serverHasUnknownUnread;
   }
 
   /** Merge an authoritative partial room snapshot without dropping other rooms. */
-  updateRooms(rooms: Array<{ id: string; hasUnread: boolean }>): void {
+  updateRooms(
+    rooms: Array<{ id: string; hasUnread: boolean }>,
+    snapshotRevision = this.captureSnapshotRevision()
+  ): void {
     for (const room of rooms) {
-      this.roomRevisions.set(room.id, this.roomRevision(room.id) + 1);
-      this.invalidateOptimisticRead(room.id);
+      if (this.roomRevision(room.id) > snapshotRevision) continue;
       if (room.hasUnread) this.unreadRooms.add(room.id);
       else this.unreadRooms.delete(room.id);
     }
@@ -168,6 +185,7 @@ export class RoomUnreadStore {
     this.optimisticReads.clearAll();
     this.optimisticReadRooms.clear();
     this.roomRevisions.clear();
+    this.revision = 0;
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
   }

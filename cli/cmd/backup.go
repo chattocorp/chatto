@@ -57,6 +57,13 @@ var (
 	backupIncludeKeys bool
 )
 
+const (
+	maxRestoreArchiveCompressedBytes = int64(128 * 1024 * 1024 * 1024)
+	maxRestoreArchiveEntries         = 100_000
+	maxRestoreArchiveFileBytes       = int64(64 * 1024 * 1024 * 1024)
+	maxRestoreArchiveExpandedBytes   = int64(1024 * 1024 * 1024 * 1024)
+)
+
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Create a backup of all Chatto data",
@@ -161,73 +168,10 @@ func runBackup(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create output directory", "error", err)
 	}
 
-	// Create temporary working directory
-	backupDir := archivePath
-	backupDir = strings.TrimSuffix(backupDir, ".age")
-	backupDir = strings.TrimSuffix(backupDir, ".tar.gz")
-	streamsDir := filepath.Join(backupDir, "streams")
-
-	if err := os.MkdirAll(streamsDir, 0755); err != nil {
-		log.Fatal("Failed to create backup directory", "error", err)
-	}
-
-	// Enumerate all streams
-	streamNames, err := enumerateStreams(ctx, js)
+	manifest, err := createBackupArchive(ctx, js, mgr, archivePath, passphrase, backupEncrypt, backupIncludeKeys, startTime)
 	if err != nil {
-		log.Fatal("Failed to enumerate streams", "error", err)
-	}
-
-	log.Info("Found streams to backup", "count", len(streamNames))
-
-	// Backup each stream
-	manifest := BackupManifest{
-		Version:   1,
-		CreatedAt: startTime.UTC(),
-		Streams:   make([]StreamBackupInfo, 0),
-	}
-
-	for i, streamName := range streamNames {
-		info := backupStream(ctx, mgr, streamName, streamsDir, i+1, len(streamNames), backupIncludeKeys)
-		manifest.Streams = append(manifest.Streams, info)
-
-		if info.Error != "" {
-			manifest.Stats.Failed++
-		} else if info.Type == "skipped" {
-			manifest.Stats.Skipped++
-		} else {
-			manifest.Stats.TotalBytes += info.Bytes
-		}
-	}
-
-	manifest.Stats.TotalStreams = len(streamNames) - manifest.Stats.Skipped - manifest.Stats.Failed
-	manifest.Stats.DurationMs = time.Since(startTime).Milliseconds()
-
-	// Write manifest
-	manifestPath := filepath.Join(backupDir, "manifest.json")
-	manifestData, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		log.Fatal("Failed to marshal manifest", "error", err)
-	}
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
-		log.Fatal("Failed to write manifest", "error", err)
-	}
-
-	// Create archive (encrypted or plain)
-	var archiveErr error
-	if backupEncrypt {
-		archiveErr = createEncryptedTarGz(backupDir, archivePath, passphrase)
+		log.Fatal("Failed to create backup archive", "error", err)
 	} else {
-		archiveErr = createTarGz(backupDir, archivePath)
-	}
-
-	if archiveErr != nil {
-		log.Error("Failed to create archive", "error", archiveErr)
-		log.Warn("Backup directory preserved", "path", backupDir)
-	} else {
-		// Remove uncompressed directory
-		if err := os.RemoveAll(backupDir); err != nil {
-			log.Warn("Failed to remove backup directory", "path", backupDir, "error", err)
-		}
 		log.Info("Backup complete",
 			"streams", manifest.Stats.TotalStreams,
 			"skipped", manifest.Stats.Skipped,
@@ -245,6 +189,105 @@ func runBackup(cmd *cobra.Command, args []string) {
 				"Back up your encryption keys separately, or pass --include-keys to embed them.")
 		}
 	}
+}
+
+func createBackupArchive(ctx context.Context, js jetstream.JetStream, mgr *jsm.Manager, archivePath, passphrase string, encrypt, includeKeys bool, startTime time.Time) (BackupManifest, error) {
+	staging, err := newBackupStaging(archivePath)
+	if err != nil {
+		return BackupManifest{}, err
+	}
+	defer staging.cleanup()
+	backupDir, streamsDir := staging.backupDir, staging.streamsDir
+
+	streamNames, err := enumerateStreams(ctx, js)
+	if err != nil {
+		return BackupManifest{}, fmt.Errorf("failed to enumerate streams: %w", err)
+	}
+	log.Info("Found streams to backup", "count", len(streamNames))
+
+	manifest := BackupManifest{Version: 1, CreatedAt: startTime.UTC(), Streams: make([]StreamBackupInfo, 0, len(streamNames))}
+	for i, streamName := range streamNames {
+		info := backupStream(ctx, mgr, streamName, streamsDir, i+1, len(streamNames), includeKeys)
+		manifest.Streams = append(manifest.Streams, info)
+		switch {
+		case info.Error != "":
+			manifest.Stats.Failed++
+		case info.Type == "skipped":
+			manifest.Stats.Skipped++
+		default:
+			manifest.Stats.TotalBytes += info.Bytes
+		}
+	}
+	manifest.Stats.TotalStreams = len(streamNames) - manifest.Stats.Skipped - manifest.Stats.Failed
+	manifest.Stats.DurationMs = time.Since(startTime).Milliseconds()
+
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return BackupManifest{}, fmt.Errorf("failed to marshal manifest: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(backupDir, "manifest.json"), manifestData, 0600); err != nil {
+		return BackupManifest{}, fmt.Errorf("failed to write manifest: %w", err)
+	}
+	if err := secureBackupStaging(backupDir); err != nil {
+		return BackupManifest{}, err
+	}
+
+	if encrypt {
+		err = createEncryptedTarGz(backupDir, archivePath, passphrase)
+	} else {
+		err = createTarGz(backupDir, archivePath)
+	}
+	if err != nil {
+		return BackupManifest{}, err
+	}
+	return manifest, nil
+}
+
+type backupStaging struct {
+	root       string
+	backupDir  string
+	streamsDir string
+}
+
+func newBackupStaging(archivePath string) (*backupStaging, error) {
+	root, err := os.MkdirTemp(filepath.Dir(archivePath), ".chatto-backup-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create private backup staging directory: %w", err)
+	}
+	staging := &backupStaging{root: root, backupDir: filepath.Join(root, "backup")}
+	staging.streamsDir = filepath.Join(staging.backupDir, "streams")
+	if err := os.MkdirAll(staging.streamsDir, 0700); err != nil {
+		_ = os.RemoveAll(root)
+		return nil, fmt.Errorf("failed to create backup staging layout: %w", err)
+	}
+	return staging, nil
+}
+
+func (s *backupStaging) cleanup() {
+	if s != nil {
+		_ = os.RemoveAll(s.root)
+	}
+}
+
+func secureBackupStaging(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		switch {
+		case info.IsDir():
+			if err := os.Chmod(path, 0700); err != nil {
+				return fmt.Errorf("failed to secure backup directory %s: %w", path, err)
+			}
+		case info.Mode().IsRegular():
+			if err := os.Chmod(path, 0600); err != nil {
+				return fmt.Errorf("failed to secure backup file %s: %w", path, err)
+			}
+		default:
+			return fmt.Errorf("unsupported file in backup staging: %s", path)
+		}
+		return nil
+	})
 }
 
 // enumerateStreams returns all stream names from JetStream
@@ -378,55 +421,82 @@ func classifyStream(name string) string {
 
 // createTarGz creates a .tar.gz archive from a directory.
 func createTarGz(sourceDir, destFile string) error {
-	outFile, err := os.Create(destFile)
-	if err != nil {
-		return fmt.Errorf("failed to create archive file: %w", err)
-	}
-	defer outFile.Close()
-
-	return writeTarGz(sourceDir, outFile)
+	return writeArchiveAtomically(destFile, func(outFile io.Writer) error {
+		return writeTarGz(sourceDir, outFile)
+	})
 }
 
 // createEncryptedTarGz creates an age-encrypted .tar.gz archive.
 func createEncryptedTarGz(sourceDir, destFile, passphrase string) error {
-	outFile, err := os.Create(destFile)
-	if err != nil {
-		return fmt.Errorf("failed to create archive file: %w", err)
-	}
-	defer outFile.Close()
-
 	recipient, err := age.NewScryptRecipient(passphrase)
 	if err != nil {
 		return fmt.Errorf("failed to create age recipient: %w", err)
 	}
 
-	ageWriter, err := age.Encrypt(outFile, recipient)
-	if err != nil {
-		return fmt.Errorf("failed to initialize encryption: %w", err)
-	}
+	return writeArchiveAtomically(destFile, func(outFile io.Writer) error {
+		ageWriter, err := age.Encrypt(outFile, recipient)
+		if err != nil {
+			return fmt.Errorf("failed to initialize encryption: %w", err)
+		}
+		if err := writeTarGz(sourceDir, ageWriter); err != nil {
+			return err
+		}
+		if err := ageWriter.Close(); err != nil {
+			return fmt.Errorf("failed to finalize encryption: %w", err)
+		}
+		return nil
+	})
+}
 
-	if err := writeTarGz(sourceDir, ageWriter); err != nil {
+func writeArchiveAtomically(destFile string, write func(io.Writer) error) (err error) {
+	tempFile, err := os.CreateTemp(filepath.Dir(destFile), "."+filepath.Base(destFile)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary archive file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer func() {
+		_ = tempFile.Close()
+		if err != nil {
+			_ = os.Remove(tempPath)
+		}
+	}()
+	if err = tempFile.Chmod(0600); err != nil {
+		return fmt.Errorf("failed to secure temporary archive file: %w", err)
+	}
+	if err = write(tempFile); err != nil {
 		return err
 	}
-
-	if err := ageWriter.Close(); err != nil {
-		return fmt.Errorf("failed to finalize encryption: %w", err)
+	if err = tempFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync archive file: %w", err)
 	}
-
+	if err = tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close archive file: %w", err)
+	}
+	if err = os.Rename(tempPath, destFile); err != nil {
+		return fmt.Errorf("failed to publish archive atomically: %w", err)
+	}
+	parent, err := os.Open(filepath.Dir(destFile))
+	if err != nil {
+		return fmt.Errorf("failed to open archive directory for sync: %w", err)
+	}
+	if err = parent.Sync(); err != nil {
+		parent.Close()
+		return fmt.Errorf("failed to sync archive directory: %w", err)
+	}
+	if err = parent.Close(); err != nil {
+		return fmt.Errorf("failed to close archive directory: %w", err)
+	}
 	return nil
 }
 
 // writeTarGz writes tar.gz content from a source directory to the provided writer.
 func writeTarGz(sourceDir string, w io.Writer) error {
 	gzWriter := gzip.NewWriter(w)
-	defer gzWriter.Close()
-
 	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
 
 	baseName := filepath.Base(sourceDir)
 
-	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -460,15 +530,26 @@ func writeTarGz(sourceDir string, w io.Writer) error {
 			if err != nil {
 				return fmt.Errorf("failed to open file %s: %w", path, err)
 			}
-			defer file.Close()
-
 			if _, err := io.Copy(tarWriter, file); err != nil {
+				file.Close()
 				return fmt.Errorf("failed to write file content for %s: %w", path, err)
+			}
+			if err := file.Close(); err != nil {
+				return fmt.Errorf("failed to close file %s: %w", path, err)
 			}
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	if err := tarWriter.Close(); err != nil {
+		return fmt.Errorf("failed to finalize tar archive: %w", err)
+	}
+	if err := gzWriter.Close(); err != nil {
+		return fmt.Errorf("failed to finalize gzip archive: %w", err)
+	}
+	return nil
 }
 
 // extractTarGz extracts a .tar.gz archive into a destination directory.
@@ -484,6 +565,10 @@ func extractTarGz(archiveFile, destDir string) error {
 
 // readTarGz extracts tar.gz content from a reader into a destination directory.
 func readTarGz(r io.Reader, destDir string) error {
+	return readTarGzWithLimits(r, destDir, maxRestoreArchiveEntries, maxRestoreArchiveFileBytes, maxRestoreArchiveExpandedBytes)
+}
+
+func readTarGzWithLimits(r io.Reader, destDir string, maxEntries int, maxFileBytes, maxTotalBytes int64) error {
 	gzReader, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
@@ -492,6 +577,8 @@ func readTarGz(r io.Reader, destDir string) error {
 
 	tarReader := tar.NewReader(gzReader)
 
+	entries := 0
+	var expandedBytes int64
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -499,6 +586,10 @@ func readTarGz(r io.Reader, destDir string) error {
 		}
 		if err != nil {
 			return fmt.Errorf("failed to read tar entry: %w", err)
+		}
+		entries++
+		if entries > maxEntries {
+			return fmt.Errorf("archive contains more than %d entries", maxEntries)
 		}
 
 		// Prevent path traversal attacks
@@ -509,14 +600,21 @@ func readTarGz(r io.Reader, destDir string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0755); err != nil {
+			if err := os.MkdirAll(target, 0700); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", target, err)
 			}
-		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		case tar.TypeReg, tar.TypeRegA:
+			if header.Size < 0 || header.Size > maxFileBytes {
+				return fmt.Errorf("tar entry %q exceeds the per-file extraction limit", header.Name)
+			}
+			if header.Size > maxTotalBytes-expandedBytes {
+				return fmt.Errorf("archive exceeds the total extraction limit of %d bytes", maxTotalBytes)
+			}
+			expandedBytes += header.Size
+			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 				return fmt.Errorf("failed to create parent directory for %s: %w", target, err)
 			}
-			outFile, err := os.Create(target)
+			outFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 			if err != nil {
 				return fmt.Errorf("failed to create file %s: %w", target, err)
 			}
@@ -524,7 +622,11 @@ func readTarGz(r io.Reader, destDir string) error {
 				outFile.Close()
 				return fmt.Errorf("failed to write file %s: %w", target, err)
 			}
-			outFile.Close()
+			if err := outFile.Close(); err != nil {
+				return fmt.Errorf("failed to close file %s: %w", target, err)
+			}
+		default:
+			return fmt.Errorf("unsupported tar entry type %d for %q", header.Typeflag, header.Name)
 		}
 	}
 

@@ -119,6 +119,16 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 `webserver.url` is also the trusted public origin for generated absolute API and asset URLs. Chatto does not implicitly trust `X-Forwarded-Proto` or similar proxy headers for public URL generation; reverse-proxy deployments should set `webserver.url` to the external HTTPS origin.
 
+Forwarded host and client-IP headers are ignored unless the request's direct peer matches `webserver.trusted_proxies`. Add only the IP address or narrow CIDR that Chatto actually sees as its reverse-proxy peer:
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+trusted_proxies = ["172.20.0.0/24"]
+```
+
+The proxy must overwrite `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host` at the trust boundary. Do not use broad ranges that include untrusted workloads or clients. Proxies that preserve the original HTTP `Host` do not need this setting for same-origin WebSocket connections, but they do need it if audit records should attribute the originating client IP instead of the proxy IP.
+
 ## Backup security
 
 Backups encrypt with [age](https://age-encryption.org) when you pass `--encrypt`. Passing `--include-keys` also includes Chatto's built-in key-encryption-key bucket and makes the archive capable of restoring protected message text and user PII:

@@ -358,6 +358,10 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 	}
 
 	reqWithUser := s.injectUserIntoContext(c)
+	if authenticationValidationError(reqWithUser.Context()) != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+		return "", false
+	}
 	user := authctx.ForContext(reqWithUser.Context())
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})

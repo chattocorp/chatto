@@ -1053,7 +1053,7 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetUser().GetPresenceStatus())
 	}
 
-	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
+	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "👋", "around", nil); err != nil {
 		t.Fatalf("SetUserCustomStatus: %v", err)
 	}
 	if err := env.core.SetPresenceWithOptions(env.ctx, env.viewer.Id, "ONLINE", true); err != nil {
@@ -4045,6 +4045,14 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
+	}
+
+	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+		Emoji: "e",
+		Text:  "Invalid emoji",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateCustomStatus invalid emoji error = %v, want InvalidArgument", err)
 	}
 
 	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))

@@ -782,6 +782,7 @@ var ErrLoginAlreadyTaken = fmt.Errorf("login name is already taken")
 var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 
 var ErrCustomStatusEmojiRequired = fmt.Errorf("custom status emoji is required")
+var ErrCustomStatusEmojiInvalid = fmt.Errorf("custom status emoji must be a single supported emoji")
 var ErrCustomStatusTextRequired = fmt.Errorf("custom status text is required")
 var ErrCustomStatusEmojiTooLong = fmt.Errorf("custom status emoji is too long")
 var ErrCustomStatusTextTooLong = fmt.Errorf("custom status text is too long")
@@ -1191,6 +1192,9 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 	}
 	if utf8.RuneCountInString(emoji) > MaxCustomStatusEmojiLength {
 		return nil, ErrCustomStatusEmojiTooLong
+	}
+	if !IsValidUnicodeEmoji(emoji) {
+		return nil, ErrCustomStatusEmojiInvalid
 	}
 	if utf8.RuneCountInString(text) > MaxCustomStatusTextLength {
 		return nil, ErrCustomStatusTextTooLong

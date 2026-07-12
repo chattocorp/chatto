@@ -20,7 +20,10 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch release branches
-        run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
+        shell: bash
+        run: |
+          git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
+          git fetch origin '+refs/heads/next:refs/remotes/origin/next' || true
 
       - name: Verify release-please tag
         id: release_meta
@@ -33,6 +36,8 @@ jobs:
           source_branch=""
           if git merge-base --is-ancestor "$tag_commit" origin/main; then
             source_branch="main"
+          elif git show-ref --verify --quiet refs/remotes/origin/next && git merge-base --is-ancestor "$tag_commit" origin/next; then
+            source_branch="next"
           else
             while IFS= read -r ref; do
               if git merge-base --is-ancestor "$tag_commit" "$ref"; then
@@ -43,7 +48,7 @@ jobs:
           fi
 
           if [[ -z "$source_branch" ]]; then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main or an origin/release-* branch."
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main, origin/next, or an origin/release-* branch."
             exit 1
           fi
 

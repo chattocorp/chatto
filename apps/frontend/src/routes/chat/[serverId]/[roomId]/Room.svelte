@@ -43,6 +43,7 @@
     type RoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
@@ -71,6 +72,8 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
+  let pendingMainHighlightId = $state<string | null>(null);
+  let mainHighlightRequestId = 0;
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
@@ -290,8 +293,18 @@
     if (threadId) {
       pendingThreadHighlight = eventId;
     } else {
-      tick().then(() => {
-        jumpState.jumpToMessage(eventId);
+      const requestId = ++mainHighlightRequestId;
+      pendingMainHighlightId = eventId;
+      tick().then(async () => {
+        const jumped = await jumpState.jumpToMessage(eventId);
+        if (
+          !jumped &&
+          mainHighlightRequestId === requestId &&
+          pendingMainHighlightId === eventId
+        ) {
+          pendingMainHighlightId = null;
+          toast.error(m['room.jump_failed']());
+        }
       });
     }
   }
@@ -537,6 +550,10 @@
           onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
+          pendingHighlightId={pendingMainHighlightId}
+          onHighlightComplete={() => {
+            pendingMainHighlightId = null;
+          }}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />

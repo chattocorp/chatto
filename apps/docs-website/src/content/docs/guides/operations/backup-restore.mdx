@@ -69,6 +69,8 @@ chatto backup -c chatto.toml
 chatto backup -c chatto.toml -o /mnt/backups/chatto-daily.tar.gz
 ```
 
+Chatto stages snapshots in a private temporary directory next to the destination archive and removes the plaintext staging data whether archive creation succeeds or fails. The completed archive is written with owner-only permissions and moved into place atomically, so a failed run does not replace an existing backup with a partial file.
+
 ### Encrypted backups
 
 Use `--encrypt` to protect the backup archive with a passphrase. For small self-hosted servers, also pass `--include-keys` so the archive is self-contained:
@@ -99,6 +101,8 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 <Aside type="caution">
   Make sure Chatto is **not running** before restoring. For embedded NATS setups, the restore command starts its own temporary NATS server. For external NATS, stop the Chatto application but keep NATS running.
 </Aside>
+
+Restore accepts regular files and directories only, rejects unsafe manifest and archive paths, and stops archives that exceed the built-in entry-count or expanded-size safety limits. These limits are intentionally generous for production backups while preventing malformed archives from expanding without a bound.
 
 <Aside type="tip">
   Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
@@ -329,7 +333,7 @@ rm backup.tar.gz
 
 ### Retention and account deletion
 
-Account deletion attempts to shred the user's encryption keys in the live server and remove message-owned assets from active storage. These cleanup steps can log warnings and continue on individual storage failures, so operators should monitor deletion-time errors. Existing backups are not modified.
+Account deletion attempts to shred the user's encryption keys in the live server and remove message-owned assets from active storage. Current message-owned asset deletion facts are replayable, so an elected worker retries failed binary and transform-cache removal after restart or replica handover. Key, avatar, runtime-state, and historical pre-recovery asset cleanup can still log warnings and continue, so operators should monitor deletion-time and background-cleanup errors. Existing backups are not modified.
 
 If you restore a backup from before an account deletion and that backup includes the user's keys, the deleted user's encrypted message bodies and durable profile data can become readable again. The same is true when restoring a keyless data backup together with an old key export that still contains that user's keys. This is expected disaster-recovery behavior, but it matters for erasure requests.
 

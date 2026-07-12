@@ -713,6 +713,7 @@ const msg_room_thread_close = (): LocalizedString => messages().room_thread_clos
 const msg_room_thread_not_found = (): LocalizedString => messages().room_thread_not_found(empty());
 const msg_room_thread_reply_placeholder = (): LocalizedString => messages().room_thread_reply_placeholder(empty());
 const msg_room_jump_to_present = (): LocalizedString => messages().room_jump_to_present(empty());
+const msg_room_jump_failed = (): LocalizedString => messages().room_jump_failed(empty());
 const msg_room_unread_separator = (): LocalizedString => messages().room_unread_separator(empty());
 const msg_room_close_extras = (): LocalizedString => messages().room_close_extras(empty());
 const msg_server_settings_loading = (): LocalizedString => messages().server_settings_loading(empty());
@@ -2044,6 +2045,7 @@ export { msg_room_thread_close as 'room.thread.close' };
 export { msg_room_thread_not_found as 'room.thread.not_found' };
 export { msg_room_thread_reply_placeholder as 'room.thread.reply_placeholder' };
 export { msg_room_jump_to_present as 'room.jump_to_present' };
+export { msg_room_jump_failed as 'room.jump_failed' };
 export { msg_room_unread_separator as 'room.unread_separator' };
 export { msg_room_close_extras as 'room.close_extras' };
 export { msg_server_settings_loading as 'server_settings.loading' };
