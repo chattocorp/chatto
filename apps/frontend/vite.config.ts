@@ -198,6 +198,10 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true
       },
+      '/.well-known/chatto/shields': {
+        target: backendTarget,
+        changeOrigin: true
+      },
       '/webhooks': {
         target: backendTarget,
         changeOrigin: true
