@@ -31,7 +31,7 @@ matching proxy route when using a different name.
 - Docker and Docker Compose (v2) installed
 - A domain pointing to your server (for automatic HTTPS)
 - A `livekit.` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
-- Firewall allowing inbound TCP 80, 443, and 7881 plus UDP 3478 and 50000-50200
+- Firewall allowing inbound TCP 80, 443, and 7881 plus UDP 3478 and 7882
 
 ## Why This Example Runs NATS Separately
 
@@ -88,7 +88,7 @@ Preserve these public ports when using Caddy or your own proxy:
 | Your Chatto and LiveKit hostnames (TCP 443) | Your HTTP proxy | HTTPS and secure WebSocket traffic |
 | TCP 7881 | `livekit:7881` | WebRTC media fallback when direct UDP is unavailable |
 | UDP 3478 | `livekit:3478` | LiveKit's embedded TURN/STUN relay |
-| UDP 50000-50200 | Same ports on `livekit` | Direct WebRTC media |
+| UDP 7882 | `livekit:7882` | Direct WebRTC media |
 
 TCP 80 is also published in this example so Caddy can redirect HTTP and solve
 the ACME HTTP challenge. Your replacement proxy may use a different certificate
@@ -194,7 +194,7 @@ curl --fail --silent --show-error --output /dev/null https://livekit.chat.exampl
 
 The HTTPS checks verify routing and LiveKit signaling, but not WebRTC media.
 Join a call from two different networks or devices to exercise TCP 7881 and the
-UDP media ports.
+UDP media ports 3478 and 7882.
 
 ## Inspecting NATS
 
@@ -239,7 +239,7 @@ Data is persisted in Docker volumes:
 
 ## Disabling Voice and Video Calls
 
-If you don't need calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), remove the `livekit.*` block from the `Caddyfile`, remove LiveKit from `chatto.depends_on` and `caddy.depends_on`, and remove the LiveKit environment variables from `.env`. You can then close TCP 7881 and UDP 3478 and 50000-50200 and remove the `livekit.*` DNS record.
+If you don't need calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), remove the `livekit.*` block from the `Caddyfile`, remove LiveKit from `chatto.depends_on` and `caddy.depends_on`, and remove the LiveKit environment variables from `.env`. You can then close TCP 7881 and UDP 3478 and 7882 and remove the `livekit.*` DNS record.
 
 ## Troubleshooting
 
@@ -255,6 +255,6 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 
 **Calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 
-**LiveKit media ports**: The example exposes UDP 50000-50200 for direct WebRTC media, UDP 3478 for LiveKit's embedded TURN/STUN relay, and TCP 7881 as a media fallback. Ensure your firewall allows all three.
+**LiveKit media ports**: The example exposes UDP 7882 for direct WebRTC media, UDP 3478 for LiveKit's embedded TURN/STUN relay, and TCP 7881 as a media fallback. Ensure your firewall allows all three.
 
 **Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need an advanced TURN/TLS setup, such as a dedicated TURN host or L4 TLS forwarding with matching certificates.
