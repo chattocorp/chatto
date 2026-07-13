@@ -129,11 +129,11 @@ test.describe('User Settings - Display', () => {
     await timezoneInput.fill('Europe/Berlin');
 
     const currentTime = page.getByText(/^Current time there:/);
-    await page.getByRole('button', { name: '12-hour' }).click();
+    await page.getByRole('radio', { name: '12-hour' }).click();
     await expect(currentTime).toContainText(/[AP]M$/);
 
     // Select 24-hour format and verify the unsaved preview updates.
-    await page.getByRole('button', { name: '24-hour' }).click();
+    await page.getByRole('radio', { name: '24-hour' }).click();
     await expect(currentTime).not.toContainText(/[AP]M$/);
 
     // Save
@@ -148,10 +148,10 @@ test.describe('User Settings - Display', () => {
     // Reload and verify the 24-hour option is still selected
     await page.reload();
     // The selected option has a filled radio indicator
-    const twentyFourHourButton = page.getByRole('button', { name: '24-hour' });
-    await expect(twentyFourHourButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    const twentyFourHourOption = page.getByRole('radio', { name: '24-hour' });
+    await expect(twentyFourHourOption).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     // Verify it has the shared selected-row styling.
-    await expect(twentyFourHourButton).toHaveClass(/choice-row-selected/, {
+    await expect(twentyFourHourOption).toHaveClass(/choice-row-selected/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
