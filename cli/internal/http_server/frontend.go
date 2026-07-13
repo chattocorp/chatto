@@ -339,10 +339,10 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 	// Browser icon metadata uses stable semantic URLs. Each request resolves the
 	// current server logo so changing or removing branding does not require a
 	// frontend rebuild. The cache middleware keeps these redirects temporary.
-	s.router.Match([]string{"GET", "HEAD"}, "/favicon.png", func(c *gin.Context) {
+	s.router.Match([]string{"GET", "HEAD"}, "/favicon", func(c *gin.Context) {
 		s.redirectBrowserIcon(c, 32, "/icons/favicon.png")
 	})
-	s.router.Match([]string{"GET", "HEAD"}, "/apple-touch-icon.png", func(c *gin.Context) {
+	s.router.Match([]string{"GET", "HEAD"}, "/apple-touch-icon", func(c *gin.Context) {
 		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
 	})
 

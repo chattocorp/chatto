@@ -37,7 +37,7 @@ describe('classifyServiceWorkerRequest', () => {
     });
   });
 
-  it.each(['/manifest.webmanifest', '/favicon.png', '/apple-touch-icon.png'])(
+  it.each(['/manifest.webmanifest', '/favicon', '/apple-touch-icon'])(
     'keeps dynamic server branding path %s network-only',
     (path) => {
       expect(classify(path)).toEqual({

@@ -1,6 +1,6 @@
 export const OFFLINE_SHELL_PATH = '/200.html';
 
-const NETWORK_ONLY_PATHS = ['/manifest.webmanifest', '/favicon.png', '/apple-touch-icon.png'];
+const NETWORK_ONLY_PATHS = ['/manifest.webmanifest', '/favicon', '/apple-touch-icon'];
 const NETWORK_ONLY_PREFIXES = ['/api', '/auth', '/oauth', '/assets', '/webhooks'];
 
 export interface ServiceWorkerPolicy {

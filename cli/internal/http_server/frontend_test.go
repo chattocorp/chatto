@@ -433,8 +433,8 @@ func TestBrowserIconRoutes(t *testing.T) {
 		server := newServer(t, chattoCore)
 
 		expectedSizes := map[string]int{
-			"/favicon.png":          32,
-			"/apple-touch-icon.png": 180,
+			"/favicon":          32,
+			"/apple-touch-icon": 180,
 		}
 		locations := make(map[string]string)
 		for iconPath, expectedSize := range expectedSizes {
@@ -463,14 +463,14 @@ func TestBrowserIconRoutes(t *testing.T) {
 			assert.Equal(t, "cover", params.Fit)
 			locations[iconPath] = location
 		}
-		assert.NotEqual(t, locations["/favicon.png"], locations["/apple-touch-icon.png"])
+		assert.NotEqual(t, locations["/favicon"], locations["/apple-touch-icon"])
 	})
 
 	t.Run("redirects to embedded icons when no server logo exists", func(t *testing.T) {
 		server := newServer(t, nil)
 		tests := map[string]string{
-			"/favicon.png":          "/icons/favicon.png",
-			"/apple-touch-icon.png": "/icons/apple-touch-icon.png",
+			"/favicon":          "/icons/favicon.png",
+			"/apple-touch-icon": "/icons/apple-touch-icon.png",
 		}
 		for iconPath, fallbackPath := range tests {
 			req := httptest.NewRequest(http.MethodGet, iconPath, nil)
