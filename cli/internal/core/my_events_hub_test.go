@@ -16,7 +16,6 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	model := NewMyEventsModel(core)
 	msg := &nats.Msg{
 		Subject: events.LiveSubjectRoot + events.AggregateRoom + ".room-1." + events.EventMessageBody,
-		Header:  nats.Header{nats.JSSequence: []string{"1"}},
 		Data:    []byte("not a protobuf event"),
 	}
 
@@ -90,6 +89,132 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	event2 := receiveEVTEventByID(t, stream2, posted.Id)
 	if event1 != event2 {
 		t.Fatal("sessions received different decoded event pointers")
+	}
+}
+
+func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "barrier-author", "Barrier Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "barrier-viewer", "Barrier Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "barrier-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+
+	hub := core.myEventsModel.hub
+	hub.mu.Lock()
+	_, joinErr := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
+	leaveErr := core.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
+	if joinErr != nil || leaveErr != nil {
+		hub.mu.Unlock()
+		t.Fatalf("queue membership backlog: join=%v leave=%v", joinErr, leaveErr)
+	}
+	result := make(chan *myEventsSubscription, 1)
+	errs := make(chan error, 1)
+	go func() {
+		sub, err := hub.Subscribe(ctx, viewer.Id)
+		result <- sub
+		errs <- err
+	}()
+	hub.mu.Unlock()
+
+	var sub *myEventsSubscription
+	select {
+	case sub = <-result:
+	case <-ctx.Done():
+		t.Fatal("subscription did not cross registration barrier")
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("Subscribe: %v", err)
+	}
+	defer hub.Unsubscribe(sub)
+
+	hub.mu.Lock()
+	_, staleMember := hub.users[viewer.Id].memberRooms[room.Id]
+	hub.mu.Unlock()
+	if staleMember {
+		t.Fatal("pre-registration join backlog re-granted room visibility")
+	}
+}
+
+func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	hub := core.myEventsModel.hub
+	hub.quarantine("test discontinuity")
+
+	ch := make(chan myEventsDelivery, 1)
+	done := make(chan struct{})
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
+	registered := make(chan error, 1)
+	go func() {
+		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{})
+	}()
+
+	select {
+	case err := <-registered:
+		t.Fatalf("registration completed during quarantine: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	hub.beginGeneration()
+	select {
+	case err := <-registered:
+		if err != nil {
+			t.Fatalf("registration after fresh generation: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("registration did not resume in fresh generation")
+	}
+	hub.Unsubscribe(sub)
+}
+
+func TestMyEventsHubTerminationInterruptsBlockedForwarding(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "blocked-forwarder", "Blocked Forwarder", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, user.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	hub := core.myEventsModel.hub
+	hub.mu.Lock()
+	state := hub.users[user.Id]
+	var sub *myEventsSubscription
+	for _, candidate := range state.subscribers {
+		sub = candidate
+	}
+	hub.enqueueUserLocked(state, NewHeartbeatEventEnvelope("blocked", nil), 1)
+	hub.mu.Unlock()
+
+	deadline := time.Now().Add(time.Second)
+	for sub.queuedBytes.Load() != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if sub.queuedBytes.Load() != 0 {
+		t.Fatal("stream did not begin blocked downstream forwarding")
+	}
+	hub.quarantine("test terminal signal")
+	select {
+	case _, ok := <-stream:
+		if ok {
+			t.Fatal("blocked stream delivered after terminal signal")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal signal did not interrupt blocked forwarding")
 	}
 }
 

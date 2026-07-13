@@ -39,6 +39,12 @@ work before session fanout:
 5. Fan the same immutable decoded event envelope out to that user's independent
    session queues.
 
+New sessions hydrate visibility without holding the dispatcher lock, then cross
+an internal NATS registration barrier carried through the same process queue as
+live messages. The dispatcher installs the session only when it reaches that
+barrier, so messages already queued before registration cannot be replayed
+against the newer projection snapshot.
+
 The dispatcher remains ordered. In particular, RBAC facts wait for the RBAC
 projection and refresh every connected user's shared visibility state before a
 later room event can be authorized. Membership facts mutate the shared state
@@ -48,8 +54,10 @@ Session queues are bounded by both event count and the encoded bytes referenced
 by that session. A session that exceeds either limit is disconnected without
 blocking other sessions. A process-wide NATS ingress loss or projection-wait
 failure disconnects all current sessions because the hub can no longer prove
-that their live stream is continuous. New connections rebuild visibility from
-current projections.
+that their live stream is continuous. The hub quarantines new admission,
+unsubscribes and flushes the lossy live roots, drains their old backlog, and
+only then opens a fresh ingress generation. Reconnecting connections rebuild
+visibility from current projections and register in that new generation.
 
 Presence continues to use its separate process-wide KV watcher because it is
 latest-value runtime state rather than EVT or transient live-sync input. A

@@ -182,6 +182,10 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 			select {
 			case <-ctx.Done():
 				return false
+			case <-hubSub.Done:
+				return false
+			case <-presenceSub.Done:
+				return false
 			case eventChan <- event:
 				s.deliveredEvents.Add(1)
 				return true

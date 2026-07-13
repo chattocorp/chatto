@@ -2,10 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"golang.org/x/sync/errgroup"
@@ -20,6 +23,7 @@ const (
 	myEventsSubscriberBuffer    = 256
 	myEventsSubscriberByteLimit = 2 << 20
 	myEventsVisibilityWorkers   = 16
+	myEventsIngressFlushTimeout = 5 * time.Second
 )
 
 type myEventsDelivery struct {
@@ -43,6 +47,17 @@ type myEventsUserState struct {
 	subscribers map[uint64]*myEventsSubscription
 }
 
+var errMyEventsIngressChanged = errors.New("myEvents ingress generation changed")
+
+type myEventsRegistration struct {
+	id          uint64
+	generation  uint64
+	userID      string
+	memberRooms map[string]struct{}
+	sub         *myEventsSubscription
+	result      chan error
+}
+
 // MyEventsHub owns the process-wide NATS ingress for realtime events. It
 // classifies and decodes each message once, waits for local projections once,
 // and then fans immutable event envelopes out through per-session queues.
@@ -58,14 +73,24 @@ type MyEventsHub struct {
 	readyOnce   sync.Once
 	decoded     atomic.Uint64
 	prefiltered atomic.Uint64
+
+	barrierSubject string
+	accepting      bool
+	generation     uint64
+	stateChanged   chan struct{}
+	pending        map[uint64]*myEventsRegistration
+	nextRequestID  uint64
 }
 
 func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 	return &MyEventsHub{
-		model:       model,
-		users:       make(map[string]*myEventsUserState),
-		subscribers: make(map[uint64]*myEventsSubscription),
-		ready:       make(chan struct{}),
+		model:          model,
+		users:          make(map[string]*myEventsUserState),
+		subscribers:    make(map[uint64]*myEventsSubscription),
+		ready:          make(chan struct{}),
+		barrierSubject: nats.NewInbox(),
+		stateChanged:   make(chan struct{}),
+		pending:        make(map[uint64]*myEventsRegistration),
 	}
 }
 
@@ -73,45 +98,96 @@ func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 // messages in arrival order. It is started once by ChattoCore.Run.
 func (h *MyEventsHub) Run(ctx context.Context) error {
 	msgChan := make(chan *nats.Msg, myEventsIngressBuffer)
-	liveSyncSub, err := h.model.core.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
+	barrierSub, err := h.model.core.nc.ChanSubscribe(h.barrierSubject, msgChan)
 	if err != nil {
-		return fmt.Errorf("myEvents hub: subscribe to live sync events: %w", err)
+		return fmt.Errorf("myEvents hub: subscribe to registration barrier: %w", err)
 	}
-	defer liveSyncSub.Unsubscribe()
-
-	liveEVTSub, err := h.model.core.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
-	if err != nil {
-		return fmt.Errorf("myEvents hub: subscribe to live EVT events: %w", err)
-	}
-	defer liveEVTSub.Unsubscribe()
-
-	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
-	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
-	h.readyOnce.Do(func() { close(h.ready) })
+	defer barrierSub.Unsubscribe()
+	slowBarrierConsumerCh := barrierSub.StatusChanged(nats.SubscriptionSlowConsumer)
 	h.model.core.logger.Debug("myEvents hub started")
 	defer func() {
-		h.disconnectAll("hub stopped")
+		h.quarantine("hub stopped")
 		h.model.core.logger.Debug("myEvents hub stopped")
 	}()
 
 	for {
+		liveSyncSub, err := h.model.core.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
+		if err != nil {
+			return fmt.Errorf("myEvents hub: subscribe to live sync events: %w", err)
+		}
+		liveEVTSub, err := h.model.core.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
+		if err != nil {
+			liveSyncSub.Unsubscribe()
+			return fmt.Errorf("myEvents hub: subscribe to live EVT events: %w", err)
+		}
+		if err := h.flushIngress(ctx); err != nil {
+			liveSyncSub.Unsubscribe()
+			liveEVTSub.Unsubscribe()
+			return fmt.Errorf("myEvents hub: activate ingress: %w", err)
+		}
+		h.beginGeneration()
+		h.readyOnce.Do(func() { close(h.ready) })
+
+		reason, runErr := h.runGeneration(
+			ctx,
+			msgChan,
+			liveSyncSub,
+			liveEVTSub,
+			slowBarrierConsumerCh,
+		)
+		if runErr != nil {
+			liveSyncSub.Unsubscribe()
+			liveEVTSub.Unsubscribe()
+			return runErr
+		}
+		h.quarantine(reason)
+		liveSyncSub.Unsubscribe()
+		liveEVTSub.Unsubscribe()
+		if err := h.flushIngress(ctx); err != nil {
+			return fmt.Errorf("myEvents hub: reset ingress: %w", err)
+		}
+		h.drainStaleIngress(msgChan)
+	}
+}
+
+func (h *MyEventsHub) flushIngress(ctx context.Context) error {
+	flushCtx, cancel := context.WithTimeout(ctx, myEventsIngressFlushTimeout)
+	defer cancel()
+	return h.model.core.nc.FlushWithContext(flushCtx)
+}
+
+func (h *MyEventsHub) runGeneration(
+	ctx context.Context,
+	msgChan <-chan *nats.Msg,
+	liveSyncSub, liveEVTSub *nats.Subscription,
+	slowBarrierConsumerCh <-chan nats.SubStatus,
+) (string, error) {
+	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return "hub stopped", ctx.Err()
 		case <-slowEVTConsumerCh:
 			dropped, _ := liveEVTSub.Dropped()
 			h.model.core.logger.Warn("Slow consumer on process-wide live EVT subscription", "dropped", dropped)
-			h.disconnectAll("live EVT ingress discontinuity")
+			return "live EVT ingress discontinuity", nil
 		case <-slowSyncConsumerCh:
 			dropped, _ := liveSyncSub.Dropped()
 			h.model.core.logger.Warn("Slow consumer on process-wide live sync subscription", "dropped", dropped)
-			h.disconnectAll("live sync ingress discontinuity")
+			return "live sync ingress discontinuity", nil
+		case <-slowBarrierConsumerCh:
+			return "registration barrier discontinuity", nil
 		case msg := <-msgChan:
 			if msg == nil {
 				continue
 			}
+			if msg.Subject == h.barrierSubject {
+				h.handleRegistrationBarrier(msg)
+				continue
+			}
 			if h.handleMessage(ctx, msg) {
-				h.disconnectAll("projection readiness discontinuity")
+				return "projection readiness discontinuity", nil
 			}
 		}
 	}
@@ -124,31 +200,62 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 		return nil, ctx.Err()
 	}
 
-	ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
-	done := make(chan struct{})
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	state := h.users[userID]
-	if state == nil {
+	for {
 		memberRooms := make(map[string]struct{})
-		// Holding the hub lock closes the gap between the projection snapshot
-		// and registration: live events queue at the dispatcher until this user
-		// state is visible, then update it in order.
 		if err := h.model.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
 			return nil, err
 		}
-		state = &myEventsUserState{
-			memberRooms: memberRooms,
-			subscribers: make(map[uint64]*myEventsSubscription),
+		ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
+		done := make(chan struct{})
+		sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
+		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms); err != nil {
+			if errors.Is(err, errMyEventsIngressChanged) {
+				continue
+			}
+			return nil, err
 		}
-		h.users[userID] = state
+		return sub, nil
 	}
-	id := h.nextID
-	h.nextID++
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: id, userID: userID}
-	state.subscribers[id] = sub
-	h.subscribers[id] = sub
-	return sub, nil
+}
+
+func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms map[string]struct{}) error {
+	for {
+		h.mu.Lock()
+		if !h.accepting {
+			changed := h.stateChanged
+			h.mu.Unlock()
+			select {
+			case <-changed:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		h.nextRequestID++
+		requestID := h.nextRequestID
+		request := &myEventsRegistration{
+			id:          requestID,
+			generation:  h.generation,
+			userID:      sub.userID,
+			memberRooms: memberRooms,
+			sub:         sub,
+			result:      make(chan error, 1),
+		}
+		h.pending[requestID] = request
+		h.mu.Unlock()
+
+		if err := h.model.core.nc.Publish(h.barrierSubject, []byte(strconv.FormatUint(requestID, 10))); err != nil {
+			h.cancelRegistration(requestID, sub)
+			return fmt.Errorf("publish myEvents registration barrier: %w", err)
+		}
+		select {
+		case err := <-request.result:
+			return err
+		case <-ctx.Done():
+			h.cancelRegistration(requestID, sub)
+			return ctx.Err()
+		}
+	}
 }
 
 func (h *MyEventsHub) Unsubscribe(sub *myEventsSubscription) {
@@ -157,6 +264,50 @@ func (h *MyEventsHub) Unsubscribe(sub *myEventsSubscription) {
 	}
 	h.mu.Lock()
 	h.removeSubscriberLocked(sub)
+	h.mu.Unlock()
+}
+
+func (h *MyEventsHub) handleRegistrationBarrier(msg *nats.Msg) {
+	requestID, err := strconv.ParseUint(string(msg.Data), 10, 64)
+	if err != nil {
+		h.model.core.logger.Warn("Invalid myEvents registration barrier", "error", err)
+		return
+	}
+	h.mu.Lock()
+	request := h.pending[requestID]
+	delete(h.pending, requestID)
+	if request == nil {
+		h.mu.Unlock()
+		return
+	}
+	if !h.accepting || request.generation != h.generation {
+		h.mu.Unlock()
+		request.result <- errMyEventsIngressChanged
+		return
+	}
+	state := h.users[request.userID]
+	if state == nil {
+		state = &myEventsUserState{
+			memberRooms: request.memberRooms,
+			subscribers: make(map[uint64]*myEventsSubscription),
+		}
+		h.users[request.userID] = state
+	}
+	h.nextID++
+	request.sub.id = h.nextID
+	state.subscribers[request.sub.id] = request.sub
+	h.subscribers[request.sub.id] = request.sub
+	h.mu.Unlock()
+	request.result <- nil
+}
+
+func (h *MyEventsHub) cancelRegistration(requestID uint64, sub *myEventsSubscription) {
+	h.mu.Lock()
+	if _, pending := h.pending[requestID]; pending {
+		delete(h.pending, requestID)
+	} else {
+		h.removeSubscriberLocked(sub)
+	}
 	h.mu.Unlock()
 }
 
@@ -204,14 +355,38 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 }
 
 func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
+	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
+	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">"))
+	if !isRBACSubject {
+		eventType := liveEventType(msg.Subject)
+		_, roomSubject := events.ParseRoomSubject(msg.Subject)
+		_, assetSubject := events.ParseAssetSubject(msg.Subject)
+		_, userSubject := events.ParseUserSubject(msg.Subject)
+		if roomSubject && !isDeliverableLiveEVTRoomEventType(eventType) {
+			h.prefiltered.Add(1)
+			return false
+		}
+		if assetSubject && !isDeliverableLiveEVTAssetEventType(eventType) {
+			h.prefiltered.Add(1)
+			return false
+		}
+		if userSubject && !isDeliverableLiveEVTUserEventType(eventType) {
+			h.prefiltered.Add(1)
+			return false
+		}
+		if !roomSubject && !assetSubject && !userSubject {
+			h.prefiltered.Add(1)
+			return false
+		}
+	}
+
 	seq := liveEVTMsgSeq(msg)
 	if seq == 0 {
-		h.model.core.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
-		return false
+		h.model.core.logger.Warn("Deliverable live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
+		return true
 	}
-	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 
-	if strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
+	if isRBACSubject {
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		if err := h.model.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(events.RBACSubjectFilter(), seq)); err != nil {
@@ -228,35 +403,22 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	eventType := liveEventType(msg.Subject)
 	roomID, roomSubject := events.ParseRoomSubject(msg.Subject)
 	_, assetSubject := events.ParseAssetSubject(msg.Subject)
-	_, userSubject := events.ParseUserSubject(msg.Subject)
-	if roomSubject && !isDeliverableLiveEVTRoomEventType(eventType) {
-		h.prefiltered.Add(1)
-		return false
-	}
-	if assetSubject && !isDeliverableLiveEVTAssetEventType(eventType) {
-		h.prefiltered.Add(1)
-		return false
-	}
-	if userSubject && !isDeliverableLiveEVTUserEventType(eventType) {
-		h.prefiltered.Add(1)
-		return false
-	}
-	if !roomSubject && !assetSubject && !userSubject {
-		h.prefiltered.Add(1)
-		return false
-	}
 
 	h.decoded.Add(1)
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
-		return false
+		return true
+	}
+	if payloadType := events.EventTypeOf(&event); payloadType != eventType {
+		h.model.core.logger.Warn("Live EVT subject and payload types disagree", "subject", msg.Subject, "subject_type", eventType, "payload_type", payloadType)
+		return true
 	}
 	bytes := int64(len(msg.Data))
 
 	if roomSubject {
 		if !isDeliverableLiveEVTRoomEvent(&event) {
-			return false
+			return true
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
@@ -270,7 +432,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 
 	if assetSubject {
 		if !isDeliverableLiveEVTAssetEvent(&event) {
-			return false
+			return true
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
@@ -287,7 +449,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 
 	if !isDeliverableLiveEVTUserEvent(&event) {
-		return false
+		return true
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 	defer cancel()
@@ -387,9 +549,19 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 	return nil
 }
 
-func (h *MyEventsHub) disconnectAll(reason string) {
+func (h *MyEventsHub) beginGeneration() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.generation++
+	h.accepting = true
+	h.signalStateChangedLocked()
+}
+
+func (h *MyEventsHub) quarantine(reason string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.accepting = false
+	h.signalStateChangedLocked()
 	if len(h.subscribers) > 0 {
 		h.model.core.logger.Warn("Closing all myEvents subscribers", "reason", reason, "subscribers", len(h.subscribers))
 	}
@@ -399,6 +571,28 @@ func (h *MyEventsHub) disconnectAll(reason string) {
 	}
 	h.subscribers = make(map[uint64]*myEventsSubscription)
 	h.users = make(map[string]*myEventsUserState)
+	for requestID, request := range h.pending {
+		delete(h.pending, requestID)
+		request.result <- errMyEventsIngressChanged
+	}
+}
+
+func (h *MyEventsHub) signalStateChangedLocked() {
+	close(h.stateChanged)
+	h.stateChanged = make(chan struct{})
+}
+
+func (h *MyEventsHub) drainStaleIngress(msgChan <-chan *nats.Msg) {
+	for {
+		select {
+		case msg := <-msgChan:
+			if msg != nil && msg.Subject == h.barrierSubject {
+				h.handleRegistrationBarrier(msg)
+			}
+		default:
+			return
+		}
+	}
 }
 
 func (h *MyEventsHub) removeSubscriberLocked(sub *myEventsSubscription) {
