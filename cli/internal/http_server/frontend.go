@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -137,7 +138,7 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 			s.logger.Warn("failed to get server logo URL for PWA metadata", "error", err, "size", size)
 			return ""
 		}
-		return url
+		return sameOriginPWAAssetURL(url)
 	}
 
 	icons := &pwaServerIconURLs{
@@ -151,12 +152,29 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 	return icons
 }
 
+// sameOriginPWAAssetURL keeps install metadata on the frontend origin. General
+// asset URLs may use a configured asset base, but each Chatto frontend serves
+// its own public server assets and browsers must be able to fetch manifest
+// images from the manifest's origin.
+func sameOriginPWAAssetURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Opaque != "" || !strings.HasPrefix(parsed.Path, "/assets/server/") {
+		return ""
+	}
+
+	result := parsed.EscapedPath()
+	if parsed.RawQuery != "" {
+		result += "?" + parsed.RawQuery
+	}
+	return result
+}
+
 func pwaManifestIcons(icon192, icon512 string) []map[string]string {
 	return []map[string]string{
-		{"src": icon192, "sizes": "192x192"},
-		{"src": icon512, "sizes": "512x512"},
-		{"src": icon192, "sizes": "192x192", "purpose": "maskable"},
-		{"src": icon512, "sizes": "512x512", "purpose": "maskable"},
+		{"src": icon192, "sizes": "192x192", "type": "image/png"},
+		{"src": icon512, "sizes": "512x512", "type": "image/png"},
+		{"src": icon192, "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+		{"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
 	}
 }
 
@@ -178,7 +196,7 @@ func dynamicPWAManifest(staticManifest []byte, icons *pwaServerIconURLs) ([]byte
 				continue
 			}
 			shortcutMap["icons"] = []map[string]string{
-				{"src": icons.Icon192, "sizes": "192x192"},
+				{"src": icons.Icon192, "sizes": "192x192", "type": "image/png"},
 			}
 		}
 	}

@@ -229,15 +229,49 @@ func TestDynamicPWAManifest(t *testing.T) {
 		assert.Len(t, icons, 4)
 		assert.Equal(t, "/assets/server/logo/t/192", icons[0].(map[string]any)["src"])
 		assert.Equal(t, "192x192", icons[0].(map[string]any)["sizes"])
-		assert.Nil(t, icons[0].(map[string]any)["type"])
+		assert.Equal(t, "image/png", icons[0].(map[string]any)["type"])
 		assert.Equal(t, "/assets/server/logo/t/512", icons[1].(map[string]any)["src"])
+		assert.Equal(t, "image/png", icons[1].(map[string]any)["type"])
 		assert.Equal(t, "maskable", icons[2].(map[string]any)["purpose"])
+		assert.Equal(t, "image/png", icons[2].(map[string]any)["type"])
+		assert.Equal(t, "maskable", icons[3].(map[string]any)["purpose"])
+		assert.Equal(t, "image/png", icons[3].(map[string]any)["type"])
 
 		shortcuts := manifest["shortcuts"].([]any)
 		shortcutIcons := shortcuts[0].(map[string]any)["icons"].([]any)
 		assert.Equal(t, "/assets/server/logo/t/192", shortcutIcons[0].(map[string]any)["src"])
-		assert.Nil(t, shortcutIcons[0].(map[string]any)["type"])
+		assert.Equal(t, "image/png", shortcutIcons[0].(map[string]any)["type"])
 	})
+}
+
+func TestSameOriginPWAAssetURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			name: "keeps relative server asset URL",
+			url:  "/assets/server/logo/t/signed",
+			want: "/assets/server/logo/t/signed",
+		},
+		{
+			name: "removes external asset origin",
+			url:  "https://assets.example.com/assets/server/logo/t/signed?variant=pwa",
+			want: "/assets/server/logo/t/signed?variant=pwa",
+		},
+		{
+			name: "rejects unrelated asset URL",
+			url:  "https://assets.example.com/assets/files/private",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, sameOriginPWAAssetURL(tt.url))
+		})
+	}
 }
 
 func TestInjectAppleTouchIcon(t *testing.T) {
@@ -375,6 +409,7 @@ func TestServeSPAFallback(t *testing.T) {
 
 		server := newTestServer()
 		server.core = setupFrontendTestCoreWithLogo(t)
+		server.core.AssetBaseURL = "https://assets.example.com"
 		router := gin.New()
 		router.GET("/test", func(c *gin.Context) {
 			server.serveSPAFallback(c, mockFS)
@@ -386,6 +421,7 @@ func TestServeSPAFallback(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), `href="/assets/server/logo-asset/t/`)
+		assert.NotContains(t, w.Body.String(), "assets.example.com")
 		assert.NotContains(t, w.Body.String(), defaultAppleTouchIconHref)
 	})
 
@@ -422,9 +458,11 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 }`),
 		},
 	}
+	chattoCore := setupFrontendTestCoreWithLogo(t)
+	chattoCore.AssetBaseURL = "https://assets.example.com"
 	server := &HTTPServer{
 		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
-		core:   setupFrontendTestCoreWithLogo(t),
+		core:   chattoCore,
 		router: gin.New(),
 	}
 	server.router.GET("/manifest.webmanifest", func(c *gin.Context) {
@@ -444,8 +482,11 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	}
 	icons := manifest["icons"].([]any)
 	assert.True(t, strings.HasPrefix(icons[0].(map[string]any)["src"].(string), "/assets/server/logo-asset/t/"))
+	assert.NotContains(t, icons[0].(map[string]any)["src"], "assets.example.com")
 	assert.Equal(t, "192x192", icons[0].(map[string]any)["sizes"])
-	assert.Nil(t, icons[0].(map[string]any)["type"])
+	assert.Equal(t, "image/png", icons[0].(map[string]any)["type"])
+	assert.Equal(t, "maskable", icons[2].(map[string]any)["purpose"])
+	assert.Equal(t, "image/png", icons[2].(map[string]any)["type"])
 }
 
 func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
