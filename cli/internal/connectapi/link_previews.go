@@ -9,13 +9,34 @@ import (
 )
 
 func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Request[apiv1.FetchLinkPreviewRequest]) (*connect.Response[apiv1.FetchLinkPreviewResponse], error) {
-	if _, err := requireCaller(ctx); err != nil {
+	caller, err := requireCaller(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	preview, err := s.api.core.GetLinkPreview(ctx, req.Msg.Url)
+	preview, attachment, err := s.api.core.GetLinkPreviewForComposer(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.Url)
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if attachment != nil {
+		asset := (&attachmentMapper{api: s.api}).asset(attachment, caller.UserID, assetThumbnailOptions(nil))
+		previewURL := ""
+		if asset.GetThumbnailAssetUrl() != nil {
+			previewURL = asset.GetThumbnailAssetUrl().GetUrl()
+		} else if asset.GetAssetUrl() != nil {
+			previewURL = asset.GetAssetUrl().GetUrl()
+		}
+		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{
+			ImportedAttachment: &apiv1.ImportedLinkAttachment{
+				AssetId:     asset.GetId(),
+				Filename:    asset.GetFilename(),
+				ContentType: asset.GetContentType(),
+				Size:        asset.GetSize(),
+				Width:       asset.GetWidth(),
+				Height:      asset.GetHeight(),
+				PreviewUrl:  previewURL,
+			},
+		}), nil
 	}
 	if preview == nil {
 		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{}), nil

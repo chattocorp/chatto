@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { LinkPreview, FetchLinkPreviewResponse } from '@chatto/api-types/api/v1/link_previews_pb';
+import {
+  LinkPreview,
+  FetchLinkPreviewResponse,
+  ImportedLinkAttachment
+} from '@chatto/api-types/api/v1/link_previews_pb';
 import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 
 const mocks = vi.hoisted(() => ({
@@ -59,21 +63,59 @@ describe('createLinkPreviewAPI', () => {
       bearerToken: 'remote-token'
     });
 
-    await expect(api.fetchLinkPreview('https://example.com/story')).resolves.toMatchObject({
-      url: 'https://example.com/story',
-      previewToken: 'cht_LPpreviewtoken',
-      title: 'Story',
-      description: 'Description',
-      imageUrl: '/assets/preview.webp',
-      imageAssetId: 'asset_preview',
-      siteName: 'Example',
-      embedType: 'generic',
-      embedId: null
+    await expect(
+      api.fetchLinkPreview('https://example.com/story', 'room_1')
+    ).resolves.toMatchObject({
+      kind: 'preview',
+      preview: {
+        url: 'https://example.com/story',
+        previewToken: 'cht_LPpreviewtoken',
+        title: 'Story',
+        description: 'Description',
+        imageUrl: '/assets/preview.webp',
+        imageAssetId: 'asset_preview',
+        siteName: 'Example',
+        embedType: 'generic',
+        embedId: null
+      }
     });
     expect(mocks.fetchLinkPreview).toHaveBeenCalledWith(
-      { url: 'https://example.com/story' },
+      { url: 'https://example.com/story', roomId: 'room_1' },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
+  });
+
+  it('maps a directly linked image to a pending attachment', async () => {
+    mocks.fetchLinkPreview.mockResolvedValue(
+      new FetchLinkPreviewResponse({
+        importedAttachment: new ImportedLinkAttachment({
+          assetId: 'asset_linked',
+          filename: 'linked-image.gif',
+          contentType: 'image/gif',
+          size: 1234n,
+          width: 320,
+          height: 180,
+          previewUrl: '/assets/files/asset_linked/image/600x314/contain?access=ticket'
+        })
+      })
+    );
+    const api = createLinkPreviewAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.fetchLinkPreview('https://example.com/image', 'room_1')).resolves.toEqual({
+      kind: 'attachment',
+      attachment: {
+        assetId: 'asset_linked',
+        filename: 'linked-image.gif',
+        contentType: 'image/gif',
+        size: 1234n,
+        width: 320,
+        height: 180,
+        previewUrl: '/assets/files/asset_linked/image/600x314/contain?access=ticket'
+      }
+    });
   });
 
   it('returns null when the server has no preview', async () => {

@@ -26,7 +26,10 @@ const (
 type FetchLinkPreviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// URL to preview.
-	Url           string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Room that will own a directly linked image imported as an attachment.
+	// When omitted, direct image URLs are not imported.
+	RoomId        *string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -68,6 +71,113 @@ func (x *FetchLinkPreviewRequest) GetUrl() string {
 	return ""
 }
 
+func (x *FetchLinkPreviewRequest) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
+}
+
+// Pending room attachment imported from a directly linked image.
+type ImportedLinkAttachment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable pending attachment asset ID.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Server-assigned filename for the imported image.
+	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	// Detected image MIME type.
+	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Stored original size in bytes.
+	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	// Intrinsic image width.
+	Width int32 `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
+	// Intrinsic image height.
+	Height int32 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
+	// Freshly authorized thumbnail URL for composer display.
+	PreviewUrl    string `protobuf:"bytes,7,opt,name=preview_url,json=previewUrl,proto3" json:"preview_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportedLinkAttachment) Reset() {
+	*x = ImportedLinkAttachment{}
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportedLinkAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportedLinkAttachment) ProtoMessage() {}
+
+func (x *ImportedLinkAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportedLinkAttachment.ProtoReflect.Descriptor instead.
+func (*ImportedLinkAttachment) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ImportedLinkAttachment) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *ImportedLinkAttachment) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *ImportedLinkAttachment) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *ImportedLinkAttachment) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *ImportedLinkAttachment) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *ImportedLinkAttachment) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *ImportedLinkAttachment) GetPreviewUrl() string {
+	if x != nil {
+		return x.PreviewUrl
+	}
+	return ""
+}
+
 // Link preview metadata used by message composers and room timeline events.
 //
 // Clients should treat optional metadata as unavailable when absent. Message
@@ -98,7 +208,7 @@ type LinkPreview struct {
 
 func (x *LinkPreview) Reset() {
 	*x = LinkPreview{}
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -110,7 +220,7 @@ func (x *LinkPreview) String() string {
 func (*LinkPreview) ProtoMessage() {}
 
 func (x *LinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -123,7 +233,7 @@ func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
 func (*LinkPreview) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LinkPreview) GetUrl() string {
@@ -189,14 +299,17 @@ type FetchLinkPreviewResponse struct {
 	Preview *LinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
 	// Short-lived opaque token to pass to CreateMessage.link_preview_token when
 	// the user posts this preview.
-	PreviewToken  string `protobuf:"bytes,2,opt,name=preview_token,json=previewToken,proto3" json:"preview_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	PreviewToken string `protobuf:"bytes,2,opt,name=preview_token,json=previewToken,proto3" json:"preview_token,omitempty"`
+	// Pending room attachment imported when the URL directly serves an image.
+	// The client should include its ID in CreateMessage.attachment_asset_ids.
+	ImportedAttachment *ImportedLinkAttachment `protobuf:"bytes,3,opt,name=imported_attachment,json=importedAttachment,proto3" json:"imported_attachment,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FetchLinkPreviewResponse) Reset() {
 	*x = FetchLinkPreviewResponse{}
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -208,7 +321,7 @@ func (x *FetchLinkPreviewResponse) String() string {
 func (*FetchLinkPreviewResponse) ProtoMessage() {}
 
 func (x *FetchLinkPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +334,7 @@ func (x *FetchLinkPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchLinkPreviewResponse.ProtoReflect.Descriptor instead.
 func (*FetchLinkPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FetchLinkPreviewResponse) GetPreview() *LinkPreview {
@@ -238,14 +351,33 @@ func (x *FetchLinkPreviewResponse) GetPreviewToken() string {
 	return ""
 }
 
+func (x *FetchLinkPreviewResponse) GetImportedAttachment() *ImportedLinkAttachment {
+	if x != nil {
+		return x.ImportedAttachment
+	}
+	return nil
+}
+
 var File_chatto_api_v1_link_previews_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"7\n" +
+	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"j\n" +
 	"\x17FetchLinkPreviewRequest\x12\x1c\n" +
 	"\x03url\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xf9\x02\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\x12%\n" +
+	"\aroom_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02(\x0fH\x00R\x06roomId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_room_id\"\xd5\x01\n" +
+	"\x16ImportedLinkAttachment\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x14\n" +
+	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\x12\x1f\n" +
+	"\vpreview_url\x18\a \x01(\tR\n" +
+	"previewUrl\"\xf9\x02\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
@@ -264,10 +396,11 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
 	"_site_nameB\r\n" +
 	"\v_embed_typeB\v\n" +
-	"\t_embed_id\"u\n" +
+	"\t_embed_id\"\xcd\x01\n" +
 	"\x18FetchLinkPreviewResponse\x124\n" +
 	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview\x12#\n" +
-	"\rpreview_token\x18\x02 \x01(\tR\fpreviewTokenB\xad\x01\n" +
+	"\rpreview_token\x18\x02 \x01(\tR\fpreviewToken\x12V\n" +
+	"\x13imported_attachment\x18\x03 \x01(\v2%.chatto.api.v1.ImportedLinkAttachmentR\x12importedAttachmentB\xad\x01\n" +
 	"\x11com.chatto.api.v1B\x11LinkPreviewsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -282,19 +415,21 @@ func file_chatto_api_v1_link_previews_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_link_previews_proto_rawDescData
 }
 
-var file_chatto_api_v1_link_previews_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_api_v1_link_previews_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_api_v1_link_previews_proto_goTypes = []any{
 	(*FetchLinkPreviewRequest)(nil),  // 0: chatto.api.v1.FetchLinkPreviewRequest
-	(*LinkPreview)(nil),              // 1: chatto.api.v1.LinkPreview
-	(*FetchLinkPreviewResponse)(nil), // 2: chatto.api.v1.FetchLinkPreviewResponse
+	(*ImportedLinkAttachment)(nil),   // 1: chatto.api.v1.ImportedLinkAttachment
+	(*LinkPreview)(nil),              // 2: chatto.api.v1.LinkPreview
+	(*FetchLinkPreviewResponse)(nil), // 3: chatto.api.v1.FetchLinkPreviewResponse
 }
 var file_chatto_api_v1_link_previews_proto_depIdxs = []int32{
-	1, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
+	1, // 1: chatto.api.v1.FetchLinkPreviewResponse.imported_attachment:type_name -> chatto.api.v1.ImportedLinkAttachment
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_link_previews_proto_init() }
@@ -302,14 +437,15 @@ func file_chatto_api_v1_link_previews_proto_init() {
 	if File_chatto_api_v1_link_previews_proto != nil {
 		return
 	}
-	file_chatto_api_v1_link_previews_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_link_previews_proto_rawDesc), len(file_chatto_api_v1_link_previews_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

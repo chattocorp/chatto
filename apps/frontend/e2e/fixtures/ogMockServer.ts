@@ -40,6 +40,7 @@ function ogPage(opts: {
  * - GET /og-basic       → OG page with title, description, site name (no image)
  * - GET /og-with-image  → OG page with title, description, site name, and og:image
  * - GET /test-image.png → A minimal valid PNG image
+ * - GET /direct-image   → PNG bytes with a deliberately misleading content type
  */
 export function startOGMockServer(): Promise<OGMockServer> {
   return new Promise((resolve, reject) => {
@@ -75,6 +76,12 @@ export function startOGMockServer(): Promise<OGMockServer> {
       } else if (url === '/test-image.png') {
         res.writeHead(200, {
           'Content-Type': 'image/png',
+          'Content-Length': String(TINY_PNG.length)
+        });
+        res.end(TINY_PNG);
+      } else if (url === '/direct-image') {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
           'Content-Length': String(TINY_PNG.length)
         });
         res.end(TINY_PNG);

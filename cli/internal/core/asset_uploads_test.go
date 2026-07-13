@@ -2,16 +2,21 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/gif"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/assets"
 )
 
 func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
@@ -202,16 +207,199 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	}
 }
 
+func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	core.OnVideoProcessingRequested = func(_ context.Context, _, _ string) error { return nil }
+
+	user, err := core.CreateUser(ctx, SystemActorID, "remote-gif-import", "Remote GIF Import", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "remote-gif-imports", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	content := testAnimatedGIF(t)
+	existing, reservation, err := core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif")
+	if err != nil {
+		t.Fatalf("BeginRemoteAttachmentImport: %v", err)
+	}
+	if existing != nil || reservation == nil {
+		t.Fatalf("initial import reservation = (%+v, %+v)", existing, reservation)
+	}
+	if _, _, err := core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif"); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("concurrent import reservation error = %v, want ErrLimitExceeded", err)
+	}
+	attachment, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		SourceURL:   "https://example.com/linked-image.gif",
+		Filename:    "linked-image.gif",
+		ContentType: "image/gif",
+		Content:     content,
+		Reservation: reservation,
+	})
+	if err != nil {
+		t.Fatalf("ImportRemoteAttachment: %v", err)
+	}
+	if attachment.GetContentType() != "image/gif" || attachment.GetSize() != int64(len(content)) {
+		t.Fatalf("imported attachment = %+v", attachment)
+	}
+	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	if !ok {
+		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
+	}
+	if !declared.GetNeedsVideoProcessing() {
+		t.Fatal("animated linked GIF did not enter the normal video-processing path")
+	}
+	if expiresAt := declared.GetPendingExpiresAt(); expiresAt == nil || !expiresAt.AsTime().After(time.Now()) {
+		t.Fatalf("pending expiry = %v", expiresAt)
+	}
+
+	reader, _, err := core.GetAttachmentReader(ctx, attachment)
+	if err != nil {
+		t.Fatalf("GetAttachmentReader: %v", err)
+	}
+	stored, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read imported attachment: %v", err)
+	}
+	if !bytes.Equal(stored, content) {
+		t.Fatal("imported GIF bytes changed before normal processing")
+	}
+
+	reused, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		SourceURL:   "https://example.com/linked-image.gif",
+		Filename:    "linked-image.gif",
+		ContentType: "image/gif",
+		Content:     content,
+	})
+	if err != nil {
+		t.Fatalf("ImportRemoteAttachment repeated import: %v", err)
+	}
+	if reused.GetId() != attachment.GetId() {
+		t.Fatalf("repeated import asset ID = %q, want %q", reused.GetId(), attachment.GetId())
+	}
+	found, reservation, err := core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif")
+	if err != nil {
+		t.Fatalf("BeginRemoteAttachmentImport: %v", err)
+	}
+	if reservation != nil {
+		t.Fatal("BeginRemoteAttachmentImport returned a new reservation for an idempotent import")
+	}
+	if found.GetId() != attachment.GetId() {
+		t.Fatalf("pending import asset ID = %q, want %q", found.GetId(), attachment.GetId())
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "linked GIF", []string{attachment.GetId()}, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage linked image attachment: %v", err)
+	}
+	found, reservation, err = core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif")
+	if err != nil {
+		t.Fatalf("BeginRemoteAttachmentImport after claim: %v", err)
+	}
+	if found != nil || reservation == nil {
+		t.Fatalf("post-claim import lookup = (%+v, %+v), want a fresh reservation", found, reservation)
+	}
+	core.AssetUploads().CancelRemoteAttachmentImport(ctx, reservation)
+}
+
+func TestAssetUploadImportRemoteRejectsExcessiveAnimatedGIF(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "excessive-remote-gif", "Excessive Remote GIF", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "excessive-remote-gifs", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	content := testAnimatedGIFWithFrames(t, assets.MaxAnimatedImageFrames+1)
+	if _, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		SourceURL:   "https://example.com/excessive.gif",
+		Filename:    "linked-image.gif",
+		ContentType: "image/gif",
+		Content:     content,
+	}); err == nil {
+		t.Fatal("ImportRemoteAttachment accepted an excessive animated GIF")
+	}
+}
+
+func TestAssetUploadImportRemoteLimitsOutstandingLinkedImagesPerActor(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "linked-image-import-limit", "Linked Image Import Limit", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "linked-image-import-limits", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	baseContent := testAnimatedGIF(t)
+	for i := 0; i < maxPendingLinkedImageImports; i++ {
+		content := append(append([]byte(nil), baseContent...), byte(i))
+		if _, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+			ActorID:     user.Id,
+			RoomID:      room.Id,
+			SourceURL:   fmt.Sprintf("https://example.com/image-%d.gif", i),
+			Filename:    "linked-image.gif",
+			ContentType: "image/gif",
+			Content:     content,
+		}); err != nil {
+			t.Fatalf("ImportRemoteAttachment %d: %v", i, err)
+		}
+	}
+	content := append(append([]byte(nil), baseContent...), byte(maxPendingLinkedImageImports))
+	if _, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		SourceURL:   "https://example.com/image-over-limit.gif",
+		Filename:    "linked-image.gif",
+		ContentType: "image/gif",
+		Content:     content,
+	}); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("ImportRemoteAttachment over limit error = %v, want ErrLimitExceeded", err)
+	}
+}
+
 func testAnimatedGIF(t *testing.T) []byte {
+	return testAnimatedGIFWithFrames(t, 2)
+}
+
+func testAnimatedGIFWithFrames(t *testing.T, frameCount int) []byte {
 	t.Helper()
 	palette := color.Palette{color.Black, color.White}
-	frame1 := image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
-	frame2 := image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
-	frame2.SetColorIndex(1, 1, 1)
+	frames := make([]*image.Paletted, frameCount)
+	delays := make([]int, frameCount)
+	for i := range frames {
+		frames[i] = image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
+		frames[i].SetColorIndex(i%2, i%2, uint8(i%2))
+		delays[i] = 10
+	}
 	var buf bytes.Buffer
 	if err := gif.EncodeAll(&buf, &gif.GIF{
-		Image: []*image.Paletted{frame1, frame2},
-		Delay: []int{10, 10},
+		Image: frames,
+		Delay: delays,
 	}); err != nil {
 		t.Fatalf("EncodeAll animated GIF: %v", err)
 	}

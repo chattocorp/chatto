@@ -3,6 +3,7 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { startOGMockServer, type OGMockServer } from './fixtures/ogMockServer';
 import { TIMEOUTS } from './constants';
+import { ChatPage } from './pages';
 
 let ogServer: OGMockServer;
 
@@ -51,6 +52,55 @@ test.describe('Bare-domain auto-linking', () => {
 });
 
 test.describe('Link previews', () => {
+  test('direct image becomes an attachment for the sender and another live client', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const receiverPage = await page.context().newPage();
+    const receiverChatPage = new ChatPage(receiverPage);
+    await receiverChatPage.goto();
+    await receiverChatPage.enterRoom('general');
+
+    const testUrl = `${ogServer.baseURL}/direct-image`;
+    const messageText = `Direct image ${testUrl}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(messageText);
+    await expect(page.getByTestId('linked-image-attachment-preview')).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+
+    await roomPage.messageInput.press('Enter');
+
+    const receivedMessage = receiverPage.locator('[role="article"]', { hasText: messageText });
+    await expect(receivedMessage).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    const attachment = receivedMessage.getByRole('button', { name: 'View linked-image.png' });
+    await expect(attachment).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(receivedMessage.locator(`a[href="${testUrl}"]`)).toBeVisible();
+
+    await attachment.press('Enter');
+    const imageViewer = receiverPage.getByRole('dialog');
+    await expect(imageViewer.locator('img')).toBeVisible();
+    await expect(imageViewer.getByRole('link', { name: 'Open original' })).toHaveAttribute(
+      'href',
+      /\/assets\/files\//
+    );
+    await receiverPage.keyboard.press('Escape');
+
+    await receiverPage.getByRole('button', { name: 'Show files' }).click();
+    await expect(receiverPage.getByRole('navigation', { name: 'Files' })).toContainText(
+      'linked-image.png'
+    );
+
+    await receiverPage.close();
+  });
+
   test('link preview card appears on posted message', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

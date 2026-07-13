@@ -4728,6 +4728,7 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	defer restoreLocalhost()
 
 	var serverURL string
+	var directImageRequests int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/article":
@@ -4744,6 +4745,10 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 </html>`))
 		case "/preview.png":
 			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(connectAPITestPNG())
+		case "/direct-file.jpg":
+			directImageRequests++
+			w.Header().Set("Content-Type", "text/plain")
 			_, _ = w.Write(connectAPITestPNG())
 		default:
 			http.NotFound(w, r)
@@ -4777,6 +4782,52 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 	if resp.Msg.GetPreviewToken() == "" {
 		t.Fatalf("PreviewToken is empty")
+	}
+
+	directRoom := env.createJoinedRoom("direct-image-preview")
+	directResp, err := env.messages.FetchLinkPreview(
+		withCaller(env.ctx, env.viewer),
+		connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: server.URL + "/direct-file.jpg", RoomId: &directRoom.Id}),
+	)
+	if err != nil {
+		t.Fatalf("FetchLinkPreview direct image: %v", err)
+	}
+	if directResp.Msg.GetPreview() != nil || directResp.Msg.GetPreviewToken() != "" {
+		t.Fatalf("direct image returned link preview metadata: %+v", directResp.Msg)
+	}
+	imported := directResp.Msg.GetImportedAttachment()
+	if imported.GetAssetId() == "" || imported.GetContentType() != "image/png" || imported.GetWidth() <= 0 || imported.GetHeight() <= 0 || imported.GetPreviewUrl() == "" {
+		t.Fatalf("imported direct image attachment = %+v", imported)
+	}
+	repeatedDirectResp, err := env.messages.FetchLinkPreview(
+		withCaller(env.ctx, env.viewer),
+		connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: server.URL + "/direct-file.jpg", RoomId: &directRoom.Id}),
+	)
+	if err != nil {
+		t.Fatalf("FetchLinkPreview repeated direct image: %v", err)
+	}
+	if repeatedDirectResp.Msg.GetImportedAttachment().GetAssetId() != imported.GetAssetId() {
+		t.Fatalf("repeated direct image asset ID = %q, want %q", repeatedDirectResp.Msg.GetImportedAttachment().GetAssetId(), imported.GetAssetId())
+	}
+	if directImageRequests != 1 {
+		t.Fatalf("direct image fetch count = %d, want 1", directImageRequests)
+	}
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:             directRoom.Id,
+		Body:               server.URL + "/direct-file.jpg",
+		AttachmentAssetIds: []string{imported.GetAssetId()},
+	})); err != nil {
+		t.Fatalf("CreateMessage direct image preview: %v", err)
+	}
+	directAttachments, err := env.rooms.ListRoomAttachments(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
+		RoomId: directRoom.Id,
+		Page:   &apiv1.PageRequest{Limit: 10},
+	}))
+	if err != nil {
+		t.Fatalf("ListRoomAttachments direct image preview: %v", err)
+	}
+	if directAttachments.Msg.GetPage().GetTotalCount() != 1 || len(directAttachments.Msg.GetAttachments()) != 1 {
+		t.Fatalf("direct image was not listed as room attachment: %+v", directAttachments.Msg)
 	}
 
 	room := env.createJoinedRoom("message-preview-token")

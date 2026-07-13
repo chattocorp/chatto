@@ -72,6 +72,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   push subscriptions, cached previews, and wrapped DEK records.
 - State interactions should go through the owning service/projection boundary.
   Avoid direct JetStream/KV/projection access from unrelated code.
+- Server-side remote media imports must reserve distributed quota and
+  idempotency state before downloading bytes. Keep provisional reservations
+  short-lived, and do not use replica-local projection freshness as the
+  coordination signal.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire
   protocol.
 - `ServerDiscoveryService.GetServer` is the high-compatibility discovery

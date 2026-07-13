@@ -2155,15 +2155,18 @@ describe('MessageComposer', () => {
     function mockLinkPreview(url: string) {
       queryMock.mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null });
       fetchLinkPreviewConnectMock.mockResolvedValueOnce({
-        url,
-        previewToken: 'cht_LPpreviewtoken',
-        title: 'Preview title',
-        description: 'Preview description',
-        imageUrl: null,
-        siteName: 'Preview site',
-        embedType: null,
-        embedId: null,
-        imageAssetId: 'asset_preview'
+        kind: 'preview',
+        preview: {
+          url,
+          previewToken: 'cht_LPpreviewtoken',
+          title: 'Preview title',
+          description: 'Preview description',
+          imageUrl: null,
+          siteName: 'Preview site',
+          embedType: null,
+          embedId: null,
+          imageAssetId: 'asset_preview'
+        }
       });
     }
 
@@ -2186,6 +2189,39 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
         previewToken: 'cht_LPpreviewtoken'
       });
+    });
+
+    it('shows a directly linked image in the attachment tray and sends its asset ID', async () => {
+      const url = 'https://example.com/linked.gif';
+      queryMock.mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null });
+      fetchLinkPreviewConnectMock.mockResolvedValueOnce({
+        kind: 'attachment',
+        attachment: {
+          assetId: 'asset_linked',
+          filename: 'linked-image.gif',
+          contentType: 'image/gif',
+          size: 1024n,
+          width: 320,
+          height: 180,
+          previewUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+        }
+      });
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, url);
+      await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce(), {
+        timeout: 1000
+      });
+      await expect
+        .element(q(container, '[data-testid="linked-image-attachment-preview"]'))
+        .toBeInTheDocument();
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.attachmentAssetIds).toEqual(['asset_linked']);
+      expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
     });
 
     it('dismisses a fetched preview so it is not attached to the outgoing message', async () => {

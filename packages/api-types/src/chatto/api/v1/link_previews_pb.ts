@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
  * Request to fetch server-side link preview metadata for a URL.
@@ -19,6 +19,14 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
    */
   url = "";
 
+  /**
+   * Room that will own a directly linked image imported as an attachment.
+   * When omitted, direct image URLs are not imported.
+   *
+   * @generated from field: optional string room_id = 2;
+   */
+  roomId?: string;
+
   constructor(data?: PartialMessage<FetchLinkPreviewRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -28,6 +36,7 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
   static readonly typeName = "chatto.api.v1.FetchLinkPreviewRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchLinkPreviewRequest {
@@ -44,6 +53,95 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
 
   static equals(a: FetchLinkPreviewRequest | PlainMessage<FetchLinkPreviewRequest> | undefined, b: FetchLinkPreviewRequest | PlainMessage<FetchLinkPreviewRequest> | undefined): boolean {
     return proto3.util.equals(FetchLinkPreviewRequest, a, b);
+  }
+}
+
+/**
+ * Pending room attachment imported from a directly linked image.
+ *
+ * @generated from message chatto.api.v1.ImportedLinkAttachment
+ */
+export class ImportedLinkAttachment extends Message<ImportedLinkAttachment> {
+  /**
+   * Stable pending attachment asset ID.
+   *
+   * @generated from field: string asset_id = 1;
+   */
+  assetId = "";
+
+  /**
+   * Server-assigned filename for the imported image.
+   *
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * Detected image MIME type.
+   *
+   * @generated from field: string content_type = 3;
+   */
+  contentType = "";
+
+  /**
+   * Stored original size in bytes.
+   *
+   * @generated from field: int64 size = 4;
+   */
+  size = protoInt64.zero;
+
+  /**
+   * Intrinsic image width.
+   *
+   * @generated from field: int32 width = 5;
+   */
+  width = 0;
+
+  /**
+   * Intrinsic image height.
+   *
+   * @generated from field: int32 height = 6;
+   */
+  height = 0;
+
+  /**
+   * Freshly authorized thumbnail URL for composer display.
+   *
+   * @generated from field: string preview_url = 7;
+   */
+  previewUrl = "";
+
+  constructor(data?: PartialMessage<ImportedLinkAttachment>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ImportedLinkAttachment";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 7, name: "preview_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ImportedLinkAttachment {
+    return new ImportedLinkAttachment().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ImportedLinkAttachment {
+    return new ImportedLinkAttachment().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ImportedLinkAttachment {
+    return new ImportedLinkAttachment().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ImportedLinkAttachment | PlainMessage<ImportedLinkAttachment> | undefined, b: ImportedLinkAttachment | PlainMessage<ImportedLinkAttachment> | undefined): boolean {
+    return proto3.util.equals(ImportedLinkAttachment, a, b);
   }
 }
 
@@ -170,6 +268,14 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
    */
   previewToken = "";
 
+  /**
+   * Pending room attachment imported when the URL directly serves an image.
+   * The client should include its ID in CreateMessage.attachment_asset_ids.
+   *
+   * @generated from field: chatto.api.v1.ImportedLinkAttachment imported_attachment = 3;
+   */
+  importedAttachment?: ImportedLinkAttachment;
+
   constructor(data?: PartialMessage<FetchLinkPreviewResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -180,6 +286,7 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "preview", kind: "message", T: LinkPreview },
     { no: 2, name: "preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "imported_attachment", kind: "message", T: ImportedLinkAttachment },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchLinkPreviewResponse {
