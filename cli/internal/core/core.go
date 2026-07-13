@@ -665,7 +665,8 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 	meta := jetstream.ObjectMeta{
 		Name: assetID,
 		Headers: map[string][]string{
-			"Content-Type": {contentType},
+			"Content-Type":              {contentType},
+			ServerAssetVisibilityHeader: {ServerAssetVisibilityPublic},
 		},
 	}
 	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(data))
@@ -682,6 +683,98 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 type ServerAssetInfo struct {
 	Size        int64
 	ContentType string
+}
+
+// IsReservedServerAssetKey rejects namespaces used by private or internal
+// objects before public-route transform parsing or backend probing.
+func IsReservedServerAssetKey(key string) bool {
+	key = strings.TrimSpace(key)
+	if key == "" || strings.HasPrefix(key, "/") || strings.Contains(key, "\\") {
+		return true
+	}
+	for _, segment := range strings.Split(key, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return true
+		}
+	}
+	for _, prefix := range []string{
+		assetUploadTempObjectPrefix,
+		"attachments/",
+		"spaces/server/attachments/",
+		"spaces/DM/attachments/",
+	} {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	// Every public server-asset producer, including historical migrations, uses
+	// the canonical opaque asset-ID grammar. Namespace-shaped and unknown keys
+	// are not public object classes.
+	if len(key) != idLength+1 || key[0] != 'A' {
+		return true
+	}
+	for _, ch := range key[1:] {
+		if !strings.ContainsRune(idAlphabet, ch) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsPublicServerAsset positively classifies an object before the public
+// /assets/server route performs cache access, content reads, or transforms.
+// SERVER_ASSETS is shared with private binaries, so absence of a private marker
+// is never enough: unknown objects fail closed.
+func (c *ChattoCore) IsPublicServerAsset(ctx context.Context, key string) bool {
+	if IsReservedServerAssetKey(key) {
+		return false
+	}
+
+	// Durable room-scoped declarations take precedence over every public hint,
+	// including stale metadata or a colliding current public reference.
+	if c.Assets != nil {
+		if _, declared := c.Assets.AssetCreation(key); declared {
+			return false
+		}
+		if c.Assets.AssetDeleted(key) {
+			return false
+		}
+	}
+
+	// Object metadata is safe to inspect for classification; object content is
+	// not opened until this method has returned true.
+	if info, err := c.storage.serverAssets.GetInfo(ctx, key); err == nil && info != nil {
+		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return false
+		}
+		if info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic {
+			return true
+		}
+	}
+
+	// Historical public objects predate the explicit visibility header. Their
+	// durable/current public references provide the positive declaration.
+	if c.Users != nil && c.Users.IsPublicAvatarAsset(key) {
+		return true
+	}
+	if c.ServerConfig != nil {
+		logo, _, _ := c.ServerConfig.ServerLogo()
+		banner, _, _ := c.ServerConfig.ServerBanner()
+		if assetRecordMatchesKey(logo, key) || assetRecordMatchesKey(banner, key) {
+			return true
+		}
+	}
+	if c.RoomTimeline != nil && c.RoomTimeline.IsPublicLinkPreviewAsset(key) {
+		return true
+	}
+
+	// S3 server assets live exclusively below instance/. Private current and
+	// historical attachments use attachments/ or spaces/*/attachments/.
+	if c.s3Client != nil && !strings.Contains(key, "/") {
+		_, err := c.s3Client.StatObject(ctx, S3KeyServerAsset(key))
+		return err == nil
+	}
+	return false
 }
 
 // ServerAssetRecordFromAnyBackend builds an AssetRecord by probing the

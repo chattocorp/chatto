@@ -675,6 +675,25 @@ func (p *UserProjection) Avatar(userID string) (*corev1.AssetRecord, bool) {
 	return proto.Clone(u.avatar).(*corev1.AssetRecord), true
 }
 
+// IsPublicAvatarAsset reports whether assetID or key is the current avatar of
+// a non-deleted user. User avatars are intentionally public server assets.
+func (p *UserProjection) IsPublicAvatarAsset(assetID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return false
+	}
+	for _, u := range p.users {
+		if u == nil || u.deleted || u.avatar == nil {
+			continue
+		}
+		if assetRecordMatchesKey(u.avatar, assetID) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {
 	p.RLock()
 	defer p.RUnlock()

@@ -92,23 +92,40 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		path = path[1:]
 	}
 
-	// Check if this is a transform request: path ends with /t/{signedPath}
-	// Pattern: {key}/t/{signedPath}
+	// /assets/server/* is intentionally unauthenticated and may only serve
+	// explicitly public, server-scoped assets. Classify the base key before
+	// transform signature parsing, derivative-cache access, object reads, or
+	// image transformation so shared-store private objects always look absent.
+	key := path
+	signedPath := ""
+	transformRequest := false
 	if idx := strings.LastIndex(path, "/t/"); idx != -1 {
-		key := path[:idx]
-		signedPath := path[idx+3:] // skip "/t/"
-		if key != "" && signedPath != "" {
-			s.serveTransformedServerAsset(c, key, signedPath)
-			return
-		}
+		transformRequest = true
+		key = path[:idx]
+		signedPath = path[idx+3:]
+	}
+	if key == "" || !s.core.IsPublicServerAsset(c.Request.Context(), key) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
+	}
+	if transformRequest && signedPath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
 	}
 
-	s.logger.Debug("Serving server asset", "asset_id", path)
+	// Check if this is a transform request: path ends with /t/{signedPath}
+	// Pattern: {key}/t/{signedPath}
+	if transformRequest {
+		s.serveTransformedServerAsset(c, key, signedPath)
+		return
+	}
+
+	s.logger.Debug("Serving server asset", "asset_id", key)
 
 	// Probe both NATS and S3 backends
-	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), path)
+	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), key)
 	if err != nil {
-		s.logger.Error("Failed to get server asset", "error", err, "asset_id", path)
+		s.logger.Error("Failed to get server asset", "error", err, "asset_id", key)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
@@ -120,12 +137,12 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	// Get content type, fall back to extension-based detection
 	contentType := info.ContentType
 	if contentType == "" {
-		contentType = getContentType(path)
+		contentType = getContentType(key)
 	}
 
 	// Immutable asset - cache forever
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", path))
+	c.Header("ETag", fmt.Sprintf("\"%s\"", key))
 	c.Header("Vary", "Accept-Encoding")
 
 	c.DataFromReader(

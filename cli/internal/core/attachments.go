@@ -18,6 +18,13 @@ import (
 	"hmans.de/chatto/pkg/signedurl"
 )
 
+const (
+	// ServerAssetVisibilityHeader positively marks NATS objects that may be
+	// served by the unauthenticated public server-asset route.
+	ServerAssetVisibilityHeader = "Chatto-Asset-Visibility"
+	ServerAssetVisibilityPublic = "public"
+)
+
 // ============================================================================
 // Attachment Operations
 // ============================================================================
@@ -385,6 +392,19 @@ func attachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 // Attachment view used by API response mapping and asset URL helpers.
 func AttachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	return attachmentFromAsset(asset)
+}
+
+func assetRecordMatchesKey(asset *corev1.AssetRecord, key string) bool {
+	if asset == nil || key == "" {
+		return false
+	}
+	if asset.GetId() == key {
+		return true
+	}
+	if stored := asset.GetNats(); stored != nil && stored.GetKey() == key {
+		return true
+	}
+	return asset.GetS3() != nil && asset.GetS3().GetKey() == key
 }
 
 func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.AssetRecord, storage *corev1.DeprecatedAsset) {

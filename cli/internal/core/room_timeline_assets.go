@@ -20,6 +20,10 @@ type roomTimelineAssetIndex struct {
 	assetChildren  map[string][]string
 	videoManifests map[string]*VideoAttachmentManifest
 	messageOwners  map[string]assetMessageRef
+	// publicLinkPreviewAssets remembers server-fetched preview images referenced
+	// by durable message bodies. Link-preview images are intentionally public,
+	// unlike message attachment assets tracked by messageOwners.
+	publicLinkPreviewAssets map[string]struct{}
 }
 
 // assetMessageRef is the room + message that owns an asset, captured from the
@@ -54,10 +58,11 @@ type VideoProcessingRequest struct {
 
 func newRoomTimelineAssetIndex() *roomTimelineAssetIndex {
 	return &roomTimelineAssetIndex{
-		assetCreations: make(map[string]*corev1.AssetCreatedEvent),
-		assetChildren:  make(map[string][]string),
-		videoManifests: make(map[string]*VideoAttachmentManifest),
-		messageOwners:  make(map[string]assetMessageRef),
+		assetCreations:          make(map[string]*corev1.AssetCreatedEvent),
+		assetChildren:           make(map[string][]string),
+		videoManifests:          make(map[string]*VideoAttachmentManifest),
+		messageOwners:           make(map[string]assetMessageRef),
+		publicLinkPreviewAssets: make(map[string]struct{}),
 	}
 }
 
@@ -74,6 +79,23 @@ func (idx *roomTimelineAssetIndex) rememberMessageBodyAssets(roomID, messageEven
 		}
 		idx.messageOwners[assetID] = assetMessageRef{roomID: roomID, messageEventID: messageEventID}
 	}
+	if preview := body.GetLinkPreview(); preview != nil {
+		assetID := preview.GetImageAssetId()
+		if preview.GetImageAsset() != nil && preview.GetImageAsset().GetId() != "" {
+			assetID = preview.GetImageAsset().GetId()
+		}
+		if assetID != "" {
+			idx.publicLinkPreviewAssets[assetID] = struct{}{}
+		}
+	}
+}
+
+func (idx *roomTimelineAssetIndex) isPublicLinkPreviewAsset(assetID string) bool {
+	if idx == nil || assetID == "" {
+		return false
+	}
+	_, ok := idx.publicLinkPreviewAssets[assetID]
+	return ok
 }
 
 func (idx *roomTimelineAssetIndex) applyLifecycleEvent(event *corev1.Event) {
