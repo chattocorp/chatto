@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
@@ -134,6 +135,22 @@
   let hasNewMessages = $state(false);
   let lastSeenNewestId = $state<string | null>(null);
   let firstVisibleAt = $state<string | null>(null);
+  const expandedSystemEventIds = new SvelteSet<string>();
+  let expandedStateRoomId: string | null = null;
+
+  function isSystemGroupExpanded(groupEvents: RoomEventView[]): boolean {
+    return groupEvents.some((event) => expandedSystemEventIds.has(event.id));
+  }
+
+  function setSystemGroupExpanded(groupEvents: RoomEventView[], expanded: boolean): void {
+    for (const event of groupEvents) {
+      if (expanded) {
+        expandedSystemEventIds.add(event.id);
+      } else {
+        expandedSystemEventIds.delete(event.id);
+      }
+    }
+  }
 
   function setShouldScrollToBottom(value: boolean) {
     shouldScrollToBottom = value;
@@ -262,6 +279,19 @@
     lastSeenNewestId = null;
     firstVisibleAt = null;
     previousOffset = null;
+  });
+
+  $effect(() => {
+    const currentRoomId = roomId;
+    if (expandedStateRoomId === null) {
+      expandedStateRoomId = currentRoomId;
+      return;
+    }
+    if (currentRoomId === expandedStateRoomId) return;
+    expandedStateRoomId = currentRoomId;
+    // This reset belongs exclusively to room navigation. Reading the reactive
+    // set here would also subscribe the effect to expansion changes.
+    untrack(() => expandedSystemEventIds.clear());
   });
 
   // When exiting jumped mode (returning to present), re-enable auto-scroll
@@ -1001,7 +1031,12 @@
               {@const groupEvents = item?.events}
               {@const groupKind = item?.kind}
               {#if groupEvents && groupKind && groupEvents.length > 0}
-                <SystemEventGroup events={groupEvents} kind={groupKind} />
+                <SystemEventGroup
+                  events={groupEvents}
+                  kind={groupKind}
+                  expanded={isSystemGroupExpanded(groupEvents)}
+                  onExpandedChange={(expanded) => setSystemGroupExpanded(groupEvents, expanded)}
+                />
               {/if}
             {:else}
               <!--

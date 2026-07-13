@@ -1,6 +1,6 @@
 <script lang="ts">
   import { RoomEventKind } from '$lib/render/eventKinds';
-  import type { RoomEventView } from '$lib/render/types';
+  import { PresenceStatus, type RoomEventView } from '$lib/render/types';
   import {
     createComposerContext,
     createRoomPermissions,
@@ -11,6 +11,8 @@
 
   let {
     eventIds,
+    roomId = 'room-1',
+    eventKind = 'message',
     scrollToEventId,
     onComplete,
     isLoading = false,
@@ -20,6 +22,8 @@
     pendingHighlightId = null
   }: {
     eventIds: string[];
+    roomId?: string;
+    eventKind?: 'message' | 'join';
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
@@ -34,15 +38,34 @@
   setUserSettings(new UserSettingsState());
 
   const events = $derived(
-    eventIds.map(
-      (id): RoomEventView => ({
+    eventIds.map((id, index): RoomEventView => {
+      const base = {
         id,
-        createdAt: '2026-06-17T10:47:00Z',
-        actorId: 'test-user',
-        actor: null,
+        createdAt: `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
+        actorId: `user-${id}`,
+        actor: {
+          id: `user-${id}`,
+          login: id,
+          displayName: `User ${id}`,
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: PresenceStatus.Offline
+        }
+      };
+      if (eventKind === 'join') {
+        return {
+          ...base,
+          event: {
+            kind: RoomEventKind.UserJoinedRoom,
+            roomId
+          }
+        } as unknown as RoomEventView;
+      }
+      return {
+        ...base,
         event: {
           kind: RoomEventKind.MessagePosted,
-          roomId: 'room-1',
+          roomId,
           body: id,
           attachments: [],
           linkPreview: null,
@@ -58,8 +81,8 @@
           threadParticipants: [],
           viewerIsFollowingThread: true
         }
-      })
-    )
+      } as RoomEventView;
+    })
   );
 
   const messageStore = {
@@ -73,7 +96,7 @@
 </script>
 
 <EventList
-  roomId="room-1"
+  {roomId}
   messageStore={messageStore as never}
   {events}
   {isLoading}
