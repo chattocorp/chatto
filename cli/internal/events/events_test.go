@@ -615,6 +615,40 @@ type blockingProjection struct {
 	once    sync.Once
 }
 
+type snapshotTrackingProjection struct {
+	*trackingProjection
+	restored   []byte
+	restoreErr error
+	snapshot   []byte
+}
+
+func newSnapshotTrackingProjection(subs ...string) *snapshotTrackingProjection {
+	return &snapshotTrackingProjection{trackingProjection: newTrackingProjection(subs...), snapshot: []byte("captured")}
+}
+
+func (*snapshotTrackingProjection) SnapshotCompatibilityID() string { return "tracking-v1" }
+func (p *snapshotTrackingProjection) Snapshot() ([]byte, error) {
+	return append([]byte(nil), p.snapshot...), nil
+}
+func (p *snapshotTrackingProjection) Restore(data []byte) error {
+	if len(data) > 0 && p.restoreErr != nil {
+		return p.restoreErr
+	}
+	p.restored = append([]byte(nil), data...)
+	return nil
+}
+
+type staticSnapshotSource struct {
+	snapshot ProjectionSnapshot
+	err      error
+	request  ProjectionSnapshotLoadRequest
+}
+
+func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	s.request = request
+	return s.snapshot, s.err
+}
+
 func newBlockingProjection(subs ...string) *blockingProjection {
 	return &blockingProjection{
 		trackingProjection: newTrackingProjection(subs...),
@@ -674,6 +708,136 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 		t.Errorf("startup replay completions = %d, want 1", got)
 	}
 }
+
+func TestRunProjectors_RestoredProjectionSkipsCutoffWhileColdProjectionReplaysAll(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	var seqs []uint64
+	for i := 0; i < 3; i++ {
+		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	restoredProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	coldProjection := newTrackingProjection(RoomSubjectFilter())
+	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
+	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], Payload: []byte("restored")}}
+	if err := restoredProjector.ConfigureSnapshots("tracking", source); err != nil {
+		t.Fatal(err)
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = RunProjectors(runCtx, restoredProjector, coldProjector) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return restoredProjector.Status().StartupComplete && coldProjector.Status().StartupComplete
+	})
+	if got := restoredProjection.Count(); got != 1 {
+		t.Fatalf("restored Apply count = %d, want 1", got)
+	}
+	if got := coldProjection.Count(); got != 3 {
+		t.Fatalf("cold Apply count = %d, want 3", got)
+	}
+	status := restoredProjector.Status()
+	if !status.SnapshotRestored || status.SnapshotCutoffSeq != seqs[1] || status.StartupMessages != 1 || status.LastSeq != seqs[2] {
+		t.Fatalf("restored status = %#v", status)
+	}
+	if source.request.StreamName != "EVT_TEST" || source.request.StreamIdentity == "" || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
+		t.Fatalf("snapshot load request = %#v", source.request)
+	}
+}
+
+func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		cutoffDelta uint64
+		restoreErr  error
+	}{
+		{name: "future cutoff", cutoffDelta: 1},
+		{name: "restore failure", restoreErr: errors.New("invalid snapshot payload")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			js, stream := setupTestStream(t)
+			pub := NewPublisher(js, stream, testLogger())
+			ctx := testContext(t)
+			seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+			projection.restoreErr = test.restoreErr
+			projector := NewProjector(js, stream, projection, testLogger())
+			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Payload: []byte("bad")}}
+			if err := projector.ConfigureSnapshots("tracking", source); err != nil {
+				t.Fatal(err)
+			}
+			runCtx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+			go func() { _ = projector.Run(runCtx) }()
+			waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+			if got := projection.Count(); got != 1 {
+				t.Fatalf("fallback Apply count = %d, want 1", got)
+			}
+			if projector.Status().SnapshotRestored {
+				t.Fatal("invalid snapshot reported as restored")
+			}
+		})
+	}
+}
+
+func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := newBlockingProjection(RoomSubjectFilter())
+	projection := &snapshotTrackingProjection{trackingProjection: base.trackingProjection, snapshot: []byte("captured")}
+	projector := NewProjector(js, stream, projection, testLogger())
+
+	// Exercise the same barrier directly with a projection whose Apply blocks.
+	projector.proj = structSnapshotBlockingProjection{blockingProjection: base}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	select {
+	case <-base.entered:
+	case <-ctx.Done():
+		t.Fatal("Apply did not enter")
+	}
+	capturedCh := make(chan ProjectionSnapshot, 1)
+	go func() { captured, _ := projector.CaptureSnapshot(); capturedCh <- captured }()
+	select {
+	case <-capturedCh:
+		t.Fatal("CaptureSnapshot crossed an in-progress Apply")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(base.release)
+	select {
+	case captured := <-capturedCh:
+		if captured.CutoffSequence != seq || string(captured.Payload) != "captured" {
+			t.Fatalf("captured = %#v", captured)
+		}
+	case <-ctx.Done():
+		t.Fatal("CaptureSnapshot did not complete")
+	}
+}
+
+type structSnapshotBlockingProjection struct{ blockingProjection *blockingProjection }
+
+func (p structSnapshotBlockingProjection) Subjects() []string { return p.blockingProjection.Subjects() }
+func (p structSnapshotBlockingProjection) Apply(e *corev1.Event, seq uint64) error {
+	return p.blockingProjection.Apply(e, seq)
+}
+func (structSnapshotBlockingProjection) Snapshot() ([]byte, error) { return []byte("captured"), nil }
+func (structSnapshotBlockingProjection) Restore([]byte) error      { return nil }
 
 func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
 	js, stream := setupTestStream(t)

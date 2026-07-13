@@ -214,6 +214,15 @@ func (l *Lease) Renew(ctx context.Context) error {
 	return l.renewAtRevision(ctx, entry.Revision(), record.AcquiredAt)
 }
 
+// CheckOwnership verifies that the visible lease record still belongs to this
+// owner without renewing it. It is a best-effort pre-publication check, not a
+// fencing token; durable writes must remain safe if ownership changes
+// immediately afterward.
+func (l *Lease) CheckOwnership(ctx context.Context) error {
+	_, _, err := l.currentOwnedEntry(ctx)
+	return err
+}
+
 // Release deletes the lease only when this owner still owns the current KV
 // revision. Releasing an already-lost lease is a successful no-op.
 func (l *Lease) Release(ctx context.Context) error {

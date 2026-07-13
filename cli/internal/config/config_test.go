@@ -71,6 +71,9 @@ secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+[experimental]
+projection_snapshots = true
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -85,6 +88,25 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	// Verify file values were applied
 	if cfg.Webserver.Port != 5000 {
 		t.Errorf("expected port 5000 from file, got %d", cfg.Webserver.Port)
+	}
+	if !cfg.Experimental.ProjectionSnapshots {
+		t.Error("expected experimental projection snapshots from file")
+	}
+}
+
+func TestReadConfig_ExperimentalProjectionSnapshotsFromEnv(t *testing.T) {
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_EXPERIMENTAL_PROJECTION_SNAPSHOTS", "true")
+
+	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Experimental.ProjectionSnapshots {
+		t.Error("expected experimental projection snapshots from environment")
 	}
 }
 

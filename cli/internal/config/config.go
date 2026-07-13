@@ -105,6 +105,12 @@ type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
 }
 
+// ExperimentalConfig controls opt-in behavior whose configuration and runtime
+// contract may change or be removed before it becomes a supported feature.
+type ExperimentalConfig struct {
+	ProjectionSnapshots bool `toml:"projection_snapshots,commented" env:"CHATTO_EXPERIMENTAL_PROJECTION_SNAPSHOTS" comment:"Persist encrypted Thread projection snapshots as an experimental startup canary. Default: false. Experimental settings may change or be removed."`
+}
+
 // OperatorAPIConfig controls the local root-equivalent operator API socket.
 type OperatorAPIConfig struct {
 	Enabled    bool   `toml:"enabled" env:"CHATTO_OPERATOR_API_ENABLED" comment:"Enable the local operator API Unix socket. Default: false."`
@@ -424,13 +430,15 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey    string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets       AssetsConfig   `toml:"assets"`
-	AuthTokenTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	EmailOTP     EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
-	Replicas     int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits       LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners       OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey    string             `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Experimental projection snapshots also become unreadable and are rebuilt from EVT."`
+	Assets       AssetsConfig       `toml:"assets"`
+	AuthTokenTTL time.Duration      `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	EmailOTP     EmailOTPConfig     `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas     int                `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits       LimitsConfig       `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners       OwnersConfig       `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	Experimental ExperimentalConfig `toml:"-" env:"-"` // Set by caller from ChattoConfig.Experimental
+	Version      string             `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 }
 
 const (
@@ -857,22 +865,23 @@ type BootstrapServer struct {
 }
 
 type ChattoConfig struct {
-	General     GeneralConfig     `toml:"general"`
-	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
-	Webserver   WebserverConfig   `toml:"webserver"`
-	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
-	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
-	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
-	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
-	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
-	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
-	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP        SMTPConfig        `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push        PushConfig        `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video       VideoConfig       `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit     LiveKitConfig     `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS        NATSConfig        `toml:"nats"`
-	Bootstrap   BootstrapConfig   `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	General      GeneralConfig      `toml:"general"`
+	Owners       OwnersConfig       `toml:"owners" comment:"Email addresses that confer owner status."`
+	Webserver    WebserverConfig    `toml:"webserver"`
+	Metrics      MetricsConfig      `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Exporter     ExporterConfig     `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
+	Diagnostics  DiagnosticsConfig  `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	Experimental ExperimentalConfig `toml:"experimental,commented" comment:"Opt-in incomplete behavior. Settings in this section may change or be removed."`
+	OperatorAPI  OperatorAPIConfig  `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
+	Core         CoreConfig         `toml:"core" comment:"Core service configuration."`
+	Auth         AuthConfig         `toml:"auth" comment:"Authentication configuration."`
+	Limits       LimitsConfig       `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP         SMTPConfig         `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push         PushConfig         `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video        VideoConfig        `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
+	LiveKit      LiveKitConfig      `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS         NATSConfig         `toml:"nats"`
+	Bootstrap    BootstrapConfig    `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other

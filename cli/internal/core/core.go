@@ -23,6 +23,7 @@ import (
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 // ============================================================================
@@ -33,36 +34,37 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
-	nc                 *nats.Conn
-	js                 jetstream.JetStream
-	logger             *log.Logger
-	storage            *storage
-	config             config.CoreConfig
-	encryption         *encryptionManager
-	dekResolver        *unwrappedDEKResolver
-	configManager      *ConfigManager
-	roomModel          *RoomModel
-	roomCommands       *RoomCommandModel
-	roomDirectoryReads *RoomDirectoryReadModel
-	messageModel       *MessageModel
-	notificationPrefs  *NotificationPreferencesModel
-	roomTimelineReads  *RoomTimelineReadModel
-	readStateModel     *ReadStateModel
-	threadFollows      *ThreadFollowModel
-	reactionModel      *ReactionModel
-	userModel          *UserModel
-	rbacModel          *RBACModel
-	mentionables       *MentionablesModel
-	myEventsModel      *MyEventsModel
-	presenceModel      *PresenceModel
-	mediaModel         *MediaModel
-	callModel          *CallModel
-	assetModel         *AssetModel
-	models             []modelRegistration
-	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher *linkpreview.Fetcher // Fetcher for link preview metadata
+	nc                       *nats.Conn
+	js                       jetstream.JetStream
+	logger                   *log.Logger
+	storage                  *storage
+	config                   config.CoreConfig
+	encryption               *encryptionManager
+	dekResolver              *unwrappedDEKResolver
+	configManager            *ConfigManager
+	roomModel                *RoomModel
+	roomCommands             *RoomCommandModel
+	roomDirectoryReads       *RoomDirectoryReadModel
+	messageModel             *MessageModel
+	notificationPrefs        *NotificationPreferencesModel
+	roomTimelineReads        *RoomTimelineReadModel
+	readStateModel           *ReadStateModel
+	threadFollows            *ThreadFollowModel
+	reactionModel            *ReactionModel
+	userModel                *UserModel
+	rbacModel                *RBACModel
+	mentionables             *MentionablesModel
+	myEventsModel            *MyEventsModel
+	presenceModel            *PresenceModel
+	mediaModel               *MediaModel
+	callModel                *CallModel
+	assetModel               *AssetModel
+	models                   []modelRegistration
+	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
+	projectionSnapshotWorker *projectionSnapshotWorker
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -305,6 +307,17 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })
+	if c.projectionSnapshotWorker != nil {
+		g.Go(func() error {
+			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			// Snapshots are disposable acceleration data. The worker logs the
+			// stage-specific failure and must never make core unavailable.
+			return nil
+		})
+	}
 
 	return g.Wait()
 }
@@ -892,6 +905,30 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		}
 	}
 
+	var snapshotRepository *projectionsnapshot.Repository
+	if cfg.Experimental.ProjectionSnapshots {
+		var snapshotBlobs projectionsnapshot.BlobStore = natsSnapshotBlobStore{store: storage.serverAssets}
+		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
+			snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
+		}
+		snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+			SecretHex:       cfg.SecretKey,
+			ProducerVersion: cfg.Version,
+			Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
+		})
+		if err != nil {
+			logger.Warn("Experimental projection snapshots disabled after initialization failure",
+				"stage", "initialize",
+				"error", err)
+			snapshotRepository = nil
+		} else {
+			logger.Info("Experimental projection snapshots enabled",
+				"projection", "threads",
+				"compatibility_id", threadSnapshotCompatibilityID,
+				"backend", snapshotRepository.Backend())
+		}
+	}
+
 	// Build the event-sourcing primitives before any aggregate-specific
 	// wiring so projections and services that need them can be passed the
 	// concrete deps at construction. Order: publisher → projections →
@@ -944,6 +981,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
+	if snapshotRepository != nil {
+		if err := threadsProjector.ConfigureSnapshots("threads", projectionSnapshotSource{repository: snapshotRepository}); err != nil {
+			return nil, fmt.Errorf("configure Thread projection snapshots: %w", err)
+		}
+	}
 
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
@@ -1049,6 +1091,30 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
+	}
+	if snapshotRepository != nil {
+		snapshotLease, snapshotLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
+			Name:   projectionSnapshotLeaseName,
+			Bucket: "MEMORY_CACHE",
+			Logger: logger.WithPrefix("core.ProjectionSnapshotLease"),
+		})
+		if snapshotLeaseErr != nil {
+			logger.Warn("Experimental projection snapshot writer disabled after lease initialization failure",
+				"projection", "threads",
+				"stage", "lease_initialize",
+				"error", snapshotLeaseErr)
+		} else {
+			core.projectionSnapshotWorker = &projectionSnapshotWorker{
+				projector:      threadsProjector,
+				repository:     snapshotRepository,
+				lease:          snapshotLease,
+				projectionKey:  "threads",
+				compatibility:  threadSnapshotCompatibilityID,
+				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
+				streamIdentity: storage.serverEvtStream.CachedInfo().Created.UTC().Format(time.RFC3339Nano),
+				logger:         logger.WithPrefix("core.ProjectionSnapshotWorker"),
+			}
+		}
 	}
 
 	core.mediaModel = NewMediaModel(core)

@@ -107,6 +107,8 @@ func TestLeaseRenewFailsAfterAnotherOwnerTakesOver(t *testing.T) {
 	require.True(t, acquired)
 
 	require.ErrorIs(t, first.Renew(ctx), ErrLost)
+	require.ErrorIs(t, first.CheckOwnership(ctx), ErrLost)
+	require.NoError(t, second.CheckOwnership(ctx))
 }
 
 func TestLeaseRunAllowsOneLeaderAndThenHandsOff(t *testing.T) {
