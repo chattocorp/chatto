@@ -173,7 +173,7 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 	}
 	if request.Statement.Kind == KindRevocation {
 		credential, ok := b.credentials[request.Statement.RevokedCredentialID]
-		if !ok || credential.GroupID != request.Statement.GroupID || credential.Account != authenticated || !credential.activeAt(now.Unix()) {
+		if !ok || credential.GroupID != request.Statement.GroupID || credential.Account != authenticated || !credential.activeAt(request.Statement.IssuedAt) {
 			return Approval{}, fmt.Errorf("%w: revocation does not name an active local credential", ErrInvalidArtifact)
 		}
 	}

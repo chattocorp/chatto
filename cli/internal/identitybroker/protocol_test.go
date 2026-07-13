@@ -643,3 +643,43 @@ func TestRevocationApprovalRequiresActiveOwnedCredential(t *testing.T) {
 		})
 	}
 }
+
+func TestRevocationApprovalRejectsCredentialExpiredAtFutureIssuance(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	verifier := NewVerifier(trustMembers(t, first, second))
+	genesis, groupID := makeGenesis(t, first, second, testNow)
+	if err := first.broker.Finalize(genesis, verifier, nil, testNow); err != nil {
+		t.Fatal(err)
+	}
+	genesisID, err := StatementID(genesis.Request.Statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, privateKey, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	approveAt := testNow.Add(24*time.Hour - 30*time.Second)
+	issuedAt := testNow.Add(24*time.Hour + time.Second)
+	statement, err := NewRevocationStatement(
+		groupID,
+		CredentialID(genesisID, first.account),
+		issueChallenge(t, first, KindRevocation, RoleMember, publicKey, approveAt),
+		publicKey,
+		issuedAt,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := SignCeremony(statement, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.broker.Approve(first.account, request, approveAt); !errors.Is(err, ErrInvalidArtifact) {
+		t.Fatalf("Approve error = %v, want expiry-at-issuance rejection", err)
+	}
+	if got := len(first.broker.Certificates()); got != 1 {
+		t.Fatalf("stored certificates = %d, want only genesis", got)
+	}
+}
