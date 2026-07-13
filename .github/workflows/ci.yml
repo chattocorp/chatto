@@ -265,6 +265,7 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
+        timeout-minutes: 15
         with:
           install-ffmpeg: "true"
 
