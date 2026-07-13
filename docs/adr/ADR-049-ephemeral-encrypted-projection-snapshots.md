@@ -144,10 +144,12 @@ does not disclose which projection it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
 compatibility, cutoff bounds, and the current EVT incarnation identity before
-mutating a live projection. Chatto stores the opaque random identity in EVT
-stream metadata so it survives process reconstruction and backup restore but
-changes when EVT is deleted and recreated. `StreamInfo.Created` is not used
-because it is not stable across embedded NATS process reconstruction.
+mutating a live projection. Chatto stores the opaque identity in EVT stream
+metadata so it survives process reconstruction and backup restore but changes
+when EVT is deleted and recreated. Missing metadata is deterministically
+derived once from the stream creation time so concurrent replicas converge,
+then persisted; `StreamInfo.Created` is not used for later comparisons because
+it is not stable across embedded NATS process reconstruction.
 Projection restore codecs are transactional: a
 rejected payload must leave prior state unchanged so the projector can reset to
 its cold-start state and replay all of `EVT`. Capturing a snapshot must bind

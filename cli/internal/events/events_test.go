@@ -66,6 +66,15 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 	return js, stream
 }
 
+func testStreamIdentity(t *testing.T, stream jetstream.Stream) string {
+	t.Helper()
+	identity, err := StreamIdentity(stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return identity
+}
+
 // makeEvent constructs a minimal event with a UserJoinedRoom payload so
 // validateEvent passes. The room_id field is what tests typically assert on.
 func makeEvent(roomID, userID string) *corev1.Event {
@@ -740,7 +749,7 @@ func TestRunProjectors_RestoredProjectionSkipsCutoffWhileColdProjectionReplaysAl
 	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
 	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], Payload: []byte("restored")}}
-	if err := restoredProjector.ConfigureSnapshots("tracking", source); err != nil {
+	if err := restoredProjector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -786,7 +795,7 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 			projection.restoreErr = test.restoreErr
 			projector := NewProjector(js, stream, projection, testLogger())
 			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Payload: []byte("bad")}}
-			if err := projector.ConfigureSnapshots("tracking", source); err != nil {
+			if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
 				t.Fatal(err)
 			}
 			runCtx, cancel := context.WithCancel(context.Background())
@@ -814,7 +823,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	projector := NewProjector(js, stream, projection, testLogger())
 	source := &blockingSnapshotSource{canceled: make(chan struct{})}
-	if err := projector.ConfigureSnapshots("tracking", source); err != nil {
+	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
 		t.Fatal(err)
 	}
 	projector.snapshotLoadTimeout = 20 * time.Millisecond

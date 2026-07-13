@@ -909,6 +909,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	var snapshotRepository *projectionsnapshot.Repository
+	var snapshotStreamIdentity string
 	if cfg.Experimental.ProjectionSnapshots {
 		var snapshotBlobs projectionsnapshot.BlobStore = natsSnapshotBlobStore{store: storage.serverAssets}
 		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
@@ -925,6 +926,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", err)
 			snapshotRepository = nil
 		} else {
+			snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
+			if err != nil {
+				return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
+			}
 			logger.Info("Experimental projection snapshots enabled",
 				"projection", "threads",
 				"compatibility_id", threadSnapshotCompatibilityID,
@@ -985,7 +990,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 	if snapshotRepository != nil {
-		if err := threadsProjector.ConfigureSnapshots("threads", projectionSnapshotSource{repository: snapshotRepository}); err != nil {
+		if err := threadsProjector.ConfigureSnapshots("threads", projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
 			return nil, fmt.Errorf("configure Thread projection snapshots: %w", err)
 		}
 	}
@@ -1108,14 +1113,15 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", snapshotLeaseErr)
 		} else {
 			core.projectionSnapshotWorker = &projectionSnapshotWorker{
-				projector:     threadsProjector,
-				repository:    snapshotRepository,
-				lease:         snapshotLease,
-				projectionKey: "threads",
-				compatibility: threadSnapshotCompatibilityID,
-				stream:        storage.serverEvtStream,
-				streamName:    storage.serverEvtStream.CachedInfo().Config.Name,
-				logger:        logger.WithPrefix("core.ProjectionSnapshotWorker"),
+				projector:      threadsProjector,
+				repository:     snapshotRepository,
+				lease:          snapshotLease,
+				projectionKey:  "threads",
+				compatibility:  threadSnapshotCompatibilityID,
+				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
+				streamIdentity: snapshotStreamIdentity,
+				logger:         logger.WithPrefix("core.ProjectionSnapshotWorker"),
+				done:           make(chan struct{}),
 			}
 		}
 	}
@@ -1297,29 +1303,47 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	if err != nil {
 		return nil, fmt.Errorf("prepare EVT stream metadata: %w", err)
 	}
+	evtConfig := jetstream.StreamConfig{
+		Name:        "EVT",
+		Description: "Event-sourcing log (ADR-033)",
+		Subjects:    []string{"evt.>"},
+		Storage:     jetstream.FileStorage,
+		Compression: jetstream.S2Compression,
+		Replicas:    cfg.Replicas,
+		Metadata:    evtMetadata,
+		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
+		// protocol on this stream. Used by Publisher.AppendBatch to
+		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
+		// adjacently in stream order so projections never observe an
+		// intermediate state that breaks an invariant.
+		AllowAtomicPublish: true,
+		RePublish: &jetstream.RePublish{
+			Source:      "evt.>",
+			Destination: "live.evt.>",
+		},
+	}
 	serverEvtStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name:        "EVT",
-			Description: "Event-sourcing log (ADR-033)",
-			Subjects:    []string{"evt.>"},
-			Storage:     jetstream.FileStorage,
-			Compression: jetstream.S2Compression,
-			Replicas:    cfg.Replicas,
-			Metadata:    evtMetadata,
-			// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
-			// protocol on this stream. Used by Publisher.AppendBatch to
-			// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
-			// adjacently in stream order so projections never observe an
-			// intermediate state that breaks an invariant.
-			AllowAtomicPublish: true,
-			RePublish: &jetstream.RePublish{
-				Source:      "evt.>",
-				Destination: "live.evt.>",
-			},
-		})
+		return js.CreateOrUpdateStream(ctx, evtConfig)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
+	}
+	if !events.ValidStreamIdentity(evtConfig.Metadata[events.EVTStreamIdentityMetadataKey]) {
+		info := serverEvtStream.CachedInfo()
+		if info == nil {
+			return nil, fmt.Errorf("created EVT stream info is unavailable")
+		}
+		identity, identityErr := events.NewStreamIdentity(info.Created)
+		if identityErr != nil {
+			return nil, identityErr
+		}
+		evtConfig.Metadata[events.EVTStreamIdentityMetadataKey] = identity
+		serverEvtStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+			return js.CreateOrUpdateStream(ctx, evtConfig)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("persist EVT stream identity: %w", err)
+		}
 	}
 
 	return &storage{
@@ -1351,7 +1375,13 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 	if events.ValidStreamIdentity(metadata[events.EVTStreamIdentityMetadataKey]) {
 		return metadata, nil
 	}
-	identity, err := events.NewStreamIdentity()
+	if stream == nil {
+		return metadata, nil
+	}
+	if stream.CachedInfo() == nil {
+		return nil, fmt.Errorf("existing EVT stream info is unavailable")
+	}
+	identity, err := events.NewStreamIdentity(stream.CachedInfo().Created)
 	if err != nil {
 		return nil, err
 	}

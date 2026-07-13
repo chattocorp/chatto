@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
@@ -16,17 +14,21 @@ import (
 const projectionSnapshotLeaseName = "projection-snapshot-threads"
 
 type projectionSnapshotWorker struct {
-	projector     *events.Projector
-	repository    *projectionsnapshot.Repository
-	lease         *lease.Lease
-	projectionKey string
-	compatibility string
-	stream        jetstream.Stream
-	streamName    string
-	logger        events.Logger
+	projector      *events.Projector
+	repository     *projectionsnapshot.Repository
+	lease          *lease.Lease
+	projectionKey  string
+	compatibility  string
+	streamName     string
+	streamIdentity string
+	logger         events.Logger
+	done           chan struct{}
 }
 
 func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan struct{}) error {
+	if w.done != nil {
+		defer close(w.done)
+	}
 	select {
 	case <-bootDone:
 	case <-ctx.Done():
@@ -60,11 +62,7 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 			"stage", "generate_skip")
 		return nil
 	}
-	streamIdentity, err := events.StreamIdentity(ctx, w.stream)
-	if err != nil {
-		return fmt.Errorf("read EVT stream identity: %w", err)
-	}
-	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, streamIdentity, status.LastSeq)
+	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, w.streamIdentity, status.LastSeq)
 	if err == nil && current.CutoffSequence >= status.LastSeq {
 		w.logger.Debug("Projection snapshot already current",
 			"projection", w.projectionKey,
@@ -96,7 +94,7 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 		ProjectionKey:   w.projectionKey,
 		CompatibilityID: w.compatibility,
 		StreamName:      w.streamName,
-		StreamIdentity:  streamIdentity,
+		StreamIdentity:  w.streamIdentity,
 		CutoffSequence:  captured.CutoffSequence,
 		Payload:         captured.Payload,
 	})

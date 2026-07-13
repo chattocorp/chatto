@@ -2,7 +2,7 @@ package events
 
 import (
 	"context"
-	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -182,6 +182,7 @@ type Projector struct {
 
 	snapshotKey          string
 	snapshotSource       ProjectionSnapshotSource
+	snapshotStreamID     string
 	snapshotLoadTimeout  time.Duration
 	restoredSeq          uint64
 	restoredGenerationID string
@@ -233,12 +234,15 @@ func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projecti
 // ConfigureSnapshots enables best-effort bootstrap restore for this projector.
 // It must be called before Run. A load or restore failure is logged and falls
 // back to an empty projection followed by full EVT replay.
-func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSource) error {
+func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSource, streamIdentity string) error {
 	if key == "" {
 		return fmt.Errorf("projection snapshot key is required")
 	}
 	if source == nil {
 		return fmt.Errorf("projection snapshot source is nil")
+	}
+	if !ValidStreamIdentity(streamIdentity) {
+		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
 	}
 	compatible, ok := p.proj.(SnapshotCompatibleProjection)
 	if !ok || compatible.SnapshotCompatibilityID() == "" {
@@ -251,6 +255,7 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	}
 	p.snapshotKey = key
 	p.snapshotSource = source
+	p.snapshotStreamID = streamIdentity
 	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
 	return nil
 }
@@ -275,13 +280,15 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	return ProjectionSnapshot{CutoffSequence: seq, Payload: payload}, nil
 }
 
-// NewStreamIdentity returns an opaque identity for one EVT stream incarnation.
-func NewStreamIdentity() (string, error) {
-	var value [16]byte
-	if _, err := rand.Read(value[:]); err != nil {
-		return "", fmt.Errorf("generate EVT stream identity: %w", err)
+// NewStreamIdentity deterministically derives an opaque identity for one EVT
+// stream incarnation. created is used only when initializing missing metadata;
+// normal restarts read the persisted identity instead.
+func NewStreamIdentity(created time.Time) (string, error) {
+	if created.IsZero() {
+		return "", fmt.Errorf("EVT stream creation time is required")
 	}
-	return streamIdentityPrefix + hex.EncodeToString(value[:]), nil
+	sum := sha256.Sum256([]byte("chatto/evt-incarnation/v1\x00" + created.UTC().Format(time.RFC3339Nano)))
+	return streamIdentityPrefix + hex.EncodeToString(sum[:16]), nil
 }
 
 // ValidStreamIdentity reports whether identity has Chatto's versioned EVT
@@ -294,16 +301,16 @@ func ValidStreamIdentity(identity string) bool {
 	return err == nil
 }
 
-// StreamIdentity reads the durable incarnation identity from EVT metadata.
-// Unlike StreamInfo.Created, this value survives process reconstruction and
-// backup restore.
-func StreamIdentity(ctx context.Context, stream jetstream.Stream) (string, error) {
+// StreamIdentity reads the durable incarnation identity cached when EVT was
+// opened. Unlike StreamInfo.Created, this value survives process reconstruction
+// and backup restore.
+func StreamIdentity(stream jetstream.Stream) (string, error) {
 	if stream == nil {
 		return "", fmt.Errorf("EVT stream is required")
 	}
-	info, err := stream.Info(ctx)
-	if err != nil {
-		return "", fmt.Errorf("read EVT stream info: %w", err)
+	info := stream.CachedInfo()
+	if info == nil {
+		return "", fmt.Errorf("EVT stream info is unavailable")
 	}
 	identity := info.Config.Metadata[EVTStreamIdentityMetadataKey]
 	if !ValidStreamIdentity(identity) {
@@ -1013,6 +1020,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.mu.Lock()
 	source := p.snapshotSource
 	key := p.snapshotKey
+	streamIdentity := p.snapshotStreamID
 	loadTimeout := p.snapshotLoadTimeout
 	p.mu.Unlock()
 	if source == nil {
@@ -1028,14 +1036,6 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	}
 	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
 	defer cancelLoad()
-	streamIdentity, err := StreamIdentity(loadCtx, p.stream)
-	if err != nil {
-		p.logger.Warn("Projection snapshot EVT identity unavailable; replaying EVT",
-			"projection", key,
-			"stage", "restore_validate",
-			"error", err)
-		return coldRestore()
-	}
 	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
 		ProjectionKey:   key,
 		CompatibilityID: compatible.SnapshotCompatibilityID(),

@@ -46,7 +46,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
-	firstIdentity, err := events.StreamIdentity(ctx, first.storage.serverEvtStream)
+	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	secondIdentity, err := events.StreamIdentity(ctx, second.storage.serverEvtStream)
+	secondIdentity, err := events.StreamIdentity(second.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,6 +80,11 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
+	}
+	select {
+	case <-second.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not finish its current-generation check")
 	}
 	stopSecond()
 	if got := projectionSnapshotObjectNames(t, ctx, second); !slices.Equal(got, firstSnapshotObjects) {
@@ -115,7 +120,7 @@ func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) 
 	}
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
-	firstIdentity, err := events.StreamIdentity(ctx, first.storage.serverEvtStream)
+	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +133,7 @@ func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	recreatedIdentity, err := events.StreamIdentity(ctx, recreated.storage.serverEvtStream)
+	recreatedIdentity, err := events.StreamIdentity(recreated.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +186,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	}
 	identities := make([]string, 0, len(cores))
 	for _, core := range cores {
-		identity, err := events.StreamIdentity(ctx, core.storage.serverEvtStream)
+		identity, err := events.StreamIdentity(core.storage.serverEvtStream)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,7 +200,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	thirdIdentity, err := events.StreamIdentity(ctx, third.storage.serverEvtStream)
+	thirdIdentity, err := events.StreamIdentity(third.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
