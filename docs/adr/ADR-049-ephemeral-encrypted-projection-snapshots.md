@@ -42,7 +42,9 @@ change reconstructed state or lose data.
 
 Missing, corrupt, incompatible, undecryptable, or otherwise invalid snapshots
 fall back automatically to replay from `EVT`. Snapshot failures do not prevent
-Chatto from starting when `EVT` itself is available.
+Chatto from starting when `EVT` itself is available. Bootstrap snapshot loads
+have a 15-second deadline so a stalled object backend cannot hold core startup
+indefinitely.
 
 ### Compatibility is projection-scoped
 
@@ -154,6 +156,11 @@ generation when pointer publication reports failure. A process crash or a stale
 writer racing between upload and pointer publication can still leave an
 unreferenced encrypted object; a backend-listing sweeper and final storage
 budget remain follow-up work informed by canary measurements.
+
+The canary rejects projection payloads larger than 64 MiB and bounds encrypted
+and decompressed representations separately. This is a guardrail against
+restart-loop memory amplification, not a final production storage budget;
+projections that outgrow it cold-replay and log the failed generation attempt.
 
 ### One elected worker creates snapshots
 

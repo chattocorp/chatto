@@ -20,8 +20,9 @@ import (
 
 const (
 	objectPrefix        = "internal/projection-snapshots/v1/"
-	maxEncryptedSize    = 512 << 20
-	maxDecompressedSize = 512 << 20
+	maxPayloadSize      = 64 << 20
+	maxEncryptedSize    = 80 << 20
+	maxDecompressedSize = 72 << 20
 	contentType         = "application/vnd.chatto.projection-snapshot"
 )
 
@@ -63,6 +64,7 @@ type Repository struct {
 	logger          Logger
 	rand            io.Reader
 	now             func() time.Time
+	maxPayloadSize  int
 }
 
 type SaveInput struct {
@@ -108,7 +110,7 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	}
 	return &Repository{
 		blobs: blobs, codec: codec, secret: secret, producerVersion: version,
-		logger: opts.Logger, rand: random, now: now,
+		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize,
 	}, nil
 }
 
@@ -117,6 +119,9 @@ func (r *Repository) Backend() string { return r.blobs.Backend() }
 func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot, error) {
 	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" || input.StreamIdentity == "" {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, stream name, and stream identity are required")
+	}
+	if len(input.Payload) > r.maxPayloadSize {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
 	}
 	started := time.Now()
 	var generationID [generationIDSize]byte
@@ -133,7 +138,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		CompatibilityId: input.CompatibilityID,
 		ProducerVersion: r.producerVersion,
 		CreatedAt:       timestamppb.New(r.now().UTC()),
-		Payload:         append([]byte(nil), input.Payload...),
+		Payload:         input.Payload,
 		PayloadSize:     uint64(len(input.Payload)),
 		PayloadSha256:   payloadHash[:],
 		StreamIdentity:  input.StreamIdentity,
@@ -188,7 +193,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		"stored_bytes", len(sealed),
 		"producer_version", r.producerVersion,
 		"duration", time.Since(started))
-	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, Payload: append([]byte(nil), input.Payload...), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
+	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, Payload: input.Payload, CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
@@ -272,6 +277,9 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if generation.GetPayloadSize() != uint64(len(generation.GetPayload())) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload size mismatch")
 	}
+	if len(generation.GetPayload()) > r.maxPayloadSize {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
+	}
 	hash := sha256.Sum256(generation.GetPayload())
 	if !bytes.Equal(hash[:], generation.GetPayloadSha256()) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload checksum mismatch")
@@ -279,7 +287,7 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if err := generation.GetCreatedAt().CheckValid(); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot creation time: %w", err)
 	}
-	return LoadedSnapshot{GenerationID: id, CutoffSequence: generation.GetCutoffSequence(), Payload: append([]byte(nil), generation.GetPayload()...), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: generation.GetProducerVersion()}, nil
+	return LoadedSnapshot{GenerationID: id, CutoffSequence: generation.GetCutoffSequence(), Payload: generation.GetPayload(), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: generation.GetProducerVersion()}, nil
 }
 
 func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, error) {

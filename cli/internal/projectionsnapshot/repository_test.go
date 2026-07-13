@@ -200,6 +200,33 @@ func TestRepositoryDoesNotPublishPointerAfterGenerationWriteFailure(t *testing.T
 	}
 }
 
+func TestRepositoryRejectsOversizedPayloadOnSaveAndLoad(t *testing.T) {
+	ctx := context.Background()
+	t.Run("save", func(t *testing.T) {
+		blobs := newMemoryBlobStore()
+		repository := newTestRepository(t, blobs, testSecret)
+		repository.maxPayloadSize = 4
+		if _, err := repository.Save(ctx, testSaveInput(1, []byte("large"))); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
+			t.Fatalf("oversized Save error = %v", err)
+		}
+		if len(blobs.objects) != 0 {
+			t.Fatalf("oversized Save wrote %d objects", len(blobs.objects))
+		}
+	})
+
+	t.Run("load", func(t *testing.T) {
+		blobs := newMemoryBlobStore()
+		repository := newTestRepository(t, blobs, testSecret)
+		if _, err := repository.Save(ctx, testSaveInput(1, []byte("large"))); err != nil {
+			t.Fatal(err)
+		}
+		repository.maxPayloadSize = 4
+		if _, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
+			t.Fatalf("oversized Load error = %v", err)
+		}
+	})
+}
+
 func TestRepositoryDeletesGenerationAfterPointerWriteFailure(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()

@@ -31,7 +31,10 @@ var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence 
 // client buffer, which turns histories of many small EVT records into many
 // latency-bound pull requests on a remote JetStream cluster. A byte window
 // keeps those pulls large while bounding client-side memory.
-const projectionPullMaxBytes = 16 * 1024 * 1024
+const (
+	projectionPullMaxBytes        = 16 * 1024 * 1024
+	projectionSnapshotLoadTimeout = 15 * time.Second
+)
 
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
@@ -172,6 +175,7 @@ type Projector struct {
 
 	snapshotKey          string
 	snapshotSource       ProjectionSnapshotSource
+	snapshotLoadTimeout  time.Duration
 	restoredSeq          uint64
 	restoredGenerationID string
 }
@@ -240,6 +244,7 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	}
 	p.snapshotKey = key
 	p.snapshotSource = source
+	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
 	return nil
 }
 
@@ -964,6 +969,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.mu.Lock()
 	source := p.snapshotSource
 	key := p.snapshotKey
+	loadTimeout := p.snapshotLoadTimeout
 	p.mu.Unlock()
 	if source == nil {
 		return coldRestore()
@@ -975,13 +981,18 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		streamName = info.Config.Name
 		streamIdentity = info.Created.UTC().Format(time.RFC3339Nano)
 	}
-	snapshot, err := source.LoadProjectionSnapshot(ctx, ProjectionSnapshotLoadRequest{
+	if loadTimeout <= 0 {
+		loadTimeout = projectionSnapshotLoadTimeout
+	}
+	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
+	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
 		ProjectionKey:   key,
 		CompatibilityID: compatible.SnapshotCompatibilityID(),
 		StreamName:      streamName,
 		StreamIdentity:  streamIdentity,
 		MaxCutoff:       targetSeq,
 	})
+	cancelLoad()
 	if err != nil {
 		p.logger.Info("Projection snapshot unavailable; replaying EVT",
 			"projection", key,

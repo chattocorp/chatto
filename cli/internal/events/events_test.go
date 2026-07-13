@@ -644,6 +644,16 @@ type staticSnapshotSource struct {
 	request  ProjectionSnapshotLoadRequest
 }
 
+type blockingSnapshotSource struct {
+	canceled chan struct{}
+}
+
+func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	<-ctx.Done()
+	close(s.canceled)
+	return ProjectionSnapshot{}, ctx.Err()
+}
+
 func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	s.request = request
 	return s.snapshot, s.err
@@ -787,6 +797,36 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 				t.Fatal("invalid snapshot reported as restored")
 			}
 		})
+	}
+}
+
+func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
+		t.Fatal(err)
+	}
+
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &blockingSnapshotSource{canceled: make(chan struct{})}
+	if err := projector.ConfigureSnapshots("tracking", source); err != nil {
+		t.Fatal(err)
+	}
+	projector.snapshotLoadTimeout = 20 * time.Millisecond
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+	if projection.Count() != 1 || projector.Status().SnapshotRestored {
+		t.Fatalf("timeout fallback projection count/status = %d/%#v", projection.Count(), projector.Status())
+	}
+	select {
+	case <-source.canceled:
+	default:
+		t.Fatal("snapshot source was not canceled at the load deadline")
 	}
 }
 
