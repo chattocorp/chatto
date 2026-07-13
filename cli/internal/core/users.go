@@ -577,6 +577,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 		// Upload to NATS ObjectStore
 		headers := nats.Header{}
 		headers.Set("Content-Type", "image/webp")
+		headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
 		meta := jetstream.ObjectMeta{
 			Name:    assetID,
 			Headers: headers,

@@ -84,6 +84,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 
 	headers := nats.Header{}
 	headers.Set("Content-Type", "image/webp")
+	headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
 	meta := jetstream.ObjectMeta{
 		Name:    assetID,
 		Headers: headers,

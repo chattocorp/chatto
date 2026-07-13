@@ -58,6 +58,10 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	require.Equal(t, preview.GetImageAssetId(), preview.GetImageAsset().GetId())
 	require.Equal(t, "image/webp", preview.GetImageAsset().GetContentType())
 	require.NotNil(t, preview.GetImageAsset().GetNats(), "NATS-backed preview should carry NATS storage pointer")
+	storedInfo, err := core.storage.serverAssets.GetInfo(ctx, preview.GetImageAssetId())
+	require.NoError(t, err)
+	require.Equal(t, ServerAssetVisibilityPublic, storedInfo.Headers.Get(ServerAssetVisibilityHeader))
+	require.True(t, core.IsPublicServerAsset(ctx, preview.GetImageAssetId()))
 
 	idOnlyPreview := &corev1.LinkPreview{Url: url, ImageAssetId: preview.ImageAssetId}
 	require.NoError(t, core.HydrateLinkPreviewImageAsset(ctx, idOnlyPreview))
