@@ -639,6 +639,8 @@ func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, prev
 		headers = make(nats.Header)
 	}
 	headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
+	headers.Set(ServerAssetVisibilityNUIDHeader, info.NUID)
+	headers.Set(ServerAssetVisibilityDigestHeader, info.Digest)
 	if err := c.storage.serverAssets.UpdateMeta(ctx, assetID, jetstream.ObjectMeta{
 		Name:        assetID,
 		Description: info.Description,
@@ -646,6 +648,14 @@ func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, prev
 		Metadata:    maps.Clone(info.Metadata),
 	}); err != nil {
 		return fmt.Errorf("mark legacy preview object public: %w", err)
+	}
+	updated, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+	if err != nil {
+		return fmt.Errorf("verify legacy preview object metadata: %w", err)
+	}
+	if updated.Headers.Get("Room-Id") != "" || updated.Headers.Get("Upload-Id") != "" ||
+		!serverAssetVisibilityMarkerMatches(updated) {
+		return fmt.Errorf("legacy preview object generation changed during metadata update")
 	}
 	return nil
 }
@@ -747,8 +757,28 @@ type ServerAssetInfo struct {
 // exact backend object. Its fields stay private so callers cannot manufacture
 // a location that bypasses ResolvePublicServerAsset.
 type PublicServerAssetLocation struct {
-	natsKey string
-	s3Key   string
+	natsKey    string
+	natsNUID   string
+	natsDigest string
+	s3Key      string
+}
+
+func publicNATSServerAssetLocation(key string, info *jetstream.ObjectInfo) (*PublicServerAssetLocation, bool) {
+	if key == "" || info == nil || info.NUID == "" || info.Digest == "" {
+		return nil, false
+	}
+	return &PublicServerAssetLocation{
+		natsKey:    key,
+		natsNUID:   info.NUID,
+		natsDigest: info.Digest,
+	}, true
+}
+
+func serverAssetVisibilityMarkerMatches(info *jetstream.ObjectInfo) bool {
+	return info != nil && info.NUID != "" && info.Digest != "" &&
+		info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic &&
+		info.Headers.Get(ServerAssetVisibilityNUIDHeader) == info.NUID &&
+		info.Headers.Get(ServerAssetVisibilityDigestHeader) == info.Digest
 }
 
 // serverAssetRequestKey recognizes the explicit public/ namespace used by new
@@ -821,7 +851,7 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 		if err != nil || info == nil || info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
 			return nil, false
 		}
-		return &PublicServerAssetLocation{natsKey: key}, true
+		return publicNATSServerAssetLocation(key, info)
 	}
 
 	// Canonical-ID URLs remain aliases for new namespaced objects. This keeps
@@ -830,7 +860,7 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
 			return nil, false
 		}
-		return &PublicServerAssetLocation{natsKey: PublicServerAssetObjectKey(assetID)}, true
+		return publicNATSServerAssetLocation(PublicServerAssetObjectKey(assetID), info)
 	}
 
 	// Object metadata is safe to inspect for classification; object content is
@@ -841,8 +871,8 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
 			return nil, false
 		}
-		if info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic {
-			return &PublicServerAssetLocation{natsKey: assetID}, true
+		if serverAssetVisibilityMarkerMatches(info) {
+			return publicNATSServerAssetLocation(assetID, info)
 		}
 	}
 
@@ -860,7 +890,11 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 		legacyDeclaredPublic = true
 	}
 	if legacyDeclaredPublic && legacyNATSExists {
-		return &PublicServerAssetLocation{natsKey: assetID}, true
+		info, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+		if err != nil || info == nil || info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return publicNATSServerAssetLocation(assetID, info)
 	}
 
 	// S3 server assets live exclusively below instance/. Private current and
@@ -893,7 +927,11 @@ func (c *ChattoCore) GetPublicServerAsset(ctx context.Context, location *PublicS
 		if err != nil {
 			return nil, nil, err
 		}
-		info, _ := obj.Info()
+		info, err := obj.Info()
+		if err != nil || info == nil || info.NUID != location.natsNUID || info.Digest != location.natsDigest {
+			_ = obj.Close()
+			return nil, nil, jetstream.ErrObjectNotFound
+		}
 		return obj, &ServerAssetInfo{
 			Size:        int64(info.Size),
 			ContentType: info.Headers.Get("Content-Type"),

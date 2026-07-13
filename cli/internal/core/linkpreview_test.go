@@ -49,6 +49,8 @@ func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
 	info, err := core.storage.serverAssets.GetInfo(ctx, assetID)
 	require.NoError(t, err)
 	require.Equal(t, ServerAssetVisibilityPublic, info.Headers.Get(ServerAssetVisibilityHeader))
+	require.Equal(t, info.NUID, info.Headers.Get(ServerAssetVisibilityNUIDHeader))
+	require.Equal(t, info.Digest, info.Headers.Get(ServerAssetVisibilityDigestHeader))
 	require.Equal(t, "image/webp", info.Headers.Get("Content-Type"))
 	require.Equal(t, "preserved", info.Headers.Get("X-Legacy-Test"))
 	require.Equal(t, "legacy preview", info.Description)

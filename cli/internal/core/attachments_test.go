@@ -1271,3 +1271,39 @@ func TestChattoCore_PublicServerAssetLocationDoesNotFallback(t *testing.T) {
 		t.Fatal("classified location fell through to a different flat object")
 	}
 }
+
+func TestChattoCore_PublicServerAssetLocationRejectsReplacementGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	assetID := NewAssetID()
+	publicKey := PublicServerAssetObjectKey(assetID)
+
+	first, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+		Name:    publicKey,
+		Headers: map[string][]string{"Content-Type": {"image/png"}},
+	}, bytes.NewReader([]byte("public")))
+	if err != nil {
+		t.Fatalf("store public fixture: %v", err)
+	}
+	location, ok := core.ResolvePublicServerAsset(ctx, publicKey)
+	if !ok {
+		t.Fatal("public generation did not resolve")
+	}
+
+	replacement, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+		Name: publicKey,
+		Headers: map[string][]string{
+			"Content-Type": {"image/png"},
+			"Room-Id":      {"Rprivate"},
+		},
+	}, bytes.NewReader([]byte("private")))
+	if err != nil {
+		t.Fatalf("replace public fixture: %v", err)
+	}
+	if replacement.NUID == first.NUID && replacement.Digest == first.Digest {
+		t.Fatal("replacement unexpectedly retained both generation identifiers")
+	}
+	if _, _, err := core.GetPublicServerAsset(ctx, location); err == nil {
+		t.Fatal("classified location served a replacement object generation")
+	}
+}

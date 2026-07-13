@@ -25,11 +25,13 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
+	"hmans.de/chatto/internal/events"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -210,6 +212,54 @@ func createAssetTestPNG(t *testing.T, width, height int) []byte {
 		t.Fatalf("Failed to encode PNG: %v", err)
 	}
 	return buf.Bytes()
+}
+
+func markPublicServerAssetForTest(t *testing.T, env *assetTestEnv, assetID string) {
+	t.Helper()
+	store := env.core.ServerStore()
+	info, err := store.GetInfo(env.ctx, assetID)
+	if err != nil {
+		t.Fatalf("GetInfo public marker fixture: %v", err)
+	}
+	headers := maps.Clone(info.Headers)
+	if headers == nil {
+		headers = make(map[string][]string)
+	}
+	headers.Set(core.ServerAssetVisibilityHeader, core.ServerAssetVisibilityPublic)
+	headers.Set(core.ServerAssetVisibilityNUIDHeader, info.NUID)
+	headers.Set(core.ServerAssetVisibilityDigestHeader, info.Digest)
+	if err := store.UpdateMeta(env.ctx, assetID, jetstream.ObjectMeta{
+		Name:        assetID,
+		Description: info.Description,
+		Headers:     headers,
+		Metadata:    maps.Clone(info.Metadata),
+	}); err != nil {
+		t.Fatalf("UpdateMeta public marker fixture: %v", err)
+	}
+}
+
+func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID string, event *corev1.Event) {
+	t.Helper()
+	event.Id = core.NewEventID()
+	event.ActorId = core.SystemActorID
+	event.CreatedAt = timestamppb.Now()
+	if _, err := env.core.RoomTimelineProjector.AppendEventuallyAndWait(
+		env.ctx, env.core.EventPublisher, events.RoomAggregate(roomID), event,
+	); err != nil {
+		t.Fatalf("append room timeline fixture: %v", err)
+	}
+}
+
+func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID string, event *corev1.Event) {
+	t.Helper()
+	event.Id = core.NewEventID()
+	event.ActorId = core.SystemActorID
+	event.CreatedAt = timestamppb.Now()
+	if _, err := env.core.AssetsProjector.AppendEventuallyAndWait(
+		env.ctx, env.core.EventPublisher, events.AssetAggregate(assetID), event,
+	); err != nil {
+		t.Fatalf("append asset fixture: %v", err)
+	}
 }
 
 func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *apiv1.MessageAttachment) {
@@ -1196,8 +1246,7 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 
 	previewID := core.NewAssetID()
 	legacyRecord(previewID, "link-preview.webp")
-	if err := env.core.RoomTimeline.Apply(&corev1.Event{
-		Id: "Elegacynamespacepreview",
+	appendRoomTimelineAssetTestEvent(t, env, "Rlegacynamespace", &corev1.Event{
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
 			RoomId:  "Rlegacynamespace",
 			EventId: "Elegacynamespacemessage",
@@ -1205,9 +1254,7 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 				ImageAssetId: &previewID,
 			}},
 		}},
-	}, 999_100); err != nil {
-		t.Fatalf("project legacy link-preview fixture: %v", err)
-	}
+	})
 	assertOK(env.core.GetTransformedServerAssetURL(previewID, 64, 64, "cover"))
 }
 
@@ -1249,15 +1296,22 @@ func TestAsset_CacheOnlyLegacyLinkPreviewRemainsAvailable(t *testing.T) {
 
 	assetPath := "/assets/server/" + assetID
 	assertStatus(assetPath, http.StatusNotFound)
-	preview, err := env.core.GetLinkPreview(env.ctx, previewURL)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "legacypreviewuser", "Legacy Preview User", "password123")
 	if err != nil {
-		t.Fatalf("GetLinkPreview cached legacy preview: %v", err)
+		t.Fatalf("CreateUser legacy preview: %v", err)
 	}
+	env.login(t, user.GetLogin(), "password123")
+	messages := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	previewResp, err := messages.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: previewURL}))
+	if err != nil {
+		t.Fatalf("FetchLinkPreview cached legacy preview: %v", err)
+	}
+	preview := previewResp.Msg.GetPreview()
 	if preview.GetImageAssetId() != assetID {
 		t.Fatalf("cached preview asset ID = %q, want %q", preview.GetImageAssetId(), assetID)
 	}
 	assertStatus(assetPath, http.StatusOK)
-	assertStatus(env.core.GetTransformedServerAssetURL(assetID, 64, 64, "cover"), http.StatusOK)
+	assertStatus(preview.GetImageUrl(), http.StatusOK)
 
 	info, err := store.GetInfo(env.ctx, assetID)
 	if err != nil {
@@ -1336,14 +1390,11 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 		t.Fatalf("UpdateMeta legacy fixture: %v", err)
 	}
 	assertStatus("/assets/server/"+assetID, http.StatusNotFound)
-	if err := env.core.Assets.Apply(&corev1.Event{
-		Id: "Edeletedprivate",
+	appendAssetProjectionTestEvent(t, env, assetID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
 			AssetId: assetID,
 		}},
-	}, 999_002); err != nil {
-		t.Fatalf("project private asset tombstone: %v", err)
-	}
+	})
 	assertStatus("/assets/server/"+assetID, http.StatusNotFound)
 
 	// Exercise the real resumable-upload producer and discover its temporary
@@ -1430,14 +1481,12 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 	}
 
 	if _, err := env.core.ServerStore().Put(env.ctx, jetstream.ObjectMeta{
-		Name: assetID,
-		Headers: map[string][]string{
-			"Content-Type":                   {"image/png"},
-			core.ServerAssetVisibilityHeader: {core.ServerAssetVisibilityPublic},
-		},
+		Name:    assetID,
+		Headers: map[string][]string{"Content-Type": {"image/png"}},
 	}, bytes.NewReader(imageData)); err != nil {
 		t.Fatalf("store marked link-preview image: %v", err)
 	}
+	markPublicServerAssetForTest(t, env, assetID)
 
 	resp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + assetID)
 	if err != nil {
@@ -1457,8 +1506,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 	}, bytes.NewReader(imageData)); err != nil {
 		t.Fatalf("store historical link-preview image: %v", err)
 	}
-	if err := env.core.RoomTimeline.Apply(&corev1.Event{
-		Id: "Epreviewhistory",
+	appendRoomTimelineAssetTestEvent(t, env, "Rpreviewhistory", &corev1.Event{
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
 			RoomId:  "Rpreviewhistory",
 			EventId: "Epreviewmessage",
@@ -1467,9 +1515,7 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 				ImageAsset:   &corev1.AssetRecord{Id: legacyID},
 			}},
 		}},
-	}, 999_001); err != nil {
-		t.Fatalf("project historical link-preview reference: %v", err)
-	}
+	})
 	legacyResp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + legacyID)
 	if err != nil {
 		t.Fatalf("GET historical link-preview image: %v", err)

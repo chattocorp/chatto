@@ -22,8 +22,10 @@ const (
 	// ServerAssetVisibilityHeader positively marks legacy flat NATS objects that
 	// may be served by the unauthenticated public server-asset route. New public
 	// objects use PublicServerAssetObjectPrefix instead.
-	ServerAssetVisibilityHeader = "Chatto-Asset-Visibility"
-	ServerAssetVisibilityPublic = "public"
+	ServerAssetVisibilityHeader       = "Chatto-Asset-Visibility"
+	ServerAssetVisibilityPublic       = "public"
+	ServerAssetVisibilityNUIDHeader   = "Chatto-Asset-Public-NUID"
+	ServerAssetVisibilityDigestHeader = "Chatto-Asset-Public-Digest"
 
 	// PublicServerAssetObjectPrefix is the explicit SERVER_ASSETS namespace for
 	// newly written unauthenticated public assets. Historical public objects use
