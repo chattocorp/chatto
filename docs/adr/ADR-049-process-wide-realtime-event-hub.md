@@ -39,11 +39,15 @@ work before session fanout:
 5. Fan the same immutable decoded event envelope out to that user's independent
    session queues.
 
-New sessions hydrate visibility without holding the dispatcher lock, then cross
-an internal NATS registration barrier carried through the same process queue as
-live messages. The dispatcher installs the session only when it reaches that
-barrier, so messages already queued before registration cannot be replayed
-against the newer projection snapshot.
+New sessions hydrate visibility without holding the dispatcher lock. Before
+the read, the hub records the authoritative EVT tails for room and RBAC facts,
+waits for the owning projections, and verifies that both tails remained stable
+through hydration. Registration then crosses a dispatcher-owned channel. If a
+visibility-changing fact was processed while the snapshot was being built,
+registration retries; if a pre-snapshot fact arrives late from another NATS
+publisher or route, its EVT stream sequence identifies it as already reflected
+and prevents it from mutating the newer cache. Correctness therefore does not
+depend on global NATS publication order.
 
 The dispatcher remains ordered. In particular, RBAC facts wait for the RBAC
 projection and refresh every connected user's shared visibility state before a

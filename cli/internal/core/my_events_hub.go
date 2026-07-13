@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -43,19 +42,22 @@ type myEventsSubscription struct {
 }
 
 type myEventsUserState struct {
-	memberRooms map[string]struct{}
-	subscribers map[uint64]*myEventsSubscription
+	memberRooms     map[string]struct{}
+	roomSnapshotSeq uint64
+	subscribers     map[uint64]*myEventsSubscription
 }
 
 var errMyEventsIngressChanged = errors.New("myEvents ingress generation changed")
 
 type myEventsRegistration struct {
-	id          uint64
-	generation  uint64
-	userID      string
-	memberRooms map[string]struct{}
-	sub         *myEventsSubscription
-	result      chan error
+	generation        uint64
+	visibilityVersion uint64
+	roomSnapshotSeq   uint64
+	userID            string
+	memberRooms       map[string]struct{}
+	sub               *myEventsSubscription
+	ctx               context.Context
+	result            chan error
 }
 
 // MyEventsHub owns the process-wide NATS ingress for realtime events. It
@@ -74,23 +76,21 @@ type MyEventsHub struct {
 	decoded     atomic.Uint64
 	prefiltered atomic.Uint64
 
-	barrierSubject string
-	accepting      bool
-	generation     uint64
-	stateChanged   chan struct{}
-	pending        map[uint64]*myEventsRegistration
-	nextRequestID  uint64
+	accepting         bool
+	generation        uint64
+	visibilityVersion uint64
+	stateChanged      chan struct{}
+	registrations     chan *myEventsRegistration
 }
 
 func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 	return &MyEventsHub{
-		model:          model,
-		users:          make(map[string]*myEventsUserState),
-		subscribers:    make(map[uint64]*myEventsSubscription),
-		ready:          make(chan struct{}),
-		barrierSubject: nats.NewInbox(),
-		stateChanged:   make(chan struct{}),
-		pending:        make(map[uint64]*myEventsRegistration),
+		model:         model,
+		users:         make(map[string]*myEventsUserState),
+		subscribers:   make(map[uint64]*myEventsSubscription),
+		ready:         make(chan struct{}),
+		stateChanged:  make(chan struct{}),
+		registrations: make(chan *myEventsRegistration, myEventsIngressBuffer),
 	}
 }
 
@@ -98,12 +98,6 @@ func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 // messages in arrival order. It is started once by ChattoCore.Run.
 func (h *MyEventsHub) Run(ctx context.Context) error {
 	msgChan := make(chan *nats.Msg, myEventsIngressBuffer)
-	barrierSub, err := h.model.core.nc.ChanSubscribe(h.barrierSubject, msgChan)
-	if err != nil {
-		return fmt.Errorf("myEvents hub: subscribe to registration barrier: %w", err)
-	}
-	defer barrierSub.Unsubscribe()
-	slowBarrierConsumerCh := barrierSub.StatusChanged(nats.SubscriptionSlowConsumer)
 	h.model.core.logger.Debug("myEvents hub started")
 	defer func() {
 		h.quarantine("hub stopped")
@@ -128,13 +122,7 @@ func (h *MyEventsHub) Run(ctx context.Context) error {
 		h.beginGeneration()
 		h.readyOnce.Do(func() { close(h.ready) })
 
-		reason, runErr := h.runGeneration(
-			ctx,
-			msgChan,
-			liveSyncSub,
-			liveEVTSub,
-			slowBarrierConsumerCh,
-		)
+		reason, runErr := h.runGeneration(ctx, msgChan, liveSyncSub, liveEVTSub)
 		if runErr != nil {
 			liveSyncSub.Unsubscribe()
 			liveEVTSub.Unsubscribe()
@@ -160,7 +148,6 @@ func (h *MyEventsHub) runGeneration(
 	ctx context.Context,
 	msgChan <-chan *nats.Msg,
 	liveSyncSub, liveEVTSub *nats.Subscription,
-	slowBarrierConsumerCh <-chan nats.SubStatus,
 ) (string, error) {
 	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
 	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
@@ -176,14 +163,10 @@ func (h *MyEventsHub) runGeneration(
 			dropped, _ := liveSyncSub.Dropped()
 			h.model.core.logger.Warn("Slow consumer on process-wide live sync subscription", "dropped", dropped)
 			return "live sync ingress discontinuity", nil
-		case <-slowBarrierConsumerCh:
-			return "registration barrier discontinuity", nil
+		case request := <-h.registrations:
+			h.handleRegistration(request)
 		case msg := <-msgChan:
 			if msg == nil {
-				continue
-			}
-			if msg.Subject == h.barrierSubject {
-				h.handleRegistrationBarrier(msg)
 				continue
 			}
 			if h.handleMessage(ctx, msg) {
@@ -201,14 +184,17 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 	}
 
 	for {
-		memberRooms := make(map[string]struct{})
-		if err := h.model.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
+		h.mu.Lock()
+		visibilityVersion := h.visibilityVersion
+		h.mu.Unlock()
+		memberRooms, roomSnapshotSeq, err := h.captureVisibilitySnapshot(ctx, userID)
+		if err != nil {
 			return nil, err
 		}
 		ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
 		done := make(chan struct{})
 		sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
-		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms); err != nil {
+		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, roomSnapshotSeq, visibilityVersion); err != nil {
 			if errors.Is(err, errMyEventsIngressChanged) {
 				continue
 			}
@@ -218,7 +204,7 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 	}
 }
 
-func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms map[string]struct{}) error {
+func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
 	for {
 		h.mu.Lock()
 		if !h.accepting {
@@ -231,28 +217,28 @@ func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEven
 				return ctx.Err()
 			}
 		}
-		h.nextRequestID++
-		requestID := h.nextRequestID
 		request := &myEventsRegistration{
-			id:          requestID,
-			generation:  h.generation,
-			userID:      sub.userID,
-			memberRooms: memberRooms,
-			sub:         sub,
-			result:      make(chan error, 1),
+			generation:        h.generation,
+			visibilityVersion: visibilityVersion,
+			roomSnapshotSeq:   roomSnapshotSeq,
+			userID:            sub.userID,
+			memberRooms:       memberRooms,
+			sub:               sub,
+			ctx:               ctx,
+			result:            make(chan error, 1),
 		}
-		h.pending[requestID] = request
 		h.mu.Unlock()
 
-		if err := h.model.core.nc.Publish(h.barrierSubject, []byte(strconv.FormatUint(requestID, 10))); err != nil {
-			h.cancelRegistration(requestID, sub)
-			return fmt.Errorf("publish myEvents registration barrier: %w", err)
+		select {
+		case h.registrations <- request:
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 		select {
 		case err := <-request.result:
 			return err
 		case <-ctx.Done():
-			h.cancelRegistration(requestID, sub)
+			h.Unsubscribe(sub)
 			return ctx.Err()
 		}
 	}
@@ -267,20 +253,17 @@ func (h *MyEventsHub) Unsubscribe(sub *myEventsSubscription) {
 	h.mu.Unlock()
 }
 
-func (h *MyEventsHub) handleRegistrationBarrier(msg *nats.Msg) {
-	requestID, err := strconv.ParseUint(string(msg.Data), 10, 64)
-	if err != nil {
-		h.model.core.logger.Warn("Invalid myEvents registration barrier", "error", err)
+func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
+	if request == nil {
 		return
 	}
 	h.mu.Lock()
-	request := h.pending[requestID]
-	delete(h.pending, requestID)
-	if request == nil {
+	if request.ctx.Err() != nil {
 		h.mu.Unlock()
+		request.result <- request.ctx.Err()
 		return
 	}
-	if !h.accepting || request.generation != h.generation {
+	if !h.accepting || request.generation != h.generation || request.visibilityVersion != h.visibilityVersion {
 		h.mu.Unlock()
 		request.result <- errMyEventsIngressChanged
 		return
@@ -288,8 +271,9 @@ func (h *MyEventsHub) handleRegistrationBarrier(msg *nats.Msg) {
 	state := h.users[request.userID]
 	if state == nil {
 		state = &myEventsUserState{
-			memberRooms: request.memberRooms,
-			subscribers: make(map[uint64]*myEventsSubscription),
+			memberRooms:     request.memberRooms,
+			roomSnapshotSeq: request.roomSnapshotSeq,
+			subscribers:     make(map[uint64]*myEventsSubscription),
 		}
 		h.users[request.userID] = state
 	}
@@ -299,16 +283,6 @@ func (h *MyEventsHub) handleRegistrationBarrier(msg *nats.Msg) {
 	h.subscribers[request.sub.id] = request.sub
 	h.mu.Unlock()
 	request.result <- nil
-}
-
-func (h *MyEventsHub) cancelRegistration(requestID uint64, sub *myEventsSubscription) {
-	h.mu.Lock()
-	if _, pending := h.pending[requestID]; pending {
-		delete(h.pending, requestID)
-	} else {
-		h.removeSubscriberLocked(sub)
-	}
-	h.mu.Unlock()
 }
 
 func (h *MyEventsHub) consume(sub *myEventsSubscription, delivery myEventsDelivery) {
@@ -464,7 +438,13 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 func (h *MyEventsHub) fanoutReadyRoomEvent(roomID string, event *corev1.Event, seq uint64, bytes int64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if eventChangesRoomVisibility(event) {
+		h.visibilityVersion++
+	}
 	for userID, state := range h.users {
+		if seq <= state.roomSnapshotSeq {
+			continue
+		}
 		envelope, ok := h.model.filterReadyEVTRoomSubjectEvent(userID, state.memberRooms, roomID, event, seq)
 		if ok {
 			h.enqueueUserLocked(state, envelope, bytes)
@@ -545,8 +525,52 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 			state.memberRooms = refreshed[i]
 		}
 	}
+	h.visibilityVersion++
 	h.mu.Unlock()
 	return nil
+}
+
+// captureVisibilitySnapshot returns a membership snapshot tied to a stable
+// authoritative EVT tail. A second tail read detects facts committed while the
+// projections were being read; callers retry until the read is stable.
+func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID string) (map[string]struct{}, uint64, error) {
+	for {
+		roomPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		if err != nil {
+			return nil, 0, fmt.Errorf("read room visibility tail: %w", err)
+		}
+		rbacPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return nil, 0, fmt.Errorf("read RBAC visibility tail: %w", err)
+		}
+		if !roomPos.IsZero() {
+			if err := h.model.core.rooms().waitForDirectory(ctx, roomPos); err != nil {
+				return nil, 0, fmt.Errorf("wait for room visibility snapshot: %w", err)
+			}
+		}
+		if !rbacPos.IsZero() {
+			if err := h.model.core.rbacModel.waitFor(ctx, rbacPos); err != nil {
+				return nil, 0, fmt.Errorf("wait for RBAC visibility snapshot: %w", err)
+			}
+		}
+
+		memberRooms := make(map[string]struct{})
+		if err := h.model.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
+			return nil, 0, err
+		}
+
+		roomTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, events.RoomSubjectFilter())
+		if err != nil {
+			return nil, 0, fmt.Errorf("verify room visibility tail: %w", err)
+		}
+		rbacTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return nil, 0, fmt.Errorf("verify RBAC visibility tail: %w", err)
+		}
+		if roomTail == roomPos.Seq && rbacTail == rbacPos.Seq {
+			return memberRooms, roomTail, nil
+		}
+	}
 }
 
 func (h *MyEventsHub) beginGeneration() {
@@ -571,10 +595,6 @@ func (h *MyEventsHub) quarantine(reason string) {
 	}
 	h.subscribers = make(map[uint64]*myEventsSubscription)
 	h.users = make(map[string]*myEventsUserState)
-	for requestID, request := range h.pending {
-		delete(h.pending, requestID)
-		request.result <- errMyEventsIngressChanged
-	}
 }
 
 func (h *MyEventsHub) signalStateChangedLocked() {
@@ -585,10 +605,7 @@ func (h *MyEventsHub) signalStateChangedLocked() {
 func (h *MyEventsHub) drainStaleIngress(msgChan <-chan *nats.Msg) {
 	for {
 		select {
-		case msg := <-msgChan:
-			if msg != nil && msg.Subject == h.barrierSubject {
-				h.handleRegistrationBarrier(msg)
-			}
+		case <-msgChan:
 		default:
 			return
 		}
@@ -615,4 +632,20 @@ func liveEventType(subject string) string {
 		return subject[i+1:]
 	}
 	return ""
+}
+
+func eventChangesRoomVisibility(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.Event.(type) {
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_UserJoinedRoom,
+		*corev1.Event_UserLeftRoom:
+		return true
+	default:
+		return false
+	}
 }

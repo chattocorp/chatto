@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -132,7 +133,7 @@ func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
 	select {
 	case sub = <-result:
 	case <-ctx.Done():
-		t.Fatal("subscription did not cross registration barrier")
+		t.Fatal("subscription did not cross the dispatcher registration boundary")
 	}
 	if err := <-errs; err != nil {
 		t.Fatalf("Subscribe: %v", err)
@@ -147,6 +148,72 @@ func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	ch := make(chan myEventsDelivery, 1)
+	done := make(chan struct{})
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: "viewer"}
+	state := &myEventsUserState{
+		memberRooms:     map[string]struct{}{},
+		roomSnapshotSeq: 42,
+		subscribers:     map[uint64]*myEventsSubscription{1: sub},
+	}
+	hub.users[sub.userID] = state
+	hub.subscribers[sub.id] = sub
+	join := newEvent(sub.userID, &corev1.Event{
+		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "room-1"}},
+	})
+
+	hub.fanoutReadyRoomEvent("room-1", join, 42, 1)
+	if _, ok := state.memberRooms["room-1"]; ok {
+		t.Fatal("late pre-snapshot join re-granted room visibility")
+	}
+	select {
+	case <-sub.C:
+		t.Fatal("late pre-snapshot fact was delivered")
+	default:
+	}
+
+	hub.fanoutReadyRoomEvent("room-1", join, 43, 1)
+	if _, ok := state.memberRooms["room-1"]; !ok {
+		t.Fatal("post-snapshot join did not grant room visibility")
+	}
+	select {
+	case <-sub.C:
+	default:
+		t.Fatal("post-snapshot fact was not delivered")
+	}
+}
+
+func TestMyEventsHubRejectsSnapshotAcrossProcessedVisibilityChange(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	hub.accepting = true
+	hub.generation = 1
+	hub.visibilityVersion = 2
+	ch := make(chan myEventsDelivery, 1)
+	done := make(chan struct{})
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "viewer"}
+	request := &myEventsRegistration{
+		generation:        1,
+		visibilityVersion: 1,
+		userID:            sub.userID,
+		memberRooms:       map[string]struct{}{},
+		sub:               sub,
+		ctx:               context.Background(),
+		result:            make(chan error, 1),
+	}
+
+	hub.handleRegistration(request)
+	if err := <-request.result; !errors.Is(err, errMyEventsIngressChanged) {
+		t.Fatalf("registration error = %v, want ingress changed", err)
+	}
+	if len(hub.subscribers) != 0 {
+		t.Fatal("stale visibility snapshot was admitted")
+	}
+}
+
 func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -158,7 +225,7 @@ func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
 	registered := make(chan error, 1)
 	go func() {
-		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{})
+		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, 0, hub.visibilityVersion)
 	}()
 
 	select {
