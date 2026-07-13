@@ -135,14 +135,6 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
 </EnvVar>
 
-## Experimental
-
-Experimental settings are disabled by default and may change or be removed before becoming supported features.
-
-<EnvVar name="CHATTO_EXPERIMENTAL_PROJECTION_SNAPSHOTS" toml="experimental.projection_snapshots" default="false">
-  Enable the encrypted `ThreadProjection` snapshot canary. Chatto still treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable.
-</EnvVar>
-
 ## Operator API
 
 <EnvVar name="CHATTO_OPERATOR_API_ENABLED" toml="operator_api.enabled" default="false">
@@ -155,8 +147,12 @@ Experimental settings are disabled by default and may change or be removed befor
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
+  Persist encrypted `ThreadProjection` snapshots. Chatto still treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
-  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes experimental projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
 </EnvVar>
 
 ## Assets

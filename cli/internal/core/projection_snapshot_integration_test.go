@@ -17,7 +17,7 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
-func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
+func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	storeDir := t.TempDir()
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
@@ -28,8 +28,8 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 			SigningSecret:  "test-signing-secret",
 			StorageBackend: config.StorageBackendNATS,
 		},
-		Experimental: config.ExperimentalConfig{ProjectionSnapshots: true},
-		Version:      "snapshot-integration-test",
+		ProjectionSnapshots: true,
+		Version:             "snapshot-integration-test",
 	}
 
 	first, err := NewChattoCore(ctx, nc, cfg)
@@ -92,7 +92,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 }
 
-func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
+func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -101,8 +101,8 @@ func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) 
 			SigningSecret:  "test-signing-secret",
 			StorageBackend: config.StorageBackendNATS,
 		},
-		Experimental: config.ExperimentalConfig{ProjectionSnapshots: true},
-		Version:      "snapshot-integration-test",
+		ProjectionSnapshots: true,
+		Version:             "snapshot-integration-test",
 	}
 
 	first, err := NewChattoCore(ctx, nc, cfg)
@@ -243,7 +243,7 @@ func stopPersistentSnapshotNATS(ns *server.Server, nc *nats.Conn) {
 	}
 }
 
-func TestExperimentalProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
+func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -253,7 +253,7 @@ func TestExperimentalProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	if core.projectionSnapshotWorker != nil {
-		t.Fatal("snapshot worker enabled without experimental flag")
+		t.Fatal("snapshot worker enabled without projection snapshot configuration")
 	}
 }
 

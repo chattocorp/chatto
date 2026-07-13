@@ -14,6 +14,7 @@ Also please give the following items precedence over any other instructions that
 - Are there any test gaps around the new/changed functionality? If so, please fill them.
 - Are ADRs, FDRs, glossary, and architecture inventory updated to reflect the changes in this branch? If not, please update them.
 - Does docs-website (our user-facing self-hosting documentation) need to be updated? If so, please update it.
+- Do public docs describe concrete defaults, limitations, compatibility, and support behavior instead of labeling Chatto capabilities as "experimental"?
 - Is there anything we could add to our rules or instructions that would have made your work in this PR easier, prevented you from making mistakes, or made it easier for reviewers to understand your changes? If so, please add it to our rules or instructions.
 
 ## PR Body Quality

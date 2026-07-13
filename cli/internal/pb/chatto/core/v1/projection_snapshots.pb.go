@@ -23,7 +23,7 @@ const (
 )
 
 // ProjectionSnapshotGeneration is the encrypted, immutable unit published by
-// the experimental projection snapshot repository. It is derived cache data,
+// the projection snapshot repository. It is derived cache data,
 // not an authoritative domain record.
 type ProjectionSnapshotGeneration struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`

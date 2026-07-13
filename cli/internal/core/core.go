@@ -910,7 +910,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	var snapshotRepository *projectionsnapshot.Repository
 	var snapshotStreamIdentity string
-	if cfg.Experimental.ProjectionSnapshots {
+	if cfg.ProjectionSnapshots {
 		var snapshotBlobs projectionsnapshot.BlobStore = natsSnapshotBlobStore{store: storage.serverAssets}
 		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
 			snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
@@ -921,7 +921,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
 		})
 		if err != nil {
-			logger.Warn("Experimental projection snapshots disabled after initialization failure",
+			logger.Warn("Projection snapshots disabled after initialization failure",
 				"stage", "initialize",
 				"error", err)
 			snapshotRepository = nil
@@ -930,7 +930,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			if err != nil {
 				return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
 			}
-			logger.Info("Experimental projection snapshots enabled",
+			logger.Info("Projection snapshots enabled",
 				"projection", "threads",
 				"compatibility_id", threadSnapshotCompatibilityID,
 				"backend", snapshotRepository.Backend())
@@ -1107,7 +1107,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			Logger: logger.WithPrefix("core.ProjectionSnapshotLease"),
 		})
 		if snapshotLeaseErr != nil {
-			logger.Warn("Experimental projection snapshot writer disabled after lease initialization failure",
+			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
 				"projection", "threads",
 				"stage", "lease_initialize",
 				"error", snapshotLeaseErr)

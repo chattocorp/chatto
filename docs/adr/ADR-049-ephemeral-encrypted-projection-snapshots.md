@@ -217,10 +217,11 @@ evidence. `RoomTimelineProjection` is a likely later candidate but is excluded
 from the canary because its retained body and event state requires a more
 careful crypto-shredding analysis.
 
-The canary is disabled by default. Operators opt in with
-`[experimental].projection_snapshots = true` or
-`CHATTO_EXPERIMENTAL_PROJECTION_SNAPSHOTS=true`. Experimental configuration may
-change or be removed before this becomes a supported feature.
+Snapshot persistence is disabled by default. Operators enable it with
+`[core].projection_snapshots = true` or
+`CHATTO_CORE_PROJECTION_SNAPSHOTS=true`. The initial implementation snapshots
+only `ThreadProjection`; extending coverage and advancing the shared replay
+frontier remain separate follow-up work.
 
 ## Consequences
 

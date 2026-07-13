@@ -5,7 +5,7 @@ package chatto.core.v1;
 import "google/protobuf/timestamp.proto";
 
 // ProjectionSnapshotGeneration is the encrypted, immutable unit published by
-// the experimental projection snapshot repository. It is derived cache data,
+// the projection snapshot repository. It is derived cache data,
 // not an authoritative domain record.
 message ProjectionSnapshotGeneration {
   string generation_id = 1;
