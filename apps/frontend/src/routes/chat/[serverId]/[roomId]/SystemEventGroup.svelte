@@ -4,7 +4,6 @@
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -31,27 +30,29 @@
   type Actor = {
     id: string;
     name: string;
-    user: UserAvatarUserView | null;
+    user: UserAvatarUserView;
   };
 
   function displayName(user: UserAvatarUserView): string {
     return getLiveDisplayName(user.id, user.displayName || user.login);
   }
 
-  function eventSubject(event: RoomEventView): Actor {
+  function eventSubject(event: RoomEventView): Actor | null {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
     if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
-    return { id: event.actorId ?? 'unknown', name: 'Deleted User', user: null };
+    return null;
   }
 
-  // Deduplicate by actor so batched join/leave events stay compact.
+  // Deleted actors add no useful membership context. Filter them before
+  // deduplicating so names, avatars, counts, and truncation stay consistent.
   const actors = $derived.by<Actor[]>(() => {
     const result: Actor[] = [];
     for (const event of events) {
       const subject = eventSubject(event);
+      if (!subject) continue;
       if (result.some((a) => a.id === subject.id)) continue;
       result.push(subject);
     }
@@ -73,11 +74,7 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  {#if actor.user}
-    {actor.name}
-  {:else}
-    <DeletedUserLabel />
-  {/if}
+  {actor.name}
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}
@@ -99,15 +96,7 @@
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">
         {#each visibleAvatars as actor (actor.id)}
-          {#if actor.user}
-            <UserAvatar user={actor.user} size="xs" />
-          {:else}
-            <div
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted ring-1 ring-background"
-            >
-              <span class="iconify text-xs uil--user-times"></span>
-            </div>
-          {/if}
+          <UserAvatar user={actor.user} size="xs" />
         {/each}
       </div>
     </div>

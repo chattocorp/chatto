@@ -19,7 +19,10 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 function systemEvent(
-  kind: typeof RoomEventKind.UserJoinedRoom | typeof RoomEventKind.UserLeftRoom,
+  kind:
+    | typeof RoomEventKind.UserJoinedRoom
+    | typeof RoomEventKind.UserLeftRoom
+    | typeof RoomEventKind.RoomArchived,
   actorName = 'Alice'
 ): RoomEventView {
   return {
@@ -62,24 +65,43 @@ describe('SystemEvent', () => {
     expect(container.textContent).toContain('Alice left the room');
   });
 
-  it('renders a deleted actor as an italicized placeholder', () => {
+  it.each([RoomEventKind.UserJoinedRoom, RoomEventKind.UserLeftRoom])(
+    'does not render a missing actor for %s events',
+    (kind) => {
+      const event = systemEvent(kind);
+      event.actor = null;
+
+      const { container } = render(SystemEvent, { props: { event } });
+
+      expect(container.querySelector('[data-event-id]')).toBeNull();
+    }
+  );
+
+  it('does not render an actor marked as deleted', () => {
     const event = systemEvent(RoomEventKind.UserJoinedRoom);
-    event.actor = null;
+    if (event.actor) event.actor.deleted = true;
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('[deleted user] joined the room');
-    expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+    expect(container.querySelector('[data-event-id]')).toBeNull();
   });
 
-  it('localizes event copy and deleted-user labels in German', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
-    const event = systemEvent(RoomEventKind.UserJoinedRoom);
-    event.actor = null;
+  it('preserves deleted-user placeholders for other system event types', () => {
+    const event = systemEvent(RoomEventKind.RoomArchived);
+    if (event.actor) event.actor.deleted = true;
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('[gelöschter Benutzer] ist dem Raum beigetreten');
+    expect(container.textContent).toContain('[deleted user] archived the room');
+  });
+
+  it('localizes event copy in German', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+    const event = systemEvent(RoomEventKind.UserJoinedRoom, 'Alice');
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('Alice ist dem Raum beigetreten');
   });
 });
