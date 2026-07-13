@@ -6,6 +6,28 @@ same `.release-please-config.json` and `.release-please-manifest.json` paths; th
 configuration committed to that branch determines whether it produces
 prereleases or stable releases.
 
+## Documentation channels
+
+The public documentation has two independently deployed channels:
+
+- `https://docs.chatto.run` serves the highest stable Chatto release.
+- `https://dev-docs.chatto.run` serves the newest documentation build from
+  `main`.
+
+Relevant pushes to `main` publish an immutable docs image tagged as
+`main-<UTC timestamp>-<short SHA>`. Flux deploys the newest sortable tag to the
+development docs site. The site identifies itself as unreleased, displays the
+source revision, and opts out of search indexing.
+
+After a stable `vX.Y.Z` release completes successfully, the release workflow
+builds the docs from that exact tag and publishes
+`ghcr.io/chattocorp/chatto-docs:vX.Y.Z`. Flux selects the highest stable SemVer
+tag for `docs.chatto.run`. Prerelease tags never update the stable docs site.
+
+Stable docs images are immutable release snapshots. Corrections to the stable
+documentation ship with the next Chatto patch release rather than replacing an
+existing `vX.Y.Z` image.
+
 ## Prereleases from main
 
 The release-please configuration on `main` uses prerelease versioning. Feature

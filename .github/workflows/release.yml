@@ -13,6 +13,8 @@ jobs:
   release:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    outputs:
+      is_stable: ${{ steps.release_meta.outputs.is_stable }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -80,7 +82,9 @@ jobs:
 
           version="${GITHUB_REF_NAME#v}"
           push_latest=false
+          is_stable=false
           if [[ "$version" != *-* ]]; then
+            is_stable=true
             highest_stable="$(
               git tag --list 'v[0-9]*.[0-9]*.[0-9]*' |
                 sed 's/^v//' |
@@ -95,6 +99,7 @@ jobs:
           fi
 
           echo "push_latest=${push_latest}" >> "$GITHUB_OUTPUT"
+          echo "is_stable=${is_stable}" >> "$GITHUB_OUTPUT"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -273,3 +278,12 @@ jobs:
           git -C "${tap_dir}" add Formula/chatto.rb
           git -C "${tap_dir}" commit -m "chore: update chatto to v${VERSION}"
           git -C "${tap_dir}" push origin HEAD:main
+
+  publish-stable-docs:
+    needs: release
+    if: ${{ needs.release.outputs.is_stable == 'true' }}
+    uses: ./.github/workflows/build-docs-image.yml
+    with:
+      channel: stable
+      ref: ${{ github.ref }}
+    secrets: inherit

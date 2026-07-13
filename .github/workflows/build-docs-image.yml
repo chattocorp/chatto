@@ -11,8 +11,26 @@ on:
       - "pnpm-workspace.yaml"
       - "LICENSES/Apache-2.0.txt"
       - "NOTICE"
+  workflow_call:
+    inputs:
+      channel:
+        description: "Documentation channel to publish."
+        required: true
+        type: string
+      ref:
+        description: "Git ref or SHA to build."
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Documentation channel to publish."
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - stable
       ref:
         description: "Git ref or SHA to build. Defaults to the selected workflow ref."
         required: false
@@ -34,35 +52,46 @@ jobs:
 
       - name: Resolve image metadata
         id: image
+        env:
+          CHANNEL: ${{ inputs.channel || 'dev' }}
         run: |
           set -euo pipefail
 
           sha="$(git rev-parse HEAD)"
-          docs_tag="$(node --input-type=module <<'NODE'
-          import { execFileSync } from "node:child_process";
-
-          const sha = execFileSync("git", ["rev-parse", "HEAD"]).toString("utf8").trim();
-          const commitDate = execFileSync("git", ["show", "-s", "--format=%cI", "HEAD"])
-            .toString("utf8")
-            .trim();
-          const stamp = new Date(commitDate)
-            .toISOString()
-            .replace(/[-:]/g, "")
-            .replace(/\.\d{3}Z$/, "Z");
-
-          process.stdout.write(`docs-${stamp}-${sha.slice(0, 12)}`);
-          NODE
-          )"
+          case "$CHANNEL" in
+            dev)
+              docs_tag="main-$(date -u +%Y%m%dT%H%M%SZ)-${sha:0:12}"
+              docs_version="main"
+              site_url="https://dev-docs.chatto.run"
+              ;;
+            stable)
+              docs_tag="$(git describe --tags --exact-match --match 'v[0-9]*' HEAD)"
+              if [[ ! "$docs_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "::error::Stable docs must be built from an exact stable vX.Y.Z tag; received ${docs_tag}."
+                exit 1
+              fi
+              docs_version="$docs_tag"
+              site_url="https://docs.chatto.run"
+              ;;
+            *)
+              echo "::error::Unknown documentation channel: ${CHANNEL}"
+              exit 1
+              ;;
+          esac
 
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
           echo "docs_tag=${docs_tag}" >> "$GITHUB_OUTPUT"
+          echo "docs_version=${docs_version}" >> "$GITHUB_OUTPUT"
+          echo "site_url=${site_url}" >> "$GITHUB_OUTPUT"
 
           {
             echo "### Docs image"
             echo
+            echo "- Channel: \`${CHANNEL}\`"
+            echo "- Version: \`${docs_version}\`"
             echo "- Commit: \`${sha}\`"
-            echo "- Image: \`ghcr.io/chattocorp/chatto-docs:${sha}\`"
-            echo "- Docs tag: \`ghcr.io/chattocorp/chatto-docs:${docs_tag}\`"
+            echo "- Image: \`ghcr.io/chattocorp/chatto-docs:${docs_tag}\`"
+            echo "- Site: \`${site_url}\`"
             echo "- Platform: \`linux/amd64\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -84,13 +113,16 @@ jobs:
           file: ./apps/docs-website/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64
-          tags: |
-            ghcr.io/chattocorp/chatto-docs:${{ steps.image.outputs.sha }}
-            ghcr.io/chattocorp/chatto-docs:${{ steps.image.outputs.docs_tag }}
+          tags: ghcr.io/chattocorp/chatto-docs:${{ steps.image.outputs.docs_tag }}
+          build-args: |
+            CHATTO_DOCS_CHANNEL=${{ inputs.channel || 'dev' }}
+            CHATTO_DOCS_VERSION=${{ steps.image.outputs.docs_version }}
+            CHATTO_DOCS_REVISION=${{ steps.image.outputs.sha }}
+            CHATTO_DOCS_SITE_URL=${{ steps.image.outputs.site_url }}
           cache-from: type=gha,scope=chatto-docs-amd64
           cache-to: type=gha,mode=max,scope=chatto-docs-amd64
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
-            org.opencontainers.image.version=${{ steps.image.outputs.docs_tag }}
+            org.opencontainers.image.version=${{ steps.image.outputs.docs_version }}
             org.opencontainers.image.licenses=Apache-2.0
