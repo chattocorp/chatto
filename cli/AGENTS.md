@@ -74,6 +74,9 @@ authorization, live events, backup/restore, and backend tests.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a transient live event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.
+- Do not use a locally published NATS message as a global ordering fence for
+  JetStream republish or messages from other replicas. Tie projection snapshots
+  and stale-event suppression to authoritative EVT stream sequences.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
 - New live event types usually require protobuf, publishing, authorization,
