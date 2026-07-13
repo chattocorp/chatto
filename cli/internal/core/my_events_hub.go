@@ -164,6 +164,17 @@ func (h *MyEventsHub) runGeneration(
 			h.model.core.logger.Warn("Slow consumer on process-wide live sync subscription", "dropped", dropped)
 			return "live sync ingress discontinuity", nil
 		case request := <-h.registrations:
+			// Preserve the old per-subscription live boundary: anything the
+			// process had already received before admission is not delivered to
+			// the new session. Snapshot the count so sustained traffic cannot
+			// starve registration.
+			queued := len(msgChan)
+			for range queued {
+				msg := <-msgChan
+				if msg != nil && h.handleMessage(ctx, msg) {
+					return "projection readiness discontinuity", nil
+				}
+			}
 			h.handleRegistration(request)
 		case msg := <-msgChan:
 			if msg == nil {
@@ -541,16 +552,16 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 // projections were being read; callers retry until the read is stable.
 func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID string) (map[string]struct{}, uint64, error) {
 	for {
-		roomPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		roomSeqs, roomTail, err := h.roomVisibilityTails(ctx)
 		if err != nil {
-			return nil, 0, fmt.Errorf("read room visibility tail: %w", err)
+			return nil, 0, err
 		}
 		rbacPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, events.RBACSubjectFilter())
 		if err != nil {
 			return nil, 0, fmt.Errorf("read RBAC visibility tail: %w", err)
 		}
-		if !roomPos.IsZero() {
-			if err := h.model.core.rooms().waitForDirectory(ctx, roomPos); err != nil {
+		if roomTail > 0 {
+			if err := h.model.core.rooms().waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
 				return nil, 0, fmt.Errorf("wait for room visibility snapshot: %w", err)
 			}
 		}
@@ -565,18 +576,43 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 			return nil, 0, err
 		}
 
-		roomTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, events.RoomSubjectFilter())
+		verifiedRoomSeqs, verifiedRoomTail, err := h.roomVisibilityTails(ctx)
 		if err != nil {
-			return nil, 0, fmt.Errorf("verify room visibility tail: %w", err)
+			return nil, 0, err
 		}
 		rbacTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
 		if err != nil {
 			return nil, 0, fmt.Errorf("verify RBAC visibility tail: %w", err)
 		}
-		if roomTail == roomPos.Seq && rbacTail == rbacPos.Seq {
-			return memberRooms, roomTail, nil
+		if roomSeqs == verifiedRoomSeqs && rbacTail == rbacPos.Seq {
+			return memberRooms, verifiedRoomTail, nil
 		}
 	}
+}
+
+type roomVisibilitySeqs [5]uint64
+
+func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySeqs, uint64, error) {
+	filters := [...]string{
+		events.RoomEventTypeFilter(events.EventRoomCreated),
+		events.RoomEventTypeFilter(events.EventRoomDeleted),
+		events.RoomEventTypeFilter(events.EventRoomUniversalChanged),
+		events.RoomEventTypeFilter(events.EventUserJoinedRoom),
+		events.RoomEventTypeFilter(events.EventUserLeftRoom),
+	}
+	var seqs roomVisibilitySeqs
+	var tail uint64
+	for i, filter := range filters {
+		seq, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return roomVisibilitySeqs{}, 0, fmt.Errorf("read room visibility tail for %s: %w", filter, err)
+		}
+		seqs[i] = seq
+		if seq > tail {
+			tail = seq
+		}
+	}
+	return seqs, tail, nil
 }
 
 func (h *MyEventsHub) beginGeneration() {

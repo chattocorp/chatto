@@ -40,9 +40,11 @@ work before session fanout:
    session queues.
 
 New sessions hydrate visibility without holding the dispatcher lock. Before
-the read, the hub records the authoritative EVT tails for room and RBAC facts,
-waits for the owning projections, and verifies that both tails remained stable
-through hydration. Registration then crosses a dispatcher-owned channel. If a
+the read, the hub records the authoritative EVT tails for room-visibility and
+RBAC facts, waits for the owning projections, and verifies that those tails
+remained stable through hydration. Ordinary messages, reactions, and call facts
+therefore cannot starve admission. Registration then crosses a dispatcher-owned
+channel after draining the ingress messages already received by the process. If a
 visibility-changing fact was processed while the snapshot was being built,
 registration retries; if a pre-snapshot fact arrives late from another NATS
 publisher or route, its EVT stream sequence identifies it as already reflected

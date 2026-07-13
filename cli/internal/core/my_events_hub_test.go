@@ -148,6 +148,37 @@ func TestMyEventsHubRegistersAfterMembershipBacklog(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubVisibilityTailIgnoresOrdinaryRoomTraffic(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "tail-author", "Tail Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "tail-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	hub := core.myEventsModel.hub
+	before, beforeTail, err := hub.roomVisibilityTails(ctx)
+	if err != nil {
+		t.Fatalf("roomVisibilityTails before message: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "ordinary traffic", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	after, afterTail, err := hub.roomVisibilityTails(ctx)
+	if err != nil {
+		t.Fatalf("roomVisibilityTails after message: %v", err)
+	}
+	if before != after || beforeTail != afterTail {
+		t.Fatalf("visibility tail changed for ordinary room traffic: before=%v/%d after=%v/%d", before, beforeTail, after, afterTail)
+	}
+}
+
 func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
