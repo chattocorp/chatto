@@ -32,6 +32,8 @@ matching proxy route when using a different name.
 - A domain pointing to your server (for automatic HTTPS)
 - A `livekit.` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
 - Firewall allowing inbound TCP 80, 443, and 7881 plus UDP 3478 and 50000-50200
+- DNS resolution and outbound UDP from LiveKit for STUN-based public-IP
+  discovery
 
 ## Why This Example Runs NATS Separately
 
@@ -89,6 +91,21 @@ Preserve these public ports when using Caddy or your own proxy:
 | TCP 7881 | `livekit:7881` | WebRTC media fallback when direct UDP is unavailable |
 | UDP 3478 | `livekit:3478` | LiveKit's embedded TURN/STUN relay |
 | UDP 50000-50200 | Same ports on `livekit` | Direct WebRTC media |
+
+With `rtc.use_external_ip: true`, the LiveKit server sends STUN requests at
+startup to discover the public address it should advertise. Allow DNS and
+outbound UDP from the LiveKit container to LiveKit's default STUN services.
+These are server-side requests; browsers use the embedded TURN/STUN service
+advertised by this deployment.
+
+The example already enables LiveKit's built-in TURN/UDP server for browsers; no
+separate TURN service is required for the common case. If public STUN is not
+acceptable for server-side IP discovery, point `rtc.stun_servers` at a
+self-hosted [coturn](https://github.com/coturn/coturn) instance or another STUN
+service you operate. If the host has a stable public IP, you can instead set
+`rtc.use_external_ip: false` and `rtc.node_ip` to that address, which avoids
+STUN-based discovery. A private LAN deployment can set only
+`rtc.use_external_ip: false` and let LiveKit advertise its local address.
 
 TCP 80 is also published in this example so Caddy can redirect HTTP and solve
 the ACME HTTP challenge. Your replacement proxy may use a different certificate
@@ -257,4 +274,9 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 
 **LiveKit media ports**: The example exposes UDP 50000-50200 for direct WebRTC media, UDP 3478 for LiveKit's embedded TURN/STUN relay, and TCP 7881 as a media fallback. Ensure your firewall allows all three.
 
-**Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need an advanced TURN/TLS setup, such as a dedicated TURN host or L4 TLS forwarding with matching certificates.
+**LiveKit fails to start with `could not resolve external IP`**: With
+`rtc.use_external_ip: true`, allow DNS and outbound UDP to every endpoint in
+`rtc.stun_servers`. Alternatively, configure private STUN servers or disable
+external-IP discovery and set `rtc.node_ip` to the host's stable public IP.
+
+**Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need TURN/TLS. Run coturn on a dedicated host or configure LiveKit's built-in TURN/TLS listener with a matching domain and certificate.

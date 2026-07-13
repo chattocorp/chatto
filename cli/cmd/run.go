@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -333,6 +334,48 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	}
 
 	logger.Info("Push notifications enabled")
+
+	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
+		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if len(subscriptions) == 0 {
+			return errors.New("no push subscriptions registered")
+		}
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return errors.New("no current push subscriptions registered")
+		}
+		results := sender.SendToMany(ctx, subscriptions, &push.Payload{
+			Title: "Test notification",
+			Body:  "Push notifications are working.",
+			URL:   cfg.Webserver.URL,
+			Icon:  "/icons/icon-192.png",
+			Badge: "/icons/icon-192.png",
+			Tag:   "push-test",
+		})
+		var sendErr error
+		accepted := false
+		for _, result := range results {
+			if result.Gone {
+				_ = chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint)
+			}
+			if result.Error == nil && result.Success {
+				accepted = true
+			}
+			if result.Error != nil {
+				sendErr = result.Error
+			}
+		}
+		if accepted {
+			return nil
+		}
+		if sendErr != nil {
+			return sendErr
+		}
+		return errors.New("push provider did not accept the test notification")
+	}
 
 	// Set the callback that will be invoked when notifications are created
 	chattoCore.OnNotificationCreated = func(ctx context.Context, notification *corev1.Notification) {

@@ -105,6 +105,11 @@ export async function isSubscribed(): Promise<boolean> {
   return subscription !== null;
 }
 
+/** Sends a real Web Push notification to this browser's current subscription. */
+export async function sendTestNotification(): Promise<boolean> {
+  return originPushAPI().sendTestNotification();
+}
+
 export function getPermission(): NotificationPermission | null {
   if (!isSupported()) {
     return null;

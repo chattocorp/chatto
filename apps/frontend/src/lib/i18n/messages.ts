@@ -83,6 +83,7 @@ const msg_common_validation_password_min = (): LocalizedString => messages().com
 const msg_common_validation_username_min = (): LocalizedString => messages().common_validation_username_min(empty());
 const msg_common_validation_username_max = (): LocalizedString => messages().common_validation_username_max(empty());
 const msg_common_validation_username_charset = (): LocalizedString => messages().common_validation_username_charset(empty());
+const msg_common_validation_username_end_alphanumeric = (): LocalizedString => messages().common_validation_username_end_alphanumeric(empty());
 const msg_common_validation_username_no_consecutive_periods = (): LocalizedString => messages().common_validation_username_no_consecutive_periods(empty());
 const msg_common_validation_passwords_match = (): LocalizedString => messages().common_validation_passwords_match(empty());
 const msg_common_validation_fix_errors = (): LocalizedString => messages().common_validation_fix_errors(empty());
@@ -232,6 +233,10 @@ const msg_settings_notifications_push_blocked_title = (): LocalizedString => mes
 const msg_settings_notifications_push_blocked_description = (): LocalizedString => messages().settings_notifications_push_blocked_description(empty());
 const msg_settings_notifications_push_enabled_title = (): LocalizedString => messages().settings_notifications_push_enabled_title(empty());
 const msg_settings_notifications_push_enabled_description = (): LocalizedString => messages().settings_notifications_push_enabled_description(empty());
+const msg_settings_notifications_push_test_button = (): LocalizedString => messages().settings_notifications_push_test_button(empty());
+const msg_settings_notifications_push_testing = (): LocalizedString => messages().settings_notifications_push_testing(empty());
+const msg_settings_notifications_push_test_sent = (): LocalizedString => messages().settings_notifications_push_test_sent(empty());
+const msg_settings_notifications_push_test_failed = (): LocalizedString => messages().settings_notifications_push_test_failed(empty());
 const msg_settings_notifications_push_enable_title = (): LocalizedString => messages().settings_notifications_push_enable_title(empty());
 const msg_settings_notifications_push_enable_description = (): LocalizedString => messages().settings_notifications_push_enable_description(empty());
 const msg_settings_notifications_push_enable_button = (): LocalizedString => messages().settings_notifications_push_enable_button(empty());
@@ -1546,6 +1551,7 @@ export { msg_common_validation_password_min as 'common.validation.password_min' 
 export { msg_common_validation_username_min as 'common.validation.username_min' };
 export { msg_common_validation_username_max as 'common.validation.username_max' };
 export { msg_common_validation_username_charset as 'common.validation.username_charset' };
+export { msg_common_validation_username_end_alphanumeric as 'common.validation.username_end_alphanumeric' };
 export { msg_common_validation_username_no_consecutive_periods as 'common.validation.username_no_consecutive_periods' };
 export { msg_common_validation_passwords_match as 'common.validation.passwords_match' };
 export { msg_common_validation_fix_errors as 'common.validation.fix_errors' };
@@ -1683,6 +1689,10 @@ export { msg_settings_notifications_push_blocked_title as 'settings.notification
 export { msg_settings_notifications_push_blocked_description as 'settings.notifications.push.blocked_description' };
 export { msg_settings_notifications_push_enabled_title as 'settings.notifications.push.enabled_title' };
 export { msg_settings_notifications_push_enabled_description as 'settings.notifications.push.enabled_description' };
+export { msg_settings_notifications_push_test_button as 'settings.notifications.push.test_button' };
+export { msg_settings_notifications_push_testing as 'settings.notifications.push.testing' };
+export { msg_settings_notifications_push_test_sent as 'settings.notifications.push.test_sent' };
+export { msg_settings_notifications_push_test_failed as 'settings.notifications.push.test_failed' };
 export { msg_settings_notifications_push_enable_title as 'settings.notifications.push.enable_title' };
 export { msg_settings_notifications_push_enable_description as 'settings.notifications.push.enable_description' };
 export { msg_settings_notifications_push_enable_button as 'settings.notifications.push.enable_button' };

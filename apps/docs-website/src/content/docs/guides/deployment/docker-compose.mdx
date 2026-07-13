@@ -216,6 +216,10 @@ The standard Caddy image does not include the optional Caddy L4 plugin, and this
 single-host setup does not need it. Open the matching host and cloud firewall
 rules, and do not expose NATS port 4222 publicly.
 
+LiveKit also needs DNS and outbound UDP for STUN-based public-IP discovery. See
+[Voice & Video Calls](/guides/infrastructure/voice-calls/#network-paths-and-ports)
+for private STUN and fixed-IP alternatives.
+
 ## Optional Features
 
 ### Direct Registration and SMTP
@@ -292,7 +296,7 @@ fallback when UDP is unavailable, while TURN/UDP helps with symmetric NATs and
 many mobile, Firefox, and restrictive-network failures. This keeps the Compose
 example certificate-free beyond the HTTPS certificates managed by Caddy.
 
-Networks that block UDP entirely still need TURN/TLS. Add that only when you also provide a TURN domain plus certificate/key, or run LiveKit behind L4 TLS forwarding that terminates TLS before LiveKit.
+Networks that block UDP entirely still need TURN/TLS.
 
 <Aside>
   Some networks only allow outbound traffic on TCP 443. If you need TURN on
@@ -315,6 +319,8 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 **Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
 **Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
+
+**LiveKit reports `could not resolve external IP`** — Allow DNS and outbound UDP from the LiveKit container to every endpoint in `rtc.stun_servers`. If public STUN is not acceptable, configure private STUN servers or set a stable public `rtc.node_ip` with `rtc.use_external_ip: false`.
 
 **Calls fail for some users** — Confirm the built-in TURN/UDP relay is reachable on UDP 3478. Users behind firewalls that block UDP entirely need TURN/TLS. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
 

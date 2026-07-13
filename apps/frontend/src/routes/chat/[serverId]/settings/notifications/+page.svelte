@@ -15,7 +15,8 @@
     ensureRegistered,
     getPushCapability,
     getPermission,
-    isSubscribed as checkPushSubscription
+    isSubscribed as checkPushSubscription,
+    sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -169,6 +170,8 @@
   let pushSubscribed = $state(false);
   let pushLoading = $state(false);
   let pushError = $state<string | null>(null);
+  let pushTestLoading = $state(false);
+  let pushTestStatus = $state<'sent' | 'failed' | null>(null);
 
   // Check push subscription status on mount
   $effect(() => {
@@ -205,6 +208,18 @@
       pushError = m['settings.notifications.push.enable_error']();
     } finally {
       pushLoading = false;
+    }
+  }
+
+  async function handleTestPush() {
+    pushTestLoading = true;
+    pushTestStatus = null;
+    try {
+      pushTestStatus = (await sendTestNotification()) ? 'sent' : 'failed';
+    } catch {
+      pushTestStatus = 'failed';
+    } finally {
+      pushTestLoading = false;
     }
   }
 </script>
@@ -269,14 +284,37 @@
             </p>
           </div>
         {:else if pushSubscribed}
-          <Hint tone="success">
-            <div>
-              <p class="font-medium">{m['settings.notifications.push.enabled_title']()}</p>
-              <p class="mt-1 text-sm text-muted">
-                {m['settings.notifications.push.enabled_description']()}
-              </p>
+          <div class="flex flex-col gap-3">
+            <Hint tone="success">
+              <div>
+                <p class="font-medium">{m['settings.notifications.push.enabled_title']()}</p>
+                <p class="mt-1 text-sm text-muted">
+                  {m['settings.notifications.push.enabled_description']()}
+                </p>
+              </div>
+            </Hint>
+            <div class="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={handleTestPush}
+                disabled={pushTestLoading}
+                loading={pushTestLoading}
+                loadingText={m['settings.notifications.push.testing']()}
+              >
+                {m['settings.notifications.push.test_button']()}
+              </Button>
+              {#if pushTestStatus === 'sent'}
+                <span class="text-sm text-success" role="status">
+                  {m['settings.notifications.push.test_sent']()}
+                </span>
+              {:else if pushTestStatus === 'failed'}
+                <span class="text-sm text-danger" role="alert">
+                  {m['settings.notifications.push.test_failed']()}
+                </span>
+              {/if}
             </div>
-          </Hint>
+          </div>
         {:else}
           <div class="flex items-center justify-between surface-box px-4 py-3">
             <div>

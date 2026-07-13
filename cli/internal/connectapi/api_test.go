@@ -4372,6 +4372,18 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 
+	testPushCalled := false
+	env.core.OnPushTestRequested = func(_ context.Context, userID string) error {
+		testPushCalled = userID == env.viewer.Id
+		return nil
+	}
+	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
+	if err != nil {
+		t.Fatalf("SendTestNotification: %v", err)
+	}
+	if !testResp.Msg.GetSent() || !testPushCalled {
+		t.Fatalf("SendTestNotification sent = %v, callback called = %v", testResp.Msg.GetSent(), testPushCalled)
+	}
 	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 	}))

@@ -32,6 +32,7 @@
     .min(2, m['common.validation.username_min']())
     .max(32, m['common.validation.username_max']())
     .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
+    .refine((val) => !val.endsWith('.'), m['common.validation.username_end_alphanumeric']())
     .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
   const passwordSchema = z.string().min(8, m['common.validation.password_min']());
 

@@ -20,6 +20,10 @@
   let renderedIndex = $state<number | null>(null);
   let scrollCalls = $state(0);
   let lastAlignment = $state('');
+  let renderedItem = $derived(renderedIndex === null ? undefined : data[renderedIndex]);
+  let renderedKey = $derived(
+    (renderedItem as { key?: string } | undefined)?.key ?? renderedIndex ?? 'empty'
+  );
 
   export function scrollToIndex(index: number, options?: { align?: string }) {
     renderedIndex = index;
@@ -47,6 +51,9 @@
 <output data-testid="virtualizer-scroll-index">{renderedIndex ?? ''}</output>
 <output data-testid="virtualizer-scroll-calls">{scrollCalls}</output>
 <output data-testid="virtualizer-scroll-alignment">{lastAlignment}</output>
-{#if renderedIndex !== null && data[renderedIndex] !== undefined}
-  {@render children(data[renderedIndex])}
+<output data-testid="virtualizer-rendered-key" data-rendered-key={renderedKey}></output>
+{#if renderedItem !== undefined}
+  {#key renderedKey}
+    {@render children(renderedItem)}
+  {/key}
 {/if}

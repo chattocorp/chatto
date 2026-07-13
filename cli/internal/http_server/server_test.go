@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -1173,25 +1174,31 @@ func TestAuthRoutes_RegisterComplete_InvalidLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	token, _ := chattoCore.CreateRegistrationToken(ctx, "invalid@example.com")
+	for i, login := range []string{"a", "alice."} {
+		t.Run(login, func(t *testing.T) {
+			token, err := chattoCore.CreateRegistrationToken(ctx, fmt.Sprintf("invalid-%d@example.com", i))
+			if err != nil {
+				t.Fatalf("CreateRegistrationToken: %v", err)
+			}
 
-	// Test with invalid login (too short)
-	reqBody := map[string]string{
-		"token":                token,
-		"login":                "a",
-		"password":             "password123",
-		"passwordConfirmation": "password123",
-	}
-	body, _ := json.Marshal(reqBody)
+			reqBody := map[string]string{
+				"token":                token,
+				"login":                login,
+				"password":             "password123",
+				"passwordConfirmation": "password123",
+			}
+			body, _ := json.Marshal(reqBody)
 
-	resp, err := client.Post(ts.URL+"/auth/register/complete", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("Failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
+			resp, err := client.Post(ts.URL+"/auth/register/complete", "application/json", bytes.NewReader(body))
+			if err != nil {
+				t.Fatalf("Failed to send request: %v", err)
+			}
+			defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", resp.StatusCode)
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Errorf("Expected status 400, got %d", resp.StatusCode)
+			}
+		})
 	}
 }
 

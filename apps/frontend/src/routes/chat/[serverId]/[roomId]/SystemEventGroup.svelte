@@ -9,10 +9,14 @@
 
   let {
     events,
-    kind
+    kind,
+    expanded,
+    onExpandedChange
   }: {
     events: RoomEventView[];
     kind: SystemGroupKind;
+    expanded: boolean;
+    onExpandedChange: (expanded: boolean) => void;
   } = $props();
 
   const actionKind = $derived.by(() => {
@@ -59,8 +63,6 @@
   const visibleAvatars = $derived(actors.slice(0, MAX_AVATARS));
   const isTruncatable = $derived(actors.length > NAMES_BEFORE_TRUNCATION + 1);
 
-  let expanded = $state(false);
-
   const headActors = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION));
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
   const action = $derived(
@@ -82,7 +84,7 @@
   {#each items as actor, index (actor.id)}
     {#if index > 0}
       {#if index === items.length - 1}
-        {items.length > 2 ? ', ' : ''}{m['room.system_events.and']()}
+        {items.length > 2 ? ', ' : ' '}{m['room.system_events.and']()}
       {:else}
         ,
       {/if}
@@ -112,22 +114,25 @@
 
     <span class="text-sm text-muted">
       {#if !isTruncatable || expanded}
-        {@render actorNames(actors)} {action}
+        {@render actorNames(actors)}
+        {action}
         {#if isTruncatable}
           <button
             type="button"
             class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
-            onclick={() => (expanded = false)}
+            onclick={() => onExpandedChange(false)}
           >
             {m['room.system_events.show_less']()}
           </button>
         {/if}
       {:else}
-        {@render actorNames(headActors)}, {m['room.system_events.and']()} <button
+        {@render actorNames(headActors)}, {m['room.system_events.and']()}
+        <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
-          onclick={() => (expanded = true)}
-        >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button>
+          onclick={() => onExpandedChange(true)}
+          >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button
+        >
         {action}
       {/if}
     </span>
