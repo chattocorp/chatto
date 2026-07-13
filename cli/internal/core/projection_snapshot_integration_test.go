@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
+	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
 	firstIdentity, err := events.StreamIdentity(ctx, first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +55,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 
 	// A persisted StreamInfo.Created timestamp changes when embedded NATS is
 	// reconstructed. Restart the process against the same store so this test
-	// proves snapshot identity is derived from EVT history instead.
+	// proves the durable EVT metadata identity remains stable instead.
 	ns, nc = startPersistentSnapshotNATS(t, storeDir)
 
 	second, err := NewChattoCore(ctx, nc, cfg)
@@ -61,7 +63,7 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 		t.Fatal(err)
 	}
 	stopSecond := startSnapshotTestCore(t, second)
-	defer stopSecond()
+	t.Cleanup(stopSecond)
 	secondIdentity, err := events.StreamIdentity(ctx, second.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -73,8 +75,15 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 || status.SnapshotGenerationID == "" {
 		t.Fatalf("Thread projector did not restore snapshot: %#v", status)
 	}
+	if status.StartupMessages != 0 {
+		t.Fatalf("Thread projector replayed %d messages after current snapshot restore", status.StartupMessages)
+	}
 	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
+	}
+	stopSecond()
+	if got := projectionSnapshotObjectNames(t, ctx, second); !slices.Equal(got, firstSnapshotObjects) {
+		t.Fatalf("current snapshot check changed stored objects: got %v, want %v", got, firstSnapshotObjects)
 	}
 }
 
@@ -140,6 +149,61 @@ func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) 
 	}
 }
 
+func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	}
+	type result struct {
+		core *ChattoCore
+		err  error
+	}
+	start := make(chan struct{})
+	results := make(chan result, 2)
+	for range 2 {
+		go func() {
+			<-start
+			core, err := NewChattoCore(ctx, nc, cfg)
+			results <- result{core: core, err: err}
+		}()
+	}
+	close(start)
+
+	cores := make([]*ChattoCore, 0, 2)
+	for range 2 {
+		result := <-results
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		cores = append(cores, result.core)
+	}
+	identities := make([]string, 0, len(cores))
+	for _, core := range cores {
+		identity, err := events.StreamIdentity(ctx, core.storage.serverEvtStream)
+		if err != nil {
+			t.Fatal(err)
+		}
+		identities = append(identities, identity)
+	}
+	if identities[0] != identities[1] {
+		t.Fatalf("concurrent core identities did not converge: %q != %q", identities[0], identities[1])
+	}
+
+	third, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdIdentity, err := events.StreamIdentity(ctx, third.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thirdIdentity != identities[0] {
+		t.Fatalf("subsequent core changed EVT identity: %q != %q", thirdIdentity, identities[0])
+	}
+}
+
 func startPersistentSnapshotNATS(t *testing.T, storeDir string) (*server.Server, *nats.Conn) {
 	t.Helper()
 	ns, err := server.NewServer(&server.Options{
@@ -199,13 +263,16 @@ func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
 		cancel()
 		t.Fatal(err)
 	}
+	var stopOnce sync.Once
 	return func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("core did not stop")
-		}
+		stopOnce.Do(func() {
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("core did not stop")
+			}
+		})
 	}
 }
 
@@ -228,4 +295,20 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("snapshot objects were not published")
+}
+
+func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *ChattoCore) []string {
+	t.Helper()
+	objects, err := core.storage.serverAssets.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(objects))
+	for _, object := range objects {
+		if strings.HasPrefix(object.Name, "internal/projection-snapshots/v1/") {
+			names = append(names, object.Name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }

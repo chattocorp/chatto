@@ -1394,9 +1394,11 @@ func isTransientJetStreamStoreCreateError(err error) bool {
 		return false
 	}
 	apiErr := provider.APIError()
-	return apiErr != nil &&
-		apiErr.ErrorCode == 10049 &&
-		strings.Contains(apiErr.Description, "error creating store for stream")
+	if apiErr == nil {
+		return false
+	}
+	return (apiErr.ErrorCode == 10049 && strings.Contains(apiErr.Description, "error creating store for stream")) ||
+		(apiErr.ErrorCode == 10058 && strings.Contains(apiErr.Description, "stream name already in use"))
 }
 
 // ============================================================================

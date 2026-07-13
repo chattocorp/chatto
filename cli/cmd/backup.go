@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"filippo.io/age"
@@ -364,12 +365,14 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 
 	streamDir := filepath.Join(streamsDir, streamName)
 
-	var bytesReceived uint64
+	var bytesReceived atomic.Uint64
 
 	_, err = stream.SnapshotToDirectory(ctx, streamDir,
 		jsm.SnapshotConsumers(),
 		jsm.SnapshotNotify(func(p jsm.SnapshotProgress) {
-			bytesReceived = p.BytesReceived()
+			received := p.BytesReceived()
+			for current := bytesReceived.Load(); received > current && !bytesReceived.CompareAndSwap(current, received); current = bytesReceived.Load() {
+			}
 		}),
 	)
 	if err != nil {
@@ -381,13 +384,14 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 		}
 	}
 
-	log.Info(fmt.Sprintf("%s  Done: %s", prefix, formatBytes(bytesReceived)))
+	received := bytesReceived.Load()
+	log.Info(fmt.Sprintf("%s  Done: %s", prefix, formatBytes(received)))
 
 	return StreamBackupInfo{
 		Name:     streamName,
 		Type:     streamType,
 		Messages: state.Msgs,
-		Bytes:    bytesReceived,
+		Bytes:    received,
 	}
 }
 
