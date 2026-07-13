@@ -2,7 +2,10 @@
   import { onDestroy, tick, untrack } from 'svelte';
   import type { RoomEventView } from '$lib/render/types';
   import { createMessageAPI } from '$lib/api-client/messages';
-  import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+  import {
+    createLinkPreviewAPI,
+    type ComposerImportedAttachment
+  } from '$lib/api-client/linkPreviews';
   import { createRoleAPI } from '$lib/api-client/roles';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -12,6 +15,7 @@
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { toast } from '$lib/ui/toast';
   import {
     getRoomMembers,
@@ -265,7 +269,7 @@
   });
 
   $effect(() => {
-    return linkPreviews.scheduleDetection(message, isEditing);
+    return linkPreviews.scheduleDetection(message, isEditing, canAttach ? roomId : undefined);
   });
 
   $effect(() => {
@@ -293,13 +297,12 @@
       }
       if (cancelled) return false;
       mentionRoles =
-        roles
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? [];
+        roles.map((role) => ({
+          name: role.name,
+          isSystem: role.isSystem,
+          position: role.position,
+          pingable: role.pingable
+        })) ?? [];
       mentionRolesLoadFailed = false;
       mentionRolesLoadComplete = true;
       return true;
@@ -487,6 +490,10 @@
     bodyToSend: string;
     filesToSend: File[] | null;
     attachmentAssetIds?: string[];
+    linkedAttachment: {
+      url: string;
+      attachment: ComposerImportedAttachment;
+    } | null;
     threadRootEventId: string | null;
     inReplyTo: string | null;
     linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
@@ -529,7 +536,7 @@
         roomId: post.roomId,
         body: post.bodyToSend,
         attachmentAssetIds: post.attachmentAssetIds,
-        attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
+        attachments: post.filesToSend,
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
         linkPreview: post.linkPreviewInput,
@@ -549,6 +556,12 @@
     editorApi?.setContent(post.bodyToSend);
     if (post.filesToSend) {
       attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
+    }
+    if (post.linkedAttachment) {
+      linkPreviews.restoreImportedAttachment(
+        post.linkedAttachment.url,
+        post.linkedAttachment.attachment
+      );
     }
   }
 
@@ -630,10 +643,17 @@
     const filesToSend = hasSendableAttachments ? [...attachments.selectedFiles] : null;
     if (!hasBody && !filesToSend) return;
 
+    const linkedAttachment = linkPreviews.activeImportedAttachment;
+    const linkedAttachmentURL = linkPreviews.activeURL;
     const preparedPost: PreparedPost = {
       roomId,
       bodyToSend,
       filesToSend,
+      attachmentAssetIds: linkPreviews.buildAttachmentAssetIds(),
+      linkedAttachment:
+        linkedAttachment && linkedAttachmentURL
+          ? { url: linkedAttachmentURL, attachment: linkedAttachment }
+          : null,
       threadRootEventId: inThread ?? null,
       inReplyTo: inReplyTo ?? null,
       linkPreviewInput: linkPreviews.buildInput(),
@@ -873,8 +893,29 @@
   {/if}
 
   <!-- Selected files preview -->
-  {#if attachments.filesWithUrls.length > 0}
+  {#if attachments.filesWithUrls.length > 0 || linkPreviews.activeImportedAttachment}
     <div class="flex flex-wrap gap-2 rounded-lg bg-surface-300 p-2">
+      {#if linkPreviews.activeImportedAttachment}
+        {@const linkedAttachment = linkPreviews.activeImportedAttachment}
+        <div class="relative" data-testid="linked-image-attachment-preview">
+          <SkeletonImg
+            src={linkedAttachment.previewUrl}
+            alt={linkedAttachment.filename}
+            class="h-16 w-16 rounded-md object-cover"
+          />
+          <button
+            type="button"
+            onclick={() => {
+              const url = linkPreviews.activeURL;
+              if (url) linkPreviews.dismissPreview(url);
+            }}
+            class="absolute -top-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
+            aria-label={m['preview.dismiss']()}
+          >
+            ×
+          </button>
+        </div>
+      {/if}
       {#each attachments.filesWithUrls as { file, url }, index (url)}
         <div class="relative">
           {#if file.type.startsWith('image/')}

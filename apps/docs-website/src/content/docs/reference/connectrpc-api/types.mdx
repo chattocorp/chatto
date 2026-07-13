@@ -239,6 +239,22 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
+<a id="chatto-api-v1-ImportedLinkAttachment"></a>
+
+### ImportedLinkAttachment
+
+Pending room attachment imported from a directly linked image.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Stable pending attachment asset ID. |
+| `filename` | `string` | Server-assigned filename for the imported image. |
+| `content_type` | `string` | Detected image MIME type. |
+| `size` | `int64` | Stored original size in bytes. |
+| `width` | `int32` | Intrinsic image width. |
+| `height` | `int32` | Intrinsic image height. |
+| `preview_url` | `string` | Freshly authorized thumbnail URL for composer display. |
+
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview

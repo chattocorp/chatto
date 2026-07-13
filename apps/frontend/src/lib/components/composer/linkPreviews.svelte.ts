@@ -2,18 +2,24 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { LinkPreviewInput } from '$lib/render/types';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
-import type { ComposerLinkPreview } from '$lib/api-client/linkPreviews';
+import type {
+  ComposerImportedAttachment,
+  ComposerLinkPreview,
+  ComposerLinkResult
+} from '$lib/api-client/linkPreviews';
 
 type LinkPreviewAPI = {
-  fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null>;
+  fetchLinkPreview(url: string, roomId?: string): Promise<ComposerLinkResult | null>;
 };
 
 export class LinkPreviewState {
   detectedURLs = $state<string[]>([]);
   previews = new SvelteMap<string, ComposerLinkPreview | null>();
+  importedAttachments = new SvelteMap<string, ComposerImportedAttachment>();
   dismissedURLs = new SvelteSet<string>();
   fetchingURLs = new SvelteSet<string>();
   #urlDetectionTimeout: ReturnType<typeof setTimeout> | undefined;
+  #attachmentRoomId: string | undefined;
 
   constructor(private readonly getAPI: () => LinkPreviewAPI) {}
 
@@ -21,8 +27,18 @@ export class LinkPreviewState {
     return this.detectedURLs[0];
   }
 
-  scheduleDetection(message: string, isEditing: boolean): () => void {
+  get activeImportedAttachment(): ComposerImportedAttachment | null {
+    const url = this.activeURL;
+    return url ? (this.importedAttachments.get(url) ?? null) : null;
+  }
+
+  scheduleDetection(message: string, isEditing: boolean, roomId?: string): () => void {
     clearTimeout(this.#urlDetectionTimeout);
+
+    if (roomId !== this.#attachmentRoomId) {
+      this.clear();
+      this.#attachmentRoomId = roomId;
+    }
 
     if (isEditing) {
       this.detectedURLs = [];
@@ -35,8 +51,12 @@ export class LinkPreviewState {
 
       for (const url of urls) {
         if (parseMessageLink(url)) continue;
-        if (!this.previews.has(url) && !this.fetchingURLs.has(url)) {
-          void this.fetchPreview(url);
+        if (
+          !this.previews.has(url) &&
+          !this.importedAttachments.has(url) &&
+          !this.fetchingURLs.has(url)
+        ) {
+          void this.fetchPreview(url, roomId);
         }
       }
     }, 500);
@@ -44,13 +64,21 @@ export class LinkPreviewState {
     return () => clearTimeout(this.#urlDetectionTimeout);
   }
 
-  async fetchPreview(url: string): Promise<void> {
+  async fetchPreview(url: string, roomId?: string): Promise<void> {
     this.fetchingURLs.add(url);
-
-    const preview = await this.getAPI().fetchLinkPreview(url);
-
-    this.fetchingURLs.delete(url);
-    this.previews.set(url, preview);
+    try {
+      const result = await this.getAPI().fetchLinkPreview(url, roomId);
+      if (result?.kind === 'attachment') {
+        this.importedAttachments.set(url, result.attachment);
+        this.previews.set(url, null);
+        return;
+      }
+      this.previews.set(url, result?.preview ?? null);
+    } catch {
+      this.previews.set(url, null);
+    } finally {
+      this.fetchingURLs.delete(url);
+    }
   }
 
   dismissPreview(url: string): void {
@@ -61,6 +89,7 @@ export class LinkPreviewState {
   clear(): void {
     this.detectedURLs = [];
     this.previews.clear();
+    this.importedAttachments.clear();
     this.dismissedURLs.clear();
     this.fetchingURLs.clear();
   }
@@ -76,5 +105,16 @@ export class LinkPreviewState {
     return {
       previewToken: activePreview.previewToken
     };
+  }
+
+  buildAttachmentAssetIds(): string[] {
+    const attachment = this.activeImportedAttachment;
+    return attachment ? [attachment.assetId] : [];
+  }
+
+  restoreImportedAttachment(url: string, attachment: ComposerImportedAttachment): void {
+    this.detectedURLs = [url];
+    this.importedAttachments.set(url, attachment);
+    this.previews.set(url, null);
   }
 }

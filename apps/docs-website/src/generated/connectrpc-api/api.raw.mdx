@@ -1005,6 +1005,7 @@ Request to fetch server-side link preview metadata for a URL.
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | URL to preview. |
+| `room_id` | `optional string` | Room that will own a directly linked image imported as an attachment. When omitted, direct image URLs are not imported. |
 
 
 <a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
@@ -1017,6 +1018,7 @@ Result of fetching link preview metadata.
 | --- | --- | --- |
 | `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
 | `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+| `imported_attachment` | [`ImportedLinkAttachment`](#chatto-api-v1-ImportedLinkAttachment) | Pending room attachment imported when the URL directly serves an image. The client should include its ID in CreateMessage.attachment_asset_ids. |
 
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>
@@ -3558,6 +3560,24 @@ Current authenticated user's public profile plus self-only settings.
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+
+
+
+<a id="chatto-api-v1-ImportedLinkAttachment"></a>
+
+### ImportedLinkAttachment
+
+Pending room attachment imported from a directly linked image.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Stable pending attachment asset ID. |
+| `filename` | `string` | Server-assigned filename for the imported image. |
+| `content_type` | `string` | Detected image MIME type. |
+| `size` | `int64` | Stored original size in bytes. |
+| `width` | `int32` | Intrinsic image width. |
+| `height` | `int32` | Intrinsic image height. |
+| `preview_url` | `string` | Freshly authorized thumbnail URL for composer display. |
 
 
 

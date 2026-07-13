@@ -11,6 +11,27 @@ message FetchLinkPreviewRequest {
     (buf.validate.field).string.min_len = 1,
     (buf.validate.field).string.max_len = 2048
   ];
+  // Room that will own a directly linked image imported as an attachment.
+  // When omitted, direct image URLs are not imported.
+  optional string room_id = 2 [(buf.validate.field).string.max_bytes = 15];
+}
+
+// Pending room attachment imported from a directly linked image.
+message ImportedLinkAttachment {
+  // Stable pending attachment asset ID.
+  string asset_id = 1;
+  // Server-assigned filename for the imported image.
+  string filename = 2;
+  // Detected image MIME type.
+  string content_type = 3;
+  // Stored original size in bytes.
+  int64 size = 4;
+  // Intrinsic image width.
+  int32 width = 5;
+  // Intrinsic image height.
+  int32 height = 6;
+  // Freshly authorized thumbnail URL for composer display.
+  string preview_url = 7;
 }
 
 // Link preview metadata used by message composers and room timeline events.
@@ -45,4 +66,7 @@ message FetchLinkPreviewResponse {
   // Short-lived opaque token to pass to CreateMessage.link_preview_token when
   // the user posts this preview.
   string preview_token = 2;
+  // Pending room attachment imported when the URL directly serves an image.
+  // The client should include its ID in CreateMessage.attachment_asset_ids.
+  ImportedLinkAttachment imported_attachment = 3;
 }

@@ -41,6 +41,7 @@ Request to fetch server-side link preview metadata for a URL.
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | URL to preview. |
+| `room_id` | `optional string` | Room that will own a directly linked image imported as an attachment. When omitted, direct image URLs are not imported. |
 
 
 <a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
@@ -53,6 +54,7 @@ Result of fetching link preview metadata.
 | --- | --- | --- |
 | `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
 | `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+| `imported_attachment` | [`ImportedLinkAttachment`](/reference/connectrpc-api/types/#chatto-api-v1-ImportedLinkAttachment) | Pending room attachment imported when the URL directly serves an image. The client should include its ID in CreateMessage.attachment_asset_ids. |
 
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>

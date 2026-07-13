@@ -1,6 +1,7 @@
 package linkpreview
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -73,8 +74,19 @@ type FetchResult struct {
 	Description string
 	SiteName    string
 	ImageAsset  *corev1.AssetRecord // Image asset if image was downloaded, nil otherwise
+	DirectImage *DirectImage        // Validated direct image bytes for attachment staging
 	EmbedType   string              // "generic", "youtube"
 	EmbedID     string              // For YouTube: video ID
+}
+
+// DirectImage contains validated bytes returned directly by the preview URL.
+// The caller promotes these bytes through the normal pending-attachment path;
+// the link-preview fetcher deliberately does not persist them itself.
+type DirectImage struct {
+	Data        []byte
+	ContentType string
+	Width       int
+	Height      int
 }
 
 // Fetch fetches link preview metadata for a URL.
@@ -110,14 +122,27 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		return nil, fmt.Errorf("%w: page returned status %d", ErrUnavailable, resp.StatusCode)
 	}
 
+	reader := bufio.NewReader(resp.Body)
+	peek, _ := reader.Peek(512)
+	detectedContentType := assets.DetectImageContentType(peek)
+	if detectedContentType != "application/octet-stream" {
+		directImage, err := f.readDirectImage(reader, detectedContentType)
+		if err != nil {
+			return nil, fmt.Errorf("%w: direct image: %v", ErrUnavailable, err)
+		}
+		return &FetchResult{
+			DirectImage: directImage,
+		}, nil
+	}
+
 	contentType := resp.Header.Get("Content-Type")
-	if contentType != "" && !strings.HasPrefix(contentType, "text/html") && !strings.HasPrefix(contentType, "application/xhtml") {
-		return nil, fmt.Errorf("%w: not an HTML page: %s", ErrUnavailable, contentType)
+	if contentType != "" && !strings.HasPrefix(contentType, "text/html") && !strings.HasPrefix(contentType, "application/xhtml") && !strings.HasPrefix(contentType, "application/octet-stream") {
+		return nil, fmt.Errorf("%w: not an HTML page or supported image: %s", ErrUnavailable, contentType)
 	}
 
 	// Parse OG metadata with a size-limited reader
 	og := opengraph.New(rawURL)
-	if err := og.Parse(io.LimitReader(resp.Body, MaxPageSize)); err != nil {
+	if err := og.Parse(io.LimitReader(reader, MaxPageSize)); err != nil {
 		f.logger.Warn("Failed to parse OG metadata", "url", rawURL, "error", err)
 		return nil, fmt.Errorf("%w: parse metadata: %v", ErrUnavailable, err)
 	}
@@ -171,6 +196,34 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	}
 
 	return result, nil
+}
+
+// readDirectImage validates an image returned directly by the preview URL.
+// Persistence is left to the normal pending-attachment lifecycle owned by the
+// caller, including GIF processing and abandoned-upload cleanup.
+func (f *Fetcher) readDirectImage(reader io.Reader, contentType string) (*DirectImage, error) {
+	imageData, err := io.ReadAll(io.LimitReader(reader, MaxImageSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("read image: %w", err)
+	}
+	if len(imageData) > MaxImageSize {
+		return nil, fmt.Errorf("image too large (>%d bytes)", MaxImageSize)
+	}
+	if actual := assets.DetectImageContentType(imageData); actual != contentType {
+		return nil, fmt.Errorf("image content changed while reading")
+	}
+
+	inspected, err := assets.ProcessAttachmentImageWithConfig(bytes.NewReader(imageData), *f.assetsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("validate image: %w", err)
+	}
+
+	return &DirectImage{
+		Data:        append([]byte(nil), inspected.Original...),
+		ContentType: contentType,
+		Width:       inspected.Width,
+		Height:      inspected.Height,
+	}, nil
 }
 
 // truncate truncates a string to maxLen characters, adding "..." if truncated.

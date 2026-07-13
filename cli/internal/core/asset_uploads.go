@@ -66,6 +66,16 @@ type AssetUploadCancelInput struct {
 	UploadID string
 }
 
+// RemoteAttachmentImportInput describes server-fetched image bytes that should
+// enter the same pending room-attachment lifecycle as a completed upload.
+type RemoteAttachmentImportInput struct {
+	ActorID     string
+	RoomID      string
+	Filename    string
+	ContentType string
+	Content     []byte
+}
+
 type AssetUploadSession struct {
 	UploadID        string            `json:"upload_id"`
 	ActorID         string            `json:"actor_id"`
@@ -246,6 +256,50 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	}
 	m.deleteUploadChunks(ctx, session)
 	return session, attachment, nil
+}
+
+// ImportRemoteAttachment validates and stores server-fetched image bytes as a
+// pending room attachment. The resulting asset is claimed by a later message
+// post or removed by the existing pending-asset cleanup after its TTL.
+func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input RemoteAttachmentImportInput) (*corev1.Attachment, error) {
+	filename := strings.TrimSpace(input.Filename)
+	if filename == "" {
+		return nil, invalidArgument("filename is required")
+	}
+	contentType := strings.TrimSpace(input.ContentType)
+	if !strings.HasPrefix(contentType, "image/") {
+		return nil, invalidArgument("remote attachment must be an image")
+	}
+	if len(input.Content) == 0 {
+		return nil, invalidArgument("remote attachment content is required")
+	}
+	if err := m.checkUploadSize(contentType, int64(len(input.Content))); err != nil {
+		return nil, err
+	}
+	if err := m.authorizeUpload(ctx, input.ActorID, input.RoomID); err != nil {
+		return nil, err
+	}
+
+	sum := sha256.Sum256(input.Content)
+	session := &AssetUploadSession{
+		ActorID:     input.ActorID,
+		RoomID:      input.RoomID,
+		Filename:    filename,
+		ContentType: contentType,
+		Size:        int64(len(input.Content)),
+		SHA256:      hex.EncodeToString(sum[:]),
+	}
+	attachment, animatedGIF, err := m.storeCompletedUpload(ctx, session, bytes.NewReader(input.Content))
+	if err != nil {
+		return nil, err
+	}
+	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
+	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
+	if err := m.core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, input.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
+		return nil, err
+	}
+	return attachment, nil
 }
 
 func (m *AssetUploadModel) CancelUpload(ctx context.Context, input AssetUploadCancelInput) (*AssetUploadSession, error) {

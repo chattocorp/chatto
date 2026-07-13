@@ -557,18 +557,31 @@ func (c *ChattoCore) ShouldUseS3() bool {
 // GetLinkPreview fetches link preview metadata for a URL.
 // Results are cached server-side. Returns nil if the URL cannot be previewed.
 func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error) {
+	preview, _, err := c.getLinkPreviewForComposer(ctx, "", "", url)
+	return preview, err
+}
+
+// GetLinkPreviewForComposer fetches a generic link preview or imports direct
+// image bytes as a pending room attachment for the authenticated composer.
+// Direct images are intentionally not cached as link previews because their
+// assets are room- and actor-owned.
+func (c *ChattoCore) GetLinkPreviewForComposer(ctx context.Context, actorID, roomID, url string) (*corev1.LinkPreview, *corev1.Attachment, error) {
+	return c.getLinkPreviewForComposer(ctx, actorID, roomID, url)
+}
+
+func (c *ChattoCore) getLinkPreviewForComposer(ctx context.Context, actorID, roomID, url string) (*corev1.LinkPreview, *corev1.Attachment, error) {
 	// Check cache first
 	cached, err := c.linkPreviewCache.Get(ctx, url)
 	if errors.Is(err, linkpreview.ErrCachedFailure) {
 		// Negative cache hit - URL previously failed, don't re-fetch
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
 		c.logger.Warn("Failed to get cached link preview", "url", url, "error", err)
 		// Continue to fetch - don't fail on cache errors
 	}
 	if cached != nil {
-		return cached, nil
+		return cached, nil, nil
 	}
 
 	// Fetch the preview
@@ -577,9 +590,26 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 		// Cache the failure to avoid repeated fetches
 		_ = c.linkPreviewCache.SetFailure(ctx, url, err.Error())
 		if errors.Is(err, linkpreview.ErrUnavailable) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
+	}
+
+	if direct := result.DirectImage; direct != nil {
+		if actorID == "" || roomID == "" {
+			return nil, nil, nil
+		}
+		attachment, err := c.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+			ActorID:     actorID,
+			RoomID:      roomID,
+			Filename:    directImageAttachmentFilename(direct.ContentType),
+			ContentType: direct.ContentType,
+			Content:     direct.Data,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, attachment, nil
 	}
 
 	preview := result.ToProto(url)
@@ -589,7 +619,22 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 		c.logger.Warn("Failed to cache link preview", "url", url, "error", err)
 	}
 
-	return preview, nil
+	return preview, nil, nil
+}
+
+func directImageAttachmentFilename(contentType string) string {
+	switch contentType {
+	case "image/jpeg":
+		return "linked-image.jpg"
+	case "image/png":
+		return "linked-image.png"
+	case "image/gif":
+		return "linked-image.gif"
+	case "image/webp":
+		return "linked-image.webp"
+	default:
+		return "linked-image"
+	}
 }
 
 // HydrateLinkPreviewImageAsset ensures a posted LinkPreview carries the

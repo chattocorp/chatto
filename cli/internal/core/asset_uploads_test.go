@@ -2,12 +2,14 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"image"
 	"image/color"
 	"image/gif"
+	"io"
 	"testing"
 	"time"
 
@@ -199,6 +201,61 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	}
 	if manifest, ok := core.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
 		t.Fatalf("video processing manifest was started while disabled: %+v", manifest)
+	}
+}
+
+func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	core.OnVideoProcessingRequested = func(_ context.Context, _, _ string) error { return nil }
+
+	user, err := core.CreateUser(ctx, SystemActorID, "remote-gif-import", "Remote GIF Import", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "remote-gif-imports", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	content := testAnimatedGIF(t)
+	attachment, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		Filename:    "linked-image.gif",
+		ContentType: "image/gif",
+		Content:     content,
+	})
+	if err != nil {
+		t.Fatalf("ImportRemoteAttachment: %v", err)
+	}
+	if attachment.GetContentType() != "image/gif" || attachment.GetSize() != int64(len(content)) {
+		t.Fatalf("imported attachment = %+v", attachment)
+	}
+	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	if !ok {
+		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
+	}
+	if !declared.GetNeedsVideoProcessing() {
+		t.Fatal("animated linked GIF did not enter the normal video-processing path")
+	}
+	if expiresAt := declared.GetPendingExpiresAt(); expiresAt == nil || !expiresAt.AsTime().After(time.Now()) {
+		t.Fatalf("pending expiry = %v", expiresAt)
+	}
+
+	reader, _, err := core.GetAttachmentReader(ctx, attachment)
+	if err != nil {
+		t.Fatalf("GetAttachmentReader: %v", err)
+	}
+	stored, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read imported attachment: %v", err)
+	}
+	if !bytes.Equal(stored, content) {
+		t.Fatal("imported GIF bytes changed before normal processing")
 	}
 }
 
