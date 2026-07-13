@@ -115,7 +115,9 @@ func (b *Broker) IssueChallenge(account Account, kind, role string, ceremonyPubl
 }
 
 // Approve validates and consumes the authenticated account's challenge, or
-// returns the same approval for an idempotent retry of the same statement.
+// returns the same approval for an idempotent retry of the same statement. A
+// one-party self-revocation is complete at this point and is committed before
+// the approval is returned, so the client cannot withhold a later finalization.
 func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now time.Time) (Approval, error) {
 	if authenticated.Origin != b.origin {
 		return Approval{}, ErrChallengeMismatch
@@ -181,6 +183,13 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 	}
 	b.approvals[participant.ChallengeID] = issuedApproval{statementID: statementID, approval: approval}
 	delete(b.challenges, participant.ChallengeID)
+	if request.Statement.Kind == KindRevocation {
+		b.revoked[request.Statement.RevokedCredentialID] = struct{}{}
+		b.certificates[statementID] = cloneCertificate(Certificate{
+			Request:   request,
+			Approvals: []Approval{approval},
+		})
+	}
 	return cloneApproval(approval), nil
 }
 

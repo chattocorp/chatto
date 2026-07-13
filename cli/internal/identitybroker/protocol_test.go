@@ -347,6 +347,7 @@ func TestMembershipSponsoredAfterRevocationIsRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	firstCredentialID := CredentialID(genesisID, first.account)
+	membership := makeMembership(t, groupID, third, first, second, founderRefs(t, genesis, first, second), testNow.Add(2*time.Second))
 	revokedAt := testNow.Add(time.Second)
 	publicKey, privateKey, err := NewCeremonyKey()
 	if err != nil {
@@ -363,7 +364,6 @@ func TestMembershipSponsoredAfterRevocationIsRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	revocation := signWithMembers(t, revocationStatement, privateKey, revokedAt, first)
-	membership := makeMembership(t, groupID, third, first, second, founderRefs(t, genesis, first, second), testNow.Add(2*time.Second))
 
 	if _, err := verifier.Reconstruct([]Certificate{membership, revocation, genesis}, testNow.Add(3*time.Second)); !errors.Is(err, ErrInsufficientSponsors) {
 		t.Fatalf("Reconstruct error = %v, want revoked sponsor rejection", err)
@@ -539,10 +539,7 @@ func TestSponsorApprovalRejectsKnownRevocationBeforeSelectiveFinalization(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	revocation := signWithMembers(t, revocationStatement, privateKey, revokedAt, first)
-	if err := first.broker.Finalize(revocation, verifier, []Certificate{genesis}, revokedAt); err != nil {
-		t.Fatal(err)
-	}
+	signWithMembers(t, revocationStatement, privateKey, revokedAt, first)
 
 	publicKey, privateKey, err = NewCeremonyKey()
 	if err != nil {
