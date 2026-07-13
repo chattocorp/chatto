@@ -3,6 +3,19 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.10](https://github.com/chattocorp/chatto/compare/v0.4.9...v0.4.10) (2026-07-13)
+
+
+### Bug Fixes
+
+* **ci:** time out media environment setup ([#1486](https://github.com/chattocorp/chatto/issues/1486)) ([718b836](https://github.com/chattocorp/chatto/commit/718b8369bc389cdc4c08fa6a802af9b9e6941050))
+* **config:** configure API response compression ([#1502](https://github.com/chattocorp/chatto/issues/1502)) ([c8401d4](https://github.com/chattocorp/chatto/commit/c8401d42969c47c20c6984d5283ad191e97136a2))
+* **dockercompose:** use muxed LiveKit UDP port ([#1503](https://github.com/chattocorp/chatto/issues/1503)) ([61734af](https://github.com/chattocorp/chatto/commit/61734af4aaa8c2b43976b6a2f82eb1a18e0cfe17))
+* **frontend:** enforce mono voice call audio ([#1489](https://github.com/chattocorp/chatto/issues/1489)) ([8c10471](https://github.com/chattocorp/chatto/commit/8c10471f3acf19e748cde111cafdfbc26fa8d68b))
+* **frontend:** hide deleted users from membership events ([#1504](https://github.com/chattocorp/chatto/issues/1504)) ([4f0439e](https://github.com/chattocorp/chatto/commit/4f0439e6eed743b908782ae132ba737b58c02d73))
+* **frontend:** preserve expanded timeline groups ([#1483](https://github.com/chattocorp/chatto/issues/1483)) ([efa67a9](https://github.com/chattocorp/chatto/commit/efa67a975fc20419f5bc647cab2224ef841116fb))
+* **frontend:** restore branded PWA install icons ([#1478](https://github.com/chattocorp/chatto/issues/1478)) ([f5740ab](https://github.com/chattocorp/chatto/commit/f5740ab68b437bec09570161c9cb61ec9b0de0f2))
+
 ## [0.4.9](https://github.com/chattocorp/chatto/compare/v0.4.8...v0.4.9) (2026-07-12)
 
 
