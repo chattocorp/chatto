@@ -197,14 +197,23 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 	for {
 		h.mu.Lock()
 		visibilityVersion := h.visibilityVersion
+		_, existingUser := h.users[userID]
 		h.mu.Unlock()
+		if existingUser {
+			sub := newMyEventsSubscription(userID)
+			if err := h.registerAtIngressBoundary(ctx, sub, nil, 0, visibilityVersion); err != nil {
+				if errors.Is(err, errMyEventsIngressChanged) {
+					continue
+				}
+				return nil, err
+			}
+			return sub, nil
+		}
 		memberRooms, roomSnapshotSeq, err := h.captureVisibilitySnapshot(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
-		ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
-		done := make(chan struct{})
-		sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
+		sub := newMyEventsSubscription(userID)
 		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, roomSnapshotSeq, visibilityVersion); err != nil {
 			if errors.Is(err, errMyEventsIngressChanged) {
 				continue
@@ -213,6 +222,12 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 		}
 		return sub, nil
 	}
+}
+
+func newMyEventsSubscription(userID string) *myEventsSubscription {
+	ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
+	done := make(chan struct{})
+	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
 }
 
 func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
@@ -287,6 +302,11 @@ func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
 	}
 	state := h.users[request.userID]
 	if state == nil {
+		if request.memberRooms == nil {
+			h.mu.Unlock()
+			request.result <- errMyEventsIngressChanged
+			return
+		}
 		state = &myEventsUserState{
 			memberRooms:     request.memberRooms,
 			roomSnapshotSeq: request.roomSnapshotSeq,
