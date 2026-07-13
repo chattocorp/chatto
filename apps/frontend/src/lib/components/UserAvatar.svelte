@@ -14,12 +14,13 @@
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
-  type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
 
   const sizeClasses: Record<Size, string> = {
     xs: 'h-5 w-5',
     sm: 'h-8 w-8',
     md: 'h-10 w-10',
+    message: 'h-11 w-11',
     lg: 'h-12 w-12',
     xl: 'h-16 w-16'
   };
@@ -28,6 +29,7 @@
     xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-base',
+    message: 'text-base',
     lg: 'text-lg',
     xl: 'text-xl'
   };
@@ -43,6 +45,7 @@
     xs: '',
     sm: 'h-2 w-2',
     md: 'h-2.5 w-2.5',
+    message: 'h-2.5 w-2.5',
     lg: 'h-3 w-3',
     xl: 'h-3.5 w-3.5'
   };
@@ -51,6 +54,7 @@
     xs: '',
     sm: 'h-3.5 w-3.5',
     md: 'h-4 w-4',
+    message: 'h-4 w-4',
     lg: 'h-[18px] w-[18px]',
     xl: 'h-5 w-5'
   };
@@ -59,6 +63,7 @@
     xs: 'text-[10px]',
     sm: 'text-xs',
     md: 'text-sm',
+    message: 'text-sm',
     lg: 'text-base',
     xl: 'text-lg'
   };
@@ -103,12 +108,7 @@
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
   const wrapperClass = $derived(
-    [
-      sizeClasses[size],
-      'inline-grid shrink-0 rounded-full',
-      hasOverlay && 'relative',
-      className
-    ]
+    [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
       .filter(Boolean)
       .join(' ')
   );
@@ -144,7 +144,7 @@
         class="{avatarClass} object-cover"
       />
     {:else}
-      <div class={placeholderClass} aria-label={user.login}>
+      <div class={placeholderClass} role="img" aria-label={user.login}>
         {initials}
       </div>
     {/if}
@@ -162,6 +162,7 @@
           presenceDotShellSizeClasses[size],
           'pointer-events-none absolute right-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface'
         ]}
+        role="img"
         aria-label={presenceLabel}
       >
         <span

@@ -199,6 +199,9 @@ jobs:
       - name: Run frontend unit tests
         run: pnpm run test:frontend
 
+      - name: Build Storybook design-system catalog
+        run: pnpm run build:storybook
+
   test-cli:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest

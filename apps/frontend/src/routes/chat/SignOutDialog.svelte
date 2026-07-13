@@ -108,7 +108,7 @@
     <div class="flex flex-wrap justify-end gap-2">
       <Button variant="secondary" onclick={onclose}>{m['common.cancel']()}</Button>
       <Button
-        variant="accent"
+        variant="action"
         loading={signingOutCurrent}
         disabled={signingOutAll || !canSignOutCurrentServer}
         onclick={handleSignOutCurrentServer}

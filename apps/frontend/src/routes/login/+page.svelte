@@ -176,7 +176,7 @@
       <p class="text-muted">
         {m['auth.login.welcome_description']()}
       </p>
-      <Button variant="accent" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
+      <Button variant="action" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
         {m['auth.login.add_server']()}
       </Button>
     </div>

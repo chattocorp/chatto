@@ -169,7 +169,7 @@
         {@render avatar('D')}
         <div class="message-content-stack">
           {@render header('Deleted User', '10:25')}
-          <span class="text-muted/50 italic">Message deleted</span>
+          <span class="text-muted italic">Message deleted</span>
         </div>
       </div>
     {/if}

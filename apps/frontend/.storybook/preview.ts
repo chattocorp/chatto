@@ -4,8 +4,7 @@ import '../src/app.css';
 import './storybook.css';
 
 const prefersDark =
-  typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 function resolveTheme(theme: string | undefined): 'light' | 'dark' {
   if (theme === 'light' || theme === 'dark') return theme;
@@ -29,6 +28,9 @@ const preview: Preview = {
       }
     },
     backgrounds: { disable: true },
+    a11y: {
+      test: 'error'
+    },
     docs: {
       // Storybook themes its own docs chrome (page bg, headings, props
       // table). Pick the preset that matches the user's OS preference at

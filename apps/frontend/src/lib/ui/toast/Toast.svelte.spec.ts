@@ -3,9 +3,15 @@ import { render } from 'vitest-browser-svelte';
 import Toast from './Toast.svelte';
 import type { ToastTone } from './toastState.svelte';
 
-function toastButton(container: Element): HTMLElement {
-  const button = container.querySelector('[role="button"]') as HTMLElement | null;
-  if (!button) throw new Error('Toast button not found');
+function toastShell(container: Element): HTMLElement {
+  const shell = container.querySelector('.menu') as HTMLElement | null;
+  if (!shell) throw new Error('Toast shell not found');
+  return shell;
+}
+
+function dismissButton(container: Element): HTMLButtonElement {
+  const button = container.querySelector<HTMLButtonElement>('button[aria-label]');
+  if (!button) throw new Error('Toast dismiss button not found');
   return button;
 }
 
@@ -41,7 +47,7 @@ describe('Toast', () => {
     const icon = container.querySelector('.iconify');
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains(color)).toBe(true);
-    expect(toastButton(container).classList.contains('menu')).toBe(true);
+    expect(toastShell(container).classList.contains('menu')).toBe(true);
     expect(toastSection(container).classList.contains('menu-section')).toBe(true);
   });
 
@@ -56,9 +62,9 @@ describe('Toast', () => {
       }
     });
 
-    await expect.element(toastButton(container)).toHaveTextContent('A new version is available');
+    await expect.element(toastShell(container)).toHaveTextContent('A new version is available');
     await expect.element(actionButton(container, 'Reload')).toHaveClass('btn-secondary');
-    await expect.element(actionButton(container, 'Reload')).toHaveClass('h-8');
+    await expect.element(actionButton(container, 'Reload')).toHaveClass('btn-xs');
   });
 
   it('dismisses when clicked', () => {
@@ -71,25 +77,22 @@ describe('Toast', () => {
       }
     });
 
-    toastButton(container).click();
+    dismissButton(container).click();
 
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it('dismisses from keyboard activation', () => {
-    const onDismiss = vi.fn();
+  it('renders dismissal as a native button', () => {
     const { container } = render(Toast, {
       props: {
         tone: 'warning',
         message: 'Check your input',
-        onDismiss
+        onDismiss: vi.fn()
       }
     });
 
-    toastButton(container).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    toastButton(container).dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-
-    expect(onDismiss).toHaveBeenCalledTimes(2);
+    expect(dismissButton(container).tagName).toBe('BUTTON');
+    expect(dismissButton(container).type).toBe('button');
   });
 
   it('runs action and dismisses once when action is clicked', () => {

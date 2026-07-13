@@ -27,6 +27,12 @@
   ];
 
   const semantic: Swatch[] = [
+    { name: 'action', cssVar: '--color-action', bgClass: 'bg-action' },
+    {
+      name: 'neutral-action',
+      cssVar: '--color-neutral-action',
+      bgClass: 'bg-neutral-action'
+    },
     { name: 'primary', cssVar: '--color-primary', bgClass: 'bg-primary' },
     { name: 'primary-hover', cssVar: '--color-primary-hover', bgClass: 'bg-primary-hover' },
     { name: 'accent', cssVar: '--color-accent', bgClass: 'bg-accent' },
@@ -37,20 +43,49 @@
     { name: 'server', cssVar: '--color-server', bgClass: 'bg-server' }
   ];
 
+  const presence: Swatch[] = [
+    {
+      name: 'presence-online',
+      cssVar: '--color-presence-online',
+      bgClass: 'bg-presence-online'
+    },
+    {
+      name: 'presence-away',
+      cssVar: '--color-presence-away',
+      bgClass: 'bg-presence-away'
+    },
+    {
+      name: 'presence-do-not-disturb',
+      cssVar: '--color-presence-do-not-disturb',
+      bgClass: 'bg-presence-do-not-disturb'
+    },
+    {
+      name: 'presence-offline',
+      cssVar: '--color-presence-offline',
+      bgClass: 'bg-presence-offline'
+    },
+    {
+      name: 'presence-invisible',
+      cssVar: '--color-presence-invisible',
+      bgClass: 'bg-presence-invisible'
+    }
+  ];
+
   const text: Swatch[] = [
     { name: 'text', cssVar: '--color-text', bgClass: 'bg-text' },
+    { name: 'text-top', cssVar: '--color-text-top', bgClass: 'bg-text-top' },
     { name: 'muted', cssVar: '--color-muted', bgClass: 'bg-muted' }
   ];
 </script>
 
 <Story name="All tokens" asChild>
   <p class="mb-6 max-w-prose text-sm text-muted">
-    Semantic color tokens defined in <code class="font-mono">src/app.css</code>.
-    Switch the Theme toolbar above to compare light vs dark.
+    Semantic color tokens defined in <code class="font-mono">src/app.css</code>. Switch the Theme
+    toolbar above to compare light vs dark.
   </p>
 
   <section class="mb-8">
-    <h2 class="mb-3 text-sm font-semibold uppercase text-muted">Surfaces</h2>
+    <h2 class="mb-3 text-sm font-semibold text-muted uppercase">Surfaces</h2>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
       {#each surface as s (s.name)}
         <div class="overflow-hidden rounded-lg border border-border">
@@ -65,7 +100,22 @@
   </section>
 
   <section class="mb-8">
-    <h2 class="mb-3 text-sm font-semibold uppercase text-muted">Semantic</h2>
+    <h2 class="mb-3 text-sm font-semibold text-muted uppercase">Presence</h2>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      {#each presence as s (s.name)}
+        <div class="overflow-hidden rounded-lg border border-border">
+          <div class="h-16 {s.bgClass}"></div>
+          <div class="p-3">
+            <div class="font-mono text-sm">{s.name}</div>
+            <div class="font-mono text-xs text-muted">{s.cssVar}</div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="mb-3 text-sm font-semibold text-muted uppercase">Semantic</h2>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
       {#each semantic as s (s.name)}
         <div class="overflow-hidden rounded-lg border border-border">
@@ -80,7 +130,7 @@
   </section>
 
   <section class="mb-8">
-    <h2 class="mb-3 text-sm font-semibold uppercase text-muted">Text</h2>
+    <h2 class="mb-3 text-sm font-semibold text-muted uppercase">Text</h2>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
       {#each text as s (s.name)}
         <div class="overflow-hidden rounded-lg border border-border">
@@ -124,8 +174,10 @@
 
 <Story name="Semantic + opacity tints" asChild>
   <p class="mb-3 max-w-prose text-sm text-muted">
-    Semantic colors are commonly used at low opacity for subtle background
-    tints (e.g. <code>bg-warning/10</code> for the warning badge in <code>StatCard</code>).
+    Semantic colors are commonly used at low opacity for subtle background tints (e.g. <code
+      >bg-warning/10</code
+    >
+    for the warning badge in <code>StatCard</code>).
   </p>
   <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
     <div class="rounded-lg bg-success/10 p-4 text-success">

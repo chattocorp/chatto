@@ -52,7 +52,7 @@
             {m['admin.permissions.role_presets_intro']()}
           </p>
           <Button
-            variant="primary"
+            variant="neutral"
             size="sm"
             href={resolve('/chat/[serverId]/server-admin/permissions/new', {
               serverId: serverSegment

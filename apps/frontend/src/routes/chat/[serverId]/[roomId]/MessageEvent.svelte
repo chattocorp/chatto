@@ -422,7 +422,10 @@
       : null;
     const activeRepliedActor = repliedActor && !repliedActor.deleted ? repliedActor : null;
     const name = activeRepliedActor
-      ? getLiveDisplayName(activeRepliedActor.id, activeRepliedActor.displayName || activeRepliedActor.login)
+      ? getLiveDisplayName(
+          activeRepliedActor.id,
+          activeRepliedActor.displayName || activeRepliedActor.login
+        )
       : m['common.deleted_user']();
     const body = isMessagePostedEvent(replyTarget.event) ? (replyTarget.event.body ?? null) : null;
     return { name, body, actor: activeRepliedActor, deleted: !activeRepliedActor };
@@ -713,7 +716,7 @@
               showPopoverForActor(e);
             }}
           >
-            <UserAvatar user={actor} size="md" class="!h-11 !w-11 shadow-md" />
+            <UserAvatar user={actor} size="message" class="shadow-md" />
           </button>
         {:else}
           <!-- Deleted user placeholder avatar -->
@@ -780,7 +783,8 @@
                 {@render callPresenceIcon(replyCallPresence)}
               </button>
             {:else if replyPreview.deleted}
-              <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong>
+              <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong
+              >
             {/if}
             <button
               type="button"
@@ -812,7 +816,9 @@
                 {@render callPresenceIcon(actorCallPresence)}
               </button>
             {:else}
-              <strong class="shrink-0 leading-none font-semibold text-muted"><DeletedUserLabel /></strong>
+              <strong class="shrink-0 leading-none font-semibold text-muted"
+                ><DeletedUserLabel /></strong
+              >
             {/if}
             <a
               href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
@@ -833,7 +839,7 @@
         <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
         {#if isDeleted}
           <!-- Message deleted or encryption key removed -->
-          <span class="text-muted/50 italic">{m['room.message.meta.deleted']()}</span>
+          <span class="text-muted italic">{m['room.message.meta.deleted']()}</span>
         {:else if msg.body}
           <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
             <MessageContent

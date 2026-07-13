@@ -445,7 +445,7 @@
         />
         <button
           type="submit"
-          class="btn-accent h-10 w-10 shrink-0 !px-0 !py-0 text-sm"
+          class="btn-icon-action"
           title={m['settings.profile.status.save_button']()}
           aria-label={m['settings.profile.status.save_button']()}
           disabled={!isModified || isSaving}

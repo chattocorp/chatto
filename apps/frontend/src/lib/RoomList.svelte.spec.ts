@@ -533,9 +533,7 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     const icon = row.querySelector('.sidebar-icon');
-    expect(row.classList.contains('font-semibold')).toBe(true);
-    expect(row.classList.contains('text-text-top')).toBe(true);
-    expect(row.classList.contains('hover:!text-text-top')).toBe(true);
+    expect(row.classList.contains('sidebar-item-attention')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
   });

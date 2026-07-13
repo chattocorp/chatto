@@ -39,11 +39,11 @@ appears and disappears.
   const toneStyles: Record<Tone, { icon: string; primary: string }> = {
     info: {
       icon: 'text-muted',
-      primary: 'btn-accent'
+      primary: 'btn-action'
     },
     success: {
       icon: 'text-success',
-      primary: 'btn-accent'
+      primary: 'btn-action'
     },
     warning: {
       icon: 'text-warning',
@@ -68,14 +68,10 @@ appears and disappears.
 <div
   class="pointer-events-none fixed top-[calc(env(safe-area-inset-top,0px)+0.75rem)] right-3 left-3 z-[60] flex justify-center sm:top-[calc(env(safe-area-inset-top,0px)+1rem)]"
 >
-  <section
-    class="pointer-events-auto w-full max-w-4xl menu"
-    role="status"
-    aria-live="polite"
-  >
+  <section class="pointer-events-auto w-full max-w-4xl menu" role="status" aria-live="polite">
     <div class="flex flex-col gap-3 menu-section px-3 py-2 md:flex-row md:items-center">
       <span
-        class={['iconify mt-0.5 shrink-0 text-lg md:mt-0', resolvedIcon, toneStyles[tone].icon]}
+        class={['mt-0.5 iconify shrink-0 text-lg md:mt-0', resolvedIcon, toneStyles[tone].icon]}
         aria-hidden="true"
       ></span>
 
@@ -108,7 +104,8 @@ appears and disappears.
             disabled={loading}
           >
             {#if loading}
-              <span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+              <span
+                class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
               ></span>
             {:else if primaryAction.icon}
               <span class={['iconify text-base', primaryAction.icon]}></span>
