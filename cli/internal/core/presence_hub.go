@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -23,8 +24,14 @@ type PresenceSubscription struct {
 	// C receives presence updates. Closed when Unsubscribe is called.
 	C  <-chan PresenceUpdate
 	ch chan PresenceUpdate // internal writable channel
+	// Done closes as soon as the subscription ends, even if C still contains
+	// buffered updates. Callers should stop immediately and reconnect when
+	// Lagged reports true.
+	Done <-chan struct{}
+	done chan struct{}
 
-	id uint64
+	id     uint64
+	lagged atomic.Bool
 }
 
 // PresenceHub runs a single MEMORY_CACHE watcher on presence.> and fans out
@@ -121,8 +128,10 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 					select {
 					case sub.ch <- update:
 					default:
-						// Slow consumer — drop update. Reconnect catch-up and
-						// projected reads restore current state for the client.
+						sub.lagged.Store(true)
+						delete(h.subscribers, sub.id)
+						close(sub.done)
+						close(sub.ch)
 					}
 				}
 			}
@@ -130,6 +139,12 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 			h.mu.Unlock()
 		}
 	}
+}
+
+// Lagged reports whether the hub closed this subscription after its queue
+// overflowed. Callers must reconnect and refetch latest-value presence state.
+func (s *PresenceSubscription) Lagged() bool {
+	return s != nil && s.lagged.Load()
 }
 
 // Subscribe registers a new subscriber for future presence transitions. The
@@ -147,15 +162,18 @@ func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, err
 	}
 
 	ch := make(chan PresenceUpdate, 64)
+	done := make(chan struct{})
 
 	h.mu.Lock()
 	id := h.nextID
 	h.nextID++
 
 	sub := &PresenceSubscription{
-		C:  ch,
-		ch: ch,
-		id: id,
+		C:    ch,
+		ch:   ch,
+		Done: done,
+		done: done,
+		id:   id,
 	}
 	h.subscribers[id] = sub
 	h.mu.Unlock()
@@ -189,8 +207,10 @@ func (h *PresenceHub) LivePresenceCount(ctx context.Context) (int, error) {
 // Unsubscribe removes a subscriber and closes its channel.
 func (h *PresenceHub) Unsubscribe(sub *PresenceSubscription) {
 	h.mu.Lock()
-	delete(h.subscribers, sub.id)
+	if _, ok := h.subscribers[sub.id]; ok {
+		delete(h.subscribers, sub.id)
+		close(sub.done)
+		close(sub.ch)
+	}
 	h.mu.Unlock()
-	// Close channel after removing from map to prevent sends to closed channel
-	close(sub.ch)
 }

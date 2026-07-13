@@ -56,3 +56,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | 2026-06-30 |
 | [ADR-047](ADR-047-direct-ticketed-asset-urls.md) | Direct Ticketed Asset URLs for Browser Media | 2026-07-05 |
 | [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | 2026-07-09 |
+| [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | 2026-07-14 |
