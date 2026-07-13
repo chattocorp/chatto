@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import type { RoomEventView } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
@@ -53,7 +54,12 @@ describe('SystemEventGroup', () => {
 
   it('separates two actors with the localized conjunction', () => {
     const { container } = render(SystemEventGroup, {
-      props: { events: systemEvents(['Alice', 'Bob']), kind: 'join' }
+      props: {
+        events: systemEvents(['Alice', 'Bob']),
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
     });
 
     expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
@@ -61,7 +67,12 @@ describe('SystemEventGroup', () => {
 
   it('uses comma-separated formatting for three actors', () => {
     const { container } = render(SystemEventGroup, {
-      props: { events: systemEvents(['Alice', 'Bob', 'Charlie']), kind: 'join' }
+      props: {
+        events: systemEvents(['Alice', 'Bob', 'Charlie']),
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
     });
 
     expect(renderedCopy(container)).toBe('Alice, Bob, and Charlie joined the room');
@@ -69,7 +80,12 @@ describe('SystemEventGroup', () => {
 
   it('renders grouped leave wording', () => {
     const { container } = render(SystemEventGroup, {
-      props: { events: systemEvents(['Alice', 'Bob']), kind: 'leave' }
+      props: {
+        events: systemEvents(['Alice', 'Bob']),
+        kind: 'leave',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
     });
 
     expect(renderedCopy(container)).toBe('Alice and Bob left the room');
@@ -79,9 +95,30 @@ describe('SystemEventGroup', () => {
     await loadLocaleMessages('de');
     setReactiveLocale('de');
     const { container } = render(SystemEventGroup, {
-      props: { events: systemEvents(['Alice', 'Bob']), kind: 'join' }
+      props: {
+        events: systemEvents(['Alice', 'Bob']),
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
     });
 
     expect(renderedCopy(container)).toBe('Alice und Bob sind dem Raum beigetreten');
+  });
+
+  it('reports expansion changes through its controlled interface', async () => {
+    const onExpandedChange = vi.fn();
+    const events = systemEvents(['Alice', 'Bob', 'Charlie', 'Dora', 'Eve']);
+    const rendered = render(SystemEventGroup, {
+      props: { events, kind: 'join', expanded: false, onExpandedChange }
+    });
+
+    await page.getByRole('button', { name: '2 others' }).click();
+    expect(onExpandedChange).toHaveBeenCalledExactlyOnceWith(true);
+
+    await rendered.rerender({ events, kind: 'join', expanded: true, onExpandedChange });
+    expect(renderedCopy(rendered.container)).toContain('Eve');
+    await page.getByRole('button', { name: 'show less' }).click();
+    expect(onExpandedChange).toHaveBeenLastCalledWith(false);
   });
 });

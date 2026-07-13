@@ -29,6 +29,18 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback,
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
+}));
+
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({
+    get: (_scope: { serverId: string; userId: string }, fallback: unknown) => fallback
+  })
+}));
+
 vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
   useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
@@ -204,5 +216,47 @@ describe('EventList jump completion', () => {
       setVirtualizerScrollOffset(700);
       vi.unstubAllGlobals();
     }
+  });
+
+  it('preserves an expanded system group across virtual row remounts and resets it by room', async () => {
+    const initialEventIds = ['join-1', 'join-2', 'join-3', 'join-4', 'join-5'];
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: initialEventIds,
+        eventKind: 'join',
+        scrollToEventId: null,
+        updateCounter: initialEventIds.length
+      }
+    });
+
+    await page.getByRole('button', { name: '2 others' }).click();
+    await expect.element(page.getByRole('button', { name: 'show less' })).toBeVisible();
+
+    // Extending the group changes its virtual-item key, forcing the mock
+    // virtualizer to remount the row just like forward pagination can.
+    const extendedEventIds = [...initialEventIds, 'join-6'];
+    await rendered.rerender({
+      eventIds: extendedEventIds,
+      eventKind: 'join',
+      scrollToEventId: null,
+      updateCounter: extendedEventIds.length
+    });
+    await expect
+      .element(page.getByTestId('virtualizer-rendered-key'))
+      .toHaveAttribute('data-rendered-key', 'system-group-join-6');
+    await expect.element(page.getByRole('button', { name: 'show less' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'show less' }).click();
+    await expect.element(page.getByRole('button', { name: '3 others' })).toBeVisible();
+
+    await page.getByRole('button', { name: '3 others' }).click();
+    await rendered.rerender({
+      eventIds: extendedEventIds,
+      roomId: 'room-2',
+      eventKind: 'join',
+      scrollToEventId: null,
+      updateCounter: extendedEventIds.length
+    });
+    await expect.element(page.getByRole('button', { name: '3 others' })).toBeVisible();
   });
 });
