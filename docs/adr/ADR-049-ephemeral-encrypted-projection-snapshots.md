@@ -129,8 +129,7 @@ A snapshot generation is one immutable encrypted bundle containing its
 manifest and projection payload. The encrypted manifest records at least:
 
 - generation ID;
-- EVT stream name, cutoff sequence, and a versioned SHA-256 identity of the
-  immutable event subject and payload at that cutoff;
+- EVT stream name, cutoff sequence, and its versioned incarnation identity;
 - projection key, compatibility ID, and producer version;
 - payload size and checksum; and
 - creation time.
@@ -144,10 +143,12 @@ object locator is derived from `core.secret_key` and the projection key so it
 does not disclose which projection it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
-compatibility, cutoff bounds, and the current EVT message identity at that
-cutoff before mutating a live projection. The identity is derived from EVT
-content rather than `StreamInfo.Created`, which is not stable across embedded
-NATS process reconstruction. Projection restore codecs are transactional: a
+compatibility, cutoff bounds, and the current EVT incarnation identity before
+mutating a live projection. Chatto stores the opaque random identity in EVT
+stream metadata so it survives process reconstruction and backup restore but
+changes when EVT is deleted and recreated. `StreamInfo.Created` is not used
+because it is not stable across embedded NATS process reconstruction.
+Projection restore codecs are transactional: a
 rejected payload must leave prior state unchanged so the projector can reset to
 its cold-start state and replay all of `EVT`. Capturing a snapshot must bind
 projection state and its applied EVT sequence at one projector-owned barrier;

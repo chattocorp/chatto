@@ -60,16 +60,11 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 			"stage", "generate_skip")
 		return nil
 	}
-	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, status.LastSeq)
-	if err == nil {
-		identity, identityErr := events.StreamPositionIdentity(ctx, w.stream, current.CutoffSequence)
-		switch {
-		case identityErr != nil:
-			err = fmt.Errorf("validate current snapshot EVT cutoff identity: %w", identityErr)
-		case current.StreamIdentity != identity:
-			err = fmt.Errorf("validate current snapshot EVT cutoff identity: history changed")
-		}
+	streamIdentity, err := events.StreamIdentity(ctx, w.stream)
+	if err != nil {
+		return fmt.Errorf("read EVT stream identity: %w", err)
 	}
+	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, streamIdentity, status.LastSeq)
 	if err == nil && current.CutoffSequence >= status.LastSeq {
 		w.logger.Debug("Projection snapshot already current",
 			"projection", w.projectionKey,
@@ -93,10 +88,6 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 	}
 	if len(captured.Payload) == 0 {
 		return fmt.Errorf("projection returned an empty snapshot")
-	}
-	streamIdentity, err := events.StreamPositionIdentity(ctx, w.stream, captured.CutoffSequence)
-	if err != nil {
-		return fmt.Errorf("fingerprint projection snapshot cutoff: %w", err)
 	}
 	if err := w.lease.CheckOwnership(ctx); err != nil {
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)

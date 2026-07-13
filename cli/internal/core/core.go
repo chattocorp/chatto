@@ -1293,6 +1293,10 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Subjects are evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is
 	// the republish target so projections and live subscribers consume
 	// from a single NATS Core path.
+	evtMetadata, err := prepareEVTStreamMetadata(ctx, js)
+	if err != nil {
+		return nil, fmt.Errorf("prepare EVT stream metadata: %w", err)
+	}
 	serverEvtStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
 		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 			Name:        "EVT",
@@ -1301,6 +1305,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 			Storage:     jetstream.FileStorage,
 			Compression: jetstream.S2Compression,
 			Replicas:    cfg.Replicas,
+			Metadata:    evtMetadata,
 			// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
 			// protocol on this stream. Used by Publisher.AppendBatch to
 			// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
@@ -1325,6 +1330,33 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
+}
+
+func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {
+	metadata := make(map[string]string)
+	stream, err := js.Stream(ctx, "EVT")
+	switch {
+	case err == nil:
+		info, infoErr := stream.Info(ctx)
+		if infoErr != nil {
+			return nil, fmt.Errorf("read existing EVT stream info: %w", infoErr)
+		}
+		for key, value := range info.Config.Metadata {
+			metadata[key] = value
+		}
+	case errors.Is(err, jetstream.ErrStreamNotFound):
+	case err != nil:
+		return nil, fmt.Errorf("open existing EVT stream: %w", err)
+	}
+	if events.ValidStreamIdentity(metadata[events.EVTStreamIdentityMetadataKey]) {
+		return metadata, nil
+	}
+	identity, err := events.NewStreamIdentity()
+	if err != nil {
+		return nil, err
+	}
+	metadata[events.EVTStreamIdentityMetadataKey] = identity
+	return metadata, nil
 }
 
 func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {

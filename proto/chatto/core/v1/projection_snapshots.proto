@@ -18,7 +18,7 @@ message ProjectionSnapshotGeneration {
   bytes payload = 8;
   uint64 payload_size = 9;
   bytes payload_sha256 = 10;
-  // Versioned fingerprint of the immutable EVT message at cutoff_sequence.
+  // Versioned identity of the EVT stream incarnation.
   string stream_identity = 11;
 }
 

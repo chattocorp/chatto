@@ -44,6 +44,10 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
+	firstIdentity, err := events.StreamIdentity(ctx, first.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
 	stopFirst()
 	stopPersistentSnapshotNATS(ns, nc)
 
@@ -58,12 +62,81 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	defer stopSecond()
+	secondIdentity, err := events.StreamIdentity(ctx, second.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secondIdentity != firstIdentity {
+		t.Fatalf("EVT identity changed across process restart: %q != %q", secondIdentity, firstIdentity)
+	}
 	status := second.ThreadsProjector.Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 || status.SnapshotGenerationID == "" {
 		t.Fatalf("Thread projector did not restore snapshot: %#v", status)
 	}
 	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
+	}
+}
+
+func TestExperimentalProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets: config.AssetsConfig{
+			SigningSecret:  "test-signing-secret",
+			StorageBackend: config.StorageBackendNATS,
+		},
+		Experimental: config.ExperimentalConfig{ProjectionSnapshots: true},
+		Version:      "snapshot-integration-test",
+	}
+
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventsToPublish := []*corev1.Event{
+		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
+		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+	}
+	for _, event := range eventsToPublish {
+		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stopFirst := startSnapshotTestCore(t, first)
+	waitForSnapshotObjects(t, ctx, first, 2)
+	firstIdentity, err := events.StreamIdentity(ctx, first.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopFirst()
+
+	if err := first.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatal(err)
+	}
+	recreated, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recreatedIdentity, err := events.StreamIdentity(ctx, recreated.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recreatedIdentity == firstIdentity {
+		t.Fatal("recreated EVT stream reused its prior identity")
+	}
+	eventsToPublish[0] = threadCreatedEvent("THREAD-CREATED-DIFFERENT", "R1", "ROOT", "U9", 1)
+	for _, event := range eventsToPublish {
+		if _, err := recreated.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stopRecreated := startSnapshotTestCore(t, recreated)
+	defer stopRecreated()
+	status := recreated.ThreadsProjector.Status()
+	if status.SnapshotRestored {
+		t.Fatalf("Thread projector restored snapshot from deleted EVT history: %#v", status)
 	}
 }
 

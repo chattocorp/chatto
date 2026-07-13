@@ -25,7 +25,7 @@ const (
 	maxEncryptedSize     = 80 << 20
 	maxDecompressedSize  = 72 << 20
 	contentType          = "application/vnd.chatto.projection-snapshot"
-	streamIdentityPrefix = "evt-message-sha256-v1:"
+	streamIdentityPrefix = "evt-incarnation-v1:"
 )
 
 var (
@@ -202,7 +202,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
 }
 
-func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
 	if err != nil {
@@ -217,7 +217,7 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 		if id == "" {
 			continue
 		}
-		loaded, err := r.loadGeneration(ctx, id, projectionKey, compatibilityID, streamName, maxCutoff)
+		loaded, err := r.loadGeneration(ctx, id, projectionKey, compatibilityID, streamName, streamIdentity, maxCutoff)
 		if err == nil {
 			r.logInfo("Projection snapshot loaded", projectionKey,
 				"restore", nil,
@@ -238,7 +238,7 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 	return LoadedSnapshot{}, errors.Join(failures...)
 }
 
-func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, compatibilityID, streamName string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
 	expectedID, err := parseGenerationID(id)
 	if err != nil {
 		return LoadedSnapshot{}, err
@@ -275,7 +275,10 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 		return LoadedSnapshot{}, fmt.Errorf("%w: stream name %q does not match %q", ErrIncompatible, generation.GetStreamName(), streamName)
 	}
 	if !validStreamIdentity(generation.GetStreamIdentity()) {
-		return LoadedSnapshot{}, fmt.Errorf("%w: EVT cutoff identity is invalid", ErrIncompatible)
+		return LoadedSnapshot{}, fmt.Errorf("%w: EVT stream identity is invalid", ErrIncompatible)
+	}
+	if generation.GetStreamIdentity() != streamIdentity {
+		return LoadedSnapshot{}, fmt.Errorf("%w: EVT stream identity changed", ErrIncompatible)
 	}
 	if generation.GetCutoffSequence() > maxCutoff {
 		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d exceeds stream target %d", ErrIncompatible, generation.GetCutoffSequence(), maxCutoff)
@@ -297,7 +300,7 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 }
 
 func validStreamIdentity(identity string) bool {
-	if len(identity) != len(streamIdentityPrefix)+sha256.Size*2 || !strings.HasPrefix(identity, streamIdentityPrefix) {
+	if len(identity) != len(streamIdentityPrefix)+32 || !strings.HasPrefix(identity, streamIdentityPrefix) {
 		return false
 	}
 	_, err := hex.DecodeString(identity[len(streamIdentityPrefix):])

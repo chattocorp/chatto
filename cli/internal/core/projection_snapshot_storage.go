@@ -18,14 +18,13 @@ type projectionSnapshotSource struct {
 }
 
 func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
-	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.CompatibilityID, request.StreamName, request.MaxCutoff)
+	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.CompatibilityID, request.StreamName, request.StreamIdentity, request.MaxCutoff)
 	if err != nil {
 		return events.ProjectionSnapshot{}, err
 	}
 	return events.ProjectionSnapshot{
 		GenerationID:   loaded.GenerationID,
 		CutoffSequence: loaded.CutoffSequence,
-		StreamIdentity: loaded.StreamIdentity,
 		Payload:        loaded.Payload,
 	}, nil
 }
