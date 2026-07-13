@@ -84,9 +84,9 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 
 	headers := nats.Header{}
 	headers.Set("Content-Type", "image/webp")
-	headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
+	objectKey := PublicServerAssetObjectKey(assetID)
 	meta := jetstream.ObjectMeta{
-		Name:    assetID,
+		Name:    objectKey,
 		Headers: headers,
 	}
 	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(webpData))
@@ -95,7 +95,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 	}
 	c.logger.Info("Uploaded server "+kind, "asset_id", assetID, "size", info.Size)
 	asset.Size = int64(info.Size)
-	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}}
 	return asset, nil
 }
 
@@ -210,17 +210,17 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int,
 // serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
 func (c *ChattoCore) serverAssetURL(asset *corev1.AssetRecord, width, height *int, fit string) string {
-	assetID := asset.GetId()
-	if assetID == "" {
+	assetKey := ServerAssetDeliveryKey(asset)
+	if assetKey == "" {
 		return ""
 	}
 	if width != nil && height != nil {
 		if fit == "" {
 			fit = "cover"
 		}
-		return c.GetTransformedServerAssetURL(assetID, *width, *height, fit)
+		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit)
 	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID))
+	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey))
 }
 
 // DeleteServerLogo clears the server's logo pointer and object-store asset.

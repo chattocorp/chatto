@@ -1026,7 +1026,16 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	if err := env.core.SetUserAvatar(env.ctx, user.Id, avatar); err != nil {
 		t.Fatalf("Failed to set avatar: %v", err)
 	}
-	avatarPath := avatar.GetId()
+	avatarPath := core.ServerAssetDeliveryKey(avatar)
+	if !strings.HasPrefix(avatarPath, core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("new NATS avatar key = %q, want public namespace", avatarPath)
+	}
+	if _, err := env.core.ServerStore().GetInfo(env.ctx, avatarPath); err != nil {
+		t.Fatalf("new NATS avatar object %q: %v", avatarPath, err)
+	}
+	if _, err := env.core.ServerStore().GetInfo(env.ctx, avatar.GetId()); err == nil {
+		t.Fatalf("new NATS avatar unexpectedly retained flat object %q", avatar.GetId())
+	}
 
 	// Get the server asset (avatars are public, no auth needed)
 	resp, err := env.client.Get(env.server.URL + "/assets/server/" + avatarPath)
@@ -1037,6 +1046,14 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected 200 OK, got %d", resp.StatusCode)
+	}
+	aliasResp, err := env.client.Get(env.server.URL + "/assets/server/" + avatar.GetId())
+	if err != nil {
+		t.Fatalf("Failed to get new server asset through logical-ID alias: %v", err)
+	}
+	aliasResp.Body.Close()
+	if aliasResp.StatusCode != http.StatusOK {
+		t.Fatalf("logical-ID alias status = %d, want 200", aliasResp.StatusCode)
 	}
 
 	// Verify caching headers
@@ -1072,7 +1089,10 @@ func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
 	if err := env.core.SetServerBanner(env.ctx, "system", branding); err != nil {
 		t.Fatalf("Failed to set server branding: %v", err)
 	}
-	assetPath := branding.GetId()
+	assetPath := core.ServerAssetDeliveryKey(branding)
+	if !strings.HasPrefix(assetPath, core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("new NATS branding key = %q, want public namespace", assetPath)
+	}
 
 	transformURL := env.core.GetTransformedServerAssetURL(assetPath, 200, 200, "contain")
 	resp, err := env.client.Get(env.server.URL + transformURL)
@@ -1099,6 +1119,85 @@ func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatal("server asset transform did not retain the default image quality")
 	}
+}
+
+func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
+	env := setupAssetTestServer(t)
+	imageData := createAssetTestPNG(t, 120, 80)
+	store := env.core.ServerStore()
+
+	legacyRecord := func(assetID, filename string) *corev1.AssetRecord {
+		if _, err := store.Put(env.ctx, jetstream.ObjectMeta{
+			Name:    assetID,
+			Headers: map[string][]string{"Content-Type": {"image/png"}},
+		}, bytes.NewReader(imageData)); err != nil {
+			t.Fatalf("store legacy public object %q: %v", assetID, err)
+		}
+		return &corev1.AssetRecord{
+			Id:          assetID,
+			Filename:    filename,
+			ContentType: "image/png",
+			Size:        int64(len(imageData)),
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+		}
+	}
+	assertOK := func(path string) {
+		t.Helper()
+		resp, err := (&http.Client{}).Get(env.server.URL + path)
+		if err != nil {
+			t.Fatalf("GET %q: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("GET %q status = %d, want 200", path, resp.StatusCode)
+		}
+	}
+
+	user, err := env.core.CreateUser(env.ctx, "system", "legacyassetuser", "Legacy Asset User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	avatar := legacyRecord(core.NewAssetID(), "avatar.webp")
+	if err := env.core.SetUserAvatar(env.ctx, user.GetId(), avatar); err != nil {
+		t.Fatalf("SetUserAvatar legacy fixture: %v", err)
+	}
+	avatarURL, err := env.core.GetUserAvatarURL(env.ctx, user.GetId(), nil, nil, "")
+	if err != nil {
+		t.Fatalf("GetUserAvatarURL: %v", err)
+	}
+	if strings.Contains(avatarURL, core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("legacy avatar URL unexpectedly changed: %q", avatarURL)
+	}
+	assertOK(avatarURL)
+
+	logo := legacyRecord(core.NewAssetID(), "logo.webp")
+	if err := env.core.SetServerLogo(env.ctx, "system", logo); err != nil {
+		t.Fatalf("SetServerLogo legacy fixture: %v", err)
+	}
+	logoURL, err := env.core.GetServerLogoURL(env.ctx, nil, nil, "")
+	if err != nil {
+		t.Fatalf("GetServerLogoURL: %v", err)
+	}
+	if strings.Contains(logoURL, core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("legacy logo URL unexpectedly changed: %q", logoURL)
+	}
+	assertOK(logoURL)
+
+	previewID := core.NewAssetID()
+	legacyRecord(previewID, "link-preview.webp")
+	if err := env.core.RoomTimeline.Apply(&corev1.Event{
+		Id: "Elegacynamespacepreview",
+		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+			RoomId:  "Rlegacynamespace",
+			EventId: "Elegacynamespacemessage",
+			Body: &corev1.MessageBody{LinkPreview: &corev1.LinkPreview{
+				ImageAssetId: &previewID,
+			}},
+		}},
+	}, 999_100); err != nil {
+		t.Fatalf("project legacy link-preview fixture: %v", err)
+	}
+	assertOK(env.core.GetTransformedServerAssetURL(previewID, 64, 64, "cover"))
 }
 
 func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T) {
@@ -1227,6 +1326,7 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 		{key: "attachments/" + assetID},
 		{key: "spaces/server/attachments/" + assetID},
 		{key: "Aroommetadata00", headers: map[string][]string{"Room-Id": {room.Id}}},
+		{key: core.PublicServerAssetObjectKey("Aprivatepublic0"), headers: map[string][]string{"Room-Id": {room.Id}}},
 		{key: "Aunknownobject0"},
 	}
 	for _, fixture := range fixtures {
@@ -1242,6 +1342,25 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 	env := setupAssetTestServer(t)
 	assetID := core.NewAssetID()
 	imageData := createAssetTestPNG(t, 120, 80)
+	namespacedID := core.NewAssetID()
+	namespacedKey := core.PublicServerAssetObjectKey(namespacedID)
+	if _, err := env.core.ServerStore().Put(env.ctx, jetstream.ObjectMeta{
+		Name:    namespacedKey,
+		Headers: map[string][]string{"Content-Type": {"image/png"}},
+	}, bytes.NewReader(imageData)); err != nil {
+		t.Fatalf("store namespaced public image: %v", err)
+	}
+	for _, path := range []string{namespacedKey, namespacedID} {
+		resp, err := (&http.Client{}).Get(env.server.URL + "/assets/server/" + path)
+		if err != nil {
+			t.Fatalf("GET namespaced public image through %q: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("namespaced public image through %q status = %d, want 200", path, resp.StatusCode)
+		}
+	}
+
 	if _, err := env.core.ServerStore().Put(env.ctx, jetstream.ObjectMeta{
 		Name: assetID,
 		Headers: map[string][]string{

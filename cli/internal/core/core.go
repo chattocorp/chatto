@@ -662,11 +662,11 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		return asset, nil
 	}
 
+	objectKey := PublicServerAssetObjectKey(assetID)
 	meta := jetstream.ObjectMeta{
-		Name: assetID,
+		Name: objectKey,
 		Headers: map[string][]string{
-			"Content-Type":              {contentType},
-			ServerAssetVisibilityHeader: {ServerAssetVisibilityPublic},
+			"Content-Type": {contentType},
 		},
 	}
 	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(data))
@@ -674,7 +674,7 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		return nil, fmt.Errorf("upload link preview image to SERVER_ASSETS: %w", err)
 	}
 	asset.Size = int64(info.Size)
-	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}}
 	c.logger.Debug("Stored link preview image in SERVER_ASSETS", "asset_id", assetID, "size", len(data))
 	return asset, nil
 }
@@ -685,104 +685,187 @@ type ServerAssetInfo struct {
 	ContentType string
 }
 
-// IsReservedServerAssetKey rejects namespaces used by private or internal
-// objects before public-route transform parsing or backend probing.
-func IsReservedServerAssetKey(key string) bool {
-	key = strings.TrimSpace(key)
-	if key == "" || strings.HasPrefix(key, "/") || strings.Contains(key, "\\") {
-		return true
-	}
-	for _, segment := range strings.Split(key, "/") {
-		if segment == "" || segment == "." || segment == ".." {
-			return true
-		}
-	}
-	for _, prefix := range []string{
-		assetUploadTempObjectPrefix,
-		"attachments/",
-		"spaces/server/attachments/",
-		"spaces/DM/attachments/",
-	} {
-		if strings.HasPrefix(key, prefix) {
-			return true
-		}
-	}
-	// Every public server-asset producer, including historical migrations, uses
-	// the canonical opaque asset-ID grammar. Namespace-shaped and unknown keys
-	// are not public object classes.
-	if len(key) != idLength+1 || key[0] != 'A' {
-		return true
-	}
-	for _, ch := range key[1:] {
-		if !strings.ContainsRune(idAlphabet, ch) {
-			return true
-		}
-	}
-	return false
+// PublicServerAssetLocation binds a successful public classification to one
+// exact backend object. Its fields stay private so callers cannot manufacture
+// a location that bypasses ResolvePublicServerAsset.
+type PublicServerAssetLocation struct {
+	natsKey string
+	s3Key   string
 }
 
-// IsPublicServerAsset positively classifies an object before the public
-// /assets/server route performs cache access, content reads, or transforms.
-// SERVER_ASSETS is shared with private binaries, so absence of a private marker
-// is never enough: unknown objects fail closed.
-func (c *ChattoCore) IsPublicServerAsset(ctx context.Context, key string) bool {
-	if IsReservedServerAssetKey(key) {
-		return false
+// serverAssetRequestKey recognizes the explicit public/ namespace used by new
+// NATS objects and the flat canonical IDs used by historical NATS objects and
+// current S3 instance/ objects. Every other namespace fails closed.
+func serverAssetRequestKey(key string) (assetID string, namespaced bool, ok bool) {
+	if key == "" || key != strings.TrimSpace(key) || strings.HasPrefix(key, "/") || strings.Contains(key, "\\") {
+		return "", false, false
+	}
+	if strings.HasPrefix(key, PublicServerAssetObjectPrefix) {
+		namespaced = true
+		assetID = strings.TrimPrefix(key, PublicServerAssetObjectPrefix)
+	} else {
+		assetID = key
+	}
+	if len(assetID) != idLength+1 || assetID[0] != 'A' || strings.Contains(assetID, "/") {
+		return "", false, false
+	}
+	for _, ch := range assetID[1:] {
+		if !strings.ContainsRune(idAlphabet, ch) {
+			return "", false, false
+		}
+	}
+	return assetID, namespaced, true
+}
+
+func serverAssetNATSObjectKeys(key string) (logicalID string, namespaced bool, objectKeys []string, ok bool) {
+	logicalID, namespaced, ok = serverAssetRequestKey(key)
+	if !ok {
+		return "", false, nil, false
+	}
+	if namespaced {
+		return logicalID, true, []string{key}, true
+	}
+	return logicalID, false, []string{PublicServerAssetObjectKey(logicalID), logicalID}, true
+}
+
+// IsReservedServerAssetKey rejects private, internal, and unknown namespaces
+// before public-route transform parsing or backend probing.
+func IsReservedServerAssetKey(key string) bool {
+	_, _, ok := serverAssetRequestKey(key)
+	return !ok
+}
+
+// ResolvePublicServerAsset positively classifies an object and binds the
+// decision to one exact backend key before the public route performs cache
+// access, content reads, or transforms. Unknown objects fail closed.
+func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (*PublicServerAssetLocation, bool) {
+	assetID, namespaced, ok := serverAssetRequestKey(key)
+	if !ok {
+		return nil, false
 	}
 
 	// Durable room-scoped declarations take precedence over every public hint,
 	// including stale metadata or a colliding current public reference.
 	if c.Assets != nil {
-		if _, declared := c.Assets.AssetCreation(key); declared {
-			return false
+		if _, declared := c.Assets.AssetCreation(assetID); declared {
+			return nil, false
 		}
-		if c.Assets.AssetDeleted(key) {
-			return false
+		if c.Assets.AssetDeleted(assetID) {
+			return nil, false
 		}
+	}
+
+	// The public/ namespace is itself the positive declaration for new NATS
+	// objects. Metadata-only inspection still rejects an object misplaced there
+	// by a private writer before any content or derivative cache is opened.
+	if namespaced {
+		info, err := c.storage.serverAssets.GetInfo(ctx, key)
+		if err != nil || info == nil || info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return &PublicServerAssetLocation{natsKey: key}, true
+	}
+
+	// Canonical-ID URLs remain aliases for new namespaced objects. This keeps
+	// stored API references and clients that retained the logical ID working.
+	if info, err := c.storage.serverAssets.GetInfo(ctx, PublicServerAssetObjectKey(assetID)); err == nil && info != nil {
+		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return &PublicServerAssetLocation{natsKey: PublicServerAssetObjectKey(assetID)}, true
 	}
 
 	// Object metadata is safe to inspect for classification; object content is
 	// not opened until this method has returned true.
-	if info, err := c.storage.serverAssets.GetInfo(ctx, key); err == nil && info != nil {
+	var legacyNATSExists bool
+	if info, err := c.storage.serverAssets.GetInfo(ctx, assetID); err == nil && info != nil {
+		legacyNATSExists = true
 		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
-			return false
+			return nil, false
 		}
 		if info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic {
-			return true
+			return &PublicServerAssetLocation{natsKey: assetID}, true
 		}
 	}
 
 	// Historical public objects predate the explicit visibility header. Their
 	// durable/current public references provide the positive declaration.
-	if c.Users != nil && c.Users.IsPublicAvatarAsset(key) {
-		return true
-	}
+	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
 	if c.ServerConfig != nil {
 		logo, _, _ := c.ServerConfig.ServerLogo()
 		banner, _, _ := c.ServerConfig.ServerBanner()
-		if assetRecordMatchesKey(logo, key) || assetRecordMatchesKey(banner, key) {
-			return true
+		if assetRecordMatchesKey(logo, assetID) || assetRecordMatchesKey(banner, assetID) {
+			legacyDeclaredPublic = true
 		}
 	}
-	if c.RoomTimeline != nil && c.RoomTimeline.IsPublicLinkPreviewAsset(key) {
-		return true
+	if c.RoomTimeline != nil && c.RoomTimeline.IsPublicLinkPreviewAsset(assetID) {
+		legacyDeclaredPublic = true
+	}
+	if legacyDeclaredPublic && legacyNATSExists {
+		return &PublicServerAssetLocation{natsKey: assetID}, true
 	}
 
 	// S3 server assets live exclusively below instance/. Private current and
 	// historical attachments use attachments/ or spaces/*/attachments/.
-	if c.s3Client != nil && !strings.Contains(key, "/") {
-		_, err := c.s3Client.StatObject(ctx, S3KeyServerAsset(key))
-		return err == nil
+	if c.s3Client != nil {
+		s3Key := S3KeyServerAsset(assetID)
+		if _, err := c.s3Client.StatObject(ctx, s3Key); err == nil {
+			return &PublicServerAssetLocation{s3Key: s3Key}, true
+		}
 	}
-	return false
+	return nil, false
+}
+
+// IsPublicServerAsset reports whether ResolvePublicServerAsset can bind the
+// request key to an explicitly public object. Prefer the resolver in delivery
+// paths so classification cannot fall through to a different backend object.
+func (c *ChattoCore) IsPublicServerAsset(ctx context.Context, key string) bool {
+	_, ok := c.ResolvePublicServerAsset(ctx, key)
+	return ok
+}
+
+// GetPublicServerAsset opens only the exact object previously classified by
+// ResolvePublicServerAsset. It never probes a fallback backend or key.
+func (c *ChattoCore) GetPublicServerAsset(ctx context.Context, location *PublicServerAssetLocation) (io.Reader, *ServerAssetInfo, error) {
+	if location == nil {
+		return nil, nil, jetstream.ErrObjectNotFound
+	}
+	if location.natsKey != "" {
+		obj, err := c.storage.serverAssets.Get(ctx, location.natsKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		info, _ := obj.Info()
+		return obj, &ServerAssetInfo{
+			Size:        int64(info.Size),
+			ContentType: info.Headers.Get("Content-Type"),
+		}, nil
+	}
+	if location.s3Key != "" && c.s3Client != nil {
+		reader, info, err := c.s3Client.GetObject(ctx, location.s3Key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return reader, &ServerAssetInfo{Size: info.Size, ContentType: info.ContentType}, nil
+	}
+	return nil, nil, jetstream.ErrObjectNotFound
 }
 
 // ServerAssetRecordFromAnyBackend builds an AssetRecord by probing the
 // server-asset backends. It is primarily for legacy ID-only server-scoped
 // assets that need to be rehydrated into richer metadata.
 func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*corev1.AssetRecord, error) {
-	obj, err := c.storage.serverAssets.Get(ctx, assetID)
-	if err == nil {
+	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
+	if !ok {
+		return nil, jetstream.ErrObjectNotFound
+	}
+	var natsErr error
+	for _, objectKey := range natsKeys {
+		obj, err := c.storage.serverAssets.Get(ctx, objectKey)
+		if err != nil {
+			natsErr = err
+			continue
+		}
 		if closer, ok := obj.(io.Closer); ok {
 			defer closer.Close()
 		}
@@ -792,39 +875,39 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 			contentType = "application/octet-stream"
 		}
 		return &corev1.AssetRecord{
-			Id:          assetID,
+			Id:          logicalID,
 			Filename:    filename,
 			ContentType: contentType,
 			Size:        int64(info.Size),
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}},
 		}, nil
 	}
 
-	if c.s3Client != nil {
-		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(assetID))
+	if c.s3Client != nil && !namespaced {
+		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(logicalID))
 		if s3Err == nil {
 			contentType := s3Info.ContentType
 			if contentType == "" {
 				contentType = "application/octet-stream"
 			}
 			return &corev1.AssetRecord{
-				Id:          assetID,
+				Id:          logicalID,
 				Filename:    filename,
 				ContentType: contentType,
 				Size:        s3Info.Size,
 				Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
-					Key:    assetID,
+					Key:    logicalID,
 					Bucket: proto.String(c.s3Client.Bucket()),
 				}},
 			}, nil
 		}
 		c.logger.Debug("Server asset record not found in either backend",
-			"asset_id", assetID,
-			"nats_error", err,
+			"asset_id", logicalID,
+			"nats_error", natsErr,
 			"s3_error", s3Err)
 	}
 
-	return nil, err
+	return nil, natsErr
 }
 
 // GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
@@ -832,8 +915,17 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 // Returns a reader for the asset content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
 func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
-	obj, err := c.storage.serverAssets.Get(ctx, assetID)
-	if err == nil {
+	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
+	if !ok {
+		return nil, nil, jetstream.ErrObjectNotFound
+	}
+	var natsErr error
+	for _, objectKey := range natsKeys {
+		obj, err := c.storage.serverAssets.Get(ctx, objectKey)
+		if err != nil {
+			natsErr = err
+			continue
+		}
 		info, _ := obj.Info()
 		return obj, &ServerAssetInfo{
 			Size:        int64(info.Size),
@@ -842,8 +934,8 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 	}
 
 	// If NATS failed and S3 is configured, try S3
-	if c.s3Client != nil {
-		s3Key := S3KeyServerAsset(assetID)
+	if c.s3Client != nil && !namespaced {
+		s3Key := S3KeyServerAsset(logicalID)
 		reader, s3Info, s3Err := c.s3Client.GetObject(ctx, s3Key)
 		if s3Err == nil {
 			return reader, &ServerAssetInfo{
@@ -853,12 +945,12 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 		}
 		// Log S3 error but return the original NATS error
 		c.logger.Debug("Instance asset not found in either backend",
-			"asset_id", assetID,
-			"nats_error", err,
+			"asset_id", logicalID,
+			"nats_error", natsErr,
 			"s3_error", s3Err)
 	}
 
-	return nil, nil, err
+	return nil, nil, natsErr
 }
 
 // CleanupAsset deletes an asset from the server object store.
@@ -913,7 +1005,21 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAs
 }
 
 func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) {
-	deletedCount, cacheErr := c.DeleteCachedResizesForServerAsset(ctx, assetID)
+	assetKeys := []string{assetID}
+	if logicalID, namespaced, ok := serverAssetRequestKey(assetID); ok {
+		if namespaced {
+			assetKeys = append(assetKeys, logicalID)
+		} else {
+			assetKeys = append(assetKeys, PublicServerAssetObjectKey(logicalID))
+		}
+	}
+	deletedCount := 0
+	var cacheErr error
+	for _, assetKey := range assetKeys {
+		count, err := c.DeleteCachedResizesForServerAsset(ctx, assetKey)
+		deletedCount += count
+		cacheErr = errors.Join(cacheErr, err)
+	}
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for server asset",
 			"asset_id", assetID,

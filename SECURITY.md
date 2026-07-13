@@ -37,5 +37,7 @@ the issue.
 Public server assets and room-scoped files use separate HTTP authorization
 boundaries even when a deployment stores their bytes in shared infrastructure.
 `/assets/server/*` serves only positively classified public avatars, branding,
-and link-preview images. Room files remain behind ticket and current-membership
+and link-preview images. New NATS public assets use the explicit `public/`
+object namespace; historical flat-key public assets remain behind durable
+compatibility classification. Room files remain behind ticket and current-membership
 checks on `/assets/files/*`; transform signatures do not replace those checks.

@@ -2114,6 +2114,9 @@ func TestChattoCore_UploadUserAvatar(t *testing.T) {
 	if natsAsset.Key == "" {
 		t.Error("Expected asset key to be set")
 	}
+	if want := PublicServerAssetObjectKey(asset.GetId()); natsAsset.GetKey() != want {
+		t.Errorf("avatar NATS key = %q, want %q", natsAsset.GetKey(), want)
+	}
 }
 
 func TestChattoCore_SetUserAvatar(t *testing.T) {

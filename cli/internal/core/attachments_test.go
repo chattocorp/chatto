@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -1234,5 +1235,39 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 	}
 	if deleted != 0 {
 		t.Errorf("Should return 0 deleted on empty cache, got %d", deleted)
+	}
+}
+
+func TestChattoCore_PublicServerAssetLocationDoesNotFallback(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	assetID := NewAssetID()
+	publicKey := PublicServerAssetObjectKey(assetID)
+
+	if _, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+		Name:    publicKey,
+		Headers: map[string][]string{"Content-Type": {"image/png"}},
+	}, bytes.NewReader([]byte("public"))); err != nil {
+		t.Fatalf("store public fixture: %v", err)
+	}
+	if _, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+		Name: assetID,
+		Headers: map[string][]string{
+			"Content-Type": {"image/png"},
+			"Room-Id":      {"Rprivate"},
+		},
+	}, bytes.NewReader([]byte("private"))); err != nil {
+		t.Fatalf("store private fallback fixture: %v", err)
+	}
+
+	location, ok := core.ResolvePublicServerAsset(ctx, assetID)
+	if !ok {
+		t.Fatal("logical ID did not resolve to namespaced public object")
+	}
+	if err := core.storage.serverAssets.Delete(ctx, publicKey); err != nil {
+		t.Fatalf("delete classified public object: %v", err)
+	}
+	if _, _, err := core.GetPublicServerAsset(ctx, location); err == nil {
+		t.Fatal("classified location fell through to a different flat object")
 	}
 }

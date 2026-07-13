@@ -104,7 +104,8 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		key = path[:idx]
 		signedPath = path[idx+3:]
 	}
-	if key == "" || !s.core.IsPublicServerAsset(c.Request.Context(), key) {
+	location, public := s.core.ResolvePublicServerAsset(c.Request.Context(), key)
+	if key == "" || !public {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
@@ -116,14 +117,14 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	// Check if this is a transform request: path ends with /t/{signedPath}
 	// Pattern: {key}/t/{signedPath}
 	if transformRequest {
-		s.serveTransformedServerAsset(c, key, signedPath)
+		s.serveTransformedServerAsset(c, key, signedPath, location)
 		return
 	}
 
 	s.logger.Debug("Serving server asset", "asset_id", key)
 
 	// Probe both NATS and S3 backends
-	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), key)
+	reader, info, err := s.core.GetPublicServerAsset(c.Request.Context(), location)
 	if err != nil {
 		s.logger.Error("Failed to get server asset", "error", err, "asset_id", key)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
@@ -520,8 +521,8 @@ func transformedAssetVary(public bool) string {
 // serveTransformedServerAsset serves a dynamically transformed version of an server asset.
 // URL format: /assets/server/{key}/t/{signedPath}
 // Called by serveServerAsset when it detects a transform pattern in the path.
-// Probes both NATS and S3 backends for the asset.
-func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string) {
+// Opens only the backend object bound by pre-cache public classification.
+func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string, location *core.PublicServerAssetLocation) {
 	s.logger.Debug("Serving transformed server asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{
@@ -531,8 +532,7 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 		CachePrefix: core.ServerAssetSignResource,
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			// Probe both NATS and S3 backends
-			reader, info, err := s.core.GetServerAssetFromAnyBackend(ctx, key)
+			reader, info, err := s.core.GetPublicServerAsset(ctx, location)
 			if err != nil {
 				s.logger.Debug("Failed to fetch server asset",
 					"asset_id", key,
