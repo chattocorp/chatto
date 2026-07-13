@@ -341,6 +341,10 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		if len(subscriptions) == 0 {
 			return errors.New("no push subscriptions registered")
 		}
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return errors.New("no current push subscriptions registered")
+		}
 		results := sender.SendToMany(ctx, subscriptions, &push.Payload{
 			Title: "Test notification",
 			Body:  "Push notifications are working.",
@@ -350,16 +354,20 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			Tag:   "push-test",
 		})
 		var sendErr error
+		accepted := false
 		for _, result := range results {
 			if result.Gone {
 				_ = chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint)
 			}
 			if result.Error == nil && result.Success {
-				return nil
+				accepted = true
 			}
 			if result.Error != nil {
 				sendErr = result.Error
 			}
+		}
+		if accepted {
+			return nil
 		}
 		if sendErr != nil {
 			return sendErr
