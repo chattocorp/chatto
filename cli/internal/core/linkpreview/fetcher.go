@@ -85,8 +85,6 @@ type FetchResult struct {
 type DirectImage struct {
 	Data        []byte
 	ContentType string
-	Width       int
-	Height      int
 }
 
 // Fetch fetches link preview metadata for a URL.
@@ -198,9 +196,9 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	return result, nil
 }
 
-// readDirectImage validates an image returned directly by the preview URL.
-// Persistence is left to the normal pending-attachment lifecycle owned by the
-// caller, including GIF processing and abandoned-upload cleanup.
+// readDirectImage reads bounded image bytes returned directly by the preview
+// URL. Decoded image validation and persistence are left to the normal pending-
+// attachment lifecycle owned by the caller, avoiding a duplicate full decode.
 func (f *Fetcher) readDirectImage(reader io.Reader, contentType string) (*DirectImage, error) {
 	imageData, err := io.ReadAll(io.LimitReader(reader, MaxImageSize+1))
 	if err != nil {
@@ -213,16 +211,9 @@ func (f *Fetcher) readDirectImage(reader io.Reader, contentType string) (*Direct
 		return nil, fmt.Errorf("image content changed while reading")
 	}
 
-	inspected, err := assets.ProcessAttachmentImageWithConfig(bytes.NewReader(imageData), *f.assetsConfig)
-	if err != nil {
-		return nil, fmt.Errorf("validate image: %w", err)
-	}
-
 	return &DirectImage{
-		Data:        append([]byte(nil), inspected.Original...),
+		Data:        imageData,
 		ContentType: contentType,
-		Width:       inspected.Width,
-		Height:      inspected.Height,
 	}, nil
 }
 

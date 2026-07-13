@@ -56,9 +56,9 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 6. Direct images enter the ordinary attachment lifecycle
 
-**Decision:** When the first URL directly returns a supported image and the composer supplies a room, the server stages the fetched bytes as a pending room attachment. Posting claims it through the normal attachment path; abandoning it leaves it eligible for existing pending-asset expiry and cleanup. Direct-image results are not stored in the shared link-preview cache.
-**Why:** A single attachment lifecycle consolidates sizing, authorization, storage, GIF processing, image viewing, Files indexing, deletion, and cleanup. It also bounds abandoned remote imports instead of creating a separate durable preview-asset surface.
-**Tradeoff:** Direct image expansion requires `message.attach`, counts toward attachment limits, and makes the imported copy a room file. Fetching the same image in separate drafts may repeat work because direct results bypass the shared preview cache.
+**Decision:** When the first URL directly returns a supported image and the composer supplies a room, the server stages the fetched bytes as a pending room attachment. Posting claims it through the normal attachment path; abandoning it leaves it eligible for existing pending-asset expiry and cleanup. Direct-image results are not stored in the shared link-preview cache. Instead, a 24-hour actor/room/source index makes repeated requests idempotent, and each actor may have at most 10 outstanding linked-image imports.
+**Why:** A single attachment lifecycle consolidates sizing, authorization, storage, GIF processing, image viewing, Files indexing, deletion, and cleanup. The idempotency index and outstanding-import quota prevent cheap repeated preview requests from creating unbounded stored copies or durable asset events. GIF processing begins only after a message claims the asset, as it does for uploaded attachments.
+**Tradeoff:** Direct image expansion requires `message.attach`, counts toward attachment limits, and makes the imported copy a room file. A member at the outstanding-import limit must post or wait for pending imports to expire before staging another linked image.
 
 ### 7. Message posting uses server-issued preview tokens
 

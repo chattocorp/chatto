@@ -583,6 +583,22 @@ func (c *ChattoCore) getLinkPreviewForComposer(ctx context.Context, actorID, roo
 	if cached != nil {
 		return cached, nil, nil
 	}
+	var reservation *RemoteAttachmentImportReservation
+	if actorID != "" && roomID != "" {
+		attachment, created, err := c.AssetUploads().BeginRemoteAttachmentImport(ctx, actorID, roomID, url)
+		if err != nil {
+			return nil, nil, err
+		}
+		if attachment != nil {
+			return nil, attachment, nil
+		}
+		reservation = created
+		defer func() {
+			if reservation != nil {
+				c.AssetUploads().CancelRemoteAttachmentImport(context.Background(), reservation)
+			}
+		}()
+	}
 
 	// Fetch the preview
 	result, err := c.linkPreviewFetcher.Fetch(ctx, url)
@@ -602,13 +618,16 @@ func (c *ChattoCore) getLinkPreviewForComposer(ctx context.Context, actorID, roo
 		attachment, err := c.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
 			ActorID:     actorID,
 			RoomID:      roomID,
+			SourceURL:   url,
 			Filename:    directImageAttachmentFilename(direct.ContentType),
 			ContentType: direct.ContentType,
 			Content:     direct.Data,
+			Reservation: reservation,
 		})
 		if err != nil {
 			return nil, nil, err
 		}
+		reservation = nil
 		return nil, attachment, nil
 	}
 

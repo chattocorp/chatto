@@ -754,6 +754,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
+	// A posted message has claimed these assets, so linked-image staging entries
+	// no longer need to consume the author's outstanding-import quota.
+	c.AssetUploads().ReleaseLinkedImageImports(ctx, user_id, resolvedAssets)
+
 	return event, nil
 }
 

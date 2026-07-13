@@ -29,6 +29,13 @@ const (
 	defaultAssetUploadChunkSize      = 512 * 1024
 	assetUploadCleanupInterval       = 5 * time.Minute
 	assetUploadOrphanChunkMaxAge     = defaultAssetUploadSessionTTL + time.Hour
+	linkedImageImportKeyPrefix       = "linked_image_import."
+	linkedImageImportLockKeyPrefix   = "linked_image_import_lock."
+	linkedImageImportLockTTL         = time.Minute
+	linkedImageImportPendingTTL      = 2 * time.Minute
+	maxPendingLinkedImageImports     = 10
+	linkedImageImportStatePending    = "pending"
+	linkedImageImportStateCommitted  = "committed"
 )
 
 type AssetUploadStatus string
@@ -71,9 +78,60 @@ type AssetUploadCancelInput struct {
 type RemoteAttachmentImportInput struct {
 	ActorID     string
 	RoomID      string
+	SourceURL   string
 	Filename    string
 	ContentType string
 	Content     []byte
+	Reservation *RemoteAttachmentImportReservation
+}
+
+type RemoteAttachmentImportReservation struct {
+	ActorID  string
+	RoomID   string
+	Key      string
+	Revision uint64
+}
+
+type linkedImageImportRecord struct {
+	State      string    `json:"state"`
+	CreatedAt  time.Time `json:"created_at"`
+	Attachment []byte    `json:"attachment,omitempty"`
+}
+
+// BeginRemoteAttachmentImport reserves capacity before the network fetch, or
+// returns the existing staged attachment for an idempotent repeated request.
+func (m *AssetUploadModel) BeginRemoteAttachmentImport(ctx context.Context, actorID, roomID, sourceURL string) (*corev1.Attachment, *RemoteAttachmentImportReservation, error) {
+	if actorID == "" || roomID == "" || sourceURL == "" {
+		return nil, nil, nil
+	}
+	if err := m.authorizeUpload(ctx, actorID, roomID); err != nil {
+		return nil, nil, err
+	}
+	lockRevision, err := m.acquireLinkedImageImportLock(ctx, actorID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer m.releaseLinkedImageImportLock(actorID, lockRevision)
+	importKey := m.linkedImageImportKey(actorID, roomID, sourceURL)
+	active, existing, err := m.activeLinkedImageImports(ctx, actorID, importKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	if existing != nil {
+		return existing, nil, nil
+	}
+	if active >= maxPendingLinkedImageImports {
+		return nil, nil, fmt.Errorf("linked image pending import limit of %d reached: %w", maxPendingLinkedImageImports, ErrLimitExceeded)
+	}
+	record, err := json.Marshal(linkedImageImportRecord{State: linkedImageImportStatePending, CreatedAt: time.Now()})
+	if err != nil {
+		return nil, nil, fmt.Errorf("encode linked image import reservation: %w", err)
+	}
+	revision, err := m.core.storage.runtimeStateKV.Create(ctx, importKey, record, jetstream.KeyTTL(linkedImageImportPendingTTL))
+	if err != nil {
+		return nil, nil, fmt.Errorf("reserve linked image import: %w", err)
+	}
+	return nil, &RemoteAttachmentImportReservation{ActorID: actorID, RoomID: roomID, Key: importKey, Revision: revision}, nil
 }
 
 type AssetUploadSession struct {
@@ -273,6 +331,9 @@ func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input Rem
 	if len(input.Content) == 0 {
 		return nil, invalidArgument("remote attachment content is required")
 	}
+	if strings.TrimSpace(input.SourceURL) == "" {
+		return nil, invalidArgument("remote attachment source URL is required")
+	}
 	if err := m.checkUploadSize(contentType, int64(len(input.Content))); err != nil {
 		return nil, err
 	}
@@ -281,13 +342,35 @@ func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input Rem
 	}
 
 	sum := sha256.Sum256(input.Content)
+	contentSHA256 := hex.EncodeToString(sum[:])
+	reservation := input.Reservation
+	if reservation == nil {
+		existing, created, err := m.BeginRemoteAttachmentImport(ctx, input.ActorID, input.RoomID, input.SourceURL)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+		reservation = created
+	}
+	if reservation == nil || reservation.ActorID != input.ActorID || reservation.RoomID != input.RoomID || reservation.Key != m.linkedImageImportKey(input.ActorID, input.RoomID, input.SourceURL) {
+		return nil, invalidArgument("remote attachment import reservation is invalid")
+	}
+	reservationActive := true
+	defer func() {
+		if reservationActive {
+			m.CancelRemoteAttachmentImport(context.Background(), reservation)
+		}
+	}()
+
 	session := &AssetUploadSession{
 		ActorID:     input.ActorID,
 		RoomID:      input.RoomID,
 		Filename:    filename,
 		ContentType: contentType,
 		Size:        int64(len(input.Content)),
-		SHA256:      hex.EncodeToString(sum[:]),
+		SHA256:      contentSHA256,
 	}
 	attachment, animatedGIF, err := m.storeCompletedUpload(ctx, session, bytes.NewReader(input.Content))
 	if err != nil {
@@ -299,7 +382,177 @@ func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input Rem
 		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, err
 	}
+	attachmentData, err := proto.Marshal(attachment)
+	if err != nil {
+		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		return nil, fmt.Errorf("encode linked image import attachment: %w", err)
+	}
+	committedRecord, err := json.Marshal(linkedImageImportRecord{State: linkedImageImportStateCommitted, CreatedAt: time.Now(), Attachment: attachmentData})
+	if err != nil {
+		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		return nil, fmt.Errorf("encode committed linked image import: %w", err)
+	}
+	lockRevision, err := m.acquireLinkedImageImportLock(ctx, input.ActorID)
+	if err != nil {
+		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		return nil, err
+	}
+	defer m.releaseLinkedImageImportLock(input.ActorID, lockRevision)
+	if err := m.core.storage.runtimeStateKV.Delete(ctx, reservation.Key, jetstream.LastRevision(reservation.Revision)); err != nil {
+		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		return nil, fmt.Errorf("replace linked image import reservation: %w", err)
+	}
+	reservationActive = false
+	if _, err := m.core.storage.runtimeStateKV.Create(ctx, reservation.Key, committedRecord, jetstream.KeyTTL(defaultPendingAttachmentAssetTTL)); err != nil {
+		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		return nil, fmt.Errorf("commit linked image import reservation: %w", err)
+	}
 	return attachment, nil
+}
+
+func (m *AssetUploadModel) CancelRemoteAttachmentImport(ctx context.Context, reservation *RemoteAttachmentImportReservation) {
+	if reservation == nil || reservation.Key == "" || reservation.Revision == 0 {
+		return
+	}
+	if err := m.core.storage.runtimeStateKV.Delete(ctx, reservation.Key, jetstream.LastRevision(reservation.Revision)); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+		m.core.logger.Warn("Failed to cancel linked image import reservation", "error", err)
+	}
+}
+
+func (m *AssetUploadModel) acquireLinkedImageImportLock(ctx context.Context, actorID string) (uint64, error) {
+	revision, err := m.core.storage.runtimeStateKV.Create(ctx, m.linkedImageImportLockKey(actorID), []byte{1}, jetstream.KeyTTL(linkedImageImportLockTTL))
+	if errors.Is(err, jetstream.ErrKeyExists) {
+		return 0, fmt.Errorf("linked image import already in progress: %w", ErrLimitExceeded)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("acquire linked image import lock: %w", err)
+	}
+	return revision, nil
+}
+
+func (m *AssetUploadModel) releaseLinkedImageImportLock(actorID string, revision uint64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := m.core.storage.runtimeStateKV.Delete(ctx, m.linkedImageImportLockKey(actorID), jetstream.LastRevision(revision)); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+		m.core.logger.Warn("Failed to release linked image import lock", "error", err)
+	}
+}
+
+func (m *AssetUploadModel) activeLinkedImageImports(ctx context.Context, actorID, requestedKey string) (int, *corev1.Attachment, error) {
+	prefix := m.linkedImageImportActorPrefix(actorID)
+	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix+"*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil, nil
+		}
+		return 0, nil, fmt.Errorf("list linked image imports: %w", err)
+	}
+
+	active := 0
+	for key := range lister.Keys() {
+		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			continue
+		}
+		if err != nil {
+			return 0, nil, fmt.Errorf("read linked image import: %w", err)
+		}
+		var record linkedImageImportRecord
+		if err := json.Unmarshal(entry.Value(), &record); err != nil {
+			if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+				return 0, nil, fmt.Errorf("delete invalid linked image import: %w", err)
+			}
+			continue
+		}
+		switch record.State {
+		case linkedImageImportStatePending:
+			active++
+			if key == requestedKey {
+				return 0, nil, fmt.Errorf("linked image import already in progress: %w", ErrLimitExceeded)
+			}
+			continue
+		case linkedImageImportStateCommitted:
+			attachment := &corev1.Attachment{}
+			if len(record.Attachment) > 0 && proto.Unmarshal(record.Attachment, attachment) == nil && attachment.GetId() != "" {
+				active++
+				if key == requestedKey {
+					return active, attachment, nil
+				}
+				continue
+			}
+		}
+		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+			return 0, nil, fmt.Errorf("delete stale linked image import: %w", err)
+		}
+	}
+	return active, nil, nil
+}
+
+// ReleaseLinkedImageImports removes quota/idempotency entries after a message
+// successfully claims their assets. The durable attachment lifecycle remains
+// authoritative; this runtime index is only staging coordination.
+func (m *AssetUploadModel) ReleaseLinkedImageImports(ctx context.Context, actorID string, attachments []*corev1.Attachment) {
+	assetIDs := make(map[string]struct{}, len(attachments))
+	for _, attachment := range attachments {
+		if attachment != nil && attachment.GetId() != "" {
+			assetIDs[attachment.GetId()] = struct{}{}
+		}
+	}
+	if actorID == "" || len(assetIDs) == 0 {
+		return
+	}
+	lockRevision, err := m.acquireLinkedImageImportLock(ctx, actorID)
+	if err != nil {
+		m.core.logger.Warn("Failed to acquire linked image import lock for claim cleanup", "error", err)
+		return
+	}
+	defer m.releaseLinkedImageImportLock(actorID, lockRevision)
+
+	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, m.linkedImageImportActorPrefix(actorID)+"*")
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		return
+	}
+	if err != nil {
+		m.core.logger.Warn("Failed to list linked image imports for claim cleanup", "error", err)
+		return
+	}
+	for key := range lister.Keys() {
+		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var record linkedImageImportRecord
+		attachment := &corev1.Attachment{}
+		if json.Unmarshal(entry.Value(), &record) != nil || record.State != linkedImageImportStateCommitted || proto.Unmarshal(record.Attachment, attachment) != nil {
+			continue
+		}
+		if _, claimed := assetIDs[attachment.GetId()]; !claimed {
+			continue
+		}
+		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isRuntimeStateKeyAbsent(err) && !isRuntimeStateRevisionConflict(err) {
+			m.core.logger.Warn("Failed to release claimed linked image import", "asset_id", attachment.GetId(), "error", err)
+		}
+	}
+}
+
+func (m *AssetUploadModel) linkedImageImportActorPrefix(actorID string) string {
+	digest := sha256.Sum256([]byte(actorID))
+	return linkedImageImportKeyPrefix + hex.EncodeToString(digest[:]) + "."
+}
+
+func (m *AssetUploadModel) linkedImageImportKey(actorID, roomID, sourceURL string) string {
+	digest := sha256.Sum256([]byte(roomID + "\x00" + sourceURL))
+	return m.linkedImageImportActorPrefix(actorID) + hex.EncodeToString(digest[:])
+}
+
+func (m *AssetUploadModel) linkedImageImportLockKey(actorID string) string {
+	digest := sha256.Sum256([]byte(actorID))
+	return linkedImageImportLockKeyPrefix + hex.EncodeToString(digest[:])
 }
 
 func (m *AssetUploadModel) CancelUpload(ctx context.Context, input AssetUploadCancelInput) (*AssetUploadSession, error) {

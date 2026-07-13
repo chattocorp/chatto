@@ -81,6 +81,20 @@ describe('LinkPreviewState', () => {
     });
   });
 
+  it('fetches only the first URL in a draft', async () => {
+    vi.useFakeTimers();
+    const firstURL = 'https://example.com/first';
+    const secondURL = 'https://example.com/second.png';
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue(null);
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+
+    state.scheduleDetection(`${firstURL} ${secondURL}`, false, 'room_1');
+    await vi.advanceTimersByTimeAsync(500);
+    await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
+
+    expect(fetchLinkPreview).toHaveBeenCalledWith(firstURL, 'room_1');
+  });
+
   it('turns a direct image result into an attachment asset ID', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/image.gif';
@@ -106,6 +120,43 @@ describe('LinkPreviewState', () => {
     expect(state.buildInput()).toBeNull();
     expect(state.buildAttachmentAssetIds()).toEqual(['asset_linked']);
     expect(state.activeImportedAttachment?.contentType).toBe('image/gif');
+  });
+
+  it('discards an imported attachment returned after the composer changes rooms', async () => {
+    vi.useFakeTimers();
+    const url = 'https://example.com/image.png';
+    let resolveFirstFetch!: (result: ComposerLinkResult) => void;
+    const firstFetch = new Promise<ComposerLinkResult>((resolve) => {
+      resolveFirstFetch = resolve;
+    });
+    const fetchLinkPreview = vi
+      .fn<FetchLinkPreview>()
+      .mockReturnValueOnce(firstFetch)
+      .mockResolvedValueOnce(null);
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
+
+    state.scheduleDetection(url, false, 'room_1');
+    await vi.advanceTimersByTimeAsync(500);
+    state.scheduleDetection(url, false, 'room_2');
+    await vi.advanceTimersByTimeAsync(500);
+
+    resolveFirstFetch({
+      kind: 'attachment',
+      attachment: {
+        assetId: 'asset_from_room_1',
+        filename: 'linked-image.png',
+        contentType: 'image/png',
+        size: 1024n,
+        width: 320,
+        height: 180,
+        previewUrl: '/assets/files/asset_from_room_1/image'
+      }
+    });
+    await firstFetch;
+
+    expect(fetchLinkPreview).toHaveBeenNthCalledWith(1, url, 'room_1');
+    expect(fetchLinkPreview).toHaveBeenNthCalledWith(2, url, 'room_2');
+    expect(state.buildAttachmentAssetIds()).toEqual([]);
   });
 
   it('dismisses active URLs and clears preview state', async () => {

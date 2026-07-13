@@ -20,6 +20,7 @@ export class LinkPreviewState {
   fetchingURLs = new SvelteSet<string>();
   #urlDetectionTimeout: ReturnType<typeof setTimeout> | undefined;
   #attachmentRoomId: string | undefined;
+  #generation = 0;
 
   constructor(private readonly getAPI: () => LinkPreviewAPI) {}
 
@@ -46,18 +47,17 @@ export class LinkPreviewState {
     }
 
     this.#urlDetectionTimeout = setTimeout(() => {
-      const urls = extractURLs(message).filter((u) => !this.dismissedURLs.has(u));
-      this.detectedURLs = urls;
-
-      for (const url of urls) {
-        if (parseMessageLink(url)) continue;
-        if (
-          !this.previews.has(url) &&
-          !this.importedAttachments.has(url) &&
-          !this.fetchingURLs.has(url)
-        ) {
-          void this.fetchPreview(url, roomId);
-        }
+      const url = extractURLs(message)[0];
+      this.detectedURLs = url && !this.dismissedURLs.has(url) ? [url] : [];
+      if (
+        url &&
+        !this.dismissedURLs.has(url) &&
+        !parseMessageLink(url) &&
+        !this.previews.has(url) &&
+        !this.importedAttachments.has(url) &&
+        !this.fetchingURLs.has(url)
+      ) {
+        void this.fetchPreview(url, roomId);
       }
     }, 500);
 
@@ -65,9 +65,11 @@ export class LinkPreviewState {
   }
 
   async fetchPreview(url: string, roomId?: string): Promise<void> {
+    const generation = this.#generation;
     this.fetchingURLs.add(url);
     try {
       const result = await this.getAPI().fetchLinkPreview(url, roomId);
+      if (generation !== this.#generation) return;
       if (result?.kind === 'attachment') {
         this.importedAttachments.set(url, result.attachment);
         this.previews.set(url, null);
@@ -75,9 +77,9 @@ export class LinkPreviewState {
       }
       this.previews.set(url, result?.preview ?? null);
     } catch {
-      this.previews.set(url, null);
+      if (generation === this.#generation) this.previews.set(url, null);
     } finally {
-      this.fetchingURLs.delete(url);
+      if (generation === this.#generation) this.fetchingURLs.delete(url);
     }
   }
 
@@ -87,6 +89,7 @@ export class LinkPreviewState {
   }
 
   clear(): void {
+    this.#generation += 1;
     this.detectedURLs = [];
     this.previews.clear();
     this.importedAttachments.clear();

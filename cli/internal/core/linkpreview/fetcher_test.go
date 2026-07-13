@@ -43,8 +43,6 @@ func TestFetcherRecognizesDirectImagesByContent(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, result.DirectImage)
 			require.Equal(t, assets.DetectImageContentType(tc.data), result.DirectImage.ContentType)
-			require.Equal(t, 3, result.DirectImage.Width)
-			require.Equal(t, 2, result.DirectImage.Height)
 			require.Equal(t, tc.data, result.DirectImage.Data)
 		})
 	}
@@ -67,8 +65,6 @@ func TestFetcherPreservesAnimatedDirectGIF(t *testing.T) {
 	require.NotNil(t, result.DirectImage)
 	require.Equal(t, "image/gif", result.DirectImage.ContentType)
 	require.Equal(t, animatedGIF, result.DirectImage.Data)
-	require.Equal(t, 3, result.DirectImage.Width)
-	require.Equal(t, 2, result.DirectImage.Height)
 	require.True(t, assets.IsAnimatedGIF(result.DirectImage.Data))
 }
 
@@ -82,7 +78,6 @@ func TestFetcherRejectsInvalidAndExcessiveDirectImages(t *testing.T) {
 		data        []byte
 	}{
 		{name: "invalid declared image", contentType: "image/png", data: []byte("not an image")},
-		{name: "too many gif frames", contentType: "image/gif", data: encodeAnimatedGIF(t, assets.MaxAnimatedImageFrames+1)},
 		{name: "too large", contentType: "image/jpeg", data: append([]byte{0xff, 0xd8, 0xff}, make([]byte, MaxImageSize+1)...)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
