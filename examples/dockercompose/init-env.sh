@@ -128,8 +128,7 @@ cat > livekit.generated.yaml <<EOF
 port: 7880
 rtc:
   tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 50200
+  udp_port: 7882
   use_external_ip: true
 
 turn:
