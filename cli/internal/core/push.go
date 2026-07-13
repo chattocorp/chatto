@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -129,7 +130,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 					return nil
 				}
 				continue
-			} else if errors.Is(err, jetstream.ErrKeyExists) {
+			} else if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			} else {
 				return fmt.Errorf("failed to create push endpoint owner: %w", err)
@@ -153,7 +154,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 				return nil
 			}
 			continue
-		} else if errors.Is(err, jetstream.ErrKeyExists) {
+		} else if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		} else {
 			return fmt.Errorf("failed to update push endpoint owner: %w", err)
@@ -240,7 +241,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 		if err == nil || isPushRuntimeStateKeyAbsent(err) {
 			return nil
 		}
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		return fmt.Errorf("failed to delete push endpoint owner: %w", err)
@@ -281,7 +282,7 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 
 	if entry != nil {
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err != nil && !isPushRuntimeStateKeyAbsent(err) && !errors.Is(err, jetstream.ErrKeyExists) {
+		if err != nil && !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("failed to delete push subscription: %w", err)
 		}
 	}
@@ -370,7 +371,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
 		if err != nil {
-			if !isPushRuntimeStateKeyAbsent(err) && !errors.Is(err, jetstream.ErrKeyExists) {
+			if !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
 				c.logger.Warn("Failed to delete push subscription", "key", key, "error", err)
 			}
 			continue
