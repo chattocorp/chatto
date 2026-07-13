@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -19,11 +20,12 @@ import (
 )
 
 const (
-	objectPrefix        = "internal/projection-snapshots/v1/"
-	maxPayloadSize      = 64 << 20
-	maxEncryptedSize    = 80 << 20
-	maxDecompressedSize = 72 << 20
-	contentType         = "application/vnd.chatto.projection-snapshot"
+	objectPrefix         = "internal/projection-snapshots/v1/"
+	maxPayloadSize       = 64 << 20
+	maxEncryptedSize     = 80 << 20
+	maxDecompressedSize  = 72 << 20
+	contentType          = "application/vnd.chatto.projection-snapshot"
+	streamIdentityPrefix = "evt-message-sha256-v1:"
 )
 
 var (
@@ -79,6 +81,7 @@ type SaveInput struct {
 type LoadedSnapshot struct {
 	GenerationID    string
 	CutoffSequence  uint64
+	StreamIdentity  string
 	Payload         []byte
 	CreatedAt       time.Time
 	ProducerVersion string
@@ -117,8 +120,11 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 func (r *Repository) Backend() string { return r.blobs.Backend() }
 
 func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot, error) {
-	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" || input.StreamIdentity == "" {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, stream name, and stream identity are required")
+	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
+	}
+	if !validStreamIdentity(input.StreamIdentity) {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
 	}
 	if len(input.Payload) > r.maxPayloadSize {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
@@ -193,10 +199,10 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		"stored_bytes", len(sealed),
 		"producer_version", r.producerVersion,
 		"duration", time.Since(started))
-	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, Payload: input.Payload, CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
+	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
 }
 
-func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName string, maxCutoff uint64) (LoadedSnapshot, error) {
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
 	if err != nil {
@@ -211,7 +217,7 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 		if id == "" {
 			continue
 		}
-		loaded, err := r.loadGeneration(ctx, id, projectionKey, compatibilityID, streamName, streamIdentity, maxCutoff)
+		loaded, err := r.loadGeneration(ctx, id, projectionKey, compatibilityID, streamName, maxCutoff)
 		if err == nil {
 			r.logInfo("Projection snapshot loaded", projectionKey,
 				"restore", nil,
@@ -232,7 +238,7 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 	return LoadedSnapshot{}, errors.Join(failures...)
 }
 
-func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, compatibilityID, streamName string, maxCutoff uint64) (LoadedSnapshot, error) {
 	expectedID, err := parseGenerationID(id)
 	if err != nil {
 		return LoadedSnapshot{}, err
@@ -268,8 +274,8 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if generation.GetStreamName() != streamName {
 		return LoadedSnapshot{}, fmt.Errorf("%w: stream name %q does not match %q", ErrIncompatible, generation.GetStreamName(), streamName)
 	}
-	if generation.GetStreamIdentity() != streamIdentity {
-		return LoadedSnapshot{}, fmt.Errorf("%w: EVT stream identity changed", ErrIncompatible)
+	if !validStreamIdentity(generation.GetStreamIdentity()) {
+		return LoadedSnapshot{}, fmt.Errorf("%w: EVT cutoff identity is invalid", ErrIncompatible)
 	}
 	if generation.GetCutoffSequence() > maxCutoff {
 		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d exceeds stream target %d", ErrIncompatible, generation.GetCutoffSequence(), maxCutoff)
@@ -287,7 +293,15 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if err := generation.GetCreatedAt().CheckValid(); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot creation time: %w", err)
 	}
-	return LoadedSnapshot{GenerationID: id, CutoffSequence: generation.GetCutoffSequence(), Payload: generation.GetPayload(), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: generation.GetProducerVersion()}, nil
+	return LoadedSnapshot{GenerationID: id, CutoffSequence: generation.GetCutoffSequence(), StreamIdentity: generation.GetStreamIdentity(), Payload: generation.GetPayload(), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: generation.GetProducerVersion()}, nil
+}
+
+func validStreamIdentity(identity string) bool {
+	if len(identity) != len(streamIdentityPrefix)+sha256.Size*2 || !strings.HasPrefix(identity, streamIdentityPrefix) {
+		return false
+	}
+	_, err := hex.DecodeString(identity[len(streamIdentityPrefix):])
+	return err == nil
 }
 
 func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, error) {

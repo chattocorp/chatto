@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
@@ -14,14 +16,14 @@ import (
 const projectionSnapshotLeaseName = "projection-snapshot-threads"
 
 type projectionSnapshotWorker struct {
-	projector      *events.Projector
-	repository     *projectionsnapshot.Repository
-	lease          *lease.Lease
-	projectionKey  string
-	compatibility  string
-	streamName     string
-	streamIdentity string
-	logger         events.Logger
+	projector     *events.Projector
+	repository    *projectionsnapshot.Repository
+	lease         *lease.Lease
+	projectionKey string
+	compatibility string
+	stream        jetstream.Stream
+	streamName    string
+	logger        events.Logger
 }
 
 func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan struct{}) error {
@@ -51,7 +53,23 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 	if !status.StartupComplete {
 		return fmt.Errorf("projection startup is not complete")
 	}
-	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, w.streamIdentity, status.LastSeq)
+	if status.LastSeq == 0 {
+		w.logger.Debug("Projection snapshot generation skipped for empty EVT stream",
+			"projection", w.projectionKey,
+			"backend", w.repository.Backend(),
+			"stage", "generate_skip")
+		return nil
+	}
+	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, status.LastSeq)
+	if err == nil {
+		identity, identityErr := events.StreamPositionIdentity(ctx, w.stream, current.CutoffSequence)
+		switch {
+		case identityErr != nil:
+			err = fmt.Errorf("validate current snapshot EVT cutoff identity: %w", identityErr)
+		case current.StreamIdentity != identity:
+			err = fmt.Errorf("validate current snapshot EVT cutoff identity: history changed")
+		}
+	}
 	if err == nil && current.CutoffSequence >= status.LastSeq {
 		w.logger.Debug("Projection snapshot already current",
 			"projection", w.projectionKey,
@@ -76,6 +94,10 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 	if len(captured.Payload) == 0 {
 		return fmt.Errorf("projection returned an empty snapshot")
 	}
+	streamIdentity, err := events.StreamPositionIdentity(ctx, w.stream, captured.CutoffSequence)
+	if err != nil {
+		return fmt.Errorf("fingerprint projection snapshot cutoff: %w", err)
+	}
 	if err := w.lease.CheckOwnership(ctx); err != nil {
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
 	}
@@ -83,7 +105,7 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 		ProjectionKey:   w.projectionKey,
 		CompatibilityID: w.compatibility,
 		StreamName:      w.streamName,
-		StreamIdentity:  w.streamIdentity,
+		StreamIdentity:  streamIdentity,
 		CutoffSequence:  captured.CutoffSequence,
 		Payload:         captured.Payload,
 	})

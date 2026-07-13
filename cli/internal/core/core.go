@@ -1108,14 +1108,14 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", snapshotLeaseErr)
 		} else {
 			core.projectionSnapshotWorker = &projectionSnapshotWorker{
-				projector:      threadsProjector,
-				repository:     snapshotRepository,
-				lease:          snapshotLease,
-				projectionKey:  "threads",
-				compatibility:  threadSnapshotCompatibilityID,
-				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
-				streamIdentity: storage.serverEvtStream.CachedInfo().Created.UTC().Format(time.RFC3339Nano),
-				logger:         logger.WithPrefix("core.ProjectionSnapshotWorker"),
+				projector:     threadsProjector,
+				repository:    snapshotRepository,
+				lease:         snapshotLease,
+				projectionKey: "threads",
+				compatibility: threadSnapshotCompatibilityID,
+				stream:        storage.serverEvtStream,
+				streamName:    storage.serverEvtStream.CachedInfo().Config.Name,
+				logger:        logger.WithPrefix("core.ProjectionSnapshotWorker"),
 			}
 		}
 	}

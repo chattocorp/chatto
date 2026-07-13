@@ -37,9 +37,10 @@ type ProjectionSnapshotGeneration struct {
 	Payload         []byte                 `protobuf:"bytes,8,opt,name=payload,proto3" json:"payload,omitempty"`
 	PayloadSize     uint64                 `protobuf:"varint,9,opt,name=payload_size,json=payloadSize,proto3" json:"payload_size,omitempty"`
 	PayloadSha256   []byte                 `protobuf:"bytes,10,opt,name=payload_sha256,json=payloadSha256,proto3" json:"payload_sha256,omitempty"`
-	StreamIdentity  string                 `protobuf:"bytes,11,opt,name=stream_identity,json=streamIdentity,proto3" json:"stream_identity,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Versioned fingerprint of the immutable EVT message at cutoff_sequence.
+	StreamIdentity string `protobuf:"bytes,11,opt,name=stream_identity,json=streamIdentity,proto3" json:"stream_identity,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProjectionSnapshotGeneration) Reset() {

@@ -129,7 +129,8 @@ A snapshot generation is one immutable encrypted bundle containing its
 manifest and projection payload. The encrypted manifest records at least:
 
 - generation ID;
-- EVT stream name, creation identity, and cutoff sequence;
+- EVT stream name, cutoff sequence, and a versioned SHA-256 identity of the
+  immutable event subject and payload at that cutoff;
 - projection key, compatibility ID, and producer version;
 - payload size and checksum; and
 - creation time.
@@ -143,12 +144,15 @@ object locator is derived from `core.secret_key` and the projection key so it
 does not disclose which projection it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
-compatibility, EVT stream identity, and cutoff bounds before mutating a live
-projection. Projection restore codecs are transactional: a rejected payload
-must leave prior state unchanged so the projector can reset to its cold-start
-state and replay all of `EVT`. Capturing a snapshot must bind projection state
-and its applied EVT sequence at one projector-owned barrier; reading projection
-state and a projector cursor in separate unsynchronized operations is invalid.
+compatibility, cutoff bounds, and the current EVT message identity at that
+cutoff before mutating a live projection. The identity is derived from EVT
+content rather than `StreamInfo.Created`, which is not stable across embedded
+NATS process reconstruction. Projection restore codecs are transactional: a
+rejected payload must leave prior state unchanged so the projector can reset to
+its cold-start state and replay all of `EVT`. Capturing a snapshot must bind
+projection state and its applied EVT sequence at one projector-owned barrier;
+reading projection state and a projector cursor in separate unsynchronized
+operations is invalid.
 
 The canary retains the current and previous referenced generations. It deletes
 the generation that falls out of that window and rolls back a newly uploaded

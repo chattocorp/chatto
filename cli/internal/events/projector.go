@@ -2,6 +2,9 @@ package events
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -106,6 +109,7 @@ type SnapshotCompatibleProjection interface {
 type ProjectionSnapshot struct {
 	GenerationID   string
 	CutoffSequence uint64
+	StreamIdentity string
 	Payload        []byte
 }
 
@@ -116,7 +120,6 @@ type ProjectionSnapshotLoadRequest struct {
 	ProjectionKey   string
 	CompatibilityID string
 	StreamName      string
-	StreamIdentity  string
 	MaxCutoff       uint64
 }
 
@@ -266,6 +269,28 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	seq := p.lastSeq
 	p.mu.Unlock()
 	return ProjectionSnapshot{CutoffSequence: seq, Payload: payload}, nil
+}
+
+// StreamPositionIdentity fingerprints the immutable EVT message at seq. It is
+// stable across NATS process restarts and backup restores while rejecting a
+// snapshot when the stream history at its cutoff has changed.
+func StreamPositionIdentity(ctx context.Context, stream jetstream.Stream, seq uint64) (string, error) {
+	if stream == nil || seq == 0 {
+		return "", fmt.Errorf("snapshot stream and non-zero cutoff sequence are required")
+	}
+	msg, err := stream.GetMsg(ctx, seq)
+	if err != nil {
+		return "", fmt.Errorf("load EVT snapshot cutoff %d: %w", seq, err)
+	}
+	hash := sha256.New()
+	_, _ = hash.Write([]byte("chatto/evt-position/v1\x00"))
+	var sequence [8]byte
+	binary.BigEndian.PutUint64(sequence[:], seq)
+	_, _ = hash.Write(sequence[:])
+	_, _ = hash.Write([]byte(msg.Subject))
+	_, _ = hash.Write([]byte{0})
+	_, _ = hash.Write(msg.Data)
+	return "evt-message-sha256-v1:" + hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
@@ -976,23 +1001,20 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	}
 	compatible := p.proj.(SnapshotCompatibleProjection)
 	streamName := ""
-	streamIdentity := ""
 	if info := p.stream.CachedInfo(); info != nil {
 		streamName = info.Config.Name
-		streamIdentity = info.Created.UTC().Format(time.RFC3339Nano)
 	}
 	if loadTimeout <= 0 {
 		loadTimeout = projectionSnapshotLoadTimeout
 	}
 	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
+	defer cancelLoad()
 	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
 		ProjectionKey:   key,
 		CompatibilityID: compatible.SnapshotCompatibilityID(),
 		StreamName:      streamName,
-		StreamIdentity:  streamIdentity,
 		MaxCutoff:       targetSeq,
 	})
-	cancelLoad()
 	if err != nil {
 		p.logger.Info("Projection snapshot unavailable; replaying EVT",
 			"projection", key,
@@ -1007,6 +1029,19 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"generation_id", snapshot.GenerationID,
 			"cutoff_seq", snapshot.CutoffSequence,
 			"target_seq", targetSeq)
+		return coldRestore()
+	}
+	streamIdentity, err := StreamPositionIdentity(loadCtx, p.stream, snapshot.CutoffSequence)
+	if err != nil || snapshot.StreamIdentity != streamIdentity {
+		if err == nil {
+			err = fmt.Errorf("EVT history at snapshot cutoff changed")
+		}
+		p.logger.Warn("Projection snapshot EVT cutoff identity rejected; replaying EVT",
+			"projection", key,
+			"stage", "restore_validate",
+			"generation_id", snapshot.GenerationID,
+			"cutoff_seq", snapshot.CutoffSequence,
+			"error", err)
 		return coldRestore()
 	}
 	if err := p.proj.Restore(snapshot.Payload); err != nil {

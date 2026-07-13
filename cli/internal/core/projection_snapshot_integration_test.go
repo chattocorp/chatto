@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
+
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -14,7 +17,9 @@ import (
 )
 
 func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
-	_, nc := testutil.StartNATS(t)
+	storeDir := t.TempDir()
+	ns, nc := startPersistentSnapshotNATS(t, storeDir)
+	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
@@ -40,6 +45,12 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
 	stopFirst()
+	stopPersistentSnapshotNATS(ns, nc)
+
+	// A persisted StreamInfo.Created timestamp changes when embedded NATS is
+	// reconstructed. Restart the process against the same store so this test
+	// proves snapshot identity is derived from EVT history instead.
+	ns, nc = startPersistentSnapshotNATS(t, storeDir)
 
 	second, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
@@ -53,6 +64,40 @@ func TestExperimentalProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
+	}
+}
+
+func startPersistentSnapshotNATS(t *testing.T, storeDir string) (*server.Server, *nats.Conn) {
+	t.Helper()
+	ns, err := server.NewServer(&server.Options{
+		JetStream:  true,
+		DontListen: true,
+		StoreDir:   storeDir,
+		NoSigs:     true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ns.Start()
+	if !ns.ReadyForConnections(5 * time.Second) {
+		ns.Shutdown()
+		t.Fatal("persistent snapshot NATS did not become ready")
+	}
+	nc, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
+	if err != nil {
+		ns.Shutdown()
+		t.Fatal(err)
+	}
+	return ns, nc
+}
+
+func stopPersistentSnapshotNATS(ns *server.Server, nc *nats.Conn) {
+	if nc != nil {
+		nc.Close()
+	}
+	if ns != nil {
+		ns.Shutdown()
+		ns.WaitForShutdown()
 	}
 }
 

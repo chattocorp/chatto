@@ -736,7 +736,11 @@ func TestRunProjectors_RestoredProjectionSkipsCutoffWhileColdProjectionReplaysAl
 	coldProjection := newTrackingProjection(RoomSubjectFilter())
 	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
 	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
-	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], Payload: []byte("restored")}}
+	streamIdentity, err := StreamPositionIdentity(ctx, stream, seqs[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], StreamIdentity: streamIdentity, Payload: []byte("restored")}}
 	if err := restoredProjector.ConfigureSnapshots("tracking", source); err != nil {
 		t.Fatal(err)
 	}
@@ -757,7 +761,7 @@ func TestRunProjectors_RestoredProjectionSkipsCutoffWhileColdProjectionReplaysAl
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq != seqs[1] || status.StartupMessages != 1 || status.LastSeq != seqs[2] {
 		t.Fatalf("restored status = %#v", status)
 	}
-	if source.request.StreamName != "EVT_TEST" || source.request.StreamIdentity == "" || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
+	if source.request.StreamName != "EVT_TEST" || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
 		t.Fatalf("snapshot load request = %#v", source.request)
 	}
 }
@@ -782,7 +786,14 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 			projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 			projection.restoreErr = test.restoreErr
 			projector := NewProjector(js, stream, projection, testLogger())
-			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Payload: []byte("bad")}}
+			streamIdentity := ""
+			if test.cutoffDelta == 0 {
+				streamIdentity, err = StreamPositionIdentity(ctx, stream, seq)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, StreamIdentity: streamIdentity, Payload: []byte("bad")}}
 			if err := projector.ConfigureSnapshots("tracking", source); err != nil {
 				t.Fatal(err)
 			}
@@ -797,6 +808,34 @@ func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testin
 				t.Fatal("invalid snapshot reported as restored")
 			}
 		})
+	}
+}
+
+func TestProjectorRejectsSnapshotWhenCutoffHistoryChanged(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{
+		GenerationID:   "generation",
+		CutoffSequence: seq,
+		StreamIdentity: "evt-message-sha256-v1:different-history",
+		Payload:        []byte("stale"),
+	}}
+	if err := projector.ConfigureSnapshots("tracking", source); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+	if projection.Count() != 1 || projector.Status().SnapshotRestored {
+		t.Fatalf("changed-history fallback projection count/status = %d/%#v", projection.Count(), projector.Status())
 	}
 }
 
