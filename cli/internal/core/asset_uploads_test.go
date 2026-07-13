@@ -225,6 +225,16 @@ func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *tes
 	}
 
 	content := testAnimatedGIF(t)
+	existing, reservation, err := core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif")
+	if err != nil {
+		t.Fatalf("BeginRemoteAttachmentImport: %v", err)
+	}
+	if existing != nil || reservation == nil {
+		t.Fatalf("initial import reservation = (%+v, %+v)", existing, reservation)
+	}
+	if _, _, err := core.AssetUploads().BeginRemoteAttachmentImport(ctx, user.Id, room.Id, "https://example.com/linked-image.gif"); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("concurrent import reservation error = %v, want ErrLimitExceeded", err)
+	}
 	attachment, err := core.AssetUploads().ImportRemoteAttachment(ctx, RemoteAttachmentImportInput{
 		ActorID:     user.Id,
 		RoomID:      room.Id,
@@ -232,6 +242,7 @@ func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *tes
 		Filename:    "linked-image.gif",
 		ContentType: "image/gif",
 		Content:     content,
+		Reservation: reservation,
 	})
 	if err != nil {
 		t.Fatalf("ImportRemoteAttachment: %v", err)
