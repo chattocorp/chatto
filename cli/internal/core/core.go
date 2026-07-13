@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"time"
 
@@ -568,6 +569,9 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 		// Continue to fetch - don't fail on cache errors
 	}
 	if cached != nil {
+		if err := c.markCachedLegacyLinkPreviewPublic(ctx, cached); err != nil {
+			c.logger.Warn("Failed to preserve cached legacy link-preview image", "asset_id", cached.GetImageAssetId(), "error", err)
+		}
 		return cached, nil
 	}
 
@@ -590,6 +594,60 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	}
 
 	return preview, nil
+}
+
+// markCachedLegacyLinkPreviewPublic preserves a pre-namespace link-preview
+// image that is still referenced by the server's runtime cache but has not yet
+// appeared in durable message history. The cached server-issued AssetRecord
+// must bind one exact canonical flat NATS key; private declarations and metadata
+// always win. Only object metadata is updated—the object body is never opened.
+func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *corev1.LinkPreview) error {
+	if preview == nil || c.Assets == nil {
+		return nil
+	}
+	asset := preview.GetImageAsset()
+	assetID := preview.GetImageAssetId()
+	if asset == nil || assetID == "" || asset.GetId() != assetID {
+		return nil
+	}
+	natsAsset := asset.GetNats()
+	if natsAsset == nil || natsAsset.GetKey() != assetID {
+		return nil
+	}
+	logicalID, namespaced, ok := serverAssetRequestKey(natsAsset.GetKey())
+	if !ok || namespaced || logicalID != assetID {
+		return nil
+	}
+	if _, declared := c.Assets.AssetCreation(assetID); declared || c.Assets.AssetDeleted(assetID) {
+		return nil
+	}
+
+	info, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
+			return nil
+		}
+		return fmt.Errorf("inspect legacy preview object metadata: %w", err)
+	}
+	if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" ||
+		info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic {
+		return nil
+	}
+
+	headers := maps.Clone(info.Headers)
+	if headers == nil {
+		headers = make(nats.Header)
+	}
+	headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
+	if err := c.storage.serverAssets.UpdateMeta(ctx, assetID, jetstream.ObjectMeta{
+		Name:        assetID,
+		Description: info.Description,
+		Headers:     headers,
+		Metadata:    maps.Clone(info.Metadata),
+	}); err != nil {
+		return fmt.Errorf("mark legacy preview object public: %w", err)
+	}
+	return nil
 }
 
 // HydrateLinkPreviewImageAsset ensures a posted LinkPreview carries the

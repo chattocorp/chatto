@@ -28,6 +28,7 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
@@ -42,10 +43,11 @@ import (
 
 // assetTestEnv holds all test dependencies for asset tests
 type assetTestEnv struct {
-	server *httptest.Server
-	client *http.Client
-	core   *core.ChattoCore
-	ctx    context.Context
+	server   *httptest.Server
+	client   *http.Client
+	core     *core.ChattoCore
+	ctx      context.Context
+	previews *linkpreview.Cache
 }
 
 // setupAssetTestServer creates a test server for asset testing with caching enabled.
@@ -109,6 +111,14 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
 	startCoreServices(t, chattoCore)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("Create JetStream test client: %v", err)
+	}
+	runtimeState, err := js.KeyValue(ctx, "RUNTIME_STATE")
+	if err != nil {
+		t.Fatalf("Open RUNTIME_STATE test cache: %v", err)
+	}
 
 	// Create router with session middleware
 	router := gin.New()
@@ -159,10 +169,11 @@ func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool
 	}
 
 	return &assetTestEnv{
-		server: ts,
-		client: client,
-		core:   chattoCore,
-		ctx:    ctx,
+		server:   ts,
+		client:   client,
+		core:     chattoCore,
+		ctx:      ctx,
+		previews: linkpreview.NewCache(runtimeState),
 	}
 }
 
@@ -1198,6 +1209,63 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 		t.Fatalf("project legacy link-preview fixture: %v", err)
 	}
 	assertOK(env.core.GetTransformedServerAssetURL(previewID, 64, 64, "cover"))
+}
+
+func TestAsset_CacheOnlyLegacyLinkPreviewRemainsAvailable(t *testing.T) {
+	env := setupAssetTestServer(t)
+	assetID := core.NewAssetID()
+	previewURL := "https://legacy-cache-only.example/article"
+	imageData := createAssetTestPNG(t, 120, 80)
+	store := env.core.ServerStore()
+	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{
+		Name:    assetID,
+		Headers: map[string][]string{"Content-Type": {"image/png"}},
+	}, bytes.NewReader(imageData)); err != nil {
+		t.Fatalf("store cache-only legacy preview: %v", err)
+	}
+	if err := env.previews.Set(env.ctx, previewURL, &corev1.LinkPreview{
+		Url:          previewURL,
+		ImageAssetId: &assetID,
+		ImageAsset: &corev1.AssetRecord{
+			Id:          assetID,
+			ContentType: "image/png",
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+		},
+	}); err != nil {
+		t.Fatalf("cache legacy preview metadata: %v", err)
+	}
+
+	assertStatus := func(path string, want int) {
+		t.Helper()
+		resp, err := http.Get(env.server.URL + path)
+		if err != nil {
+			t.Fatalf("GET %q: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("GET %q status = %d, want %d", path, resp.StatusCode, want)
+		}
+	}
+
+	assetPath := "/assets/server/" + assetID
+	assertStatus(assetPath, http.StatusNotFound)
+	preview, err := env.core.GetLinkPreview(env.ctx, previewURL)
+	if err != nil {
+		t.Fatalf("GetLinkPreview cached legacy preview: %v", err)
+	}
+	if preview.GetImageAssetId() != assetID {
+		t.Fatalf("cached preview asset ID = %q, want %q", preview.GetImageAssetId(), assetID)
+	}
+	assertStatus(assetPath, http.StatusOK)
+	assertStatus(env.core.GetTransformedServerAssetURL(assetID, 64, 64, "cover"), http.StatusOK)
+
+	info, err := store.GetInfo(env.ctx, assetID)
+	if err != nil {
+		t.Fatalf("GetInfo promoted legacy preview: %v", err)
+	}
+	if got := info.Headers.Get(core.ServerAssetVisibilityHeader); got != core.ServerAssetVisibilityPublic {
+		t.Fatalf("legacy preview visibility = %q, want %q", got, core.ServerAssetVisibilityPublic)
+	}
 }
 
 func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T) {

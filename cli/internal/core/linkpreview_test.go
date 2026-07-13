@@ -1,16 +1,135 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/core/linkpreview"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
+	ctx := context.Background()
+	core, _ := setupTestCore(t)
+	assetID := NewAssetID()
+	url := "https://legacy-preview.example/article"
+	data := []byte("legacy-preview-image")
+
+	_, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+		Name:        assetID,
+		Description: "legacy preview",
+		Headers: map[string][]string{
+			"Content-Type":  {"image/webp"},
+			"X-Legacy-Test": {"preserved"},
+		},
+		Metadata: map[string]string{"source": "legacy-cache"},
+	}, bytes.NewReader(data))
+	require.NoError(t, err)
+	require.NoError(t, core.linkPreviewCache.Set(ctx, url, &corev1.LinkPreview{
+		Url:          url,
+		ImageAssetId: &assetID,
+		ImageAsset: &corev1.AssetRecord{
+			Id:          assetID,
+			ContentType: "image/webp",
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+		},
+	}))
+
+	preview, err := core.GetLinkPreview(ctx, url)
+	require.NoError(t, err)
+	require.Equal(t, assetID, preview.GetImageAssetId())
+
+	info, err := core.storage.serverAssets.GetInfo(ctx, assetID)
+	require.NoError(t, err)
+	require.Equal(t, ServerAssetVisibilityPublic, info.Headers.Get(ServerAssetVisibilityHeader))
+	require.Equal(t, "image/webp", info.Headers.Get("Content-Type"))
+	require.Equal(t, "preserved", info.Headers.Get("X-Legacy-Test"))
+	require.Equal(t, "legacy preview", info.Description)
+	require.Equal(t, "legacy-cache", info.Metadata["source"])
+	require.True(t, core.IsPublicServerAsset(ctx, assetID))
+
+	stored, err := core.storage.serverAssets.GetBytes(ctx, assetID)
+	require.NoError(t, err)
+	require.Equal(t, data, stored)
+}
+
+func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers map[string][]string
+		declare func(t *testing.T, core *ChattoCore, assetID string)
+	}{
+		{name: "room metadata", headers: map[string][]string{"Room-Id": {"Rprivatepreview"}}},
+		{name: "upload metadata", headers: map[string][]string{"Upload-Id": {"Uprivatepreview"}}},
+		{name: "durable declaration", declare: func(t *testing.T, core *ChattoCore, assetID string) {
+			event := newEvent(SystemActorID, &corev1.Event{
+				Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{
+					Asset: &corev1.AssetRecord{Id: assetID},
+				}},
+			})
+			_, err := core.AssetsProjector.AppendEventuallyAndWait(
+				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
+			)
+			require.NoError(t, err)
+		}},
+		{name: "durable tombstone", declare: func(t *testing.T, core *ChattoCore, assetID string) {
+			event := newEvent(SystemActorID, &corev1.Event{
+				Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
+					AssetId: assetID,
+				}},
+			})
+			_, err := core.AssetsProjector.AppendEventuallyAndWait(
+				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
+			)
+			require.NoError(t, err)
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			core, _ := setupTestCore(t)
+			assetID := NewAssetID()
+			url := "https://private-preview.example/" + assetID
+			headers := map[string][]string{"Content-Type": {"image/webp"}}
+			for name, values := range test.headers {
+				headers[name] = values
+			}
+
+			_, err := core.storage.serverAssets.Put(ctx, jetstream.ObjectMeta{
+				Name:    assetID,
+				Headers: headers,
+			}, bytes.NewReader([]byte("private-image")))
+			require.NoError(t, err)
+			if test.declare != nil {
+				test.declare(t, core, assetID)
+			}
+			require.NoError(t, core.linkPreviewCache.Set(ctx, url, &corev1.LinkPreview{
+				Url:          url,
+				ImageAssetId: &assetID,
+				ImageAsset: &corev1.AssetRecord{
+					Id:      assetID,
+					Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+				},
+			}))
+
+			preview, err := core.GetLinkPreview(ctx, url)
+			require.NoError(t, err)
+			require.Equal(t, assetID, preview.GetImageAssetId())
+			info, err := core.storage.serverAssets.GetInfo(ctx, assetID)
+			require.NoError(t, err)
+			require.Empty(t, info.Headers.Get(ServerAssetVisibilityHeader))
+			require.False(t, core.IsPublicServerAsset(ctx, assetID))
+		})
+	}
+}
 
 func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	ctx := context.Background()
