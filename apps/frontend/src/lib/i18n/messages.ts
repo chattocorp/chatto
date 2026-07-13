@@ -233,6 +233,10 @@ const msg_settings_notifications_push_blocked_title = (): LocalizedString => mes
 const msg_settings_notifications_push_blocked_description = (): LocalizedString => messages().settings_notifications_push_blocked_description(empty());
 const msg_settings_notifications_push_enabled_title = (): LocalizedString => messages().settings_notifications_push_enabled_title(empty());
 const msg_settings_notifications_push_enabled_description = (): LocalizedString => messages().settings_notifications_push_enabled_description(empty());
+const msg_settings_notifications_push_test_button = (): LocalizedString => messages().settings_notifications_push_test_button(empty());
+const msg_settings_notifications_push_testing = (): LocalizedString => messages().settings_notifications_push_testing(empty());
+const msg_settings_notifications_push_test_sent = (): LocalizedString => messages().settings_notifications_push_test_sent(empty());
+const msg_settings_notifications_push_test_failed = (): LocalizedString => messages().settings_notifications_push_test_failed(empty());
 const msg_settings_notifications_push_enable_title = (): LocalizedString => messages().settings_notifications_push_enable_title(empty());
 const msg_settings_notifications_push_enable_description = (): LocalizedString => messages().settings_notifications_push_enable_description(empty());
 const msg_settings_notifications_push_enable_button = (): LocalizedString => messages().settings_notifications_push_enable_button(empty());
@@ -1685,6 +1689,10 @@ export { msg_settings_notifications_push_blocked_title as 'settings.notification
 export { msg_settings_notifications_push_blocked_description as 'settings.notifications.push.blocked_description' };
 export { msg_settings_notifications_push_enabled_title as 'settings.notifications.push.enabled_title' };
 export { msg_settings_notifications_push_enabled_description as 'settings.notifications.push.enabled_description' };
+export { msg_settings_notifications_push_test_button as 'settings.notifications.push.test_button' };
+export { msg_settings_notifications_push_testing as 'settings.notifications.push.testing' };
+export { msg_settings_notifications_push_test_sent as 'settings.notifications.push.test_sent' };
+export { msg_settings_notifications_push_test_failed as 'settings.notifications.push.test_failed' };
 export { msg_settings_notifications_push_enable_title as 'settings.notifications.push.enable_title' };
 export { msg_settings_notifications_push_enable_description as 'settings.notifications.push.enable_description' };
 export { msg_settings_notifications_push_enable_button as 'settings.notifications.push.enable_button' };

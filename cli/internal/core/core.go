@@ -79,6 +79,9 @@ type ChattoCore struct {
 	// Set this after ChattoCore is created.
 	OnNotificationDismissed func(ctx context.Context, userID string, notification *corev1.Notification)
 
+	// OnPushTestRequested sends a test notification to a user's push subscriptions.
+	OnPushTestRequested func(ctx context.Context, userID string) error
+
 	// OnVideoProcessingRequested starts best-effort local video processing for
 	// an already-declared message-owned asset. The video service registers this
 	// callback when enabled; a future durable task queue should replace this

@@ -31,7 +31,8 @@ const mocks = vi.hoisted(() => ({
     ensureRegistered: vi.fn(),
     getPushCapability: vi.fn(),
     getPermission: vi.fn(),
-    isSubscribed: vi.fn()
+    isSubscribed: vi.fn(),
+    sendTestNotification: vi.fn()
   }
 }));
 
@@ -47,7 +48,8 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.pushNotifications.ensureRegistered,
   getPushCapability: mocks.pushNotifications.getPushCapability,
   getPermission: mocks.pushNotifications.getPermission,
-  isSubscribed: mocks.pushNotifications.isSubscribed
+  isSubscribed: mocks.pushNotifications.isSubscribed,
+  sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
 vi.mock('$lib/api-client/notificationPreferences', () => ({
@@ -146,6 +148,8 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+    mocks.pushNotifications.sendTestNotification.mockReset();
+    mocks.pushNotifications.sendTestNotification.mockResolvedValue(true);
     mocks.query.mockReset();
     mocks.mutation.mockReset();
     mocks.getServerNotificationPreference.mockReset();
@@ -387,6 +391,22 @@ describe('Notification settings page', () => {
     expect(container.textContent).toContain('Push notifications enabled');
     expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');
+  });
+
+  it('sends a test push notification when push is enabled', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.getPermission.mockReturnValue('granted');
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(true);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'Send test notification').click();
+    await settle();
+
+    expect(mocks.pushNotifications.sendTestNotification).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain('Test notification sent.');
   });
 
   it('updates and persists notification sound filter sliders', async () => {

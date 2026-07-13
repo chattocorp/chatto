@@ -19,6 +19,9 @@ service PushNotificationService {
   rpc Unsubscribe(UnsubscribePushRequest) returns (UnsubscribePushResponse) {
     option idempotency_level = IDEMPOTENT;
   }
+
+  // Sends a test notification to the caller's registered browser subscriptions.
+  rpc SendTestNotification(SendTestPushNotificationRequest) returns (SendTestPushNotificationResponse);
 }
 
 // Request to store a PushSubscription returned by the browser Push API.
@@ -64,4 +67,13 @@ message UnsubscribePushRequest {
 message UnsubscribePushResponse {
   // True when the request completed.
   bool unsubscribed = 1;
+}
+
+// Request to test the current user's registered browser push subscriptions.
+message SendTestPushNotificationRequest {}
+
+// Result of sending a test Web Push notification.
+message SendTestPushNotificationResponse {
+  // True when the push provider accepted the notification.
+  bool sent = 1;
 }
