@@ -1,10 +1,11 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { docsSiteUrl } from "./src/docsMetadata.ts";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://docs.chatto.run",
+  site: docsSiteUrl,
   redirects: {
     "/getting-started/overview": "/getting-started/introduction",
     "/guides/deployment-read-this-first": "/guides/deployment/read-this-first",
@@ -35,6 +36,8 @@ export default defineConfig({
       customCss: ["./src/custom.css"],
       routeMiddleware: "./src/routeData.ts",
       components: {
+        Banner: "./src/components/DocsBanner.astro",
+        SiteTitle: "./src/components/DocsSiteTitle.astro",
         SocialIcons: "./src/components/SocialIcons.astro",
       },
       social: [

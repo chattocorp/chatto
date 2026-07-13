@@ -386,6 +386,7 @@ export class VoiceCallState {
           worker: this.e2eeWorker
         },
         audioCaptureDefaults: {
+          channelCount: { ideal: 1 },
           autoGainControl: true,
           echoCancellation: true,
           noiseSuppression: true
@@ -395,6 +396,7 @@ export class VoiceCallState {
         },
         publishDefaults: {
           audioPreset: AudioPresets.speech,
+          forceStereo: false,
           dtx: true,
           red: true,
           simulcast: true

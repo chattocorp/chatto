@@ -284,6 +284,20 @@ describe('VoiceCallState', () => {
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
 
+  it('configures microphone capture and publication as mono', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
+      channelCount: { ideal: 1 }
+    });
+    expect(lastRoomOptions?.publishDefaults).toMatchObject({
+      forceStereo: false
+    });
+  });
+
   it('does not play a join sound without the participant join event', async () => {
     const client = createVoiceCallClient();
     const state = new VoiceCallState(client);
