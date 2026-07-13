@@ -227,16 +227,22 @@ func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEven
 			ctx:               ctx,
 			result:            make(chan error, 1),
 		}
+		changed := h.stateChanged
 		h.mu.Unlock()
 
 		select {
 		case h.registrations <- request:
+		case <-changed:
+			return errMyEventsIngressChanged
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 		select {
 		case err := <-request.result:
 			return err
+		case <-changed:
+			h.Unsubscribe(sub)
+			return errMyEventsIngressChanged
 		case <-ctx.Done():
 			h.Unsubscribe(sub)
 			return ctx.Err()

@@ -245,6 +245,37 @@ func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 	hub.Unsubscribe(sub)
 }
 
+func TestMyEventsHubQuarantineInterruptsPendingRegistration(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	hub.beginGeneration()
+	ctx := testContext(t)
+	ch := make(chan myEventsDelivery, 1)
+	done := make(chan struct{})
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
+	registered := make(chan error, 1)
+	go func() {
+		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, 0, hub.visibilityVersion)
+	}()
+
+	deadline := time.Now().Add(time.Second)
+	for len(hub.registrations) == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if len(hub.registrations) == 0 {
+		t.Fatal("registration did not reach dispatcher queue")
+	}
+	hub.quarantine("test discontinuity")
+	select {
+	case err := <-registered:
+		if !errors.Is(err, errMyEventsIngressChanged) {
+			t.Fatalf("registration error = %v, want ingress changed", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("quarantine did not interrupt pending registration")
+	}
+}
+
 func TestMyEventsHubTerminationInterruptsBlockedForwarding(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
