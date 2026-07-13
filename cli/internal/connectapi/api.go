@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"math"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -56,12 +57,25 @@ func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API
 // public API. HTTP middleware that writes Connect errors should use the same
 // options so errors are encoded consistently with the generated handlers.
 func HandlerOptions() []connect.HandlerOption {
-	return handlerOptionsWithReadMax(MaxRequestMessageBytes)
+	return HandlerOptionsForWebserver(config.WebserverConfig{})
 }
 
-func handlerOptionsWithReadMax(readMaxBytes int) []connect.HandlerOption {
+// HandlerOptionsForWebserver returns the common Connect handler options with
+// the webserver's response-compression policy applied.
+func HandlerOptionsForWebserver(webserver config.WebserverConfig) []connect.HandlerOption {
+	return handlerOptionsWithReadMax(MaxRequestMessageBytes, webserver)
+}
+
+func handlerOptionsWithReadMax(readMaxBytes int, webserver config.WebserverConfig) []connect.HandlerOption {
+	compressionMinBytes := webserver.APICompressionMinBytesOrDefault()
+	if !webserver.APICompressionEnabled() {
+		// Keep gzip request decoding available while making response compression
+		// unreachable for any message representable by Connect's int-sized buffer.
+		compressionMinBytes = math.MaxInt
+	}
 	return []connect.HandlerOption{
 		connect.WithReadMaxBytes(readMaxBytes),
+		connect.WithCompressMinBytes(compressionMinBytes),
 		connect.WithInterceptors(
 			internalErrorLoggingInterceptor(),
 			validate.NewInterceptor(),
@@ -70,12 +84,12 @@ func handlerOptionsWithReadMax(readMaxBytes int) []connect.HandlerOption {
 }
 
 func (a *API) Handlers() []Handler {
-	options := HandlerOptions()
+	options := HandlerOptionsForWebserver(a.config.Webserver)
 	uploadOptions := options
 	assetUploadOptions := options
 	if a.core != nil {
-		uploadOptions = handlerOptionsWithReadMax(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
-		assetUploadOptions = handlerOptionsWithReadMax(assetUploadRequestMaxBytes())
+		uploadOptions = handlerOptionsWithReadMax(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize), a.config.Webserver)
+		assetUploadOptions = handlerOptionsWithReadMax(assetUploadRequestMaxBytes(), a.config.Webserver)
 	}
 
 	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
@@ -134,7 +148,7 @@ func (a *API) Handlers() []Handler {
 // OperatorHandlers returns the local, root-equivalent operator API surface.
 // These handlers must only be mounted on the operator Unix socket.
 func (a *API) OperatorHandlers() []Handler {
-	options := HandlerOptions()
+	options := HandlerOptionsForWebserver(a.config.Webserver)
 	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
 	return []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
