@@ -305,6 +305,9 @@ func TestRevocationRemovesMember(t *testing.T) {
 	verifier := NewVerifier(trustMembers(t, first, second, third))
 	genesis, groupID := makeGenesis(t, first, second, testNow)
 	membership := makeMembership(t, groupID, third, first, second, founderRefs(t, genesis, first, second), testNow.Add(time.Second))
+	if err := third.broker.Finalize(membership, verifier, []Certificate{genesis}, testNow.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
 	membershipID, err := StatementID(membership.Request.Statement)
 	if err != nil {
 		t.Fatal(err)
@@ -342,6 +345,9 @@ func TestMembershipSponsoredAfterRevocationIsRejected(t *testing.T) {
 	third := newTestMember(t, "https://three.example", "user-three")
 	verifier := NewVerifier(trustMembers(t, first, second, third))
 	genesis, groupID := makeGenesis(t, first, second, testNow)
+	if err := first.broker.Finalize(genesis, verifier, nil, testNow); err != nil {
+		t.Fatal(err)
+	}
 	genesisID, err := StatementID(genesis.Request.Statement)
 	if err != nil {
 		t.Fatal(err)
@@ -567,5 +573,73 @@ func TestSponsorApprovalRejectsKnownRevocationBeforeSelectiveFinalization(t *tes
 	}
 	if _, err := first.broker.Approve(first.account, request, membershipAt); !errors.Is(err, ErrInsufficientSponsors) {
 		t.Fatalf("Approve error = %v, want known-revocation rejection", err)
+	}
+}
+
+func TestRevocationApprovalRequiresActiveOwnedCredential(t *testing.T) {
+	tests := []struct {
+		name         string
+		credentialID func(string, testMember, testMember) string
+		at           time.Time
+	}{
+		{
+			name:         "unknown",
+			credentialID: func(_ string, _, _ testMember) string { return "unknown-credential" },
+			at:           testNow.Add(time.Second),
+		},
+		{
+			name: "wrong account",
+			credentialID: func(genesisID string, _ testMember, second testMember) string {
+				return CredentialID(genesisID, second.account)
+			},
+			at: testNow.Add(time.Second),
+		},
+		{
+			name: "expired",
+			credentialID: func(genesisID string, first, _ testMember) string {
+				return CredentialID(genesisID, first.account)
+			},
+			at: testNow.Add(25 * time.Hour),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			first := newTestMember(t, "https://one.example", "user-one")
+			second := newTestMember(t, "https://two.example", "user-two")
+			verifier := NewVerifier(trustMembers(t, first, second))
+			genesis, groupID := makeGenesis(t, first, second, testNow)
+			if err := first.broker.Finalize(genesis, verifier, nil, testNow); err != nil {
+				t.Fatal(err)
+			}
+			genesisID, err := StatementID(genesis.Request.Statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			publicKey, privateKey, err := NewCeremonyKey()
+			if err != nil {
+				t.Fatal(err)
+			}
+			statement, err := NewRevocationStatement(
+				groupID,
+				test.credentialID(genesisID, first, second),
+				issueChallenge(t, first, KindRevocation, RoleMember, publicKey, test.at),
+				publicKey,
+				test.at,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request, err := SignCeremony(statement, privateKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := first.broker.Approve(first.account, request, test.at); !errors.Is(err, ErrInvalidArtifact) {
+				t.Fatalf("Approve error = %v, want invalid revocation rejection", err)
+			}
+			if got := len(first.broker.Certificates()); got != 1 {
+				t.Fatalf("stored certificates = %d, want only genesis", got)
+			}
+		})
 	}
 }

@@ -34,6 +34,7 @@ type Broker struct {
 	challenges   map[string]Challenge
 	approvals    map[string]issuedApproval
 	certificates map[string]Certificate
+	credentials  map[string]Credential
 	revoked      map[string]struct{}
 }
 
@@ -56,6 +57,7 @@ func NewBroker(origin string) (*Broker, error) {
 		challenges:   map[string]Challenge{},
 		approvals:    map[string]issuedApproval{},
 		certificates: map[string]Certificate{},
+		credentials:  map[string]Credential{},
 		revoked:      map[string]struct{}{},
 	}, nil
 }
@@ -169,6 +171,12 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 			}
 		}
 	}
+	if request.Statement.Kind == KindRevocation {
+		credential, ok := b.credentials[request.Statement.RevokedCredentialID]
+		if !ok || credential.GroupID != request.Statement.GroupID || credential.Account != authenticated || !credential.activeAt(now.Unix()) {
+			return Approval{}, fmt.Errorf("%w: revocation does not name an active local credential", ErrInvalidArtifact)
+		}
+	}
 
 	signature, err := signApproval(request.Statement, participant.Role, authenticated, b.privateKey)
 	if err != nil {
@@ -185,6 +193,9 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 	delete(b.challenges, participant.ChallengeID)
 	if request.Statement.Kind == KindRevocation {
 		b.revoked[request.Statement.RevokedCredentialID] = struct{}{}
+		credential := b.credentials[request.Statement.RevokedCredentialID]
+		credential.RevokedAt = request.Statement.IssuedAt
+		b.credentials[credential.ID] = credential
 		b.certificates[statementID] = cloneCertificate(Certificate{
 			Request:   request,
 			Approvals: []Approval{approval},
@@ -212,7 +223,8 @@ func (b *Broker) Finalize(certificate Certificate, verifier *Verifier, supportin
 	}
 	bundle := append(known, supporting...)
 	bundle = append(bundle, certificate)
-	if _, err := verifier.Reconstruct(bundle, now); err != nil {
+	group, err := verifier.Reconstruct(bundle, now)
+	if err != nil {
 		return err
 	}
 	if existing, ok := b.certificates[statementID]; ok {
@@ -224,6 +236,9 @@ func (b *Broker) Finalize(certificate Certificate, verifier *Verifier, supportin
 	}
 	if certificate.Request.Statement.Kind == KindRevocation {
 		b.revoked[certificate.Request.Statement.RevokedCredentialID] = struct{}{}
+	}
+	for id, credential := range group.Credentials {
+		b.credentials[id] = credential
 	}
 	b.certificates[statementID] = cloneCertificate(certificate)
 	return nil
