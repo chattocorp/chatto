@@ -61,6 +61,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if cfg.SMTP.TLS != config.SMTPTLSMandatory {
 		t.Fatalf("generated SMTP TLS policy = %q, want %q", cfg.SMTP.TLS, config.SMTPTLSMandatory)
 	}
+	if cfg.Email.Transport != config.EmailTransportSMTP {
+		t.Fatalf("generated email transport = %q, want %q", cfg.Email.Transport, config.EmailTransportSMTP)
+	}
 	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
 	if err != nil {
 		t.Fatalf("read generated raw config: %v", err)
@@ -122,6 +125,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if !strings.Contains(rawText, "\n[smtp]\n") {
 		t.Fatal("generated config should include SMTP defaults")
+	}
+	if !strings.Contains(rawText, "transport = 'smtp'") && !strings.Contains(rawText, "transport = \"smtp\"") {
+		t.Fatal("generated config should include the SMTP email transport default")
 	}
 	if !strings.Contains(rawText, "\nport = 587\n") {
 		t.Fatal("generated SMTP config should default to STARTTLS submission port 587")

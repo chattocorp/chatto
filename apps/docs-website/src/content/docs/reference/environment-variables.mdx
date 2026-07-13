@@ -333,7 +333,41 @@ Set `auto_provision = true` only for providers whose users should be allowed to 
 
 See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 
-## SMTP
+## Transactional Email
+
+SMTP is the default transactional email transport. Set `email.transport = "jmap"` when your provider exposes JMAP submission and you want Chatto to authenticate with a bearer token instead.
+
+<EnvVar name="CHATTO_EMAIL_TRANSPORT" toml="email.transport" default="smtp">
+  Transactional email transport. Supported values are `smtp` and `jmap`.
+</EnvVar>
+
+### JMAP
+
+<EnvVar name="CHATTO_EMAIL_JMAP_SESSION_URL" toml="email.jmap.session_url">
+  HTTPS JMAP session resource URL. Required when `email.transport` is `jmap`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EMAIL_JMAP_ACCESS_TOKEN" toml="email.jmap.access_token">
+  Bearer access token for the JMAP account. Required when `email.transport` is `jmap`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EMAIL_JMAP_FROM" toml="email.jmap.from">
+  From address for outgoing email. It must match a sending identity in the JMAP account. Required when `email.transport` is `jmap`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EMAIL_JMAP_ACCOUNT_ID" toml="email.jmap.account_id">
+  Optional JMAP account ID. By default, Chatto uses the session's primary submission account.
+</EnvVar>
+
+<EnvVar name="CHATTO_EMAIL_JMAP_IDENTITY_ID" toml="email.jmap.identity_id">
+  Optional JMAP identity ID. By default, Chatto uses the identity matching `email.jmap.from`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EMAIL_JMAP_DRAFT_MAILBOX_ID" toml="email.jmap.draft_mailbox_id">
+  Optional JMAP Drafts mailbox ID. By default, Chatto uses the mailbox with the `drafts` role.
+</EnvVar>
+
+### SMTP
 
 <EnvVar name="CHATTO_SMTP_ENABLED" toml="smtp.enabled" default="false">
   Enable SMTP email sending.

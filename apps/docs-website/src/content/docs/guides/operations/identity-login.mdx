@@ -1,6 +1,6 @@
 ---
 title: Identity & Login
-description: Configure local accounts, SMTP email flows, external login providers, account linking, and owner recovery.
+description: Configure local accounts, transactional email flows, external login providers, account linking, and owner recovery.
 ---
 
 import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -11,18 +11,18 @@ Chatto supports local password accounts, email verification and reset flows, ext
 
 | Model | Operator setup |
 | ----- | -------------- |
-| Local accounts only | Configure SMTP if you want email verification and password reset. |
+| Local accounts only | Configure transactional email if you want email verification and password reset. |
 | Invite or admin-managed server | Use local accounts plus operator-created users or restricted signup policy. |
 | Organization SSO | Configure one or more `[[auth.providers]]` entries. |
 | Mixed community | Allow local accounts and selected external providers. |
 | Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
 
-## SMTP Email
+## Transactional Email
 
-SMTP is needed for verification and password reset email flows. Configure it before inviting members if you expect self-service account recovery.
+Transactional email is needed for verification and password reset flows. SMTP is the default transport; use JMAP only when your provider offers JMAP submission with bearer-token authentication. Configure a transport before inviting members if you expect self-service account recovery.
 
 <Tabs>
-<TabItem label="TOML">
+<TabItem label="SMTP (TOML)">
 
 ```toml
 [smtp]
@@ -36,7 +36,7 @@ from = "Chatto <chatto@example.com>"
 ```
 
 </TabItem>
-<TabItem label="Environment">
+<TabItem label="SMTP (environment)">
 
 ```bash
 CHATTO_SMTP_ENABLED=true
@@ -49,9 +49,34 @@ CHATTO_SMTP_FROM="Chatto <chatto@example.com>"
 ```
 
 </TabItem>
+<TabItem label="JMAP (TOML)">
+
+```toml
+[email]
+transport = "jmap"
+
+[email.jmap]
+session_url = "https://mail.example.com/.well-known/jmap"
+access_token = "<generate-me>"
+from = "Chatto <chatto@example.com>"
+```
+
+</TabItem>
+<TabItem label="JMAP (environment)">
+
+```bash
+CHATTO_EMAIL_TRANSPORT=jmap
+CHATTO_EMAIL_JMAP_SESSION_URL=https://mail.example.com/.well-known/jmap
+CHATTO_EMAIL_JMAP_ACCESS_TOKEN=<generate-me>
+CHATTO_EMAIL_JMAP_FROM="Chatto <chatto@example.com>"
+```
+
+</TabItem>
 </Tabs>
 
 Use `smtp.tls_server_name` only when the SMTP host you connect to differs from the certificate name. Use `smtp.tls_skip_verify` only for a trusted internal mail server where you accept that verification tradeoff.
+
+With JMAP, Chatto discovers the primary submission account, a matching sender identity, and the Drafts mailbox. Set `email.jmap.account_id`, `email.jmap.identity_id`, or `email.jmap.draft_mailbox_id` only when automatic discovery is unsuitable. A successful submission means the JMAP server accepted the message; it does not confirm final recipient delivery.
 
 ## External Providers
 

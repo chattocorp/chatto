@@ -49,9 +49,9 @@ hostname.
 
    Replace `chat.example.com` with your Chatto domain and `admin@example.com` with the email address you will use for the first account. The script generates `.env` and `livekit.generated.yaml` with matching NATS, Chatto, and LiveKit secrets.
 
-4. **Configure SMTP**
+4. **Configure transactional email**
 
-   Edit `.env` and replace the `CHATTO_SMTP_*` placeholders with your provider settings. Direct email/password registration, email verification, and password reset require SMTP.
+   Edit `.env` and replace the `CHATTO_SMTP_*` placeholders with your provider settings. SMTP is the default transport. Direct email/password registration, email verification, and password reset require transactional email; you can instead configure JMAP as described in [Identity & Login](/guides/operations/identity-login/#transactional-email).
 
    The SMTP example uses STARTTLS submission on port `587`. For providers that require SMTPS on port `465`, set `CHATTO_SMTP_TLS=implicit`.
 
@@ -222,9 +222,9 @@ for private STUN and fixed-IP alternatives.
 
 ## Optional Features
 
-### Direct Registration and SMTP
+### Direct Registration and Transactional Email
 
-The setup above enables direct email/password registration, which requires SMTP because Chatto sends registration codes by email. SMTP is also used for email verification and password reset.
+The setup above enables direct email/password registration, which requires transactional email because Chatto sends registration codes by email. The provided `.env` uses SMTP, the default transport. You can instead configure JMAP as described in [Identity & Login](/guides/operations/identity-login/#transactional-email). Transactional email is also used for email verification and password reset.
 
 If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Users can still sign in through configured SSO providers.
 
@@ -310,7 +310,7 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 
 **Chatto can't connect to NATS** — Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in `.env`.
 
-**Registration says email delivery is not configured** — Direct email/password registration requires SMTP. Set `CHATTO_SMTP_ENABLED=true` and configure `CHATTO_SMTP_HOST`, `CHATTO_SMTP_PORT`, `CHATTO_SMTP_TLS`, and `CHATTO_SMTP_FROM`. Use `CHATTO_SMTP_TLS=implicit` for SMTPS providers on port `465`. Add username and password when your SMTP server requires authentication.
+**Registration says email delivery is not configured** — Direct email/password registration requires transactional email. For SMTP, set `CHATTO_SMTP_ENABLED=true` and configure `CHATTO_SMTP_HOST`, `CHATTO_SMTP_PORT`, `CHATTO_SMTP_TLS`, and `CHATTO_SMTP_FROM`. Use `CHATTO_SMTP_TLS=implicit` for SMTPS providers on port `465`. For JMAP, set `CHATTO_EMAIL_TRANSPORT=jmap`, `CHATTO_EMAIL_JMAP_SESSION_URL`, `CHATTO_EMAIL_JMAP_ACCESS_TOKEN`, and `CHATTO_EMAIL_JMAP_FROM`.
 
 **The first account is not an owner** — Make sure `CHATTO_OWNERS_EMAILS` contains the verified email address for that account. For an already-verified account, restart Chatto after updating the variable; Chatto applies matching owner roles on boot.
 

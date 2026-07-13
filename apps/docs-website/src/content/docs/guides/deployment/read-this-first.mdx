@@ -43,7 +43,7 @@ Chatto ships with full support for voice and video calls, including screen shari
 - **Data Storage**: make a decision on where NATS should store its data. Outside of uploaded file blobs, you're not going to need huge amounts of space.
 - **File Storage**: decide on whether to use NATS for storing file uploads, or wire up an S3 compatible object storage.
 - **Admin Bootstrap**: Chatto's configuration allows you to specify the email addresses of users who should _always_ be server owners. This is a failsafe to prevent you from accidentally locking yourself out of your own server. Please be aware that the user is not automatically created for you; you still have to create your account either through the usual signup flow, or using the `chatto operator` command.
-- **SMTP**: Chatto will need to send emails for verifying email addresses and other planned features like email-based notification reminders. Please prepare a set of SMTP credentials to allow Chatto to send emails. (If you never want Chatto to verify emails or send reminders, you can skip this, but we strongly recommend that you don't.)
+- **Transactional email**: Chatto needs to send email for address verification and other planned features such as email-based notification reminders. Prepare SMTP credentials (the default transport) or JMAP bearer-token credentials. If you never want Chatto to verify email addresses or send reminders, you can skip this, but we strongly recommend that you do not.
 
 ## Pick a Deployment Path
 

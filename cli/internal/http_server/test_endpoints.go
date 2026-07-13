@@ -15,8 +15,8 @@ import (
 
 // createMailer creates a mock mailer when test endpoints are enabled.
 // Returns (mockMailer, mailer) where mailer is used for sending emails.
-// The smtpConfig parameter is ignored when test endpoints are enabled.
-func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
+// The configured transport is ignored when test endpoints are enabled.
+func createMailer(_ config.EmailConfig, _ config.SMTPConfig) (*email.MockSender, email.Sender) {
 	mock := email.NewMockSender(true)
 	log.Info("Test endpoints enabled - using mock email sender")
 	return mock, mock

@@ -2443,6 +2443,105 @@ func TestChattoConfig_Validate_SMTP(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_Validate_JMAPEmail(t *testing.T) {
+	baseConfig := func() ChattoConfig {
+		return ChattoConfig{
+			Webserver: WebserverConfig{
+				URL:                 "https://chat.example",
+				Port:                4000,
+				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+			Core: CoreConfig{
+				SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				Assets: AssetsConfig{
+					SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+				},
+			},
+			Email: EmailConfig{
+				Transport: EmailTransportJMAP,
+				JMAP: JMAPConfig{
+					SessionURL:  "https://mail.example/.well-known/jmap",
+					AccessToken: "token-1",
+					From:        "Chatto <noreply@example.com>",
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name      string
+		modify    func(*ChattoConfig)
+		wantError string
+	}{
+		{name: "valid JMAP transport"},
+		{
+			name:      "requires session URL",
+			modify:    func(c *ChattoConfig) { c.Email.JMAP.SessionURL = "" },
+			wantError: "email.jmap.session_url is required",
+		},
+		{
+			name:      "requires bearer token",
+			modify:    func(c *ChattoConfig) { c.Email.JMAP.AccessToken = "" },
+			wantError: "email.jmap.access_token is required",
+		},
+		{
+			name:      "requires HTTPS session URL",
+			modify:    func(c *ChattoConfig) { c.Email.JMAP.SessionURL = "http://mail.example/.well-known/jmap" },
+			wantError: "email.jmap.session_url must use https",
+		},
+		{
+			name:      "requires valid sender address",
+			modify:    func(c *ChattoConfig) { c.Email.JMAP.From = "not-an-email" },
+			wantError: "email.jmap.from must be a valid email address",
+		},
+		{
+			name:      "rejects unknown transport",
+			modify:    func(c *ChattoConfig) { c.Email.Transport = "carrier-pigeon" },
+			wantError: "email.transport must be one of: smtp, jmap",
+		},
+		{
+			name: "does not validate inactive SMTP settings",
+			modify: func(c *ChattoConfig) {
+				c.SMTP.TLS = "plaintext"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseConfig()
+			if tt.modify != nil {
+				tt.modify(&cfg)
+			}
+			err := cfg.Validate()
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("Validate() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Validate() error = %v, want %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestEmailConfig_TransportOrDefault(t *testing.T) {
+	tests := []struct {
+		transport EmailTransport
+		want      EmailTransport
+	}{
+		{want: EmailTransportSMTP},
+		{transport: " JMAP ", want: EmailTransportJMAP},
+	}
+	for _, tt := range tests {
+		if got := (EmailConfig{Transport: tt.transport}).TransportOrDefault(); got != tt.want {
+			t.Errorf("TransportOrDefault() = %q, want %q", got, tt.want)
+		}
+	}
+}
+
 func TestChattoConfig_Validate_S3(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{

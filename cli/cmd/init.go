@@ -109,6 +109,9 @@ var initCmd = &cobra.Command{
 				Port:    587,
 				TLS:     config.SMTPTLSMandatory,
 			},
+			Email: config.EmailConfig{
+				Transport: config.EmailTransportSMTP,
+			},
 			NATS: config.NATSConfig{
 				Replicas: 1,
 				Client: config.NATSClientConfig{

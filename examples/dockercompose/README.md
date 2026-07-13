@@ -141,14 +141,14 @@ NATS communicate only over the private Compose network.
 
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
    - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
-   - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset.
+   - `CHATTO_SMTP_*` - Default transactional email transport for direct email/password registration, email verification, and password reset. Use `CHATTO_EMAIL_*` instead when configuring JMAP.
    - `PUID` and `PGID` - Optional host user/group IDs for files Chatto writes to mounted volumes. Defaults to `1000:1000`.
    - `CHATTO_OPERATOR_API_*` - Enables the private in-container operator socket used by `chatto operator ...`.
 
    Leave `LIVEKIT_CONFIG_FILE=./livekit.generated.yaml` unless you deliberately
    want to maintain `livekit.yaml` by hand.
 
-3. Configure SMTP settings if you use direct email/password registration.
+3. Configure transactional email settings if you use direct email/password registration. SMTP is the default; JMAP is an alternative.
 
 ### Prefer to configure it by hand?
 
@@ -262,7 +262,7 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 
 **Chatto can't connect to NATS**: Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in your `.env` file.
 
-**Registration says email delivery is not configured**: Configure the `CHATTO_SMTP_*` settings in `.env`. Direct email/password registration sends a code by email.
+**Registration says email delivery is not configured**: Configure the SMTP `CHATTO_SMTP_*` settings or set `CHATTO_EMAIL_TRANSPORT=jmap` with the required `CHATTO_EMAIL_JMAP_*` values in `.env`. Direct email/password registration sends a code by email.
 
 **The first account is not an owner**: Ensure `CHATTO_OWNERS_EMAILS` contains that account's verified email address. Chatto assigns matching owner roles when the email is verified and on server boot.
 
