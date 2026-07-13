@@ -38,7 +38,7 @@ func (s *HTTPServer) newOperatorAPIServer() *http.Server {
 
 func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := connectapi.New(s.core, s.config, s.version)
-	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
+	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptionsForWebserver(s.config.Webserver)...)
 	for _, handler := range api.Handlers() {
 		serviceHandler := handler.Handler
 		switch handler.AuthPolicy {
