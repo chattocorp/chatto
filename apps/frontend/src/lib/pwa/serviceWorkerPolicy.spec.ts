@@ -37,13 +37,16 @@ describe('classifyServiceWorkerRequest', () => {
     });
   });
 
-  it('keeps the web manifest network-only because server branding can change it', () => {
-    expect(classify('/manifest.webmanifest')).toEqual({
-      cacheableShellAsset: false,
-      navigationRequest: false,
-      networkOnly: true
-    });
-  });
+  it.each(['/manifest.webmanifest', '/favicon.png', '/apple-touch-icon.png'])(
+    'keeps dynamic server branding path %s network-only',
+    (path) => {
+      expect(classify(path)).toEqual({
+        cacheableShellAsset: false,
+        navigationRequest: false,
+        networkOnly: true
+      });
+    }
+  );
 
   it.each([
     '/api/connect',
