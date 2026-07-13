@@ -86,10 +86,11 @@ A member can issue a signed revocation for its own credential. Revocation is
 durable and does not expire. The verifier excludes the credential after the
 revocation time and rejects memberships sponsored after a sponsor was revoked.
 
-When finalizing a certificate, a broker includes its already-known artifacts
-for that group. A caller therefore cannot make that broker ignore a locally
-known revocation by omitting it from the supporting bundle. The PoC does not
-yet define quorum removal, group recovery, or group epochs.
+A broker refuses to sponsor with a locally known revoked credential. When
+finalizing a certificate, it also includes its already-known artifacts for that
+group. A caller therefore cannot make that broker ignore a local revocation by
+skipping finalization there or omitting it from the supporting bundle. The PoC
+does not yet define quorum removal, group recovery, or group epochs.
 
 ## Security boundary
 

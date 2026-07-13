@@ -34,6 +34,7 @@ type Broker struct {
 	challenges   map[string]Challenge
 	approvals    map[string]issuedApproval
 	certificates map[string]Certificate
+	revoked      map[string]struct{}
 }
 
 // NewBroker creates an isolated in-memory protocol actor and signing identity.
@@ -55,6 +56,7 @@ func NewBroker(origin string) (*Broker, error) {
 		challenges:   map[string]Challenge{},
 		approvals:    map[string]issuedApproval{},
 		certificates: map[string]Certificate{},
+		revoked:      map[string]struct{}{},
 	}, nil
 }
 
@@ -155,6 +157,16 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 	if request.Statement.IssuedAt < challenge.IssuedAt || request.Statement.IssuedAt > now.Add(time.Minute).Unix() {
 		return Approval{}, fmt.Errorf("%w: statement issuance is outside the ceremony window", ErrChallengeMismatch)
 	}
+	if participant.Role == RoleSponsor {
+		for _, sponsor := range request.Statement.Sponsors {
+			if sponsor.Account == authenticated {
+				if _, revoked := b.revoked[sponsor.CredentialID]; revoked {
+					return Approval{}, fmt.Errorf("%w: local sponsor credential is revoked", ErrInsufficientSponsors)
+				}
+				break
+			}
+		}
+	}
 
 	signature, err := signApproval(request.Statement, participant.Role, authenticated, b.privateKey)
 	if err != nil {
@@ -200,6 +212,9 @@ func (b *Broker) Finalize(certificate Certificate, verifier *Verifier, supportin
 			return fmt.Errorf("%w: conflicting finalized certificate", ErrInvalidArtifact)
 		}
 		return nil
+	}
+	if certificate.Request.Statement.Kind == KindRevocation {
+		b.revoked[certificate.Request.Statement.RevokedCredentialID] = struct{}{}
 	}
 	b.certificates[statementID] = cloneCertificate(certificate)
 	return nil

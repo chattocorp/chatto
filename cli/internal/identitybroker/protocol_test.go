@@ -510,7 +510,7 @@ func TestCredentialLifetimeIsBounded(t *testing.T) {
 	}
 }
 
-func TestFinalizeIncludesKnownRevocationWhenSupportingBundleOmitsIt(t *testing.T) {
+func TestSponsorApprovalRejectsKnownRevocationBeforeSelectiveFinalization(t *testing.T) {
 	first := newTestMember(t, "https://one.example", "user-one")
 	second := newTestMember(t, "https://two.example", "user-two")
 	target := newTestMember(t, "https://target.example", "target")
@@ -544,8 +544,31 @@ func TestFinalizeIncludesKnownRevocationWhenSupportingBundleOmitsIt(t *testing.T
 		t.Fatal(err)
 	}
 
-	membership := makeMembership(t, groupID, target, first, second, founderRefs(t, genesis, first, second), revokedAt.Add(time.Second))
-	if err := first.broker.Finalize(membership, verifier, []Certificate{genesis}, revokedAt.Add(time.Second)); !errors.Is(err, ErrInsufficientSponsors) {
-		t.Fatalf("Finalize error = %v, want known-revocation rejection", err)
+	publicKey, privateKey, err = NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	membershipAt := revokedAt.Add(time.Second)
+	membershipStatement, err := NewMembershipStatement(
+		groupID,
+		issueChallenge(t, target, KindMembership, RoleTarget, publicKey, membershipAt),
+		[]Challenge{
+			issueChallenge(t, first, KindMembership, RoleSponsor, publicKey, membershipAt),
+			issueChallenge(t, second, KindMembership, RoleSponsor, publicKey, membershipAt),
+		},
+		founderRefs(t, genesis, first, second),
+		publicKey,
+		membershipAt,
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := SignCeremony(membershipStatement, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.broker.Approve(first.account, request, membershipAt); !errors.Is(err, ErrInsufficientSponsors) {
+		t.Fatalf("Approve error = %v, want known-revocation rejection", err)
 	}
 }
