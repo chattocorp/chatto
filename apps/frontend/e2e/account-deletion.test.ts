@@ -192,7 +192,7 @@ test.describe('Account Deletion', () => {
       );
     });
 
-    test('system events from deleted users show an italicized placeholder', async ({
+    test('join events from deleted users are hidden', async ({
       page,
       chatPage,
       browser,
@@ -228,13 +228,9 @@ test.describe('Account Deletion', () => {
           await page.reload();
           await waitForRoomReady(page, 'general');
 
-          // User A should now see an italicized deleted-user placeholder.
-          await expect(page.getByText(/\[deleted user\] joined the room/)).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
-          });
-          await expect(page.locator('em').filter({ hasText: '[deleted user]' }).first()).toBeVisible();
-
-          // User B's original display name should no longer be visible in system events
+          // The historical membership fact remains stored, but its deleted actor
+          // provides no useful timeline context and should not be rendered.
+          await expect(page.getByText(/\[deleted user\] joined the room/)).not.toBeVisible();
           await expect(page.getByText(new RegExp(`${userB.displayName} joined`))).not.toBeVisible();
         }
       );
