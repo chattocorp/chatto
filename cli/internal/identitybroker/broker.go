@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const DefaultChallengeTTL = 5 * time.Minute
+const (
+	DefaultChallengeTTL = 5 * time.Minute
+	MaxCredentialTTL    = 30 * 24 * time.Hour
+)
 
 type issuedApproval struct {
 	statementID string
@@ -72,7 +75,7 @@ func (b *Broker) Discovery() DiscoveryKey {
 
 // IssueChallenge creates one short-lived authorization checkpoint for a local
 // authenticated account.
-func (b *Broker) IssueChallenge(account Account, kind, role string, now time.Time) (Challenge, error) {
+func (b *Broker) IssueChallenge(account Account, kind, role string, ceremonyPublicKey ed25519.PublicKey, now time.Time) (Challenge, error) {
 	if account.Origin != b.origin {
 		return Challenge{}, fmt.Errorf("%w: account belongs to %s, not %s", ErrChallengeMismatch, account.Origin, b.origin)
 	}
@@ -81,6 +84,9 @@ func (b *Broker) IssueChallenge(account Account, kind, role string, now time.Tim
 	}
 	if !validRoleForKind(kind, role) {
 		return Challenge{}, fmt.Errorf("%w: role %q is not valid for %q", ErrChallengeMismatch, role, kind)
+	}
+	if len(ceremonyPublicKey) != ed25519.PublicKeySize {
+		return Challenge{}, fmt.Errorf("%w: ceremony public key has length %d", ErrChallengeMismatch, len(ceremonyPublicKey))
 	}
 	id, err := NewOpaqueID(24)
 	if err != nil {
@@ -91,17 +97,19 @@ func (b *Broker) IssueChallenge(account Account, kind, role string, now time.Tim
 		return Challenge{}, err
 	}
 	challenge := Challenge{
-		ID:        id,
-		Nonce:     nonce,
-		Kind:      kind,
-		Role:      role,
-		Account:   account,
-		ExpiresAt: now.Add(DefaultChallengeTTL).Unix(),
+		ID:                id,
+		Nonce:             nonce,
+		Kind:              kind,
+		Role:              role,
+		Account:           account,
+		CeremonyPublicKey: append([]byte(nil), ceremonyPublicKey...),
+		IssuedAt:          now.Unix(),
+		ExpiresAt:         now.Add(DefaultChallengeTTL).Unix(),
 	}
 	b.mu.Lock()
-	b.challenges[id] = challenge
+	b.challenges[id] = cloneChallenge(challenge)
 	b.mu.Unlock()
-	return challenge, nil
+	return cloneChallenge(challenge), nil
 }
 
 // Approve validates and consumes the authenticated account's challenge, or
@@ -141,7 +149,10 @@ func (b *Broker) Approve(authenticated Account, request CeremonyRequest, now tim
 	if challenge.Kind != request.Statement.Kind || challenge.Role != participant.Role || challenge.Account != authenticated || challenge.Nonce != participant.Nonce {
 		return Approval{}, ErrChallengeMismatch
 	}
-	if request.Statement.IssuedAt > now.Add(time.Minute).Unix() || request.Statement.IssuedAt < now.Add(-DefaultChallengeTTL).Unix() {
+	if !ed25519.PublicKey(challenge.CeremonyPublicKey).Equal(ed25519.PublicKey(request.Statement.CeremonyPublicKey)) {
+		return Approval{}, fmt.Errorf("%w: ceremony key does not match challenge", ErrChallengeMismatch)
+	}
+	if request.Statement.IssuedAt < challenge.IssuedAt || request.Statement.IssuedAt > now.Add(time.Minute).Unix() {
 		return Approval{}, fmt.Errorf("%w: statement issuance is outside the ceremony window", ErrChallengeMismatch)
 	}
 
@@ -167,14 +178,22 @@ func (b *Broker) Finalize(certificate Certificate, verifier *Verifier, supportin
 	if err != nil {
 		return err
 	}
-	if _, err := verifier.Reconstruct(append(append([]Certificate(nil), supporting...), certificate), now); err != nil {
-		return err
-	}
 	if !statementContainsOrigin(certificate.Request.Statement, b.origin) {
 		return fmt.Errorf("%w: certificate does not involve this broker", ErrInvalidArtifact)
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	known := make([]Certificate, 0, len(b.certificates))
+	for _, stored := range b.certificates {
+		if certificateGroupID(stored) == certificateGroupID(certificate) {
+			known = append(known, cloneCertificate(stored))
+		}
+	}
+	bundle := append(known, supporting...)
+	bundle = append(bundle, certificate)
+	if _, err := verifier.Reconstruct(bundle, now); err != nil {
+		return err
+	}
 	if existing, ok := b.certificates[statementID]; ok {
 		existingID, existingErr := StatementID(existing.Request.Statement)
 		if existingErr != nil || existingID != statementID {
@@ -231,6 +250,19 @@ func statementContainsOrigin(statement Statement, origin string) bool {
 func cloneApproval(approval Approval) Approval {
 	approval.Signature = append([]byte(nil), approval.Signature...)
 	return approval
+}
+
+func cloneChallenge(challenge Challenge) Challenge {
+	challenge.CeremonyPublicKey = append([]byte(nil), challenge.CeremonyPublicKey...)
+	return challenge
+}
+
+func certificateGroupID(certificate Certificate) string {
+	if certificate.Request.Statement.Kind != KindGenesis {
+		return certificate.Request.Statement.GroupID
+	}
+	id, _ := StatementID(certificate.Request.Statement)
+	return id
 }
 
 func cloneCertificate(certificate Certificate) Certificate {

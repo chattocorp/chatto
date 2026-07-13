@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 func validateStatement(statement Statement) error {
 	if statement.Version != ProtocolVersion {
 		return fmt.Errorf("%w: unsupported protocol version %q", ErrInvalidArtifact, statement.Version)
 	}
-	if strings.TrimSpace(statement.GroupID) == "" {
+	if statement.Kind != KindGenesis && strings.TrimSpace(statement.GroupID) == "" {
 		return fmt.Errorf("%w: group id is empty", ErrInvalidArtifact)
 	}
 	if len(statement.CeremonyPublicKey) != ed25519.PublicKeySize {
@@ -22,6 +23,9 @@ func validateStatement(statement Statement) error {
 	}
 	if statement.Kind != KindRevocation && statement.ExpiresAt <= statement.IssuedAt {
 		return fmt.Errorf("%w: credential expiry must follow issuance", ErrInvalidArtifact)
+	}
+	if statement.Kind != KindRevocation && statement.ExpiresAt-statement.IssuedAt > int64(MaxCredentialTTL/time.Second) {
+		return fmt.Errorf("%w: credential lifetime exceeds %s", ErrInvalidArtifact, MaxCredentialTTL)
 	}
 
 	participants := append([]Participant(nil), statement.Participants...)
@@ -51,6 +55,9 @@ func validateStatement(statement Statement) error {
 }
 
 func validateGenesisStatement(statement Statement) error {
+	if statement.GroupID != "" {
+		return fmt.Errorf("%w: genesis group id must be derived from its certificate", ErrInvalidArtifact)
+	}
 	if statement.Subject != (Account{}) || statement.RevokedCredentialID != "" || len(statement.Sponsors) != 0 {
 		return fmt.Errorf("%w: genesis contains membership or revocation fields", ErrInvalidArtifact)
 	}

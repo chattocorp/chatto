@@ -8,7 +8,7 @@ import (
 
 // NewGenesisStatement constructs the first certificate statement for two
 // founders on distinct server origins.
-func NewGenesisStatement(groupID string, founders []Challenge, ceremonyPublicKey ed25519.PublicKey, issuedAt time.Time, validFor time.Duration) (Statement, error) {
+func NewGenesisStatement(founders []Challenge, ceremonyPublicKey ed25519.PublicKey, issuedAt time.Time, validFor time.Duration) (Statement, error) {
 	if len(founders) != 2 {
 		return Statement{}, fmt.Errorf("%w: genesis requires two founder challenges", ErrInvalidArtifact)
 	}
@@ -17,12 +17,14 @@ func NewGenesisStatement(groupID string, founders []Challenge, ceremonyPublicKey
 		if challenge.Kind != KindGenesis || challenge.Role != RoleFounder {
 			return Statement{}, ErrChallengeMismatch
 		}
+		if !ed25519.PublicKey(challenge.CeremonyPublicKey).Equal(ceremonyPublicKey) {
+			return Statement{}, fmt.Errorf("%w: founder challenge uses another ceremony key", ErrChallengeMismatch)
+		}
 		participants = append(participants, participantFromChallenge(challenge))
 	}
 	statement := Statement{
 		Version:           ProtocolVersion,
 		Kind:              KindGenesis,
-		GroupID:           groupID,
 		Participants:      participants,
 		CeremonyPublicKey: append([]byte(nil), ceremonyPublicKey...),
 		IssuedAt:          issuedAt.Unix(),
@@ -37,10 +39,16 @@ func NewMembershipStatement(groupID string, target Challenge, sponsors []Challen
 	if target.Kind != KindMembership || target.Role != RoleTarget || len(sponsors) != 2 || len(sponsorRefs) != 2 {
 		return Statement{}, ErrInsufficientSponsors
 	}
+	if !ed25519.PublicKey(target.CeremonyPublicKey).Equal(ceremonyPublicKey) {
+		return Statement{}, fmt.Errorf("%w: target challenge uses another ceremony key", ErrChallengeMismatch)
+	}
 	participants := []Participant{participantFromChallenge(target)}
 	for _, challenge := range sponsors {
 		if challenge.Kind != KindMembership || challenge.Role != RoleSponsor {
 			return Statement{}, ErrChallengeMismatch
+		}
+		if !ed25519.PublicKey(challenge.CeremonyPublicKey).Equal(ceremonyPublicKey) {
+			return Statement{}, fmt.Errorf("%w: sponsor challenge uses another ceremony key", ErrChallengeMismatch)
 		}
 		participants = append(participants, participantFromChallenge(challenge))
 	}
@@ -62,6 +70,9 @@ func NewMembershipStatement(groupID string, target Challenge, sponsors []Challen
 func NewRevocationStatement(groupID, credentialID string, member Challenge, ceremonyPublicKey ed25519.PublicKey, issuedAt time.Time) (Statement, error) {
 	if member.Kind != KindRevocation || member.Role != RoleMember {
 		return Statement{}, ErrChallengeMismatch
+	}
+	if !ed25519.PublicKey(member.CeremonyPublicKey).Equal(ceremonyPublicKey) {
+		return Statement{}, fmt.Errorf("%w: member challenge uses another ceremony key", ErrChallengeMismatch)
 	}
 	statement := Statement{
 		Version:             ProtocolVersion,

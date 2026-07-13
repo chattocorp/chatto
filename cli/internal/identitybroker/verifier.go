@@ -98,7 +98,6 @@ func (v *Verifier) Reconstruct(certificates []Certificate, now time.Time) (*Grou
 	}
 	records := make([]verifiedCertificate, 0, len(certificates))
 	seenIDs := map[string]struct{}{}
-	groupID := ""
 	for _, certificate := range certificates {
 		certificateID, err := v.VerifyCertificate(certificate)
 		if err != nil {
@@ -108,30 +107,42 @@ func (v *Verifier) Reconstruct(certificates []Certificate, now time.Time) (*Grou
 			continue
 		}
 		seenIDs[certificateID] = struct{}{}
-		statement := certificate.Request.Statement
-		if groupID == "" {
-			groupID = statement.GroupID
-		} else if statement.GroupID != groupID {
-			return nil, fmt.Errorf("%w: bundle contains multiple groups", ErrInvalidArtifact)
-		}
 		records = append(records, verifiedCertificate{id: certificateID, certificate: certificate})
+	}
+
+	genesisCount := 0
+	groupID := ""
+	genesisID := ""
+	for _, record := range records {
+		if record.certificate.Request.Statement.Kind == KindGenesis {
+			genesisCount++
+			genesisID = record.id
+			groupID = record.id
+		}
+	}
+	if genesisCount != 1 {
+		return nil, fmt.Errorf("%w: bundle requires exactly one genesis certificate", ErrInvalidArtifact)
+	}
+	for _, record := range records {
+		statement := record.certificate.Request.Statement
+		if statement.Kind != KindGenesis && statement.GroupID != groupID {
+			return nil, fmt.Errorf("%w: certificate does not reference the bundle genesis", ErrInvalidArtifact)
+		}
 	}
 
 	group := &Group{
 		ID:          groupID,
+		GenesisID:   genesisID,
 		Members:     map[string]Account{},
 		Credentials: map[string]Credential{},
 	}
 
-	genesisCount := 0
 	pendingMemberships := make([]verifiedCertificate, 0)
 	revocations := make([]verifiedCertificate, 0)
 	for _, record := range records {
 		statement := record.certificate.Request.Statement
 		switch statement.Kind {
 		case KindGenesis:
-			genesisCount++
-			group.GenesisID = record.id
 			for _, participant := range statement.Participants {
 				credential := Credential{
 					ID:            CredentialID(record.id, participant.Account),
@@ -149,10 +160,6 @@ func (v *Verifier) Reconstruct(certificates []Certificate, now time.Time) (*Grou
 			revocations = append(revocations, record)
 		}
 	}
-	if genesisCount != 1 {
-		return nil, fmt.Errorf("%w: bundle requires exactly one genesis certificate", ErrInvalidArtifact)
-	}
-
 	for len(pendingMemberships) > 0 {
 		progress := false
 		remaining := pendingMemberships[:0]
@@ -201,18 +208,38 @@ func (v *Verifier) Reconstruct(certificates []Certificate, now time.Time) (*Grou
 		}
 	}
 
-	activeCredentials := map[string]string{}
+	credentialsByAccount := map[string][]Credential{}
 	for _, credential := range group.Credentials {
+		accountKey := credential.Account.key()
+		credentialsByAccount[accountKey] = append(credentialsByAccount[accountKey], credential)
 		if credential.activeAt(now.Unix()) {
-			accountKey := credential.Account.key()
-			if previousCredentialID, exists := activeCredentials[accountKey]; exists {
-				return nil, fmt.Errorf("%w: account has multiple active credentials (%s and %s)", ErrInvalidArtifact, previousCredentialID, credential.ID)
-			}
-			activeCredentials[accountKey] = credential.ID
 			group.Members[accountKey] = credential.Account
 		}
 	}
+	for _, accountCredentials := range credentialsByAccount {
+		slices.SortFunc(accountCredentials, func(a, b Credential) int { return cmp.Compare(a.IssuedAt, b.IssuedAt) })
+		previousID := accountCredentials[0].ID
+		previousEnd := credentialEnd(accountCredentials[0])
+		for i := 1; i < len(accountCredentials); i++ {
+			credential := accountCredentials[i]
+			if credential.IssuedAt < previousEnd {
+				return nil, fmt.Errorf("%w: account credentials overlap (%s and %s)", ErrInvalidArtifact, previousID, credential.ID)
+			}
+			end := credentialEnd(credential)
+			if end > previousEnd {
+				previousEnd = end
+				previousID = credential.ID
+			}
+		}
+	}
 	return group, nil
+}
+
+func credentialEnd(credential Credential) int64 {
+	if credential.RevokedAt != 0 && credential.RevokedAt < credential.ExpiresAt {
+		return credential.RevokedAt
+	}
+	return credential.ExpiresAt
 }
 
 func sponsorsResolveAt(credentials map[string]Credential, sponsors []SponsorRef, at int64) bool {

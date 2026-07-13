@@ -28,16 +28,16 @@ func trustMembers(t *testing.T, members ...testMember) *TrustStore {
 	t.Helper()
 	trust := NewTrustStore()
 	for _, member := range members {
-		if err := trust.Add(member.broker.Discovery()); err != nil {
+		if err := trust.Add(member.account.Origin, member.broker.Discovery()); err != nil {
 			t.Fatalf("trust.Add(%s): %v", member.account.Origin, err)
 		}
 	}
 	return trust
 }
 
-func issueChallenge(t *testing.T, member testMember, kind, role string, now time.Time) Challenge {
+func issueChallenge(t *testing.T, member testMember, kind, role string, ceremonyPublicKey ed25519.PublicKey, now time.Time) Challenge {
 	t.Helper()
-	challenge, err := member.broker.IssueChallenge(member.account, kind, role, now)
+	challenge, err := member.broker.IssueChallenge(member.account, kind, role, ceremonyPublicKey, now)
 	if err != nil {
 		t.Fatalf("IssueChallenge(%s, %s): %v", kind, role, err)
 	}
@@ -63,22 +63,23 @@ func signWithMembers(t *testing.T, statement Statement, privateKey ed25519.Priva
 
 func makeGenesis(t *testing.T, first, second testMember, now time.Time) (Certificate, string) {
 	t.Helper()
-	groupID, err := NewOpaqueID(32)
-	if err != nil {
-		t.Fatalf("NewOpaqueID: %v", err)
-	}
 	publicKey, privateKey, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatalf("NewCeremonyKey: %v", err)
 	}
-	statement, err := NewGenesisStatement(groupID, []Challenge{
-		issueChallenge(t, first, KindGenesis, RoleFounder, now),
-		issueChallenge(t, second, KindGenesis, RoleFounder, now),
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, now),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, now),
 	}, publicKey, now, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("NewGenesisStatement: %v", err)
 	}
-	return signWithMembers(t, statement, privateKey, now, first, second), groupID
+	certificate := signWithMembers(t, statement, privateKey, now, first, second)
+	groupID, err := StatementID(statement)
+	if err != nil {
+		t.Fatalf("StatementID(genesis): %v", err)
+	}
+	return certificate, groupID
 }
 
 func makeMembership(t *testing.T, groupID string, target, sponsorA, sponsorB testMember, refs []SponsorRef, now time.Time) Certificate {
@@ -89,10 +90,10 @@ func makeMembership(t *testing.T, groupID string, target, sponsorA, sponsorB tes
 	}
 	statement, err := NewMembershipStatement(
 		groupID,
-		issueChallenge(t, target, KindMembership, RoleTarget, now),
+		issueChallenge(t, target, KindMembership, RoleTarget, publicKey, now),
 		[]Challenge{
-			issueChallenge(t, sponsorA, KindMembership, RoleSponsor, now),
-			issueChallenge(t, sponsorB, KindMembership, RoleSponsor, now),
+			issueChallenge(t, sponsorA, KindMembership, RoleSponsor, publicKey, now),
+			issueChallenge(t, sponsorB, KindMembership, RoleSponsor, publicKey, now),
 		},
 		refs,
 		publicKey,
@@ -161,8 +162,8 @@ func TestCertificateRejectsTampering(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			tampered := cloneCertificate(genesis)
 			mutate(&tampered)
-			if _, err := verifier.VerifyCertificate(tampered); !errors.Is(err, ErrInvalidSignature) {
-				t.Fatalf("VerifyCertificate error = %v, want invalid signature", err)
+			if _, err := verifier.VerifyCertificate(tampered); !errors.Is(err, ErrInvalidSignature) && !errors.Is(err, ErrInvalidArtifact) {
+				t.Fatalf("VerifyCertificate error = %v, want tampering rejection", err)
 			}
 		})
 	}
@@ -182,10 +183,6 @@ func TestCertificateRequiresEveryOriginKeyToBeTrusted(t *testing.T) {
 func TestCeremonyCannotBeCompletedWithAnotherPrivateKey(t *testing.T) {
 	first := newTestMember(t, "https://one.example", "user-one")
 	second := newTestMember(t, "https://two.example", "user-two")
-	groupID, err := NewOpaqueID(32)
-	if err != nil {
-		t.Fatal(err)
-	}
 	publicKey, _, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatal(err)
@@ -194,9 +191,9 @@ func TestCeremonyCannotBeCompletedWithAnotherPrivateKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statement, err := NewGenesisStatement(groupID, []Challenge{
-		issueChallenge(t, first, KindGenesis, RoleFounder, testNow),
-		issueChallenge(t, second, KindGenesis, RoleFounder, testNow),
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, testNow),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, testNow),
 	}, publicKey, testNow, time.Hour)
 	if err != nil {
 		t.Fatal(err)
@@ -209,17 +206,13 @@ func TestCeremonyCannotBeCompletedWithAnotherPrivateKey(t *testing.T) {
 func TestApprovalIsIdempotentButChallengeCannotChangeStatements(t *testing.T) {
 	first := newTestMember(t, "https://one.example", "user-one")
 	second := newTestMember(t, "https://two.example", "user-two")
-	groupID, err := NewOpaqueID(32)
-	if err != nil {
-		t.Fatal(err)
-	}
 	publicKey, privateKey, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	statement, err := NewGenesisStatement(groupID, []Challenge{
-		issueChallenge(t, first, KindGenesis, RoleFounder, testNow),
-		issueChallenge(t, second, KindGenesis, RoleFounder, testNow),
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, testNow),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, testNow),
 	}, publicKey, testNow, time.Hour)
 	if err != nil {
 		t.Fatal(err)
@@ -253,17 +246,13 @@ func TestApprovalIsIdempotentButChallengeCannotChangeStatements(t *testing.T) {
 func TestExpiredChallengeIsRejected(t *testing.T) {
 	first := newTestMember(t, "https://one.example", "user-one")
 	second := newTestMember(t, "https://two.example", "user-two")
-	groupID, err := NewOpaqueID(32)
-	if err != nil {
-		t.Fatal(err)
-	}
 	publicKey, privateKey, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	statement, err := NewGenesisStatement(groupID, []Challenge{
-		issueChallenge(t, first, KindGenesis, RoleFounder, testNow),
-		issueChallenge(t, second, KindGenesis, RoleFounder, testNow),
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, testNow),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, testNow),
 	}, publicKey, testNow, time.Hour)
 	if err != nil {
 		t.Fatal(err)
@@ -281,19 +270,19 @@ func TestOneExistingServerCannotSponsorMembershipTwice(t *testing.T) {
 	sponsor := newTestMember(t, "https://sponsor.example", "sponsor-one")
 	target := newTestMember(t, "https://target.example", "target")
 	secondSponsorAccount := Account{Origin: sponsor.account.Origin, UserID: "sponsor-two"}
-	secondChallenge, err := sponsor.broker.IssueChallenge(secondSponsorAccount, KindMembership, RoleSponsor, testNow)
+	publicKey, _, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	publicKey, _, err := NewCeremonyKey()
+	secondChallenge, err := sponsor.broker.IssueChallenge(secondSponsorAccount, KindMembership, RoleSponsor, publicKey, testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = NewMembershipStatement(
 		"group",
-		issueChallenge(t, target, KindMembership, RoleTarget, testNow),
+		issueChallenge(t, target, KindMembership, RoleTarget, publicKey, testNow),
 		[]Challenge{
-			issueChallenge(t, sponsor, KindMembership, RoleSponsor, testNow),
+			issueChallenge(t, sponsor, KindMembership, RoleSponsor, publicKey, testNow),
 			secondChallenge,
 		},
 		[]SponsorRef{
@@ -329,7 +318,7 @@ func TestRevocationRemovesMember(t *testing.T) {
 	statement, err := NewRevocationStatement(
 		groupID,
 		credentialID,
-		issueChallenge(t, third, KindRevocation, RoleMember, revokedAt),
+		issueChallenge(t, third, KindRevocation, RoleMember, publicKey, revokedAt),
 		publicKey,
 		revokedAt,
 	)
@@ -366,7 +355,7 @@ func TestMembershipSponsoredAfterRevocationIsRejected(t *testing.T) {
 	revocationStatement, err := NewRevocationStatement(
 		groupID,
 		firstCredentialID,
-		issueChallenge(t, first, KindRevocation, RoleMember, revokedAt),
+		issueChallenge(t, first, KindRevocation, RoleMember, publicKey, revokedAt),
 		publicKey,
 		revokedAt,
 	)
@@ -416,5 +405,147 @@ func TestFinalizeIsIdempotentAndResumableAcrossBrokers(t *testing.T) {
 	}
 	if got := len(second.broker.Certificates()); got != 1 {
 		t.Fatalf("second certificates after resume = %d, want 1", got)
+	}
+}
+
+func TestTrustStoreRejectsDiscoveryForAnotherFetchOrigin(t *testing.T) {
+	honest := newTestMember(t, "https://honest.example", "honest")
+	trust := NewTrustStore()
+	if err := trust.Add("https://attacker.example", honest.broker.Discovery()); !errors.Is(err, ErrInvalidArtifact) {
+		t.Fatalf("TrustStore.Add error = %v, want mismatched-origin rejection", err)
+	}
+}
+
+func TestChallengeRejectsCeremonyKeySubstitution(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	publicKey, _, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	attackerPublicKey, attackerPrivateKey, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, testNow),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, testNow),
+	}, publicKey, testNow, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement.CeremonyPublicKey = attackerPublicKey
+	request, err := SignCeremony(statement, attackerPrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.broker.Approve(first.account, request, testNow); !errors.Is(err, ErrChallengeMismatch) {
+		t.Fatalf("Approve error = %v, want ceremony-key mismatch", err)
+	}
+}
+
+func TestFreshChallengeRejectsBackdatedStatement(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	publicKey, privateKey, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	challengeTime := testNow.Add(2 * time.Minute)
+	statement, err := NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, challengeTime),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, challengeTime),
+	}, publicKey, testNow, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := SignCeremony(statement, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.broker.Approve(first.account, request, challengeTime); !errors.Is(err, ErrChallengeMismatch) {
+		t.Fatalf("Approve error = %v, want backdating rejection", err)
+	}
+}
+
+func TestGroupIDIsDerivedFromUniqueGenesis(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	attackerA := newTestMember(t, "https://attacker-a.example", "attacker-a")
+	attackerB := newTestMember(t, "https://attacker-b.example", "attacker-b")
+	verifier := NewVerifier(trustMembers(t, first, second, attackerA, attackerB))
+
+	genesis, groupID := makeGenesis(t, first, second, testNow)
+	parallelGenesis, parallelGroupID := makeGenesis(t, attackerA, attackerB, testNow)
+	if groupID == parallelGroupID {
+		t.Fatal("unrelated genesis certificates produced the same group id")
+	}
+	for _, test := range []struct {
+		certificate Certificate
+		wantID      string
+	}{{genesis, groupID}, {parallelGenesis, parallelGroupID}} {
+		group, err := verifier.Reconstruct([]Certificate{test.certificate}, testNow)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if group.ID != test.wantID || group.GenesisID != test.wantID {
+			t.Fatalf("group identity = (%q, %q), want %q", group.ID, group.GenesisID, test.wantID)
+		}
+	}
+}
+
+func TestCredentialLifetimeIsBounded(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	publicKey, _, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewGenesisStatement([]Challenge{
+		issueChallenge(t, first, KindGenesis, RoleFounder, publicKey, testNow),
+		issueChallenge(t, second, KindGenesis, RoleFounder, publicKey, testNow),
+	}, publicKey, testNow, MaxCredentialTTL+time.Second)
+	if !errors.Is(err, ErrInvalidArtifact) {
+		t.Fatalf("NewGenesisStatement error = %v, want excessive-lifetime rejection", err)
+	}
+}
+
+func TestFinalizeIncludesKnownRevocationWhenSupportingBundleOmitsIt(t *testing.T) {
+	first := newTestMember(t, "https://one.example", "user-one")
+	second := newTestMember(t, "https://two.example", "user-two")
+	target := newTestMember(t, "https://target.example", "target")
+	verifier := NewVerifier(trustMembers(t, first, second, target))
+	genesis, groupID := makeGenesis(t, first, second, testNow)
+	if err := first.broker.Finalize(genesis, verifier, nil, testNow); err != nil {
+		t.Fatal(err)
+	}
+
+	genesisID, err := StatementID(genesis.Request.Statement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, privateKey, err := NewCeremonyKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	revokedAt := testNow.Add(time.Second)
+	revocationStatement, err := NewRevocationStatement(
+		groupID,
+		CredentialID(genesisID, first.account),
+		issueChallenge(t, first, KindRevocation, RoleMember, publicKey, revokedAt),
+		publicKey,
+		revokedAt,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revocation := signWithMembers(t, revocationStatement, privateKey, revokedAt, first)
+	if err := first.broker.Finalize(revocation, verifier, []Certificate{genesis}, revokedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	membership := makeMembership(t, groupID, target, first, second, founderRefs(t, genesis, first, second), revokedAt.Add(time.Second))
+	if err := first.broker.Finalize(membership, verifier, []Certificate{genesis}, revokedAt.Add(time.Second)); !errors.Is(err, ErrInsufficientSponsors) {
+		t.Fatalf("Finalize error = %v, want known-revocation rejection", err)
 	}
 }

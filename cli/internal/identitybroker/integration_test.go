@@ -23,8 +23,9 @@ type httpBrokerServer struct {
 }
 
 type challengeHTTPRequest struct {
-	Kind string `json:"kind"`
-	Role string `json:"role"`
+	Kind              string `json:"kind"`
+	Role              string `json:"role"`
+	CeremonyPublicKey []byte `json:"ceremony_public_key"`
 }
 
 type finalizeHTTPRequest struct {
@@ -75,7 +76,7 @@ func (h *httpBrokerServer) handler() http.Handler {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
-		challenge, err := h.broker.IssueChallenge(h.account, request.Kind, request.Role, testNow)
+		challenge, err := h.broker.IssueChallenge(h.account, request.Kind, request.Role, request.CeremonyPublicKey, testNow)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
@@ -179,16 +180,20 @@ func discoverHTTPBrokers(t *testing.T, brokers []*httpBrokerServer) *TrustStore 
 	trust := NewTrustStore()
 	for _, broker := range brokers {
 		discovery := httpJSON[DiscoveryKey](t, http.MethodGet, broker.server.URL+"/.well-known/chatto-identity-broker", "", nil)
-		if err := trust.Add(discovery); err != nil {
+		if err := trust.Add(broker.server.URL, discovery); err != nil {
 			t.Fatalf("trust.Add(%s): %v", broker.server.URL, err)
 		}
 	}
 	return trust
 }
 
-func httpChallenge(t *testing.T, broker *httpBrokerServer, kind, role string) Challenge {
+func httpChallenge(t *testing.T, broker *httpBrokerServer, kind, role string, ceremonyPublicKey []byte) Challenge {
 	t.Helper()
-	return httpJSON[Challenge](t, http.MethodPost, broker.server.URL+"/challenge", broker.token, challengeHTTPRequest{Kind: kind, Role: role})
+	return httpJSON[Challenge](t, http.MethodPost, broker.server.URL+"/challenge", broker.token, challengeHTTPRequest{
+		Kind:              kind,
+		Role:              role,
+		CeremonyPublicKey: ceremonyPublicKey,
+	})
 }
 
 func httpApprovals(t *testing.T, request CeremonyRequest, brokers ...*httpBrokerServer) []Approval {
@@ -211,22 +216,22 @@ func httpFinalize(t *testing.T, broker *httpBrokerServer, certificate Certificat
 
 func httpGenesis(t *testing.T, first, second *httpBrokerServer, now time.Time) (Certificate, string) {
 	t.Helper()
-	groupID, err := NewOpaqueID(32)
-	if err != nil {
-		t.Fatal(err)
-	}
 	publicKey, privateKey, err := NewCeremonyKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	statement, err := NewGenesisStatement(groupID, []Challenge{
-		httpChallenge(t, first, KindGenesis, RoleFounder),
-		httpChallenge(t, second, KindGenesis, RoleFounder),
+	statement, err := NewGenesisStatement([]Challenge{
+		httpChallenge(t, first, KindGenesis, RoleFounder, publicKey),
+		httpChallenge(t, second, KindGenesis, RoleFounder, publicKey),
 	}, publicKey, now, 72*time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	request, err := SignCeremony(statement, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupID, err := StatementID(statement)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,10 +246,10 @@ func httpMembership(t *testing.T, groupID string, target, sponsorA, sponsorB *ht
 	}
 	statement, err := NewMembershipStatement(
 		groupID,
-		httpChallenge(t, target, KindMembership, RoleTarget),
+		httpChallenge(t, target, KindMembership, RoleTarget, publicKey),
 		[]Challenge{
-			httpChallenge(t, sponsorA, KindMembership, RoleSponsor),
-			httpChallenge(t, sponsorB, KindMembership, RoleSponsor),
+			httpChallenge(t, sponsorA, KindMembership, RoleSponsor, publicKey),
+			httpChallenge(t, sponsorB, KindMembership, RoleSponsor, publicKey),
 		},
 		refs,
 		publicKey,

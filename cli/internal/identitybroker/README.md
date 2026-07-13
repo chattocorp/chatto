@@ -17,10 +17,11 @@ by a clean client from public certificates:
 - Every later member is approved by its target server and two current members
   on distinct servers.
 - Each participating server signs the exact group, account, role, challenge,
-  issuance, and expiry fields.
-- A disposable client ceremony key binds intercepted artifacts to one ceremony.
-  The key is discarded after completion and is not part of durable client
-  state.
+  issuance, and expiry fields. Credential lifetime is capped at thirty days in
+  the PoC.
+- Before returning its nonce, each server binds its challenge to a disposable
+  client ceremony key. The key is discarded after completion and is not part
+  of durable client state.
 - A verifier reconstructs membership from credential references rather than
   trusting certificate order or mutable profile fields.
 - Twenty accounts require nineteen unique certificates: one genesis plus
@@ -36,8 +37,9 @@ any ceremony private key.
 ### Challenge
 
 A server issues a short-lived challenge only after authenticating its local
-account. The challenge binds an opaque account ID, certificate kind, approval
-role, nonce, and expiry.
+account. The client first creates its disposable ceremony key. The challenge
+then binds that public key together with an opaque account ID, certificate
+kind, approval role, nonce, issuance time, and expiry.
 
 ### Statement
 
@@ -64,9 +66,11 @@ approvals.
 
 ### Membership credential
 
-The genesis certificate grants one credential to each founder. A later
-membership certificate grants one credential to its target and identifies the
-two existing credentials that sponsored it. Sponsor credentials must:
+The genesis certificate's canonical statement ID is the identity group's ID;
+the client cannot choose or reuse it. The genesis certificate grants one
+credential to each founder. A later membership certificate grants one
+credential to its target and identifies the two existing credentials that
+sponsored it. Sponsor credentials must:
 
 - Belong to the named sponsor accounts.
 - Come from distinct server origins.
@@ -82,7 +86,10 @@ A member can issue a signed revocation for its own credential. Revocation is
 durable and does not expire. The verifier excludes the credential after the
 revocation time and rejects memberships sponsored after a sponsor was revoked.
 
-The PoC does not yet define quorum removal, group recovery, or group epochs.
+When finalizing a certificate, a broker includes its already-known artifacts
+for that group. A caller therefore cannot make that broker ignore a locally
+known revocation by omitting it from the supporting bundle. The PoC does not
+yet define quorum removal, group recovery, or group epochs.
 
 ## Security boundary
 
@@ -95,8 +102,10 @@ It protects against:
 
 - Modification of a server origin, account ID, role, group ID, nonce, issuance,
   or expiry after signing.
+- Substituting another ceremony key after a challenge has been issued.
 - Reusing one challenge for a different statement.
 - Completing an intercepted ceremony without its disposable client key.
+- Aliasing an existing identity group with an unrelated parallel genesis.
 - Extending a group through one existing malicious server alone, because two
   current member credentials on distinct origins must sponsor a new member.
 - Treating certificate input order as authority.
@@ -109,6 +118,8 @@ It does not protect against:
 - A server lying about how it authenticated its own local account.
 - Correlation after a certificate has been disclosed.
 - Stale status when servers are unavailable.
+- A remote revocation that is withheld from every honest participant and the
+  verifying client; the PoC only makes locally known state non-omittable.
 - Server signing-key loss, rotation, or origin migration.
 
 The certificate proves account-control continuity as attested by Chatto
@@ -128,7 +139,7 @@ implementation must follow Chatto's existing storage boundaries.
 | Revocation | Durable fact on the local user aggregate in `EVT` |
 | Current identity-group view | Replay-safe projection derived from `EVT` |
 | Server signing private key | Dedicated protected key lifecycle, deliberately undecided |
-| Server signing public keys | Origin-bound discovery metadata with historical rotation support |
+| Server signing public keys | Discovery metadata checked against the authenticated fetch origin, with historical rotation support |
 
 Production writes would require JetStream optimistic concurrency over the local
 user identity-link event family, projection catch-up before returning, and
@@ -144,16 +155,16 @@ The PoC deliberately leaves these decisions open:
 
 - How server signing keys are generated, protected, backed up, rotated, and
   retained for historical verification.
-- Whether membership certificates expire, renew automatically, or use explicit
-  group epochs.
+- How thirty-day membership certificates renew, and whether production should
+  instead use another lifetime or explicit group epochs.
 - How a user recovers when fewer than two existing member accounts remain
   accessible.
 - Whether a certificate is private, visible to DM peers, server-member-visible,
   or public.
 - How clients obtain the supporting certificate chain without publishing the
   complete identity group.
-- Whether approval should use a disposable signature key, PKCE verifier, or a
-  standardized sender-constrained authorization mechanism.
+- Whether the PoC's challenge-bound disposable signature key should become the
+  production mechanism or be replaced by a standardized sender constraint.
 - Which ConnectRPC package and stability tier should expose future operations.
 - How mixed-version servers negotiate protocol and canonical-encoding versions.
 

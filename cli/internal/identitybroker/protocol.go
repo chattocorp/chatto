@@ -65,12 +65,14 @@ func (a Account) key() string {
 // Challenge is a short-lived, single-server authorization checkpoint. A
 // production implementation would persist it in RUNTIME_STATE with a TTL.
 type Challenge struct {
-	ID        string  `json:"id"`
-	Nonce     string  `json:"nonce"`
-	Kind      string  `json:"kind"`
-	Role      string  `json:"role"`
-	Account   Account `json:"account"`
-	ExpiresAt int64   `json:"expires_at"`
+	ID                string  `json:"id"`
+	Nonce             string  `json:"nonce"`
+	Kind              string  `json:"kind"`
+	Role              string  `json:"role"`
+	Account           Account `json:"account"`
+	CeremonyPublicKey []byte  `json:"ceremony_public_key"`
+	IssuedAt          int64   `json:"issued_at"`
+	ExpiresAt         int64   `json:"expires_at"`
 }
 
 // Participant binds one expected server approval to the exact challenge that
@@ -106,8 +108,8 @@ type Statement struct {
 }
 
 // CeremonyRequest is presented independently to every participating server.
-// The disposable ceremony signature prevents intercepted requests from being
-// completed by a different client.
+// Every challenge commits to the disposable key before disclosing its nonce,
+// so an intercepted request cannot be completed with a substituted client key.
 type CeremonyRequest struct {
 	Statement         Statement `json:"statement"`
 	CeremonySignature []byte    `json:"ceremony_signature"`

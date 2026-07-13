@@ -19,11 +19,17 @@ func NewTrustStore() *TrustStore {
 	return &TrustStore{keys: map[string]map[string]ed25519.PublicKey{}}
 }
 
-// Add pins one discovered public key to its exact origin and key ID.
-func (s *TrustStore) Add(discovery DiscoveryKey) error {
-	origin, err := NormalizeOrigin(discovery.Origin)
+// Add pins one discovered public key to the origin from which the discovery
+// document was fetched. Callers must pass the authenticated request origin;
+// the document cannot nominate a different origin for its key.
+func (s *TrustStore) Add(expectedOrigin string, discovery DiscoveryKey) error {
+	origin, err := NormalizeOrigin(expectedOrigin)
 	if err != nil {
 		return err
+	}
+	discoveredOrigin, err := NormalizeOrigin(discovery.Origin)
+	if err != nil || discoveredOrigin != origin || discovery.Origin != origin {
+		return fmt.Errorf("%w: discovery origin does not match fetch origin", ErrInvalidArtifact)
 	}
 	if discovery.Protocol != ProtocolVersion || discovery.KeyID == "" || len(discovery.PublicKey) != ed25519.PublicKeySize {
 		return fmt.Errorf("%w: invalid discovery key", ErrInvalidArtifact)
