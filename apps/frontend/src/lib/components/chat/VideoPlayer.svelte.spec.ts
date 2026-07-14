@@ -158,6 +158,23 @@ describe('VideoPlayer', () => {
     expect(frame(landscape.container).getAttribute('style')).toContain('aspect-ratio: 480 / 320');
   });
 
+  it('letterboxes extreme ratios inside a usable player canvas', async () => {
+    const tall = renderPostedVideo({ width: 100, height: 1000 });
+    const wide = renderPostedVideo({ width: 1000, height: 100 });
+
+    const tallPlayer = await mediaPlayer(tall.container);
+    const widePlayer = await mediaPlayer(wide.container);
+    const tallMedia = await playerVideo(tall.container);
+    const wideMedia = await playerVideo(wide.container);
+
+    expect(frame(tall.container).getAttribute('style')).toContain('aspect-ratio: 180 / 320');
+    expect(frame(wide.container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
+    expect(getComputedStyle(tallPlayer).aspectRatio).toBe('180 / 320');
+    expect(getComputedStyle(widePlayer).aspectRatio).toBe('480 / 270');
+    expect(getComputedStyle(tallMedia).objectFit).toBe('contain');
+    expect(getComputedStyle(wideMedia).objectFit).toBe('contain');
+  });
+
   it('corrects stale metadata after the browser loads intrinsic video dimensions', async () => {
     const { container } = renderAutoLoopVideo({ width: 1024, height: 768 });
     const media = video(container);

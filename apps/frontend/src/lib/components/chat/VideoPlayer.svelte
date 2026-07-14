@@ -54,6 +54,8 @@
 
   const MAX_WIDTH = 480;
   const MAX_HEIGHT = 320;
+  const MIN_PLAYER_ASPECT_RATIO = 9 / 16;
+  const MAX_PLAYER_ASPECT_RATIO = 16 / 9;
 
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
@@ -79,10 +81,19 @@
   const displaySize = $derived.by(() => {
     const w = sourceDimensions.width;
     const h = sourceDimensions.height;
-    const scale = Math.min(MAX_WIDTH / w, MAX_HEIGHT / h, 1);
+    const mediaAspectRatio = w / h;
+
+    // Vidstack's controls need a usable canvas even when the media itself is
+    // extremely tall or wide. Clamp only the player canvas; object-fit keeps
+    // the complete video at its true aspect ratio inside it.
+    const canvasWidth =
+      mediaAspectRatio < MIN_PLAYER_ASPECT_RATIO ? h * MIN_PLAYER_ASPECT_RATIO : w;
+    const canvasHeight =
+      mediaAspectRatio > MAX_PLAYER_ASPECT_RATIO ? w / MAX_PLAYER_ASPECT_RATIO : h;
+    const scale = Math.min(MAX_WIDTH / canvasWidth, MAX_HEIGHT / canvasHeight, 1);
     return {
-      width: Math.round(w * scale),
-      height: Math.round(h * scale)
+      width: Math.max(1, Math.round(canvasWidth * scale)),
+      height: Math.max(1, Math.round(canvasHeight * scale))
     };
   });
 
