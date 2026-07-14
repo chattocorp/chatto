@@ -128,6 +128,7 @@ func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 
 	for _, bucket := range []string{
 		"ASSET_CACHE",
+		"PROJECTION_SNAPSHOTS",
 		"SERVER_ASSETS",
 	} {
 		if err := js.DeleteObjectStore(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {

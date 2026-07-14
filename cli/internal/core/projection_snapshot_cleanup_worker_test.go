@@ -167,6 +167,32 @@ func TestProjectionSnapshotCleanupWorkerRetriesFailureOnBackoff(t *testing.T) {
 	}
 }
 
+func TestProjectionSnapshotCleanupWorkerUsesCatchUpCadenceWhenLimitIsHit(t *testing.T) {
+	repository := &fakeProjectionSnapshotSweeper{results: []projectionsnapshot.SweepResult{{DeleteLimitHit: true}}}
+	var waits []time.Duration
+	worker := &projectionSnapshotCleanupWorker{
+		repository:     repository,
+		lease:          &fakeProjectionSnapshotCleanupLease{},
+		projectionKeys: []string{"threads"},
+		logger:         testCoreLogger(),
+		initialDelay:   func() time.Duration { return projectionSnapshotCleanupInitialMin },
+		wait: func(_ context.Context, delay time.Duration) error {
+			waits = append(waits, delay)
+			if len(waits) == 1 {
+				return nil
+			}
+			return context.Canceled
+		},
+	}
+
+	if err := worker.Run(context.Background(), closedCleanupBoot()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v", err)
+	}
+	if !slices.Equal(waits, []time.Duration{projectionSnapshotCleanupInitialMin, projectionSnapshotCleanupFailureInterval}) {
+		t.Fatalf("waits = %v", waits)
+	}
+}
+
 func TestProjectionSnapshotCleanupWorkerDoesNotAcquireBeforeBoot(t *testing.T) {
 	repository := &fakeProjectionSnapshotSweeper{}
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{runEntered: make(chan struct{})}

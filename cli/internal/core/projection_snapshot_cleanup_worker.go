@@ -92,6 +92,9 @@ func (w *projectionSnapshotCleanupWorker) runLeader(ctx context.Context) error {
 				"deleted_objects", result.DeletedObjects,
 				"deleted_bytes", result.DeletedBytes)
 		} else {
+			if result.DeleteLimitHit {
+				delay = projectionSnapshotCleanupFailureInterval
+			}
 			w.logger.Info("Projection snapshot cleanup pass complete",
 				"backend", w.repository.Backend(),
 				"stage", "cleanup",

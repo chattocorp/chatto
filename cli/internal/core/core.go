@@ -27,6 +27,13 @@ import (
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
+const (
+	projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
+	// Namespace v1 membership is frozen for mixed-version cleanup safety.
+	// Introduce a new namespace version before adding another snapshot writer.
+	projectionSnapshotV1ThreadKey = "threads"
+)
+
 // ============================================================================
 // ChattoCore
 // ============================================================================
@@ -1219,29 +1226,49 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	var snapshotRepository *projectionsnapshot.Repository
 	var snapshotStreamIdentity string
 	if cfg.ProjectionSnapshots {
-		var snapshotBlobs projectionsnapshot.BlobStore = natsSnapshotBlobStore{store: storage.serverAssets}
+		var snapshotBlobs projectionsnapshot.BlobStore
 		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
 			snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
-		}
-		snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
-			SecretHex:       cfg.SecretKey,
-			ProducerVersion: cfg.Version,
-			Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
-		})
-		if err != nil {
-			logger.Warn("Projection snapshots disabled after initialization failure",
-				"stage", "initialize",
-				"error", err)
-			snapshotRepository = nil
 		} else {
-			snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
-			if err != nil {
-				return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
+			snapshotStore, snapshotStoreErr := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+				return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+					Bucket:      projectionSnapshotObjectStoreName,
+					Description: "Encrypted ephemeral projection snapshots",
+					Storage:     jetstream.FileStorage,
+					Compression: true,
+					Replicas:    cfg.Replicas,
+				})
+			})
+			if snapshotStoreErr != nil {
+				logger.Warn("Projection snapshots disabled after object store initialization failure",
+					"backend", "nats",
+					"stage", "storage_initialize",
+					"error", snapshotStoreErr)
+			} else {
+				snapshotBlobs = natsSnapshotBlobStore{store: snapshotStore}
 			}
-			logger.Info("Projection snapshots enabled",
-				"projection", "threads",
-				"compatibility_id", threadSnapshotCompatibilityID,
-				"backend", snapshotRepository.Backend())
+		}
+		if snapshotBlobs != nil {
+			snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+				SecretHex:       cfg.SecretKey,
+				ProducerVersion: cfg.Version,
+				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
+			})
+			if err != nil {
+				logger.Warn("Projection snapshots disabled after initialization failure",
+					"stage", "initialize",
+					"error", err)
+				snapshotRepository = nil
+			} else {
+				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
+				if err != nil {
+					return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
+				}
+				logger.Info("Projection snapshots enabled",
+					"projection", projectionSnapshotV1ThreadKey,
+					"compatibility_id", threadSnapshotCompatibilityID,
+					"backend", snapshotRepository.Backend())
+			}
 		}
 	}
 
@@ -1298,7 +1325,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 	if snapshotRepository != nil {
-		if err := threadsProjector.ConfigureSnapshots("threads", projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
+		if err := threadsProjector.ConfigureSnapshots(projectionSnapshotV1ThreadKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
 			return nil, fmt.Errorf("configure Thread projection snapshots: %w", err)
 		}
 	}
@@ -1416,7 +1443,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		})
 		if snapshotLeaseErr != nil {
 			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
-				"projection", "threads",
+				"projection", projectionSnapshotV1ThreadKey,
 				"stage", "lease_initialize",
 				"error", snapshotLeaseErr)
 		} else {
@@ -1424,7 +1451,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				projector:      threadsProjector,
 				repository:     snapshotRepository,
 				lease:          snapshotLease,
-				projectionKey:  "threads",
+				projectionKey:  projectionSnapshotV1ThreadKey,
 				compatibility:  threadSnapshotCompatibilityID,
 				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
 				streamIdentity: snapshotStreamIdentity,
@@ -1445,7 +1472,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
 				repository:     snapshotRepository,
 				lease:          cleanupLease,
-				projectionKeys: []string{"threads"},
+				projectionKeys: []string{projectionSnapshotV1ThreadKey},
 				logger:         logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
 				done:           make(chan struct{}),
 			}

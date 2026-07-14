@@ -20,6 +20,10 @@ import (
 )
 
 const (
+	// Namespace membership is immutable for mixed-version cleanup safety. The
+	// v1 namespace contains only the Threads projection. Adding another
+	// projection requires a new namespace version so an older replica cannot
+	// mistake the newer projection's opaque pointer and generations for orphans.
 	objectPrefix         = "internal/projection-snapshots/v1/"
 	maxPayloadSize       = 64 << 20
 	maxEncryptedSize     = 80 << 20

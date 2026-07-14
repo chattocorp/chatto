@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
@@ -46,6 +48,11 @@ func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 2)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
+	for _, name := range firstSnapshotObjects {
+		if _, err := first.storage.serverAssets.GetInfo(ctx, name); !errors.Is(err, jetstream.ErrObjectNotFound) {
+			t.Fatalf("snapshot object %q leaked into shared SERVER_ASSETS: %v", name, err)
+		}
+	}
 	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -288,7 +295,7 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		objects, err := core.storage.serverAssets.List(ctx)
+		objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
 		if err == nil {
 			count := 0
 			for _, object := range objects {
@@ -307,7 +314,7 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 
 func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *ChattoCore) []string {
 	t.Helper()
-	objects, err := core.storage.serverAssets.List(ctx)
+	objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,4 +326,13 @@ func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *Chat
 	}
 	slices.Sort(names)
 	return names
+}
+
+func projectionSnapshotObjectStore(t *testing.T, ctx context.Context, core *ChattoCore) jetstream.ObjectStore {
+	t.Helper()
+	store, err := core.js.ObjectStore(ctx, projectionSnapshotObjectStoreName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
 }

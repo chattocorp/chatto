@@ -73,7 +73,8 @@ indexes and rebuild them during restore.
 Snapshot persistence uses a private internal blob-store boundary backed by the
 configured asset-storage backend:
 
-- NATS-backed deployments store snapshot objects in NATS Object Store; and
+- NATS-backed deployments store snapshot objects in the dedicated
+  `PROJECTION_SNAPSHOTS` NATS Object Store; and
 - S3-backed deployments store snapshot objects in the configured S3 bucket.
 
 Snapshot objects use a reserved internal prefix such as
@@ -81,9 +82,15 @@ Snapshot objects use a reserved internal prefix such as
 asset lifecycle events, receive signed URLs, participate in user-facing asset
 APIs, or enter asset cleanup decisions.
 
+Namespace membership is immutable once shipped: `v1` contains only the Thread
+projection. Adding another projection requires a new namespace version. This
+prevents an older replica's cleaner from treating a newer projection's opaque
+pointer and referenced generations as abandoned during a mixed-version rollout.
+
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
-objects because `SERVER_ASSETS` is part of the JetStream backup. S3-backed
-snapshots follow the deployment's S3 backup policy, like S3-backed user assets;
+objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
+S3-backed snapshots follow the deployment's S3 backup policy, like S3-backed
+user assets;
 the Chatto backup command does not copy either kind of S3 object into its NATS
 archive. A carried snapshot can avoid reconstructing the snapshotted projection
 state when the restored deployment retains the same `core.secret_key`, but the
@@ -168,7 +175,7 @@ pointer as an empty history and may replace a cryptographically or structurally
 invalid pointer. A storage transport error while reading the pointer aborts the
 write without uploading a generation or changing either retained fallback.
 
-An elected backend-listing sweeper bounds objects abandoned by a process crash,
+An elected backend-listing sweeper reclaims objects abandoned by a process crash,
 stale writer, failed rollback deletion, or `core.secret_key` rotation. It first
 authenticates every registered projection pointer and completes a read-only
 inventory. A second streaming pass deletes only unreferenced generation objects
@@ -180,10 +187,11 @@ deletion failure during the second pass stops further deletion.
 
 The sweeper runs only while projection snapshots are enabled. One replica holds
 a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
-and then sweeps every six hours. Failed passes retry after 30 minutes. Each pass
-has a five-minute deadline and deletes at most 100 objects or 1 GiB. These fixed
-canary limits bound cleanup work while production evidence informs any future
-operator-tunable storage budget.
+and then sweeps every six hours. Failed passes and successful passes that reach
+a deletion limit retry after 30 minutes. Each pass has a five-minute deadline
+and deletes at most 100 objects or 1 GiB. These fixed canary limits bound cleanup
+work and provide catch-up behavior, but they are not a hard namespace storage
+cap. Production evidence still needs to inform a final operator-tunable budget.
 
 The canary rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
@@ -261,9 +269,9 @@ frontier remain separate follow-up work.
   S3 snapshots follow the operator's S3 backup policy.
 - Snapshot payloads consume additional storage, network bandwidth, and
   background CPU. Compression, current/previous generation retention, and the
-  elected grace-period sweeper bound normal and abandoned object growth. Final
-  generation cadence and operator-tunable storage budgets remain follow-up
-  decisions informed by production measurements.
+  elected grace-period sweeper reclaim normal and abandoned objects. A hard
+  namespace storage cap, final generation cadence, and operator-tunable budgets
+  remain follow-up decisions informed by production measurements.
 - Upgrades and rollbacks remain safe but may cold-replay when projection
   compatibility changes.
 - Storage-backend availability can affect the optimization but cannot affect
