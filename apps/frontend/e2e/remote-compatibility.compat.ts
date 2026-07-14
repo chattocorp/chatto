@@ -1,0 +1,136 @@
+import { test, expect } from './setup';
+import { TIMEOUTS } from './constants';
+import { getRoomOnRemote, postMessageOnRemote } from './fixtures/multiServer';
+import { createProductionUser, startProductionServer } from './fixtures/productionServer';
+import { stopServer, type ServerInfo } from './fixtures/server';
+
+const currentBinary = process.env.CHATTO_COMPAT_CURRENT_BINARY;
+const remoteBinary = process.env.CHATTO_COMPAT_REMOTE_BINARY;
+
+const originUser = {
+  login: 'compat-origin',
+  displayName: 'Compatibility Origin',
+  password: 'compat-origin-password123'
+};
+const remoteUser = {
+  login: 'compat-remote',
+  displayName: 'Compatibility Remote',
+  password: 'compat-remote-password123'
+};
+
+test.use({
+  serverOptions: {
+    executablePath: currentBinary,
+    instanceId: 'compat-current',
+    operatorApi: true
+  }
+});
+
+test.skip(
+  !currentBinary || !remoteBinary,
+  'Set CHATTO_COMPAT_CURRENT_BINARY and CHATTO_COMPAT_REMOTE_BINARY to production executables'
+);
+
+test('current frontend can connect to and use the latest 0.4.x server', async ({
+  page,
+  authPage,
+  chatPage,
+  roomPage,
+  server
+}, testInfo) => {
+  let remoteServer: ServerInfo | undefined;
+
+  try {
+    await createProductionUser(server, originUser);
+    remoteServer = await startProductionServer(
+      testInfo,
+      remoteBinary!,
+      'compat-remote-0-4',
+      5,
+      '127.0.0.1'
+    );
+    await createProductionUser(remoteServer, remoteUser);
+
+    // Sign in to the current production build and use its embedded frontend.
+    await authPage.gotoLogin();
+    await authPage.fillLoginForm(originUser.login, originUser.password);
+    await authPage.signInButton.click();
+    await page.waitForURL(
+      (url) => url.hostname === 'localhost' && url.pathname.startsWith('/chat')
+    );
+
+    // Discover the released server and complete its real OAuth + PKCE flow.
+    const remoteHost = new URL(remoteServer.baseURL).host;
+    await page.getByTitle('Add Server').click();
+    await page.getByLabel('Server URL').fill(remoteHost);
+    await page.getByRole('button', { name: 'Connect' }).click();
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    await expect(page).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await page.locator('input[autocomplete="username"]').fill(remoteUser.login);
+    await page.locator('input[autocomplete="current-password"]').fill(remoteUser.password);
+    await page.getByRole('button', { name: /Sign In/i }).click();
+    await expect(page).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await page.getByRole('button', { name: 'Allow Access' }).click();
+
+    await expect(page).toHaveURL(/localhost.*\/chat\/127\.0\.0\.1(\/|$)/, {
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(
+      page.locator(`[data-testid="server-icon"][href*="127.0.0.1"]`).first()
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    // Exercise the current room directory and join flow against the released server.
+    const generalRoom = page.getByRole('listitem').filter({ hasText: '# general' });
+    await generalRoom.getByRole('button', { name: 'Join' }).click();
+    await expect(chatPage.roomList.getByRole('link', { name: '# general' })).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+
+    // Exercise authenticated timeline/message APIs through the current UI.
+    await chatPage.enterRoom('general');
+    const sentMessage = `Compatibility UI message ${Date.now()}`;
+    await roomPage.sendMessage(sentMessage);
+
+    const remoteRegistration = await page.evaluate(() => {
+      const registrations = JSON.parse(localStorage.getItem('chatto:instances') || '[]') as Array<{
+        url?: string;
+        token?: string;
+      }>;
+      return registrations.find((registration) => registration.url?.includes('127.0.0.1'));
+    });
+    expect(remoteRegistration?.token).toBeTruthy();
+
+    const roomId = await getRoomOnRemote(
+      remoteServer.baseURL,
+      remoteRegistration!.token!,
+      'general'
+    );
+    const receivedMessage = `Compatibility realtime message ${Date.now()}`;
+    await postMessageOnRemote(
+      remoteServer.baseURL,
+      remoteRegistration!.token!,
+      roomId,
+      receivedMessage
+    );
+    await roomPage.expectMessageVisible(receivedMessage);
+
+    // A cold load must retain the remote registration and read persisted history.
+    await page.reload();
+    await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1\//);
+    await roomPage.expectMessageVisible(sentMessage);
+    await roomPage.expectMessageVisible(receivedMessage);
+    await expect(page.getByTitle('Sign out')).toBeVisible();
+  } finally {
+    if (remoteServer) {
+      await stopServer(remoteServer);
+    }
+  }
+});

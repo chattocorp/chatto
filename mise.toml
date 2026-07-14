@@ -176,6 +176,19 @@ sources = [
 ]
 outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
+[tasks.build-compatibility-server]
+description = "Build the production Chatto binary used as the current side of compatibility tests"
+depends = ["setup-cli", "build-frontend"]
+dir = "cli"
+run = "CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+sources = [
+    "**/*.go",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
+]
+outputs = ["../apps/frontend/e2e/fixtures/bin/chatto-current"]
+
 [tasks.storybook]
 description = "Run the Storybook design-system catalog on the workspace port"
 depends = ["setup-frontend", "build-api-types"]

@@ -178,16 +178,8 @@ jobs:
         with:
           install-cli-deps: "false"
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Install Playwright dependencies
-        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Run frontend typecheck
@@ -233,16 +225,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Install Playwright dependencies
-        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E server
@@ -259,6 +243,49 @@ jobs:
           path: apps/frontend/playwright-report/
           retention-days: 14
 
+  test-e2e-remote-compatibility:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
+        timeout-minutes: 15
+
+      - name: Prepare latest stable 0.4.x release
+        id: release
+        uses: ./.github/actions/prepare-released-chatto
+        with:
+          release-series: "0.4"
+
+      - name: Build current production executable with embedded frontend
+        run: mise build-compatibility-server
+
+      - name: Run remote compatibility smoke test
+        working-directory: apps/frontend
+        env:
+          CHATTO_COMPAT_CURRENT_BINARY: ${{ github.workspace }}/apps/frontend/e2e/fixtures/bin/chatto-current
+          CHATTO_COMPAT_REMOTE_BINARY: ${{ steps.release.outputs.path }}
+          CHATTO_COMPAT_REMOTE_VERSION: ${{ steps.release.outputs.version }}
+        run: pnpm exec playwright test --config playwright.compat.config.ts
+
+      - name: Upload remote compatibility diagnostics
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: playwright-report-remote-compatibility
+          path: |
+            apps/frontend/playwright-report-remote-compatibility/
+            apps/frontend/test-results/
+          retention-days: 14
+
   test-e2e-media:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -272,16 +299,8 @@ jobs:
         with:
           install-ffmpeg: "true"
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Install Playwright dependencies
-        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E server
@@ -307,6 +326,7 @@ jobs:
       - test-frontend-unit
       - test-cli
       - test-e2e
+      - test-e2e-remote-compatibility
       - test-e2e-media
     runs-on: ubuntu-latest
     permissions:

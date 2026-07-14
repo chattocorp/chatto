@@ -106,26 +106,14 @@ function postedEventId(
  * Uses parallelIndex + 5 to avoid port collisions with the primary server.
  */
 export async function startSecondServer(testInfo: TestInfo): Promise<ServerInfo> {
-  // Create a modified testInfo-like object with offset parallelIndex
-  // to get a different port range from the primary server
-  const modifiedTestInfo = {
-    ...testInfo,
-    parallelIndex: testInfo.parallelIndex + 5
-  } as TestInfo;
-
-  return startServer(modifiedTestInfo);
+  return startServer(testInfo, { instanceId: 'secondary', portOffset: 5 });
 }
 
 /**
  * Stops a second server and cleans up.
  */
 export async function stopSecondServer(server: ServerInfo, testInfo: TestInfo): Promise<void> {
-  const modifiedTestInfo = {
-    ...testInfo,
-    parallelIndex: testInfo.parallelIndex + 5
-  } as TestInfo;
-
-  await stopServer(server, modifiedTestInfo);
+  await stopServer(server, testInfo);
 }
 
 /**
