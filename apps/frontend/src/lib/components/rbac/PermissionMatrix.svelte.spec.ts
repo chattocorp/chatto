@@ -126,6 +126,75 @@ describe('PermissionMatrix', () => {
     expect(getComputedStyle(stickyBody).backgroundColor).toBe(surfaceColor);
   });
 
+  it('highlights the hovered permission row and role column', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      applicablePermissions: ['message.post', 'message.delete']
+    };
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const intersection = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.post"]'
+    ) as HTMLTableCellElement;
+    const sameRow = container.querySelector(
+      'td[data-role="admin"][data-permission="message.post"]'
+    ) as HTMLTableCellElement;
+    const sameColumn = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.delete"]'
+    ) as HTMLTableCellElement;
+    const unrelated = container.querySelector(
+      'td[data-role="admin"][data-permission="message.delete"]'
+    ) as HTMLTableCellElement;
+    const columnHeader = container.querySelector('th[data-role="moderator"]') as HTMLElement;
+    const rowLabel = intersection.parentElement!.querySelector('td.sticky') as HTMLElement;
+
+    intersection.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    expect(intersection.className).toContain('bg-action/15');
+    expect(sameRow.className).toContain('bg-action/8');
+    expect(sameColumn.className).toContain('bg-action/8');
+    expect(unrelated.className).not.toContain('bg-action/');
+    expect(columnHeader.className).toContain('bg-action/10');
+    expect(rowLabel.className).toContain('bg-action/8');
+    expect(getComputedStyle(intersection).backgroundColor).not.toBe(
+      getComputedStyle(sameRow).backgroundColor
+    );
+    expect(getComputedStyle(sameRow).backgroundColor).not.toBe(
+      getComputedStyle(unrelated).backgroundColor
+    );
+
+    intersection.dispatchEvent(new MouseEvent('mouseleave'));
+    flushSync();
+
+    expect(intersection.className).not.toContain('bg-action/');
+    expect(sameRow.className).not.toContain('bg-action/');
+    expect(sameColumn.className).not.toContain('bg-action/');
+  });
+
+  it('keeps the coordinate highlight visible for keyboard focus', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      applicablePermissions: ['message.post', 'message.delete']
+    };
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const button = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.post"] button'
+    ) as HTMLButtonElement;
+    const cell = button.closest('td')!;
+
+    button.focus();
+    flushSync();
+    expect(cell.className).toContain('bg-action/15');
+
+    button.blur();
+    flushSync();
+    expect(cell.className).not.toContain('bg-action/');
+  });
+
   it('reflects override + inherited state in cell aria-pressed', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
