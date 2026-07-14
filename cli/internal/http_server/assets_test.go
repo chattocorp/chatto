@@ -1442,6 +1442,7 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 		key     string
 		headers map[string][]string
 	}{
+		{key: "internal/projection-snapshots/v1/objects/0123456789abcdef0123456789abcdef"},
 		{key: "attachments/" + assetID},
 		{key: "spaces/server/attachments/" + assetID},
 		{key: "Aroommetadata00", headers: map[string][]string{"Room-Id": {room.Id}}},
