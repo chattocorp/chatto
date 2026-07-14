@@ -794,7 +794,7 @@ never probed by this route. Disallowed classes return 404.
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions; the HTTP frontend server uses fixed 180/192/512px cover transforms of the current server logo for Apple touch icon and web-manifest install metadata, and keeps the web manifest network-served so service-worker caches do not pin stale branding.
+Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions; the HTTP frontend server uses fixed 32/180/192/512px cover transforms of the current server logo for favicon, Apple touch icon, and web-manifest install metadata. Stable favicon and Apple touch icon routes redirect to the current same-origin transform or the corresponding bundled icon, while all dynamic branding metadata remains network-served so service-worker caches do not pin stale branding.
 
 **URL Structure:**
 

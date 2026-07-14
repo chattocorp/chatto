@@ -120,8 +120,16 @@ describe('app.html metadata', () => {
   it('declares the Safari apple touch icon with an explicit size', () => {
     const tag = linkTag('apple-touch-icon');
 
-    expect(attributeValue(tag, 'href')).toBe('/icons/apple-touch-icon.png');
+    expect(attributeValue(tag, 'href')).toBe('/apple-touch-icon');
     expect(attributeValue(tag, 'sizes')).toBe('180x180');
+  });
+
+  it('declares the browser favicon with an explicit size', () => {
+    const tag = linkTag('icon');
+
+    expect(attributeValue(tag, 'href')).toBe('/favicon');
+    expect(attributeValue(tag, 'sizes')).toBe('32x32');
+    expect(attributeValue(tag, 'type')).toBeNull();
   });
 
   it('keeps manifest icon paths pointed at the generated PWA assets', () => {
