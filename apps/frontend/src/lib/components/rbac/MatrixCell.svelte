@@ -10,6 +10,9 @@ Click cycles the override through `neutral → allow → deny → neutral`. The
 inherited indicator persists faded behind the override (so you can see what
 the role would do without the override at this scope).
 
+While a change is being saved, the state icon is replaced with a spinner and
+the cell is temporarily non-interactive.
+
 When the permission is not applicable to the role at this scope (e.g. a
 room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
@@ -44,7 +47,7 @@ to render an inert "—" cell with an explanation tooltip.
   }
 
   function handleClick() {
-    if (disabled || !applicable) return;
+    if (disabled || updating || !applicable) return;
     onCycle(nextState());
   }
 
@@ -90,12 +93,14 @@ to render an inert "—" cell with an explanation tooltip.
     type="button"
     class={[
       'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
-      updating ? 'animate-pulse' : '',
-      disabled ? 'cursor-not-allowed opacity-60' : ''
+      updating ? 'bg-action/15 ring-2 ring-inset ring-action/40' : '',
+      disabled || updating ? 'cursor-not-allowed' : '',
+      disabled ? 'opacity-60' : ''
     ]}
-    {disabled}
+    disabled={disabled || updating}
     {title}
     aria-label={ariaLabel}
+    aria-busy={updating || undefined}
     aria-pressed={isOverride}
     onclick={handleClick}
   >
@@ -105,7 +110,11 @@ to render an inert "—" cell with an explanation tooltip.
         surfaceClasses
       ]}
     >
-      <span class={['iconify h-3 w-3', icon]}></span>
+      {#if updating}
+        <span class="iconify h-4 w-4 animate-spin uil--spinner" aria-hidden="true"></span>
+      {:else}
+        <span class={['iconify h-3 w-3', icon]}></span>
+      {/if}
     </span>
   </button>
 {/if}

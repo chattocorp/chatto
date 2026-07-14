@@ -220,6 +220,31 @@ describe('PermissionMatrix', () => {
     expect(modMessagePost?.querySelector('.uil--check')).not.toBeNull();
   });
 
+  it('shows feedback immediately until a permission update completes', async () => {
+    let resolveUpdate: (() => void) | undefined;
+    permissionMocks.setRolePermission.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveUpdate = resolve))
+    );
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const button = container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+    flushSync();
+
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.querySelector('.animate-spin.uil--spinner')).not.toBeNull();
+
+    resolveUpdate?.();
+    await settle();
+
+    expect(button.hasAttribute('aria-busy')).toBe(false);
+    expect(button.querySelector('.animate-spin.uil--spinner')).toBeNull();
+    expect(button.querySelector('.uil--minus')).not.toBeNull();
+  });
+
   it('invokes onRoleClick when a column header is clicked', async () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {
