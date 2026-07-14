@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-06-25
+**Last reviewed:** 2026-07-14
 
 ## Overview
 
@@ -19,6 +19,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 - Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence to the server and pauses live event subscriptions so the existing presence record expires normally.
 - Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
 - The presence dot updates across the UI as other users' statuses change, in real time.
+- If a live connection falls behind presence updates, it reconnects and recovers current presence instead of remaining silently stale.
 
 ## Design Decisions
 
@@ -64,11 +65,17 @@ Every user has a presence status visible to others as a colored dot on their ava
 **Why:** Servers are independent and shouldn't have to coordinate among themselves — that would require cross-server discovery and trust. The client is already connected to all of them and can coordinate cheaply. See ADR-025.
 **Tradeoff:** A user signed in from two different devices to the same server may have competing presence writers; the latest write wins until TTL expiry.
 
+### 8. Delivery gaps force latest-value recovery
+
+**Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
+**Why:** Presence is latest-value state, so a missed transition can be repaired cheaply from current user reads. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049.
+**Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
+
 ## Permissions
 
 Presence status is public. Any authenticated user can see any other authenticated user's presence.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub)
 - **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile)

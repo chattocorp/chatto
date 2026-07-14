@@ -81,7 +81,7 @@ Transient UI sync signals that are not durable facts use a separate `corev1.Live
 ### Replication and retention
 
 - **Replication is stream-level.** R3 applies to the entire event log, not per aggregate type.
-- **Retention is forever** for the foreseeable future. Trimming remains a separate deferred decision; [ADR-049](ADR-049-ephemeral-encrypted-projection-snapshots.md) explicitly introduces snapshots without permitting EVT expiration, compaction, truncation, or archival.
+- **Retention is forever** for the foreseeable future. Trimming remains a separate deferred decision; [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) explicitly introduces snapshots without permitting EVT expiration, compaction, truncation, or archival.
 - **Compression** uses S2, matching today's `SERVER_EVENTS`.
 
 ### Coexistence with the legacy stream
@@ -101,7 +101,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 
 ## Out of scope for this ADR
 
-- Snapshot orchestration — decided separately in [ADR-049](ADR-049-ephemeral-encrypted-projection-snapshots.md), without changing this ADR's indefinite EVT retention decision.
+- Snapshot orchestration — decided separately in [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md), without changing this ADR's indefinite EVT retention decision.
 - Event expiration, compaction, and archival — still deferred.
 - Sharding the event log across multiple streams — not needed today; revisit if write contention forces it.
 - Cross-deployment replication / federation — entirely out of scope.

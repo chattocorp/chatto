@@ -1,4 +1,4 @@
-# ADR-049: Ephemeral Encrypted Projection Snapshots
+# ADR-050: Ephemeral Encrypted Projection Snapshots
 
 **Date:** 2026-07-13
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -326,13 +327,13 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
-
-	delivered, ok, closeStream := service.filterLiveEVTEvent(ctx, userID, map[string]struct{}{roomID: {}}, msg, event)
-	if delivered != nil || ok {
-		t.Fatalf("filterLiveEVTEvent delivered %T/%v, want dropped", delivered, ok)
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
 	}
-	if !closeStream {
-		t.Fatal("filterLiveEVTEvent closeStream = false, want true")
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
 	}
 }
 

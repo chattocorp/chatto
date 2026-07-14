@@ -1,6 +1,9 @@
 package core
 
-import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+import (
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
 
 func messageAuthorID(event *corev1.Event) string {
 	if event != nil {
@@ -175,29 +178,33 @@ func IsVisibleRoomTimelineEntry(event *corev1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated,
-		*corev1.Event_RoomUpdated,
-		*corev1.Event_RoomDeleted,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomUniversalChanged,
-		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom,
-		*corev1.Event_ThreadCreated,
-		*corev1.Event_MessagePosted,
-		*corev1.Event_MessageEdited,
-		*corev1.Event_MessageRetracted,
-		*corev1.Event_ReactionAdded,
-		*corev1.Event_ReactionRemoved,
-		*corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted,
-		*corev1.Event_VoiceCallStarted,
-		*corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft,
-		*corev1.Event_VoiceCallEnded:
+	return isDeliverableLiveEVTRoomEventType(events.EventTypeOf(event))
+}
+
+func isDeliverableLiveEVTRoomEventType(eventType string) bool {
+	switch eventType {
+	case events.EventRoomCreated,
+		events.EventRoomUpdated,
+		events.EventRoomDeleted,
+		events.EventRoomArchived,
+		events.EventRoomUnarchived,
+		events.EventRoomUniversalChanged,
+		events.EventUserJoinedRoom,
+		events.EventUserLeftRoom,
+		events.EventThreadCreated,
+		events.EventMessagePosted,
+		events.EventMessageEdited,
+		events.EventMessageRetracted,
+		events.EventReactionAdded,
+		events.EventReactionRemoved,
+		events.EventAssetProcessingStarted,
+		events.EventAssetProcessingSucceeded,
+		events.EventAssetProcessingFailed,
+		events.EventAssetDeleted,
+		events.EventCallStarted,
+		events.EventCallParticipantJoined,
+		events.EventCallParticipantLeft,
+		events.EventCallEnded:
 		return true
 	default:
 		return false
@@ -205,11 +212,15 @@ func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
 }
 
 func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+	return isDeliverableLiveEVTAssetEventType(events.EventTypeOf(event))
+}
+
+func isDeliverableLiveEVTAssetEventType(eventType string) bool {
+	switch eventType {
+	case events.EventAssetProcessingStarted,
+		events.EventAssetProcessingSucceeded,
+		events.EventAssetProcessingFailed,
+		events.EventAssetDeleted:
 		return true
 	default:
 		return false
@@ -217,9 +228,12 @@ func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
 }
 
 func isDeliverableLiveEVTUserEvent(event *corev1.Event) bool {
-	switch event.GetEvent().(type) {
-	case *corev1.Event_UserCustomStatusSet,
-		*corev1.Event_UserCustomStatusCleared:
+	return isDeliverableLiveEVTUserEventType(events.EventTypeOf(event))
+}
+
+func isDeliverableLiveEVTUserEventType(eventType string) bool {
+	switch eventType {
+	case events.EventUserCustomStatusSet, events.EventUserCustomStatusCleared:
 		return true
 	default:
 		return false
