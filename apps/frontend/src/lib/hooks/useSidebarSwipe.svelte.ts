@@ -8,23 +8,34 @@ import { panGesture } from './panGesture.svelte';
  * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
  * rightward drags claim; when open, only leftward drags claim. Gestures that
  * begin inside horizontally scrollable content are ignored so galleries and
- * wide tables retain their native scrolling. Unclaimed taps, long presses,
- * and vertical movement continue through normal browser event flow.
+ * wide tables retain their native scrolling. Dialogs, popovers, form fields,
+ * media controls, and elements marked with `data-sidebar-swipe-ignore` also
+ * retain their own gestures. Unclaimed taps, long presses, and vertical
+ * movement continue through normal browser event flow.
  */
-function startsInsideHorizontalScroller(target: EventTarget | null, host: HTMLElement): boolean {
-  let element = target instanceof Element ? target : null;
+function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTMLElement): boolean {
+  for (const pathEntry of event.composedPath()) {
+    if (pathEntry === host) return false;
+    if (!(pathEntry instanceof HTMLElement)) continue;
 
-  while (element && element !== host) {
-    if (element instanceof HTMLElement) {
-      const { overflowX } = getComputedStyle(element);
-      if (
-        (overflowX === 'auto' || overflowX === 'scroll') &&
-        element.scrollWidth > element.clientWidth
-      ) {
-        return true;
-      }
+    const element = pathEntry;
+    if (
+      element instanceof HTMLDialogElement ||
+      element.hasAttribute('popover') ||
+      element.matches(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio, video, media-player, [data-sidebar-swipe-ignore]'
+      )
+    ) {
+      return true;
     }
-    element = element.parentElement;
+
+    const { overflowX } = getComputedStyle(element);
+    if (
+      (overflowX === 'auto' || overflowX === 'scroll') &&
+      element.scrollWidth > element.clientWidth
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -33,7 +44,7 @@ function startsInsideHorizontalScroller(target: EventTarget | null, host: HTMLEl
 export function sidebarSwipe(node: HTMLElement) {
   return panGesture(node, {
     axis: 'x',
-    enabled: (target) => sidebarNav.isMobile && !startsInsideHorizontalScroller(target, node),
+    enabled: (event) => sidebarNav.isMobile && !startsInsideExcludedSurface(event, node),
     shouldClaim: (dx) => (sidebarNav.isOpen ? dx < 0 : dx > 0),
     onStart: () => sidebarNav.startDrag(),
     onUpdate: (dx) => sidebarNav.updateDrag(dx),

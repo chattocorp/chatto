@@ -81,7 +81,7 @@ describe('panGesture', () => {
     window.dispatchEvent(pointer('pointermove', 120));
     window.dispatchEvent(pointer('pointerup', 120));
 
-    expect(enabled).toHaveBeenCalledWith(child);
+    expect(enabled).toHaveBeenCalledWith(expect.objectContaining({ target: child }));
     expect(onStart).not.toHaveBeenCalled();
 
     action.destroy();

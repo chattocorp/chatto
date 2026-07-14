@@ -24,6 +24,7 @@ function pointer(type: string, x: number, y = 24) {
   return new PointerEvent(type, {
     bubbles: true,
     cancelable: true,
+    composed: true,
     pointerId: 1,
     clientX: x,
     clientY: y
@@ -31,7 +32,11 @@ function pointer(type: string, x: number, y = 24) {
 }
 
 function touch(type: string, x: number, y = 24) {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as TouchEvent;
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+    composed: true
+  }) as TouchEvent;
   const item = { identifier: 1, clientX: x, clientY: y };
   const currentTouches = type === 'touchend' || type === 'touchcancel' ? [] : [item];
   const touchList = (items: typeof currentTouches) =>
@@ -95,6 +100,69 @@ describe('sidebarSwipe', () => {
     const action = sidebarSwipe(host);
 
     child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+
+    expect(sidebarNav.isOpen).toBe(false);
+    expect(sidebarNav.dragOffset).toBeNull();
+
+    action.destroy();
+  });
+
+  it('ignores rightward pointer drags that start on native form controls', () => {
+    const { host } = makeGestureHost();
+    const range = document.createElement('input');
+    range.type = 'range';
+    host.append(range);
+    const action = sidebarSwipe(host);
+
+    range.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+
+    expect(sidebarNav.isOpen).toBe(false);
+    expect(sidebarNav.dragOffset).toBeNull();
+
+    action.destroy();
+  });
+
+  it('ignores leftward touch drags inside shadow-DOM media controls', () => {
+    const { host } = makeGestureHost();
+    const mediaPlayer = document.createElement('media-player');
+    const control = document.createElement('button');
+    mediaPlayer.attachShadow({ mode: 'open' }).append(control);
+    host.append(mediaPlayer);
+    sidebarNav.isOpen = true;
+    const action = sidebarSwipe(host);
+
+    control.dispatchEvent(touch('touchstart', 320));
+    const move = touch('touchmove', 0);
+    window.dispatchEvent(move);
+    window.dispatchEvent(touch('touchend', 0));
+
+    expect(move.defaultPrevented).toBe(false);
+    expect(sidebarNav.isOpen).toBe(true);
+    expect(sidebarNav.dragOffset).toBeNull();
+
+    action.destroy();
+  });
+
+  it('ignores gestures that start inside dialogs and popovers', () => {
+    const { host } = makeGestureHost();
+    const dialog = document.createElement('dialog');
+    const dialogControl = document.createElement('button');
+    dialog.append(dialogControl);
+    const popover = document.createElement('div');
+    const popoverControl = document.createElement('button');
+    popover.setAttribute('popover', 'auto');
+    popover.append(popoverControl);
+    host.append(dialog, popover);
+    const action = sidebarSwipe(host);
+
+    dialogControl.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+    popoverControl.dispatchEvent(pointer('pointerdown', 100));
     window.dispatchEvent(pointer('pointermove', 310));
     window.dispatchEvent(pointer('pointerup', 310));
 
