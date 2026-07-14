@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sidebarEdgeSwipe, sidebarSwipe } from './useSidebarSwipe.svelte';
+import { sidebarSwipe } from './useSidebarSwipe.svelte';
 import { sidebarNav } from '$lib/state/globals.svelte';
-
-const originalElementsFromPoint = document.elementsFromPoint;
 
 function resetSidebar() {
   sidebarNav.setMobile(false);
@@ -10,20 +8,16 @@ function resetSidebar() {
   sidebarNav.setMobile(true);
 }
 
-function makeEdgeGestureHost() {
-  const edge = document.createElement('div');
-  const underlying = document.createElement('button');
+function makeGestureHost() {
+  const host = document.createElement('main');
+  const child = document.createElement('button');
 
-  edge.setPointerCapture = vi.fn();
-  edge.releasePointerCapture = vi.fn();
-  document.body.append(underlying, edge);
+  host.setPointerCapture = vi.fn();
+  host.releasePointerCapture = vi.fn();
+  host.append(child);
+  document.body.append(host);
 
-  Object.defineProperty(document, 'elementsFromPoint', {
-    configurable: true,
-    value: vi.fn(() => [edge, underlying])
-  });
-
-  return { edge, underlying };
+  return { host, child };
 }
 
 function pointer(type: string, x: number, y = 24) {
@@ -51,70 +45,71 @@ function touch(type: string, x: number, y = 24) {
   return event;
 }
 
-describe('sidebarEdgeSwipe', () => {
+describe('sidebarSwipe', () => {
   beforeEach(() => {
     resetSidebar();
   });
 
   afterEach(() => {
-    Object.defineProperty(document, 'elementsFromPoint', {
-      configurable: true,
-      value: originalElementsFromPoint
-    });
     document.body.replaceChildren();
   });
 
-  it('does not synthesize taps into the content behind the edge target', () => {
-    const { edge, underlying } = makeEdgeGestureHost();
-    const onUnderlyingPointerDown = vi.fn();
-    const onUnderlyingClick = vi.fn();
-    underlying.addEventListener('pointerdown', onUnderlyingPointerDown);
-    underlying.addEventListener('click', onUnderlyingClick);
+  it('leaves taps on child controls to normal browser event flow', () => {
+    const { host, child } = makeGestureHost();
+    const onClick = vi.fn();
+    child.addEventListener('click', onClick);
+    const action = sidebarSwipe(host);
 
-    const action = sidebarEdgeSwipe(edge);
-    edge.dispatchEvent(pointer('pointerdown', 2));
-    edge.dispatchEvent(pointer('pointerup', 2));
+    child.dispatchEvent(pointer('pointerdown', 4));
+    window.dispatchEvent(pointer('pointerup', 4));
+    child.click();
 
-    expect(onUnderlyingPointerDown).not.toHaveBeenCalled();
-    expect(onUnderlyingClick).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalledOnce();
     expect(sidebarNav.isOpen).toBe(false);
 
     action.destroy();
   });
 
-  it('still opens the mobile sidebar on a rightward edge drag', () => {
-    const { edge } = makeEdgeGestureHost();
-    const action = sidebarEdgeSwipe(edge);
+  it('opens the mobile sidebar from a rightward drag on app content', () => {
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
 
-    edge.dispatchEvent(pointer('pointerdown', 2));
-    window.dispatchEvent(pointer('pointermove', 210));
-    window.dispatchEvent(pointer('pointerup', 210));
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
 
     expect(sidebarNav.isOpen).toBe(true);
 
     action.destroy();
   });
 
-  it('still closes the mobile sidebar on a leftward drag', () => {
-    const { edge } = makeEdgeGestureHost();
-    sidebarNav.isOpen = true;
-    const action = sidebarSwipe(edge);
+  it('ignores drags that start inside horizontally scrollable content', () => {
+    const { host } = makeGestureHost();
+    const scroller = document.createElement('div');
+    const child = document.createElement('button');
+    scroller.style.overflowX = 'auto';
+    Object.defineProperty(scroller, 'clientWidth', { value: 100 });
+    Object.defineProperty(scroller, 'scrollWidth', { value: 300 });
+    scroller.append(child);
+    host.append(scroller);
+    const action = sidebarSwipe(host);
 
-    edge.dispatchEvent(pointer('pointerdown', 320));
-    window.dispatchEvent(pointer('pointermove', 0));
-    window.dispatchEvent(pointer('pointerup', 0));
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
 
     expect(sidebarNav.isOpen).toBe(false);
+    expect(sidebarNav.dragOffset).toBeNull();
 
     action.destroy();
   });
 
   it('closes the mobile sidebar on a leftward touch drag', () => {
-    const { edge } = makeEdgeGestureHost();
+    const { host, child } = makeGestureHost();
     sidebarNav.isOpen = true;
-    const action = sidebarSwipe(edge);
+    const action = sidebarSwipe(host);
 
-    edge.dispatchEvent(touch('touchstart', 320));
+    child.dispatchEvent(touch('touchstart', 320));
     const move = touch('touchmove', 0);
     window.dispatchEvent(move);
     window.dispatchEvent(touch('touchend', 0));

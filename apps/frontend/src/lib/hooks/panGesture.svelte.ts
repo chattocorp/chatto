@@ -33,9 +33,9 @@ const LONG_PRESS_CANCEL_PX = 4;
 export type PanGestureConfig = {
   /** The axis the gesture tracks. The other axis is treated as perpendicular. */
   axis: 'x' | 'y';
-  /** Optional gate evaluated on every `pointerdown`; if it returns false, the
-   *  press is ignored entirely. */
-  enabled?: () => boolean;
+  /** Optional gate evaluated when a pointer or touch starts. Receives the
+   *  originating event target; if it returns false, the press is ignored. */
+  enabled?: (target: EventTarget | null) => boolean;
   /** Final claim predicate, called once the direction lock has fired. Receives
    *  the primary-axis delta (signed). Return false to abandon the gesture. */
   shouldClaim?: (delta: number) => boolean;
@@ -177,7 +177,7 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
   function onDown(e: PointerEvent) {
     if (e.pointerType === 'touch') return;
     if (pointerId !== null || touchId !== null) return;
-    if (cfg.enabled && !cfg.enabled()) return;
+    if (cfg.enabled && !cfg.enabled(e.target)) return;
     pointerId = e.pointerId;
     begin(e.clientX, e.clientY, e.timeStamp);
     window.addEventListener('pointermove', onMove, true);
@@ -212,7 +212,7 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
 
   function onTouchStart(e: TouchEvent) {
     if (pointerId !== null || touchId !== null) return;
-    if (cfg.enabled && !cfg.enabled()) return;
+    if (cfg.enabled && !cfg.enabled(e.target)) return;
     const touch = e.changedTouches.item(0);
     if (!touch) return;
     touchId = touch.identifier;
