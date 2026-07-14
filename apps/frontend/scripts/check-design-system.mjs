@@ -46,7 +46,7 @@ const checks = [
   {
     description: 'hard-coded white on a semantic fill; use the matching on-* foreground token',
     pattern:
-      /(?:bg-(?:action|success|warning|danger)[^'"\n]*text-white|text-white[^'"\n]*bg-(?:action|success|warning|danger))/g
+      /(?:(?:bg|from|to)-(?:action|success|warning|danger)[^'"\n]*text-white|text-white[^'"\n]*(?:bg|from|to)-(?:action|success|warning|danger))/g
   }
 ];
 
