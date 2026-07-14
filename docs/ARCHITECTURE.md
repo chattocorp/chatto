@@ -365,7 +365,7 @@ auth workflow audit facts.
 **Event-sourced aggregates:**
 
 - `EVT` is the source of truth.
-- Fresh deployments seed current invariants such as default RBAC roles, the default room group, and default channel rooms. The seeded `#announcements` room is Universal; `#general` is a normal channel room. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
+- Fresh deployments seed current invariants such as default RBAC roles, the default room group, and default channel rooms. The seeded `#announcements` room is Universal; `#general` is a normal channel room. Fresh RBAC seeds include `message.attach` for `everyone`. Durable version markers record one-time server and per-room default initialization; existing RBAC decisions are adopted without backfill, and later clears are not recreated on boot.
 - Reads come from in-memory projections rebuilt from `EVT`.
 - Room timeline reads use `RoomTimelineProjection`'s visible per-room timeline for initial loads, forward/backward pagination, and around-message windows; `Room.attachments` uses the projection's current attachment-bearing message index so it does not decrypt unrelated message bodies. Folded room facts such as edits, retractions, reactions, and thread replies are handled by derived indexes or sibling projections instead of being retained in the per-room timeline slice. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. Live `Subscription.myEvents` delivery reads the committed EVT feed, waits for projection readiness, and emits authorized events without exposing folded facts as standalone timeline rows in `Room.events`.
 - Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.
@@ -646,6 +646,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
 | `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
 | `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.rbac.{server\|scopeId}.defaults_initialized`           | `RbacDefaultsInitializedEvent`                     |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 

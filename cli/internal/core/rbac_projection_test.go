@@ -152,6 +152,38 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	}
 }
 
+func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
+	p := NewRBACProjection()
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
+		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
+			Scope:   rbacPermissionScope(ScopeServer, ""),
+			Version: 2,
+		},
+	}})
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
+		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
+			Scope:   rbacPermissionScope(ScopeRoom, "Rabc123"),
+			Version: 3,
+		},
+	}})
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
+		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
+			Scope:   rbacPermissionScope(ScopeRoom, "Rabc123"),
+			Version: 1,
+		},
+	}})
+
+	if got := p.DefaultsVersion(ScopeServer, ""); got != 2 {
+		t.Fatalf("server defaults version = %d, want 2", got)
+	}
+	if got := p.DefaultsVersion(ScopeRoom, "Rabc123"); got != 3 {
+		t.Fatalf("room defaults version = %d, want highest version 3", got)
+	}
+	if got := p.DefaultsVersion(ScopeRoom, "Rmissing"); got != 0 {
+		t.Fatalf("missing room defaults version = %d, want 0", got)
+	}
+}
+
 func TestRBACProjection_LegacyPermissionDecisionUnknownFields(t *testing.T) {
 	p := NewRBACProjection()
 

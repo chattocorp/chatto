@@ -31,6 +31,25 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubPrefiltersRBACDefaultsMarkers(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	model := NewMyEventsModel(core)
+	msg := &nats.Msg{
+		Subject: events.LiveSubjectRoot + events.AggregateRBAC + ".server." + events.EventRBACDefaultsInitialized,
+		Data:    []byte("not a protobuf event"),
+	}
+
+	if discontinuity := model.hub.handleLiveEVT(context.Background(), msg); discontinuity {
+		t.Fatal("RBAC defaults marker caused a delivery discontinuity")
+	}
+	if got := model.hub.decoded.Load(); got != 0 {
+		t.Fatalf("decoded events = %d, want 0", got)
+	}
+	if got := model.hub.prefiltered.Load(); got != 1 {
+		t.Fatalf("prefiltered events = %d, want 1", got)
+	}
+}
+
 func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)

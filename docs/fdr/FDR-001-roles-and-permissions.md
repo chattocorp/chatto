@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-06-17
+**Last reviewed:** 2026-07-14
 
 ## Overview
 
@@ -19,6 +19,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Owners are always granted all permissions. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
+- Default permission sets are initialized once for the server and once for each channel room. After initialization, missing or explicitly cleared decisions remain unset across restarts.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
 
@@ -73,6 +74,12 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Decision:** Permission grant/deny/clear events store `scope` as `{kind, id}` (`SERVER`, `GROUP`, `ROOM`) and `subject` as `{kind, id}` (`ROLE`, `USER`).
 **Why:** The old flattened fields made role/user permission subjects indistinguishable and relied on string conventions for scope. The typed shape freezes the domain model before beta and prevents future role IDs from colliding with user IDs.
 **Tradeoff:** Event constructors do a little more validation, and compatibility readers for older persisted event shapes have to infer subject kind from legacy wire fields.
+
+### 9. Defaults are one-time initialization, not startup policy
+
+**Decision:** Apply the current default permission set only when a server or newly created room is first initialized. Existing installations are adopted without filling missing decisions, and later startups never recreate cleared defaults.
+**Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
+**Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically; operators must opt in, or a future release must introduce an explicit policy change.
 
 ## Permissions
 

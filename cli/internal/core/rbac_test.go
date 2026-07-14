@@ -211,6 +211,71 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 }
 
+func TestChattoCore_RestartPreservesClearedDefaultPermission(t *testing.T) {
+	ctx := testContext(t)
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	core1, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore first startup: %v", err)
+	}
+	startCoreServices(t, core1)
+	if err := core1.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("ClearServerPermissionState: %v", err)
+	}
+
+	core2, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore restart: %v", err)
+	}
+	startCoreServices(t, core2)
+	if got := core2.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomJoin); got != DecisionNone {
+		t.Fatalf("decision after restart = %s, want %s", got, DecisionNone)
+	}
+}
+
+func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
+	ctx := testContext(t)
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	core1, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore first startup: %v", err)
+	}
+	startCoreServices(t, core1)
+	room, err := core1.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := core1.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost); err != nil {
+		t.Fatalf("ClearRoomPermissionState: %v", err)
+	}
+
+	core2, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore restart: %v", err)
+	}
+	startCoreServices(t, core2)
+	if got := core2.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+		t.Fatalf("room decision after restart = %s, want %s", got, DecisionNone)
+	}
+	if got := core2.RBAC.DefaultsVersion(ScopeRoom, room.Id); got != roomRBACDefaultsVersion {
+		t.Fatalf("room defaults version after restart = %d, want %d", got, roomRBACDefaultsVersion)
+	}
+}
+
 // ============================================================================
 // Instance Admin Role Tests
 // ============================================================================

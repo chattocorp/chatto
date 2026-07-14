@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Helper to construct expected allow key from permission
@@ -462,7 +464,7 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
+	t.Run("ensure default permissions preserves missing grants once RBAC has decisions", func(t *testing.T) {
 		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
 			t.Fatalf("ClearServerPermissionState: %v", err)
 		}
@@ -470,10 +472,10 @@ func TestInitDefaultPermissions(t *testing.T) {
 			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
-			t.Fatalf("EnsureDefaultRolePermissions backfill: %v", err)
+			t.Fatalf("EnsureDefaultRolePermissions preserve clear: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionAllow {
-			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionNone {
+			t.Fatalf("decision after ensure = %s, want %s", got, DecisionNone)
 		}
 
 		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
@@ -499,6 +501,30 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessageAttach); got != DecisionNone {
 			t.Fatalf("decision after ensure = %s, want %s", got, DecisionNone)
+		}
+	})
+
+	t.Run("defaults marker preserves completely cleared RBAC", func(t *testing.T) {
+		for _, decision := range core.RBAC.Decisions() {
+			if decision.scope != ScopeServer || decision.subjectKind != corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE {
+				t.Fatalf("unexpected seeded decision: %+v", decision)
+			}
+			if err := core.ClearServerPermissionState(ctx, SystemActorID, decision.subject, decision.permission); err != nil {
+				t.Fatalf("ClearServerPermissionState(%s, %s): %v", decision.subject, decision.permission, err)
+			}
+		}
+		if core.RBAC.HasAnyPermissionDecisions() {
+			t.Fatal("expected all permission decisions to be cleared")
+		}
+		if got := core.RBAC.DefaultsVersion(ScopeServer, ""); got != serverRBACDefaultsVersion {
+			t.Fatalf("server defaults version = %d, want %d", got, serverRBACDefaultsVersion)
+		}
+
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions: %v", err)
+		}
+		if core.RBAC.HasAnyPermissionDecisions() {
+			t.Fatal("defaults were recreated after the marked RBAC state was cleared")
 		}
 	})
 }

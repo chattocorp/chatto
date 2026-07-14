@@ -257,14 +257,19 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for key, decision := range p.decisions {
 		decisionBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)+len(key.subject)+len(key.permission)+len(decision))
 	}
+	var defaultsBytes int64
+	for key := range p.defaults {
+		defaultsBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)) + 4
+	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
-	totalEntries := int64(len(p.roles)) + assignments + int64(len(p.decisions))
-	totalBytes := roleBytes + assignmentBytes + decisionBytes + retainedEventIDsBytes
+	totalEntries := int64(len(p.roles)) + assignments + int64(len(p.decisions)) + int64(len(p.defaults))
+	totalBytes := roleBytes + assignmentBytes + decisionBytes + defaultsBytes + retainedEventIDsBytes
 	return totalEntries, totalBytes, []ProjectionAdminMetric{
 		{Name: "roles", Value: int64(len(p.roles)), Bytes: roleBytes},
 		{Name: "assignments", Value: assignments, Bytes: assignmentBytes},
 		{Name: "permission_decisions", Value: int64(len(p.decisions)), Bytes: decisionBytes},
+		{Name: "defaults_markers", Value: int64(len(p.defaults)), Bytes: defaultsBytes},
 		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: retainedEventIDsBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}

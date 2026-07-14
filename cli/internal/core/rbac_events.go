@@ -102,6 +102,8 @@ func rbacAggregateForEvent(event *corev1.Event) events.Aggregate {
 		return rbacAggregateForPermissionScope(e.RbacPermissionDenied.GetScope())
 	case *corev1.Event_RbacPermissionCleared:
 		return rbacAggregateForPermissionScope(e.RbacPermissionCleared.GetScope())
+	case *corev1.Event_RbacDefaultsInitialized:
+		return rbacAggregateForPermissionScope(e.RbacDefaultsInitialized.GetScope())
 	default:
 		return events.RBACServerAggregate()
 	}

@@ -62,8 +62,6 @@ func listKeysWithPattern(ctx context.Context, kv jetstream.KeyValue, pattern str
 // Initialization
 // ============================================================================
 
-const rbacDefaultsSentinel = "defaults_initialized"
-
 // initServerRBAC exists for older tests and tools that explicitly ask for the
 // historical bootstrap step. NewChattoCore seeds the default RBAC aggregate
 // directly on fresh servers.

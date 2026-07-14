@@ -8,7 +8,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // DURABLE RBAC EVENTS (evt.rbac.>)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 800-813: durable RBAC role, assignment, and permission events
+//   - 800-814: durable RBAC role, assignment, permission, and initialization events
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -109,4 +109,13 @@ message RbacPermissionClearedEvent {
   string permission = 3;
   RbacPermissionScope scope = 4;
   RbacPermissionSubject subject = 5;
+}
+
+// Records that the defaults for one permission scope have been considered at
+// the given schema version. The marker remains after individual decisions are
+// cleared so startup never mistakes an operator edit for missing bootstrap
+// state.
+message RbacDefaultsInitializedEvent {
+  RbacPermissionScope scope = 1;
+  uint32 version = 2;
 }

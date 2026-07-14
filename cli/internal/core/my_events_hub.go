@@ -368,8 +368,12 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
 	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">"))
+	eventType := liveEventType(msg.Subject)
+	if isRBACSubject && eventType == events.EventRBACDefaultsInitialized {
+		h.prefiltered.Add(1)
+		return false
+	}
 	if !isRBACSubject {
-		eventType := liveEventType(msg.Subject)
 		_, roomSubject := events.ParseRoomSubject(msg.Subject)
 		_, assetSubject := events.ParseAssetSubject(msg.Subject)
 		_, userSubject := events.ParseUserSubject(msg.Subject)
@@ -411,7 +415,6 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return false
 	}
 
-	eventType := liveEventType(msg.Subject)
 	roomID, roomSubject := events.ParseRoomSubject(msg.Subject)
 	_, assetSubject := events.ParseAssetSubject(msg.Subject)
 

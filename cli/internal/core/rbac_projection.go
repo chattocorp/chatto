@@ -18,6 +18,7 @@ type RBACProjection struct {
 	roles       map[string]*corev1.Role
 	assignments map[string]map[string]struct{} // userID -> roleName set
 	decisions   map[rbacDecisionKey]DecisionKind
+	defaults    map[rbacDefaultsKey]uint32
 	replayGuard projectionReplayGuard
 }
 
@@ -29,11 +30,17 @@ type rbacDecisionKey struct {
 	permission  Permission
 }
 
+type rbacDefaultsKey struct {
+	scope   PermissionScope
+	scopeID string
+}
+
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
 		roles:       make(map[string]*corev1.Role),
 		assignments: make(map[string]map[string]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
+		defaults:    make(map[rbacDefaultsKey]uint32),
 		replayGuard: newProjectionReplayGuard(),
 	}
 }
@@ -92,6 +99,8 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 			e.RbacPermissionCleared.GetPermission(),
 			e.RbacPermissionCleared,
 		)
+	case *corev1.Event_RbacDefaultsInitialized:
+		p.applyDefaultsInitialized(e.RbacDefaultsInitialized.GetScope(), e.RbacDefaultsInitialized.GetVersion())
 	}
 	return nil
 }
@@ -238,6 +247,14 @@ func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScop
 	delete(p.decisions, key)
 }
 
+func (p *RBACProjection) applyDefaultsInitialized(scope *corev1.RbacPermissionScope, version uint32) {
+	key, ok := rbacDefaultsKeyFromScope(scope)
+	if !ok || version <= p.defaults[key] {
+		return
+	}
+	p.defaults[key] = version
+}
+
 func rbacDecisionKeyFromFields(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
 	if scope == nil || subject == nil || subject.GetId() == "" || permission == "" {
 		return rbacDecisionKey{}, false
@@ -349,6 +366,18 @@ func permissionScopeFromProto(scope *corev1.RbacPermissionScope) (PermissionScop
 	default:
 		return "", false
 	}
+}
+
+func rbacDefaultsKeyFromScope(scope *corev1.RbacPermissionScope) (rbacDefaultsKey, bool) {
+	permissionScope, ok := permissionScopeFromProto(scope)
+	if !ok {
+		return rbacDefaultsKey{}, false
+	}
+	scopeID := scope.GetId()
+	if permissionScope == ScopeServer {
+		scopeID = ""
+	}
+	return rbacDefaultsKey{scope: permissionScope, scopeID: scopeID}, true
 }
 
 func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Permission) rbacDecisionKey {
@@ -476,6 +505,42 @@ func (p *RBACProjection) Decisions() []rbacSeedDecision {
 		return a.decision < b.decision
 	})
 	return decisions
+}
+
+// HasAnyPermissionDecisions reports whether RBAC has any explicit allow or
+// deny at any scope. Startup uses this to distinguish an effectively
+// uninitialised permission model from an installation an operator has edited.
+func (p *RBACProjection) HasAnyPermissionDecisions() bool {
+	p.RLock()
+	defer p.RUnlock()
+	return len(p.decisions) > 0
+}
+
+// HasPermissionDecisions reports whether a specific scope has any explicit
+// role or user allow/deny decisions.
+func (p *RBACProjection) HasPermissionDecisions(scope PermissionScope, scopeID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	if scope == ScopeServer {
+		scopeID = ""
+	}
+	for key := range p.decisions {
+		if key.scope == scope && key.scopeID == scopeID {
+			return true
+		}
+	}
+	return false
+}
+
+// DefaultsVersion returns the highest initialization schema version applied
+// for one permission scope.
+func (p *RBACProjection) DefaultsVersion(scope PermissionScope, scopeID string) uint32 {
+	p.RLock()
+	defer p.RUnlock()
+	if scope == ScopeServer {
+		scopeID = ""
+	}
+	return p.defaults[rbacDefaultsKey{scope: scope, scopeID: scopeID}]
 }
 
 func (p *RBACProjection) GetDecision(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {

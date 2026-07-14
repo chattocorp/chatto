@@ -167,6 +167,7 @@ const (
 	EventRBACPermissionGranted      = "permission_granted"
 	EventRBACPermissionDenied       = "permission_denied"
 	EventRBACPermissionCleared      = "permission_cleared"
+	EventRBACDefaultsInitialized    = "defaults_initialized"
 
 	// Auth/security audit
 	EventRegistrationVerificationCodeIssued = "registration_verification_code_issued"
@@ -378,6 +379,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACPermissionDenied
 	case *corev1.Event_RbacPermissionCleared:
 		return EventRBACPermissionCleared
+	case *corev1.Event_RbacDefaultsInitialized:
+		return EventRBACDefaultsInitialized
 
 	case *corev1.Event_RegistrationVerificationCodeIssued:
 		return EventRegistrationVerificationCodeIssued
