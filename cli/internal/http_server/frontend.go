@@ -147,6 +147,18 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 	return icons
 }
 
+func (s *HTTPServer) currentPWAServerName(ctx context.Context) string {
+	if s.core == nil || s.core.ConfigManager() == nil {
+		return "Chatto"
+	}
+
+	name, err := s.core.ConfigManager().GetEffectiveServerName(ctx)
+	if err != nil || strings.TrimSpace(name) == "" {
+		return "Chatto"
+	}
+	return name
+}
+
 // sameOriginServerAssetURL keeps browser metadata on the frontend origin. General
 // asset URLs may use a configured asset base, but each Chatto frontend serves
 // its own public server assets and browsers must be able to fetch metadata
@@ -173,25 +185,25 @@ func pwaManifestIcons(icon192, icon512 string) []map[string]string {
 	}
 }
 
-func dynamicPWAManifest(staticManifest []byte, icons *pwaServerIconURLs) ([]byte, error) {
-	if icons == nil {
-		return staticManifest, nil
-	}
-
+func dynamicPWAManifest(staticManifest []byte, serverName string, icons *pwaServerIconURLs) ([]byte, error) {
 	var manifest map[string]any
 	if err := json.Unmarshal(staticManifest, &manifest); err != nil {
 		return nil, err
 	}
 
-	manifest["icons"] = pwaManifestIcons(icons.Icon192, icons.Icon512)
-	if shortcuts, ok := manifest["shortcuts"].([]any); ok {
-		for _, shortcut := range shortcuts {
-			shortcutMap, ok := shortcut.(map[string]any)
-			if !ok {
-				continue
-			}
-			shortcutMap["icons"] = []map[string]string{
-				{"src": icons.Icon192, "sizes": "192x192", "type": "image/png"},
+	manifest["name"] = serverName
+	manifest["short_name"] = serverName
+	if icons != nil {
+		manifest["icons"] = pwaManifestIcons(icons.Icon192, icons.Icon512)
+		if shortcuts, ok := manifest["shortcuts"].([]any); ok {
+			for _, shortcut := range shortcuts {
+				shortcutMap, ok := shortcut.(map[string]any)
+				if !ok {
+					continue
+				}
+				shortcutMap["icons"] = []map[string]string{
+					{"src": icons.Icon192, "sizes": "192x192", "type": "image/png"},
+				}
 			}
 		}
 	}
@@ -252,7 +264,11 @@ func (s *HTTPServer) servePWAWebManifest(c *gin.Context, clientFS fs.FS) {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	content, err = dynamicPWAManifest(content, s.currentPWAIconURLs(c.Request.Context()))
+	content, err = dynamicPWAManifest(
+		content,
+		s.currentPWAServerName(c.Request.Context()),
+		s.currentPWAIconURLs(c.Request.Context()),
+	)
 	if err != nil {
 		s.logger.Warn("failed to generate dynamic PWA manifest", "error", err)
 		c.Status(http.StatusInternalServerError)

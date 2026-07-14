@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-07-14
 
 ## Overview
 
@@ -9,7 +9,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Behavior
 
-- **Server name** — appears in page titles, the chat header, and OG metadata. Defaults to "Chatto".
+- **Server name** — appears in page titles, the chat header, installed app metadata, and OG metadata. Defaults to "Chatto".
 - **Description** — used in OG metadata for link previews when sharing the server URL.
 - **Welcome message** — shown on the login page. Markdown is supported.
 - **MOTD (message of the day)** — appears in a banner across the top of the chat surface for all members. Broadcasts to live clients when changed.
