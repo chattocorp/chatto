@@ -131,10 +131,38 @@
     store.setThread(roomId, threadRootEventId);
   });
 
-  // Jump to a specific message when highlightEventId prop is set
+  // Load a permalink target outside the latest page before asking the
+  // virtualized timeline to scroll to it.
+  let handledHighlightKey: string | null = null;
+  let highlightRequestId = 0;
   $effect(() => {
-    if (!highlightEventId || store.isInitialLoading) return;
-    jumpState.jumpToMessage(highlightEventId);
+    const targetEventId = highlightEventId;
+    const targetThreadRootEventId = threadRootEventId;
+    if (!targetEventId) {
+      handledHighlightKey = null;
+      highlightRequestId += 1;
+      return;
+    }
+    if (store.isInitialLoading) return;
+
+    const highlightKey = `${targetThreadRootEventId}:${targetEventId}`;
+    if (handledHighlightKey === highlightKey) return;
+    handledHighlightKey = highlightKey;
+    const requestId = ++highlightRequestId;
+
+    void (async () => {
+      if (!threadEvents.some((event) => event.id === targetEventId)) {
+        await store.refreshCurrentWindow(targetEventId);
+      }
+      if (
+        requestId !== highlightRequestId ||
+        threadRootEventId !== targetThreadRootEventId ||
+        highlightEventId !== targetEventId
+      ) {
+        return;
+      }
+      await jumpState.jumpToMessage(targetEventId);
+    })();
   });
 
   $effect(() => {
