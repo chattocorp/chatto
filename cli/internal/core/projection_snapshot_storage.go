@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -69,6 +71,39 @@ func (n natsSnapshotBlobStore) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (n natsSnapshotBlobStore) Walk(ctx context.Context, prefix string, visit func(projectionsnapshot.BlobInfo) error) error {
+	watcher, err := n.store.Watch(ctx, jetstream.IgnoreDeletes())
+	if err != nil {
+		return fmt.Errorf("watch NATS snapshot objects: %w", err)
+	}
+	defer watcher.Stop()
+	for {
+		select {
+		case info, ok := <-watcher.Updates():
+			if !ok {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				return fmt.Errorf("NATS snapshot object inventory ended before completion")
+			}
+			if info == nil {
+				return nil
+			}
+			if !strings.HasPrefix(info.Name, prefix) {
+				continue
+			}
+			if info.Size > math.MaxInt64 {
+				return fmt.Errorf("NATS snapshot object size exceeds int64")
+			}
+			if err := visit(projectionsnapshot.BlobInfo{Key: info.Name, Size: int64(info.Size), ModifiedAt: info.ModTime}); err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 type s3SnapshotBlobStore struct {
 	client *S3Client
 }
@@ -102,6 +137,12 @@ func (s s3SnapshotBlobStore) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("delete S3 snapshot object: %w", err)
 	}
 	return nil
+}
+
+func (s s3SnapshotBlobStore) Walk(ctx context.Context, prefix string, visit func(projectionsnapshot.BlobInfo) error) error {
+	return s.client.WalkObjects(ctx, prefix, func(info S3ObjectInfo) error {
+		return visit(projectionsnapshot.BlobInfo{Key: info.Key, Size: info.Size, ModifiedAt: info.ModifiedAt})
+	})
 }
 
 func readSnapshotBlob(reader io.Reader, maxBytes int64) ([]byte, error) {

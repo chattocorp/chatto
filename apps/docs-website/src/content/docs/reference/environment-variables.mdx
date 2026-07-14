@@ -162,7 +162,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 ## Core
 
 <EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
-  Persist encrypted `ThreadProjection` snapshots to validate snapshot storage and restoration. This canary does not reduce total startup time because the shared replay still starts at the beginning of `EVT`. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable.
+  Persist encrypted `ThreadProjection` snapshots to validate snapshot storage and restoration. This canary does not reduce total startup time because the shared replay still starts at the beginning of `EVT`. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable. While enabled, one elected replica periodically removes unreferenced snapshot objects after a 24-hour grace period. S3 credentials therefore require permission to list the configured bucket prefix in addition to reading, writing, and deleting objects.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

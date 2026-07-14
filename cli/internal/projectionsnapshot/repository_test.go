@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -20,9 +21,15 @@ func testSaveInput(seq uint64, payload []byte) SaveInput {
 
 type memoryBlobStore struct {
 	objects    map[string][]byte
+	modified   map[string]time.Time
 	failPut    func(string) bool
 	failGet    func(string) bool
 	failDelete func(string) bool
+	failWalk   func(int) error
+	walkHook   func(int, string)
+	walkInfo   func(int, BlobInfo) BlobInfo
+	walkCalls  int
+	now        func() time.Time
 }
 
 type capturedLog struct {
@@ -52,13 +59,20 @@ func (l *captureLogger) Error(message interface{}, keyvals ...interface{}) {
 	l.add("error", message, keyvals...)
 }
 
-func newMemoryBlobStore() *memoryBlobStore { return &memoryBlobStore{objects: make(map[string][]byte)} }
-func (*memoryBlobStore) Backend() string   { return "memory" }
+func newMemoryBlobStore() *memoryBlobStore {
+	return &memoryBlobStore{
+		objects:  make(map[string][]byte),
+		modified: make(map[string]time.Time),
+		now:      func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
+	}
+}
+func (*memoryBlobStore) Backend() string { return "memory" }
 func (m *memoryBlobStore) Put(_ context.Context, key string, data []byte, _ string) error {
 	if m.failPut != nil && m.failPut(key) {
 		return errors.New("injected put failure")
 	}
 	m.objects[key] = append([]byte(nil), data...)
+	m.modified[key] = m.now()
 	return nil
 }
 func (m *memoryBlobStore) Get(_ context.Context, key string, max int64) ([]byte, error) {
@@ -82,6 +96,43 @@ func (m *memoryBlobStore) Delete(_ context.Context, key string) error {
 		return ErrBlobNotFound
 	}
 	delete(m.objects, key)
+	delete(m.modified, key)
+	return nil
+}
+func (m *memoryBlobStore) Walk(ctx context.Context, prefix string, visit func(BlobInfo) error) error {
+	m.walkCalls++
+	call := m.walkCalls
+	if m.failWalk != nil {
+		if err := m.failWalk(call); err != nil {
+			return err
+		}
+	}
+	keys := make([]string, 0, len(m.objects))
+	for key := range m.objects {
+		if strings.HasPrefix(key, prefix) {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if m.walkHook != nil {
+			m.walkHook(call, key)
+		}
+		data, ok := m.objects[key]
+		if !ok {
+			continue
+		}
+		info := BlobInfo{Key: key, Size: int64(len(data)), ModifiedAt: m.modified[key]}
+		if m.walkInfo != nil {
+			info = m.walkInfo(call, info)
+		}
+		if err := visit(info); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

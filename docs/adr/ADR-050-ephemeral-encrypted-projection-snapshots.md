@@ -166,10 +166,24 @@ the generation that falls out of that window and rolls back a newly uploaded
 generation when pointer publication reports failure. Writers treat a missing
 pointer as an empty history and may replace a cryptographically or structurally
 invalid pointer. A storage transport error while reading the pointer aborts the
-write without uploading a generation or changing either retained fallback. A
-process crash or a stale writer racing between upload and pointer publication
-can still leave an unreferenced encrypted object; a backend-listing sweeper and
-final storage budget remain follow-up work informed by canary measurements.
+write without uploading a generation or changing either retained fallback.
+
+An elected backend-listing sweeper bounds objects abandoned by a process crash,
+stale writer, failed rollback deletion, or `core.secret_key` rotation. It first
+authenticates every registered projection pointer and completes a read-only
+inventory. A second streaming pass deletes only unreferenced generation objects
+and obsolete locator-shaped pointer objects that are at least 24 hours old.
+Active pointers, current and previous generations, recent objects, malformed
+keys, and unknown namespace entries are never deleted. Pointer or first-pass
+listing failures delete nothing; lease loss, cancellation, listing failure, or
+deletion failure during the second pass stops further deletion.
+
+The sweeper runs only while projection snapshots are enabled. One replica holds
+a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
+and then sweeps every six hours. Failed passes retry after 30 minutes. Each pass
+has a five-minute deadline and deletes at most 100 objects or 1 GiB. These fixed
+canary limits bound cleanup work while production evidence informs any future
+operator-tunable storage budget.
 
 The canary rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
@@ -191,7 +205,9 @@ process-local ownership state.
 
 The initial canary attempts one generation after boot, and only when the Thread
 projection has advanced beyond the currently referenced compatible snapshot.
-It does not add a periodic cadence or operator-tunable interval.
+It does not add a periodic generation cadence or operator-tunable interval.
+Cleanup uses its own elected periodic worker and does not delay generation,
+readiness, or request handling.
 
 ### ThreadProjection is the first canary
 
@@ -244,9 +260,10 @@ frontier remain separate follow-up work.
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
   S3 snapshots follow the operator's S3 backup policy.
 - Snapshot payloads consume additional storage, network bandwidth, and
-  background CPU. Compression and current/previous generation retention keep
-  normal use bounded, while rare abandoned objects still require a future
-  sweeper and measured storage budget.
+  background CPU. Compression, current/previous generation retention, and the
+  elected grace-period sweeper bound normal and abandoned object growth. Final
+  generation cadence and operator-tunable storage budgets remain follow-up
+  decisions informed by production measurements.
 - Upgrades and rollbacks remain safe but may cold-replay when projection
   compatibility changes.
 - Storage-backend availability can affect the optimization but cannot affect

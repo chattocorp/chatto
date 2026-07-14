@@ -255,6 +255,9 @@ func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 	if core.projectionSnapshotWorker != nil {
 		t.Fatal("snapshot worker enabled without projection snapshot configuration")
 	}
+	if core.projectionSnapshotCleanupWorker != nil {
+		t.Fatal("snapshot cleanup worker enabled without projection snapshot configuration")
+	}
 }
 
 func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {

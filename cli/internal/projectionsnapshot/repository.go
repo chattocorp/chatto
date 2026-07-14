@@ -49,6 +49,16 @@ type BlobStore interface {
 	Put(context.Context, string, []byte, string) error
 	Get(context.Context, string, int64) ([]byte, error)
 	Delete(context.Context, string) error
+	Walk(context.Context, string, func(BlobInfo) error) error
+}
+
+// BlobInfo is the storage metadata required for conservative snapshot cleanup.
+// Keys are private logical locators and must not be logged or exposed through
+// operator APIs.
+type BlobInfo struct {
+	Key        string
+	Size       int64
+	ModifiedAt time.Time
 }
 
 type RepositoryOptions struct {
