@@ -844,10 +844,13 @@ type RbacDefaultsInitializedEvent struct {
 	//
 	//	*RbacDefaultsInitializedEvent_Server
 	//	*RbacDefaultsInitializedEvent_RoomId
-	Scope         isRbacDefaultsInitializedEvent_Scope `protobuf_oneof:"scope"`
-	Version       uint32                               `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Scope   isRbacDefaultsInitializedEvent_Scope `protobuf_oneof:"scope"`
+	Version uint32                               `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	// EVT stream sequence of the evt.room.> tail captured before server
+	// initialization. Only set on the server variant.
+	RoomStreamCutoff uint64 `protobuf:"varint,4,opt,name=room_stream_cutoff,json=roomStreamCutoff,proto3" json:"room_stream_cutoff,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RbacDefaultsInitializedEvent) Reset() {
@@ -908,6 +911,13 @@ func (x *RbacDefaultsInitializedEvent) GetRoomId() string {
 func (x *RbacDefaultsInitializedEvent) GetVersion() uint32 {
 	if x != nil {
 		return x.Version
+	}
+	return 0
+}
+
+func (x *RbacDefaultsInitializedEvent) GetRoomStreamCutoff() uint64 {
+	if x != nil {
+		return x.RoomStreamCutoff
 	}
 	return 0
 }
@@ -1020,11 +1030,12 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"permission\x18\x03 \x01(\tR\n" +
 	"permission\x129\n" +
 	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
-	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xbf\x01\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xed\x01\n" +
 	"\x1cRbacDefaultsInitializedEvent\x12R\n" +
 	"\x06server\x18\x01 \x01(\v28.chatto.core.v1.RbacDefaultsInitializedEvent.ServerScopeH\x00R\x06server\x12\x19\n" +
 	"\aroom_id\x18\x02 \x01(\tH\x00R\x06roomId\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\rR\aversion\x1a\r\n" +
+	"\aversion\x18\x03 \x01(\rR\aversion\x12,\n" +
+	"\x12room_stream_cutoff\x18\x04 \x01(\x04R\x10roomStreamCutoff\x1a\r\n" +
 	"\vServerScopeB\a\n" +
 	"\x05scope*\xb7\x01\n" +
 	"\x17RbacPermissionScopeKind\x12*\n" +

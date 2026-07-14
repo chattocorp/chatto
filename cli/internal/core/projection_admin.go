@@ -259,7 +259,7 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	}
 	var defaultsBytes int64
 	for key := range p.defaults {
-		defaultsBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)) + 4 + 8
+		defaultsBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)) + 4 + 8 + 8
 	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)

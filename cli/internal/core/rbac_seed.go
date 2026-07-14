@@ -27,7 +27,7 @@ type rbacSeedAssignment struct {
 
 func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 	entries := rbacSeedEntries(defaultRBACRoles(), nil, defaultRBACDecisions())
-	entries = append(entries, rbacDefaultsInitializedEntry(ScopeServer, "", serverRBACDefaultsVersion))
+	entries = append(entries, rbacDefaultsInitializedEntry(ScopeServer, "", serverRBACDefaultsVersion, 0))
 	if len(entries) == 0 {
 		return nil
 	}

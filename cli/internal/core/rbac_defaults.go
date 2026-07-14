@@ -16,6 +16,14 @@ const (
 	roomRBACDefaultsVersion   uint32 = 1
 )
 
+type rbacDefaultsSeedMode uint8
+
+const (
+	rbacDefaultsAdoptOnly rbacDefaultsSeedMode = iota
+	rbacDefaultsSeedWhenEmpty
+	rbacDefaultsFillMissing
+)
+
 // ensureRBACDefaultsInitialized atomically writes any selected defaults and a
 // durable version marker under the deployment-wide RBAC OCC filter. The
 // decision check is repeated after every conflict so a concurrent operator or
@@ -26,8 +34,9 @@ func (c *ChattoCore) ensureRBACDefaultsInitialized(
 	scope PermissionScope,
 	scopeID string,
 	version uint32,
-	seedWhenEmpty bool,
+	seedMode rbacDefaultsSeedMode,
 	defaults []rbacSeedDecision,
+	roomStreamCutoff uint64,
 ) error {
 	filter := events.RBACSubjectFilter()
 
@@ -45,10 +54,29 @@ func (c *ChattoCore) ensureRBACDefaultsInitialized(
 		}
 
 		entries := make([]events.BatchEntry, 0, len(defaults)+1)
-		if currentVersion == 0 && seedWhenEmpty && !c.hasPermissionDecisionsForDefaults(scope, scopeID) {
-			entries = append(entries, rbacSeedEntries(nil, nil, append([]rbacSeedDecision(nil), defaults...))...)
+		if currentVersion == 0 {
+			var selected []rbacSeedDecision
+			switch seedMode {
+			case rbacDefaultsSeedWhenEmpty:
+				if !c.hasPermissionDecisionsForDefaults(scope, scopeID) {
+					selected = append(selected, defaults...)
+				}
+			case rbacDefaultsFillMissing:
+				for _, decision := range defaults {
+					if c.RBAC.getTypedDecision(
+						decision.scope,
+						decision.scopeID,
+						decision.subjectKind,
+						decision.subject,
+						decision.permission,
+					) == DecisionNone {
+						selected = append(selected, decision)
+					}
+				}
+			}
+			entries = append(entries, rbacSeedEntries(nil, nil, selected)...)
 		}
-		entries = append(entries, rbacDefaultsInitializedEntry(scope, scopeID, version))
+		entries = append(entries, rbacDefaultsInitializedEntry(scope, scopeID, version, roomStreamCutoff))
 		entries[0].HasOCC = true
 		entries[0].ExpectedSeq = filterSeq
 		entries[0].FilterSubject = filter
@@ -82,8 +110,8 @@ func (c *ChattoCore) hasPermissionDecisionsForDefaults(scope PermissionScope, sc
 	return c.RBAC.HasPermissionDecisions(scope, scopeID)
 }
 
-func rbacDefaultsInitializedEntry(scope PermissionScope, scopeID string, version uint32) events.BatchEntry {
-	marker := &corev1.RbacDefaultsInitializedEvent{Version: version}
+func rbacDefaultsInitializedEntry(scope PermissionScope, scopeID string, version uint32, roomStreamCutoff uint64) events.BatchEntry {
+	marker := &corev1.RbacDefaultsInitializedEvent{Version: version, RoomStreamCutoff: roomStreamCutoff}
 	switch scope {
 	case ScopeServer:
 		marker.Scope = &corev1.RbacDefaultsInitializedEvent_Server{Server: &corev1.RbacDefaultsInitializedEvent_ServerScope{}}

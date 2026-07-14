@@ -156,8 +156,9 @@ func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	p := NewRBACProjection()
 	serverMarker := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
-			Scope:   &corev1.RbacDefaultsInitializedEvent_Server{Server: &corev1.RbacDefaultsInitializedEvent_ServerScope{}},
-			Version: 2,
+			Scope:            &corev1.RbacDefaultsInitializedEvent_Server{Server: &corev1.RbacDefaultsInitializedEvent_ServerScope{}},
+			Version:          2,
+			RoomStreamCutoff: 37,
 		},
 	}})
 	if err := p.Apply(serverMarker, 42); err != nil {
@@ -187,6 +188,9 @@ func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	}
 	if got := p.DefaultsInitializedSeq(ScopeServer, ""); got != 42 {
 		t.Fatalf("server defaults marker sequence = %d, want 42", got)
+	}
+	if got := p.ServerDefaultsRoomStreamCutoff(); got != 37 {
+		t.Fatalf("server room stream cutoff = %d, want 37", got)
 	}
 }
 

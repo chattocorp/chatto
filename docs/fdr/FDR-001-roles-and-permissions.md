@@ -77,7 +77,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current default permission set only when a server or newly created room is first initialized. Existing installations are adopted without filling missing decisions, and later startups never recreate cleared defaults. The server marker's EVT sequence is the rollout boundary: unmarked rooms created before it are adopted, while rooms created after it receive current defaults.
+**Decision:** Apply the current default permission set only when a server or newly created room is first initialized. Existing installations are adopted without filling missing decisions, and later startups never recreate cleared defaults. The server marker persists the `evt.room.>` cutoff captured before adoption: unmarked rooms at or before it are adopted, while rooms created after it recover any missing default keys without replacing existing same-key decisions.
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically; operators must opt in, or a future release must introduce an explicit policy change.
 

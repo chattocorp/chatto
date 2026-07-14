@@ -36,8 +36,9 @@ type rbacDefaultsKey struct {
 }
 
 type rbacDefaultsState struct {
-	version uint32
-	seq     uint64
+	version          uint32
+	seq              uint64
+	roomStreamCutoff uint64
 }
 
 func NewRBACProjection() *RBACProjection {
@@ -262,7 +263,11 @@ func (p *RBACProjection) applyDefaultsInitialized(event *corev1.RbacDefaultsInit
 	if version <= p.defaults[key].version {
 		return
 	}
-	p.defaults[key] = rbacDefaultsState{version: version, seq: seq}
+	p.defaults[key] = rbacDefaultsState{
+		version:          version,
+		seq:              seq,
+		roomStreamCutoff: event.GetRoomStreamCutoff(),
+	}
 }
 
 func rbacDecisionKeyFromFields(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
@@ -542,8 +547,7 @@ func (p *RBACProjection) DefaultsVersion(scope PermissionScope, scopeID string) 
 }
 
 // DefaultsInitializedSeq returns the EVT stream sequence of the marker that
-// established the current defaults version. Room rollout uses the server
-// marker as a durable boundary between pre-existing and newly created rooms.
+// established the current defaults version.
 func (p *RBACProjection) DefaultsInitializedSeq(scope PermissionScope, scopeID string) uint64 {
 	p.RLock()
 	defer p.RUnlock()
@@ -553,10 +557,38 @@ func (p *RBACProjection) DefaultsInitializedSeq(scope PermissionScope, scopeID s
 	return p.defaults[rbacDefaultsKey{scope: scope, scopeID: scopeID}].seq
 }
 
-func (p *RBACProjection) GetDecision(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {
+// ServerDefaultsRoomStreamCutoff returns the evt.room.> tail captured before
+// the server defaults marker was committed.
+func (p *RBACProjection) ServerDefaultsRoomStreamCutoff() uint64 {
 	p.RLock()
 	defer p.RUnlock()
-	if decision, ok := p.decisions[rbacDecisionKeyFor(scope, scopeID, subject, perm)]; ok {
+	return p.defaults[rbacDefaultsKey{scope: ScopeServer}].roomStreamCutoff
+}
+
+func (p *RBACProjection) GetDecision(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {
+	return p.getTypedDecision(scope, scopeID, rbacPermissionSubjectKindForID(subject), subject, perm)
+}
+
+func (p *RBACProjection) getTypedDecision(
+	scope PermissionScope,
+	scopeID string,
+	subjectKind corev1.RbacPermissionSubjectKind,
+	subject string,
+	perm Permission,
+) DecisionKind {
+	p.RLock()
+	defer p.RUnlock()
+	if scope == ScopeServer {
+		scopeID = ""
+	}
+	key := rbacDecisionKey{
+		scope:       scope,
+		scopeID:     scopeID,
+		subjectKind: subjectKind,
+		subject:     subject,
+		permission:  perm,
+	}
+	if decision, ok := p.decisions[key]; ok {
 		return decision
 	}
 	return DecisionNone

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -283,29 +284,40 @@ func (c *ChattoCore) SeedDefaultChannelRoomPermissions(ctx context.Context, room
 		ScopeRoom,
 		roomID,
 		roomRBACDefaultsVersion,
-		true,
+		rbacDefaultsFillMissing,
 		defaultChannelRoomDecisions(roomID, roomName),
+		0,
 	)
 }
 
-// EnsureDefaultChannelRoomPermissions adopts existing rooms without changing
-// their decisions before the server initialization marker exists. On later
-// boots, an unmarked room was created after that rollout boundary and receives
-// its defaults plus marker atomically.
+// EnsureDefaultChannelRoomPermissions adopts rooms at or before the durable
+// server cutoff without changing their decisions. An unmarked room created
+// after that cutoff receives any missing defaults plus its marker atomically.
 func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) error {
+	serverInitialized := c.RBAC.DefaultsVersion(ScopeServer, "") >= serverRBACDefaultsVersion
+	roomStreamCutoff := c.RBAC.ServerDefaultsRoomStreamCutoff()
+	if serverInitialized && roomStreamCutoff > 0 {
+		if err := c.RoomDirectoryProjector.WaitFor(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomStreamCutoff)); err != nil {
+			return fmt.Errorf("wait for channel rooms through defaults cutoff: %w", err)
+		}
+	}
 	rooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return fmt.Errorf("list channel rooms: %w", err)
 	}
-	serverMarkerSeq := c.RBAC.DefaultsInitializedSeq(ScopeServer, "")
 	for _, room := range rooms {
+		seedMode := rbacDefaultsAdoptOnly
+		if c.shouldRecoverUnmarkedRoom(room.Id, serverInitialized, roomStreamCutoff) {
+			seedMode = rbacDefaultsFillMissing
+		}
 		if err := c.ensureRBACDefaultsInitialized(
 			ctx,
 			ScopeRoom,
 			room.Id,
 			roomRBACDefaultsVersion,
-			c.shouldSeedUnmarkedRoom(room.Id, serverMarkerSeq),
+			seedMode,
 			defaultChannelRoomDecisions(room.Id, room.Name),
+			0,
 		); err != nil {
 			return fmt.Errorf("ensure room permissions for %s: %w", room.Id, err)
 		}
@@ -313,9 +325,9 @@ func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) er
 	return nil
 }
 
-func (c *ChattoCore) shouldSeedUnmarkedRoom(roomID string, serverMarkerSeq uint64) bool {
+func (c *ChattoCore) shouldRecoverUnmarkedRoom(roomID string, serverInitialized bool, roomStreamCutoff uint64) bool {
 	createdSeq, ok := c.RoomCatalog.CreatedSeq(roomID)
-	return serverMarkerSeq > 0 && ok && createdSeq > serverMarkerSeq
+	return serverInitialized && ok && createdSeq > roomStreamCutoff
 }
 
 // ============================================================================
@@ -362,13 +374,18 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 // Current defaults are included only when RBAC has no permission decisions at
 // any scope; existing installations are marked without changing their state.
 func (c *ChattoCore) EnsureDefaultRolePermissions(ctx context.Context) error {
+	roomStreamCutoff, err := c.EventPublisher.LastSubjectSeq(ctx, events.RoomSubjectFilter())
+	if err != nil {
+		return fmt.Errorf("read room stream cutoff for RBAC defaults: %w", err)
+	}
 	return c.ensureRBACDefaultsInitialized(
 		ctx,
 		ScopeServer,
 		"",
 		serverRBACDefaultsVersion,
-		true,
+		rbacDefaultsSeedWhenEmpty,
 		defaultRBACDecisions(),
+		roomStreamCutoff,
 	)
 }
 
