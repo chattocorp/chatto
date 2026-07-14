@@ -124,8 +124,9 @@
       },
       "language": {
         "title": "Sprache",
-        "description": "Wähle die Sprache für diesen Browser.",
-        "english": "English",
+        "description": "Wähle Sprache und regionale Formulierungen für diesen Browser.",
+        "english_uk": "Englisch (Vereinigtes Königreich)",
+        "english_us": "Englisch (Vereinigte Staaten)",
         "german": "Deutsch"
       },
       "timezone": {

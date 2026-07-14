@@ -72,8 +72,8 @@ import NotificationsPage from './+page.svelte';
 describe('notifications page', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
     mocks.store.notifications.notifications = [mocks.notification];
     mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.dismiss.mockResolvedValue(true);

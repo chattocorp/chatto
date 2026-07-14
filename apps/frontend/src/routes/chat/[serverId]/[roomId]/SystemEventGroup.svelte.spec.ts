@@ -48,8 +48,8 @@ function renderedCopy(container: HTMLElement): string {
 
 describe('SystemEventGroup', () => {
   beforeEach(async () => {
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
   });
 
   it('separates two actors with the localized conjunction', () => {

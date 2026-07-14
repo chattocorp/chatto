@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr" style="color-scheme: light">
+<html lang="en-GB" dir="ltr" style="color-scheme: light">
   <head>
     <meta charset="utf-8" />
     <script>
@@ -43,8 +43,14 @@
         }
 
         function applyLocale() {
-          const locales = ['en', 'de'];
-          const stored = localStorage.getItem('PARAGLIDE_LOCALE');
+          const locales = ['en-GB', 'en-US', 'de'];
+          const legacyLocales = { en: 'en-GB' };
+          const storedValue = localStorage.getItem('PARAGLIDE_LOCALE');
+          const migratedStored = legacyLocales[storedValue] ?? storedValue;
+          const stored = locales.includes(migratedStored) ? migratedStored : null;
+          if (storedValue && stored && stored !== storedValue) {
+            localStorage.setItem('PARAGLIDE_LOCALE', stored);
+          }
           const browserLanguages =
             typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
           const requested = stored ? [stored] : browserLanguages;
@@ -52,8 +58,14 @@
             requested
               .filter(Boolean)
               .map((value) => String(value).toLowerCase())
-              .map((value) => locales.find((locale) => value === locale || value.startsWith(`${locale}-`)))
-              .find(Boolean) ?? 'en';
+              .map((value) => {
+                const exact = locales.find((locale) => value === locale.toLowerCase());
+                if (exact) return exact;
+                if (value.startsWith('de-')) return 'de';
+                if (value === 'en' || value.startsWith('en-')) return 'en-GB';
+                return undefined;
+              })
+              .find(Boolean) ?? 'en-GB';
 
           root.lang = locale;
           root.dir = 'ltr';

@@ -205,8 +205,12 @@
 
   const languageOptions = $derived([
     {
-      value: 'en',
-      label: m['settings.preferences.language.english']()
+      value: 'en-GB',
+      label: m['settings.preferences.language.english_uk']()
+    },
+    {
+      value: 'en-US',
+      label: m['settings.preferences.language.english_us']()
     },
     {
       value: 'de',

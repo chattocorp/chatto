@@ -85,7 +85,8 @@ function runThemeScript({
   runInNewContext(themeScript, {
     document: { documentElement: root },
     localStorage: {
-      getItem: (key: string) => storage.get(key) ?? null
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value)
     },
     ...(browserLanguages
       ? { navigator: { languages: browserLanguages, language: browserLanguages[0] } }
@@ -104,6 +105,7 @@ function runThemeScript({
 
   return {
     root,
+    storedLocale: () => storage.get('PARAGLIDE_LOCALE'),
     changeSystemTheme(systemTheme: 'light' | 'dark') {
       dark = systemTheme === 'dark';
       changeHandler?.();
@@ -228,9 +230,9 @@ describe('app.html theme bootstrap', () => {
 });
 
 describe('app.html locale bootstrap', () => {
-  it('falls back to English when no browser locale is available', () => {
+  it('falls back to British English when no browser locale is available', () => {
     const { root } = runThemeScript({ systemDark: false });
-    expect(root.lang).toBe('en');
+    expect(root.lang).toBe('en-GB');
     expect(root.dir).toBe('ltr');
   });
 
@@ -248,6 +250,45 @@ describe('app.html locale bootstrap', () => {
     const { root } = runThemeScript({
       systemDark: false,
       browserLanguages: ['de-AT', 'en-US']
+    });
+
+    expect(root.lang).toBe('de');
+  });
+
+  it('preserves an exact regional English browser locale', () => {
+    const { root } = runThemeScript({
+      systemDark: false,
+      browserLanguages: ['en-US']
+    });
+
+    expect(root.lang).toBe('en-US');
+  });
+
+  it('falls back other English regions to British English', () => {
+    const { root } = runThemeScript({
+      systemDark: false,
+      browserLanguages: ['en-AU']
+    });
+
+    expect(root.lang).toBe('en-GB');
+  });
+
+  it('migrates the legacy English preference to British English', () => {
+    const result = runThemeScript({
+      systemDark: false,
+      storedLocale: 'en',
+      browserLanguages: ['de-DE']
+    });
+
+    expect(result.root.lang).toBe('en-GB');
+    expect(result.storedLocale()).toBe('en-GB');
+  });
+
+  it('ignores an unsupported stored locale when matching browser preferences', () => {
+    const { root } = runThemeScript({
+      systemDark: false,
+      storedLocale: 'fr',
+      browserLanguages: ['de-DE']
     });
 
     expect(root.lang).toBe('de');

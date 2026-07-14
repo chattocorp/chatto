@@ -7,7 +7,7 @@
 Chatto needs internationalization support for its user interface. The current frontend is English-first:
 
 - Most product UI text is hardcoded in Svelte components and TypeScript helpers.
-- The app shell declares `lang="en"` in `app.html`, and the PWA manifest is English-only.
+- The PWA manifest is English-only.
 - Date and time helpers already use `Intl`, but some helpers still pin `en-US` for display labels.
 - Server and room state is event-sourced, so persisted events must remain language-neutral facts rather than rendered human text.
 
@@ -23,9 +23,11 @@ Chatto needs an i18n system that can be adopted incrementally, gives good type-s
 
 Chatto will internationalize the web client with a compile-time message catalog system, using Paraglide JS unless a future implementation spike finds a blocking issue. Paraglide is acceptable because it uses in-repository project configuration and message files; it must not require a hosted translation service, account, or network call for normal local development, CI builds, or runtime operation.
 
-English (`en`) is the source and fallback locale. German (`de`) is the first supported non-English locale because the project can review it directly. Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
+British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology, and German (`de`) is the first supported non-English locale because the project can review it directly. Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
 
-Locale payloads should be split into separate bundles and loaded lazily. Chatto compiles Paraglide with `locale-modules`, keeps English in the base client bundle, and loads non-base locale modules through app-owned dynamic imports. Product code imports messages from `$lib/i18n/messages` and locale runtime helpers from `$lib/i18n/runtime`; it must not import `$lib/paraglide/messages` directly because that generated index eagerly imports every locale module. Locale switches lazy-load the target catalog and update the current SPA reactively without a full-page reload. The i18n facade is generated from Paraglide's typed locale-module output by `apps/frontend/scripts/generate-i18n-facade.mjs`; it remains the app-owned boundary that preserves lazy locale loading and in-place locale changes.
+Locale identifiers use canonical BCP 47 language tags such as `en-GB`, not POSIX-style identifiers such as `en_GB`. A locale identifies translated content, not only formatting conventions: regional variants must be distinct locales when their spelling, terminology, grammar, or other wording differs. A regional catalog may contain only its differences and inherit missing messages through Paraglide's locale fallback. The locale picker must name supported variants explicitly rather than presenting an ambiguous language label such as “English”.
+
+Locale payloads should be split into separate bundles and loaded lazily. Chatto compiles Paraglide with `locale-modules`, keeps `en-GB` in the base client bundle, and loads non-base locale modules through app-owned dynamic imports. Product code imports messages from `$lib/i18n/messages` and locale runtime helpers from `$lib/i18n/runtime`; it must not import `$lib/paraglide/messages` directly because that generated index eagerly imports every locale module. Locale switches lazy-load the target catalog and update the current SPA reactively without a full-page reload. The i18n facade is generated from Paraglide's typed locale-module output and the locales in `project.inlang/settings.json` by `apps/frontend/scripts/generate-i18n-facade.mjs`; it remains the app-owned boundary that preserves lazy locale loading and in-place locale changes.
 
 Chatto will prefer static, typed message keys over runtime string lookups:
 
@@ -35,17 +37,19 @@ Chatto will prefer static, typed message keys over runtime string lookups:
 - Backend APIs should return structured data, stable codes, enum values, and parameters rather than pre-rendered localized product copy.
 - Persisted EVT events and projections must store language-neutral facts, not localized labels or sentences.
 
-Message keys should be semantic and stable rather than English-as-key. Catalog files should use nested JSON grouped by feature or UI surface, such as `settings.preferences.title`, `auth.login.submit`, or `room.event.user_joined`. Catalog storage is split by locale and top-level domain (`apps/frontend/messages/en/auth.json`, `apps/frontend/messages/de/auth.json`, etc.) through Inlang's multiple `pathPattern` support so contributors do not have to edit one monolithic locale file. The message-format plugin flattens nested JSON internally, and Paraglide exposes nested paths as quoted exports used with bracket notation, such as `m["settings.preferences.title"]()`. If Paraglide later provides a stronger Svelte-specific namespacing convention, Chatto may adopt it, but new code must still keep keys stable across wording changes.
+Message keys should be semantic and stable rather than English-as-key. Catalog files should use nested JSON grouped by feature or UI surface, such as `settings.preferences.title`, `auth.login.submit`, or `room.event.user_joined`. Catalog storage is split by locale and top-level domain (`apps/frontend/messages/en-GB/auth.json`, `apps/frontend/messages/en-US/auth.json`, `apps/frontend/messages/de/auth.json`, etc.) through Inlang's multiple `pathPattern` support so contributors do not have to edit one monolithic locale file. The message-format plugin flattens nested JSON internally, and Paraglide exposes nested paths as quoted exports used with bracket notation, such as `m["settings.preferences.title"]()`. If Paraglide later provides a stronger Svelte-specific namespacing convention, Chatto may adopt it, but new code must still keep keys stable across wording changes.
 
 Locale selection is owned by the client shell, not by the active server. The effective locale is resolved in this order:
 
 1. A browser-local Chatto locale preference.
 2. The browser's language preferences.
-3. `en`.
+3. `en-GB`.
+
+Locale negotiation prefers an exact supported regional tag. Unsupported English variants fall back to `en-GB`, while regional variants of a supported language-only locale can fall back to that language locale. The former stored `en` preference migrates to `en-GB` so an explicit English choice is not lost during the transition.
 
 The selected locale applies to the whole SPA. It does not change when the user navigates between connected servers. This avoids conflicting per-server language settings in a multi-server client and keeps language selection available before authentication.
 
-The frontend should include a user-facing language preference UI early in the implementation, backed by browser-local persistence. This gives users and testers a deterministic way to switch between `en` and `de` without changing browser settings.
+The frontend includes a user-facing language preference UI backed by browser-local persistence. This gives users and testers a deterministic way to switch between `en-GB`, `en-US`, and `de` without changing browser settings.
 
 Server-synced language preference may be added later as an additive user-profile feature, but it must define clear multi-server conflict semantics before becoming authoritative. A local browser override remains necessary for signed-out screens, first paint, and separately hosted clients.
 
@@ -57,17 +61,19 @@ The app shell must set language metadata correctly:
 - Direction support is part of the locale model, but RTL locales require an explicit UI audit before being listed as supported.
 - The default static web manifest remains English until Chatto adds a deliberate per-locale manifest strategy.
 
-Dates, times, numbers, plurals, and relative labels should be formatted with the active locale through `Intl` or the message system's formatter support. Existing timezone and time-format settings still control timezone and 12/24-hour behavior; locale controls language, calendar labels, week starts, number formatting, and plural rules.
+Dates, times, numbers, plurals, and relative labels should be formatted with the active content locale through `Intl` or the message system's formatter support. Existing timezone and time-format settings still control timezone and explicit 12/24-hour behavior; locale controls language, default date and time conventions, calendar labels, week starts, number formatting, and plural rules. Region-bearing content locales are authoritative for these defaults. A language-only content locale may inherit the browser region until a more specific supported content locale exists. A separate formatting-region override may be added later without changing the content locale.
 
 Locales should be added only when Chatto can maintain acceptable translation quality. Machine translation may be used to draft catalogs, but supported locales should be reviewed and kept complete enough that the product does not feel half-translated.
 
-Agent and contributor instructions should be updated with the i18n policy. New user-visible frontend strings should normally add or update message keys in both `en` and `de`, with a best-effort German translation when the author can provide one. If a translation is uncertain, the PR should mark it clearly for review instead of silently omitting it or hardcoding English.
+Agent and contributor instructions should be updated with the i18n policy. New user-visible frontend strings should normally add or update message keys in both `en-GB` and `de`, with a best-effort German translation when the author can provide one. Add an `en-US` override when US spelling or terminology differs; do not duplicate identical base messages. If a translation is uncertain, the PR should mark it clearly for review instead of silently omitting it or hardcoding English.
 
 ## Consequences
 
 Compile-time message functions give Chatto type-checked message usage, tree-shakable locale bundles, and a clear path for incremental conversion. The cost is generated-code/tooling setup and catalog maintenance.
 
-Supporting both `en` and `de` from the start prevents the architecture from being English-only in practice and gives the project a reviewable real translation target. The tradeoff is that every converted surface must carry translation work immediately.
+Supporting regional English content locales prevents “English” from silently mixing dialects or treating region as formatting-only. Sparse `en-US` overrides avoid duplicating the complete British English catalog, but contributors must recognise and maintain genuine regional wording differences.
+
+Supporting both English and German prevents the architecture from being English-only in practice and gives the project a reviewable non-English translation target. The tradeoff is that every converted surface must carry translation work immediately.
 
 Keeping locale selection client-owned avoids a poor multi-server user experience where switching servers changes the whole UI language. The tradeoff is that language does not automatically sync across devices in the first implementation.
 

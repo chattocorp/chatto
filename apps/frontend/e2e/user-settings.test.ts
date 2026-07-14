@@ -51,7 +51,7 @@ test.describe('User Settings - Display', () => {
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
   });
 
-  test('can choose a local language', async ({ page }) => {
+  test('can choose and persist a regional locale', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
     await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
@@ -60,8 +60,9 @@ test.describe('User Settings - Display', () => {
 
     const pageMarker = await page.evaluate(() => {
       const marker = `locale-switch-${Date.now()}`;
-      (window as typeof window & { __chattoLocaleSwitchMarker?: string }).__chattoLocaleSwitchMarker =
-        marker;
+      (
+        window as typeof window & { __chattoLocaleSwitchMarker?: string }
+      ).__chattoLocaleSwitchMarker = marker;
       return marker;
     });
 
@@ -85,6 +86,18 @@ test.describe('User Settings - Display', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('radio', { name: 'Deutsch' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await page.getByRole('radio', { name: 'Englisch (Vereinigte Staaten)' }).click();
+    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+
+    await page.reload();
+    await expect(page.getByRole('radio', { name: 'English (United States)' })).toHaveAttribute(
       'aria-checked',
       'true'
     );

@@ -111,8 +111,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Internationalization
 
-- New or changed user-visible strings go through Paraglide catalogs with both
-  English and German entries. Follow ADR-043.
+- New or changed user-visible strings go through the British English (`en-GB`)
+  and German (`de`) Paraglide catalogs. Add a sparse US English (`en-US`)
+  override when spelling or terminology differs; do not duplicate identical
+  base messages. Locale identifiers use BCP 47 tags such as `en-GB`. Follow
+  ADR-043.
 - Import product messages from `$lib/i18n/messages`, not generated Paraglide
   internals.
 - Use nested keys grouped by feature/surface; do not use English sentences as
@@ -183,7 +186,8 @@ mise test-e2e
   contain markup.
 - Stories should document behavior through realistic variants, not long prose.
 - Literal fixture copy local to a story is exempt from Paraglide catalogs.
-  Production component and route strings still require English and German.
+  Production component and route strings still require British English and
+  German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
 - Shared design-system visuals are covered by `pnpm run test:visual`. When a
   reviewed visual change is intentional, refresh with
