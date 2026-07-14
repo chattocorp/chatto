@@ -1,5 +1,4 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- generic component with dynamic routes */
   import { page } from '$app/state';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import * as m from '$lib/i18n/messages';
@@ -38,8 +37,13 @@
 
 <nav class="sidebar-nav flex-1 p-2">
   {#each items as item (item.href)}
+    {@const active = isActive(item.href, items)}
     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- generic component with dynamic routes -->
-    <a href={item.href} class={['sidebar-item', isActive(item.href, items) ? 'bg-surface' : '']}>
+    <a
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      class={['sidebar-item', active ? 'bg-surface' : '']}
+    >
       <span class="sidebar-icon {item.icon}"></span>
       {item.label}
     </a>

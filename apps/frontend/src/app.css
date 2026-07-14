@@ -51,13 +51,18 @@
 
   --color-action: var(--color-sky-700);
   --color-action-hover: var(--color-sky-800);
+  --color-on-action: var(--color-white);
   --color-neutral-action: var(--color-slate-600);
   --color-neutral-action-hover: var(--color-slate-700);
+  --color-on-neutral-action: var(--color-white);
   --color-link: var(--color-action);
   --color-link-hover: color-mix(in srgb, var(--color-action), black 20%);
   --color-success: var(--color-green-800);
+  --color-on-success: var(--color-white);
   --color-warning: var(--color-amber-800);
+  --color-on-warning: var(--color-white);
   --color-danger: var(--color-red-700);
+  --color-on-danger: var(--color-white);
   --color-error: var(--color-red-700);
   --color-server: var(--color-indigo-700);
   --color-presence-online: var(--color-green-500);
@@ -103,13 +108,18 @@
 
   --color-action: var(--color-sky-400);
   --color-action-hover: var(--color-sky-300);
+  --color-on-action: var(--color-neutral-950);
   --color-neutral-action: var(--color-neutral-600);
   --color-neutral-action-hover: var(--color-neutral-500);
+  --color-on-neutral-action: var(--color-white);
   --color-link: var(--color-action);
   --color-link-hover: color-mix(in srgb, var(--color-action), white 20%);
   --color-success: var(--color-green-500);
+  --color-on-success: var(--color-neutral-950);
   --color-warning: var(--color-amber-500);
+  --color-on-warning: var(--color-neutral-950);
   --color-danger: var(--color-red-400);
+  --color-on-danger: var(--color-neutral-950);
   --color-error: var(--color-red-400);
   --color-server: var(--color-indigo-400);
 
@@ -137,13 +147,18 @@
 
   --color-action: var(--color-action);
   --color-action-hover: var(--color-action-hover);
+  --color-on-action: var(--color-on-action);
   --color-neutral-action: var(--color-neutral-action);
   --color-neutral-action-hover: var(--color-neutral-action-hover);
+  --color-on-neutral-action: var(--color-on-neutral-action);
   --color-link: var(--color-link);
   --color-link-hover: var(--color-link-hover);
   --color-success: var(--color-success);
+  --color-on-success: var(--color-on-success);
   --color-warning: var(--color-warning);
+  --color-on-warning: var(--color-on-warning);
   --color-danger: var(--color-danger);
+  --color-on-danger: var(--color-on-danger);
   --color-error: var(--color-error);
   --color-server: var(--color-server);
   --color-presence-online: var(--color-presence-online);
@@ -247,15 +262,15 @@
 }
 
 @utility btn-neutral {
-  @apply btn bg-neutral-action text-white hover:bg-neutral-action-hover;
+  @apply btn bg-neutral-action text-on-neutral-action hover:bg-neutral-action-hover;
 }
 
 @utility btn-action {
-  @apply btn bg-action text-white hover:bg-action-hover;
+  @apply btn bg-action text-on-action hover:bg-action-hover;
 }
 
 @utility btn-success {
-  @apply btn bg-success text-white hover:bg-success/90;
+  @apply btn bg-success text-on-success hover:bg-success/90;
 }
 
 @utility btn-secondary {
@@ -267,11 +282,11 @@
 }
 
 @utility btn-warning {
-  @apply btn bg-warning text-white hover:bg-warning/90;
+  @apply btn bg-warning text-on-warning hover:bg-warning/90;
 }
 
 @utility btn-danger {
-  @apply btn bg-danger text-white hover:bg-danger/90;
+  @apply btn bg-danger text-on-danger hover:bg-danger/90;
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */

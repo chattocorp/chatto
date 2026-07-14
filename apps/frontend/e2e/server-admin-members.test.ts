@@ -214,8 +214,11 @@ test.describe('Server Admin Members', () => {
       // Should see Role Assignments section heading
       await expect(page.locator('h2', { hasText: 'Role Assignments' })).toBeVisible();
 
-      // Should see at least one checkbox (role assignment control)
-      await expect(page.locator('input[type="checkbox"]').first()).toBeVisible();
+      // The visible option label owns the hit area; the native checkbox remains
+      // available to assistive technology and form-state assertions.
+      const roleOption = page.locator('label:has(input[type="checkbox"])').first();
+      await expect(roleOption).toBeVisible();
+      await expect(roleOption.getByRole('checkbox')).toBeAttached();
     });
 
     test('back to members button works', async ({ serverAdminPage }) => {

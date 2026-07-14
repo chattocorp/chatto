@@ -69,6 +69,10 @@ recommended path and `neutral-action` for an emphasized control that should not
 compete with it. Retired `accent` and `primary` color utilities are rejected by
 the design-system guardrail.
 
+Filled controls pair each tone with its `on-*` foreground token. Never assume
+white text: dark-theme action and status fills are intentionally bright and use
+a dark semantic foreground to maintain WCAG AA contrast.
+
 Surfaces form a small semantic ladder:
 
 - `surface` is the ordinary content plane for panels, dialogs, and controls.
