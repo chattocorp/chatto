@@ -213,7 +213,7 @@ func TestProjectionSnapshotSweepDeletesOldOrphanThroughStorageBackends(t *testin
 			}
 
 			result, err := repository.Sweep(ctx, projectionsnapshot.SweepOptions{
-				ProjectionKeys: []string{"threads"}, GracePeriod: 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
+				GracePeriod: 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
 			})
 			if err != nil {
 				t.Fatal(err)

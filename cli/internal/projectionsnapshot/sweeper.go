@@ -5,25 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"slices"
 	"strings"
 	"time"
 )
 
-// SweepOptions bounds one cleanup pass. ProjectionKeys must contain every
-// snapshot-enabled projection in this binary so all live pointer references are
-// protected before inventory begins.
+// SweepOptions bounds one cleanup pass.
 type SweepOptions struct {
-	ProjectionKeys []string
 	GracePeriod    time.Duration
 	MaxDeletes     int
 	MaxDeleteBytes int64
-	BeforeDelete   func(context.Context) error
+	// BeforeDelete verifies that this worker still owns the cleanup lease. It is
+	// called once after inventory succeeds and before the bounded delete batch.
+	BeforeDelete func(context.Context) error
 }
 
 // SweepResult contains privacy-safe inventory and deletion totals. Eligible
-// counts are measured during the completed read-only pass and may differ from
-// the second pass if another replica publishes concurrently.
+// counts are measured during the completed read-only inventory pass.
 type SweepResult struct {
 	ScannedObjects    int
 	ScannedBytes      int64
@@ -38,11 +35,10 @@ type SweepResult struct {
 	DeleteLimitHit    bool
 }
 
-// Sweep removes old unreferenced generations and obsolete pointer objects. It
-// first authenticates every known pointer and completes a read-only inventory,
-// so pointer or initial listing failures cannot cause deletion. A second
-// streaming pass performs bounded deletes; the grace period protects uploads
-// and pointer replacements racing either pass.
+// Sweep removes old unreferenced generations. It first authenticates every v1
+// pointer and completes a read-only inventory, so pointer or listing failures
+// cannot cause deletion. Pointer objects are never deleted because object-store
+// deletion is not revision-aware. The grace period protects concurrent uploads.
 func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult, error) {
 	if opts.GracePeriod <= 0 {
 		return SweepResult{}, fmt.Errorf("snapshot cleanup grace period must be positive")
@@ -53,16 +49,9 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 	if opts.MaxDeleteBytes <= 0 {
 		return SweepResult{}, fmt.Errorf("snapshot cleanup byte limit must be positive")
 	}
-	projectionKeys := slices.Clone(opts.ProjectionKeys)
-	slices.Sort(projectionKeys)
-	projectionKeys = slices.Compact(projectionKeys)
-	if len(projectionKeys) == 0 || projectionKeys[0] == "" {
-		return SweepResult{}, fmt.Errorf("snapshot cleanup projection keys are required")
-	}
-
-	referenced := make(map[string]struct{}, len(projectionKeys)*2)
-	activePointers := make(map[string]struct{}, len(projectionKeys))
-	for _, projectionKey := range projectionKeys {
+	referenced := make(map[string]struct{}, len(projectionV1Keys)*2)
+	activePointers := make(map[string]struct{}, len(projectionV1Keys))
+	for _, projectionKey := range projectionV1Keys {
 		activePointers[r.pointerKey(projectionKey)] = struct{}{}
 		pointer, err := r.loadPointer(ctx, projectionKey)
 		switch {
@@ -81,39 +70,43 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 
 	cutoff := r.now().UTC().Add(-opts.GracePeriod)
 	var result SweepResult
+	candidates := make([]BlobInfo, 0, min(opts.MaxDeletes, 16))
+	var candidateBytes int64
 	if err := r.blobs.Walk(ctx, objectPrefix, func(info BlobInfo) error {
 		result.recordInventory(info, referenced, activePointers, cutoff)
+		id, valid := generationIDFromObjectKey(info.Key)
+		_, protected := referenced[id]
+		if !valid || protected || info.Size < 0 || info.ModifiedAt.IsZero() || info.ModifiedAt.UTC().After(cutoff) {
+			return nil
+		}
+		if len(candidates) >= opts.MaxDeletes || info.Size > opts.MaxDeleteBytes-candidateBytes {
+			result.DeleteLimitHit = true
+			return nil
+		}
+		candidates = append(candidates, info)
+		candidateBytes += info.Size
 		return nil
 	}); err != nil {
 		return result, fmt.Errorf("inventory projection snapshot objects: %w", err)
 	}
 
-	err := r.blobs.Walk(ctx, objectPrefix, func(info BlobInfo) error {
-		valid, protected := cleanupObjectStatus(info.Key, referenced, activePointers)
-		if !valid || protected || info.Size < 0 || info.ModifiedAt.IsZero() || info.ModifiedAt.UTC().After(cutoff) {
-			return nil
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if len(candidates) > 0 && opts.BeforeDelete != nil {
+		if err := opts.BeforeDelete(ctx); err != nil {
+			return result, fmt.Errorf("check cleanup ownership: %w", err)
 		}
-		if result.DeletedObjects >= opts.MaxDeletes || info.Size > opts.MaxDeleteBytes-result.DeletedBytes {
-			result.DeleteLimitHit = true
-			return nil
-		}
-		if opts.BeforeDelete != nil {
-			if err := opts.BeforeDelete(ctx); err != nil {
-				return fmt.Errorf("check cleanup ownership: %w", err)
-			}
-		}
+	}
+	for _, info := range candidates {
 		if err := r.blobs.Delete(ctx, info.Key); err != nil {
 			if errors.Is(err, ErrBlobNotFound) {
-				return nil
+				continue
 			}
-			return fmt.Errorf("delete unreferenced snapshot object: %w", err)
+			return result, fmt.Errorf("delete unreferenced snapshot object: %w", err)
 		}
 		result.DeletedObjects++
 		result.DeletedBytes += info.Size
-		return nil
-	})
-	if err != nil {
-		return result, fmt.Errorf("sweep projection snapshot objects: %w", err)
 	}
 	return result, nil
 }
@@ -123,17 +116,21 @@ func (r *SweepResult) recordInventory(info BlobInfo, referenced, activePointers 
 	if info.Size >= 0 {
 		r.ScannedBytes = saturatedAdd(r.ScannedBytes, info.Size)
 	}
-	valid, protected := cleanupObjectStatus(info.Key, referenced, activePointers)
-	if !valid || info.Size < 0 || info.ModifiedAt.IsZero() {
+	id, valid := generationIDFromObjectKey(info.Key)
+	if !valid {
+		if _, active := activePointers[info.Key]; active {
+			r.ActivePointers++
+		} else {
+			r.IgnoredObjects++
+		}
+		return
+	}
+	if info.Size < 0 || info.ModifiedAt.IsZero() {
 		r.IgnoredObjects++
 		return
 	}
-	if protected {
-		if strings.HasPrefix(info.Key, objectPrefix+"pointers/") {
-			r.ActivePointers++
-		} else {
-			r.ReferencedObjects++
-		}
+	if _, protected := referenced[id]; protected {
+		r.ReferencedObjects++
 		return
 	}
 	if info.ModifiedAt.UTC().After(cutoff) {
@@ -151,18 +148,6 @@ func saturatedAdd(left, right int64) int64 {
 	return left + right
 }
 
-func cleanupObjectStatus(key string, referenced, activePointers map[string]struct{}) (valid, protected bool) {
-	if id, ok := generationIDFromObjectKey(key); ok {
-		_, protected = referenced[id]
-		return true, protected
-	}
-	if pointerLocatorFromObjectKey(key) != "" {
-		_, protected = activePointers[key]
-		return true, protected
-	}
-	return false, false
-}
-
 func generationIDFromObjectKey(key string) (string, bool) {
 	prefix := objectPrefix + "objects/"
 	id, ok := strings.CutPrefix(key, prefix)
@@ -173,18 +158,4 @@ func generationIDFromObjectKey(key string) (string, bool) {
 		return "", false
 	}
 	return id, true
-}
-
-func pointerLocatorFromObjectKey(key string) string {
-	prefix := objectPrefix + "pointers/"
-	locator, ok := strings.CutPrefix(key, prefix)
-	if !ok || len(locator) != 16 || strings.Contains(locator, "/") {
-		return ""
-	}
-	for i := range len(locator) {
-		if _, ok := hexNibble(locator[i]); !ok {
-			return ""
-		}
-	}
-	return locator
 }

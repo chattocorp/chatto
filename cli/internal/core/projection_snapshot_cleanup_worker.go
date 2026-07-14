@@ -33,14 +33,13 @@ type projectionSnapshotCleanupLease interface {
 }
 
 type projectionSnapshotCleanupWorker struct {
-	repository     projectionSnapshotSweeper
-	lease          projectionSnapshotCleanupLease
-	projectionKeys []string
-	logger         events.Logger
-	initialDelay   func() time.Duration
-	wait           func(context.Context, time.Duration) error
-	sweepTimeout   time.Duration
-	done           chan struct{}
+	repository   projectionSnapshotSweeper
+	lease        projectionSnapshotCleanupLease
+	logger       events.Logger
+	initialDelay func() time.Duration
+	wait         func(context.Context, time.Duration) error
+	sweepTimeout time.Duration
+	done         chan struct{}
 }
 
 func (w *projectionSnapshotCleanupWorker) Run(ctx context.Context, bootDone <-chan struct{}) error {
@@ -125,7 +124,6 @@ func (w *projectionSnapshotCleanupWorker) sweep(ctx context.Context) (projection
 	sweepCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return w.repository.Sweep(sweepCtx, projectionsnapshot.SweepOptions{
-		ProjectionKeys: w.projectionKeys,
 		GracePeriod:    projectionSnapshotCleanupGracePeriod,
 		MaxDeletes:     projectionSnapshotCleanupMaxDeletes,
 		MaxDeleteBytes: projectionSnapshotCleanupMaxDeleteBytes,

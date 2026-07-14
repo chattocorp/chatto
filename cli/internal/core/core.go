@@ -27,12 +27,7 @@ import (
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
-const (
-	projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
-	// Namespace v1 membership is frozen for mixed-version cleanup safety.
-	// Introduce a new namespace version before adding another snapshot writer.
-	projectionSnapshotV1ThreadKey = "threads"
-)
+const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // ============================================================================
 // ChattoCore
@@ -1265,7 +1260,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
 				}
 				logger.Info("Projection snapshots enabled",
-					"projection", projectionSnapshotV1ThreadKey,
+					"projection", projectionsnapshot.ProjectionV1ThreadsKey,
 					"compatibility_id", threadSnapshotCompatibilityID,
 					"backend", snapshotRepository.Backend())
 			}
@@ -1325,7 +1320,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 	if snapshotRepository != nil {
-		if err := threadsProjector.ConfigureSnapshots(projectionSnapshotV1ThreadKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
+		if err := threadsProjector.ConfigureSnapshots(projectionsnapshot.ProjectionV1ThreadsKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
 			return nil, fmt.Errorf("configure Thread projection snapshots: %w", err)
 		}
 	}
@@ -1443,7 +1438,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		})
 		if snapshotLeaseErr != nil {
 			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
-				"projection", projectionSnapshotV1ThreadKey,
+				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
 				"stage", "lease_initialize",
 				"error", snapshotLeaseErr)
 		} else {
@@ -1451,7 +1446,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				projector:      threadsProjector,
 				repository:     snapshotRepository,
 				lease:          snapshotLease,
-				projectionKey:  projectionSnapshotV1ThreadKey,
+				projectionKey:  projectionsnapshot.ProjectionV1ThreadsKey,
 				compatibility:  threadSnapshotCompatibilityID,
 				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
 				streamIdentity: snapshotStreamIdentity,
@@ -1470,11 +1465,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", cleanupLeaseErr)
 		} else {
 			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
-				repository:     snapshotRepository,
-				lease:          cleanupLease,
-				projectionKeys: []string{projectionSnapshotV1ThreadKey},
-				logger:         logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
-				done:           make(chan struct{}),
+				repository: snapshotRepository,
+				lease:      cleanupLease,
+				logger:     logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
+				done:       make(chan struct{}),
 			}
 		}
 	}

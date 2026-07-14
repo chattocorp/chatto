@@ -32,6 +32,14 @@ const (
 	streamIdentityPrefix = "evt-incarnation-v1:"
 )
 
+// ProjectionV1ThreadsKey is the sole projection key in snapshot namespace v1.
+const ProjectionV1ThreadsKey = "threads"
+
+// projectionV1Keys is the immutable membership of the v1 snapshot namespace.
+// Adding a projection requires a new namespace so mixed-version sweepers cannot
+// mistake its generations for orphans.
+var projectionV1Keys = [...]string{ProjectionV1ThreadsKey}
+
 var (
 	ErrBlobNotFound     = errors.New("projection snapshot blob not found")
 	ErrSnapshotNotFound = errors.New("projection snapshot not found")

@@ -107,11 +107,10 @@ func TestProjectionSnapshotCleanupWorkerUsesSuccessCadenceAndSafetyOptions(t *te
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{}
 	var waits []time.Duration
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          cleanupLease,
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		initialDelay:   func() time.Duration { return 7 * time.Minute },
+		repository:   repository,
+		lease:        cleanupLease,
+		logger:       testCoreLogger(),
+		initialDelay: func() time.Duration { return 7 * time.Minute },
 		wait: func(_ context.Context, delay time.Duration) error {
 			waits = append(waits, delay)
 			if len(waits) == 1 {
@@ -132,7 +131,7 @@ func TestProjectionSnapshotCleanupWorkerUsesSuccessCadenceAndSafetyOptions(t *te
 	if len(opts) != 1 {
 		t.Fatalf("sweep calls = %d", len(opts))
 	}
-	if !slices.Equal(opts[0].ProjectionKeys, []string{"threads"}) || opts[0].GracePeriod != projectionSnapshotCleanupGracePeriod || opts[0].MaxDeletes != projectionSnapshotCleanupMaxDeletes || opts[0].MaxDeleteBytes != projectionSnapshotCleanupMaxDeleteBytes {
+	if opts[0].GracePeriod != projectionSnapshotCleanupGracePeriod || opts[0].MaxDeletes != projectionSnapshotCleanupMaxDeletes || opts[0].MaxDeleteBytes != projectionSnapshotCleanupMaxDeleteBytes {
 		t.Fatalf("sweep options = %#v", opts[0])
 	}
 	if runs, checks := cleanupLease.counts(); runs != 1 || checks != 1 {
@@ -145,11 +144,10 @@ func TestProjectionSnapshotCleanupWorkerRetriesFailureOnBackoff(t *testing.T) {
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{}
 	var waits []time.Duration
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          cleanupLease,
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		initialDelay:   func() time.Duration { return projectionSnapshotCleanupInitialMin },
+		repository:   repository,
+		lease:        cleanupLease,
+		logger:       testCoreLogger(),
+		initialDelay: func() time.Duration { return projectionSnapshotCleanupInitialMin },
 		wait: func(_ context.Context, delay time.Duration) error {
 			waits = append(waits, delay)
 			if len(waits) == 1 {
@@ -171,11 +169,10 @@ func TestProjectionSnapshotCleanupWorkerUsesCatchUpCadenceWhenLimitIsHit(t *test
 	repository := &fakeProjectionSnapshotSweeper{results: []projectionsnapshot.SweepResult{{DeleteLimitHit: true}}}
 	var waits []time.Duration
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          &fakeProjectionSnapshotCleanupLease{},
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		initialDelay:   func() time.Duration { return projectionSnapshotCleanupInitialMin },
+		repository:   repository,
+		lease:        &fakeProjectionSnapshotCleanupLease{},
+		logger:       testCoreLogger(),
+		initialDelay: func() time.Duration { return projectionSnapshotCleanupInitialMin },
 		wait: func(_ context.Context, delay time.Duration) error {
 			waits = append(waits, delay)
 			if len(waits) == 1 {
@@ -197,12 +194,11 @@ func TestProjectionSnapshotCleanupWorkerDoesNotAcquireBeforeBoot(t *testing.T) {
 	repository := &fakeProjectionSnapshotSweeper{}
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{runEntered: make(chan struct{})}
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          cleanupLease,
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		initialDelay:   func() time.Duration { return 0 },
-		wait:           func(ctx context.Context, _ time.Duration) error { <-ctx.Done(); return ctx.Err() },
+		repository:   repository,
+		lease:        cleanupLease,
+		logger:       testCoreLogger(),
+		initialDelay: func() time.Duration { return 0 },
+		wait:         func(ctx context.Context, _ time.Duration) error { <-ctx.Done(); return ctx.Err() },
 	}
 	boot := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -236,11 +232,10 @@ func TestProjectionSnapshotCleanupWorkerStopsWhenOwnershipIsLost(t *testing.T) {
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{checkErr: errors.New("lease lost")}
 	var waits int
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          cleanupLease,
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		initialDelay:   func() time.Duration { return 0 },
+		repository:   repository,
+		lease:        cleanupLease,
+		logger:       testCoreLogger(),
+		initialDelay: func() time.Duration { return 0 },
 		wait: func(_ context.Context, _ time.Duration) error {
 			waits++
 			if waits == 1 {
@@ -278,11 +273,10 @@ func TestProjectionSnapshotCleanupWorkerBoundsSweepDuration(t *testing.T) {
 		},
 	}
 	worker := &projectionSnapshotCleanupWorker{
-		repository:     repository,
-		lease:          &fakeProjectionSnapshotCleanupLease{},
-		projectionKeys: []string{"threads"},
-		logger:         testCoreLogger(),
-		sweepTimeout:   10 * time.Millisecond,
+		repository:   repository,
+		lease:        &fakeProjectionSnapshotCleanupLease{},
+		logger:       testCoreLogger(),
+		sweepTimeout: 10 * time.Millisecond,
 	}
 
 	started := time.Now()
@@ -328,11 +322,11 @@ func TestProjectionSnapshotCleanupWorkerElectsOneReplicaAndHandsOff(t *testing.T
 	firstRepository := &fakeProjectionSnapshotSweeper{called: make(chan struct{}, 1)}
 	secondRepository := &fakeProjectionSnapshotSweeper{called: make(chan struct{}, 1)}
 	first := &projectionSnapshotCleanupWorker{
-		repository: firstRepository, lease: newCleanupLease("first"), projectionKeys: []string{"threads"},
+		repository: firstRepository, lease: newCleanupLease("first"),
 		logger: testCoreLogger(), initialDelay: func() time.Duration { return 0 }, wait: blockingWait,
 	}
 	second := &projectionSnapshotCleanupWorker{
-		repository: secondRepository, lease: newCleanupLease("second"), projectionKeys: []string{"threads"},
+		repository: secondRepository, lease: newCleanupLease("second"),
 		logger: testCoreLogger(), initialDelay: func() time.Duration { return 0 }, wait: blockingWait,
 	}
 	firstCtx, cancelFirst := context.WithCancel(context.Background())

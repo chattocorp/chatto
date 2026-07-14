@@ -178,12 +178,14 @@ write without uploading a generation or changing either retained fallback.
 An elected backend-listing sweeper reclaims objects abandoned by a process crash,
 stale writer, failed rollback deletion, or `core.secret_key` rotation. It first
 authenticates every registered projection pointer and completes a read-only
-inventory. A second streaming pass deletes only unreferenced generation objects
-and obsolete locator-shaped pointer objects that are at least 24 hours old.
-Active pointers, current and previous generations, recent objects, malformed
-keys, and unknown namespace entries are never deleted. Pointer or first-pass
-listing failures delete nothing; lease loss, cancellation, listing failure, or
-deletion failure during the second pass stops further deletion.
+inventory while collecting a bounded batch of unreferenced generation objects
+that are at least 24 hours old. Only after the inventory succeeds does it check
+lease ownership and delete the collected batch. Pointer objects are never
+deleted because the storage boundary cannot condition deletion on the revision
+that was inventoried; they are tiny compared with generation payloads. Current
+and previous generations, recent objects, malformed keys, and unknown namespace
+entries are never deleted. Pointer or listing failures delete nothing; lease
+loss, cancellation, or deletion failure stops the pass.
 
 The sweeper runs only while projection snapshots are enabled. One replica holds
 a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
