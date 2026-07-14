@@ -361,8 +361,8 @@ describe('computeEventMetadata', () => {
     });
 
     it('uses an explicit locale for visible day labels', async () => {
-      await loadLocaleMessages('de');
-      setReactiveLocale('de');
+      await loadLocaleMessages('de-DE');
+      setReactiveLocale('de-DE');
 
       try {
         const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });

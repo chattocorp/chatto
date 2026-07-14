@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Adjuntar archivo",
+    "send": "Enviar mensaje",
+    "send_enter": "Enviar mensaje (Entrar)",
+    "send_ctrl_enter": "Enviar mensaje (Ctrl/Cmd+Entrar)",
+    "also_send_to_channel": "También enviar al canal",
+    "replying_to": "Respondiendo a",
+    "esc_to_cancel": "para cancelar",
+    "editing": "Editando mensaje",
+    "send_anyway": "Enviar de todos modos",
+    "role_mention_confirm_title": "¿Enviar mención?",
+    "role_mention_confirm_body": "Este mensaje contiene una mención que puede notificar a varias personas.",
+    "link_url": "Enlace URL",
+    "open_link": "Abrir enlace",
+    "remove_link": "Eliminar enlace",
+    "code_language": "Lenguaje de código",
+    "placeholder": "Escribe un mensaje...",
+    "editing_placeholder": "Editando mensaje...",
+    "drop_files_title": "Suelta archivos aquí",
+    "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
+    "send_failed": "No se pudo enviar el mensaje",
+    "edit_failed": "No se pudo editar el mensaje",
+    "mention": {
+      "all_room_members": "Todos los miembros de la sala",
+      "members_here": "Miembros actualmente aquí",
+      "role": "Rol"
+    }
+  }
+}

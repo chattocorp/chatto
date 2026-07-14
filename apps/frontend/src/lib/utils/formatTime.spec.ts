@@ -182,8 +182,8 @@ describe('formatDayLabel', () => {
   });
 
   it('uses the active locale for relative and formatted labels', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
 
     try {
       expect(formatDayLabel('2025-04-27T08:00:00Z', utc12)).toBe('Heute');
@@ -287,8 +287,8 @@ describe('fileDateGroup', () => {
   });
 
   it('uses the active locale for group labels', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
 
     try {
       expect(fileDateGroup('2026-06-16T08:00:00Z', utc12, now, 'de-DE')).toEqual({

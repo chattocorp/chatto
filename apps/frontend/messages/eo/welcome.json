@@ -1,0 +1,6 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "welcome": {
+    "verified": "Via retpoŝto estas kontrolita kaj via konto estas preta."
+  }
+}

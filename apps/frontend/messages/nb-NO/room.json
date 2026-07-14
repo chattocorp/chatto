@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Opprett et nytt rom",
+      "description": "Rom er samtaler på serveren din.",
+      "name_placeholder": "Skriv inn romnavn",
+      "description_placeholder": "Hva handler dette rommet om?",
+      "name_label": "Romnavn",
+      "description_label": "Beskrivelse (valgfritt)",
+      "universal_label": "Universelt rom",
+      "universal_description": "Alle servermedlemmer (gitt tillatelse) er automatisk medlemmer av dette rommet.",
+      "name_required": "Romnavn er påkrevd",
+      "missing_group": "Velg en romgruppe før du oppretter et rom.",
+      "failed": "Kunne ikke opprette rom",
+      "creating": "Oppretter ...",
+      "submit": "Opprett rom"
+    },
+    "join": {
+      "title": "Bli med i rommet",
+      "action": "Bli med i rommet",
+      "prompt": "Bli med #{room} for å lese og delta i dette rommet.",
+      "inline_prompt": "Bli med i dette rommet for å lese og delta.",
+      "success": "Ble med #{room}",
+      "success_generic": "Ble med i rommet",
+      "failed": "Kunne ikke bli med i rommet",
+      "access_title": "Romtilgang",
+      "access_denied": "Du har ikke tillatelse til å bli med i dette rommet."
+    },
+    "leave": {
+      "title": "Forlat rommet",
+      "action": "Forlat rommet",
+      "prompt": "Er du sikker på at du vil forlate #{room}? Du kan bli med igjen senere.",
+      "failed": "Kunne ikke forlate rommet"
+    },
+    "directory": {
+      "universal_title": "Universalrom slås sammen automatisk",
+      "joined": "Ble med",
+      "leave": "Gå",
+      "restricted_title": "Du har ikke tillatelse til å bli med i dette rommet",
+      "search_placeholder": "Søk etter rom...",
+      "empty": "Ingen rom på denne serveren ennå.",
+      "no_results": "Ingen rom samsvarer med filteret ditt.",
+      "universal": "Universal",
+      "joined_title": "Ble med i #{room} – klikk for å forlate",
+      "leaving": "Forlater",
+      "joining": "Blir med",
+      "join": "Bli med",
+      "restricted": "Begrenset",
+      "join_all": "Bli med alle sammen",
+      "already_in_group": "Allerede i alle rom i {group}",
+      "joined_group_one": "Ble med 1 rom i {group}",
+      "joined_group_many": "Ble med {count} rom i {group}",
+      "join_group_failed": "Kunne ikke bli med i gruppen",
+      "left": "Venstre #{room}",
+      "left_generic": "Venstre rom",
+      "leave_confirm": "Er du sikker på at du vil forlate #{room}?"
+    },
+    "server": {
+      "leave_title": "Forlat serveren",
+      "leave_action": "Forlat serveren",
+      "leave_prompt": "Er du sikker på at du vil forlate {server}? Du mister tilgangen til rommene, og klienten din vil glemme denne serveren. Du kan legge den til på nytt senere fra sidefeltet."
+    },
+    "timeline": {
+      "beginning": "Dette er begynnelsen på denne samtalen."
+    },
+    "message": {
+      "empty": "Ingen meldinger ennå",
+      "delete_title": "Slett melding",
+      "delete_prompt": "Er du sikker på at du vil slette denne meldingen? Dette kan ikke angres.",
+      "delete_failed": "Kunne ikke slette meldingen",
+      "reaction_failed": "Kunne ikke oppdatere reaksjonen",
+      "deleted": "Melding slettet",
+      "actions": {
+        "toolbar": "Meldingshandlinger",
+        "react_with": "Reager med {emoji}",
+        "remove_reaction": "Fjern {emoji}",
+        "add_reaction": "Legg til reaksjon",
+        "more_reactions": "Flere reaksjoner",
+        "reply": "Svar",
+        "reply_thread": "Svar i tråden",
+        "open_thread": "Åpne tråden",
+        "edit": "Rediger melding",
+        "more": "Flere handlinger",
+        "edit_short": "Rediger",
+        "copy_link": "Kopier lenken"
+      },
+      "meta": {
+        "thread": "Tråd",
+        "reply_count_one": "1 svar",
+        "reply_count_many": "{count} svarer",
+        "follow_thread": "Følg tråden",
+        "unfollow_thread": "Slutt å følge tråden",
+        "add_reaction_label": "Legg til {emoji}-reaksjon ({count})",
+        "remove_reaction_label": "Fjern {emoji}-reaksjon ({count})",
+        "reaction_users_more": "+ {count} mer",
+        "copy_link_title": "Klikk for å kopiere lenken til denne meldingen",
+        "in_reply_to": "som svar på",
+        "reply_preview_fallback": "Melding",
+        "deleted": "Denne meldingen er slettet."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "ble med i rommet",
+            "countPlural=other": "ble med i rommet"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "forlot rommet",
+            "countPlural=other": "forlot rommet"
+          }
+        }
+      ],
+      "archived": "arkiverte rommet",
+      "unarchived": "fjernet arkivet fra rommet",
+      "and": "og",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "annet",
+            "countPlural=other": "andre"
+          }
+        }
+      ],
+      "show_less": "vis mindre"
+    },
+    "attachment": {
+      "delete_title": "Slett vedlegg",
+      "delete_prompt": "Er du sikker på at du vil slette dette vedlegget? Dette kan ikke angres.",
+      "delete_label": "Slett vedlegg",
+      "delete_failed": "Kunne ikke slette vedlegg",
+      "view_label": "Se {filename}",
+      "download_label": "Last ned {filename}",
+      "image_refresh_failed": "Kunne ikke oppdatere bildelinken",
+      "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken"
+    },
+    "link_preview": {
+      "delete_title": "Slett forhåndsvisning av kobling",
+      "delete_prompt": "Er du sikker på at du vil fjerne denne forhåndsvisningen av koblingen? Dette kan ikke angres.",
+      "delete_failed": "Kunne ikke slette forhåndsvisning av koblingen"
+    },
+    "sidebar": {
+      "extras": "Romtillegg",
+      "resize": "Endre størrelse på tilleggsruten for rom",
+      "hide": "Skjul romtilbehør",
+      "maximize_call": "Maksimer samtalen",
+      "minimize_call": "Minimer samtalen",
+      "members": "Medlemmer",
+      "members_title": "Medlemmer ({count})",
+      "search_members": "Søk rommedlemmer",
+      "search_members_placeholder": "Søk etter medlemmer",
+      "clear_member_search": "Slett medlemssøk",
+      "no_members": "Ingen medlemmer funnet.",
+      "online": "Online ({count})",
+      "offline": "Frakoblet ({count})",
+      "no_files": "Ingen filer i dette rommet ennå.",
+      "files": "Filer",
+      "call": "Ring",
+      "jump_to_file": "Hopp til {filename}",
+      "loading_files": "Laster inn filer...",
+      "calls_unavailable": "Anrop er ikke tilgjengelig på denne serveren.",
+      "view_profile": "Se profilen til {name}",
+      "in_voice_call": "I et taleanrop",
+      "in_video_call": "I en videosamtale",
+      "ban_failed": "Kunne ikke utestenge medlem fra rommet",
+      "ban_success": "Utestengt {name} fra rommet"
+    },
+    "title": {
+      "direct_message": "Direktemelding"
+    },
+    "thread": {
+      "title": "Tråd i #{room}",
+      "back_to_room": "Tilbake til rommet",
+      "follow": "Følg tråden",
+      "unfollow": "Slutt å følge tråden",
+      "close": "Lukk tråden",
+      "not_found": "Tråden ble ikke funnet",
+      "reply_placeholder": "Svar i tråden..."
+    },
+    "jump_to_present": "Gå til presentasjon",
+    "jump_failed": "Kunne ikke hoppe til den meldingen.",
+    "unread_separator": "Nye meldinger",
+    "close_extras": "Lukk romtillegg"
+  }
+}

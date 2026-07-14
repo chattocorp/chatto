@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Powiadomienia",
+      "subtitle": "Oto nowości",
+      "clear_all": "Wyczyść wszystko",
+      "empty_title": "Brak powiadomień",
+      "empty_body": "Wszyscy jesteście zajęci!",
+      "time_now": "Właśnie teraz",
+      "time_minutes": "{count}m temu",
+      "time_hours": "{count}h temu",
+      "time_days": "{count}d temu"
+    },
+    "sign_out": {
+      "title": "Wyloguj się",
+      "current_server": "Bieżący serwer",
+      "all_servers": "Wszystkie serwery",
+      "description": "Wyloguj się tylko z wybranego serwera lub odłącz każdy serwer od tego klienta."
+    },
+    "overview": {
+      "title": "Przegląd"
+    },
+    "server_nav": {
+      "back_to_server": "Powrót do serwera",
+      "server_fallback": "Serwer",
+      "administration": "Administracja serwerem"
+    },
+    "user_menu": {
+      "profile": "Profil użytkownika",
+      "send_message": "Wyślij wiadomość"
+    },
+    "server_gutter": {
+      "add_server": "Dodaj serwer"
+    },
+    "threads": {
+      "title": "Moje wątki",
+      "subtitle": "Wątki, które obserwujesz",
+      "filter_label": "Filtruj wątki",
+      "filter_all": "Wszystko",
+      "filter_unread": "Nieprzeczytane",
+      "empty_title": "Brak obserwowanych wątków",
+      "empty_body": "Wątki, które obserwujesz, pojawią się tutaj. Automatycznie obserwujesz wątki, w których bierzesz udział.",
+      "no_unread_loaded": "Nie załadowano żadnych nieprzeczytanych wątków",
+      "all_caught_up": "Wszystko nadrobione",
+      "loaded_count": "Załadowano następujące wątki {loaded} z {total}.",
+      "load_more": "Załaduj więcej",
+      "no_unread": "W tej chwili nie ma nieprzeczytanych wątków.",
+      "message_missing": "Wiadomość nie jest już dostępna",
+      "in_room": "w",
+      "in_room_capitalized": "W"
+    }
+  }
+}

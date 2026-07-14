@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Maak een nieuwe kamer",
+      "description": "Kamers zijn gesprekken binnen uw server.",
+      "name_placeholder": "Voer de kamernaam in",
+      "description_placeholder": "Waar gaat deze kamer over?",
+      "name_label": "Kamernaam",
+      "description_label": "Beschrijving (optioneel)",
+      "universal_label": "Universele kamer",
+      "universal_description": "Alle serverleden (met toestemming) zijn automatisch lid van deze kamer.",
+      "name_required": "Kamernaam is vereist",
+      "missing_group": "Kies een kamergroep voordat u een kamer aanmaakt.",
+      "failed": "Kan ruimte niet maken",
+      "creating": "Aanmaken...",
+      "submit": "Ruimte maken"
+    },
+    "join": {
+      "title": "Sluit je aan bij een ruimte",
+      "action": "Sluit je aan bij een ruimte",
+      "prompt": "Sluit je aan bij #{room} om deze kamer te lezen en eraan deel te nemen.",
+      "inline_prompt": "Sluit je aan bij deze chatruimte om te lezen en deel te nemen.",
+      "success": "Lid geworden van #{room}",
+      "success_generic": "Aangesloten ruimte",
+      "failed": "Kan niet deelnemen aan de chatruimte",
+      "access_title": "Toegang tot de kamer",
+      "access_denied": "Je hebt geen toestemming om deel te nemen aan deze chatruimte."
+    },
+    "leave": {
+      "title": "Verlaat de kamer",
+      "action": "Verlaat de kamer",
+      "prompt": "Weet je zeker dat je #{room} wilt verlaten? Je kunt later weer meedoen.",
+      "failed": "Kan de kamer niet verlaten"
+    },
+    "directory": {
+      "universal_title": "Universele kamers worden automatisch samengevoegd",
+      "joined": "Lid geworden",
+      "leave": "Vertrekken",
+      "restricted_title": "Je hebt geen toestemming om deel te nemen aan deze chatruimte",
+      "search_placeholder": "Kamers zoeken...",
+      "empty": "Nog geen kamers op deze server.",
+      "no_results": "Er zijn geen kamers die overeenkomen met je filter.",
+      "universal": "Universeel",
+      "joined_title": "Lid geworden van #{room} - klik om te vertrekken",
+      "leaving": "Vertrek",
+      "joining": "Deelnemen",
+      "join": "Doe mee",
+      "restricted": "Beperkt",
+      "join_all": "Doe mee met iedereen",
+      "already_in_group": "Al in elke kamer in {group}",
+      "joined_group_one": "Deelgenomen aan 1 kamer in {group}",
+      "joined_group_many": "Deelgenomen aan {count}-ruimten in {group}",
+      "join_group_failed": "Kan niet deelnemen aan de groep",
+      "left": "Links #{room}",
+      "left_generic": "Linkerkamer",
+      "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?"
+    },
+    "server": {
+      "leave_title": "Verlaat de server",
+      "leave_action": "Verlaat de server",
+      "leave_prompt": "Weet je zeker dat je {server} wilt verlaten? U verliest de toegang tot de kamers en uw klant zal deze server vergeten. Je kunt het later opnieuw toevoegen via de zijbalk."
+    },
+    "timeline": {
+      "beginning": "Dit is het begin van dit gesprek."
+    },
+    "message": {
+      "empty": "Nog geen berichten",
+      "delete_title": "Bericht verwijderen",
+      "delete_prompt": "Weet je zeker dat je dit bericht wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+      "delete_failed": "Kan bericht niet verwijderen",
+      "reaction_failed": "Kan reactie niet updaten",
+      "deleted": "Bericht verwijderd",
+      "actions": {
+        "toolbar": "Berichtacties",
+        "react_with": "Reageer met {emoji}",
+        "remove_reaction": "{emoji} verwijderen",
+        "add_reaction": "Reactie toevoegen",
+        "more_reactions": "Meer reacties",
+        "reply": "Beantwoorden",
+        "reply_thread": "Reageer in gesprek",
+        "open_thread": "Discussie openen",
+        "edit": "Bericht bewerken",
+        "more": "Meer acties",
+        "edit_short": "Bewerken",
+        "copy_link": "Kopieer link"
+      },
+      "meta": {
+        "thread": "Discussie",
+        "reply_count_one": "1 antwoord",
+        "reply_count_many": "{count} antwoordt",
+        "follow_thread": "Volg draad",
+        "unfollow_thread": "Discussie niet meer volgen",
+        "add_reaction_label": "{emoji}-reactie toevoegen ({count})",
+        "remove_reaction_label": "{emoji}-reactie verwijderen ({count})",
+        "reaction_users_more": "+ {count} meer",
+        "copy_link_title": "Klik om de link naar dit bericht te kopiëren",
+        "in_reply_to": "als antwoord op",
+        "reply_preview_fallback": "Bericht",
+        "deleted": "Dit bericht is verwijderd."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "kwam naar de kamer",
+            "countPlural=other": "kwam naar de kamer"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "verliet de kamer",
+            "countPlural=other": "verliet de kamer"
+          }
+        }
+      ],
+      "archived": "heeft de chatruimte gearchiveerd",
+      "unarchived": "heeft het archief van de chatruimte verwijderd",
+      "and": "en",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "anders",
+            "countPlural=other": "anderen"
+          }
+        }
+      ],
+      "show_less": "laten minder zien"
+    },
+    "attachment": {
+      "delete_title": "Bijlage verwijderen",
+      "delete_prompt": "Weet u zeker dat u deze bijlage wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+      "delete_label": "Bijlage verwijderen",
+      "delete_failed": "Kan bijlage niet verwijderen",
+      "view_label": "Bekijk {filename}",
+      "download_label": "{filename} downloaden",
+      "image_refresh_failed": "Kan afbeeldingslink niet vernieuwen",
+      "download_refresh_failed": "Kan de downloadlink niet vernieuwen"
+    },
+    "link_preview": {
+      "delete_title": "Linkvoorbeeld verwijderen",
+      "delete_prompt": "Weet u zeker dat u dit linkvoorbeeld wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+      "delete_failed": "Kan linkvoorbeeld niet verwijderen"
+    },
+    "sidebar": {
+      "extras": "Kamerextra's",
+      "resize": "Wijzig het formaat van het deelvenster met kamerextra's",
+      "hide": "Kamerextra's verbergen",
+      "maximize_call": "Maximaliseer het gesprek",
+      "minimize_call": "Minimaliseer het gesprek",
+      "members": "Leden",
+      "members_title": "Leden ({count})",
+      "search_members": "Zoek kamerleden",
+      "search_members_placeholder": "Leden zoeken",
+      "clear_member_search": "Zoeken naar leden wissen",
+      "no_members": "Geen leden gevonden.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "Nog geen bestanden in deze kamer.",
+      "files": "Bestanden",
+      "call": "Bel",
+      "jump_to_file": "Ga naar {filename}",
+      "loading_files": "Bestanden laden...",
+      "calls_unavailable": "Oproepen zijn niet beschikbaar op deze server.",
+      "view_profile": "Bekijk profiel van {name}",
+      "in_voice_call": "In een spraakoproep",
+      "in_video_call": "In een videogesprek",
+      "ban_failed": "Kan lid niet uitsluiten van kamer",
+      "ban_success": "{name} is uitgesloten van de kamer"
+    },
+    "title": {
+      "direct_message": "Direct bericht"
+    },
+    "thread": {
+      "title": "Onderwerp in #{room}",
+      "back_to_room": "Terug naar de kamer",
+      "follow": "Volg draad",
+      "unfollow": "Discussie niet meer volgen",
+      "close": "Discussie sluiten",
+      "not_found": "Discussie niet gevonden",
+      "reply_placeholder": "Reageer in gesprek..."
+    },
+    "jump_to_present": "Ga naar heden",
+    "jump_failed": "Kan niet naar dat bericht springen.",
+    "unread_separator": "Nieuwe berichten",
+    "close_extras": "Kamerextra's sluiten"
+  }
+}

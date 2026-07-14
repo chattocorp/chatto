@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Legg til server",
+    "sign_in": "Logg på",
+    "connect": "Koble til",
+    "redirecting": "Omdirigerer...",
+    "connecting": "Kobler til...",
+    "start_failed": "Kunne ikke starte pålogging.",
+    "invalid_url": "Vennligst skriv inn en gyldig URL.",
+    "already_connected": "Denne serveren er allerede tilkoblet.",
+    "not_chatto_server": "Dette ser ikke ut til å være en Chatto-server.",
+    "oauth_unsupported": "Denne serveren støtter ikke OAuth-autentisering. Den må kanskje oppdateres.",
+    "connection_timed_out": "Tilkoblingen ble tidsavbrutt. Sjekk URL og prøv igjen.",
+    "connection_failed": "Kunne ikke koble til. Sjekk URL og sørg for at CORS er konfigurert.",
+    "connect_failed": "Kunne ikke koble til.",
+    "edit_url": "Feil server? Rediger URL",
+    "description_url": "Chatto er distribuert - klienten din kobles direkte til hver server. Skriv inn en URL for å legge til en annen.",
+    "description_preview": "Du er i ferd med å logge på denne serveren. Du vil bli sendt til påloggingssiden for å autentisere.",
+    "url_label": "Server URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

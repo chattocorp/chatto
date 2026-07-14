@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
+  import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
@@ -135,23 +136,12 @@
     description: string;
   }>);
 
-  const languageOptions = $derived([
-    {
-      value: 'en-GB',
-      label: m['settings.preferences.language.english_uk']()
-    },
-    {
-      value: 'en-US',
-      label: m['settings.preferences.language.english_us']()
-    },
-    {
-      value: 'de',
-      label: m['settings.preferences.language.german']()
-    }
-  ] satisfies Array<{
-    value: Locale;
-    label: string;
-  }>);
+  const languageOptions = $derived(
+    selectableLocales.map((locale) => ({
+      value: locale,
+      label: localeDisplayName(locale, activeLocale)
+    }))
+  );
 
   const timeFormatOptions = $derived([
     {

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Notificaciones",
+      "subtitle": "Esto es lo nuevo",
+      "clear_all": "Borrar todo",
+      "empty_title": "Sin notificaciones",
+      "empty_body": "¡Están todos atrapados!",
+      "time_now": "Justo ahora",
+      "time_minutes": "Hace {count}m",
+      "time_hours": "Hace {count}h",
+      "time_days": "Hace {count}d"
+    },
+    "sign_out": {
+      "title": "Cerrar sesión",
+      "current_server": "Servidor actual",
+      "all_servers": "Todos los servidores",
+      "description": "Cierra sesión solo en el servidor seleccionado o desconecta todos los servidores de este cliente."
+    },
+    "overview": {
+      "title": "Descripción general"
+    },
+    "server_nav": {
+      "back_to_server": "Volver al servidor",
+      "server_fallback": "Servidor",
+      "administration": "Administración del servidor"
+    },
+    "user_menu": {
+      "profile": "Perfil de usuario",
+      "send_message": "Enviar Mensaje"
+    },
+    "server_gutter": {
+      "add_server": "Agregar servidor"
+    },
+    "threads": {
+      "title": "Mis hilos",
+      "subtitle": "Temas que estás siguiendo",
+      "filter_label": "Filtrar hilos",
+      "filter_all": "Todos",
+      "filter_unread": "No leído",
+      "empty_title": "No se siguen hilos",
+      "empty_body": "Los hilos que sigues aparecerán aquí. Sigues automáticamente los hilos en los que participas.",
+      "no_unread_loaded": "No se cargaron hilos no leídos",
+      "all_caught_up": "Todos atrapados",
+      "loaded_count": "{loaded} de {total} siguió los hilos cargados.",
+      "load_more": "Cargar más",
+      "no_unread": "No hay hilos sin leer en este momento.",
+      "message_missing": "Mensaje ya no disponible",
+      "in_room": "en",
+      "in_room_capitalized": "En"
+    }
+  }
+}

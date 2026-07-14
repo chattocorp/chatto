@@ -18,7 +18,23 @@ const loadedLocales = new Map<Locale, Promise<LocaleMessages>>([
 const localeLoaders: Record<Locale, () => Promise<LocaleMessages>> = {
   "en-GB": () => Promise.resolve(baseMessages),
   "en-US": () => import('$lib/paraglide/messages/en-US.js') as Promise<LocaleMessages>,
-  "de": () => import('$lib/paraglide/messages/de.js') as Promise<LocaleMessages>,
+  "de-DE": () => import('$lib/paraglide/messages/de-DE.js') as Promise<LocaleMessages>,
+  "de-AT": () => import('$lib/paraglide/messages/de-AT.js') as Promise<LocaleMessages>,
+  "de-CH": () => import('$lib/paraglide/messages/de-CH.js') as Promise<LocaleMessages>,
+  "nl-NL": () => import('$lib/paraglide/messages/nl-NL.js') as Promise<LocaleMessages>,
+  "nl-BE": () => import('$lib/paraglide/messages/nl-BE.js') as Promise<LocaleMessages>,
+  "sv-SE": () => import('$lib/paraglide/messages/sv-SE.js') as Promise<LocaleMessages>,
+  "fr-FR": () => import('$lib/paraglide/messages/fr-FR.js') as Promise<LocaleMessages>,
+  "fr-CA": () => import('$lib/paraglide/messages/fr-CA.js') as Promise<LocaleMessages>,
+  "es-ES": () => import('$lib/paraglide/messages/es-ES.js') as Promise<LocaleMessages>,
+  "es-419": () => import('$lib/paraglide/messages/es-419.js') as Promise<LocaleMessages>,
+  "pt-BR": () => import('$lib/paraglide/messages/pt-BR.js') as Promise<LocaleMessages>,
+  "pt-PT": () => import('$lib/paraglide/messages/pt-PT.js') as Promise<LocaleMessages>,
+  "nb-NO": () => import('$lib/paraglide/messages/nb-NO.js') as Promise<LocaleMessages>,
+  "pl-PL": () => import('$lib/paraglide/messages/pl-PL.js') as Promise<LocaleMessages>,
+  "uk-UA": () => import('$lib/paraglide/messages/uk-UA.js') as Promise<LocaleMessages>,
+  "ja-JP": () => import('$lib/paraglide/messages/ja-JP.js') as Promise<LocaleMessages>,
+  "eo": () => import('$lib/paraglide/messages/eo.js') as Promise<LocaleMessages>,
 };
 
 function loadLocaleModule(locale: Locale): Promise<LocaleMessages> {
@@ -622,6 +638,7 @@ const msg_room_server_leave_action = (): LocalizedString => messages().room_serv
 const msg_room_server_leave_prompt = (
   inputs: Parameters<LocaleMessages['room_server_leave_prompt']>[0]
 ): LocalizedString => messages().room_server_leave_prompt(inputs);
+const msg_room_timeline_beginning = (): LocalizedString => messages().room_timeline_beginning(empty());
 const msg_room_message_empty = (): LocalizedString => messages().room_message_empty(empty());
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
 const msg_room_message_delete_prompt = (): LocalizedString => messages().room_message_delete_prompt(empty());
@@ -2029,6 +2046,7 @@ export { msg_room_directory_leave_confirm as 'room.directory.leave_confirm' };
 export { msg_room_server_leave_title as 'room.server.leave_title' };
 export { msg_room_server_leave_action as 'room.server.leave_action' };
 export { msg_room_server_leave_prompt as 'room.server.leave_prompt' };
+export { msg_room_timeline_beginning as 'room.timeline.beginning' };
 export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
 export { msg_room_message_delete_prompt as 'room.message.delete_prompt' };

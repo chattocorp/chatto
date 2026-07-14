@@ -1,0 +1,218 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Utwórz nowy pokój",
+      "description": "Pokoje to rozmowy prowadzone na Twoim serwerze.",
+      "name_placeholder": "Wpisz nazwę pokoju",
+      "description_placeholder": "O co chodzi w tym pokoju?",
+      "name_label": "Nazwa pokoju",
+      "description_label": "Opis (opcjonalnie)",
+      "universal_label": "Pokój uniwersalny",
+      "universal_description": "Wszyscy członkowie serwera (po otrzymaniu pozwolenia) automatycznie stają się członkami tego pokoju.",
+      "name_required": "Nazwa pokoju jest wymagana",
+      "missing_group": "Wybierz grupę pokoi przed utworzeniem pokoju.",
+      "failed": "Nie udało się utworzyć pokoju",
+      "creating": "Tworzenie...",
+      "submit": "Utwórz pokój"
+    },
+    "join": {
+      "title": "Dołącz do pokoju",
+      "action": "Dołącz do pokoju",
+      "prompt": "Dołącz do #{room}, aby czytać i uczestniczyć w tym pokoju.",
+      "inline_prompt": "Dołącz do tego pokoju, aby czytać i brać udział.",
+      "success": "Dołączył do #{room}",
+      "success_generic": "Dołączył do pokoju",
+      "failed": "Nie udało się dołączyć do pokoju",
+      "access_title": "Dostęp do pokoju",
+      "access_denied": "Nie masz uprawnień, aby dołączyć do tego pokoju."
+    },
+    "leave": {
+      "title": "Opuść pokój",
+      "action": "Opuść pokój",
+      "prompt": "Czy na pewno chcesz opuścić #{room}? Możesz dołączyć później.",
+      "failed": "Nie udało się opuścić pokoju"
+    },
+    "directory": {
+      "universal_title": "Pokoje uniwersalne łączą się automatycznie",
+      "joined": "Dołączył",
+      "leave": "Wyjdź",
+      "restricted_title": "Nie masz uprawnień, aby dołączyć do tego pokoju",
+      "search_placeholder": "Wyszukaj pokoje...",
+      "empty": "Nie ma jeszcze pokoi na tym serwerze.",
+      "no_results": "Żadne pokoje nie pasują do Twojego filtra.",
+      "universal": "Uniwersalny",
+      "joined_title": "Dołączono do #{room} - kliknij, aby opuścić",
+      "leaving": "Wychodzę",
+      "joining": "Dołączam",
+      "join": "Dołącz",
+      "restricted": "Ograniczone",
+      "join_all": "Dołącz do wszystkich",
+      "already_in_group": "Już w każdym pokoju w {group}",
+      "joined_group_one": "Dołączył do 1 pokoju w {group}",
+      "joined_group_many": "Dołączono do pokoi {count} w {group}",
+      "join_group_failed": "Nie udało się dołączyć do grupy",
+      "left": "W lewo #{room}",
+      "left_generic": "Opuścił pokój",
+      "leave_confirm": "Czy na pewno chcesz opuścić #{room}?"
+    },
+    "server": {
+      "leave_title": "Opuść serwer",
+      "leave_action": "Opuść serwer",
+      "leave_prompt": "Czy na pewno chcesz opuścić {server}? Stracisz dostęp do jego pokoi, a Twój klient zapomni o tym serwerze. Możesz dodać go później ponownie z paska bocznego."
+    },
+    "timeline": {
+      "beginning": "To początek tej rozmowy."
+    },
+    "message": {
+      "empty": "Nie ma jeszcze żadnych wiadomości",
+      "delete_title": "Usuń wiadomość",
+      "delete_prompt": "Czy na pewno chcesz usunąć tę wiadomość? Tego nie można cofnąć.",
+      "delete_failed": "Nie udało się usunąć wiadomości",
+      "reaction_failed": "Nie udało się zaktualizować reakcji",
+      "deleted": "Wiadomość usunięta",
+      "actions": {
+        "toolbar": "Działania w wiadomościach",
+        "react_with": "Reaguj za pomocą {emoji}",
+        "remove_reaction": "Usuń {emoji}",
+        "add_reaction": "Dodaj reakcję",
+        "more_reactions": "Więcej reakcji",
+        "reply": "Odpowiedz",
+        "reply_thread": "Odpowiedz w wątku",
+        "open_thread": "Otwórz wątek",
+        "edit": "Edytuj wiadomość",
+        "more": "Więcej akcji",
+        "edit_short": "Edytuj",
+        "copy_link": "Skopiuj link"
+      },
+      "meta": {
+        "thread": "Wątek",
+        "reply_count_one": "1 odpowiedź",
+        "reply_count_many": "Odpowiedzi {count}",
+        "follow_thread": "Obserwuj wątek",
+        "unfollow_thread": "Przestań obserwować wątek",
+        "add_reaction_label": "Dodaj reakcję {emoji} ({count})",
+        "remove_reaction_label": "Usuń reakcję {emoji} ({count})",
+        "reaction_users_more": "+ {count} więcej",
+        "copy_link_title": "Kliknij, aby skopiować link do tej wiadomości",
+        "in_reply_to": "w odpowiedzi na",
+        "reply_preview_fallback": "Wiadomość",
+        "deleted": "Ta wiadomość została usunięta."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "dołączył do pokoju",
+            "countPlural=few": "dołączyli do pokoju",
+            "countPlural=many": "dołączyli do pokoju",
+            "countPlural=other": "dołączyli do pokoju"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "opuścił pokój",
+            "countPlural=few": "opuścili pokój",
+            "countPlural=many": "opuścili pokój",
+            "countPlural=other": "opuścili pokój"
+          }
+        }
+      ],
+      "archived": "zarchiwizował pokój",
+      "unarchived": "cofnął archiwizację pokoju",
+      "and": "i",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "inna osoba",
+            "countPlural=few": "inne osoby",
+            "countPlural=many": "innych osób",
+            "countPlural=other": "innych osób"
+          }
+        }
+      ],
+      "show_less": "pokazuj mniej"
+    },
+    "attachment": {
+      "delete_title": "Usuń załącznik",
+      "delete_prompt": "Czy na pewno chcesz usunąć ten załącznik? Tego nie można cofnąć.",
+      "delete_label": "Usuń załącznik",
+      "delete_failed": "Nie udało się usunąć załącznika",
+      "view_label": "Wyświetl {filename}",
+      "download_label": "Pobierz {filename}",
+      "image_refresh_failed": "Nie można odświeżyć linku do obrazu",
+      "download_refresh_failed": "Nie można odświeżyć linku do pobrania"
+    },
+    "link_preview": {
+      "delete_title": "Usuń podgląd linku",
+      "delete_prompt": "Czy na pewno chcesz usunąć podgląd tego linku? Tego nie można cofnąć.",
+      "delete_failed": "Nie udało się usunąć podglądu linku"
+    },
+    "sidebar": {
+      "extras": "Dodatki do pokoju",
+      "resize": "Zmień rozmiar okienka z dodatkami do pokoju",
+      "hide": "Ukryj dodatki do pokoju",
+      "maximize_call": "Maksymalizuj połączenie",
+      "minimize_call": "Minimalizuj połączenie",
+      "members": "Członkowie",
+      "members_title": "Członkowie ({count})",
+      "search_members": "Wyszukaj członków pokoju",
+      "search_members_placeholder": "Wyszukaj członków",
+      "clear_member_search": "Wyczyść wyszukiwanie członków",
+      "no_members": "Nie znaleziono członków.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "Nie ma jeszcze plików w tym pokoju.",
+      "files": "Pliki",
+      "call": "Zadzwoń",
+      "jump_to_file": "Skocz do {filename}",
+      "loading_files": "Ładowanie plików...",
+      "calls_unavailable": "Połączenia nie są dostępne na tym serwerze.",
+      "view_profile": "Zobacz profil {name}",
+      "in_voice_call": "Podczas połączenia głosowego",
+      "in_video_call": "Podczas rozmowy wideo",
+      "ban_failed": "Nie udało się zablokować członka w pokoju",
+      "ban_success": "Zablokowano {name} w pokoju"
+    },
+    "title": {
+      "direct_message": "Wiadomość bezpośrednia"
+    },
+    "thread": {
+      "title": "Wątek w #{room}",
+      "back_to_room": "Powrót do pokoju",
+      "follow": "Obserwuj wątek",
+      "unfollow": "Przestań obserwować wątek",
+      "close": "Zamknij wątek",
+      "not_found": "Nie znaleziono wątku",
+      "reply_placeholder": "Odpowiedz w wątku..."
+    },
+    "jump_to_present": "Przejdź do prezentacji",
+    "jump_failed": "Nie można przejść do tej wiadomości.",
+    "unread_separator": "Nowe wiadomości",
+    "close_extras": "Zamknij dodatki do pokoju"
+  }
+}

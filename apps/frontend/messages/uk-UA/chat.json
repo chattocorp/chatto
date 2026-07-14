@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Сповіщення",
+      "subtitle": "Ось що нового",
+      "clear_all": "Очистити все",
+      "empty_title": "Немає сповіщень",
+      "empty_body": "Ви все наздогнали!",
+      "time_now": "Щойно",
+      "time_minutes": "{count}м тому",
+      "time_hours": "{count}h тому",
+      "time_days": "{count}d тому"
+    },
+    "sign_out": {
+      "title": "Вийти",
+      "current_server": "Поточний сервер",
+      "all_servers": "Усі сервери",
+      "description": "Вийдіть лише з вибраного сервера або відключіть усі сервери від цього клієнта."
+    },
+    "overview": {
+      "title": "Огляд"
+    },
+    "server_nav": {
+      "back_to_server": "Назад на сервер",
+      "server_fallback": "Сервер",
+      "administration": "Адміністрування сервера"
+    },
+    "user_menu": {
+      "profile": "Профіль користувача",
+      "send_message": "Надіслати повідомлення"
+    },
+    "server_gutter": {
+      "add_server": "Додати сервер"
+    },
+    "threads": {
+      "title": "Мої теми",
+      "subtitle": "Теми, за якими ви стежите",
+      "filter_label": "Фільтрувати ланцюжки",
+      "filter_all": "Усі",
+      "filter_unread": "Непрочитано",
+      "empty_title": "Немає тем, на які ви підписалися",
+      "empty_body": "Теми, за якими ви стежите, відображатимуться тут. Ви автоматично стежите за темами, в яких берете участь.",
+      "no_unread_loaded": "Незавантажено непрочитаних тем",
+      "all_caught_up": "Усе наздогнали",
+      "loaded_count": "{loaded} із {total} завантажено ланцюжки, за якими слідкує.",
+      "load_more": "Завантажити більше",
+      "no_unread": "Зараз немає непрочитаних тем.",
+      "message_missing": "Повідомлення більше не доступне",
+      "in_room": "в",
+      "in_room_capitalized": "В"
+    }
+  }
+}

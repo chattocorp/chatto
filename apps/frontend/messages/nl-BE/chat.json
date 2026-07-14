@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Meldingen",
+      "subtitle": "Dit is wat er nieuw is",
+      "clear_all": "Alles wissen",
+      "empty_title": "Geen meldingen",
+      "empty_body": "Jullie zijn helemaal in beslag genomen!",
+      "time_now": "Zojuist",
+      "time_minutes": "{count}m geleden",
+      "time_hours": "{count}h geleden",
+      "time_days": "{count}d geleden"
+    },
+    "sign_out": {
+      "title": "Uitloggen",
+      "current_server": "Huidige server",
+      "all_servers": "Alle servers",
+      "description": "Meld u alleen af bij de geselecteerde server, of ontkoppel elke server van deze client."
+    },
+    "overview": {
+      "title": "Overzicht"
+    },
+    "server_nav": {
+      "back_to_server": "Terug naar de server",
+      "server_fallback": "Server",
+      "administration": "Serverbeheer"
+    },
+    "user_menu": {
+      "profile": "Gebruikersprofiel",
+      "send_message": "Bericht verzenden"
+    },
+    "server_gutter": {
+      "add_server": "Server toevoegen"
+    },
+    "threads": {
+      "title": "Mijn discussies",
+      "subtitle": "Discussies die je volgt",
+      "filter_label": "Discussies filteren",
+      "filter_all": "Allemaal",
+      "filter_unread": "Ongelezen",
+      "empty_title": "Geen gevolgde discussies",
+      "empty_body": "Discussies die je volgt, verschijnen hier. Je volgt automatisch de discussies waaraan je deelneemt.",
+      "no_unread_loaded": "Geen ongelezen discussies geladen",
+      "all_caught_up": "Allemaal ingehaald",
+      "loaded_count": "{loaded} van {total} gevolgde threads geladen.",
+      "load_more": "Laad meer",
+      "no_unread": "Er zijn momenteel geen ongelezen discussies.",
+      "message_missing": "Bericht niet langer beschikbaar",
+      "in_room": "binnen",
+      "in_room_capitalized": "Binnen"
+    }
+  }
+}

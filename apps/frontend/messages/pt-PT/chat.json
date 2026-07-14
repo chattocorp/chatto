@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Notificações",
+      "subtitle": "Aqui estão as novidades",
+      "clear_all": "Limpar tudo",
+      "empty_title": "Sem notificação",
+      "empty_body": "Estão todos actualizados!",
+      "time_now": "Neste momento",
+      "time_minutes": "{count}m atrás",
+      "time_hours": "{count}h atrás",
+      "time_days": "{count}d atrás"
+    },
+    "sign_out": {
+      "title": "Sair",
+      "current_server": "Servidor Atual",
+      "all_servers": "Todos os servidores",
+      "description": "Saia apenas do servidor selecionado ou desligue todos os servidores deste cliente."
+    },
+    "overview": {
+      "title": "Visão geral"
+    },
+    "server_nav": {
+      "back_to_server": "Voltar ao servidor",
+      "server_fallback": "Servidor",
+      "administration": "Administração do servidor"
+    },
+    "user_menu": {
+      "profile": "Perfil de utilizador",
+      "send_message": "Enviar mensagem"
+    },
+    "server_gutter": {
+      "add_server": "Adicionar servidor"
+    },
+    "threads": {
+      "title": "Os meus tópicos",
+      "subtitle": "Tópicos que está a seguir",
+      "filter_label": "Filtrar tópicos",
+      "filter_all": "Todos",
+      "filter_unread": "Não lido",
+      "empty_title": "Nenhum tópico seguido",
+      "empty_body": "Os tópicos que segue aparecerão aqui. Segue automaticamente os tópicos em que participa.",
+      "no_unread_loaded": "Nenhum tópico não lido carregado",
+      "all_caught_up": "Todos em dia",
+      "loaded_count": "{loaded} de {total} seguiu threads carregados.",
+      "load_more": "Carregar mais",
+      "no_unread": "Nenhum tópico não lido de momento.",
+      "message_missing": "Mensagem já não está disponível",
+      "in_room": "em",
+      "in_room_capitalized": "Em"
+    }
+  }
+}

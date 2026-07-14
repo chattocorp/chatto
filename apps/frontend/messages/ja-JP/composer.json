@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "ファイルを添付",
+    "send": "メッセージを送信",
+    "send_enter": "メッセージを送信（Enter）",
+    "send_ctrl_enter": "メッセージを送信 (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "チャンネルにも送信します",
+    "replying_to": "返信中",
+    "esc_to_cancel": "キャンセルします",
+    "editing": "メッセージを編集中",
+    "send_anyway": "とにかく送信する",
+    "role_mention_confirm_title": "メンションを送信しますか?",
+    "role_mention_confirm_body": "このメッセージには、複数の人に通知する可能性のあるメンションが含まれています。",
+    "link_url": "リンク URL",
+    "open_link": "リンクを開く",
+    "remove_link": "リンクを削除",
+    "code_language": "コード言語",
+    "placeholder": "メッセージを入力してください...",
+    "editing_placeholder": "メッセージを編集中...",
+    "drop_files_title": "ここにファイルをドロップします",
+    "drop_files_subtitle": "画像と動画がメッセージに追加されます",
+    "send_failed": "メッセージの送信に失敗しました",
+    "edit_failed": "メッセージの編集に失敗しました",
+    "mention": {
+      "all_room_members": "ルームメンバー全員",
+      "members_here": "現在いるメンバー",
+      "role": "役割"
+    }
+  }
+}

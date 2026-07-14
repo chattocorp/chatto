@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Przełącz pasek boczny",
+    "notifications": "Powiadomienia",
+    "open_quick_switcher": "Otwórz szybki przełącznik",
+    "quick_switcher_shortcut": "Szybki przełącznik (Cmd+K)",
+    "realtime_paused": "Aktualizacje w czasie rzeczywistym wstrzymane. Ponowne łączenie...",
+    "update_available": "Dostępna jest nowa wersja",
+    "reload": "Załaduj ponownie",
+    "sign_out": "Wyloguj się",
+    "close": "Zamknij",
+    "auth_status": {
+      "origin_title": "Sesja wygasła",
+      "origin_message": "Możesz dalej czytać to, co jest już załadowane. Zaloguj się ponownie, aby wysyłać wiadomości i odświeżyć dane.",
+      "origin_action": "Zaloguj się ponownie",
+      "remote_title": "{server} wymaga zalogowania",
+      "remote_message": "Ten serwer odrzucił zapisane logowanie. Podłącz go ponownie, aby wznowić aktualizacje i działania na żywo.",
+      "remote_action": "Połącz się ponownie",
+      "remote_failed": "Nie udało się rozpocząć ponownego łączenia",
+      "sidebar_reauth": "{server} wymaga zalogowania"
+    },
+    "access_denied": {
+      "title": "Odmowa dostępu",
+      "message": "Nie masz uprawnień dostępu do tej strony.",
+      "back": "Wróć do czatu",
+      "back_to_server": "Wróć do serwera"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Więcej informacji",
+      "about": "O {subject}"
+    },
+    "pane_header": {
+      "back": "Wróć"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Powrót do czatu"
+    },
+    "resize_handle": {
+      "resize": "Zmień rozmiar",
+      "resize_sidebar": "Zmień rozmiar paska bocznego"
+    },
+    "data_table": {
+      "empty": "Brak danych",
+      "loading_more": "Ładowanie więcej..."
+    },
+    "loading_page": {
+      "loading": "Ładowanie..."
+    },
+    "image_modal": {
+      "previous": "Poprzedni obraz",
+      "next": "Następny obraz",
+      "fallback_alt": "Obraz"
+    },
+    "toast": {
+      "dismiss": "Odrzuć powiadomienie"
+    },
+    "combobox": {
+      "loading": "Ładowanie...",
+      "empty": "Brak dopasowań",
+      "clear": "Wyczyść"
+    },
+    "expiry": {
+      "label": "Wygasa",
+      "24h": "24 godziny",
+      "7d": "7 dni",
+      "30d": "30 dni",
+      "indefinite": "Brak wygaśnięcia",
+      "custom": "Niestandardowe",
+      "custom_label": "Niestandardowe wygaśnięcie",
+      "error_required": "Wybierz datę ważności.",
+      "error_invalid": "Wprowadź ważny termin ważności.",
+      "error_future": "Wygaśnięcie musi nastąpić w przyszłości."
+    },
+    "form": {
+      "required": "Wymagane"
+    },
+    "dates": {
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj",
+      "this_week": "W tym tygodniu",
+      "this_month": "W tym miesiącu"
+    }
+  }
+}

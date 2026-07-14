@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Quelque chose a mal tourné",
+    "description": "Cette vue n'a pas pu être ouverte. Vous pouvez retourner à Chatto et réessayer à partir de là.",
+    "unknown": "Erreur inconnue",
+    "home_link": "Retour à Chatto",
+    "missing_media_title": "Média non disponible",
+    "missing_media_description": "Ce fichier n'a pas pu être ouvert à partir de ce lien. Il a peut-être été supprimé ou le lien multimédia privé n'est plus disponible."
+  }
+}

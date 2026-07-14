@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Aktiva voko",
+    "call_participants": "{count} partoprenantoj en voko",
+    "go_to_notifications": "Iru al {count} sciigoj",
+    "notifications": "{count} sciigoj",
+    "unread_messages": "nelegitaj mesaĝoj",
+    "go_to_dm_notifications": "Iru al {count} rektaj mesaĝaj sciigoj",
+    "new_direct_messages": "{count} novaj rektaj mesaĝoj",
+    "direct_messages": "Rektaj Mesaĝoj",
+    "empty_title": "Ankoraŭ neniuj ĉambroj",
+    "empty_prefix": "Vi aliĝis al neniuj ĉambroj en ĉi tiu servilo. Kapu al la",
+    "empty_overview": "Superrigardo",
+    "empty_suffix": "por foliumi la dosierujon kaj aliĝi al tiuj, pri kiuj vi interesiĝas."
+  }
+}

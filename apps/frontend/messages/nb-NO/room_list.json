@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Aktiv samtale",
+    "call_participants": "{count} deltakere i samtalen",
+    "go_to_notifications": "Gå til {count}-varsler",
+    "notifications": "{count}-varsler",
+    "unread_messages": "uleste meldinger",
+    "go_to_dm_notifications": "Gå til {count} direktemeldingsvarsler",
+    "new_direct_messages": "{count} nye direktemeldinger",
+    "direct_messages": "Direktemeldinger",
+    "empty_title": "Ingen rom ennå",
+    "empty_prefix": "Du har ikke blitt med i noen rom på denne serveren. Gå til",
+    "empty_overview": "Oversikt",
+    "empty_suffix": "for å bla gjennom katalogen og bli med i de du er interessert i."
+  }
+}

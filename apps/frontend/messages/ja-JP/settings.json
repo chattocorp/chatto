@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "設定",
+      "back_to_server": "サーバーに戻る",
+      "profile": "プロフィール",
+      "display": "ディスプレイ",
+      "notifications": "通知",
+      "account": "アカウント"
+    },
+    "profile": {
+      "title": "プロフィール",
+      "subtitle": "プロフィール情報を管理します",
+      "avatar": {
+        "title": "アバター",
+        "drop_title": "画像をドロップ",
+        "drop_subtitle": "アバターとしてアップロード",
+        "alt": "あなたのアバター",
+        "description": "アバターをアップロードします。画像は 256x256 ピクセルにサイズ変更されます。",
+        "uploading": "アップロード中...",
+        "upload": "アバターをアップロードする",
+        "change": "アバター変更",
+        "removing": "削除中...",
+        "remove": "削除",
+        "invalid_type": "画像ファイルを選択してください",
+        "too_large": "画像は 10MB 未満である必要があります",
+        "uploaded": "アバターが正常にアップロードされました",
+        "upload_failed": "アバターのアップロードに失敗しました",
+        "removed": "アバターが削除されました",
+        "delete_failed": "アバターの削除に失敗しました"
+      },
+      "display_name": {
+        "label": "表示名",
+        "placeholder": "表示名を入力してください",
+        "invalid": "表示名が無効です"
+      },
+      "username": {
+        "label": "ユーザー名",
+        "placeholder": "ユーザー名を入力してください",
+        "invalid": "ユーザー名が無効です",
+        "cooldown_error": "ユーザー名は 30 日に 1 回のみ変更できます。 {remaining} で再試行してください。",
+        "cooldown_notice": "{remaining} でユーザー名を再度変更できます。",
+        "confirm_title": "ユーザー名の変更",
+        "confirm_prompt": "ユーザー名を @{login} に変更してもよろしいですか?",
+        "confirm_cooldown": "ユーザー名は 30 日に 1 回のみ変更できます。",
+        "confirm_button": "ユーザー名の変更"
+      },
+      "status": {
+        "title": "カスタムステータス",
+        "dialog_title": "ステータスを設定します",
+        "set_custom_status": "カスタムステータスを設定する",
+        "edit_button": "ステータスの編集",
+        "emoji": {
+          "label": "ステータス絵文字",
+          "placeholder": "🌿",
+          "choose": "絵文字を選択してください"
+        },
+        "text": {
+          "label": "ステータステキスト",
+          "placeholder": "フォーカスモード中"
+        },
+        "expires_at": {
+          "label": "自動クリア"
+        },
+        "expiry": {
+          "today": "今日",
+          "thirty_minutes": "30分",
+          "one_hour": "1時間",
+          "four_hours": "4時間",
+          "tomorrow": "明日",
+          "never": "クリアしないでください",
+          "custom": "カスタム",
+          "custom_date": "カスタムクリアタイム"
+        },
+        "suggestions": "提案",
+        "template": {
+          "label": "テンプレート",
+          "none": "ステータスがありません",
+          "out_for_lunch": "ランチに出かけました",
+          "vacation": "休日",
+          "sick": "病気です",
+          "custom": "カスタム"
+        },
+        "emoji_required": "ステータスの絵文字を選択してください",
+        "text_required": "ステータステキストを入力してください",
+        "saved": "ステータスが更新されました",
+        "save_failed": "ステータスの保存に失敗しました",
+        "cleared": "ステータスがクリアされました",
+        "clear_failed": "ステータスのクリアに失敗しました",
+        "save_button": "ステータスの保存",
+        "clear_button": "ステータスをクリア"
+      },
+      "presence": {
+        "button": "プレゼンス: {status}",
+        "title": "プレゼンス",
+        "auto": "オンライン",
+        "away": "離れています",
+        "do_not_disturb": "邪魔しないでください",
+        "offline": "オフライン",
+        "invisible": "オフラインで見る"
+      },
+      "saved": "プロフィールが正常に更新されました",
+      "save_failed": "プロフィールの保存に失敗しました",
+      "save_button": "変更を保存"
+    },
+    "preferences": {
+      "title": "ディスプレイ",
+      "subtitle": "Chatto の表示方法を選択してください",
+      "theme": {
+        "title": "テーマ",
+        "system": {
+          "label": "システム",
+          "description": "ブラウザまたは OS の外観に従ってください"
+        },
+        "light": {
+          "label": "ライト",
+          "description": "このブラウザではライト インターフェイスを使用してください"
+        },
+        "dark": {
+          "label": "ダーク",
+          "description": "このブラウザではダーク インターフェースを使用してください"
+        }
+      },
+      "language": {
+        "title": "言語",
+        "description": "このブラウザの言語と地域の文言を選択してください。",
+        "english_uk": "英語（イギリス）",
+        "english_us": "英語（米国）",
+        "german": "ドイツ語"
+      },
+      "timezone": {
+        "title": "タイムゾーン",
+        "description": "タイムスタンプを現地時間で表示するようにタイムゾーンを設定します。ブラウザのデフォルトを使用するには、空のままにしてください。",
+        "browser_default": "ブラウザのデフォルト",
+        "clear": "タイムゾーンをクリアします (ブラウザのデフォルトを使用)",
+        "invalid": "リストから有効なタイムゾーンを選択してください",
+        "more_results": "{count} 詳細 - 入力して結果を絞り込む",
+        "current_time": "現在の時刻: {time}"
+      },
+      "time_format": {
+        "title": "時間形式",
+        "browser_default": {
+          "label": "ブラウザのデフォルト",
+          "description": "ブラウザのロケールを使用して 12 時間形式か 24 時間形式を決定します"
+        },
+        "12h": {
+          "label": "12時間",
+          "description": "例: 午後 2 時 30 分"
+        },
+        "24h": {
+          "label": "24時間",
+          "description": "例: 14:30"
+        }
+      },
+      "save_button": "表示設定の保存",
+      "saved": "表示設定が保存されました",
+      "save_failed": "表示設定の保存に失敗しました"
+    },
+    "notifications": {
+      "title": "通知",
+      "subtitle": "通知の受信方法を設定する",
+      "push": {
+        "title": "プッシュ通知",
+        "not_configured": "このサーバーではプッシュ通知が設定されていません",
+        "not_supported": "このブラウザではプッシュ通知がサポートされていません。",
+        "ios_home_screen_title": "Chatto をホーム画面に追加します",
+        "ios_home_screen_description": "サポートされている iOS/iPadOS バージョンでは、Chatto をホーム画面に追加し、アプリアイコンから開いてプッシュ通知を有効にします。",
+        "blocked_title": "プッシュ通知がブロックされました",
+        "blocked_description": "ブラウザまたは OS 設定で通知を有効にしてから、Chatto を再度開きます。",
+        "enabled_title": "プッシュ通知が有効になりました",
+        "enabled_description": "Chatto はブラウザまたは OS の通知権限をスイッチとして使用します。通知をオフにするには、ブラウザまたは OS の設定でこのサイトの通知を無効にします。",
+        "test_button": "テスト通知を送信します",
+        "testing": "送信中…",
+        "test_sent": "テスト通知が送信されました。",
+        "test_failed": "テスト通知を送信できませんでした。プッシュ通知を再度有効にしてみてください。",
+        "enable_title": "プッシュ通知を有効にする",
+        "enable_description": "Chatto が閉じられているとき、またはバックグラウンドで実行されているときに、新しいメッセージに関する通知を受け取ります。",
+        "enable_button": "有効にする",
+        "enabling": "有効化中...",
+        "blocked_error": "ブラウザまたは OS の設定でプッシュ通知がブロックされています。",
+        "enable_failed": "プッシュ通知を有効にできませんでした。もう一度試してください。",
+        "enable_error": "プッシュ通知を有効にするときにエラーが発生しました",
+        "remote_title": "ネイティブプッシュはリモートサーバーでは使用できません",
+        "remote_description": "このインストールされたアプリは、それを提供するサーバーにブラウザー プッシュ通知のみを登録できます。 Chatto が開いている間、アプリ内通知バッジとサウンドはこのサーバーで引き続き機能します。"
+      },
+      "push_prompt": {
+        "title": "プッシュ通知を有効にする",
+        "message": "DM、メンション、返信に関する通知を受け取ります。",
+        "ios_home_screen_title": "Chatto をホーム画面に追加します",
+        "ios_home_screen_message": "サポートされている iOS/iPadOS バージョンでは、プッシュ通知を有効にする前に、ホーム画面アイコンから Chatto を開きます。",
+        "enabled": "プッシュ通知が有効になっています",
+        "blocked": "ブラウザまたは OS の設定でプッシュ通知がブロックされています",
+        "enable_failed": "プッシュ通知を有効にできませんでした",
+        "enabling": "有効化中...",
+        "enable": "有効にする",
+        "dismiss": "いいえ、ありがとう"
+      },
+      "levels": {
+        "loading": "読み込み中...",
+        "load_failed": "通知設定の読み込みに失敗しました",
+        "server_updated": "サーバー通知レベルが更新されました",
+        "room_updated": "ルーム通知レベルが更新されました",
+        "update_failed": "更新に失敗しました",
+        "server_title": "サーバー通知レベル",
+        "server_description": "このサーバー内のすべてのルームの通知を受信する方法を制御します。個々のルームはこの設定をオーバーライドできます。",
+        "room_title": "ルームのオーバーライド",
+        "room_description": "個々のルームのサーバーレベルの設定を上書きします。 「デフォルト」に設定されたルームはサーバー設定（{level}）を継承します。",
+        "room_level_label": "#{room} の通知レベル",
+        "effective": "有効: {level}",
+        "default": {
+          "label": "デフォルト",
+          "description": "継承されたデフォルトを使用する"
+        },
+        "muted": {
+          "label": "ミュートされました",
+          "description": "通知または未読マーカーがありません"
+        },
+        "normal": {
+          "label": "通常",
+          "description": "未読マーカー + メンション、DM、スレッド返信"
+        },
+        "all_messages": {
+          "label": "すべてのメッセージ",
+          "description": "通常 + 新しいメッセージごとに通知"
+        }
+      },
+      "sound": {
+        "title": "通知音",
+        "shape_title": "音の形",
+        "preview": "プレビュー",
+        "reset": "リセット",
+        "off": "オフ",
+        "volume": "ボリューム",
+        "tinny": "ティニー",
+        "muffled": "くぐもった",
+        "echo": "エコー",
+        "reverb": "リバーブ",
+        "crunch": "クランチ",
+        "category": {
+          "silent": "サイレント",
+          "simple": "シンプル",
+          "playful": "遊び心たっぷり",
+          "robots": "ロボット",
+          "musical": "ミュージカル",
+          "here_be_dragons": "ヒア・ビー・ドラゴンズ"
+        },
+        "name": {
+          "silent": "サイレント",
+          "ding": "丁",
+          "chime_up": "ライジングチャイム",
+          "chime_down": "落ちるチャイム",
+          "pop": "ソフトポップ",
+          "bubble": "バブル",
+          "retro": "レトロなビープ音",
+          "coin": "コイン集め",
+          "powerup": "パワーアップ",
+          "fanfare": "8bitファンファーレ",
+          "laser": "レーザーザップ",
+          "robot": "ロボットボイス",
+          "ufo": "UFO",
+          "beepboop": "ピーピー",
+          "dialup": "ダイヤルアップ",
+          "r2d2": "R2-D2",
+          "harp": "ハープ・フラリッシュ",
+          "music_box": "オルゴール",
+          "celesta": "チェレスタドリーム",
+          "synth": "シンセコード",
+          "orchestra": "オーケストラヒット",
+          "la_cucaracha": "ラ・クカラチャ",
+          "chaos": "カオス",
+          "glitch": "グリッチ",
+          "siren": "警報サイレン",
+          "dubstep": "ダブステップドロップ",
+          "circus": "サーカス"
+        }
+      }
+    },
+    "account": {
+      "title": "アカウント",
+      "subtitle": "アカウント設定を管理します",
+      "info_title": "アカウント情報",
+      "username": "ユーザー名",
+      "display_name": "表示名",
+      "danger_title": "危険地帯",
+      "danger_description": "アカウントの削除は永久的なものであり、元に戻すことはできません。すべてのデータは削除されます。",
+      "delete_button": "アカウントを削除",
+      "delete_failed": "アカウントの削除に失敗しました",
+      "delete_request_failed": "アカウント削除のリクエストに失敗しました",
+      "password": {
+        "title": "パスワード",
+        "add_description": "パスワードを追加すると、直接サインインして最後の SSO プロバイダーを切断できるようになります。",
+        "change_description": "ダイレクトサインインに使用するパスワードを変更します。",
+        "current_label": "現在のパスワード",
+        "current_required": "現在のパスワードを入力してください。",
+        "add_button": "パスワードを追加",
+        "change_button": "パスワードを変更する",
+        "saving": "パスワードを保存中...",
+        "saved": "パスワードを追加しました",
+        "changed": "パスワードが変更されました",
+        "save_failed": "パスワードの保存に失敗しました",
+        "fresh_auth_required": "パスワードを追加する前に、再度サインインしてください。",
+        "already_set": "このアカウントにはすでにパスワードが設定されています。"
+      },
+      "sso": {
+        "title": "シングルサインオン",
+        "loading": "サインオンプロバイダーを読み込み中...",
+        "load_failed": "サインオンプロバイダーのロードに失敗しました",
+        "none_configured": "外部サインオンプロバイダーが構成されていません。",
+        "linked": "リンクされました",
+        "not_linked": "リンクされていません",
+        "link_button": "リンク",
+        "link_failed": "サインオンプロバイダーのリンクに失敗しました",
+        "fresh_auth_required": "別のプロバイダーをリンクする前に、再度サインインしてください。",
+        "provider_unconfigured": "プロバイダーは構成されなくなりました",
+        "disconnect_button": "切断します",
+        "disconnecting": "切断中...",
+        "disconnect_failed": "サインオンプロバイダーの切断に失敗しました",
+        "disconnect_last_method": "このプロバイダーを切断する前に、パスワードまたは別のサインイン方法を追加してください。",
+        "disconnect_fresh_auth_required": "このプロバイダーを切断する前に、再度サインインしてください。",
+        "disconnect_modal": {
+          "title": "プロバイダーを切断します",
+          "body": "{provider} をこのアカウントから切断しますか?",
+          "action": "切断します"
+        },
+        "disconnect_blocked_modal": {
+          "title": "プロバイダーを切断できません",
+          "body": "{provider} が唯一のサインイン方法です。まずパスワードを追加するか、別のプロバイダーをリンクしてください。"
+        },
+        "fresh_auth_modal": {
+          "title": "パスワードを確認してください",
+          "body": "{provider} をリンクする前に、現在のパスワードを入力してください。",
+          "action": "続行"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "パスワードを確認してください",
+          "body": "{provider} を切断する前に、現在のパスワードを入力してください。",
+          "action": "切断します"
+        }
+      },
+      "delete_modal": {
+        "title": "アカウントを削除",
+        "warning_label": "警告:",
+        "warning_text": "このアクションは永続的なものであり、元に戻すことはできません。",
+        "intro": "これにより、アカウントが完全に削除され、次のことが行われます。",
+        "remove_from_rooms": "すべてのスペースと部屋からあなたを削除します",
+        "delete_messages": "すべてのメッセージを削除します (コンテンツは復元できなくなります)",
+        "delete_profile": "プロフィール、アバター、関連データを削除します",
+        "confirm_label": "「DELETE」と入力して確認します",
+        "confirm_placeholder": "DELETE",
+        "cancel": "キャンセル",
+        "deleting": "削除中..."
+      }
+    }
+  }
+}

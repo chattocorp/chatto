@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Перемкнути бічну панель",
+    "notifications": "Сповіщення",
+    "open_quick_switcher": "Відкрити швидкий перемикач",
+    "quick_switcher_shortcut": "Швидкий перемикач (Cmd+K)",
+    "realtime_paused": "Оновлення в реальному часі призупинено. Повторне підключення...",
+    "update_available": "Доступна нова версія",
+    "reload": "Оновити",
+    "sign_out": "Вийти",
+    "close": "Закрити",
+    "auth_status": {
+      "origin_title": "Сеанс закінчився",
+      "origin_message": "Ви можете продовжувати читати те, що вже завантажено. Увійдіть знову, щоб надіслати повідомлення та оновити дані.",
+      "origin_action": "Увійдіть знову",
+      "remote_title": "{server} потребує входу",
+      "remote_message": "Цей сервер відхилив збережений вхід. Повторно підключіть його, щоб відновити живі оновлення та дії.",
+      "remote_action": "Перепідключіться",
+      "remote_failed": "Не вдалося почати повторне підключення",
+      "sidebar_reauth": "{server} потребує входу"
+    },
+    "access_denied": {
+      "title": "Доступ заборонено",
+      "message": "У вас немає дозволу на доступ до цієї сторінки.",
+      "back": "Повернутися до чату",
+      "back_to_server": "Повернутися на сервер"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Більше інформації",
+      "about": "Про {subject}"
+    },
+    "pane_header": {
+      "back": "Назад"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Назад до чату"
+    },
+    "resize_handle": {
+      "resize": "Змінити розмір",
+      "resize_sidebar": "Змінити розмір бічної панелі"
+    },
+    "data_table": {
+      "empty": "Немає даних",
+      "loading_more": "Завантаження додаткових..."
+    },
+    "loading_page": {
+      "loading": "Завантаження..."
+    },
+    "image_modal": {
+      "previous": "Попереднє зображення",
+      "next": "Наступне зображення",
+      "fallback_alt": "Зображення"
+    },
+    "toast": {
+      "dismiss": "Відхилити сповіщення"
+    },
+    "combobox": {
+      "loading": "Завантаження...",
+      "empty": "Немає збігів",
+      "clear": "Очистити"
+    },
+    "expiry": {
+      "label": "Термін дії закінчується",
+      "24h": "24 години",
+      "7d": "7 днів",
+      "30d": "30 днів",
+      "indefinite": "Немає терміну дії",
+      "custom": "Спеціальний",
+      "custom_label": "Спеціальний термін дії",
+      "error_required": "Виберіть термін дії.",
+      "error_invalid": "Введіть дійсний термін дії.",
+      "error_future": "Термін дії має бути в майбутньому."
+    },
+    "form": {
+      "required": "Потрібний"
+    },
+    "dates": {
+      "today": "Сьогодні",
+      "yesterday": "Учора",
+      "this_week": "Цього тижня",
+      "this_month": "Цього місяця"
+    }
+  }
+}

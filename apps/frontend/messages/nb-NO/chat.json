@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Varsler",
+      "subtitle": "Her er hva som er nytt",
+      "clear_all": "Fjern alt",
+      "empty_title": "Ingen varsler",
+      "empty_body": "Dere er helt fanget!",
+      "time_now": "Akkurat nå",
+      "time_minutes": "{count}m siden",
+      "time_hours": "{count}h siden",
+      "time_days": "{count}d siden"
+    },
+    "sign_out": {
+      "title": "Logg av",
+      "current_server": "Nåværende server",
+      "all_servers": "Alle servere",
+      "description": "Logg av kun den valgte serveren, eller koble hver server fra denne klienten."
+    },
+    "overview": {
+      "title": "Oversikt"
+    },
+    "server_nav": {
+      "back_to_server": "Tilbake til server",
+      "server_fallback": "Server",
+      "administration": "Serveradministrasjon"
+    },
+    "user_menu": {
+      "profile": "Brukerprofil",
+      "send_message": "Send melding"
+    },
+    "server_gutter": {
+      "add_server": "Legg til server"
+    },
+    "threads": {
+      "title": "Mine tråder",
+      "subtitle": "Tråder du følger",
+      "filter_label": "Filtertråder",
+      "filter_all": "Alle",
+      "filter_unread": "Ulest",
+      "empty_title": "Ingen fulgte tråder",
+      "empty_body": "Tråder du følger vil vises her. Du følger automatisk tråder du deltar i.",
+      "no_unread_loaded": "Ingen uleste tråder lastet inn",
+      "all_caught_up": "Alle tok igjen",
+      "loaded_count": "{loaded} av {total} fulgte tråder lastet.",
+      "load_more": "Last inn mer",
+      "no_unread": "Ingen uleste tråder akkurat nå.",
+      "message_missing": "Meldingen er ikke lenger tilgjengelig",
+      "in_room": "in",
+      "in_room_capitalized": "Inn"
+    }
+  }
+}

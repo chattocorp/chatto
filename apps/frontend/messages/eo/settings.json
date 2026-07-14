@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Agordoj",
+      "back_to_server": "Reen al Servilo",
+      "profile": "Profilo",
+      "display": "Montru",
+      "notifications": "Sciigoj",
+      "account": "Konto"
+    },
+    "profile": {
+      "title": "Profilo",
+      "subtitle": "Administri viajn profilinformojn",
+      "avatar": {
+        "title": "Avataro",
+        "drop_title": "Forigu bildon",
+        "drop_subtitle": "Alŝutu kiel via avataro",
+        "alt": "Via avataro",
+        "description": "Alŝutu avataron. Bildoj estos regrandigitaj al 256x256 pikseloj.",
+        "uploading": "Alŝutante...",
+        "upload": "Alŝutu avataron",
+        "change": "Ŝanĝi avataron",
+        "removing": "Forigante...",
+        "remove": "Forigi",
+        "invalid_type": "Bonvolu elekti bilddosieron",
+        "too_large": "Bildo devas esti malpli ol 10MB",
+        "uploaded": "Avataro sukcese alŝutita",
+        "upload_failed": "Malsukcesis alŝuti avataron",
+        "removed": "Avataro forigita",
+        "delete_failed": "Malsukcesis forigi avataron"
+      },
+      "display_name": {
+        "label": "Afiŝnomo",
+        "placeholder": "Enigu vian montran nomon",
+        "invalid": "Nevalida montra nomo"
+      },
+      "username": {
+        "label": "Uzantnomo",
+        "placeholder": "Enigu vian uzantnomon",
+        "invalid": "Nevalida uzantnomo",
+        "cooldown_error": "Vi povas ŝanĝi vian uzantnomon nur unufoje ĉiun 30 tagojn. Provu denove en {remaining}.",
+        "cooldown_notice": "Vi povas ŝanĝi vian salutnomon denove en {remaining}.",
+        "confirm_title": "Ŝanĝu uzantnomon",
+        "confirm_prompt": "Ĉu vi certas, ke vi volas ŝanĝi vian uzantnomon al @{login}?",
+        "confirm_cooldown": "Vi povas ŝanĝi vian uzantnomon nur unufoje ĉiun 30 tagojn.",
+        "confirm_button": "Ŝanĝu uzantnomon"
+      },
+      "status": {
+        "title": "Propra Statuso",
+        "dialog_title": "Agordu statuson",
+        "set_custom_status": "Agordu propran statuson",
+        "edit_button": "Redakti staton",
+        "emoji": {
+          "label": "Statusa emoji",
+          "placeholder": "🌿",
+          "choose": "Elektu emoji"
+        },
+        "text": {
+          "label": "Statusa teksto",
+          "placeholder": "En fokusa reĝimo"
+        },
+        "expires_at": {
+          "label": "Forigi aŭtomate je"
+        },
+        "expiry": {
+          "today": "Hodiaŭ",
+          "thirty_minutes": "30 minutoj",
+          "one_hour": "1 horo",
+          "four_hours": "4 horoj",
+          "tomorrow": "Morgaŭ",
+          "never": "Ne klarigu",
+          "custom": "Propra",
+          "custom_date": "Propra klara tempo"
+        },
+        "suggestions": "Sugestoj",
+        "template": {
+          "label": "Ŝablono",
+          "none": "Neniu statuso",
+          "out_for_lunch": "Ekstere por tagmanĝi",
+          "vacation": "Ferio",
+          "sick": "Malsana",
+          "custom": "Propra"
+        },
+        "emoji_required": "Elektu emojion por via stato",
+        "text_required": "Enigu statusan tekston",
+        "saved": "Statuso ĝisdatigita",
+        "save_failed": "Malsukcesis konservi statuson",
+        "cleared": "Statuso forigita",
+        "clear_failed": "Malsukcesis forigi staton",
+        "save_button": "Konservi staton",
+        "clear_button": "Klara Statuso"
+      },
+      "presence": {
+        "button": "Ĉeesto: {status}",
+        "title": "Ĉeesto",
+        "auto": "Rete",
+        "away": "For",
+        "do_not_disturb": "Ne ĝenu",
+        "offline": "Senrete",
+        "invisible": "Rigardu eksterrete"
+      },
+      "saved": "Profilo sukcese ĝisdatigita",
+      "save_failed": "Malsukcesis konservi profilon",
+      "save_button": "Konservu Ŝanĝojn"
+    },
+    "preferences": {
+      "title": "Montru",
+      "subtitle": "Elektu kiel Chatto aperas",
+      "theme": {
+        "title": "Temo",
+        "system": {
+          "label": "Sistemo",
+          "description": "Sekvu vian retumilon aŭ OS-aspekton"
+        },
+        "light": {
+          "label": "Lumo",
+          "description": "Uzu la malpezan interfacon en ĉi tiu retumilo"
+        },
+        "dark": {
+          "label": "Mallumo",
+          "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
+        }
+      },
+      "language": {
+        "title": "Lingvo",
+        "description": "Elektu la lingvon kaj regionan vortumon por ĉi tiu retumilo.",
+        "english_uk": "Angla (Unuiĝinta Reĝlando)",
+        "english_us": "Angla (Usono)",
+        "german": "Deutsch"
+      },
+      "timezone": {
+        "title": "Horzono",
+        "description": "Agordu vian horzonon por montri tempomarkojn en via loka horo. Lasu malplena por uzi la defaŭltan retumilon.",
+        "browser_default": "Defaŭlta retumilo",
+        "clear": "Malplenigi horzonon (uzu retumilon defaŭltan)",
+        "invalid": "Bonvolu elekti validan horzonon el la listo",
+        "more_results": "{count} pli - tajpu por malvastigi rezultojn",
+        "current_time": "Nuna horo tie: {time}"
+      },
+      "time_format": {
+        "title": "Tempo Formato",
+        "browser_default": {
+          "label": "Retumilo defaŭlta",
+          "description": "Uzu vian retumilon por determini 12h aŭ 24h formaton"
+        },
+        "12h": {
+          "label": "12-horo",
+          "description": "ekz., 2:30 PM"
+        },
+        "24h": {
+          "label": "24-horo",
+          "description": "ekz., 14:30"
+        }
+      },
+      "save_button": "Konservu ekranajn agordojn",
+      "saved": "Vidigaj agordoj konservitaj",
+      "save_failed": "Malsukcesis konservi ekranajn agordojn"
+    },
+    "notifications": {
+      "title": "Sciigoj",
+      "subtitle": "Agordu kiel vi ricevas sciigojn",
+      "push": {
+        "title": "Puŝaj Sciigoj",
+        "not_configured": "Puŝaj sciigoj ne estas agorditaj en ĉi tiu servilo",
+        "not_supported": "Puŝaj sciigoj ne estas subtenataj en ĉi tiu retumilo.",
+        "ios_home_screen_title": "Aldonu Chatto al via Hejma Ekrano",
+        "ios_home_screen_description": "Sur subtenataj versioj iOS/iPadOS, aldonu Chatto al la Hejma Ekrano kaj malfermu ĝin de la aplikaĵa ikono por ebligi puŝajn sciigojn.",
+        "blocked_title": "Puŝaj sciigoj blokitaj",
+        "blocked_description": "Ebligu sciigojn en via retumilo aŭ OS-agordoj, poste malfermu Chatto denove.",
+        "enabled_title": "Puŝaj sciigoj ebligitaj",
+        "enabled_description": "Chatto uzas vian retumilon aŭ OS-sciigpermeson kiel la ŝaltilon. Por malŝalti sciigojn, malŝaltu ilin por ĉi tiu retejo en via retumilo aŭ OS-agordoj.",
+        "test_button": "Sendu testan sciigon",
+        "testing": "Sendante...",
+        "test_sent": "Testa sciigo sendita.",
+        "test_failed": "Ne eblis sendi testan sciigon. Provu denove ebligi puŝajn sciigojn.",
+        "enable_title": "Ebligu puŝajn sciigojn",
+        "enable_description": "Ricevu sciigojn pri novaj mesaĝoj dum Chatto estas fermita aŭ funkcias en la fono.",
+        "enable_button": "Ebligu",
+        "enabling": "Ebligante...",
+        "blocked_error": "Puŝaj sciigoj estas blokitaj en via retumilo aŭ OS-agordoj.",
+        "enable_failed": "Malsukcesis ebligi puŝajn sciigojn. Bonvolu provi denove.",
+        "enable_error": "Okazis eraro dum ebligado de puŝaj sciigoj",
+        "remote_title": "Indiĝena puŝo ne disponeblas por foraj serviloj",
+        "remote_description": "Ĉi tiu instalita aplikaĵo povas nur registri retumilajn puŝajn sciigojn ĉe la servilo, kiu servis ĝin. Insignoj kaj sonoj pri sciigo en la aplikaĵo daŭre funkcias por ĉi tiu servilo dum Chatto estas malfermita."
+      },
+      "push_prompt": {
+        "title": "Ebligu puŝajn sciigojn",
+        "message": "Ricevu sciigojn pri DM-oj, mencioj kaj respondoj.",
+        "ios_home_screen_title": "Aldonu Chatto al via Hejma Ekrano",
+        "ios_home_screen_message": "Sur subtenataj versioj de iOS/iPadOS, malfermu Chatto de ĝia Hejma Ekrano-piktogramo antaŭ ebligi puŝajn sciigojn.",
+        "enabled": "Puŝaj sciigoj ebligitaj",
+        "blocked": "Puŝaj sciigoj estas blokitaj en via retumilo aŭ OS-agordoj",
+        "enable_failed": "Malsukcesis ebligi puŝajn sciigojn",
+        "enabling": "Ebligante...",
+        "enable": "Ebligu",
+        "dismiss": "Ne dankon"
+      },
+      "levels": {
+        "loading": "Ŝarĝante...",
+        "load_failed": "Malsukcesis ŝargi sciigajn preferojn",
+        "server_updated": "Servila sciiga nivelo ĝisdatigita",
+        "room_updated": "Ĉambra sciiga nivelo ĝisdatigita",
+        "update_failed": "Malsukcesis ĝisdatigi",
+        "server_title": "Servila Sciiga Nivelo",
+        "server_description": "Kontrolas kiel vi ricevas sciigojn por ĉiuj ĉambroj en ĉi tiu servilo. Individuaj ĉambroj povas anstataŭi ĉi tiun agordon.",
+        "room_title": "Ĉambro Anstataŭigoj",
+        "room_description": "Anstataŭigi la servilnivelan agordon por individuaj ĉambroj. Ĉambroj fiksitaj al \"Defaŭlta\" heredas la servilan agordon ({level}).",
+        "room_level_label": "Sciiga nivelo por #{room}",
+        "effective": "Efika: {level}",
+        "default": {
+          "label": "Defaŭlte",
+          "description": "Uzu la hereditan defaŭlton"
+        },
+        "muted": {
+          "label": "Silentita",
+          "description": "Neniuj sciigoj aŭ nelegitaj markiloj"
+        },
+        "normal": {
+          "label": "Normala",
+          "description": "Nelegitaj markiloj + mencioj, DM-oj kaj fadenaj respondoj"
+        },
+        "all_messages": {
+          "label": "Ĉiuj Mesaĝoj",
+          "description": "Normala + sciigo por ĉiu nova mesaĝo"
+        }
+      },
+      "sound": {
+        "title": "Sciiga Sono",
+        "shape_title": "Sonformo",
+        "preview": "Antaŭrigardo",
+        "reset": "Restarigi",
+        "off": "Malŝaltita",
+        "volume": "Volumo",
+        "tinny": "Tinny",
+        "muffled": "Sufokita",
+        "echo": "Eĥo",
+        "reverb": "Reverbo",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Silenta",
+          "simple": "Simpla",
+          "playful": "Ludema",
+          "robots": "Robotoj",
+          "musical": "Muzika",
+          "here_be_dragons": "Jen Drakoj"
+        },
+        "name": {
+          "silent": "Silenta",
+          "ding": "Ding",
+          "chime_up": "Leviĝanta Sonoro",
+          "chime_down": "Falanta Sonoro",
+          "pop": "Soft Pop",
+          "bubble": "Veziko",
+          "retro": "Retroa Bip",
+          "coin": "Monero Kolekto",
+          "powerup": "Enŝaltu",
+          "fanfare": "8-bita Fanfaro",
+          "laser": "Laser Zap",
+          "robot": "Robota Voĉo",
+          "ufo": "NIFO",
+          "beepboop": "Bip Bup",
+          "dialup": "Teletelefono",
+          "r2d2": "R2-D2",
+          "harp": "Harpo Floru",
+          "music_box": "Muzikskatolo",
+          "celesta": "Celesta Dream",
+          "synth": "Synth Chord",
+          "orchestra": "Orkestro Hit",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Kaoso",
+          "glitch": "Glitch",
+          "siren": "Alerta Sireno",
+          "dubstep": "Dubstep Drop",
+          "circus": "Cirko"
+        }
+      }
+    },
+    "account": {
+      "title": "Konto",
+      "subtitle": "Administri viajn kontajn agordojn",
+      "info_title": "Kontaj Informoj",
+      "username": "Uzantnomo",
+      "display_name": "Afiŝnomo",
+      "danger_title": "Danĝera Zono",
+      "danger_description": "Forigo de via konto estas konstanta kaj ne povas esti malfarita. Ĉiuj viaj datumoj estos forigitaj.",
+      "delete_button": "Forigi konton",
+      "delete_failed": "Malsukcesis forigi konton",
+      "delete_request_failed": "Malsukcesis peti forigon de konto",
+      "password": {
+        "title": "Pasvorto",
+        "add_description": "Aldonu pasvorton por ke vi povu rekte ensaluti kaj malkonekti vian lastan SSO-provizanton.",
+        "change_description": "Ŝanĝu la pasvorton uzatan por rekta ensaluto.",
+        "current_label": "Nuna Pasvorto",
+        "current_required": "Enigu vian nunan pasvorton.",
+        "add_button": "Aldonu Pasvorton",
+        "change_button": "Ŝanĝi Pasvorton",
+        "saving": "Konservante pasvorton...",
+        "saved": "Pasvorto aldonita",
+        "changed": "Pasvorto ŝanĝita",
+        "save_failed": "Malsukcesis konservi pasvorton",
+        "fresh_auth_required": "Ensalutu denove antaŭ ol aldoni pasvorton.",
+        "already_set": "Ĉi tiu konto jam havas pasvorton."
+      },
+      "sso": {
+        "title": "Ununura Ensaluto",
+        "loading": "Ŝarĝante ensalutprovizantoj...",
+        "load_failed": "Malsukcesis ŝargi ensalutprovizantoj",
+        "none_configured": "Neniuj eksteraj ensalutprovizantoj estas agordita.",
+        "linked": "Ligita",
+        "not_linked": "Ne ligita",
+        "link_button": "Ligo",
+        "link_failed": "Malsukcesis ligi la ensalutprovizanton",
+        "fresh_auth_required": "Ensalutu denove antaŭ ligi alian provizanton.",
+        "provider_unconfigured": "Provizanto ne plu agordita",
+        "disconnect_button": "Malkonekti",
+        "disconnecting": "Malkonekto...",
+        "disconnect_failed": "Malsukcesis malkonekti aliĝan provizanton",
+        "disconnect_last_method": "Aldonu pasvorton aŭ alian ensalutmetodon antaŭ malkonekti ĉi tiun provizanton.",
+        "disconnect_fresh_auth_required": "Ensalutu denove antaŭ ol malkonekti ĉi tiun provizanton.",
+        "disconnect_modal": {
+          "title": "Malkonekti provizanton",
+          "body": "Ĉu malkonekti {provider} de ĉi tiu konto?",
+          "action": "Malkonekti"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Provizanto ne povas esti malkonektita",
+          "body": "{provider} estas via sola ensaluta metodo. Aldonu pasvorton aŭ ligu alian provizanton unue."
+        },
+        "fresh_auth_modal": {
+          "title": "Konfirmu pasvorton",
+          "body": "Enigu vian nunan pasvorton antaŭ ligi {provider}.",
+          "action": "Daŭrigu"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Konfirmu pasvorton",
+          "body": "Enigu vian nunan pasvorton antaŭ malkonekti {provider}.",
+          "action": "Malkonekti"
+        }
+      },
+      "delete_modal": {
+        "title": "Forigi konton",
+        "warning_label": "Averto:",
+        "warning_text": "Ĉi tiu ago estas konstanta kaj ne povas esti malfarita.",
+        "intro": "Ĉi tio konstante forigos vian konton kaj:",
+        "remove_from_rooms": "Forigu vin el ĉiuj spacoj kaj ĉambroj",
+        "delete_messages": "Forigu ĉiujn viajn mesaĝojn (enhavo estos nereakirebla)",
+        "delete_profile": "Forigu vian profilon, avataron kaj rilatajn datumojn",
+        "confirm_label": "Tajpu DELETE por konfirmi",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Nuligi",
+        "deleting": "Forigante..."
+      }
+    }
+  }
+}

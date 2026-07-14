@@ -66,11 +66,11 @@ test.describe('User Settings - Display', () => {
       return marker;
     });
 
-    await page.getByRole('radio', { name: 'Deutsch' }).click();
+    await page.getByRole('radio', { name: 'German (Germany)' }).click();
     await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
     await expect
       .poll(() =>
         page.evaluate(
@@ -85,7 +85,7 @@ test.describe('User Settings - Display', () => {
     await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByRole('radio', { name: 'Deutsch' })).toHaveAttribute(
+    await expect(page.getByRole('radio', { name: 'Deutsch (Deutschland)' })).toHaveAttribute(
       'aria-checked',
       'true'
     );
@@ -97,7 +97,7 @@ test.describe('User Settings - Display', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
 
     await page.reload();
-    await expect(page.getByRole('radio', { name: 'English (United States)' })).toHaveAttribute(
+    await expect(page.getByRole('radio', { name: 'American English' })).toHaveAttribute(
       'aria-checked',
       'true'
     );

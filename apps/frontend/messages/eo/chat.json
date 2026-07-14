@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Sciigoj",
+      "subtitle": "Jen kio estas nova",
+      "clear_all": "Forigi ĉion",
+      "empty_title": "Neniuj sciigoj",
+      "empty_body": "Vi ĉiuj estas kaptitaj!",
+      "time_now": "Ĝuste nun",
+      "time_minutes": "{count}m antaŭ",
+      "time_hours": "{count}h antaŭ",
+      "time_days": "{count}d antaŭ"
+    },
+    "sign_out": {
+      "title": "Eliru",
+      "current_server": "Nuna Servilo",
+      "all_servers": "Ĉiuj Serviloj",
+      "description": "Elsaluti nur de la elektita servilo, aŭ malkonekti ĉiun servilon de ĉi tiu kliento."
+    },
+    "overview": {
+      "title": "Superrigardo"
+    },
+    "server_nav": {
+      "back_to_server": "Reen al Servilo",
+      "server_fallback": "Servilo",
+      "administration": "Servila administrado"
+    },
+    "user_menu": {
+      "profile": "Profilo de uzanto",
+      "send_message": "Sendu Mesaĝon"
+    },
+    "server_gutter": {
+      "add_server": "Aldonu Servilon"
+    },
+    "threads": {
+      "title": "Miaj Fadenoj",
+      "subtitle": "Fadenoj, kiujn vi sekvas",
+      "filter_label": "Filtri fadenojn",
+      "filter_all": "Ĉiuj",
+      "filter_unread": "Nelegita",
+      "empty_title": "Neniuj sekvataj fadenoj",
+      "empty_body": "Fadenoj kiujn vi sekvas aperos ĉi tie. Vi aŭtomate sekvas fadenojn, kiujn vi partoprenas.",
+      "no_unread_loaded": "Neniuj nelegitaj fadenoj ŝarĝitaj",
+      "all_caught_up": "Ĉiuj kaptitaj",
+      "loaded_count": "{loaded} de {total} sekvis ŝarĝitajn fadenojn.",
+      "load_more": "Ŝarĝu pli",
+      "no_unread": "Neniuj nelegitaj fadenoj nun.",
+      "message_missing": "Mesaĝo ne plu havebla",
+      "in_room": "en",
+      "in_room_capitalized": "En"
+    }
+  }
+}

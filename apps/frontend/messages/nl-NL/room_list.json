@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Actief gesprek",
+    "call_participants": "{count}-deelnemers in gesprek",
+    "go_to_notifications": "Ga naar {count}-meldingen",
+    "notifications": "{count}-meldingen",
+    "unread_messages": "ongelezen berichten",
+    "go_to_dm_notifications": "Ga naar {count} directe berichtmeldingen",
+    "new_direct_messages": "{count} nieuwe privéchats",
+    "direct_messages": "Privéberichten",
+    "empty_title": "Nog geen kamers",
+    "empty_prefix": "Je bent nog niet lid geweest van kamers op deze server. Ga naar de",
+    "empty_overview": "Overzicht",
+    "empty_suffix": "om door de directory te bladeren en lid te worden van de directory waarin u geïnteresseerd bent."
+  }
+}

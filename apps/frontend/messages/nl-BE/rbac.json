@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Rol verwijderen",
+      "prompt": "Weet u zeker dat u de rol {role} wilt verwijderen? Dit zal:",
+      "remove_from_users": "Verwijder de rol van alle gebruikers die deze hebben",
+      "delete_grants": "Verwijder alle machtigingen voor deze rol",
+      "irreversible": "Deze actie kan niet ongedaan worden gemaakt.",
+      "deleting": "Verwijderen...",
+      "action": "Rol verwijderen"
+    },
+    "role_form": {
+      "save": "Opslaan",
+      "saving": "Opslaan...",
+      "name": "Naam",
+      "name_placeholder": "Bijvoorbeeld moderator",
+      "name_description": "Alleen kleine letters. Kan na creatie niet meer worden gewijzigd.",
+      "name_too_long": "Naam moet 32 tekens of minder bevatten",
+      "name_invalid": "De naam moet kleine letters, cijfers en streepjes bevatten; beginnen met een letter",
+      "name_locked": "Rolnamen kunnen na het maken niet meer worden gewijzigd.",
+      "display_name": "Weergavenaam",
+      "display_name_placeholder": "Bijvoorbeeld moderator",
+      "display_name_too_long": "Weergavenaam moet 64 tekens of minder bevatten",
+      "description": "Beschrijving",
+      "description_placeholder": "Optionele beschrijving voor deze rol",
+      "pingable": "Sta toe dat mensen deze rol pingen",
+      "pingable_description": "Pingbare rollen verschijnen in @ autocomplete en stellen toegewezen kamerleden op de hoogte."
+    },
+    "permissions": {
+      "loading": "Rechten laden...",
+      "no_data": "Geen gegevens beschikbaar.",
+      "no_roles": "Er zijn geen rollen van toepassing binnen dit bereik.",
+      "permission": "Toestemming",
+      "state": "Staat",
+      "decided_by": "Besloten door",
+      "granted": "Toegegeven",
+      "denied": "Geweigerd",
+      "no_decision": "Geen beslissing",
+      "no_role_decided": "Er is geen rol bepaald",
+      "hide_trace": "Tracering verbergen",
+      "show_trace": "Tracering tonen",
+      "trace_one": "Resolutietracering (1 invoer)",
+      "trace_many": "Resolutietracering ({count}-vermeldingen)",
+      "allow": "toegestaan",
+      "deny": "ontkennen",
+      "winning_decision": "(winnende beslissing)",
+      "level_server": "Server",
+      "level_group": "Groep",
+      "level_room": "Kamer",
+      "empty_category": "Geen rechten in deze categorie",
+      "categories": {
+        "space": {
+          "title": "Serverrechten",
+          "description": "Mogelijkheden op serverniveau worden vanwege compatibiliteit onder de oude categoriesleutel gehouden"
+        },
+        "room": {
+          "title": "Kamerrechten",
+          "description": "Serverstandaarden voor het ontdekken en deelnemen aan ruimtes, plus het maken van ruimtes. Voeg kamer-/groepsweigeringen toe voor lokale beperkingen"
+        },
+        "message": {
+          "title": "Berichtrechten",
+          "description": "Serverstandaarden voor posten, discussies, reacties, echo's en berichtmoderatie. Weigeringen voor kamers/groepen creëren lokale uitzonderingen"
+        },
+        "member": {
+          "title": "Lidrechten",
+          "description": "Bepaal wie serverleden kan uitnodigen en verwijderen"
+        },
+        "role": {
+          "title": "Rolrechten",
+          "description": "Bepaal wie rollen kan bewerken, rollen kan toewijzen en voorinstellingen voor machtigingen kan beheren"
+        },
+        "admin": {
+          "title": "Beheerdersrechten",
+          "description": "Beheer de toegang tot serverbrede beheerdersweergaven en diagnostiek"
+        },
+        "dm": {
+          "title": "DM-rechten",
+          "description": "Beheer de toegang tot toegangspunten voor directe berichten"
+        },
+        "user": {
+          "title": "Gebruikersrechten",
+          "description": "Beheer bewerkingen voor gebruikersaccounts en machtigingen per gebruiker. Elke weigering die geen eigenaar is, annuleert de subsidies"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
+      "room_create": "Maak nieuwe kamers",
+      "room_join": "Sluit je aan bij bestaande kamers",
+      "room_list": "Bekijk kamers in de directory. Een gebruiker kan toestemming krijgen om een ​​ruimte te zien (bijvoorbeeld om toegang aan te vragen) zonder dat hij er toegang toe mag hebben.",
+      "room_manage": "Bewerk de instellingen en rechten van een kamer en verwijder kamers",
+      "room_ban_member": "Leden uit kamers weren",
+      "message_post": "Post root-berichten in kamers en start DM's",
+      "message_post_in_thread": "Plaats antwoorden in een thread",
+      "message_attach": "Bestanden bij berichten voegen",
+      "message_echo": "Wanneer u in een thread post, laat het bericht dan ook in het hoofdkanaal zien",
+      "message_manage": "Bewerk en verwijder de berichten van andere gebruikers",
+      "message_react": "Reacties op berichten toevoegen en verwijderen",
+      "role_manage": "Rollen en hun machtigingen maken, bewerken, verwijderen en opnieuw rangschikken",
+      "role_assign": "Rollen voor gebruikers toewijzen en intrekken",
+      "admin_view_users": "Bekijk de gebruikerspagina in admin",
+      "admin_view_system": "Bekijk projectiediagnostiek in admin",
+      "admin_view_audit": "Bekijk de auditlogin-beheerder",
+      "user_delete_any": "Verwijder het account van een andere gebruiker",
+      "user_delete_self": "Verwijder je eigen account",
+      "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
+      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker"
+    }
+  }
+}

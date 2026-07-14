@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "アクティブな通話",
+    "call_participants": "{count} 人が通話に参加しています",
+    "go_to_notifications": "{count} 通知に移動",
+    "notifications": "{count} 通知",
+    "unread_messages": "未読メッセージ",
+    "go_to_dm_notifications": "{count} ダイレクト メッセージ通知に移動します",
+    "new_direct_messages": "{count} 新しいダイレクト メッセージ",
+    "direct_messages": "ダイレクトメッセージ",
+    "empty_title": "まだ部屋がありません",
+    "empty_prefix": "このサーバー上のどのルームにも参加していません。に向かう",
+    "empty_overview": "概要",
+    "empty_suffix": "ディレクトリを参照し、興味のあるディレクトリに参加します。"
+  }
+}

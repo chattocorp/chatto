@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Voici les nouveautés",
+      "clear_all": "Tout effacer",
+      "empty_title": "Aucune notification",
+      "empty_body": "Vous êtes tous rattrapés !",
+      "time_now": "Tout à l'heure",
+      "time_minutes": "Il y a {count}m",
+      "time_hours": "Il y a {count}h",
+      "time_days": "Il y a {count}d"
+    },
+    "sign_out": {
+      "title": "Se déconnecter",
+      "current_server": "Serveur actuel",
+      "all_servers": "Tous les serveurs",
+      "description": "Déconnectez-vous uniquement du serveur sélectionné ou déconnectez tous les serveurs de ce client."
+    },
+    "overview": {
+      "title": "Présentation"
+    },
+    "server_nav": {
+      "back_to_server": "Retour au serveur",
+      "server_fallback": "Serveur",
+      "administration": "Administration du serveur"
+    },
+    "user_menu": {
+      "profile": "Profil utilisateur",
+      "send_message": "Envoyer un message"
+    },
+    "server_gutter": {
+      "add_server": "Ajouter un serveur"
+    },
+    "threads": {
+      "title": "Mes discussions",
+      "subtitle": "Sujets que vous suivez",
+      "filter_label": "Filtrer les fils de discussion",
+      "filter_all": "Tous",
+      "filter_unread": "Non lu",
+      "empty_title": "Aucun fil de discussion suivi",
+      "empty_body": "Les discussions que vous suivez apparaîtront ici. Vous suivez automatiquement les discussions auxquelles vous participez.",
+      "no_unread_loaded": "Aucun fil de discussion non lu chargé",
+      "all_caught_up": "Tous rattrapés",
+      "loaded_count": "{loaded} de {total} a suivi les threads chargés.",
+      "load_more": "Charger plus",
+      "no_unread": "Aucun fil de discussion non lu pour le moment.",
+      "message_missing": "Le message n'est plus disponible",
+      "in_room": "dans",
+      "in_room_capitalized": "Dans"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Gå til server, rom eller samtale...",
+    "no_results": "Ingen resultater",
+    "recent": "Nylig",
+    "kind": {
+      "destination": "Gå til",
+      "server": "Server",
+      "room": "Rom",
+      "dm": "DM",
+      "user": "Bruker"
+    }
+  }
+}

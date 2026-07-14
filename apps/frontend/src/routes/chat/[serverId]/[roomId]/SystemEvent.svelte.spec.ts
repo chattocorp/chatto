@@ -96,8 +96,8 @@ describe('SystemEvent', () => {
   });
 
   it('localizes event copy in German', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     const event = systemEvent(RoomEventKind.UserJoinedRoom, 'Alice');
 
     const { container } = render(SystemEvent, { props: { event } });

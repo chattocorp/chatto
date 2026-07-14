@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Slett rolle",
+      "prompt": "Er du sikker på at du vil slette rollen {role}? Dette vil:",
+      "remove_from_users": "Fjern rollen fra alle brukere som har den",
+      "delete_grants": "Slett alle tillatelser for denne rollen",
+      "irreversible": "Denne handlingen kan ikke angres.",
+      "deleting": "Sletter...",
+      "action": "Slett rolle"
+    },
+    "role_form": {
+      "save": "Lagre",
+      "saving": "Lagrer...",
+      "name": "Navn",
+      "name_placeholder": "f.eks. moderator",
+      "name_description": "Bare små bokstaver. Kan ikke endres etter opprettelse.",
+      "name_too_long": "Navnet må være på 32 tegn eller mindre",
+      "name_invalid": "Navnet må bruke små bokstaver, tall og bindestreker; begynne med en bokstav",
+      "name_locked": "Rollenavn kan ikke endres etter opprettelse.",
+      "display_name": "Visningsnavn",
+      "display_name_placeholder": "f.eks. moderator",
+      "display_name_too_long": "Visningsnavnet må være på 64 tegn eller mindre",
+      "description": "Beskrivelse",
+      "description_placeholder": "Valgfri beskrivelse for denne rollen",
+      "pingable": "Tillat folk å pinge denne rollen",
+      "pingable_description": "Pingbare roller vises i @ autofullføring og varsler tildelte rommedlemmer."
+    },
+    "permissions": {
+      "loading": "Laster inn tillatelser...",
+      "no_data": "Ingen data tilgjengelig.",
+      "no_roles": "Ingen roller gjelder i dette omfanget.",
+      "permission": "Tillatelse",
+      "state": "Tilstand",
+      "decided_by": "Bestemt av",
+      "granted": "Innvilget",
+      "denied": "Avvist",
+      "no_decision": "Ingen avgjørelse",
+      "no_role_decided": "Ingen rolle bestemt",
+      "hide_trace": "Skjul spor",
+      "show_trace": "Vis spor",
+      "trace_one": "Oppløsningssporing (1 oppføring)",
+      "trace_many": "Oppløsningssporing ({count}-oppføringer)",
+      "allow": "tillat",
+      "deny": "avviser",
+      "winning_decision": "(vinnende avgjørelse)",
+      "level_server": "Server",
+      "level_group": "Gruppe",
+      "level_room": "Rom",
+      "empty_category": "Ingen tillatelser i denne kategorien",
+      "categories": {
+        "space": {
+          "title": "Servertillatelser",
+          "description": "Funksjoner på servernivå holdt under den eldre kategorinøkkelen for kompatibilitet"
+        },
+        "room": {
+          "title": "Romtillatelser",
+          "description": "Serverstandarder for romoppdagelse og sammenføyning, pluss romoppretting. Legg til rom/gruppeavslag for lokale restriksjoner"
+        },
+        "message": {
+          "title": "Meldingstillatelser",
+          "description": "Serverstandarder for innlegg, tråder, reaksjoner, ekko og meldingsmoderering. Rom/gruppenekter skaper lokale unntak"
+        },
+        "member": {
+          "title": "Medlemstillatelser",
+          "description": "Kontroller hvem som kan invitere og fjerne tjenermedlemmer"
+        },
+        "role": {
+          "title": "Rolletillatelser",
+          "description": "Kontroller hvem som kan redigere roller, tildele roller og administrere forhåndsinnstillinger for tillatelser"
+        },
+        "admin": {
+          "title": "Administratortillatelser",
+          "description": "Kontroller tilgang til serveromfattende administrative visninger og diagnostikk"
+        },
+        "dm": {
+          "title": "DM-tillatelser",
+          "description": "Kontroller tilgangen til inngangspunkter for direktemeldinger"
+        },
+        "user": {
+          "title": "Brukertillatelser",
+          "description": "Kontroller brukerkontoer og tillatelsesoperasjoner per bruker. Enhver ikke-eier nekter kansellerer tilskudd"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
+      "room_create": "Opprett nye rom",
+      "room_join": "Bli med i eksisterende rom",
+      "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",
+      "room_manage": "Rediger et roms innstillinger og tillatelser, og slett rom",
+      "room_ban_member": "Ban medlemmer fra rom",
+      "message_post": "Legg ut root-meldinger i rom og start DM-er",
+      "message_post_in_thread": "Legg inn svar i en tråd",
+      "message_attach": "Legg ved filer til meldinger",
+      "message_echo": "Når du poster i en tråd, må du også vise meldingen i hovedkanalen",
+      "message_manage": "Rediger og slett andre brukeres meldinger",
+      "message_react": "Legg til og fjern reaksjoner på meldinger",
+      "role_manage": "Opprett, rediger, slett og omorganiser roller og deres tillatelser",
+      "role_assign": "Tildel og tilbakekall roller for brukere",
+      "admin_view_users": "Se brukersiden i admin",
+      "admin_view_system": "Se projeksjonsdiagnostikk i admin",
+      "admin_view_audit": "Se revisjonslogg på admin",
+      "user_delete_any": "Slett en annen brukers konto",
+      "user_delete_self": "Slett din egen konto",
+      "user_manage_accounts": "Opprett brukere, rediger kontoidentitet, tilbakestill passord, legg ved bekreftede e-poster og fjern påloggingsavkjølinger",
+      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker"
+    }
+  }
+}

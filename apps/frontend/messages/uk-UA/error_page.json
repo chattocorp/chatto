@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Щось пішло не так",
+    "description": "Не вдалося відкрити цей перегляд. Ви можете повернутися до Chatto і спробувати знову звідти.",
+    "unknown": "Невідома помилка",
+    "home_link": "Назад до Chatto",
+    "missing_media_title": "Медіа недоступні",
+    "missing_media_description": "Цей файл не вдалося відкрити за цим посиланням. Можливо, його було видалено або приватне медіа-посилання більше не доступне."
+  }
+}

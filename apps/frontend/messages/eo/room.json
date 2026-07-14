@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Kreu Novan Ĉambron",
+      "description": "Ĉambroj estas konversacioj en via servilo.",
+      "name_placeholder": "Enigu la nomon de la ĉambro",
+      "description_placeholder": "Pri kio temas ĉi tiu ĉambro?",
+      "name_label": "Ĉambronomo",
+      "description_label": "Priskribo (laŭvola)",
+      "universal_label": "Universala ĉambro",
+      "universal_description": "Ĉiuj servilmembroj (kun la permeso) aŭtomate estas membroj de ĉi tiu ĉambro.",
+      "name_required": "Ĉambronomo estas postulata",
+      "missing_group": "Elektu ĉambrogrupon antaŭ krei ĉambron.",
+      "failed": "Malsukcesis krei ĉambron",
+      "creating": "Kreante...",
+      "submit": "Krei Ĉambron"
+    },
+    "join": {
+      "title": "Aliĝu al Ĉambro",
+      "action": "Aliĝu al Ĉambro",
+      "prompt": "Aliĝu al #{room} por legi kaj partopreni en ĉi tiu ĉambro.",
+      "inline_prompt": "Aliĝu al ĉi tiu ĉambro por legi kaj partopreni.",
+      "success": "Aliĝis al #{room}",
+      "success_generic": "Aliĝis al ĉambro",
+      "failed": "Malsukcesis aliĝi al ĉambro",
+      "access_title": "Ĉambro-Aliro",
+      "access_denied": "Vi ne havas permeson aliĝi al ĉi tiu ĉambro."
+    },
+    "leave": {
+      "title": "Forlasu Ĉambron",
+      "action": "Forlasu Ĉambron",
+      "prompt": "Ĉu vi certas, ke vi volas forlasi #{room}? Vi povas denove aliĝi poste.",
+      "failed": "Malsukcesis forlasi ĉambron"
+    },
+    "directory": {
+      "universal_title": "Universalaj ĉambroj estas kunigitaj aŭtomate",
+      "joined": "Aliĝis",
+      "leave": "Foriru",
+      "restricted_title": "Vi ne havas permeson aliĝi al ĉi tiu ĉambro",
+      "search_placeholder": "Serĉu ĉambrojn...",
+      "empty": "Ankoraŭ neniuj ĉambroj en ĉi tiu servilo.",
+      "no_results": "Neniuj ĉambroj kongruas kun via filtrilo.",
+      "universal": "Universala",
+      "joined_title": "Aliĝis al #{room} - klaku por foriri",
+      "leaving": "Forirante",
+      "joining": "Aliĝo",
+      "join": "Aliĝu",
+      "restricted": "Restriktita",
+      "join_all": "Aliĝu al ĉiuj",
+      "already_in_group": "Jam en ĉiu ĉambro en {group}",
+      "joined_group_one": "Aliĝis al 1 ĉambro en {group}",
+      "joined_group_many": "Aliĝis al {count}-ĉambroj en {group}",
+      "join_group_failed": "Malsukcesis aliĝi al grupo",
+      "left": "Maldekstre #{room}",
+      "left_generic": "Foriris ĉambro",
+      "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?"
+    },
+    "server": {
+      "leave_title": "Forlasu Servilon",
+      "leave_action": "Forlasu Servilon",
+      "leave_prompt": "Ĉu vi certas, ke vi volas forlasi {server}? Vi perdos la aliron al ĝiaj ĉambroj, kaj via kliento forgesos pri ĉi tiu servilo. Vi povas re-aldoni ĝin poste de la flanka kolumno."
+    },
+    "timeline": {
+      "beginning": "Jen la komenco de ĉi tiu konversacio."
+    },
+    "message": {
+      "empty": "Ankoraŭ neniuj mesaĝoj",
+      "delete_title": "Forigi Mesaĝon",
+      "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun mesaĝon? Ĉi tio ne povas esti malfarita.",
+      "delete_failed": "Malsukcesis forigi mesaĝon",
+      "reaction_failed": "Malsukcesis ĝisdatigi reagon",
+      "deleted": "Mesaĝo forigita",
+      "actions": {
+        "toolbar": "Mesaĝaj agoj",
+        "react_with": "Reagi kun {emoji}",
+        "remove_reaction": "Forigi {emoji}",
+        "add_reaction": "Aldonu reagon",
+        "more_reactions": "Pli da reagoj",
+        "reply": "Respondu",
+        "reply_thread": "Respondu en fadeno",
+        "open_thread": "Malfermu fadenon",
+        "edit": "Redaktu mesaĝon",
+        "more": "Pli da agoj",
+        "edit_short": "Redaktu",
+        "copy_link": "Kopiu ligilon"
+      },
+      "meta": {
+        "thread": "Fadeno",
+        "reply_count_one": "1 respondo",
+        "reply_count_many": "{count} respondas",
+        "follow_thread": "Sekvu fadenon",
+        "unfollow_thread": "Malsekvu fadenon",
+        "add_reaction_label": "Aldonu reagon {emoji} ({count})",
+        "remove_reaction_label": "Forigi {emoji}-reagon ({count})",
+        "reaction_users_more": "+ {count} pli",
+        "copy_link_title": "Klaku por kopii ligon al ĉi tiu mesaĝo",
+        "in_reply_to": "en respondo al",
+        "reply_preview_fallback": "Mesaĝo",
+        "deleted": "Ĉi tiu mesaĝo estis forigita."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "aliĝis al la ĉambro",
+            "countPlural=other": "aliĝis al la ĉambro"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "forlasis la ĉambron",
+            "countPlural=other": "forlasis la ĉambron"
+          }
+        }
+      ],
+      "archived": "arkivis la ĉambron",
+      "unarchived": "malarkivigis la ĉambron",
+      "and": "kaj",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "alia",
+            "countPlural=other": "aliaj"
+          }
+        }
+      ],
+      "show_less": "montri malpli"
+    },
+    "attachment": {
+      "delete_title": "Forigi Aldonaĵon",
+      "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun aldonaĵon? Ĉi tio ne povas esti malfarita.",
+      "delete_label": "Forigi aldonaĵon",
+      "delete_failed": "Malsukcesis forigi aldonaĵon",
+      "view_label": "Vidu {filename}",
+      "download_label": "Elŝutu {filename}",
+      "image_refresh_failed": "Ne eblis refreŝigi bildan ligilon",
+      "download_refresh_failed": "Ne eblis refreŝigi elŝutan ligilon"
+    },
+    "link_preview": {
+      "delete_title": "Forigi ligilon antaŭrigardon",
+      "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun ligan antaŭrigardon? Ĉi tio ne povas esti malfarita.",
+      "delete_failed": "Malsukcesis forigi ligilon antaŭrigardon"
+    },
+    "sidebar": {
+      "extras": "Ĉambrokromaĵoj",
+      "resize": "Regrandigi la fenestron de ekstraj ĉambroj",
+      "hide": "Kaŝi ekstrajn ĉambrojn",
+      "maximize_call": "Maksimumigu vokon",
+      "minimize_call": "Minimumigu vokon",
+      "members": "Membroj",
+      "members_title": "Membroj ({count})",
+      "search_members": "Serĉu membrojn de la ĉambro",
+      "search_members_placeholder": "Serĉu membrojn",
+      "clear_member_search": "Klarigi membroserĉon",
+      "no_members": "Neniuj membroj trovitaj.",
+      "online": "Enreta ({count})",
+      "offline": "Senkonekta ({count})",
+      "no_files": "Ankoraŭ neniuj dosieroj en ĉi tiu ĉambro.",
+      "files": "Dosieroj",
+      "call": "Voku",
+      "jump_to_file": "Saltu al {filename}",
+      "loading_files": "Ŝarĝante dosierojn...",
+      "calls_unavailable": "Vokoj ne disponeblas en ĉi tiu servilo.",
+      "view_profile": "Rigardu profilon de {name}",
+      "in_voice_call": "En voĉvoko",
+      "in_video_call": "En videovoko",
+      "ban_failed": "Malsukcesis malpermesi membron de ĉambro",
+      "ban_success": "Malpermesita {name} de ĉambro"
+    },
+    "title": {
+      "direct_message": "Rekta Mesaĝo"
+    },
+    "thread": {
+      "title": "Fadeno en #{room}",
+      "back_to_room": "Reen al la ĉambro",
+      "follow": "Sekvu fadenon",
+      "unfollow": "Malsekvu fadenon",
+      "close": "Fermu fadenon",
+      "not_found": "Fadeno ne trovita",
+      "reply_placeholder": "Respondu en fadeno..."
+    },
+    "jump_to_present": "Saltu al Prezentaro",
+    "jump_failed": "Ne eblis salti al tiu mesaĝo.",
+    "unread_separator": "Novaj mesaĝoj",
+    "close_extras": "Fermu ĉambrajn kromaĵojn"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "通知",
+      "subtitle": "新機能はこちら",
+      "clear_all": "すべてクリア",
+      "empty_title": "通知はありません",
+      "empty_body": "みんなも追いつきました！",
+      "time_now": "ただいま",
+      "time_minutes": "{count}分前",
+      "time_hours": "{count}時間前",
+      "time_days": "{count}d 前"
+    },
+    "sign_out": {
+      "title": "サインアウト",
+      "current_server": "現在のサーバー",
+      "all_servers": "すべてのサーバー",
+      "description": "選択したサーバーのみからサインアウトするか、すべてのサーバーをこのクライアントから切断します。"
+    },
+    "overview": {
+      "title": "概要"
+    },
+    "server_nav": {
+      "back_to_server": "サーバーに戻る",
+      "server_fallback": "サーバー",
+      "administration": "サーバー管理"
+    },
+    "user_menu": {
+      "profile": "ユーザープロフィール",
+      "send_message": "メッセージを送信"
+    },
+    "server_gutter": {
+      "add_server": "サーバーの追加"
+    },
+    "threads": {
+      "title": "私のスレッド",
+      "subtitle": "あなたがフォローしているスレッド",
+      "filter_label": "スレッドのフィルタリング",
+      "filter_all": "全て",
+      "filter_unread": "未読",
+      "empty_title": "フォローされているスレッドはありません",
+      "empty_body": "あなたがフォローしているスレッドがここに表示されます。参加しているスレッドを自動的にフォローします。",
+      "no_unread_loaded": "未読のスレッドがロードされていません",
+      "all_caught_up": "みんな追いつきました",
+      "loaded_count": "{total} の {loaded} に従ってスレッドがロードされました。",
+      "load_more": "もっと読み込む",
+      "no_unread": "現在、未読のスレッドはありません。",
+      "message_missing": "メッセージは利用できなくなりました",
+      "in_room": "で",
+      "in_room_capitalized": "で"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Ga naar de server, kamer of gesprek...",
+    "no_results": "Geen resultaten",
+    "recent": "Recent",
+    "kind": {
+      "destination": "Ga naar",
+      "server": "Server",
+      "room": "Kamer",
+      "dm": "Stuur een bericht",
+      "user": "Gebruiker"
+    }
+  }
+}

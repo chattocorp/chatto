@@ -43,8 +43,43 @@
         }
 
         function applyLocale() {
-          const locales = ['en-GB', 'en-US', 'de'];
-          const legacyLocales = { en: 'en-GB' };
+          const locales = [
+            'en-GB',
+            'en-US',
+            'de-DE',
+            'de-AT',
+            'de-CH',
+            'nl-NL',
+            'nl-BE',
+            'sv-SE',
+            'fr-FR',
+            'fr-CA',
+            'es-ES',
+            'es-419',
+            'pt-BR',
+            'pt-PT',
+            'nb-NO',
+            'pl-PL',
+            'uk-UA',
+            'ja-JP',
+            'eo'
+          ];
+          const legacyLocales = { en: 'en-GB', de: 'de-DE' };
+          const defaultLocales = {
+            en: 'en-GB',
+            de: 'de-DE',
+            nl: 'nl-NL',
+            sv: 'sv-SE',
+            fr: 'fr-FR',
+            es: 'es-ES',
+            pt: 'pt-BR',
+            nb: 'nb-NO',
+            no: 'nb-NO',
+            pl: 'pl-PL',
+            uk: 'uk-UA',
+            ja: 'ja-JP',
+            eo: 'eo'
+          };
           const storedValue = localStorage.getItem('PARAGLIDE_LOCALE');
           const migratedStored = legacyLocales[storedValue] ?? storedValue;
           const stored = locales.includes(migratedStored) ? migratedStored : null;
@@ -61,12 +96,14 @@
               .map((value) => {
                 const exact = locales.find((locale) => value === locale.toLowerCase());
                 if (exact) return exact;
-                if (value.startsWith('de-')) return 'de';
-                if (value === 'en' || value.startsWith('en-')) return 'en-GB';
-                return undefined;
+                const language = value.split('-')[0];
+                return defaultLocales[language];
               })
               .find(Boolean) ?? 'en-GB';
 
+          // Paraglide reads this before hydration. Persist browser negotiation so
+          // its runtime locale cannot disagree with the first-paint language.
+          if (!stored) localStorage.setItem('PARAGLIDE_LOCALE', locale);
           root.lang = locale;
           root.dir = 'ltr';
         }

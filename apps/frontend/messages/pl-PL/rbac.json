@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Usuń rolę",
+      "prompt": "Czy na pewno chcesz usunąć rolę {role}? To będzie:",
+      "remove_from_users": "Usuń rolę ze wszystkich użytkowników, którzy ją posiadają",
+      "delete_grants": "Usuń wszystkie uprawnienia przyznane tej roli",
+      "irreversible": "Tej akcji nie można cofnąć.",
+      "deleting": "Usuwanie...",
+      "action": "Usuń rolę"
+    },
+    "role_form": {
+      "save": "Zapisz",
+      "saving": "Zapisywanie...",
+      "name": "Nazwa",
+      "name_placeholder": "np. moderator",
+      "name_description": "Tylko małe litery. Nie można zmienić po utworzeniu.",
+      "name_too_long": "Nazwa musi mieć maksymalnie 32 znaki",
+      "name_invalid": "Nazwa musi zawierać małe litery, cyfry i myślniki; zacznij od litery",
+      "name_locked": "Nazw ról nie można zmienić po utworzeniu.",
+      "display_name": "Nazwa wyświetlana",
+      "display_name_placeholder": "np. Moderator",
+      "display_name_too_long": "Nazwa wyświetlana może mieć maksymalnie 64 znaki",
+      "description": "Opis",
+      "description_placeholder": "Opcjonalny opis tej roli",
+      "pingable": "Zezwalaj innym na pingowanie tej roli",
+      "pingable_description": "Role, które można pingować, pojawiają się w @ autouzupełnianiu i powiadamiają przypisanych członków pokoju."
+    },
+    "permissions": {
+      "loading": "Ładowanie uprawnień...",
+      "no_data": "Brak dostępnych danych.",
+      "no_roles": "Brak ról mających zastosowanie w tym zakresie.",
+      "permission": "Pozwolenie",
+      "state": "Stan",
+      "decided_by": "Zdecydował",
+      "granted": "Zgadza się",
+      "denied": "Odrzucono",
+      "no_decision": "Brak decyzji",
+      "no_role_decided": "Nie zdecydowano o żadnej roli",
+      "hide_trace": "Ukryj ślad",
+      "show_trace": "Pokaż ślad",
+      "trace_one": "Śledzenie rozdzielczości (1 wpis)",
+      "trace_many": "Śledzenie rozdzielczości (wpisy {count})",
+      "allow": "zezwól",
+      "deny": "odmów",
+      "winning_decision": "(zwycięska decyzja)",
+      "level_server": "Serwer",
+      "level_group": "Grupa",
+      "level_room": "Pokój",
+      "empty_category": "Brak uprawnień w tej kategorii",
+      "categories": {
+        "space": {
+          "title": "Uprawnienia serwera",
+          "description": "Możliwości na poziomie serwera zachowane w ramach starszego klucza kategorii w celu zapewnienia zgodności"
+        },
+        "room": {
+          "title": "Uprawnienia do pokoju",
+          "description": "Domyślne ustawienia serwera dotyczące odkrywania pokoju i dołączania do niego oraz tworzenia pokoju. Dodaj odmowy dla pomieszczeń/grup ze względu na lokalne ograniczenia"
+        },
+        "message": {
+          "title": "Uprawnienia do wiadomości",
+          "description": "Domyślne ustawienia serwera dotyczące wysyłania postów, wątków, reakcji, powtarzania echa i moderowania wiadomości. Odmowy dla pokoju/grupy powodują utworzenie lokalnych wyjątków"
+        },
+        "member": {
+          "title": "Uprawnienia członkowskie",
+          "description": "Kontroluj, kto może zapraszać i usuwać członków serwera"
+        },
+        "role": {
+          "title": "Uprawnienia roli",
+          "description": "Kontroluj, kto może edytować role, przypisywać role i zarządzać ustawieniami uprawnień"
+        },
+        "admin": {
+          "title": "Uprawnienia administratora",
+          "description": "Kontroluj dostęp do widoków administracyjnych i diagnostyki na całym serwerze"
+        },
+        "dm": {
+          "title": "Uprawnienia w DM",
+          "description": "Kontroluj dostęp do punktów wejścia wiadomości bezpośrednich"
+        },
+        "user": {
+          "title": "Uprawnienia użytkownika",
+          "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników. Każda odmowa niebędąca właścicielem powoduje anulowanie dotacji"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
+      "room_create": "Utwórz nowe pokoje",
+      "room_join": "Dołącz do istniejących pokoi",
+      "room_list": "Zobacz pokoje w katalogu. Użytkownik może uzyskać dostęp do pokoju (np. poprosić o dostęp) bez możliwości dołączenia do niego.",
+      "room_manage": "Edytuj ustawienia i uprawnienia pokoju oraz usuwaj pokoje",
+      "room_ban_member": "Zablokuj członkom dostęp do pokojów",
+      "message_post": "Publikuj wiadomości root w pokojach i rozpoczynaj czaty",
+      "message_post_in_thread": "Publikuj odpowiedzi w wątku",
+      "message_attach": "Dołącz pliki do wiadomości",
+      "message_echo": "Publikując post w wątku, umieść wiadomość również w głównym kanale",
+      "message_manage": "Edytuj i usuwaj wiadomości innych użytkowników",
+      "message_react": "Dodawaj i usuwaj reakcje na wiadomości",
+      "role_manage": "Twórz, edytuj, usuwaj i zmieniaj kolejność ról oraz przydzielonych im uprawnień",
+      "role_assign": "Przydzielaj i odbieraj role użytkownikom",
+      "admin_view_users": "Wyświetl stronę użytkowników w panelu administracyjnym",
+      "admin_view_system": "Wyświetl diagnostykę projekcji w panelu administracyjnym",
+      "admin_view_audit": "Wyświetl dziennik audytu w panelu administratora",
+      "user_delete_any": "Usuń konto innego użytkownika",
+      "user_delete_self": "Usuń własne konto",
+      "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
+      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
+    }
+  }
+}

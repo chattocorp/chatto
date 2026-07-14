@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Créer une nouvelle salle",
+      "description": "Les salons sont des conversations au sein de votre serveur.",
+      "name_placeholder": "Entrez le nom de la salle",
+      "description_placeholder": "De quoi parle cette pièce ?",
+      "name_label": "Nom de la salle",
+      "description_label": "Description (facultatif)",
+      "universal_label": "Salle universelle",
+      "universal_description": "Tous les membres du serveur (avec la permission) sont automatiquement membres de cette salle.",
+      "name_required": "Le nom de la salle est requis",
+      "missing_group": "Choisissez un groupe de pièces avant de créer une pièce.",
+      "failed": "Échec de la création du salon",
+      "creating": "Création...",
+      "submit": "Créer une salle"
+    },
+    "join": {
+      "title": "Se joindre à la salle",
+      "action": "Se joindre à la salle",
+      "prompt": "Joignez-vous à #{room} pour lire et participer à cette salle.",
+      "inline_prompt": "Joignez-vous à cette salle pour lire et participer.",
+      "success": "S'est joint à #{room}",
+      "success_generic": "Le salon se joint",
+      "failed": "Échec de la connexion au salon",
+      "access_title": "Accès à la salle",
+      "access_denied": "Vous n'êtes pas autorisé à vous joindre à cette salle."
+    },
+    "leave": {
+      "title": "Sortir de la salle",
+      "action": "Sortir de la salle",
+      "prompt": "Êtes-vous certain de vouloir quitter #{room} ? Vous pourrez vous joindre plus tard.",
+      "failed": "Impossible de quitter la salle"
+    },
+    "directory": {
+      "universal_title": "Les salons universels sont rejoints automatiquement",
+      "joined": "Rejoint",
+      "leave": "Partir",
+      "restricted_title": "Vous n'êtes pas autorisé à vous joindre à cette salle",
+      "search_placeholder": "Chercher des salles...",
+      "empty": "Aucune salle sur ce serveur pour l'instant.",
+      "no_results": "Aucune pièce ne correspond à votre filtre.",
+      "universal": "Universel",
+      "joined_title": "S'est joint à #{room} - cliquez pour quitter",
+      "leaving": "Partir",
+      "joining": "Joindre",
+      "join": "Joindre",
+      "restricted": "Restreint",
+      "join_all": "Joignez-vous à tous",
+      "already_in_group": "Déjà dans chaque pièce de {group}",
+      "joined_group_one": "S'est joint à 1 salle dans {group}",
+      "joined_group_many": "Salles {count} rejointes dans {group}",
+      "join_group_failed": "Impossible de joindre le groupe",
+      "left": "Gauche #{room}",
+      "left_generic": "Chambre de gauche",
+      "leave_confirm": "Êtes-vous certain de vouloir quitter #{room} ?"
+    },
+    "server": {
+      "leave_title": "Sortir du serveur",
+      "leave_action": "Sortir du serveur",
+      "leave_prompt": "Êtes-vous certain de vouloir quitter {server} ? Vous perdrez l'accès à ses salles et votre client oubliera ce serveur. Vous pourrez l'ajouter plus tard à partir de la barre latérale."
+    },
+    "timeline": {
+      "beginning": "Voici le début de cette conversation."
+    },
+    "message": {
+      "empty": "Aucun message pour l'instant",
+      "delete_title": "Supprimer le message",
+      "delete_prompt": "Êtes-vous certain de vouloir supprimer ce message ? Ça ne peut pas être annulé.",
+      "delete_failed": "Échec de la suppression du message",
+      "reaction_failed": "Échec de la mise à jour de la réaction",
+      "deleted": "Message supprimé",
+      "actions": {
+        "toolbar": "Actions des messages",
+        "react_with": "Réagissez avec {emoji}",
+        "remove_reaction": "Retirer {emoji}",
+        "add_reaction": "Ajouter une réaction",
+        "more_reactions": "Plus de réactions",
+        "reply": "Répondre",
+        "reply_thread": "Répondre dans le fil de discussion",
+        "open_thread": "Ouvrir le fil de discussion",
+        "edit": "Modifier le message",
+        "more": "Plus d'actions",
+        "edit_short": "Modifier",
+        "copy_link": "Copier le lien"
+      },
+      "meta": {
+        "thread": "Sujet",
+        "reply_count_one": "1 réponse",
+        "reply_count_many": "Réponses de {count}",
+        "follow_thread": "Suivre le fil de discussion",
+        "unfollow_thread": "Ne plus suivre le fil de discussion",
+        "add_reaction_label": "Ajouter la réaction {emoji} ({count})",
+        "remove_reaction_label": "Supprimer la réaction {emoji} ({count})",
+        "reaction_users_more": "+ {count} plus",
+        "copy_link_title": "Cliquez pour copier le lien vers ce message",
+        "in_reply_to": "en réponse à",
+        "reply_preview_fallback": "Message",
+        "deleted": "Ce message a été supprimé."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "s'est joint à la salle",
+            "countPlural=other": "s'est joint à la salle"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "a quitté la pièce",
+            "countPlural=other": "a quitté la pièce"
+          }
+        }
+      ],
+      "archived": "a archivé la pièce",
+      "unarchived": "a désarchivé la salle",
+      "and": "et",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "autre",
+            "countPlural=other": "autres"
+          }
+        }
+      ],
+      "show_less": "afficher moins"
+    },
+    "attachment": {
+      "delete_title": "Supprimer la pièce jointe",
+      "delete_prompt": "Êtes-vous certain de vouloir supprimer cette pièce jointe ? Ça ne peut pas être annulé.",
+      "delete_label": "Supprimer la pièce jointe",
+      "delete_failed": "Échec de la suppression de la pièce jointe",
+      "view_label": "Afficher {filename}",
+      "download_label": "Télécharger {filename}",
+      "image_refresh_failed": "Impossible de rafraîchir le lien de l'image",
+      "download_refresh_failed": "Impossible de rafraîchir le lien de téléchargement"
+    },
+    "link_preview": {
+      "delete_title": "Supprimer l'aperçu du lien",
+      "delete_prompt": "Êtes-vous certain de vouloir supprimer cet aperçu du lien ? Ça ne peut pas être annulé.",
+      "delete_failed": "Échec de la suppression de l'aperçu du lien"
+    },
+    "sidebar": {
+      "extras": "Les meilleurs de la chambre",
+      "resize": "Redimensionner le volet des extras de la salle",
+      "hide": "Cacher les extras de la chambre",
+      "maximize_call": "Maximiser l'appel",
+      "minimize_call": "Réduire l'appel",
+      "members": "Membres",
+      "members_title": "Membres ({count})",
+      "search_members": "Chercher des membres du salon",
+      "search_members_placeholder": "Rechercher des membres",
+      "clear_member_search": "Effacer la recherche de membres",
+      "no_members": "Aucun membre trouvé.",
+      "online": "En ligne ({count})",
+      "offline": "Hors ligne ({count})",
+      "no_files": "Aucun fichier pour l'instant dans cette salle.",
+      "files": "Fichiers",
+      "call": "Appeler",
+      "jump_to_file": "Aller à {filename}",
+      "loading_files": "Chargement des fichiers...",
+      "calls_unavailable": "Les appels ne sont pas disponibles sur ce serveur.",
+      "view_profile": "Voir le profil de {name}",
+      "in_voice_call": "Lors d'un appel vocal",
+      "in_video_call": "Lors d'un appel vidéo",
+      "ban_failed": "Échec de l'exclusion du membre de la salle",
+      "ban_success": "{name} banni de la salle"
+    },
+    "title": {
+      "direct_message": "Message direct"
+    },
+    "thread": {
+      "title": "Sujet dans #{room}",
+      "back_to_room": "Retourner à la salle",
+      "follow": "Suivre le fil de discussion",
+      "unfollow": "Ne plus suivre le fil de discussion",
+      "close": "Fermer le fil de discussion",
+      "not_found": "Le sujet est introuvable",
+      "reply_placeholder": "Répondre dans le fil de discussion..."
+    },
+    "jump_to_present": "Passer au présent",
+    "jump_failed": "Impossible d'accéder à ce message.",
+    "unread_separator": "Nouveaux messages",
+    "close_extras": "Fermer les extras de la salle"
+  }
+}

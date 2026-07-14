@@ -5,6 +5,11 @@ import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 const appHtml = readFileSync(new URL('./app.html', import.meta.url), 'utf8');
+const configuredLocales = (
+  JSON.parse(readFileSync(new URL('../project.inlang/settings.json', import.meta.url), 'utf8')) as {
+    locales: string[];
+  }
+).locales;
 const manifest = JSON.parse(
   readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf8')
 ) as WebAppManifest;
@@ -230,6 +235,12 @@ describe('app.html theme bootstrap', () => {
 });
 
 describe('app.html locale bootstrap', () => {
+  it('keeps first-paint negotiation aligned with the configured locales', () => {
+    const localeList = appHtml.match(/const locales = (\[[\s\S]*?\]);/)?.[1];
+    expect(localeList).toBeTruthy();
+    expect(JSON.parse(localeList!.replaceAll("'", '"'))).toEqual(configuredLocales);
+  });
+
   it('falls back to British English when no browser locale is available', () => {
     const { root } = runThemeScript({ systemDark: false });
     expect(root.lang).toBe('en-GB');
@@ -239,20 +250,30 @@ describe('app.html locale bootstrap', () => {
   it('uses the stored Paraglide locale before browser languages', () => {
     const { root } = runThemeScript({
       systemDark: false,
-      storedLocale: 'de',
+      storedLocale: 'fr-CA',
       browserLanguages: ['en-US']
     });
 
-    expect(root.lang).toBe('de');
+    expect(root.lang).toBe('fr-CA');
   });
 
-  it('matches supported browser language variants', () => {
+  it('matches exact supported browser language variants', () => {
     const { root } = runThemeScript({
       systemDark: false,
       browserLanguages: ['de-AT', 'en-US']
     });
 
-    expect(root.lang).toBe('de');
+    expect(root.lang).toBe('de-AT');
+  });
+
+  it('maps a language-only browser preference to its default region', () => {
+    const result = runThemeScript({
+      systemDark: false,
+      browserLanguages: ['pt']
+    });
+
+    expect(result.root.lang).toBe('pt-BR');
+    expect(result.storedLocale()).toBe('pt-BR');
   });
 
   it('preserves an exact regional English browser locale', () => {
@@ -284,13 +305,25 @@ describe('app.html locale bootstrap', () => {
     expect(result.storedLocale()).toBe('en-GB');
   });
 
-  it('ignores an unsupported stored locale when matching browser preferences', () => {
-    const { root } = runThemeScript({
+  it('migrates the legacy German preference to German for Germany', () => {
+    const result = runThemeScript({
       systemDark: false,
-      storedLocale: 'fr',
-      browserLanguages: ['de-DE']
+      storedLocale: 'de',
+      browserLanguages: ['en-US']
     });
 
-    expect(root.lang).toBe('de');
+    expect(result.root.lang).toBe('de-DE');
+    expect(result.storedLocale()).toBe('de-DE');
+  });
+
+  it('ignores an unsupported stored locale when matching browser preferences', () => {
+    const result = runThemeScript({
+      systemDark: false,
+      storedLocale: 'it-IT',
+      browserLanguages: ['fr-CA']
+    });
+
+    expect(result.root.lang).toBe('fr-CA');
+    expect(result.storedLocale()).toBe('fr-CA');
   });
 });

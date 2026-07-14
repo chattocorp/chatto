@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "新しいルームを作成する",
+      "description": "ルームはサーバー内の会話です。",
+      "name_placeholder": "ルーム名を入力してください",
+      "description_placeholder": "この部屋は何ですか?",
+      "name_label": "ルーム名",
+      "description_label": "説明 (オプション)",
+      "universal_label": "ユニバーサルルーム",
+      "universal_description": "すべてのサーバー メンバー (権限が与えられている) は自動的にこのルームのメンバーになります。",
+      "name_required": "ルーム名は必須です",
+      "missing_group": "ルームを作成する前にルーム グループを選択してください。",
+      "failed": "ルームの作成に失敗しました",
+      "creating": "作成中...",
+      "submit": "ルームの作成"
+    },
+    "join": {
+      "title": "ルームに参加",
+      "action": "ルームに参加",
+      "prompt": "#{room} に参加して、このルームを読んで参加してください。",
+      "inline_prompt": "このルームに参加して読んで参加してください。",
+      "success": "#{room} に参加しました",
+      "success_generic": "ルームに参加しました",
+      "failed": "ルームに参加できませんでした",
+      "access_title": "ルームアクセス",
+      "access_denied": "このルームに参加する権限がありません。"
+    },
+    "leave": {
+      "title": "退室",
+      "action": "退室",
+      "prompt": "#{room} を退会してもよろしいですか?後で再参加できます。",
+      "failed": "ルームから退出できませんでした"
+    },
+    "directory": {
+      "universal_title": "ユニバーサルルームは自動的に参加します",
+      "joined": "参加しました",
+      "leave": "出発",
+      "restricted_title": "このルームに参加する権限がありません",
+      "search_placeholder": "部屋を検索...",
+      "empty": "このサーバーにはまだルームがありません。",
+      "no_results": "フィルターに一致する部屋はありません。",
+      "universal": "ユニバーサル",
+      "joined_title": "#{room} に参加しました - クリックして退会します",
+      "leaving": "出発します",
+      "joining": "参加中",
+      "join": "参加します",
+      "restricted": "制限あり",
+      "join_all": "全員参加",
+      "already_in_group": "すでに {group} のすべての部屋にあります",
+      "joined_group_one": "{group} の 1 ルームに参加しました",
+      "joined_group_many": "{group} の {count} ルームに参加しました",
+      "join_group_failed": "グループに参加できませんでした",
+      "left": "左 #{room}",
+      "left_generic": "部屋を出ました",
+      "leave_confirm": "#{room} を退会してもよろしいですか?"
+    },
+    "server": {
+      "leave_title": "サーバーを離れる",
+      "leave_action": "サーバーを離れる",
+      "leave_prompt": "{server} から退会してもよろしいですか?あなたはそのルームにアクセスできなくなり、クライアントはこのサーバーのことを忘れてしまいます。後でサイドバーから再度追加できます。"
+    },
+    "timeline": {
+      "beginning": "ここから会話が始まります。"
+    },
+    "message": {
+      "empty": "まだメッセージはありません",
+      "delete_title": "メッセージを削除",
+      "delete_prompt": "このメッセージを削除してもよろしいですか?これを元に戻すことはできません。",
+      "delete_failed": "メッセージの削除に失敗しました",
+      "reaction_failed": "リアクションの更新に失敗しました",
+      "deleted": "メッセージが削除されました",
+      "actions": {
+        "toolbar": "メッセージアクション",
+        "react_with": "{emoji} に反応する",
+        "remove_reaction": "{emoji} を削除します",
+        "add_reaction": "リアクションを追加",
+        "more_reactions": "その他のリアクション",
+        "reply": "返信",
+        "reply_thread": "スレッド内で返信",
+        "open_thread": "スレッドを開きます",
+        "edit": "メッセージを編集",
+        "more": "その他のアクション",
+        "edit_short": "編集",
+        "copy_link": "リンクをコピー"
+      },
+      "meta": {
+        "thread": "スレッド",
+        "reply_count_one": "1 件の返信",
+        "reply_count_many": "{count} が返信します",
+        "follow_thread": "スレッドをフォローする",
+        "unfollow_thread": "スレッドのフォローを解除します",
+        "add_reaction_label": "{emoji} リアクションを追加 ({count})",
+        "remove_reaction_label": "{emoji} リアクションを削除 ({count})",
+        "reaction_users_more": "+ {count} 詳細",
+        "copy_link_title": "クリックしてこのメッセージへのリンクをコピーします",
+        "in_reply_to": "への返信",
+        "reply_preview_fallback": "メッセージ",
+        "deleted": "このメッセージは削除されました。"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "がルームに参加しました",
+            "countPlural=other": "がルームに参加しました"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "が部屋を出ました",
+            "countPlural=other": "が部屋を出ました"
+          }
+        }
+      ],
+      "archived": "がルームをアーカイブしました",
+      "unarchived": "ルームのアーカイブを解除しました",
+      "and": "と",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "その他",
+            "countPlural=other": "他"
+          }
+        }
+      ],
+      "show_less": "一部を表示"
+    },
+    "attachment": {
+      "delete_title": "添付ファイルを削除",
+      "delete_prompt": "この添付ファイルを削除してもよろしいですか?これを元に戻すことはできません。",
+      "delete_label": "添付ファイルを削除",
+      "delete_failed": "添付ファイルの削除に失敗しました",
+      "view_label": "{filename}を表示",
+      "download_label": "{filename}をダウンロード",
+      "image_refresh_failed": "画像リンクを更新できませんでした",
+      "download_refresh_failed": "ダウンロードリンクを更新できませんでした"
+    },
+    "link_preview": {
+      "delete_title": "リンクのプレビューを削除",
+      "delete_prompt": "このリンクのプレビューを削除してもよろしいですか?これを元に戻すことはできません。",
+      "delete_failed": "リンクのプレビューを削除できませんでした"
+    },
+    "sidebar": {
+      "extras": "部屋の特典",
+      "resize": "部屋の追加ペインのサイズを変更する",
+      "hide": "ルームの追加機能を非表示にする",
+      "maximize_call": "通話を最大化する",
+      "minimize_call": "通話を最小限に抑える",
+      "members": "メンバー",
+      "members_title": "メンバー ({count})",
+      "search_members": "ルームメンバーを検索",
+      "search_members_placeholder": "メンバーを検索",
+      "clear_member_search": "メンバー検索をクリア",
+      "no_members": "メンバーが見つかりませんでした。",
+      "online": "オンライン ({count})",
+      "offline": "オフライン ({count})",
+      "no_files": "このルームにはまだファイルがありません。",
+      "files": "ファイル",
+      "call": "電話をかける",
+      "jump_to_file": "{filename} にジャンプします",
+      "loading_files": "ファイルをロードしています...",
+      "calls_unavailable": "このサーバーでは通話を利用できません。",
+      "view_profile": "{name} のプロフィールを見る",
+      "in_voice_call": "音声通話中",
+      "in_video_call": "ビデオ通話中",
+      "ban_failed": "ルームへのメンバーの参加禁止に失敗しました",
+      "ban_success": "{name} をルームから禁止しました"
+    },
+    "title": {
+      "direct_message": "ダイレクトメッセージ"
+    },
+    "thread": {
+      "title": "#{room} のスレッド",
+      "back_to_room": "部屋に戻る",
+      "follow": "スレッドをフォローする",
+      "unfollow": "スレッドのフォローを解除",
+      "close": "スレッドを閉じる",
+      "not_found": "スレッドが見つかりません",
+      "reply_placeholder": "スレッド内で返信..."
+    },
+    "jump_to_present": "現在へジャンプ",
+    "jump_failed": "そのメッセージにジャンプできませんでした。",
+    "unread_separator": "新しいメッセージ",
+    "close_extras": "密室エクストラ"
+  }
+}

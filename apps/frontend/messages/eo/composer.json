@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Alektu dosieron",
+    "send": "Sendu mesaĝon",
+    "send_enter": "Sendu mesaĝon (Enigu)",
+    "send_ctrl_enter": "Sendu mesaĝon (Ctrl/Cmd+Enigu)",
+    "also_send_to_channel": "Ankaŭ sendu al kanalo",
+    "replying_to": "Respondante al",
+    "esc_to_cancel": "nuligi",
+    "editing": "Redaktante mesaĝon",
+    "send_anyway": "Sendu Ĉiuokaze",
+    "role_mention_confirm_title": "Ĉu sendi mencion?",
+    "role_mention_confirm_body": "Ĉi tiu mesaĝo enhavas mencion, kiu povas sciigi plurajn homojn.",
+    "link_url": "Ligo URL",
+    "open_link": "Malfermu ligilon",
+    "remove_link": "Forigi ligilon",
+    "code_language": "Kodlingvo",
+    "placeholder": "Tajpu mesaĝon...",
+    "editing_placeholder": "Redaktante mesaĝon...",
+    "drop_files_title": "Forigu dosierojn ĉi tie",
+    "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
+    "send_failed": "Malsukcesis sendi mesaĝon",
+    "edit_failed": "Malsukcesis redakti mesaĝon",
+    "mention": {
+      "all_room_members": "Ĉiuj ĉambromembroj",
+      "members_here": "Membroj nuntempe ĉi tie",
+      "role": "Rolo"
+    }
+  }
+}

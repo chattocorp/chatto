@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Forĵeti antaŭrigardon",
+    "delete": "Forigi antaŭrigardon",
+    "open_link": "Malfermu ligilon",
+    "copy_url": "Kopiu URL",
+    "youtube_title": "YouTube video",
+    "youtube_dismiss": "Forĵeti videon",
+    "youtube_delete": "Forigi videon",
+    "youtube_open": "Malfermu sur YouTube",
+    "youtube_delete_embed": "Forigi embed"
+  }
+}

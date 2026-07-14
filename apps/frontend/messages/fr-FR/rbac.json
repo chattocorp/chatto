@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Supprimer le rôle",
+      "prompt": "Êtes-vous sûr de vouloir supprimer le rôle {role} ? Cela va :",
+      "remove_from_users": "Supprimer le rôle de tous les utilisateurs qui le possèdent",
+      "delete_grants": "Supprimer toutes les autorisations accordées pour ce rôle",
+      "irreversible": "Cette action ne peut pas être annulée.",
+      "deleting": "Suppression...",
+      "action": "Supprimer le rôle"
+    },
+    "role_form": {
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "name": "Nom",
+      "name_placeholder": "par exemple, modérateur",
+      "name_description": "Lettres minuscules uniquement. Ne peut pas être modifié après la création.",
+      "name_too_long": "Le nom doit comporter 32 caractères maximum",
+      "name_invalid": "Le nom doit utiliser des lettres minuscules, des chiffres et des tirets ; commencer par une lettre",
+      "name_locked": "Les noms de rôles ne peuvent pas être modifiés après la création.",
+      "display_name": "Nom d'affichage",
+      "display_name_placeholder": "par exemple, modérateur",
+      "display_name_too_long": "Le nom à afficher doit comporter 64 caractères maximum",
+      "description": "Descriptif",
+      "description_placeholder": "Description facultative pour ce rôle",
+      "pingable": "Autoriser les utilisateurs à envoyer une requête ping à ce rôle",
+      "pingable_description": "Les rôles pingables apparaissent dans @ autocomplete et informent les membres attribués à la salle."
+    },
+    "permissions": {
+      "loading": "Chargement des autorisations...",
+      "no_data": "Aucune donnée disponible.",
+      "no_roles": "Aucun rôle applicable dans cette étendue.",
+      "permission": "Autorisation",
+      "state": "État",
+      "decided_by": "Décidé par",
+      "granted": "Accordé",
+      "denied": "Refusé",
+      "no_decision": "Aucune décision",
+      "no_role_decided": "Aucun rôle décidé",
+      "hide_trace": "Masquer la trace",
+      "show_trace": "Afficher la trace",
+      "trace_one": "Trace de résolution (1 entrée)",
+      "trace_many": "Trace de résolution (entrées {count})",
+      "allow": "autoriser",
+      "deny": "refuser",
+      "winning_decision": "(décision gagnante)",
+      "level_server": "Serveur",
+      "level_group": "Groupe",
+      "level_room": "Chambre",
+      "empty_category": "Aucune autorisation dans cette catégorie",
+      "categories": {
+        "space": {
+          "title": "Autorisations du serveur",
+          "description": "Fonctionnalités au niveau du serveur conservées sous la clé de catégorie héritée pour des raisons de compatibilité"
+        },
+        "room": {
+          "title": "Autorisations de salle",
+          "description": "Paramètres par défaut du serveur pour la découverte et l'adhésion à une salle, ainsi que la création de salle. Ajouter des refus de chambres/groupes pour les restrictions locales"
+        },
+        "message": {
+          "title": "Autorisations de messages",
+          "description": "Paramètres par défaut du serveur pour la publication, les fils de discussion, les réactions, l'écho et la modération des messages. Les refus de salle/groupe créent des exceptions locales"
+        },
+        "member": {
+          "title": "Autorisations des membres",
+          "description": "Contrôler qui peut inviter et supprimer des membres du serveur"
+        },
+        "role": {
+          "title": "Autorisations de rôle",
+          "description": "Contrôler qui peut modifier les rôles, attribuer des rôles et gérer les préréglages d'autorisations"
+        },
+        "admin": {
+          "title": "Autorisations d'administrateur",
+          "description": "Contrôler l'accès aux vues administratives et aux diagnostics à l'échelle du serveur"
+        },
+        "dm": {
+          "title": "Autorisations DM",
+          "description": "Contrôler l'accès aux points d'entrée de messagerie directe"
+        },
+        "user": {
+          "title": "Autorisations utilisateur",
+          "description": "Contrôlez les opérations de compte utilisateur et d'autorisation par utilisateur. Tout refus d'un non-propriétaire annule les subventions"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Mettre à jour les paramètres du serveur (nom, description, logo)",
+      "room_create": "Créer de nouvelles salles",
+      "room_join": "Rejoindre des salons existants",
+      "room_list": "Voir les salles dans l'annuaire. Un utilisateur peut être autorisé à voir une salle (par exemple pour demander l'accès) sans être autorisé à la rejoindre.",
+      "room_manage": "Modifier les paramètres et les autorisations d'une salle et supprimer des salles",
+      "room_ban_member": "Interdire les membres des salles",
+      "message_post": "Publiez des messages root dans les salons et démarrez des DM",
+      "message_post_in_thread": "Publier des réponses dans un fil de discussion",
+      "message_attach": "Joindre des fichiers aux messages",
+      "message_echo": "Lors de la publication dans un fil de discussion, affichez également le message dans le canal principal",
+      "message_manage": "Modifier et supprimer les messages des autres utilisateurs",
+      "message_react": "Ajouter et supprimer des réactions sur les messages",
+      "role_manage": "Créer, modifier, supprimer et réorganiser les rôles et leurs autorisations accordées",
+      "role_assign": "Attribuer et révoquer des rôles pour les utilisateurs",
+      "admin_view_users": "Afficher la page des utilisateurs dans l'administration",
+      "admin_view_system": "Afficher les diagnostics de projection dans l'administrateur",
+      "admin_view_audit": "Afficher le journal d'audit dans l'administrateur",
+      "user_delete_any": "Supprimer le compte d'un autre utilisateur",
+      "user_delete_self": "Supprimez votre propre compte",
+      "user_manage_accounts": "Créez des utilisateurs, modifiez l'identité du compte, réinitialisez les mots de passe, joignez des e-mails vérifiés et effacez les délais de connexion.",
+      "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur"
+    }
+  }
+}

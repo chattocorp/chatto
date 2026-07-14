@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "サーバー、ルーム、または会話に移動します...",
+    "no_results": "結果はありませんでした",
+    "recent": "最近の",
+    "kind": {
+      "destination": "に行く",
+      "server": "サーバー",
+      "room": "部屋",
+      "dm": "DM",
+      "user": "ユーザー"
+    }
+  }
+}

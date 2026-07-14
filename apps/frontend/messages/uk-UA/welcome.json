@@ -1,0 +1,6 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "welcome": {
+    "verified": "Вашу електронну адресу перевірено, і ваш обліковий запис готовий."
+  }
+}

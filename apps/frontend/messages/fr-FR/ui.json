@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Basculer la barre latérale",
+    "notifications": "Notifications",
+    "open_quick_switcher": "Ouvrir le sélecteur rapide",
+    "quick_switcher_shortcut": "Sélecteur rapide (Cmd+K)",
+    "realtime_paused": "Les mises à jour en temps réel ont été suspendues. Reconnexion...",
+    "update_available": "Une nouvelle version est disponible",
+    "reload": "Recharger",
+    "sign_out": "Se déconnecter",
+    "close": "Fermer",
+    "auth_status": {
+      "origin_title": "Session expirée",
+      "origin_message": "Vous pouvez continuer à lire ce qui est déjà chargé. Connectez-vous à nouveau pour envoyer des messages et actualiser les données.",
+      "origin_action": "Connectez-vous à nouveau",
+      "remote_title": "{server} nécessite une connexion",
+      "remote_message": "Ce serveur a rejeté la connexion stockée. Reconnectez-le pour reprendre les mises à jour et les actions en direct.",
+      "remote_action": "Reconnecter",
+      "remote_failed": "Échec du démarrage de la reconnexion",
+      "sidebar_reauth": "{server} nécessite une connexion"
+    },
+    "access_denied": {
+      "title": "Accès refusé",
+      "message": "Vous n'êtes pas autorisé à accéder à cette page.",
+      "back": "Revenir au chat",
+      "back_to_server": "Retour au serveur"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Plus d'informations",
+      "about": "À propos de {subject}"
+    },
+    "pane_header": {
+      "back": "Retour"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Retour au chat"
+    },
+    "resize_handle": {
+      "resize": "Redimensionner",
+      "resize_sidebar": "Redimensionner la barre latérale"
+    },
+    "data_table": {
+      "empty": "Aucune donnée",
+      "loading_more": "Chargement de plus..."
+    },
+    "loading_page": {
+      "loading": "Chargement..."
+    },
+    "image_modal": {
+      "previous": "Image précédente",
+      "next": "Image suivante",
+      "fallback_alt": "Image"
+    },
+    "toast": {
+      "dismiss": "Rejeter la notification"
+    },
+    "combobox": {
+      "loading": "Chargement...",
+      "empty": "Aucune correspondance",
+      "clear": "Effacer"
+    },
+    "expiry": {
+      "label": "Expire",
+      "24h": "24 heures",
+      "7d": "7 jours",
+      "30d": "30 jours",
+      "indefinite": "Pas d'expiration",
+      "custom": "Personnalisé",
+      "custom_label": "Expiration personnalisée",
+      "error_required": "Choisissez une date d'expiration.",
+      "error_invalid": "Saisissez une expiration valide.",
+      "error_future": "L'expiration doit être dans le futur."
+    },
+    "form": {
+      "required": "Obligatoire"
+    },
+    "dates": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "this_week": "Cette semaine",
+      "this_month": "Ce mois-ci"
+    }
+  }
+}

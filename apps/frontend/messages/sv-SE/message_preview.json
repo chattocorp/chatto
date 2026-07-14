@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "message_preview": {
+    "attachments_count": "{count} bilagor",
+    "attachment_image": "Bild",
+    "attachment_video": "Video",
+    "attachment_audio": "Ljud",
+    "attachment_file": "Fil"
+  }
+}

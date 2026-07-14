@@ -1,0 +1,218 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Створіть нову кімнату",
+      "description": "Кімнати – це розмови на вашому сервері.",
+      "name_placeholder": "Введіть назву кімнати",
+      "description_placeholder": "Про що ця кімната?",
+      "name_label": "Назва кімнати",
+      "description_label": "Опис (необов’язково)",
+      "universal_label": "Універсальна кімната",
+      "universal_description": "Усі учасники сервера (отримані дозвіл) автоматично стають учасниками цієї кімнати.",
+      "name_required": "Потрібно ввести назву кімнати",
+      "missing_group": "Виберіть групу кімнат, перш ніж створювати кімнату.",
+      "failed": "Не вдалося створити кімнату",
+      "creating": "Створення...",
+      "submit": "Створити кімнату"
+    },
+    "join": {
+      "title": "Приєднатися до кімнати",
+      "action": "Приєднатися до кімнати",
+      "prompt": "Приєднуйтесь до #{room}, щоб читати та брати участь у цій кімнаті.",
+      "inline_prompt": "Приєднуйтеся до цієї кімнати, щоб читати та брати участь.",
+      "success": "Приєднався до #{room}",
+      "success_generic": "Приєднався до кімнати",
+      "failed": "Не вдалося приєднатися до кімнати",
+      "access_title": "Доступ до кімнати",
+      "access_denied": "Ви не маєте дозволу приєднатися до цієї кімнати."
+    },
+    "leave": {
+      "title": "Вийти з кімнати",
+      "action": "Вийти з кімнати",
+      "prompt": "Ви впевнені, що хочете залишити #{room}? Ви можете приєднатися пізніше.",
+      "failed": "Не вдалося залишити кімнату"
+    },
+    "directory": {
+      "universal_title": "Універсальні кімнати приєднуються автоматично",
+      "joined": "Приєднався",
+      "leave": "Йди",
+      "restricted_title": "Ви не маєте дозволу приєднатися до цієї кімнати",
+      "search_placeholder": "Пошук кімнат...",
+      "empty": "На цьому сервері ще немає кімнат.",
+      "no_results": "Жодна кімната не відповідає вашому фільтру.",
+      "universal": "Універсальний",
+      "joined_title": "Приєднався #{room} - натисніть, щоб вийти",
+      "leaving": "Йду",
+      "joining": "Приєднуюсь",
+      "join": "Приєднуйтесь",
+      "restricted": "Обмежено",
+      "join_all": "Приєднуйтесь до всіх",
+      "already_in_group": "Вже в кожній кімнаті в {group}",
+      "joined_group_one": "Приєднався до 1 кімнати в {group}",
+      "joined_group_many": "Приєднався до кімнат {count} у {group}",
+      "join_group_failed": "Не вдалося приєднатися до групи",
+      "left": "Ліворуч #{room}",
+      "left_generic": "Вийшов з кімнати",
+      "leave_confirm": "Ви впевнені, що хочете залишити #{room}?"
+    },
+    "server": {
+      "leave_title": "Залишити сервер",
+      "leave_action": "Залишити сервер",
+      "leave_prompt": "Ви впевнені, що хочете залишити {server}? Ви втратите доступ до його кімнат, а ваш клієнт забуде про цей сервер. Ви можете повторно додати його пізніше з бічної панелі."
+    },
+    "timeline": {
+      "beginning": "Це початок цієї розмови."
+    },
+    "message": {
+      "empty": "Поки що немає повідомлень",
+      "delete_title": "Видалити повідомлення",
+      "delete_prompt": "Ви впевнені, що хочете видалити це повідомлення? Це неможливо скасувати.",
+      "delete_failed": "Не вдалося видалити повідомлення",
+      "reaction_failed": "Не вдалося оновити реакцію",
+      "deleted": "Повідомлення видалено",
+      "actions": {
+        "toolbar": "Дії з повідомленнями",
+        "react_with": "Реагувати за допомогою {emoji}",
+        "remove_reaction": "Видалити {emoji}",
+        "add_reaction": "Додайте реакцію",
+        "more_reactions": "Більше реакцій",
+        "reply": "Відповідь",
+        "reply_thread": "Відповідь у ланцюжку",
+        "open_thread": "Відкрити тему",
+        "edit": "Редагувати повідомлення",
+        "more": "Більше дій",
+        "edit_short": "Редагувати",
+        "copy_link": "Копіювати посилання"
+      },
+      "meta": {
+        "thread": "Тема",
+        "reply_count_one": "1 відповідь",
+        "reply_count_many": "Відповіді {count}",
+        "follow_thread": "Слідкуйте за темою",
+        "unfollow_thread": "Відписатися від ланцюжка",
+        "add_reaction_label": "Додати реакцію {emoji} ({count})",
+        "remove_reaction_label": "Видалити реакцію {emoji} ({count})",
+        "reaction_users_more": "+ ще {count}",
+        "copy_link_title": "Натисніть, щоб скопіювати посилання на це повідомлення",
+        "in_reply_to": "у відповідь на",
+        "reply_preview_fallback": "Повідомлення",
+        "deleted": "Це повідомлення видалено."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "приєднався до кімнати",
+            "countPlural=few": "приєдналися до кімнати",
+            "countPlural=many": "приєдналися до кімнати",
+            "countPlural=other": "приєдналися до кімнати"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "залишив кімнату",
+            "countPlural=few": "залишили кімнату",
+            "countPlural=many": "залишили кімнату",
+            "countPlural=other": "залишили кімнату"
+          }
+        }
+      ],
+      "archived": "заархівував кімнату",
+      "unarchived": "розархівував кімнату",
+      "and": "і",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "інша людина",
+            "countPlural=few": "інші людини",
+            "countPlural=many": "інших людей",
+            "countPlural=other": "інших людей"
+          }
+        }
+      ],
+      "show_less": "показувати менше"
+    },
+    "attachment": {
+      "delete_title": "Видалити вкладений файл",
+      "delete_prompt": "Ви впевнені, що хочете видалити цей вкладений файл? Це неможливо скасувати.",
+      "delete_label": "Видалити вкладений файл",
+      "delete_failed": "Не вдалося видалити вкладений файл",
+      "view_label": "Переглянути {filename}",
+      "download_label": "Завантажити {filename}",
+      "image_refresh_failed": "Не вдалося оновити посилання на зображення",
+      "download_refresh_failed": "Не вдалося оновити посилання для завантаження"
+    },
+    "link_preview": {
+      "delete_title": "Видалити попередній перегляд посилання",
+      "delete_prompt": "Ви впевнені, що хочете видалити цей попередній перегляд посилання? Це неможливо скасувати.",
+      "delete_failed": "Не вдалося видалити попередній перегляд посилання"
+    },
+    "sidebar": {
+      "extras": "Додаткові номери",
+      "resize": "Змінити розмір додаткової панелі кімнати",
+      "hide": "Сховати додаткові кімнати",
+      "maximize_call": "Розгорнути виклик",
+      "minimize_call": "Згорнути виклик",
+      "members": "Учасники",
+      "members_title": "Учасники ({count})",
+      "search_members": "Пошук учасників кімнати",
+      "search_members_placeholder": "Пошук учасників",
+      "clear_member_search": "Очистити пошук учасників",
+      "no_members": "Учасників не знайдено.",
+      "online": "Онлайн ({count})",
+      "offline": "Офлайн ({count})",
+      "no_files": "У цій кімнаті ще немає файлів.",
+      "files": "Файли",
+      "call": "Телефонуйте",
+      "jump_to_file": "Перейти до {filename}",
+      "loading_files": "Завантаження файлів...",
+      "calls_unavailable": "Дзвінки недоступні на цьому сервері.",
+      "view_profile": "Переглянути профіль {name}",
+      "in_voice_call": "У голосовому дзвінку",
+      "in_video_call": "У відеодзвінку",
+      "ban_failed": "Не вдалося забанити учасника в кімнаті",
+      "ban_success": "{name} забанено в кімнаті"
+    },
+    "title": {
+      "direct_message": "Пряме повідомлення"
+    },
+    "thread": {
+      "title": "Тема в #{room}",
+      "back_to_room": "Назад до кімнати",
+      "follow": "Слідкуйте за темою",
+      "unfollow": "Відписатися від ланцюжка",
+      "close": "Закрити ланцюжок",
+      "not_found": "Тема не знайдена",
+      "reply_placeholder": "Відповідь у ланцюжку..."
+    },
+    "jump_to_present": "Перейти до презентації",
+    "jump_failed": "Не вдалося перейти до цього повідомлення.",
+    "unread_separator": "Нові повідомлення",
+    "close_extras": "Закрийте додаткові кімнати"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Bytt sidefelt",
+    "notifications": "Varsler",
+    "open_quick_switcher": "Åpne hurtigbryteren",
+    "quick_switcher_shortcut": "Hurtigbytter (Cmd+K)",
+    "realtime_paused": "Sanntidsoppdateringer satt på pause. Kobler på nytt ...",
+    "update_available": "En ny versjon er tilgjengelig",
+    "reload": "Last inn på nytt",
+    "sign_out": "Logg av",
+    "close": "Lukk",
+    "auth_status": {
+      "origin_title": "Økten er utløpt",
+      "origin_message": "Du kan fortsette å lese det som allerede er lastet inn. Logg på igjen for å sende meldinger og oppdatere data.",
+      "origin_action": "Logg på igjen",
+      "remote_title": "{server} trenger pålogging",
+      "remote_message": "Denne serveren avviste den lagrede påloggingen. Koble den til igjen for å gjenoppta liveoppdateringer og handlinger.",
+      "remote_action": "Koble til på nytt",
+      "remote_failed": "Kunne ikke starte på nytt",
+      "sidebar_reauth": "{server} trenger pålogging"
+    },
+    "access_denied": {
+      "title": "Tilgang nektet",
+      "message": "Du har ikke tillatelse til å få tilgang til denne siden.",
+      "back": "Gå tilbake til chat",
+      "back_to_server": "Gå tilbake til serveren"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Mer informasjon",
+      "about": "Om {subject}"
+    },
+    "pane_header": {
+      "back": "Tilbake"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Tilbake til chat"
+    },
+    "resize_handle": {
+      "resize": "Endre størrelse",
+      "resize_sidebar": "Endre størrelse på sidefeltet"
+    },
+    "data_table": {
+      "empty": "Ingen data",
+      "loading_more": "Laster inn mer..."
+    },
+    "loading_page": {
+      "loading": "Laster ..."
+    },
+    "image_modal": {
+      "previous": "Forrige bilde",
+      "next": "Neste bilde",
+      "fallback_alt": "Bilde"
+    },
+    "toast": {
+      "dismiss": "Avvis varsel"
+    },
+    "combobox": {
+      "loading": "Laster ...",
+      "empty": "Ingen treff",
+      "clear": "Fjern"
+    },
+    "expiry": {
+      "label": "Utløper",
+      "24h": "24 timer",
+      "7d": "7 dager",
+      "30d": "30 dager",
+      "indefinite": "Ingen utløp",
+      "custom": "Egendefinert",
+      "custom_label": "Egendefinert utløp",
+      "error_required": "Velg en utløpsdato.",
+      "error_invalid": "Angi et gyldig utløp.",
+      "error_future": "Utløpet må være i fremtiden."
+    },
+    "form": {
+      "required": "Obligatorisk"
+    },
+    "dates": {
+      "today": "I dag",
+      "yesterday": "I går",
+      "this_week": "Denne uken",
+      "this_month": "Denne måneden"
+    }
+  }
+}

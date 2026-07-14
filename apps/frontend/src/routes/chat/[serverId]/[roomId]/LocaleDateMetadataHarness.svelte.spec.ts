@@ -27,8 +27,8 @@ describe('localized date metadata', () => {
     const label = q(container, '[data-testid="day-label"]');
     await expect.element(label).toHaveTextContent('Thursday 20 November');
 
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     flushSync();
 
     await expect.element(label).toHaveTextContent(/Donnerstag/);

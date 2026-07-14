@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Додати сервер",
+    "sign_in": "Увійдіть",
+    "connect": "Підключитися",
+    "redirecting": "Переспрямування...",
+    "connecting": "Підключення...",
+    "start_failed": "Не вдалося почати вхід.",
+    "invalid_url": "Введіть дійсний URL.",
+    "already_connected": "Цей сервер уже підключено.",
+    "not_chatto_server": "Це не схоже на сервер Chatto.",
+    "oauth_unsupported": "Цей сервер не підтримує автентифікацію OAuth. Можливо, його потрібно оновити.",
+    "connection_timed_out": "Час очікування підключення минув. Перевірте URL і повторіть спробу.",
+    "connection_failed": "Не вдалося підключитися. Перевірте URL і переконайтеся, що CORS налаштовано.",
+    "connect_failed": "Не вдалося підключитися.",
+    "edit_url": "Не той сервер? Редагувати URL",
+    "description_url": "Chatto є розподіленим – ваш клієнт підключається до кожного сервера безпосередньо. Введіть URL, щоб додати інший.",
+    "description_preview": "Ви збираєтесь увійти на цей сервер. Ви перейдете на сторінку входу для автентифікації.",
+    "url_label": "Сервер URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

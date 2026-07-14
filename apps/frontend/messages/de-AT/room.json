@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Neuen Raum erstellen",
+      "description": "Räume sind Unterhaltungen innerhalb deines Servers.",
+      "name_placeholder": "Raumnamen eingeben",
+      "description_placeholder": "Worum geht es in diesem Raum?",
+      "name_label": "Raumname",
+      "description_label": "Beschreibung (optional)",
+      "universal_label": "Universeller Raum",
+      "universal_description": "Alle Servermitglieder (mit entsprechender Berechtigung) sind automatisch Mitglieder dieses Raums.",
+      "name_required": "Raumname ist erforderlich",
+      "missing_group": "Wähle eine Raumgruppe aus, bevor du einen Raum erstellst.",
+      "failed": "Raum konnte nicht erstellt werden",
+      "creating": "Wird erstellt...",
+      "submit": "Raum erstellen"
+    },
+    "join": {
+      "title": "Raum beitreten",
+      "action": "Raum beitreten",
+      "prompt": "Tritt #{room} bei, um diesen Raum zu lesen und daran teilzunehmen.",
+      "inline_prompt": "Tritt diesem Raum bei, um ihn zu lesen und daran teilzunehmen.",
+      "success": "#{room} beigetreten",
+      "success_generic": "Raum beigetreten",
+      "failed": "Raum konnte nicht beigetreten werden",
+      "access_title": "Raumzugriff",
+      "access_denied": "Du hast keine Berechtigung, diesem Raum beizutreten."
+    },
+    "leave": {
+      "title": "Raum verlassen",
+      "action": "Raum verlassen",
+      "prompt": "Möchtest du #{room} wirklich verlassen? Du kannst später wieder beitreten.",
+      "failed": "Raum konnte nicht verlassen werden"
+    },
+    "directory": {
+      "universal_title": "Universelle Räume werden automatisch beigetreten",
+      "joined": "Beigetreten",
+      "leave": "Verlassen",
+      "restricted_title": "Du hast keine Berechtigung, diesem Raum beizutreten",
+      "search_placeholder": "Räume suchen...",
+      "empty": "Noch keine Räume auf diesem Server.",
+      "no_results": "Keine Räume passen zu deinem Filter.",
+      "universal": "Universell",
+      "joined_title": "#{room} beigetreten - klicken zum Verlassen",
+      "leaving": "Wird verlassen",
+      "joining": "Beitritt läuft",
+      "join": "Beitreten",
+      "restricted": "Eingeschränkt",
+      "join_all": "Allen beitreten",
+      "already_in_group": "Du bist bereits in jedem Raum in {group}",
+      "joined_group_one": "1 Raum in {group} beigetreten",
+      "joined_group_many": "{count} Räumen in {group} beigetreten",
+      "join_group_failed": "Gruppe konnte nicht beigetreten werden",
+      "left": "#{room} verlassen",
+      "left_generic": "Raum verlassen",
+      "leave_confirm": "Möchtest du #{room} wirklich verlassen?"
+    },
+    "server": {
+      "leave_title": "Server verlassen",
+      "leave_action": "Server verlassen",
+      "leave_prompt": "Möchtest du {server} wirklich verlassen? Du verlierst den Zugriff auf seine Räume und dein Client vergisst diesen Server. Du kannst ihn später über die Seitenleiste erneut hinzufügen."
+    },
+    "timeline": {
+      "beginning": "Dies ist der Anfang dieser Unterhaltung."
+    },
+    "message": {
+      "empty": "Noch keine Nachrichten",
+      "delete_title": "Nachricht löschen",
+      "delete_prompt": "Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+      "delete_failed": "Nachricht konnte nicht gelöscht werden",
+      "reaction_failed": "Reaktion konnte nicht aktualisiert werden",
+      "deleted": "Nachricht gelöscht",
+      "actions": {
+        "toolbar": "Nachrichtenaktionen",
+        "react_with": "Mit {emoji} reagieren",
+        "remove_reaction": "{emoji} entfernen",
+        "add_reaction": "Reaktion hinzufügen",
+        "more_reactions": "Weitere Reaktionen",
+        "reply": "Antworten",
+        "reply_thread": "Im Thread antworten",
+        "open_thread": "Thread öffnen",
+        "edit": "Nachricht bearbeiten",
+        "more": "Weitere Aktionen",
+        "edit_short": "Bearbeiten",
+        "copy_link": "Link kopieren"
+      },
+      "meta": {
+        "thread": "Thread",
+        "reply_count_one": "1 Antwort",
+        "reply_count_many": "{count} Antworten",
+        "follow_thread": "Thread folgen",
+        "unfollow_thread": "Thread nicht mehr folgen",
+        "add_reaction_label": "{emoji}-Reaktion hinzufügen ({count})",
+        "remove_reaction_label": "{emoji}-Reaktion entfernen ({count})",
+        "reaction_users_more": "+ {count} weitere",
+        "copy_link_title": "Klicken, um den Link zu dieser Nachricht zu kopieren",
+        "in_reply_to": "als Antwort auf",
+        "reply_preview_fallback": "Nachricht",
+        "deleted": "Diese Nachricht wurde gelöscht."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "ist dem Raum beigetreten",
+            "countPlural=other": "sind dem Raum beigetreten"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "hat den Raum verlassen",
+            "countPlural=other": "haben den Raum verlassen"
+          }
+        }
+      ],
+      "archived": "hat den Raum archiviert",
+      "unarchived": "hat die Archivierung des Raums aufgehoben",
+      "and": "und",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "weitere Person",
+            "countPlural=other": "weitere"
+          }
+        }
+      ],
+      "show_less": "weniger anzeigen"
+    },
+    "attachment": {
+      "delete_title": "Anhang löschen",
+      "delete_prompt": "Möchtest du diesen Anhang wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+      "delete_label": "Anhang löschen",
+      "delete_failed": "Anhang konnte nicht gelöscht werden",
+      "view_label": "{filename} ansehen",
+      "download_label": "{filename} herunterladen",
+      "image_refresh_failed": "Bildlink konnte nicht aktualisiert werden",
+      "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden"
+    },
+    "link_preview": {
+      "delete_title": "Linkvorschau löschen",
+      "delete_prompt": "Möchtest du diese Linkvorschau wirklich entfernen? Dies kann nicht rückgängig gemacht werden.",
+      "delete_failed": "Linkvorschau konnte nicht gelöscht werden"
+    },
+    "sidebar": {
+      "extras": "Raumdetails",
+      "resize": "Raumdetails-Bereich vergrößern/verkleinern",
+      "hide": "Raumdetails ausblenden",
+      "maximize_call": "Anruf maximieren",
+      "minimize_call": "Anruf verkleinern",
+      "members": "Mitglieder",
+      "members_title": "Mitglieder ({count})",
+      "search_members": "Raummitglieder suchen",
+      "search_members_placeholder": "Mitglieder suchen",
+      "clear_member_search": "Mitgliedersuche leeren",
+      "no_members": "Keine Mitglieder gefunden.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "Noch keine Dateien in diesem Raum.",
+      "files": "Dateien",
+      "call": "Anruf",
+      "jump_to_file": "Zu {filename} springen",
+      "loading_files": "Dateien werden geladen...",
+      "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar.",
+      "view_profile": "Profil von {name} anzeigen",
+      "in_voice_call": "In einem Sprachanruf",
+      "in_video_call": "In einem Videoanruf",
+      "ban_failed": "Mitglied konnte nicht aus dem Raum gesperrt werden",
+      "ban_success": "{name} wurde aus dem Raum gesperrt"
+    },
+    "title": {
+      "direct_message": "Direktnachricht"
+    },
+    "thread": {
+      "title": "Thread in #{room}",
+      "back_to_room": "Zurück zum Raum",
+      "follow": "Thread folgen",
+      "unfollow": "Thread nicht mehr folgen",
+      "close": "Thread schließen",
+      "not_found": "Thread nicht gefunden",
+      "reply_placeholder": "Im Thread antworten..."
+    },
+    "jump_to_present": "Zur Gegenwart springen",
+    "jump_failed": "Zu dieser Nachricht konnte nicht gesprungen werden.",
+    "unread_separator": "Neue Nachrichten",
+    "close_extras": "Raumdetails schließen"
+  }
+}

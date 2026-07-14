@@ -1,0 +1,212 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Crear una Nueva Sala",
+      "description": "Las salas son conversaciones dentro de tu servidor.",
+      "name_placeholder": "Ingresa el nombre de la sala",
+      "description_placeholder": "¿De qué se trata esta sala?",
+      "name_label": "Nombre de la habitación",
+      "description_label": "Descripción (opcional)",
+      "universal_label": "Sala universal",
+      "universal_description": "Todos los miembros del servidor (con el permiso) automáticamente son miembros de esta sala.",
+      "name_required": "El nombre de la sala es obligatorio",
+      "missing_group": "Elige un grupo de sala antes de crear una sala.",
+      "failed": "No se pudo crear la sala",
+      "creating": "Creando...",
+      "submit": "Crear Sala"
+    },
+    "join": {
+      "title": "Unirse a la sala",
+      "action": "Unirse a la sala",
+      "prompt": "Únase a #{room} para leer y participar en esta sala.",
+      "inline_prompt": "Únase a esta sala para leer y participar.",
+      "success": "Se unió a #{room}",
+      "success_generic": "Sala unida",
+      "failed": "No se pudo unir a la sala",
+      "access_title": "Acceso a la Sala",
+      "access_denied": "No tienes permiso para unirte a esta sala."
+    },
+    "leave": {
+      "title": "Salir de la habitación",
+      "action": "Salir de la habitación",
+      "prompt": "¿Estás seguro de que quieres salir de #{room}? Puedes volver a unirte más tarde.",
+      "failed": "No se pudo salir de la habitación"
+    },
+    "directory": {
+      "universal_title": "Las salas universales se unen automáticamente",
+      "joined": "Se unió",
+      "leave": "Salir",
+      "restricted_title": "No tienes permiso para unirte a esta sala",
+      "search_placeholder": "Buscar salas...",
+      "empty": "Aún no hay salas en este servidor.",
+      "no_results": "Ninguna sala coincide con tu filtro.",
+      "universal": "Universales",
+      "joined_title": "Se unió a #{room} - haz clic para salir",
+      "leaving": "Saliendo",
+      "joining": "Uniéndose",
+      "join": "Unirse",
+      "restricted": "Restringido",
+      "join_all": "Unirse a todos",
+      "already_in_group": "Ya en todas las habitaciones de {group}",
+      "joined_group_one": "Se unió a 1 sala en {group}",
+      "joined_group_many": "Se unió a salas {count} en {group}",
+      "join_group_failed": "No se pudo unir al grupo",
+      "left": "Izquierda #{room}",
+      "left_generic": "Sala izquierda",
+      "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?"
+    },
+    "server": {
+      "leave_title": "Salir del servidor",
+      "leave_action": "Salir del servidor",
+      "leave_prompt": "¿Estás seguro de que quieres salir de {server}? Perderás el acceso a sus salas y tu cliente se olvidará de este servidor. Puedes volver a agregarlo más tarde desde la barra lateral."
+    },
+    "timeline": {
+      "beginning": "Este es el comienzo de esta conversación."
+    },
+    "message": {
+      "empty": "Aún no hay mensajes",
+      "delete_title": "Eliminar Mensaje",
+      "delete_prompt": "¿Estás seguro de que deseas eliminar este mensaje? Esto no se puede deshacer.",
+      "delete_failed": "No se pudo eliminar el mensaje",
+      "reaction_failed": "No se pudo actualizar la reacción",
+      "deleted": "Mensaje eliminado",
+      "actions": {
+        "toolbar": "Acciones de mensajes",
+        "react_with": "Reaccionar con {emoji}",
+        "remove_reaction": "Eliminar {emoji}",
+        "add_reaction": "Agregar reacción",
+        "more_reactions": "Más reacciones",
+        "reply": "Responder",
+        "reply_thread": "Responder en hilo",
+        "open_thread": "Abrir hilo",
+        "edit": "Editar mensaje",
+        "more": "Más acciones",
+        "edit_short": "Editar",
+        "copy_link": "Copiar enlace"
+      },
+      "meta": {
+        "thread": "Hilo",
+        "reply_count_one": "1 respuesta",
+        "reply_count_many": "{count} responde",
+        "follow_thread": "Seguir hilo",
+        "unfollow_thread": "Dejar de seguir el hilo",
+        "add_reaction_label": "Agregar reacción {emoji} ({count})",
+        "remove_reaction_label": "Eliminar reacción {emoji} ({count})",
+        "reaction_users_more": "+ {count} más",
+        "copy_link_title": "Haga clic para copiar el enlace a este mensaje",
+        "in_reply_to": "en respuesta a",
+        "reply_preview_fallback": "Mensaje",
+        "deleted": "Este mensaje ha sido eliminado."
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "se unió a la sala",
+            "countPlural=other": "se unió a la sala"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "salió de la habitación",
+            "countPlural=other": "salió de la habitación"
+          }
+        }
+      ],
+      "archived": "archivó la sala",
+      "unarchived": "desarchivó la sala",
+      "and": "y",
+      "other_people": [
+        {
+          "declarations": [
+            "input count",
+            "local countPlural = count: plural"
+          ],
+          "selectors": [
+            "countPlural"
+          ],
+          "match": {
+            "countPlural=one": "otro",
+            "countPlural=other": "otros"
+          }
+        }
+      ],
+      "show_less": "mostrar menos"
+    },
+    "attachment": {
+      "delete_title": "Eliminar archivo adjunto",
+      "delete_prompt": "¿Estás seguro de que deseas eliminar este archivo adjunto? Esto no se puede deshacer.",
+      "delete_label": "Eliminar archivo adjunto",
+      "delete_failed": "No se pudo eliminar el archivo adjunto",
+      "view_label": "Ver {filename}",
+      "download_label": "Descargar {filename}",
+      "image_refresh_failed": "No se pudo actualizar el enlace de la imagen",
+      "download_refresh_failed": "No se pudo actualizar el enlace de descarga"
+    },
+    "link_preview": {
+      "delete_title": "Eliminar vista previa del enlace",
+      "delete_prompt": "¿Estás seguro de que deseas eliminar la vista previa de este enlace? Esto no se puede deshacer.",
+      "delete_failed": "No se pudo eliminar la vista previa del enlace"
+    },
+    "sidebar": {
+      "extras": "Extras de habitación",
+      "resize": "Cambiar el tamaño del panel de extras de la habitación",
+      "hide": "Ocultar extras de habitación",
+      "maximize_call": "Maximizar llamada",
+      "minimize_call": "Minimizar llamada",
+      "members": "Miembros",
+      "members_title": "Miembros ({count})",
+      "search_members": "Buscar miembros de la sala",
+      "search_members_placeholder": "Buscar miembros",
+      "clear_member_search": "Borrar búsqueda de miembros",
+      "no_members": "No se encontraron miembros.",
+      "online": "En línea ({count})",
+      "offline": "Sin conexión ({count})",
+      "no_files": "Aún no hay archivos en esta sala.",
+      "files": "Archivos",
+      "call": "Llamar",
+      "jump_to_file": "Saltar a {filename}",
+      "loading_files": "Cargando archivos...",
+      "calls_unavailable": "Las llamadas no están disponibles en este servidor.",
+      "view_profile": "Ver perfil de {name}",
+      "in_voice_call": "En una llamada de voz",
+      "in_video_call": "En una videollamada",
+      "ban_failed": "No se pudo prohibir la entrada a un miembro a la sala",
+      "ban_success": "{name} baneado de la sala"
+    },
+    "title": {
+      "direct_message": "Mensaje Directo"
+    },
+    "thread": {
+      "title": "Tema en #{room}",
+      "back_to_room": "Regresar a la habitación",
+      "follow": "Seguir hilo",
+      "unfollow": "Dejar de seguir el hilo",
+      "close": "Cerrar hilo",
+      "not_found": "Tema no encontrado",
+      "reply_placeholder": "Responder en el hilo..."
+    },
+    "jump_to_present": "Saltar al presente",
+    "jump_failed": "No se pudo saltar a ese mensaje.",
+    "unread_separator": "Mensajes nuevos",
+    "close_extras": "Cerrar extras de habitación"
+  }
+}

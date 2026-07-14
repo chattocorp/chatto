@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Instellingen",
+      "back_to_server": "Terug naar server",
+      "profile": "Profiel",
+      "display": "Weergave",
+      "notifications": "Meldingen",
+      "account": "Account"
+    },
+    "profile": {
+      "title": "Profiel",
+      "subtitle": "Beheer uw profielinformatie",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Afbeelding neerzetten",
+        "drop_subtitle": "Upload als je avatar",
+        "alt": "Je avatar",
+        "description": "Upload een avatar. Het formaat van afbeeldingen wordt gewijzigd naar 256 x 256 pixels.",
+        "uploading": "Uploaden...",
+        "upload": "Avatar uploaden",
+        "change": "Avatar wijzigen",
+        "removing": "Verwijderen...",
+        "remove": "Verwijderen",
+        "invalid_type": "Selecteer een afbeeldingsbestand",
+        "too_large": "Afbeelding moet kleiner zijn dan 10 MB",
+        "uploaded": "Avatar succesvol geüpload",
+        "upload_failed": "Kan avatar niet uploaden",
+        "removed": "Avatar verwijderd",
+        "delete_failed": "Kan avatar niet verwijderen"
+      },
+      "display_name": {
+        "label": "Weergavenaam",
+        "placeholder": "Voer uw weergavenaam in",
+        "invalid": "Ongeldige weergavenaam"
+      },
+      "username": {
+        "label": "Gebruikersnaam",
+        "placeholder": "Voer uw gebruikersnaam in",
+        "invalid": "Ongeldige gebruikersnaam",
+        "cooldown_error": "U kunt uw gebruikersnaam slechts één keer per 30 dagen wijzigen. Probeer het opnieuw in {remaining}.",
+        "cooldown_notice": "Je kunt je gebruikersnaam opnieuw wijzigen in {remaining}.",
+        "confirm_title": "Wijzig gebruikersnaam",
+        "confirm_prompt": "Weet u zeker dat u uw gebruikersnaam wilt wijzigen in @{login}?",
+        "confirm_cooldown": "U kunt uw gebruikersnaam slechts één keer per 30 dagen wijzigen.",
+        "confirm_button": "Wijzig gebruikersnaam"
+      },
+      "status": {
+        "title": "Aangepaste status",
+        "dialog_title": "Stel een status in",
+        "set_custom_status": "Aangepaste status instellen",
+        "edit_button": "Status bewerken",
+        "emoji": {
+          "label": "Status-emoji",
+          "placeholder": "🌿",
+          "choose": "Kies emoji"
+        },
+        "text": {
+          "label": "Statustekst",
+          "placeholder": "In focusmodus"
+        },
+        "expires_at": {
+          "label": "Automatisch wissen om"
+        },
+        "expiry": {
+          "today": "Vandaag",
+          "thirty_minutes": "30 minuten",
+          "one_hour": "1 uur",
+          "four_hours": "4 uur",
+          "tomorrow": "Morgen",
+          "never": "Niet wissen",
+          "custom": "Aangepast",
+          "custom_date": "Aangepaste opschoontijd"
+        },
+        "suggestions": "Suggesties",
+        "template": {
+          "label": "Sjabloon",
+          "none": "Geen status",
+          "out_for_lunch": "Uit lunchen",
+          "vacation": "Vakantie",
+          "sick": "Ziek",
+          "custom": "Aangepast"
+        },
+        "emoji_required": "Kies een emoji voor je status",
+        "text_required": "Voer statustekst in",
+        "saved": "Status bijgewerkt",
+        "save_failed": "Kan status niet opslaan",
+        "cleared": "Status gewist",
+        "clear_failed": "Kan de status niet wissen",
+        "save_button": "Status opslaan",
+        "clear_button": "Status wissen"
+      },
+      "presence": {
+        "button": "Aanwezigheid: {status}",
+        "title": "Aanwezigheid",
+        "auto": "Online",
+        "away": "Weg",
+        "do_not_disturb": "Niet storen",
+        "offline": "Offline",
+        "invisible": "Kijk offline"
+      },
+      "saved": "Profiel is succesvol bijgewerkt",
+      "save_failed": "Kan profiel niet opslaan",
+      "save_button": "Wijzigingen opslaan"
+    },
+    "preferences": {
+      "title": "Weergave",
+      "subtitle": "Kies hoe Chatto wordt weergegeven",
+      "theme": {
+        "title": "Thema",
+        "system": {
+          "label": "Systeem",
+          "description": "Volg het uiterlijk van uw browser of besturingssysteem"
+        },
+        "light": {
+          "label": "Licht",
+          "description": "Gebruik de lichte interface in deze browser"
+        },
+        "dark": {
+          "label": "Donker",
+          "description": "Gebruik de donkere interface in deze browser"
+        }
+      },
+      "language": {
+        "title": "Taal",
+        "description": "Kies de taal en regionale bewoording voor deze browser.",
+        "english_uk": "Engels (Verenigd Koninkrijk)",
+        "english_us": "Engels (Verenigde Staten)",
+        "german": "Duits"
+      },
+      "timezone": {
+        "title": "Tijdzone",
+        "description": "Stel uw tijdzone zo in dat tijdstempels in uw lokale tijd worden weergegeven. Laat dit leeg om de standaardinstellingen van uw browser te gebruiken.",
+        "browser_default": "Browserstandaard",
+        "clear": "Tijdzone wissen (gebruik browserstandaard)",
+        "invalid": "Selecteer een geldige tijdzone uit de lijst",
+        "more_results": "{count} meer - typ om de resultaten te beperken",
+        "current_time": "Huidige tijd daar: {time}"
+      },
+      "time_format": {
+        "title": "Tijdnotatie",
+        "browser_default": {
+          "label": "Browserstandaard",
+          "description": "Gebruik de landinstelling van uw browser om de 12-uurs- of 24-uursindeling te bepalen"
+        },
+        "12h": {
+          "label": "12 uur",
+          "description": "bijvoorbeeld 2:30 PM"
+        },
+        "24h": {
+          "label": "24 uur per dag",
+          "description": "bijvoorbeeld 14:30"
+        }
+      },
+      "save_button": "Weergave-instellingen opslaan",
+      "saved": "Weergave-instellingen opgeslagen",
+      "save_failed": "Kan weergave-instellingen niet opslaan"
+    },
+    "notifications": {
+      "title": "Meldingen",
+      "subtitle": "Configureer hoe u meldingen ontvangt",
+      "push": {
+        "title": "Pushmeldingen",
+        "not_configured": "Pushmeldingen zijn niet geconfigureerd op deze server",
+        "not_supported": "Pushmeldingen worden niet ondersteund in deze browser.",
+        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
+        "ios_home_screen_description": "Voeg op ondersteunde iOS/iPadOS-versies Chatto toe aan het startscherm en open het via het app-pictogram om pushmeldingen in te schakelen.",
+        "blocked_title": "Pushmeldingen geblokkeerd",
+        "blocked_description": "Schakel meldingen in uw browser of OS-instellingen in en open Chatto vervolgens opnieuw.",
+        "enabled_title": "Pushmeldingen ingeschakeld",
+        "enabled_description": "Chatto gebruikt de toestemming voor meldingen van uw browser of besturingssysteem als schakelaar. Als u meldingen wilt uitschakelen, schakelt u ze voor deze site uit in uw browser- of besturingssysteeminstellingen.",
+        "test_button": "Testmelding verzenden",
+        "testing": "Verzenden…",
+        "test_sent": "Testmelding verzonden.",
+        "test_failed": "Kan geen testmelding verzenden. Probeer pushmeldingen opnieuw in te schakelen.",
+        "enable_title": "Schakel pushmeldingen in",
+        "enable_description": "Ontvang meldingen over nieuwe berichten terwijl Chatto gesloten is of op de achtergrond actief is.",
+        "enable_button": "Inschakelen",
+        "enabling": "Aanzetten...",
+        "blocked_error": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen.",
+        "enable_failed": "Kan pushmeldingen niet inschakelen. Probeer het opnieuw.",
+        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen",
+        "remote_title": "Native push is niet beschikbaar voor externe servers",
+        "remote_description": "Deze geïnstalleerde app kan alleen browser-pushmeldingen registreren bij de server die deze heeft aangeboden. In-app-meldingsbadges en -geluiden werken nog steeds voor deze server terwijl Chatto open is."
+      },
+      "push_prompt": {
+        "title": "Schakel pushmeldingen in",
+        "message": "Ontvang meldingen over DM's, vermeldingen en antwoorden.",
+        "ios_home_screen_title": "Voeg Chatto toe aan je startscherm",
+        "ios_home_screen_message": "Op ondersteunde iOS/iPadOS-versies opent u Chatto via het startschermpictogram voordat u pushmeldingen inschakelt.",
+        "enabled": "Pushmeldingen ingeschakeld",
+        "blocked": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen",
+        "enable_failed": "Kan pushmeldingen niet inschakelen",
+        "enabling": "Aanzetten...",
+        "enable": "Inschakelen",
+        "dismiss": "Nee bedankt"
+      },
+      "levels": {
+        "loading": "Laden...",
+        "load_failed": "Kan meldingsvoorkeuren niet laden",
+        "server_updated": "Servermeldingsniveau bijgewerkt",
+        "room_updated": "Meldingsniveau voor ruimte bijgewerkt",
+        "update_failed": "Updaten is mislukt",
+        "server_title": "Servermeldingsniveau",
+        "server_description": "Bepaalt hoe u meldingen ontvangt voor alle kamers op deze server. Individuele kamers kunnen deze instelling overschrijven.",
+        "room_title": "Kameroverschrijvingen",
+        "room_description": "Negeer de instelling op serverniveau voor individuele kamers. Kamers die zijn ingesteld op \"Standaard\" nemen de serverinstelling over ({level}).",
+        "room_level_label": "Meldingsniveau voor #{room}",
+        "effective": "Van kracht: {level}",
+        "default": {
+          "label": "Standaard",
+          "description": "Gebruik de overgenomen standaard"
+        },
+        "muted": {
+          "label": "Gedempt",
+          "description": "Geen meldingen of ongelezen markeringen"
+        },
+        "normal": {
+          "label": "Normaal",
+          "description": "Ongelezen markeringen + vermeldingen, DM's en threadantwoorden"
+        },
+        "all_messages": {
+          "label": "Alle berichten",
+          "description": "Normaal + notificatie voor elk nieuw bericht"
+        }
+      },
+      "sound": {
+        "title": "Meldingsgeluid",
+        "shape_title": "Geluidsvorm",
+        "preview": "Voorbeeld",
+        "reset": "Opnieuw instellen",
+        "off": "Uit",
+        "volume": "Volume",
+        "tinny": "Kijkerig",
+        "muffled": "Gedempt",
+        "echo": "Echo",
+        "reverb": "Galm",
+        "crunch": "Kraken",
+        "category": {
+          "silent": "Stil",
+          "simple": "Eenvoudig",
+          "playful": "Speels",
+          "robots": "Robots",
+          "musical": "Muzikaal",
+          "here_be_dragons": "Hier zijn de draken"
+        },
+        "name": {
+          "silent": "Stil",
+          "ding": "Ding",
+          "chime_up": "Stijgende bel",
+          "chime_down": "Vallend belsignaal",
+          "pop": "Softpop",
+          "bubble": "Bel",
+          "retro": "Retro-pieptoon",
+          "coin": "Munten verzamelen",
+          "powerup": "Schakel in",
+          "fanfare": "8-bit fanfare",
+          "laser": "Laserzappen",
+          "robot": "Robotstem",
+          "ufo": "UFO",
+          "beepboop": "Piep Boep",
+          "dialup": "Inbelverbinding",
+          "r2d2": "R2-D2",
+          "harp": "Harp bloeit",
+          "music_box": "Muziekdoos",
+          "celesta": "Celesta Droom",
+          "synth": "Synth-akkoord",
+          "orchestra": "Orkesthit",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Chaos",
+          "glitch": "Probleem",
+          "siren": "Alarmsirene",
+          "dubstep": "Dubstep-drop",
+          "circus": "Circus"
+        }
+      }
+    },
+    "account": {
+      "title": "Account",
+      "subtitle": "Beheer uw accountinstellingen",
+      "info_title": "Accountgegevens",
+      "username": "Gebruikersnaam",
+      "display_name": "Weergavenaam",
+      "danger_title": "Gevarenzone",
+      "danger_description": "Het verwijderen van uw account is definitief en kan niet ongedaan worden gemaakt. Al uw gegevens worden verwijderd.",
+      "delete_button": "Account verwijderen",
+      "delete_failed": "Kan account niet verwijderen",
+      "delete_request_failed": "Kan geen accountverwijdering aanvragen",
+      "password": {
+        "title": "Wachtwoord",
+        "add_description": "Voeg een wachtwoord toe zodat u direct kunt inloggen en de verbinding met uw laatste SSO-provider kunt verbreken.",
+        "change_description": "Wijzig het wachtwoord dat wordt gebruikt voor direct inloggen.",
+        "current_label": "Huidig wachtwoord",
+        "current_required": "Voer uw huidige wachtwoord in.",
+        "add_button": "Wachtwoord toevoegen",
+        "change_button": "Wachtwoord wijzigen",
+        "saving": "Wachtwoord opslaan...",
+        "saved": "Wachtwoord toegevoegd",
+        "changed": "Wachtwoord gewijzigd",
+        "save_failed": "Kan wachtwoord niet opslaan",
+        "fresh_auth_required": "Meld u opnieuw aan voordat u een wachtwoord toevoegt.",
+        "already_set": "Dit account heeft al een wachtwoord."
+      },
+      "sso": {
+        "title": "Eenmalige aanmelding",
+        "loading": "Aanmeldingsproviders laden...",
+        "load_failed": "Kan aanmeldingsproviders niet laden",
+        "none_configured": "Er zijn geen externe aanmeldingsproviders geconfigureerd.",
+        "linked": "Gekoppeld",
+        "not_linked": "Niet gekoppeld",
+        "link_button": "Link",
+        "link_failed": "Kan aanmeldingsprovider niet koppelen",
+        "fresh_auth_required": "Log opnieuw in voordat u een andere provider koppelt.",
+        "provider_unconfigured": "Provider niet meer geconfigureerd",
+        "disconnect_button": "Verbinding verbreken",
+        "disconnecting": "Verbinding verbreken...",
+        "disconnect_failed": "Kan de verbinding met de aanmeldingsprovider niet verbreken",
+        "disconnect_last_method": "Voeg een wachtwoord of een andere inlogmethode toe voordat u de verbinding met deze provider verbreekt.",
+        "disconnect_fresh_auth_required": "Meld u opnieuw aan voordat u de verbinding met deze provider verbreekt.",
+        "disconnect_modal": {
+          "title": "Verbinding met provider verbreken",
+          "body": "{provider} ontkoppelen van dit account?",
+          "action": "Verbinding verbreken"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Provider kan de verbinding niet verbreken",
+          "body": "{provider} is uw enige aanmeldingsmethode. Voeg een wachtwoord toe of koppel eerst een andere provider."
+        },
+        "fresh_auth_modal": {
+          "title": "Bevestig wachtwoord",
+          "body": "Voer uw huidige wachtwoord in voordat u {provider} koppelt.",
+          "action": "Ga door"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Bevestig wachtwoord",
+          "body": "Voer uw huidige wachtwoord in voordat u de verbinding met {provider} verbreekt.",
+          "action": "Verbinding verbreken"
+        }
+      },
+      "delete_modal": {
+        "title": "Account verwijderen",
+        "warning_label": "Waarschuwing:",
+        "warning_text": "Deze actie is permanent en kan niet ongedaan worden gemaakt.",
+        "intro": "Hiermee wordt je account definitief verwijderd en:",
+        "remove_from_rooms": "Verwijder je uit alle ruimtes en kamers",
+        "delete_messages": "Verwijder al uw berichten (de inhoud kan niet worden hersteld)",
+        "delete_profile": "Verwijder je profiel, avatar en bijbehorende gegevens",
+        "confirm_label": "Typ DELETE om te bevestigen",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Annuleren",
+        "deleting": "Verwijderen..."
+      }
+    }
+  }
+}

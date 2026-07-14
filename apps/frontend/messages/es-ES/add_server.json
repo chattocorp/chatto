@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Agregar servidor",
+    "sign_in": "Iniciar sesión",
+    "connect": "Conectar",
+    "redirecting": "Redirigiendo...",
+    "connecting": "Conectando...",
+    "start_failed": "No se pudo iniciar el inicio de sesión.",
+    "invalid_url": "Ingrese un URL válido.",
+    "already_connected": "Este servidor ya está conectado.",
+    "not_chatto_server": "Este no parece ser un servidor Chatto.",
+    "oauth_unsupported": "Este servidor no admite la autenticación OAuth. Es posible que sea necesario actualizarlo.",
+    "connection_timed_out": "Se agotó el tiempo de conexión. Verifique el URL y vuelva a intentarlo.",
+    "connection_failed": "No se pudo conectar. Verifique el URL y asegúrese de que CORS esté configurado.",
+    "connect_failed": "No se pudo conectar.",
+    "edit_url": "¿Servidor incorrecto? Editar URL",
+    "description_url": "Chatto se distribuye: su cliente se conecta a cada servidor directamente. Ingrese un URL para agregar otro.",
+    "description_preview": "Estás a punto de iniciar sesión en este servidor. Se le enviará a su página de inicio de sesión para autenticarse.",
+    "url_label": "Servidor URL",
+    "url_placeholder": "chat.ejemplo.com"
+  }
+}

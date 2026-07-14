@@ -144,8 +144,8 @@ describe('SystemEventGroup', () => {
   });
 
   it('localizes the conjunction and plural action wording in German', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     const { container } = render(SystemEventGroup, {
       props: {
         events: systemEvents(['Alice', 'Bob']),

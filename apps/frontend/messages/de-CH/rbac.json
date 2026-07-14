@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Rolle löschen",
+      "prompt": "Bist du sicher, dass du die Rolle {role} löschen möchtest? Dadurch wird:",
+      "remove_from_users": "die Rolle von allen Benutzern entfernt, die sie haben",
+      "delete_grants": "alle Berechtigungsvergaben für diese Rolle gelöscht",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleting": "Wird gelöscht...",
+      "action": "Rolle löschen"
+    },
+    "role_form": {
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "name": "Name",
+      "name_placeholder": "z. B. moderator",
+      "name_description": "Nur Kleinbuchstaben. Kann nach der Erstellung nicht geändert werden.",
+      "name_too_long": "Der Name darf höchstens 32 Zeichen lang sein",
+      "name_invalid": "Der Name muss Kleinbuchstaben, Zahlen und Bindestriche verwenden und mit einem Buchstaben beginnen",
+      "name_locked": "Rollennamen können nach der Erstellung nicht geändert werden.",
+      "display_name": "Anzeigename",
+      "display_name_placeholder": "z. B. Moderator",
+      "display_name_too_long": "Der Anzeigename darf höchstens 64 Zeichen lang sein",
+      "description": "Beschreibung",
+      "description_placeholder": "Optionale Beschreibung für diese Rolle",
+      "pingable": "Personen dürfen diese Rolle pingen",
+      "pingable_description": "Pingbare Rollen erscheinen in der @-Autovervollständigung und benachrichtigen zugewiesene Raummitglieder."
+    },
+    "permissions": {
+      "loading": "Berechtigungen werden geladen...",
+      "no_data": "Keine Daten verfügbar.",
+      "no_roles": "Keine Rollen für diesen Bereich anwendbar.",
+      "permission": "Berechtigung",
+      "state": "Status",
+      "decided_by": "Entschieden durch",
+      "granted": "Erlaubt",
+      "denied": "Verweigert",
+      "no_decision": "Keine Entscheidung",
+      "no_role_decided": "Keine Rolle hat entschieden",
+      "hide_trace": "Nachverfolgung ausblenden",
+      "show_trace": "Nachverfolgung anzeigen",
+      "trace_one": "Auflösungspfad (1 Eintrag)",
+      "trace_many": "Auflösungspfad ({count} Einträge)",
+      "allow": "erlauben",
+      "deny": "verweigern",
+      "winning_decision": "(entscheidende Entscheidung)",
+      "level_server": "Server",
+      "level_group": "Gruppe",
+      "level_room": "Raum",
+      "empty_category": "Keine Berechtigungen in dieser Kategorie",
+      "categories": {
+        "space": {
+          "title": "Serverberechtigungen",
+          "description": "Serverweite Fähigkeiten, die aus Kompatibilitätsgründen unter dem alten Kategorieschlüssel geführt werden"
+        },
+        "room": {
+          "title": "Raumberechtigungen",
+          "description": "Servervorgaben für Raumsuche, Beitritt und Raumerstellung. Verweigerungen auf Raum- oder Gruppenebene setzen lokale Einschränkungen"
+        },
+        "message": {
+          "title": "Nachrichtenberechtigungen",
+          "description": "Servervorgaben für Schreiben, Threads, Reaktionen, Echo und Nachrichtenmoderation. Verweigerungen auf Raum- oder Gruppenebene setzen lokale Ausnahmen"
+        },
+        "member": {
+          "title": "Mitgliederberechtigungen",
+          "description": "Steuert, wer Servermitglieder einladen und entfernen kann"
+        },
+        "role": {
+          "title": "Rollenberechtigungen",
+          "description": "Steuert, wer Rollen bearbeiten, Rollen zuweisen und Berechtigungsvorlagen verwalten kann"
+        },
+        "admin": {
+          "title": "Adminberechtigungen",
+          "description": "Steuert den Zugriff auf serverweite Administrationsansichten und Diagnose"
+        },
+        "dm": {
+          "title": "DM-Berechtigungen",
+          "description": "Steuert den Zugriff auf Direktnachrichten-Einstiegspunkte"
+        },
+        "user": {
+          "title": "Benutzerberechtigungen",
+          "description": "Steuert Benutzerkonto- und benutzerbezogene Berechtigungsvorgänge. Jede Nicht-Owner-Verweigerung hebt Erlaubnisse auf"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
+      "room_create": "Neue Räume erstellen",
+      "room_join": "Bestehenden Räumen beitreten",
+      "room_list": "Räume im Verzeichnis sehen. Ein Benutzer kann einen Raum sehen dürfen (z. B. um Zugriff anzufragen), ohne ihm beitreten zu dürfen.",
+      "room_manage": "Einstellungen und Berechtigungen eines Raums bearbeiten und Räume löschen",
+      "room_ban_member": "Mitglieder aus Räumen sperren",
+      "message_post": "Root-Nachrichten in Räumen posten und DMs starten",
+      "message_post_in_thread": "Antworten in einem Thread posten",
+      "message_attach": "Dateien an Nachrichten anhängen",
+      "message_echo": "Beim Posten in einem Thread die Nachricht auch im Hauptkanal anzeigen",
+      "message_manage": "Nachrichten anderer Benutzer bearbeiten und löschen",
+      "message_react": "Reaktionen auf Nachrichten hinzufügen und entfernen",
+      "role_manage": "Rollen und ihre Berechtigungsvergaben erstellen, bearbeiten, löschen und neu ordnen",
+      "role_assign": "Rollen für Benutzer zuweisen und entziehen",
+      "admin_view_users": "Benutzerseite im Adminbereich ansehen",
+      "admin_view_system": "Projektionsdiagnose im Adminbereich ansehen",
+      "admin_view_audit": "Auditlog im Adminbereich ansehen",
+      "user_delete_any": "Konto eines anderen Benutzers löschen",
+      "user_delete_self": "Eigenes Konto löschen",
+      "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
+      "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten"
+    }
+  }
+}

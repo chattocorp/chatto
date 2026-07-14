@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Io misfunkciis",
+    "description": "Ĉi tiu vido ne povis esti malfermita. Vi povas reveni al Chatto kaj provi denove de tie.",
+    "unknown": "Nekonata eraro",
+    "home_link": "Reen al Chatto",
+    "missing_media_title": "Amaskomunikilaro nedisponebla",
+    "missing_media_description": "Ĉi tiu dosiero ne povus esti malfermita de ĉi tiu ligilo. Ĝi eble estis forigita, aŭ la privata amaskomunikilaro ne plu disponeblas."
+  }
+}
