@@ -97,7 +97,8 @@ describe('MatrixCell', () => {
 
     expect(button.disabled).toBe(true);
     expect(button.getAttribute('aria-busy')).toBe('true');
-    expect(button.querySelector('.animate-spin.uil--spinner')).not.toBeNull();
+    expect(button.className).toContain('ring-action/40');
+    expect(button.querySelector('.h-4.w-4.animate-spin.uil--spinner')).not.toBeNull();
     expect(button.querySelector('.uil--minus')).toBeNull();
 
     button.click();

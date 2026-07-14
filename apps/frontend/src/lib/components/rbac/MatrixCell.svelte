@@ -93,6 +93,7 @@ to render an inert "—" cell with an explanation tooltip.
     type="button"
     class={[
       'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
+      updating ? 'bg-action/15 ring-2 ring-inset ring-action/40' : '',
       disabled || updating ? 'cursor-not-allowed' : '',
       disabled ? 'opacity-60' : ''
     ]}
@@ -110,7 +111,7 @@ to render an inert "—" cell with an explanation tooltip.
       ]}
     >
       {#if updating}
-        <span class="iconify h-3 w-3 animate-spin uil--spinner" aria-hidden="true"></span>
+        <span class="iconify h-4 w-4 animate-spin uil--spinner" aria-hidden="true"></span>
       {:else}
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}
