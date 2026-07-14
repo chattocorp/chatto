@@ -87,6 +87,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Prefer native browser scrolling for scrollable regions and galleries; do not
   intercept wheel, touch, or pointer scrolling unless the interaction is
   explicitly custom and approved.
+- App-wide pan gestures must yield to horizontal scrollers, form and media
+  controls, custom drag surfaces, and browser top-layer UI such as dialogs,
+  popovers, and fullscreen elements. Mark custom surfaces with the gesture's
+  explicit opt-out and cover both pointer and touch paths in tests.
 - Do not double-nest `Panel`.
 - `PaneHeader` actions are icon affordances. Put primary actions such as Save,
   Cancel, and Create in the page body or form area.
