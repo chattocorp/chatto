@@ -90,4 +90,31 @@ describe('translated message catalogs', () => {
       expect(modal.confirm_placeholder, `${locale} must preserve the DELETE token`).toBe('DELETE');
     }
   });
+
+  it('keeps syntax-like examples valid', () => {
+    for (const locale of settings.locales.filter((locale) => !sparseLocales.has(locale))) {
+      const common = JSON.parse(
+        readFileSync(join(messagesRoot, locale, 'common.json'), 'utf8')
+      ) as { common: { username_placeholder: string } };
+      const preferences = (
+        JSON.parse(readFileSync(join(messagesRoot, locale, 'settings.json'), 'utf8')) as {
+          settings: {
+            preferences: { time_format: Record<'12h' | '24h', { description: string }> };
+          };
+        }
+      ).settings.preferences;
+
+      expect(common.common.username_placeholder, `${locale} must show a valid ASCII username`).toBe(
+        'your_username'
+      );
+      expect(
+        preferences.time_format['12h'].description,
+        `${locale} must show a 12-hour example`
+      ).not.toContain('14:30');
+      expect(
+        preferences.time_format['12h'].description,
+        `${locale} must distinguish 12-hour and 24-hour examples`
+      ).not.toBe(preferences.time_format['24h'].description);
+    }
+  });
 });

@@ -146,7 +146,7 @@
         },
         "12h": {
           "label": "12 uur",
-          "description": "bijvoorbeeld 14:30 uur"
+          "description": "bijvoorbeeld 2:30 PM"
         },
         "24h": {
           "label": "24 uur per dag",

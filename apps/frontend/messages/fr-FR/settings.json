@@ -146,7 +146,7 @@
         },
         "12h": {
           "label": "12 heures",
-          "description": "par exemple, 14h30"
+          "description": "par exemple, 2:30 PM"
         },
         "24h": {
           "label": "24 heures",

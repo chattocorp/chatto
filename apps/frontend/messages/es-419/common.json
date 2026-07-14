@@ -20,7 +20,7 @@
     "new_password": "Nueva Contraseña",
     "password_placeholder": "Tu contraseña",
     "email_placeholder": "you@example.com",
-    "username_placeholder": "tu_nombre de usuario",
+    "username_placeholder": "your_username",
     "password_min_placeholder": "Al menos 8 caracteres",
     "password_confirm_placeholder": "Ingresar contraseña nuevamente",
     "validation": {
