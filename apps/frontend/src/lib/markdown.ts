@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
+import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
+import type Token from 'markdown-it/lib/token.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
 
@@ -245,6 +247,45 @@ function extractFenceLanguages(markdown: string): string[] {
   return [...languages];
 }
 
+function isLineBreakToken(token: Token): boolean {
+  return token.type === 'softbreak' || token.type === 'hardbreak';
+}
+
+function isWhitespaceOnlyInlineSegment(tokens: Token[]): boolean {
+  return tokens.every((token) => {
+    if (token.type === 'text' || token.type === 'text_special') {
+      return token.content.trim().length === 0;
+    }
+    return token.type.endsWith('_open') || token.type.endsWith('_close');
+  });
+}
+
+function lineAfterBreakIsWhitespaceOnly(tokens: Token[], idx: number): boolean {
+  let lineEnd = idx + 1;
+  while (lineEnd < tokens.length && !isLineBreakToken(tokens[lineEnd])) lineEnd++;
+  return isWhitespaceOnlyInlineSegment(tokens.slice(idx + 1, lineEnd));
+}
+
+function renderChatLineBreak(tokens: Token[], idx: number): string {
+  return lineAfterBreakIsWhitespaceOnly(tokens, idx) ? '' : '<br>\n';
+}
+
+function normalizeInlineNonBreakingSpaces(state: StateCore): void {
+  for (let i = 0; i < state.tokens.length; i++) {
+    const token = state.tokens[i];
+    if (token.type !== 'inline') continue;
+    for (const child of token.children ?? []) {
+      if (child.type === 'text' || child.type === 'text_special') {
+        child.content = child.content.replaceAll('\u00A0', ' ');
+      }
+    }
+    if (isWhitespaceOnlyInlineSegment(token.children ?? [])) {
+      if (state.tokens[i - 1]?.type === 'paragraph_open') state.tokens[i - 1].hidden = true;
+      if (state.tokens[i + 1]?.type === 'paragraph_close') state.tokens[i + 1].hidden = true;
+    }
+  }
+}
+
 async function ensureFenceLanguagesLoaded(languages: string[]): Promise<void> {
   if (languages.length === 0) return;
 
@@ -279,6 +320,14 @@ function initialize(): void {
   // as italics. Inserted before the `emphasis` rule so non-boundary marker
   // runs are consumed as literal text.
   md.inline.ruler.before('emphasis', 'word_boundary_emphasis', wordBoundaryEmphasis);
+
+  // CommonMark decodes entities in prose but leaves them literal in code. Turn
+  // decoded NBSPs into collapsible spaces only in ordinary inline text so long
+  // `&nbsp;` runs cannot create giant blank message rows without corrupting
+  // code samples that intentionally contain the entity source.
+  md.core.ruler.after('inline', 'normalize_non_breaking_spaces', normalizeInlineNonBreakingSpaces);
+  md.renderer.rules.softbreak = renderChatLineBreak;
+  md.renderer.rules.hardbreak = renderChatLineBreak;
 
   // Customize link rendering for security
   const defaultLinkRender =

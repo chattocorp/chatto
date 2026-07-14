@@ -352,6 +352,16 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
+  it('does not render encoded non-breaking spaces as tall message content', async () => {
+    const body = `Magnets, how\n\ndo they work?\n\n- ONCE\n- TWICE\n- THRICE\n\nA haiku by a professional chef,\n\nthis was\n${'&nbsp;\n'.repeat(500)}`;
+    const { container } = renderMessage(body);
+
+    await expect.poll(() => q(container, '.prose p')).toBeTruthy();
+    const content = q(container, '.prose')!;
+    expect(content.textContent).not.toContain('&nbsp;');
+    expect(content.clientHeight).toBeLessThan(500);
+  });
+
   // Wait for the markdown renderer to initialize before running tests
   beforeAll(async () => {
     await rendererReady;

@@ -8,6 +8,45 @@ import {
 } from './codeHighlighting';
 
 describe('renderMarkdown', () => {
+  describe('invisible spacing', () => {
+    it('collapses lines made from encoded non-breaking spaces', async () => {
+      const html = await renderMarkdown(`before\n${'&nbsp;\n'.repeat(500)}after`);
+
+      expect(html).toContain('before');
+      expect(html).toContain('after');
+      expect(html).not.toContain('&nbsp;');
+      expect(html.match(/<br>/g)).toHaveLength(1);
+    });
+
+    it('preserves word separation when normalizing non-breaking spaces', async () => {
+      const html = await renderMarkdown('bread&nbsp;and&#160;butter');
+
+      expect(html).toContain('<p>bread and butter</p>');
+    });
+
+    it('removes paragraphs made only from encoded non-breaking spaces', async () => {
+      const html = await renderMarkdown(`before\n\n${'&nbsp;\n\n'.repeat(500)}after`);
+
+      expect(html.match(/<p>/g)).toHaveLength(2);
+      expect(html).toContain('<p>before</p>');
+      expect(html).toContain('<p>after</p>');
+    });
+
+    it('preserves non-breaking-space entity source in code', async () => {
+      const html = await renderMarkdown('`&nbsp;`\n\n```text\n&nbsp;\n```');
+
+      expect(html).toContain('<code>&amp;nbsp;</code>');
+      expect(html).toContain('<span class="line">&amp;nbsp;</span>');
+    });
+
+    it('preserves entity spellings Markdown-it does not decode', async () => {
+      const html = await renderMarkdown('&NBSP;\n&#00000160;');
+
+      expect(html).toContain('&amp;NBSP;');
+      expect(html).toContain('&amp;#00000160;');
+    });
+  });
+
   describe('literal backslashes', () => {
     it('preserves the backslash in the shrug kaomoji', async () => {
       const html = await renderMarkdown('¯\\_(ツ)_/¯');
