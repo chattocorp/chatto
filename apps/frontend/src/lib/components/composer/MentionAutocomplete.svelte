@@ -105,7 +105,7 @@ Shows matching room members when typing @username in chat input.
         />
       {:else}
         <div
-          class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-200 text-xs font-semibold text-muted"
+          class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
         >
           {getAvatarInitials(result.member.displayName, result.member.login)}
         </div>
@@ -114,7 +114,7 @@ Shows matching room members when typing @username in chat input.
       <span class="min-w-0 truncate text-sm text-muted">@{result.member.login}</span>
     {:else if result.type === 'virtual'}
       <div
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-200 text-xs font-semibold text-muted"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
         <span class="iconify h-4 w-4 uil--megaphone"></span>
       </div>
@@ -122,7 +122,7 @@ Shows matching room members when typing @username in chat input.
       <span class="min-w-0 truncate text-sm text-muted">@{result.handle}</span>
     {:else}
       <div
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-200 text-xs font-semibold text-muted"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
         <span class="iconify h-4 w-4 uil--users-alt"></span>
       </div>

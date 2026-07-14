@@ -184,8 +184,8 @@ apply at that scope's tier).
   }
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
-    if (kind === 'SERVER') return 'bg-surface-200/40';
-    if (kind === 'GROUP') return 'bg-surface-200/20';
+    if (kind === 'SERVER') return 'bg-surface-emphasized/40';
+    if (kind === 'GROUP') return 'bg-surface-emphasized/20';
     return '';
   }
 </script>
@@ -229,7 +229,7 @@ apply at that scope's tier).
                     class={[
                       'text-sm',
                       scope.kind === 'SERVER' ? 'font-semibold' : '',
-                      scope.kind === 'GROUP' ? 'text-primary' : '',
+                      scope.kind === 'GROUP' ? 'text-neutral-action' : '',
                       scope.kind === 'ROOM' ? 'text-muted' : ''
                     ]}
                     style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"

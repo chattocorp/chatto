@@ -24,7 +24,7 @@
   const iconColors: Record<ToastTone, string> = {
     error: 'text-error',
     success: 'text-success',
-    info: 'text-accent',
+    info: 'text-action',
     warning: 'text-warning'
   };
 

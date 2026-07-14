@@ -207,7 +207,7 @@ to the user settings page for the active server.
           data-testid="current-user-call-link"
           onclick={openActiveCallRoom}
         >
-          <span class="iconify shrink-0 animate-pulse text-accent uil--phone"></span>
+          <span class="iconify shrink-0 animate-pulse text-action uil--phone"></span>
           <span class="truncate">{activeCallRoomName}</span>
         </button>
         <button
@@ -323,7 +323,7 @@ to the user settings page for the active server.
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
         aria-label={m['voice.user_settings']()}
-        class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+        class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
       >
         <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
       </a>
@@ -349,7 +349,7 @@ to the user settings page for the active server.
             type="button"
             class={[
               'sidebar-item w-full gap-3 text-left',
-              presencePreference.mode === mode ? 'bg-surface-100' : ''
+              presencePreference.mode === mode ? 'bg-surface' : ''
             ]}
             role="menuitemradio"
             aria-checked={presencePreference.mode === mode}
@@ -402,7 +402,7 @@ to the user settings page for the active server.
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
             aria-label={m['ui.close']()}
           >
             <span class="iconify text-xl uil--times"></span>

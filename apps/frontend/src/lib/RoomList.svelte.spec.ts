@@ -311,7 +311,7 @@ describe('RoomList', () => {
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
     const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
-    expect(icon?.classList.contains('text-accent')).toBe(true);
+    expect(icon?.classList.contains('text-action')).toBe(true);
     expect(icon?.querySelector('.uil--phone')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);

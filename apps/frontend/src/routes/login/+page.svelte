@@ -262,9 +262,9 @@
     {#if directRegistrationEnabled}
       <Divider label={m['common.or']()} />
 
-      <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
+      <Button href={resolve('/register')} variant="secondary" size="lg" fullWidth>
         {m['common.create_account']()}
-      </a>
+      </Button>
     {/if}
   </AuthLayout>
 {/if}

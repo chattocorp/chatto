@@ -71,7 +71,7 @@
 
 {#snippet avatar(initials: string)}
   <div
-    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-200 text-lg font-semibold text-muted shadow-md"
+    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-lg font-semibold text-muted shadow-md"
   >
     {initials}
   </div>
@@ -113,7 +113,7 @@
       : ''}"
   >
     {#if variant === 'plain'}
-      <div class="group/msg group/badges message-row items-start bg-surface-100">
+      <div class="group/msg group/badges message-row items-start bg-surface">
         {@render avatar('A')}
         <div class="message-content-stack">
           {@render header('Alice', '10:23')}
@@ -121,7 +121,7 @@
         </div>
       </div>
     {:else if variant === 'with-meta-bar'}
-      <div class="group/msg group/badges message-row items-start bg-surface-100 message-row-footer">
+      <div class="group/msg group/badges message-row items-start bg-surface message-row-footer">
         {@render avatar('A')}
         <div class="message-content-stack">
           {@render header('Alice', '10:23')}
@@ -130,7 +130,7 @@
         </div>
       </div>
     {:else if variant === 'footer-comparison'}
-      <div class="group/msg group/badges message-row items-start bg-surface-100">
+      <div class="group/msg group/badges message-row items-start bg-surface">
         {@render avatar('A')}
         <div class="message-content-stack">
           {@render header('Alice', '10:23')}
@@ -138,7 +138,7 @@
         </div>
       </div>
 
-      <div class="group/msg group/badges message-row items-start bg-surface-100 message-row-footer">
+      <div class="group/msg group/badges message-row items-start bg-surface message-row-footer">
         {@render avatar('B')}
         <div class="message-content-stack">
           {@render header('Bea', '10:24')}
@@ -155,9 +155,7 @@
         </div>
       </div>
 
-      <div
-        class="group/msg group/badges message-row items-baseline bg-surface-100 message-row-footer"
-      >
+      <div class="group/msg group/badges message-row items-baseline bg-surface message-row-footer">
         <div class="flex w-11 shrink-0 items-center justify-center text-xs text-muted">10:24</div>
         <div class="message-content-stack">
           {@render body('Grouped follow-up with reactions.')}
@@ -165,7 +163,7 @@
         </div>
       </div>
     {:else}
-      <div class="group/msg group/badges message-row items-start bg-surface-100">
+      <div class="group/msg group/badges message-row items-start bg-surface">
         {@render avatar('D')}
         <div class="message-content-stack">
           {@render header('Deleted User', '10:25')}

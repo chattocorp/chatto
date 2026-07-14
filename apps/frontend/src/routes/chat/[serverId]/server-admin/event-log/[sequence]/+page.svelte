@@ -56,7 +56,7 @@
             <dd class="font-mono text-sm">{entry.subject}</dd>
 
             <dt class="text-sm text-muted">{m['admin.event_log.event_type']()}</dt>
-            <dd><Pill tone="accent">{entry.eventType || '—'}</Pill></dd>
+            <dd><Pill tone="action">{entry.eventType || '—'}</Pill></dd>
 
             <dt class="text-sm text-muted">{m['admin.event_log.aggregate']()}</dt>
             <dd class="font-mono text-sm">
@@ -80,7 +80,7 @@
 
         <Panel title={m['admin.event_log.payload']()}>
           <pre
-            class="overflow-x-auto rounded-md bg-surface-200 p-4 font-mono text-xs leading-relaxed">{entry.payloadJson}</pre>
+            class="overflow-x-auto rounded-md bg-surface-emphasized p-4 font-mono text-xs leading-relaxed">{entry.payloadJson}</pre>
         </Panel>
       {/if}
     {:catch err}

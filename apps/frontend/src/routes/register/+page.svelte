@@ -377,7 +377,7 @@
 
   <Divider label={m['common.or']()} />
 
-  <a href={resolve('/login')} class="btn-secondary block w-full btn-lg text-center">
+  <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
     {m['common.sign_in']()}
-  </a>
+  </Button>
 </AuthLayout>

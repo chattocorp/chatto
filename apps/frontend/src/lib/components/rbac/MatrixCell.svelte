@@ -71,7 +71,7 @@ to render an inert "—" cell with an explanation tooltip.
       'bg-gradient-to-br from-success/15 to-success/30 text-success/85 hover:from-success/25 hover:to-success/40',
     deny: 'bg-gradient-to-br from-danger/15 to-danger/30 text-danger/85 hover:from-danger/25 hover:to-danger/40',
     neutral:
-      'bg-gradient-to-br from-surface-200/40 to-surface-300/60 text-muted/60 hover:from-surface-200/60 hover:to-surface-300/80'
+      'bg-gradient-to-br from-surface-emphasized/40 to-surface-strong/60 text-muted/60 hover:from-surface-emphasized/60 hover:to-surface-strong/80'
   };
 
   const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);

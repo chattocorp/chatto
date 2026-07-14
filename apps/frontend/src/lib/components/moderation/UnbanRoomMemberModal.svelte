@@ -70,7 +70,7 @@
       <UserAvatar {user} size="md" />
     {:else}
       <div
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
         <span class="iconify text-lg uil--user"></span>
       </div>

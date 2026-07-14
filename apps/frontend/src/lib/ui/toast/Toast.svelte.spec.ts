@@ -33,7 +33,7 @@ describe('Toast', () => {
   it.each([
     ['error', 'text-error'],
     ['success', 'text-success'],
-    ['info', 'text-accent'],
+    ['info', 'text-action'],
     ['warning', 'text-warning']
   ] satisfies Array<[ToastTone, string]>)('renders %s with semantic tone color', (tone, color) => {
     const { container } = render(Toast, {

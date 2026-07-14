@@ -64,7 +64,7 @@ for interactive floating content.
   >
     <button
       type="button"
-      class="meta-badge h-[25px] cursor-pointer gap-1 border-accent/50 px-2 text-sm text-muted"
+      class="meta-badge h-[25px] cursor-pointer gap-1 border-action/50 px-2 text-sm text-muted"
       aria-label="Thumbs up, 2 reactions"
       aria-describedby={reactionAnchor ? reactionTooltipId : undefined}
       onmouseenter={showReactionTooltip}

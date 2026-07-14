@@ -26,6 +26,7 @@
   let b = $state(true);
   let c = $state(false);
   let d = $state(false);
+  let loadingValue = $state(true);
 </script>
 
 <Story
@@ -45,7 +46,7 @@
   asChild
   parameters={{
     docs: {
-      description: { story: 'Checked state uses the shared accent treatment.' }
+      description: { story: 'Checked state uses the shared action treatment.' }
     }
   }}
 >
@@ -91,6 +92,16 @@
 
 <Story name="Disabled" asChild>
   <Checkbox id="d" bind:checked={d} label="Disabled option" disabled />
+</Story>
+
+<Story name="Saving" asChild>
+  <Checkbox
+    id="loading"
+    bind:checked={loadingValue}
+    label="Community moderator"
+    description="Role assignment is being updated."
+    loading
+  />
 </Story>
 
 <Story

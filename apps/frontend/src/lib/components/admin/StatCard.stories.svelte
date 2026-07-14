@@ -36,7 +36,7 @@
 >
   <div class="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-4">
     <StatCard
-      color="primary"
+      color="action"
       icon="iconify uil--users-alt"
       value={713}
       label="Users"

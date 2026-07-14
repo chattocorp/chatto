@@ -1215,7 +1215,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           }}
           onblur={applyLinkHref}
-          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-emphasized px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-strong focus:border-action disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
@@ -1223,7 +1223,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m['composer.open_link']()}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96]"
         >
           <span class="iconify text-base uil--external-link-alt"></span>
         </button>
@@ -1233,7 +1233,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m['composer.remove_link']()}
           disabled={!editable}
           onclick={removeLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span class="iconify text-base uil--link-broken"></span>
         </button>
@@ -1253,7 +1253,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
     <div class="absolute z-10" style={codeLanguageSelectStyle}>
       <div
-        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-200 pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-300 focus-within:text-text focus-within:ring-1 focus-within:ring-accent hover:bg-surface-300 hover:text-text"
+        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
         <span class="iconify size-3 uil--angle-down"></span>
@@ -1348,7 +1348,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror blockquote) {
-    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
     --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
     border-left: 3px solid var(--composer-quote-border);
@@ -1367,7 +1367,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror code:not(pre code)) {
     border-radius: 0.25rem;
-    background: var(--color-surface-200);
+    background: var(--color-surface-emphasized);
     padding: 0.125rem 0.375rem;
     font-family: var(--font-mono);
     font-size: 0.9em;
@@ -1378,7 +1378,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     position: relative;
     width: 100%;
     border-radius: 0.375rem;
-    border: 1px solid var(--color-surface-200);
+    border: 1px solid var(--color-surface-emphasized);
     background: transparent;
     padding: 0.5rem 0.75rem;
     font-family: var(--font-mono);
@@ -1405,7 +1405,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     right: 0;
     bottom: 0;
     border-top-left-radius: 0.375rem;
-    background: var(--color-surface-200);
+    background: var(--color-surface-emphasized);
     padding: 0.125rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;

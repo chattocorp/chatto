@@ -92,13 +92,13 @@ describe('DataTable.hoverable', () => {
   it('applies hover bg by default', async () => {
     const { container } = renderTable();
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).toContain('hover:bg-surface-200/40');
+    expect(tr.className).toContain('hover:bg-surface-emphasized/40');
   });
 
   it('omits hover bg when hoverable=false', async () => {
     const { container } = renderTable({ hoverable: false });
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).not.toContain('hover:bg-surface-200/40');
+    expect(tr.className).not.toContain('hover:bg-surface-emphasized/40');
   });
 
   it('still renders cursor-pointer on hoverable=false rows when onRowClick is set', async () => {

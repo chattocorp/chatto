@@ -177,7 +177,7 @@
             .getStore(item.serverId)
             .notifications.getLocationString(item.notification, item.serverName)}
           <div
-            class="flex w-full cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface-100"
+            class="flex w-full cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface"
             role="button"
             tabindex="0"
             data-testid="notification-item"
@@ -203,7 +203,7 @@
 
             <button
               type="button"
-              class="iconify icon-action uil--times"
+              class="icon-action iconify uil--times"
               title={m['common.dismiss']()}
               onclick={(e) => handleDismiss(e, item)}
             ></button>

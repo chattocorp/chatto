@@ -42,7 +42,7 @@
     </header>
 
     <section class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-      <StatCard color="primary" icon="iconify uil--users-alt" value={713} label="Users" subtitle="+12 this week" />
+      <StatCard color="action" icon="iconify uil--users-alt" value={713} label="Users" subtitle="+12 this week" />
       <StatCard color="success" icon="iconify uil--building" value={5} label="Spaces" />
       <StatCard color="warning" icon="iconify uil--message" value="48,221" label="Messages" subtitle="all-time" />
       <StatCard color="danger" icon="iconify uil--exclamation-triangle" value={3} label="Failed jobs" subtitle="last 24h" />
@@ -81,7 +81,7 @@
   <td class="px-4 py-2 text-right tabular-nums">{row.members}</td>
   <td class="px-4 py-2 text-right tabular-nums">{row.rooms}</td>
   <td class="px-4 py-2">
-    <Pill tone={row.status === 'public' ? 'success' : row.status === 'invite' ? 'primary' : 'muted'} dimmed>
+    <Pill tone={row.status === 'public' ? 'success' : row.status === 'invite' ? 'neutral' : 'muted'} dimmed>
       {row.status}
     </Pill>
   </td>

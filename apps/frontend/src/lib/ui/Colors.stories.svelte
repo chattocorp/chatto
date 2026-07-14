@@ -13,13 +13,16 @@
   const surface: Swatch[] = [
     { name: 'background', cssVar: '--color-background', bgClass: 'bg-background' },
     { name: 'surface', cssVar: '--color-surface', bgClass: 'bg-surface' },
-    { name: 'surface-100', cssVar: '--color-surface-100', bgClass: 'bg-surface-100' },
-    { name: 'surface-200', cssVar: '--color-surface-200', bgClass: 'bg-surface-200' },
-    { name: 'surface-300', cssVar: '--color-surface-300', bgClass: 'bg-surface-300' },
     {
-      name: 'surface-highlighted',
-      cssVar: '--color-surface-highlighted',
-      bgClass: 'bg-surface-highlighted'
+      name: 'surface-emphasized',
+      cssVar: '--color-surface-emphasized',
+      bgClass: 'bg-surface-emphasized'
+    },
+    { name: 'surface-strong', cssVar: '--color-surface-strong', bgClass: 'bg-surface-strong' },
+    {
+      name: 'surface-selected',
+      cssVar: '--color-surface-selected',
+      bgClass: 'bg-surface-selected'
     },
     { name: 'border', cssVar: '--color-border', bgClass: 'bg-border' },
     { name: 'input', cssVar: '--color-input', bgClass: 'bg-input' },
@@ -28,14 +31,12 @@
 
   const semantic: Swatch[] = [
     { name: 'action', cssVar: '--color-action', bgClass: 'bg-action' },
+    { name: 'action-hover', cssVar: '--color-action-hover', bgClass: 'bg-action-hover' },
     {
       name: 'neutral-action',
       cssVar: '--color-neutral-action',
       bgClass: 'bg-neutral-action'
     },
-    { name: 'primary', cssVar: '--color-primary', bgClass: 'bg-primary' },
-    { name: 'primary-hover', cssVar: '--color-primary-hover', bgClass: 'bg-primary-hover' },
-    { name: 'accent', cssVar: '--color-accent', bgClass: 'bg-accent' },
     { name: 'link', cssVar: '--color-link', bgClass: 'bg-link' },
     { name: 'success', cssVar: '--color-success', bgClass: 'bg-success' },
     { name: 'warning', cssVar: '--color-warning', bgClass: 'bg-warning' },
@@ -159,13 +160,13 @@
       <div class="text-muted">text-muted</div>
       <span class="text-link">text-link</span>
     </div>
-    <div class="rounded-lg border border-border bg-surface-200 p-4">
-      <div class="font-semibold">bg-surface-200</div>
+    <div class="rounded-lg border border-border bg-surface-emphasized p-4">
+      <div class="font-semibold">bg-surface-emphasized</div>
       <div class="text-text">text-text</div>
       <div class="text-muted">text-muted</div>
     </div>
-    <div class="rounded-lg border border-border bg-surface-highlighted p-4">
-      <div class="font-semibold">bg-surface-highlighted</div>
+    <div class="rounded-lg border border-border bg-surface-selected p-4">
+      <div class="font-semibold">bg-surface-selected</div>
       <div class="text-text">text-text</div>
       <div class="text-muted">text-muted</div>
     </div>
@@ -192,9 +193,9 @@
       <div class="font-semibold">danger</div>
       <div class="text-sm">/10 tint + text-danger</div>
     </div>
-    <div class="rounded-lg bg-primary/10 p-4 text-primary">
-      <div class="font-semibold">primary</div>
-      <div class="text-sm">/10 tint + text-primary</div>
+    <div class="rounded-lg bg-neutral-action/10 p-4 text-neutral-action">
+      <div class="font-semibold">neutral action</div>
+      <div class="text-sm">/10 tint + text-neutral-action</div>
     </div>
   </div>
 </Story>

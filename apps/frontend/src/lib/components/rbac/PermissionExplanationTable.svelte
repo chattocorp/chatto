@@ -101,7 +101,7 @@
           type="button"
           onclick={() => toggle(exp.permission)}
           aria-expanded={isExpanded}
-          class="cursor-pointer rounded px-1 text-muted hover:bg-surface-100"
+          class="cursor-pointer rounded px-1 text-muted hover:bg-surface"
           title={isExpanded
             ? m['rbac.permissions.hide_trace']()
             : m['rbac.permissions.show_trace']()}
@@ -117,7 +117,7 @@
     </div>
 
     {#if isExpanded}
-      <div class="col-span-4 border-b border-border/50 bg-surface-100/70 px-4 py-3 text-xs">
+      <div class="col-span-4 border-b border-border/50 bg-surface/70 px-4 py-3 text-xs">
         <div class="mb-2 font-medium text-muted">
           {exp.trace.length === 1
             ? m['rbac.permissions.trace_one']()

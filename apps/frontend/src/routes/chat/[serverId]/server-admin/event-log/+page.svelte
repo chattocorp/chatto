@@ -284,7 +284,7 @@
             <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>
             <td class="px-4 py-3 text-sm">{formatTimestamp(entry.createdAt)}</td>
             <td class="px-4 py-3">
-              <Pill tone="accent">{entry.eventType || '—'}</Pill>
+              <Pill tone="action">{entry.eventType || '—'}</Pill>
             </td>
             <td class="px-4 py-3 font-mono text-xs">
               {#if entry.aggregateType}

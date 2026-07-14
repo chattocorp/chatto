@@ -37,7 +37,7 @@
 </Story>
 
 <Story name="Common pane-header actions" asChild>
-  <div class="flex items-center gap-3 rounded-md border border-border bg-surface-100 p-3">
+  <div class="flex items-center gap-3 rounded-md border border-border bg-surface p-3">
     <HeaderIconButton icon="uil--bell" label="Follow thread" tone="active" />
     <HeaderIconButton icon="uil--sign-out-alt" label="Leave room" />
     <HeaderIconButton icon="uil--cog" label="Settings" />
@@ -46,7 +46,7 @@
 </Story>
 
 <Story name="Call pane actions" asChild>
-  <div class="flex items-center gap-3 rounded-md border border-border bg-surface-100 p-3">
+  <div class="flex items-center gap-3 rounded-md border border-border bg-surface p-3">
     <HeaderIconButton icon="mdi--arrow-expand-left" label="Maximize call" />
     <HeaderIconButton icon="mdi--arrow-collapse-right" label="Minimize call" tone="active" />
     <HeaderIconButton icon="mdi--monitor-share" label="Fullscreen call" />

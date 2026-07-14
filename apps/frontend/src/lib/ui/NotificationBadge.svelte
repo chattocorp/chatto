@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Color = 'warning' | 'primary' | 'muted';
+  type Color = 'warning' | 'action' | 'muted';
 
   let {
     count,
@@ -17,7 +17,7 @@
 
   const colorClasses = {
     warning: 'bg-warning text-white',
-    primary: 'bg-primary text-white',
+    action: 'bg-action text-white',
     muted: 'bg-muted text-background'
   } as const;
 
@@ -27,10 +27,12 @@
 <span
   class={[
     'inline-flex shrink-0 items-center justify-center px-1.5 text-[10px] leading-none font-semibold tabular-nums',
-    overlay ? 'h-5 min-w-5 rounded-sm px-1 shadow-sm ring-2 ring-background' : 'min-h-5 min-w-5 rounded',
+    overlay
+      ? 'h-5 min-w-5 rounded-sm px-1 shadow-sm ring-2 ring-background'
+      : 'min-h-5 min-w-5 rounded',
     colorClasses[color],
     className
   ]}
   aria-hidden="true"
-  data-testid={testid}
->{label}</span>
+  data-testid={testid}>{label}</span
+>

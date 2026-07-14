@@ -239,7 +239,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           baseButtonClass,
           'gap-1 px-2 text-sm',
           canReact ? '' : '!cursor-default opacity-60',
-          reaction.hasReacted ? 'border-accent/50' : 'border-transparent'
+          reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
         onclick={() => canReact && toggleReaction(reaction)}
         onfocus={(e) => showReactionTooltip(e, reaction)}

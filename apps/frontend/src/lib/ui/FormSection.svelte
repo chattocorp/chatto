@@ -16,9 +16,9 @@
   } = $props();
 </script>
 
-<section class={[maxWidth, bordered && 'border-t border-border pt-6']}>
-  <div class="mb-4 flex items-center justify-between gap-3">
-    <h2 class="text-sm font-semibold text-muted uppercase">{title}</h2>
+<section class={[maxWidth, bordered && 'border-t border-border pt-5']}>
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <h2 class="text-base font-semibold text-text-top">{title}</h2>
     {#if actions}
       <div class="flex shrink-0 items-center gap-2">
         {@render actions()}

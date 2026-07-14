@@ -117,7 +117,7 @@
     [
       avatarClass,
       textSizeClasses[size],
-      'flex items-center justify-center bg-surface-200 font-semibold text-muted'
+      'flex items-center justify-center bg-surface-emphasized font-semibold text-muted'
     ]
       .filter(Boolean)
       .join(' ')

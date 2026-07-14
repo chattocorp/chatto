@@ -39,10 +39,7 @@
 <nav class="sidebar-nav flex-1 p-2">
   {#each items as item (item.href)}
     <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- generic component with dynamic routes -->
-    <a
-      href={item.href}
-      class={['sidebar-item', isActive(item.href, items) ? 'bg-surface-100' : '']}
-    >
+    <a href={item.href} class={['sidebar-item', isActive(item.href, items) ? 'bg-surface' : '']}>
       <span class="sidebar-icon {item.icon}"></span>
       {item.label}
     </a>

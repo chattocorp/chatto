@@ -359,7 +359,7 @@
         type="button"
         role="radio"
         aria-checked={noStatusSelected}
-        class={['sidebar-item gap-3 text-left', noStatusSelected && 'bg-surface-100']}
+        class={['sidebar-item gap-3 text-left', noStatusSelected && 'bg-surface']}
         disabled={isSaving || isClearing}
         onclick={chooseNoStatus}
       >
@@ -379,7 +379,7 @@
           type="button"
           role="radio"
           aria-checked={isSelected}
-          class={['sidebar-item gap-3 text-left', isSelected && 'bg-surface-100']}
+          class={['sidebar-item gap-3 text-left', isSelected && 'bg-surface']}
           disabled={isSaving || isClearing}
           onclick={() => applyTemplateStatus(template.id)}
         >
@@ -396,7 +396,7 @@
         type="button"
         role="radio"
         aria-checked={hasActiveCustomStatus}
-        class={['sidebar-item gap-3 text-left', customRowActive && 'bg-surface-100']}
+        class={['sidebar-item gap-3 text-left', customRowActive && 'bg-surface']}
         disabled={isSaving || isClearing}
         onclick={openCompactCustomEditor}
       >
@@ -424,7 +424,7 @@
       <div class="flex min-w-0 items-center gap-1">
         <button
           type="button"
-          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
           title={m['settings.profile.status.emoji.choose']()}
           aria-label={m['settings.profile.status.emoji.choose']()}
           disabled={isSaving || isClearing}
@@ -476,7 +476,7 @@
     >
       <button
         type="button"
-        class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-lg transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+        class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-lg transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
         title={m['settings.profile.status.emoji.choose']()}
         aria-label={m['settings.profile.status.emoji.choose']()}
         disabled={isSaving || isClearing}
@@ -499,7 +499,7 @@
       {#if statusText || hasActiveStatus}
         <button
           type="button"
-          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
+          class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
           title={m['settings.profile.status.clear_button']()}
           aria-label={m['settings.profile.status.clear_button']()}
           disabled={isSaving || isClearing}

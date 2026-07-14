@@ -18,7 +18,7 @@
 
 <a
   href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(getActiveServer()) })}
-  class={['sidebar-item', active ? 'bg-surface-100' : '']}
+  class={['sidebar-item', active ? 'bg-surface' : '']}
 >
   <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
   {m['chat.threads.title']()}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
+  import { Button, RangeField } from '$lib/ui/form';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
@@ -391,146 +391,85 @@
     {/snippet}
 
     <div class="flex flex-col gap-2">
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--volume" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.volume']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatVolume(userPreferences.notificationSoundFilters.volume)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-volume-filter"
-          type="range"
-          min="0"
-          max="2"
-          step="0.05"
-          value={userPreferences.notificationSoundFilters.volume}
-          oninput={(event) => updateSoundFilter('volume', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-volume-filter"
+        testid="notification-volume-filter"
+        label={m['settings.notifications.sound.volume']()}
+        icon="uil--volume"
+        min={0}
+        max={2}
+        step={0.05}
+        value={userPreferences.notificationSoundFilters.volume}
+        displayValue={formatVolume(userPreferences.notificationSoundFilters.volume)}
+        oninput={(event) => updateSoundFilter('volume', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--bolt" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.tinny']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-high-pass-filter"
-          type="range"
-          min="20"
-          max="2000"
-          step="10"
-          value={userPreferences.notificationSoundFilters.highPassHz}
-          oninput={(event) => updateSoundFilter('highPassHz', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-high-pass-filter"
+        testid="notification-high-pass-filter"
+        label={m['settings.notifications.sound.tinny']()}
+        icon="uil--bolt"
+        min={20}
+        max={2000}
+        step={10}
+        value={userPreferences.notificationSoundFilters.highPassHz}
+        displayValue={formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
+        oninput={(event) => updateSoundFilter('highPassHz', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--volume-mute" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.muffled']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-low-pass-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
-          oninput={updateMuffledFilter}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-low-pass-filter"
+        testid="notification-low-pass-filter"
+        label={m['settings.notifications.sound.muffled']()}
+        icon="uil--volume-mute"
+        min={0}
+        max={100}
+        value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
+        displayValue={formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
+        oninput={updateMuffledFilter}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--redo" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.echo']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.echo)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-echo-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.echo}
-          oninput={(event) => updateSoundFilter('echo', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-echo-filter"
+        testid="notification-echo-filter"
+        label={m['settings.notifications.sound.echo']()}
+        icon="uil--redo"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.echo}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.echo)}
+        oninput={(event) => updateSoundFilter('echo', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--cloud" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.reverb']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.reverb)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-reverb-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.reverb}
-          oninput={(event) => updateSoundFilter('reverb', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-reverb-filter"
+        testid="notification-reverb-filter"
+        label={m['settings.notifications.sound.reverb']()}
+        icon="uil--cloud"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.reverb}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.reverb)}
+        oninput={(event) => updateSoundFilter('reverb', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--fire" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.crunch']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.crunch)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-crunch-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.crunch}
-          oninput={(event) => updateSoundFilter('crunch', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-crunch-filter"
+        testid="notification-crunch-filter"
+        label={m['settings.notifications.sound.crunch']()}
+        icon="uil--fire"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.crunch}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.crunch)}
+        oninput={(event) => updateSoundFilter('crunch', event)}
+        onchange={previewSelectedSound}
+      />
     </div>
   </FormSection>
 </div>

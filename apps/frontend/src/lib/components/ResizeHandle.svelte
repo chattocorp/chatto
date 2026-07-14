@@ -93,8 +93,8 @@
       'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
       'left-1/2',
       dragging
-        ? 'bg-primary'
-        : 'bg-transparent group-hover:bg-primary/60 group-focus-visible:bg-primary'
+        ? 'bg-neutral-action'
+        : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'
     ]}
   ></span>
 </button>

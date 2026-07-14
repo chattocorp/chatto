@@ -1,12 +1,14 @@
 <script lang="ts">
   import Panel from '$lib/components/admin/Panel.svelte';
   import Button from '$lib/ui/form/Button.svelte';
+  import RangeField from '$lib/ui/form/RangeField.svelte';
   import TextInput from '$lib/ui/form/TextInput.svelte';
   import ChoiceRow from './ChoiceRow.svelte';
   import Hint from './Hint.svelte';
   import Pill from './Pill.svelte';
 
   let displayName = $state('Ada Lovelace');
+  let notificationVolume = $state(70);
 </script>
 
 <section
@@ -32,6 +34,16 @@
           bind:value={displayName}
         />
 
+        <RangeField
+          id="visual-notification-volume"
+          label="Notification volume"
+          icon="uil--volume"
+          min={0}
+          max={100}
+          bind:value={notificationVolume}
+          displayValue={`${notificationVolume}%`}
+        />
+
         <Hint tone="info">Changes to your profile are visible immediately.</Hint>
 
         <div class="flex flex-wrap gap-2">
@@ -42,15 +54,8 @@
       </div>
 
       <div class="flex flex-col gap-2" role="radiogroup" aria-label="Presence visibility">
-        <ChoiceRow
-          label="Everyone"
-          description="Show presence to all members."
-          selected
-        />
-        <ChoiceRow
-          label="Contacts only"
-          description="Limit presence to people you know."
-        />
+        <ChoiceRow label="Everyone" description="Show presence to all members." selected />
+        <ChoiceRow label="Contacts only" description="Limit presence to people you know." />
         <ChoiceRow label="Nobody" description="Always appear offline." disabled />
       </div>
     </div>

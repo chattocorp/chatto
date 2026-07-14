@@ -7,6 +7,7 @@
 
   let {
     id,
+    testid,
     label,
     value = $bindable(''),
     text = $bindable(''),
@@ -16,6 +17,7 @@
     placeholder,
     description,
     error,
+    labelHidden = false,
     disabled = false,
     loading = false,
     allowFreeform = true,
@@ -28,6 +30,7 @@
     onclear
   }: {
     id: string;
+    testid?: string;
     label: string;
     value?: string;
     text?: string;
@@ -37,6 +40,7 @@
     placeholder?: string;
     description?: string;
     error?: string;
+    labelHidden?: boolean;
     disabled?: boolean;
     loading?: boolean;
     allowFreeform?: boolean;
@@ -130,11 +134,12 @@
   }
 </script>
 
-<FormField {id} {label} {error} {description}>
+<FormField {id} {label} {error} {description} {labelHidden}>
   <div class={['relative', className]}>
     <input
       bind:this={inputEl}
       {id}
+      data-testid={testid}
       type="text"
       bind:value={text}
       {placeholder}

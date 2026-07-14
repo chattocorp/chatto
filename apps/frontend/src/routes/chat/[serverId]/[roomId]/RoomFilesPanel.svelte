@@ -185,7 +185,7 @@ Room-scoped file list for the room sidebar.
                   data-testid="room-file-row"
                 >
                   <span
-                    class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-100 text-muted"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
                   >
                     {#if thumb}
                       <img

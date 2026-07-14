@@ -16,6 +16,7 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     error,
     description,
     disabled = false,
+    loading = false,
     onchange,
     children
   }: {
@@ -25,6 +26,7 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     error?: string;
     description?: string;
     disabled?: boolean;
+    loading?: boolean;
     onchange?: (event: Event) => void;
     children?: Snippet;
   } = $props();
@@ -36,6 +38,7 @@ DOM for form semantics, keyboard focus, and screen-reader state.
 
 <label
   for={id}
+  aria-busy={loading || undefined}
   class={[
     'checkbox-option',
     error && 'border-error/70 bg-error/5 hover:border-error/80 hover:bg-error/10',
@@ -46,7 +49,7 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     type="checkbox"
     {id}
     bind:checked
-    {disabled}
+    disabled={disabled || loading}
     {onchange}
     class="peer sr-only"
     aria-invalid={error ? 'true' : undefined}
@@ -56,13 +59,14 @@ DOM for form semantics, keyboard focus, and screen-reader state.
   <span
     class={[
       'checkbox-box',
-      'peer-focus-visible:ring-2 peer-focus-visible:ring-accent/35 peer-focus-visible:ring-offset-0',
-      'peer-checked:border-accent peer-checked:bg-accent peer-checked:text-background',
-      error && 'border-error peer-focus-visible:ring-error/30'
+      'peer-focus-visible:ring-2 peer-focus-visible:ring-action/35 peer-focus-visible:ring-offset-0',
+      'peer-checked:border-action peer-checked:bg-action peer-checked:text-background',
+      error && 'border-error peer-focus-visible:ring-error/30',
+      loading && 'animate-pulse'
     ]}
     aria-hidden="true"
   >
-    <span class="iconify uil--check text-base"></span>
+    <span class="iconify text-base uil--check"></span>
   </span>
 
   <span class="flex min-w-0 flex-1 flex-col gap-1">

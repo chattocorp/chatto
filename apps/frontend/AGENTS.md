@@ -88,7 +88,7 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Do not use `{@html}` directly in feature components. Render trusted markdown
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.
-- Use `link` for inline links, not `text-primary`.
+- Use `link` for inline links, not a hand-built `text-action` treatment.
 - Flex children with truncation or fixed-width media usually need `min-w-0`.
 - Prefer native browser scrolling for scrollable regions and galleries; do not
   intercept wheel, touch, or pointer scrolling unless the interaction is
