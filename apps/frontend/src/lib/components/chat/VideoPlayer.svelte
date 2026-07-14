@@ -54,9 +54,6 @@
 
   const MAX_WIDTH = 480;
   const MAX_HEIGHT = 320;
-  const WIDESCREEN_RATIO = 16 / 9;
-  const NEAR_SQUARE_MIN_RATIO = 2 / 3;
-  const NEAR_SQUARE_MAX_RATIO = 3 / 2;
 
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
@@ -79,46 +76,15 @@
     };
   });
 
-  const frameDimensions = $derived.by(() => {
+  const displaySize = $derived.by(() => {
     const w = sourceDimensions.width;
     const h = sourceDimensions.height;
-    const ratio = w / h;
-
-    if (
-      status === 'COMPLETED' &&
-      selectedVariant &&
-      !autoLoop &&
-      ratio > NEAR_SQUARE_MIN_RATIO &&
-      ratio < NEAR_SQUARE_MAX_RATIO
-    ) {
-      return {
-        width: Math.round(h * WIDESCREEN_RATIO),
-        height: h
-      };
-    }
-
-    return { width: w, height: h };
-  });
-
-  const displaySize = $derived.by(() => {
-    const w = frameDimensions.width;
-    const h = frameDimensions.height;
     const scale = Math.min(MAX_WIDTH / w, MAX_HEIGHT / h, 1);
     return {
       width: Math.round(w * scale),
       height: Math.round(h * scale)
     };
   });
-
-  const fitMode = $derived.by(() => {
-    if (status !== 'COMPLETED' || !selectedVariant || autoLoop) return 'contain';
-    return frameDimensions.width / frameDimensions.height >
-      sourceDimensions.width / sourceDimensions.height
-      ? 'cover'
-      : 'contain';
-  });
-
-  const fitPosition = $derived(sourceDimensions.width < sourceDimensions.height ? 'center' : 'top');
 
   const frameStyle = $derived(
     `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
@@ -257,8 +223,6 @@
       src={videoSrc}
       playsinline
       onerror={onMediaError}
-      data-fit={fitMode}
-      data-fit-position={fitPosition}
       class="block h-full w-full"
     >
       <media-provider>
@@ -299,27 +263,5 @@
   :global(media-player .vds-settings-menu),
   :global(media-player .vds-chapters-menu) {
     display: none !important;
-  }
-
-  :global(media-player[data-fit='cover'] media-provider),
-  :global(media-player[data-fit='cover'] [data-media-provider]),
-  :global(media-player[data-fit='cover'] video),
-  :global(media-player[data-fit='cover'] .vds-poster),
-  :global(media-player[data-fit='cover'] .vds-poster img) {
-    height: 100%;
-    width: 100%;
-  }
-
-  :global(media-player[data-fit='cover'] video),
-  :global(media-player[data-fit='cover'] .vds-poster),
-  :global(media-player[data-fit='cover'] .vds-poster img) {
-    object-fit: cover;
-    object-position: center center;
-  }
-
-  :global(media-player[data-fit='cover'][data-fit-position='top'] video),
-  :global(media-player[data-fit='cover'][data-fit-position='top'] .vds-poster),
-  :global(media-player[data-fit='cover'][data-fit-position='top'] .vds-poster img) {
-    object-position: top center;
   }
 </style>

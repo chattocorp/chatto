@@ -91,37 +91,32 @@ describe('VideoPlayer', () => {
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 427 / 320');
   });
 
-  it('presents near-square posted landscape videos in a 16:9 frame', async () => {
+  it('preserves near-square posted landscape videos', async () => {
     const { container } = renderPostedVideo({
       width: 1024,
       height: 768,
       thumbnailUrl: TRANSPARENT_THUMBNAIL
     });
 
-    const player = await mediaPlayer(container);
+    await mediaPlayer(container);
     const poster = await posterImage(container);
 
-    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
-    expect(player.dataset.fit).toBe('cover');
-    expect(player.dataset.fitPosition).toBe('top');
-    expect(getComputedStyle(poster).objectFit).toBe('cover');
+    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 427 / 320');
+    expect(getComputedStyle(poster).objectFit).toBe('contain');
   });
 
-  it('presents near-square posted portrait videos in a 16:9 frame', async () => {
+  it('preserves near-square posted portrait videos', async () => {
     const { container } = renderPostedVideo({
       width: 800,
       height: 1000,
       thumbnailUrl: TRANSPARENT_THUMBNAIL
     });
 
-    const player = await mediaPlayer(container);
+    await mediaPlayer(container);
     const poster = await posterImage(container);
 
-    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
-    expect(player.dataset.fit).toBe('cover');
-    expect(player.dataset.fitPosition).toBe('center');
-    expect(getComputedStyle(poster).objectFit).toBe('cover');
-    expect(getComputedStyle(poster).objectPosition).toBe('50% 50%');
+    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 256 / 320');
+    expect(getComputedStyle(poster).objectFit).toBe('contain');
   });
 
   it('preserves true portrait posted videos', async () => {
@@ -131,11 +126,10 @@ describe('VideoPlayer', () => {
       thumbnailUrl: TRANSPARENT_THUMBNAIL
     });
 
-    const player = await mediaPlayer(container);
+    await mediaPlayer(container);
     const poster = await posterImage(container);
 
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 180 / 320');
-    expect(player.dataset.fit).toBe('contain');
     expect(getComputedStyle(poster).objectFit).toBe('contain');
   });
 
@@ -143,13 +137,11 @@ describe('VideoPlayer', () => {
     const portrait = renderPostedVideo({ width: 1000, height: 1500 });
     const landscape = renderPostedVideo({ width: 1500, height: 1000 });
 
-    const portraitPlayer = await mediaPlayer(portrait.container);
-    const landscapePlayer = await mediaPlayer(landscape.container);
+    await mediaPlayer(portrait.container);
+    await mediaPlayer(landscape.container);
 
     expect(frame(portrait.container).getAttribute('style')).toContain('aspect-ratio: 213 / 320');
-    expect(portraitPlayer.dataset.fit).toBe('contain');
     expect(frame(landscape.container).getAttribute('style')).toContain('aspect-ratio: 480 / 320');
-    expect(landscapePlayer.dataset.fit).toBe('contain');
   });
 
   it('corrects stale metadata after the browser loads intrinsic video dimensions', async () => {
