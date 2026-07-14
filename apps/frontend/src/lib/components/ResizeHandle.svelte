@@ -81,7 +81,7 @@
   type="button"
   aria-label={label}
   class={[
-    'group absolute top-0 bottom-0 z-10 hidden w-2 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
+    'group pointer-events-none absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
     edge === 'right' ? 'right-0' : 'left-0'
   ]}
   onpointerdown={onPointerDown}
@@ -89,13 +89,21 @@
   onkeydown={onKeyDown}
 >
   <span
-    data-testid="resize-handle-line"
+    data-testid="resize-handle-hit-target"
     class={[
-      'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
-      edge === 'right' ? 'right-0' : 'left-0',
-      dragging
-        ? 'bg-neutral-action'
-        : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'
+      'pointer-events-auto absolute top-0 bottom-0 w-2',
+      edge === 'right' ? 'right-0' : 'left-0'
     ]}
-  ></span>
+  >
+    <span
+      data-testid="resize-handle-line"
+      class={[
+        'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
+        edge === 'right' ? 'right-0' : 'left-0',
+        dragging
+          ? 'bg-neutral-action'
+          : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'
+      ]}
+    ></span>
+  </span>
 </button>
