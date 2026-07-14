@@ -311,9 +311,9 @@
   @apply min-h-8 min-w-0 rounded-md px-3 py-1 text-xs;
 }
 
-/* Desktop-only dense action used inside the current-call status card. */
+/* Equal-width icon action used inside the current-call control row. */
 @utility btn-compact {
-  @apply h-7 min-h-0 min-w-0 px-2 py-0 text-xs;
+  @apply h-10 min-h-10 w-full min-w-0 shrink-0 p-0 text-xs;
 }
 
 @utility btn-lg {
