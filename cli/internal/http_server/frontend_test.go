@@ -192,6 +192,7 @@ func TestServiceWorkerETag(t *testing.T) {
 func TestDynamicPWAManifest(t *testing.T) {
 	staticManifest := []byte(`{
   "name": "Chatto",
+  "short_name": "Chatto",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
@@ -204,16 +205,23 @@ func TestDynamicPWAManifest(t *testing.T) {
   ]
 }`)
 
-	t.Run("keeps static manifest when no server logo is available", func(t *testing.T) {
-		got, err := dynamicPWAManifest(staticManifest, nil)
+	t.Run("uses server name without requiring a server logo", func(t *testing.T) {
+		got, err := dynamicPWAManifest(staticManifest, "Engineering", nil)
 		if err != nil {
 			t.Fatalf("dynamicPWAManifest: %v", err)
 		}
-		assert.Equal(t, string(staticManifest), string(got))
+
+		var manifest map[string]any
+		if err := json.Unmarshal(got, &manifest); err != nil {
+			t.Fatalf("unmarshal manifest: %v", err)
+		}
+		assert.Equal(t, "Engineering", manifest["name"])
+		assert.Equal(t, "Engineering", manifest["short_name"])
+		assert.Len(t, manifest["icons"], 2)
 	})
 
 	t.Run("replaces install and shortcut icons with server logo URLs", func(t *testing.T) {
-		got, err := dynamicPWAManifest(staticManifest, &pwaServerIconURLs{
+		got, err := dynamicPWAManifest(staticManifest, "Engineering", &pwaServerIconURLs{
 			Icon192: "/assets/server/logo/t/192",
 			Icon512: "/assets/server/logo/t/512",
 		})
@@ -225,6 +233,8 @@ func TestDynamicPWAManifest(t *testing.T) {
 		if err := json.Unmarshal(got, &manifest); err != nil {
 			t.Fatalf("unmarshal manifest: %v", err)
 		}
+		assert.Equal(t, "Engineering", manifest["name"])
+		assert.Equal(t, "Engineering", manifest["short_name"])
 
 		icons := manifest["icons"].([]any)
 		assert.Len(t, icons, 4)
@@ -498,6 +508,7 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 		},
 	}
 	chattoCore := setupFrontendTestCoreWithLogo(t)
+	setTestServerName(t, context.Background(), chattoCore, "Engineering")
 	chattoCore.AssetBaseURL = "https://assets.example.com"
 	server := &HTTPServer{
 		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
@@ -519,6 +530,8 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &manifest); err != nil {
 		t.Fatalf("unmarshal manifest: %v", err)
 	}
+	assert.Equal(t, "Engineering", manifest["name"])
+	assert.Equal(t, "Engineering", manifest["short_name"])
 	icons := manifest["icons"].([]any)
 	assert.True(t, strings.HasPrefix(icons[0].(map[string]any)["src"].(string), "/assets/server/logo-asset/t/"))
 	assert.NotContains(t, icons[0].(map[string]any)["src"], "assets.example.com")
