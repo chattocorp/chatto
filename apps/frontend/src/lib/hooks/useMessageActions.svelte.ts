@@ -14,6 +14,8 @@ export type MessageActionParams = {
   eventId: string;
   deleteEventId?: string;
   messageBody: string;
+  /** Thread root to preserve when copying a link from the thread pane. */
+  permalinkThreadRootEventId?: string | null;
   threadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   canAddChannelEcho?: boolean;
@@ -124,7 +126,12 @@ export function useMessageActions() {
   }
 
   async function copyMessageLink(params: MessageActionParams) {
-    await copyMessageLinkToClipboard(params.serverId, params.roomId, params.messageEventId);
+    await copyMessageLinkToClipboard(
+      params.serverId,
+      params.roomId,
+      params.messageEventId,
+      params.permalinkThreadRootEventId
+    );
   }
 
   return {

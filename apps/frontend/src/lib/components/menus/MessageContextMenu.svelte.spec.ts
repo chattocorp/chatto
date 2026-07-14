@@ -132,6 +132,7 @@ describe('MessageContextMenu', () => {
       canReact: true,
       canEdit: true,
       canDelete: true,
+      permalinkThreadRootEventId: 'thread-root-1',
       onReply
     });
 
@@ -172,7 +173,8 @@ describe('MessageContextMenu', () => {
       expect.objectContaining({
         serverId: 'server-1',
         roomId: 'room-1',
-        messageEventId: 'message-event-1'
+        messageEventId: 'message-event-1',
+        permalinkThreadRootEventId: 'thread-root-1'
       })
     );
     await vi.waitFor(() => {

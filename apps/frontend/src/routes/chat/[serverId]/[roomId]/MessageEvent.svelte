@@ -70,12 +70,14 @@
     event,
     compact = false,
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread
   }: {
     event: RoomEventView;
     compact?: boolean;
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
   } = $props();
@@ -300,7 +302,12 @@
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    await copyMessageLinkToClipboard(getActiveServer(), roomId, event.id);
+    await copyMessageLinkToClipboard(
+      getActiveServer(),
+      roomId,
+      event.id,
+      permalinkThreadRootEventId
+    );
   }
 
   // Check if message has been edited (updatedAt is non-null)
@@ -965,6 +972,7 @@
         eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        {permalinkThreadRootEventId}
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}
@@ -1008,6 +1016,7 @@
         eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        {permalinkThreadRootEventId}
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}

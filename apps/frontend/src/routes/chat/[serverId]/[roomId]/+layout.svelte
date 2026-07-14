@@ -21,7 +21,7 @@
 
   let threadId = $derived(page.params.threadId);
 
-  const isMessageLinkMode = $derived(/\/m\/[^/]+$/.test(page.url.pathname));
+  const isMessageLinkMode = $derived(page.route.id === '/chat/[serverId]/[roomId]/m/[messageId]');
   const roomAccess = $derived.by(() => {
     if (!ready || !roomId) return { kind: 'unknown' } as const;
     return roomRouteAccess({
@@ -46,7 +46,7 @@
 			between room and thread URLs. This prevents unnecessary reloads.
 		-->
     {#key activeServerId}
-      <Room {roomId} {threadId} />
+      <Room {roomId} {threadId} routeMessageId={page.params.messageId} />
     {/key}
   {/if}
 {/if}

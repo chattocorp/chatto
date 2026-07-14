@@ -37,6 +37,7 @@
 
   let {
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore,
     events,
     // Scroll behavior
@@ -78,6 +79,7 @@
     pendingHighlightId = null
   }: {
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore: MessagesStore;
     events: RoomEventView[];
     // Scroll behavior
@@ -1051,6 +1053,7 @@
                   event={eventData}
                   compact={!item.isFirstInGroup}
                   {roomId}
+                  {permalinkThreadRootEventId}
                   {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
                 />
