@@ -347,7 +347,7 @@
         "delete_messages": "すべてのメッセージを削除します (コンテンツは復元できなくなります)",
         "delete_profile": "プロフィール、アバター、関連データを削除します",
         "confirm_label": "「DELETE」と入力して確認します",
-        "confirm_placeholder": "削除",
+        "confirm_placeholder": "DELETE",
         "cancel": "キャンセル",
         "deleting": "削除中..."
       }

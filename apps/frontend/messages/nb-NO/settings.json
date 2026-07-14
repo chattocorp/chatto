@@ -347,7 +347,7 @@
         "delete_messages": "Slett alle meldingene dine (innhold vil ikke kunne gjenopprettes)",
         "delete_profile": "Slett profilen din, avataren din og tilhørende data",
         "confirm_label": "Skriv DELETE for å bekrefte",
-        "confirm_placeholder": "SLETT",
+        "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Sletter..."
       }

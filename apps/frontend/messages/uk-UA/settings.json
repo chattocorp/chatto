@@ -347,7 +347,7 @@
         "delete_messages": "Видаліть усі ваші повідомлення (вміст буде неможливо відновити)",
         "delete_profile": "Видаліть свій профіль, аватар і пов’язані дані",
         "confirm_label": "Введіть DELETE для підтвердження",
-        "confirm_placeholder": "ВИДАЛИТИ",
+        "confirm_placeholder": "DELETE",
         "cancel": "Скасувати",
         "deleting": "Видалення..."
       }

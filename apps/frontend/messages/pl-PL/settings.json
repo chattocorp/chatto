@@ -347,7 +347,7 @@
         "delete_messages": "Usuń wszystkie wiadomości (treści nie będzie można odzyskać)",
         "delete_profile": "Usuń swój profil, awatar i powiązane dane",
         "confirm_label": "Wpisz DELETE, aby potwierdzić",
-        "confirm_placeholder": "USUŃ",
+        "confirm_placeholder": "DELETE",
         "cancel": "Anuluj",
         "deleting": "Usuwanie..."
       }

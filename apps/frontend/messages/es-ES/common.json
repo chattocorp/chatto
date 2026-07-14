@@ -22,7 +22,7 @@
     "email_placeholder": "you@example.com",
     "username_placeholder": "tu_nombre de usuario",
     "password_min_placeholder": "Al menos 8 caracteres",
-    "password_confirm_placeholder": "Ingresar contraseña nuevamente",
+    "password_confirm_placeholder": "Vuelve a introducir la contraseña",
     "validation": {
       "email": "Por favor ingresa una dirección de correo electrónico válida",
       "password_min": "Debe tener al menos 8 caracteres",

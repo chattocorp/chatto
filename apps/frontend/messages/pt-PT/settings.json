@@ -347,7 +347,7 @@
         "delete_messages": "Apague todas as suas mensagens (o conteúdo será irrecuperável)",
         "delete_profile": "Apague o seu perfil, avatar e dados associados",
         "confirm_label": "Introduza DELETE para confirmar",
-        "confirm_placeholder": "APAGAR",
+        "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "A apagar..."
       }

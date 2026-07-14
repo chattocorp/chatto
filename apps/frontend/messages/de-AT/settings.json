@@ -77,7 +77,7 @@
         "template": {
           "label": "Vorlage",
           "none": "Kein Status",
-          "out_for_lunch": "Mittagspause",
+          "out_for_lunch": "Auf Jause",
           "vacation": "Im Urlaub",
           "sick": "Krank",
           "custom": "Benutzerdefiniert"

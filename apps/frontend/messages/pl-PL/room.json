@@ -109,7 +109,9 @@
           ],
           "match": {
             "countPlural=one": "dołączył do pokoju",
-            "countPlural=other": "dołączył do pokoju"
+            "countPlural=few": "dołączyli do pokoju",
+            "countPlural=many": "dołączyli do pokoju",
+            "countPlural=other": "dołączyli do pokoju"
           }
         }
       ],
@@ -124,7 +126,9 @@
           ],
           "match": {
             "countPlural=one": "opuścił pokój",
-            "countPlural=other": "opuścił pokój"
+            "countPlural=few": "opuścili pokój",
+            "countPlural=many": "opuścili pokój",
+            "countPlural=other": "opuścili pokój"
           }
         }
       ],
@@ -141,8 +145,10 @@
             "countPlural"
           ],
           "match": {
-            "countPlural=one": "inne",
-            "countPlural=other": "inni"
+            "countPlural=one": "inna osoba",
+            "countPlural=few": "inne osoby",
+            "countPlural=many": "innych osób",
+            "countPlural=other": "innych osób"
           }
         }
       ],

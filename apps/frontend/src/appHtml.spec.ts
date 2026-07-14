@@ -267,12 +267,13 @@ describe('app.html locale bootstrap', () => {
   });
 
   it('maps a language-only browser preference to its default region', () => {
-    const { root } = runThemeScript({
+    const result = runThemeScript({
       systemDark: false,
       browserLanguages: ['pt']
     });
 
-    expect(root.lang).toBe('pt-BR');
+    expect(result.root.lang).toBe('pt-BR');
+    expect(result.storedLocale()).toBe('pt-BR');
   });
 
   it('preserves an exact regional English browser locale', () => {
@@ -316,12 +317,13 @@ describe('app.html locale bootstrap', () => {
   });
 
   it('ignores an unsupported stored locale when matching browser preferences', () => {
-    const { root } = runThemeScript({
+    const result = runThemeScript({
       systemDark: false,
       storedLocale: 'it-IT',
       browserLanguages: ['fr-CA']
     });
 
-    expect(root.lang).toBe('fr-CA');
+    expect(result.root.lang).toBe('fr-CA');
+    expect(result.storedLocale()).toBe('fr-CA');
   });
 });

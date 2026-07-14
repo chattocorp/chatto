@@ -26,9 +26,15 @@ function compareCatalogValue(source: unknown, translated: unknown, path: string)
   if (source && typeof source === 'object') {
     expect(translated, `${path} must remain an object`).toBeTypeOf('object');
     expect(Array.isArray(translated), `${path} must not become an array`).toBe(false);
-    expect(Object.keys(translated as object), `${path} must keep the same keys`).toEqual(
-      Object.keys(source)
-    );
+    if (path.endsWith('.match')) {
+      expect(Object.keys(translated as object), `${path} must keep every source branch`).toEqual(
+        expect.arrayContaining(Object.keys(source))
+      );
+    } else {
+      expect(Object.keys(translated as object), `${path} must keep the same keys`).toEqual(
+        Object.keys(source)
+      );
+    }
     for (const [key, value] of Object.entries(source)) {
       compareCatalogValue(value, (translated as Record<string, unknown>)[key], `${path}.${key}`);
     }
@@ -68,6 +74,20 @@ describe('translated message catalogs', () => {
         const translated = JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8'));
         compareCatalogValue(source, translated, `${locale}.${filename}`);
       }
+    }
+  });
+
+  it('keeps functional account-deletion literals untranslated', () => {
+    for (const locale of settings.locales) {
+      const catalog = JSON.parse(
+        readFileSync(join(messagesRoot, locale, 'settings.json'), 'utf8')
+      ) as {
+        settings?: { account?: { delete_modal?: Record<string, string> } };
+      };
+      const modal = catalog.settings?.account?.delete_modal;
+      if (!modal) continue;
+      expect(modal.confirm_label, `${locale} must tell users to type DELETE`).toContain('DELETE');
+      expect(modal.confirm_placeholder, `${locale} must preserve the DELETE token`).toBe('DELETE');
     }
   });
 });

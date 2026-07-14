@@ -101,6 +101,9 @@
               })
               .find(Boolean) ?? 'en-GB';
 
+          // Paraglide reads this before hydration. Persist browser negotiation so
+          // its runtime locale cannot disagree with the first-paint language.
+          if (!stored) localStorage.setItem('PARAGLIDE_LOCALE', locale);
           root.lang = locale;
           root.dir = 'ltr';
         }

@@ -346,8 +346,8 @@
         "remove_from_rooms": "Verwijder je uit alle ruimtes en kamers",
         "delete_messages": "Verwijder al uw berichten (de inhoud kan niet worden hersteld)",
         "delete_profile": "Verwijder je profiel, avatar en bijbehorende gegevens",
-        "confirm_label": "Typ VERWIJDEREN om te bevestigen",
-        "confirm_placeholder": "VERWIJDEREN",
+        "confirm_label": "Typ DELETE om te bevestigen",
+        "confirm_placeholder": "DELETE",
         "cancel": "Annuleren",
         "deleting": "Verwijderen..."
       }

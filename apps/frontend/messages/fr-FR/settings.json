@@ -347,7 +347,7 @@
         "delete_messages": "Supprimez tous vos messages (le contenu sera irrécupérable)",
         "delete_profile": "Supprimez votre profil, votre avatar et les données associées",
         "confirm_label": "Tapez DELETE pour confirmer",
-        "confirm_placeholder": "SUPPRIMER",
+        "confirm_placeholder": "DELETE",
         "cancel": "Annuler",
         "deleting": "Suppression..."
       }

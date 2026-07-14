@@ -49,11 +49,40 @@ describe('regional translated messages', () => {
     expect(m['common.close_sidebar']()).toBe('Seitenleiste schliessen');
   });
 
+  it('keeps German and Austrian terminology distinct', async () => {
+    await selectLocale('de-DE');
+    expect(m['settings.profile.status.template.out_for_lunch']()).toBe('Mittagspause');
+
+    await selectLocale('de-AT');
+    expect(m['settings.profile.status.template.out_for_lunch']()).toBe('Auf Jause');
+  });
+
+  it('keeps European and Latin American Spanish terminology distinct', async () => {
+    await selectLocale('es-ES');
+    expect(m['common.password_confirm_placeholder']()).toBe(
+      'Vuelve a introducir la contraseña'
+    );
+
+    await selectLocale('es-419');
+    expect(m['common.password_confirm_placeholder']()).toBe('Ingresar contraseña nuevamente');
+  });
+
   it('keeps Brazilian and European Portuguese terminology distinct', async () => {
     await selectLocale('pt-BR');
     expect(m['add_server.sign_in']()).toBe('Faça login');
 
     await selectLocale('pt-PT');
     expect(m['add_server.sign_in']()).toBe('Iniciar sessão');
+  });
+
+  it.each([
+    ['pl-PL', 'dołączył do pokoju', 'dołączyli do pokoju', 'dołączyli do pokoju'],
+    ['uk-UA', 'приєднався до кімнати', 'приєдналися до кімнати', 'приєдналися до кімнати']
+  ] as const)('uses every plural category needed by %s', async (locale, one, few, many) => {
+    await selectLocale(locale);
+
+    expect(m['room.system_events.joined']({ count: 1 })).toBe(one);
+    expect(m['room.system_events.joined']({ count: 2 })).toBe(few);
+    expect(m['room.system_events.joined']({ count: 5 })).toBe(many);
   });
 });

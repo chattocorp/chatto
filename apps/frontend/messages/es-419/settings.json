@@ -346,8 +346,8 @@
         "remove_from_rooms": "Eliminarte de todos los espacios y salas",
         "delete_messages": "Elimina todos tus mensajes (el contenido será irrecuperable)",
         "delete_profile": "Elimina tu perfil, avatar y datos asociados",
-        "confirm_label": "Escribe BORRAR para confirmar",
-        "confirm_placeholder": "ELIMINAR",
+        "confirm_label": "Escribe DELETE para confirmar",
+        "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "Eliminando..."
       }

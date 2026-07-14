@@ -347,7 +347,7 @@
         "delete_messages": "Exclua todas as suas mensagens (o conteúdo será irrecuperável)",
         "delete_profile": "Exclua seu perfil, avatar e dados associados",
         "confirm_label": "Digite DELETE para confirmar",
-        "confirm_placeholder": "EXCLUIR",
+        "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "Excluindo..."
       }

@@ -109,7 +109,9 @@
           ],
           "match": {
             "countPlural=one": "приєднався до кімнати",
-            "countPlural=other": "приєднався до кімнати"
+            "countPlural=few": "приєдналися до кімнати",
+            "countPlural=many": "приєдналися до кімнати",
+            "countPlural=other": "приєдналися до кімнати"
           }
         }
       ],
@@ -124,7 +126,9 @@
           ],
           "match": {
             "countPlural=one": "залишив кімнату",
-            "countPlural=other": "залишив кімнату"
+            "countPlural=few": "залишили кімнату",
+            "countPlural=many": "залишили кімнату",
+            "countPlural=other": "залишили кімнату"
           }
         }
       ],
@@ -141,8 +145,10 @@
             "countPlural"
           ],
           "match": {
-            "countPlural=one": "інше",
-            "countPlural=other": "інші"
+            "countPlural=one": "інша людина",
+            "countPlural=few": "інші людини",
+            "countPlural=many": "інших людей",
+            "countPlural=other": "інших людей"
           }
         }
       ],

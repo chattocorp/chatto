@@ -347,7 +347,7 @@
         "delete_messages": "Forigu ĉiujn viajn mesaĝojn (enhavo estos nereakirebla)",
         "delete_profile": "Forigu vian profilon, avataron kaj rilatajn datumojn",
         "confirm_label": "Tajpu DELETE por konfirmi",
-        "confirm_placeholder": "FORIGI",
+        "confirm_placeholder": "DELETE",
         "cancel": "Nuligi",
         "deleting": "Forigante..."
       }

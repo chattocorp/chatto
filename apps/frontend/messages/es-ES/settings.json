@@ -77,13 +77,13 @@
         "template": {
           "label": "Plantilla",
           "none": "Sin estado",
-          "out_for_lunch": "Salimos a almorzar",
-          "vacation": "Día festivo",
+          "out_for_lunch": "He salido a comer",
+          "vacation": "De vacaciones",
           "sick": "Enfermo",
           "custom": "Personalizado"
         },
         "emoji_required": "Elige un emoji para tu estado",
-        "text_required": "Ingresar texto de estado",
+        "text_required": "Introduce un texto de estado",
         "saved": "Estado actualizado",
         "save_failed": "No se pudo guardar el estado",
         "cleared": "Estado borrado",
@@ -346,8 +346,8 @@
         "remove_from_rooms": "Eliminarte de todos los espacios y salas",
         "delete_messages": "Elimina todos tus mensajes (el contenido será irrecuperable)",
         "delete_profile": "Elimina tu perfil, avatar y datos asociados",
-        "confirm_label": "Escribe BORRAR para confirmar",
-        "confirm_placeholder": "ELIMINAR",
+        "confirm_label": "Escribe DELETE para confirmar",
+        "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "Eliminando..."
       }

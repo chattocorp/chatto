@@ -347,7 +347,7 @@
         "delete_messages": "Radera alla dina meddelanden (innehållet kommer inte att kunna återställas)",
         "delete_profile": "Radera din profil, avatar och tillhörande data",
         "confirm_label": "Skriv DELETE för att bekräfta",
-        "confirm_placeholder": "RADERA",
+        "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Tar bort..."
       }
