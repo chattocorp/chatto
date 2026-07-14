@@ -55,7 +55,8 @@
   const MAX_WIDTH = 480;
   const MAX_HEIGHT = 320;
   const WIDESCREEN_RATIO = 16 / 9;
-  const NEAR_SQUARE_LANDSCAPE_MAX_RATIO = 1.5;
+  const NEAR_SQUARE_MIN_RATIO = 2 / 3;
+  const NEAR_SQUARE_MAX_RATIO = 3 / 2;
 
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
@@ -87,8 +88,8 @@
       status === 'COMPLETED' &&
       selectedVariant &&
       !autoLoop &&
-      ratio >= 1 &&
-      ratio < NEAR_SQUARE_LANDSCAPE_MAX_RATIO
+      ratio >= NEAR_SQUARE_MIN_RATIO &&
+      ratio < NEAR_SQUARE_MAX_RATIO
     ) {
       return {
         width: Math.round(h * WIDESCREEN_RATIO),

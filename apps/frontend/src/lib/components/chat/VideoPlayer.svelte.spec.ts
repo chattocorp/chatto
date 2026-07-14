@@ -4,8 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { VideoProcessingStatus } from '$lib/render/types';
 import VideoPlayer from './VideoPlayer.svelte';
 
-const TRANSPARENT_THUMBNAIL =
-  'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
+const TRANSPARENT_THUMBNAIL = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
 function renderAutoLoopVideo({ width, height }: { width: number; height: number }) {
   return render(VideoPlayer, {
@@ -105,6 +104,36 @@ describe('VideoPlayer', () => {
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
     expect(player.dataset.fit).toBe('cover');
     expect(getComputedStyle(poster).objectFit).toBe('cover');
+  });
+
+  it('presents near-square posted portrait videos in a 16:9 frame', async () => {
+    const { container } = renderPostedVideo({
+      width: 800,
+      height: 1000,
+      thumbnailUrl: TRANSPARENT_THUMBNAIL
+    });
+
+    const player = await mediaPlayer(container);
+    const poster = await posterImage(container);
+
+    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
+    expect(player.dataset.fit).toBe('cover');
+    expect(getComputedStyle(poster).objectFit).toBe('cover');
+  });
+
+  it('preserves true portrait posted videos', async () => {
+    const { container } = renderPostedVideo({
+      width: 1080,
+      height: 1920,
+      thumbnailUrl: TRANSPARENT_THUMBNAIL
+    });
+
+    const player = await mediaPlayer(container);
+    const poster = await posterImage(container);
+
+    expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 180 / 320');
+    expect(player.dataset.fit).toBe('contain');
+    expect(getComputedStyle(poster).objectFit).toBe('contain');
   });
 
   it('corrects stale metadata after the browser loads intrinsic video dimensions', async () => {
