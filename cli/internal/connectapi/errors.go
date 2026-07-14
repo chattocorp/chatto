@@ -117,13 +117,14 @@ func invalidArgument(message string) error {
 }
 
 func connectInternalError(err error) error {
-	logInternalConnectError(err)
-	return connect.NewError(connect.CodeInternal, loggedInternalClientError{})
+	return connect.NewError(connect.CodeInternal, internalClientError{cause: err})
 }
 
-type loggedInternalClientError struct{}
+type internalClientError struct {
+	cause error
+}
 
-func (loggedInternalClientError) Error() string {
+func (internalClientError) Error() string {
 	return "internal server error"
 }
 
@@ -131,17 +132,20 @@ func internalErrorLoggingInterceptor() connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 			res, err := next(ctx, req)
-			if err != nil && connect.CodeOf(err) == connect.CodeInternal && !internalErrorAlreadyLogged(err) {
-				logInternalConnectError(err, "procedure", req.Spec().Procedure)
+			if err != nil && connect.CodeOf(err) == connect.CodeInternal {
+				logInternalConnectError(internalServerCause(err), "procedure", req.Spec().Procedure)
 			}
 			return res, err
 		}
 	})
 }
 
-func internalErrorAlreadyLogged(err error) bool {
-	var logged loggedInternalClientError
-	return errors.As(err, &logged)
+func internalServerCause(err error) error {
+	var internal internalClientError
+	if errors.As(err, &internal) && internal.cause != nil {
+		return internal.cause
+	}
+	return err
 }
 
 func logInternalConnectError(err error, attrs ...any) {

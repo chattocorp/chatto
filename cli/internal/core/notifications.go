@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -184,7 +185,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	// replica then become an idempotent no-op instead of publishing duplicate
 	// live events and push-dismiss callbacks.
 	err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-	if errors.Is(err, jetstream.ErrKeyExists) || errors.Is(err, jetstream.ErrKeyNotFound) {
+	if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) {
 		return false, nil
 	}
 	if err != nil {
@@ -245,7 +246,7 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		}
 
 		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) || errors.Is(err, jetstream.ErrKeyNotFound) {
+			if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
 			}
 			return deleted, fmt.Errorf("failed to delete notification: %w", err)

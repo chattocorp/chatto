@@ -63,7 +63,8 @@ test.describe('video player @ffmpeg', () => {
 
         const mediaBox = await roomPage.mediaPlayer.boundingBox();
         expect(mediaBox).not.toBeNull();
-        expect(mediaBox!.width / mediaBox!.height).toBeCloseTo(16 / 9, 1);
+        // The fixture is 320x240; the player must preserve its 4:3 display ratio.
+        expect(mediaBox!.width / mediaBox!.height).toBeCloseTo(4 / 3, 1);
 
         // The settings menu should be hidden (via CSS).
         if ((await roomPage.videoSettingsMenu.count()) > 0) {

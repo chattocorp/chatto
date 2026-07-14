@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 // ============================================================================
@@ -188,7 +190,7 @@ func (c *ChattoCore) CancelRegistrationCode(ctx context.Context, email, code str
 }
 
 func isRuntimeStateRevisionConflict(err error) bool {
-	return errors.Is(err, jetstream.ErrKeyExists)
+	return jetstreamutil.IsSequenceConflict(err)
 }
 
 func isRuntimeStateKeyAbsent(err error) bool {

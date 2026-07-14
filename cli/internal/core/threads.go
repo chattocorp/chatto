@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -452,7 +453,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 					return time.Time{}, nil
 				}
 				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
@@ -472,7 +473,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 		}
 
 		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
@@ -503,7 +504,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 				buf := make([]byte, 8)
 				binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
 				if _, err := bucket.Create(ctx, key, buf); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
@@ -525,7 +526,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
 		if _, err := bucket.Update(ctx, key, buf, entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)

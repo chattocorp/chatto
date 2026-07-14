@@ -10,12 +10,14 @@
     event,
     compact = false,
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread
   }: {
     event: RoomEventView;
     compact?: boolean;
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
   } = $props();
@@ -31,7 +33,14 @@
 {#if !event?.event || isDMJoinLeave}
   <!-- Skip unknown event types, stale virtualizer items, and join/leave events in DM rooms -->
 {:else if isMessagePostedEvent(event.event)}
-  <MessageEvent {event} {compact} {roomId} {messageStore} {onOpenThread} />
+  <MessageEvent
+    {event}
+    {compact}
+    {roomId}
+    {permalinkThreadRootEventId}
+    {messageStore}
+    {onOpenThread}
+  />
 {:else}
   <SystemEvent {event} />
 {/if}

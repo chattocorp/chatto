@@ -24,6 +24,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -249,15 +250,21 @@ func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, 
 		return ack.Sequence, nil
 	}
 
-	var apiErr *jetstream.APIError
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
-		target := subject
-		if filter != "" {
-			target = "filter " + filter
-		}
-		return 0, fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
+	target := subject
+	if filter != "" {
+		target = "filter " + filter
+	}
+	if conflictErr := sequenceConflictError(err, target, expectedSeq); conflictErr != nil {
+		return 0, conflictErr
 	}
 	return 0, fmt.Errorf("publish: %w", err)
+}
+
+func sequenceConflictError(err error, target string, expectedSeq uint64) error {
+	if !jetstreamutil.IsSequenceConflict(err) {
+		return nil
+	}
+	return fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
 }
 
 // BatchEntry is one event in an atomic publish batch (AppendBatch).
@@ -390,12 +397,17 @@ func decodeBatchAck(resp *nats.Msg, e BatchEntry) (uint64, error) {
 		return 0, fmt.Errorf("decode ack: %w", err)
 	}
 	if env.Error != nil {
-		if env.Error.ErrCode == uint16(jetstream.JSErrCodeStreamWrongLastSequence) {
-			target := e.Subject
-			if e.FilterSubject != "" {
-				target = "filter " + e.FilterSubject
-			}
-			return 0, fmt.Errorf("%s at expected seq %d: %w", target, e.ExpectedSeq, ErrConflict)
+		apiErr := &jetstream.APIError{
+			Code:        env.Error.Code,
+			ErrorCode:   jetstream.ErrorCode(env.Error.ErrCode),
+			Description: env.Error.Description,
+		}
+		target := e.Subject
+		if e.FilterSubject != "" {
+			target = "filter " + e.FilterSubject
+		}
+		if conflictErr := sequenceConflictError(apiErr, target, e.ExpectedSeq); conflictErr != nil {
+			return 0, conflictErr
 		}
 		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
 	}

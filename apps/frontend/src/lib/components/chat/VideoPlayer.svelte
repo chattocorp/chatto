@@ -54,8 +54,8 @@
 
   const MAX_WIDTH = 480;
   const MAX_HEIGHT = 320;
-  const WIDESCREEN_RATIO = 16 / 9;
-  const NEAR_SQUARE_LANDSCAPE_MAX_RATIO = 1.5;
+  const MIN_PLAYER_ASPECT_RATIO = 9 / 16;
+  const MAX_PLAYER_ASPECT_RATIO = 16 / 9;
 
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
@@ -78,43 +78,23 @@
     };
   });
 
-  const frameDimensions = $derived.by(() => {
+  const displaySize = $derived.by(() => {
     const w = sourceDimensions.width;
     const h = sourceDimensions.height;
-    const ratio = w / h;
+    const mediaAspectRatio = w / h;
 
-    if (
-      status === 'COMPLETED' &&
-      selectedVariant &&
-      !autoLoop &&
-      ratio >= 1 &&
-      ratio < NEAR_SQUARE_LANDSCAPE_MAX_RATIO
-    ) {
-      return {
-        width: Math.round(h * WIDESCREEN_RATIO),
-        height: h
-      };
-    }
-
-    return { width: w, height: h };
-  });
-
-  const displaySize = $derived.by(() => {
-    const w = frameDimensions.width;
-    const h = frameDimensions.height;
-    const scale = Math.min(MAX_WIDTH / w, MAX_HEIGHT / h, 1);
+    // Vidstack's controls need a usable canvas even when the media itself is
+    // extremely tall or wide. Clamp only the player canvas; object-fit keeps
+    // the complete video at its true aspect ratio inside it.
+    const canvasWidth =
+      mediaAspectRatio < MIN_PLAYER_ASPECT_RATIO ? h * MIN_PLAYER_ASPECT_RATIO : w;
+    const canvasHeight =
+      mediaAspectRatio > MAX_PLAYER_ASPECT_RATIO ? w / MAX_PLAYER_ASPECT_RATIO : h;
+    const scale = Math.min(MAX_WIDTH / canvasWidth, MAX_HEIGHT / canvasHeight, 1);
     return {
-      width: Math.round(w * scale),
-      height: Math.round(h * scale)
+      width: Math.max(1, Math.round(canvasWidth * scale)),
+      height: Math.max(1, Math.round(canvasHeight * scale))
     };
-  });
-
-  const fitMode = $derived.by(() => {
-    if (status !== 'COMPLETED' || !selectedVariant || autoLoop) return 'contain';
-    return frameDimensions.width / frameDimensions.height >
-      sourceDimensions.width / sourceDimensions.height
-      ? 'cover'
-      : 'contain';
   });
 
   const frameStyle = $derived(
@@ -254,7 +234,6 @@
       src={videoSrc}
       playsinline
       onerror={onMediaError}
-      data-fit={fitMode}
       class="block h-full w-full"
     >
       <media-provider>
@@ -297,19 +276,26 @@
     display: none !important;
   }
 
-  :global(media-player[data-fit='cover'] media-provider),
-  :global(media-player[data-fit='cover'] [data-media-provider]),
-  :global(media-player[data-fit='cover'] video),
-  :global(media-player[data-fit='cover'] .vds-poster),
-  :global(media-player[data-fit='cover'] .vds-poster img) {
+  /* Vidstack defaults every video player to 16:9. Inherit the attachment's
+   * measured ratio and fill that frame while preserving the whole image. */
+  :global(media-player) {
+    aspect-ratio: inherit;
     height: 100%;
     width: 100%;
   }
 
-  :global(media-player[data-fit='cover'] video),
-  :global(media-player[data-fit='cover'] .vds-poster),
-  :global(media-player[data-fit='cover'] .vds-poster img) {
-    object-fit: cover;
-    object-position: top center;
+  :global(media-player media-provider),
+  :global(media-player [data-media-provider]),
+  :global(media-player video),
+  :global(media-player .vds-poster),
+  :global(media-player .vds-poster img) {
+    height: 100%;
+    width: 100%;
+  }
+
+  :global(media-player video),
+  :global(media-player .vds-poster),
+  :global(media-player .vds-poster img) {
+    object-fit: contain;
   }
 </style>

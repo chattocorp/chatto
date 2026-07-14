@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -96,7 +97,7 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 	tokenKey := c.passwordResetTokenKey(token)
 	requestKey := c.passwordResetRequestKey(user.Id)
 	requestRevision, err := c.storage.runtimeStateKV.Create(ctx, requestKey, []byte(tokenKey), jetstream.KeyTTL(PasswordResetRequestThrottleTTL))
-	if errors.Is(err, jetstream.ErrKeyExists) {
+	if jetstreamutil.IsSequenceConflict(err) {
 		return "", ErrPasswordResetRequestThrottled
 	}
 	if err != nil {

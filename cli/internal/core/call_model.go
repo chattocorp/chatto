@@ -18,6 +18,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -751,7 +752,7 @@ func (s *CallModel) recordLiveKitListFailure(ctx context.Context) (int, error) {
 					return 0, err
 				}
 				if _, err := s.memoryCacheKV.Create(ctx, liveKitReconcileFailureKey, data); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return 0, err
@@ -772,7 +773,7 @@ func (s *CallModel) recordLiveKitListFailure(ctx context.Context) (int, error) {
 			return 0, err
 		}
 		if _, err := s.memoryCacheKV.Update(ctx, liveKitReconcileFailureKey, data, entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return 0, err
