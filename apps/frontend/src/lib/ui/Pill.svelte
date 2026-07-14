@@ -22,6 +22,7 @@ clickable toggleable variants use `<ToggleChip>`.
     children,
     tone = 'muted',
     dimmed = false,
+    compact = false,
     title,
     class: className
   }: {
@@ -33,6 +34,8 @@ clickable toggleable variants use `<ToggleChip>`.
      * overridden / no longer in effect" presentation.
      */
     dimmed?: boolean;
+    /** Reduce horizontal padding for pills embedded in constrained chrome. */
+    compact?: boolean;
     /** Native title attribute for hover hints. */
     title?: string;
     /**
@@ -57,9 +60,10 @@ clickable toggleable variants use `<ToggleChip>`.
 <span
   {title}
   class={[
-    'inline-block rounded px-2 py-0.5 text-xs font-medium',
+    'inline-block rounded py-0.5 text-xs font-medium',
+    compact ? 'px-1' : 'px-2',
     toneClasses[tone],
-    dimmed ? 'opacity-50 line-through' : '',
+    dimmed ? 'line-through' : '',
     className
   ]}
 >

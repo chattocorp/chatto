@@ -10,7 +10,7 @@ These preferences are server-side and sync across devices.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { NotificationLevel } from '$lib/render/types';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { FormSection } from '$lib/ui';
+  import { ChoiceRow, FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
@@ -248,25 +248,20 @@ These preferences are server-side and sync across devices.
       {m['settings.notifications.levels.server_description']()}
     </p>
 
-    <div class="flex flex-col gap-2">
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m['settings.notifications.levels.server_title']()}
+    >
       {#each serverLevelOptions as option (option.value)}
         {@const isSelected = serverLevel === option.value}
-        <button
-          type="button"
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={isSelected}
           disabled={savingServerLevel}
-          class={['choice-row', isSelected && 'choice-row-selected']}
           onclick={() => handleServerLevelChange(option.value)}
-        >
-          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-            {#if isSelected}
-              <span class="choice-indicator-dot"></span>
-            {/if}
-          </span>
-          <div>
-            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
-            <div class="text-sm text-muted">{option.description}</div>
-          </div>
-        </button>
+        />
       {/each}
     </div>
   </FormSection>
@@ -307,6 +302,7 @@ These preferences are server-side and sync across devices.
               {/if}
             </div>
             <select
+              aria-label={m['settings.notifications.levels.room_level_label']({ room: room.name })}
               value={room.level}
               disabled={isSaving}
               onchange={(e) =>

@@ -22,7 +22,7 @@ for free and the boilerplate stays out of the calling component.
 </FormDialog>
 ```
 
-The submit button's color follows `submitTone` (`primary` by default; use
+The submit button's color follows `submitTone` (`action` by default; use
 `danger` for destructive forms like "Delete account, type to confirm").
 -->
 <script lang="ts">
@@ -31,7 +31,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
   import Dialog from './Dialog.svelte';
   import { Button, FormError } from './form';
 
-  type SubmitTone = 'primary' | 'info' | 'warning' | 'danger';
+  type SubmitTone = 'action' | 'warning' | 'danger' | 'primary' | 'info';
 
   let {
     children,
@@ -40,7 +40,7 @@ The submit button's color follows `submitTone` (`primary` by default; use
     title,
     size = 'md',
     submitLabel = m['common.save'](),
-    submitTone = 'primary',
+    submitTone = 'action',
     submitIcon = 'iconify uil--check',
     submitLoadingText,
     cancelLabel = m['common.cancel'](),
@@ -86,12 +86,10 @@ The submit button's color follows `submitTone` (`primary` by default; use
     onsubmit(e);
   }
 
-  // Map the submit tone onto a Button variant. `primary` maps to `accent`
-  // (sky) because the design system's `primary` token is intentionally a
-  // muted neutral for the chat UI — but a dialog's submit should read
-  // clearly as "the recommended action."
-  const submitVariant = $derived<'accent' | 'warning' | 'danger'>(
-    submitTone === 'danger' ? 'danger' : submitTone === 'warning' ? 'warning' : 'accent'
+  // `primary` and `info` remain compatibility names for the canonical action
+  // tone. Dialog submit buttons should read clearly as the recommended action.
+  const submitVariant = $derived<'action' | 'warning' | 'danger'>(
+    submitTone === 'danger' ? 'danger' : submitTone === 'warning' ? 'warning' : 'action'
   );
 
   // Link the description copy to the dialog (only when present) so screen

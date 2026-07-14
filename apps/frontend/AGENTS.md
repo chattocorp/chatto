@@ -72,7 +72,13 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## UI And Styling
 
+- Read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before changing visible UI. It is
+  the canonical guide for choosing components, semantic utilities, tokens, and
+  Storybook coverage.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
+- Prefer an established component, then a semantic utility from `src/app.css`,
+  then raw Tailwind for local layout. Do not use `!` overrides to invent
+  missing component variants; extend the component and its story instead.
 - Svelte files use tabs; match local style.
 - Use base text size by default. Reserve smaller text for metadata.
 - Use browser/platform default text rendering. Do not apply global font
@@ -176,7 +182,16 @@ mise test-e2e
 - Use addon-svelte-csf v5 conventions; pass `asChild` on `<Story>` blocks that
   contain markup.
 - Stories should document behavior through realistic variants, not long prose.
+- Literal fixture copy local to a story is exempt from Paraglide catalogs.
+  Production component and route strings still require English and German.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
+- Shared design-system visuals are covered by `pnpm run test:visual`. When a
+  reviewed visual change is intentional, refresh with
+  `pnpm run test:visual --update`, inspect the platform-specific light/dark and
+  desktop/mobile baselines, then rerun without `--update`.
+- Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
+  representative public, authenticated, mobile, admin, and dialog scans free of
+  blanket axe exclusions.
 
 ## PWA And Assets
 

@@ -197,14 +197,14 @@ registry.
     the fade.
   -->
   {@const sizing = 'btn-sm w-28 shrink-0 justify-center border transition-none'}
-  {@const primarySolid = `btn btn-accent border-transparent ${sizing}`}
+  {@const primarySolid = `btn btn-action border-transparent ${sizing}`}
   <!--
     Joined rooms get a "ghost"-style button that fades into the card
     background, so the eye is drawn to the saturated accent Join
     buttons next to rooms the viewer can act on. Hover swaps to a
     solid danger fill to telegraph the leave action.
   -->
-  {@const joinedGhost = `btn border-border bg-background text-muted hover:!border-danger hover:!bg-danger hover:!text-white ${sizing}`}
+  {@const joinedGhost = `btn-danger-ghost ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
   {@const universalSoft = `btn border-border bg-accent/10 text-accent !cursor-default ${sizing}`}
   {@const roomHref = resolve('/chat/[serverId]/[roomId]', {
@@ -292,7 +292,7 @@ registry.
              header action lines up vertically with Join / Joined. -->
         <button
           type="button"
-          class="btn-accent btn w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
+          class="btn btn-action w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
           onclick={() => handleJoinGroup(set)}
           disabled={joining}
         >

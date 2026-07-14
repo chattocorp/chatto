@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -200,6 +201,44 @@ func TestPresenceModelChattoCoreFacades(t *testing.T) {
 	}
 }
 
+func TestPresenceModelLivePresenceCount(t *testing.T) {
+	service, kv, _ := newTestPresenceModel(t)
+	ctx := testContext(t)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- service.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	if got, err := service.LivePresenceCount(ctx); err != nil || got != 0 {
+		t.Fatalf("initial LivePresenceCount = %d, %v; want 0, nil", got, err)
+	}
+
+	if err := service.SetPresence(ctx, "U-online", PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence online: %v", err)
+	}
+	if err := service.SetPresence(ctx, "U-away", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence away: %v", err)
+	}
+	if err := service.SetPresence(ctx, "U-dnd", PresenceStatusDoNotDisturb); err != nil {
+		t.Fatalf("SetPresence dnd: %v", err)
+	}
+	if _, err := kv.Put(ctx, presenceKey("U-corrupt"), []byte("not protobuf")); err != nil {
+		t.Fatalf("Put corrupt returned error: %v", err)
+	}
+
+	waitForPresenceCount(t, ctx, service, 3)
+
+	if err := kv.Delete(ctx, presenceKey("U-away")); err != nil {
+		t.Fatalf("Delete returned error: %v", err)
+	}
+
+	waitForPresenceCount(t, ctx, service, 2)
+}
+
 func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
 	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
@@ -225,4 +264,19 @@ func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
 	if _, err := kv.Put(ctx, presenceKey("U-sub"), data); err != nil {
 		t.Fatalf("Put returned error: %v", err)
 	}
+}
+
+func waitForPresenceCount(t *testing.T, ctx context.Context, service *PresenceModel, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var got int
+	var err error
+	for time.Now().Before(deadline) {
+		got, err = service.LivePresenceCount(ctx)
+		if err == nil && got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("LivePresenceCount = %d, %v; want %d", got, err, want)
 }

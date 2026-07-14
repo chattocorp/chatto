@@ -16,6 +16,9 @@
     <p class="text-xl">text-xl</p>
     <p class="text-2xl">text-2xl</p>
     <p class="text-3xl font-bold">text-3xl bold</p>
+    <a class="mt-2 w-fit text-sm link" href="https://tailwindcss.com/docs/font-size">
+      Tailwind font-size reference
+    </a>
   </div>
 </Story>
 

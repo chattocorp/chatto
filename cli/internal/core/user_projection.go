@@ -25,6 +25,7 @@ type UserProjection struct {
 	loginIndex    map[string]string
 	emailIndex    map[string]string
 	identityIndex map[string]string
+	avatarIndex   map[string]int
 	replayGuard   projectionReplayGuard
 	dekResolver   *unwrappedDEKResolver
 	dekEvents     map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
@@ -57,6 +58,7 @@ func newUserProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *UserPr
 		loginIndex:    make(map[string]string),
 		emailIndex:    make(map[string]string),
 		identityIndex: make(map[string]string),
+		avatarIndex:   make(map[string]int),
 		replayGuard:   newProjectionReplayGuard(),
 		dekResolver:   dekResolver,
 		dekEvents:     make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
@@ -233,7 +235,7 @@ func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
 	if e.GetAvatar() == nil {
 		return
 	}
-	u.avatar = assetFromDeprecatedAsset(e.GetAvatar(), "avatar.webp", "image/webp")
+	p.replaceAvatarLocked(u, assetFromDeprecatedAsset(e.GetAvatar(), "avatar.webp", "image/webp"))
 }
 
 func (p *UserProjection) applyAssetCreated(e *corev1.AssetCreatedEvent) {
@@ -241,7 +243,7 @@ func (p *UserProjection) applyAssetCreated(e *corev1.AssetCreatedEvent) {
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
-	u.avatar = proto.Clone(e.GetAsset()).(*corev1.AssetRecord)
+	p.replaceAvatarLocked(u, proto.Clone(e.GetAsset()).(*corev1.AssetRecord))
 }
 
 func (p *UserProjection) applyAssetDeleted(e *corev1.AssetDeletedEvent) {
@@ -250,7 +252,7 @@ func (p *UserProjection) applyAssetDeleted(e *corev1.AssetDeletedEvent) {
 	}
 	for _, u := range p.users {
 		if u != nil && u.avatar != nil && u.avatar.GetId() == e.GetAssetId() {
-			u.avatar = nil
+			p.replaceAvatarLocked(u, nil)
 		}
 	}
 }
@@ -260,7 +262,7 @@ func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
-	u.avatar = nil
+	p.replaceAvatarLocked(u, nil)
 }
 
 func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserVerifiedEmailAddedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
@@ -438,7 +440,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 			delete(p.identityIndex, hash)
 		}
 	}
-	u.avatar = nil
+	p.replaceAvatarLocked(u, nil)
 	u.passwordHash = nil
 	u.passwordSetAt = time.Time{}
 	u.preferences = nil
@@ -673,6 +675,51 @@ func (p *UserProjection) Avatar(userID string) (*corev1.AssetRecord, bool) {
 		return nil, false
 	}
 	return proto.Clone(u.avatar).(*corev1.AssetRecord), true
+}
+
+// IsPublicAvatarAsset reports whether assetID or key is the current avatar of
+// a non-deleted user. User avatars are intentionally public server assets. The
+// replay-built index keeps this unauthenticated request-path check O(1).
+func (p *UserProjection) IsPublicAvatarAsset(assetID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	return assetID != "" && p.avatarIndex[assetID] > 0
+}
+
+func (p *UserProjection) replaceAvatarLocked(u *projectedUser, avatar *corev1.AssetRecord) {
+	if u == nil {
+		return
+	}
+	if p.avatarIndex == nil {
+		p.avatarIndex = make(map[string]int)
+	}
+	for key := range assetRecordKeys(u.avatar) {
+		if p.avatarIndex[key] <= 1 {
+			delete(p.avatarIndex, key)
+		} else {
+			p.avatarIndex[key]--
+		}
+	}
+	u.avatar = avatar
+	if u.deleted {
+		return
+	}
+	for key := range assetRecordKeys(avatar) {
+		p.avatarIndex[key]++
+	}
+}
+
+func assetRecordKeys(asset *corev1.AssetRecord) map[string]struct{} {
+	keys := make(map[string]struct{}, 3)
+	if asset == nil {
+		return keys
+	}
+	for _, key := range []string{asset.GetId(), asset.GetNats().GetKey(), asset.GetS3().GetKey()} {
+		if key != "" {
+			keys[key] = struct{}{}
+		}
+	}
+	return keys
 }
 
 func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {

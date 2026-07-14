@@ -267,6 +267,9 @@ const msg_settings_notifications_levels_room_title = (): LocalizedString => mess
 const msg_settings_notifications_levels_room_description = (
   inputs: Parameters<LocaleMessages['settings_notifications_levels_room_description']>[0]
 ): LocalizedString => messages().settings_notifications_levels_room_description(inputs);
+const msg_settings_notifications_levels_room_level_label = (
+  inputs: Parameters<LocaleMessages['settings_notifications_levels_room_level_label']>[0]
+): LocalizedString => messages().settings_notifications_levels_room_level_label(inputs);
 const msg_settings_notifications_levels_effective = (
   inputs: Parameters<LocaleMessages['settings_notifications_levels_effective']>[0]
 ): LocalizedString => messages().settings_notifications_levels_effective(inputs);
@@ -1721,6 +1724,7 @@ export { msg_settings_notifications_levels_server_title as 'settings.notificatio
 export { msg_settings_notifications_levels_server_description as 'settings.notifications.levels.server_description' };
 export { msg_settings_notifications_levels_room_title as 'settings.notifications.levels.room_title' };
 export { msg_settings_notifications_levels_room_description as 'settings.notifications.levels.room_description' };
+export { msg_settings_notifications_levels_room_level_label as 'settings.notifications.levels.room_level_label' };
 export { msg_settings_notifications_levels_effective as 'settings.notifications.levels.effective' };
 export { msg_settings_notifications_levels_default_label as 'settings.notifications.levels.default.label' };
 export { msg_settings_notifications_levels_default_description as 'settings.notifications.levels.default.description' };

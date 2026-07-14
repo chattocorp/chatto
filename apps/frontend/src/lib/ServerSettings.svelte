@@ -111,15 +111,12 @@
     error = null;
 
     try {
-      const profile = await updateServerConfig(
-        apiConfig(),
-        {
-          name: name.trim(),
-          description: description.trim(),
-          motd,
-          welcomeMessage
-        }
-      );
+      const profile = await updateServerConfig(apiConfig(), {
+        name: name.trim(),
+        description: description.trim(),
+        motd,
+        welcomeMessage
+      });
 
       name = profile.name;
       description = profile.description ?? '';
@@ -296,7 +293,7 @@
             {m['server_settings.save_button']()}
           </Button>
           {#if saveSuccess}
-            <span class="text-sm text-green-600">{m['common.saved']()}</span>
+            <span class="text-sm text-success">{m['common.saved']()}</span>
           {/if}
         </div>
       </form>

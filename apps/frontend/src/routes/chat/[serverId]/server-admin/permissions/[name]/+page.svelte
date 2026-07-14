@@ -244,7 +244,7 @@
             />
             <div class="flex gap-2">
               <Button
-                variant="primary"
+                variant="neutral"
                 disabled={!metadataChanged || saving || savingPingable}
                 onclick={saveMetadata}
               >

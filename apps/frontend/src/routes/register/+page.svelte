@@ -293,7 +293,7 @@
             oninput={(e) => handleCodeInput(index, e)}
             onpaste={(e) => handleCodePaste(index, e)}
             onkeydown={(e) => handleCodeKeydown(index, e)}
-            class="h-14 rounded-lg border border-text/20 bg-input text-center text-xl font-semibold transition outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
+            class="h-14 rounded-lg border border-text/20 bg-input text-center text-xl font-semibold transition-[border-color,box-shadow] outline-none focus:border-action focus:ring-2 focus:ring-action/30 disabled:opacity-60"
           />
         {/each}
       </div>

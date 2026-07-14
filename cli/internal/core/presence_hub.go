@@ -163,6 +163,29 @@ func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, err
 	return sub, nil
 }
 
+// LivePresenceCount returns the number of users with a current live presence
+// record in MEMORY_CACHE. Offline users are represented by absence and are not
+// included. The call waits for the initial watcher snapshot so callers see a
+// process-local count derived from the same state used for live presence fanout.
+func (h *PresenceHub) LivePresenceCount(ctx context.Context) (int, error) {
+	select {
+	case <-h.ready:
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	count := 0
+	for _, status := range h.snapshot {
+		if status != PresenceStatusOffline {
+			count++
+		}
+	}
+	return count, nil
+}
+
 // Unsubscribe removes a subscriber and closes its channel.
 func (h *PresenceHub) Unsubscribe(sub *PresenceSubscription) {
 	h.mu.Lock()

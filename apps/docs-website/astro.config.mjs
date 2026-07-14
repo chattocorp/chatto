@@ -29,6 +29,7 @@ export default defineConfig({
     "/guides/voice-calls": "/guides/infrastructure/voice-calls",
     "/guides/integrating-with-chatto": "/guides/integrations/chatto-api",
     "/guides/external-login-providers": "/guides/integrations/external-login-providers",
+    "/guides/community-shields": "/guides/integrations/community-shields",
   },
   integrations: [
     starlight({
@@ -96,6 +97,7 @@ export default defineConfig({
           items: [
             "guides/integrations/chatto-api",
             "guides/integrations/external-login-providers",
+            "guides/integrations/community-shields",
             "guides/integrations/pocket-id",
           ],
         },

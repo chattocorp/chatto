@@ -318,7 +318,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
             oninput={scheduleMemberSearch}
             placeholder={m['room.sidebar.search_members_placeholder']()}
             class={[
-              'room-member-search-input h-10 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
+              'search-cancel-hidden h-10 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
               membersStore.searchInput ? 'pr-12' : 'pr-2'
             ]}
           />
@@ -483,11 +483,3 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </div>
   </button>
 {/snippet}
-
-<style>
-  .room-member-search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-    display: none;
-  }
-</style>

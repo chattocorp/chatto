@@ -110,7 +110,7 @@
   {#snippet footer()}
     <Button
       type="submit"
-      variant="primary"
+      variant="neutral"
       disabled={!isValid || saving}
       loading={saving}
       loadingText={savingLabel}

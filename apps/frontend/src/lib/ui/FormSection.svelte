@@ -18,7 +18,7 @@
 
 <section class={[maxWidth, bordered && 'border-t border-border pt-6']}>
   <div class="mb-4 flex items-center justify-between gap-3">
-    <h3 class="text-sm font-semibold text-muted uppercase">{title}</h3>
+    <h2 class="text-sm font-semibold text-muted uppercase">{title}</h2>
     {#if actions}
       <div class="flex shrink-0 items-center gap-2">
         {@render actions()}

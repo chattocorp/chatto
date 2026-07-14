@@ -202,7 +202,7 @@ to the user settings page for the active server.
       >
         <button
           type="button"
-          class="btn-secondary h-7 min-w-0 flex-1 cursor-pointer !justify-start !px-2 !py-0 text-xs"
+          class="btn-secondary btn-compact flex-1 justify-start"
           title={`Open ${activeCallRoomName}`}
           data-testid="current-user-call-link"
           onclick={openActiveCallRoom}
@@ -307,11 +307,7 @@ to the user settings page for the active server.
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
       >
-        <UserAvatar
-          user={activeServerUser}
-          size="sm"
-          showPresence
-        />
+        <UserAvatar user={activeServerUser} size="sm" showPresence />
       </button>
       <div
         class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"

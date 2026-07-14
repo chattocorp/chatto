@@ -1128,7 +1128,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           editable,
           autofocus: autofocus ? 'end' : false,
           editorProps: {
-            attributes: testid ? { 'data-testid': testid } : {},
+            attributes: {
+              'aria-label': placeholder,
+              ...(testid ? { 'data-testid': testid } : {})
+            },
             handleKeyDown: (_view, event) => {
               return onKeyDown?.(event) ?? false;
             },
@@ -1181,6 +1184,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   // React to placeholder prop changes (e.g., switching between normal and edit mode)
   $effect(() => {
     if (!editor) return;
+    if (editor.view.dom.getAttribute('aria-label') !== placeholder) {
+      editor.view.dom.setAttribute('aria-label', placeholder);
+    }
     const ext = editor.extensionManager.extensions.find((e) => e.name === 'placeholder');
     if (ext && ext.options.placeholder !== placeholder) {
       ext.options.placeholder = placeholder;

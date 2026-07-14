@@ -4,7 +4,7 @@
 
   let {
     type = 'button',
-    variant = 'accent',
+    variant = 'action',
     size = 'md',
     loading = false,
     disabled = false,
@@ -15,7 +15,14 @@
     children
   }: {
     type?: 'button' | 'submit' | 'reset';
-    variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'warning' | 'danger';
+    variant?:
+      | 'action'
+      | 'neutral'
+      | 'secondary'
+      | 'ghost'
+      | 'warning'
+      | 'danger'
+      | 'danger-secondary';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     disabled?: boolean;
@@ -28,12 +35,13 @@
   } = $props();
 
   const variantClasses = {
-    primary: 'btn-primary',
-    accent: 'btn-accent',
+    action: 'btn-action',
+    neutral: 'btn-neutral',
     secondary: 'btn-secondary',
     ghost: 'btn-ghost',
     warning: 'btn-warning',
-    danger: 'btn-danger'
+    danger: 'btn-danger',
+    'danger-secondary': 'btn-danger-secondary'
   };
 
   const sizeClasses = {

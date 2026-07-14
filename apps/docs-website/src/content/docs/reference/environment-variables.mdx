@@ -35,6 +35,14 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION" toml="webserver.api_compression" default="true">
+  Compress eligible ConnectRPC API responses with gzip. Disable this to reduce compressor memory and CPU at the cost of higher network usage. Chatto continues to accept compressed API requests.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" toml="webserver.api_compression_min_bytes" default="1024">
+  Minimum uncompressed ConnectRPC response size, in bytes, eligible for gzip compression. Increase this threshold when small API responses do not save enough bandwidth to justify compressor memory and CPU.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
   Negotiate WebSocket compression. The realtime server compresses frames of at least 1 KiB with a Huffman-only encoder; smaller invalidation and heartbeat frames stay uncompressed and do not instantiate server-side compressor state.
 </EnvVar>
@@ -127,6 +135,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 <EnvVar name="CHATTO_EXPORTER_S3_TIMEOUT" toml="exporter.s3_timeout" default="30s">
   Timeout for one S3 bucket-size refresh.
+</EnvVar>
+
+## Shields
+
+<EnvVar name="CHATTO_WEBSERVER_SHIELDS_ENABLED" toml="webserver.shields.enabled" default="false">
+  Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
 ## Diagnostics

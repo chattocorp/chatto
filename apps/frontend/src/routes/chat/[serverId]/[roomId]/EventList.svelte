@@ -1001,7 +1001,7 @@
     <div class="mt-auto">
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
-          <div class="py-4 text-sm text-muted/40">{emptyMessage}</div>
+          <div class="py-4 text-sm text-muted">{emptyMessage}</div>
         </div>
       {:else if !isLoading}
         <Virtualizer
@@ -1017,7 +1017,7 @@
             {#if !item}
               <!-- Stale virtualizer index during data transition, skip -->
             {:else if item.type === 'start-marker'}
-              <div class="pt-10 pb-2 text-center text-sm text-muted/40">
+              <div class="pt-10 pb-2 text-center text-sm text-muted">
                 This is the beginning of this conversation.
               </div>
             {:else if item.type === 'day-separator'}

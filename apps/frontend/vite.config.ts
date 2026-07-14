@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
@@ -7,6 +8,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { playwright } from '@vitest/browser-playwright';
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -198,6 +200,10 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true
       },
+      '/.well-known/chatto/shields': {
+        target: backendTarget,
+        changeOrigin: true
+      },
       '/webhooks': {
         target: backendTarget,
         changeOrigin: true
@@ -215,7 +221,28 @@ export default defineConfig({
             enabled: true,
             provider: playwright(),
             headless: !process.env.SHOW_BROWSER,
-            instances: [{ browser: 'chromium' }]
+            instances: [{ browser: 'chromium' }],
+            expect: {
+              toMatchScreenshot: {
+                resolveScreenshotPath({
+                  root,
+                  testFileName,
+                  arg,
+                  browserName,
+                  ext
+                }) {
+                  // Font rasterization differs across operating systems, so keep
+                  // platform-specific baselines while sharing them across machines.
+                  return resolve(
+                    root,
+                    'src/lib/ui/__visual_snapshots__',
+                    process.platform,
+                    testFileName,
+                    `${arg}-${browserName}${ext}`
+                  );
+                }
+              }
+            }
           },
           include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
           exclude: ['src/lib/server/**'],
@@ -237,6 +264,23 @@ export default defineConfig({
           include: ['src/**/*.{test,spec}.{js,ts}'],
           exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
           testTimeout: 10000 // CI is slower with Svelte module transforms
+        }
+      },
+      {
+        extends: true,
+        plugins: [
+          storybookTest({
+            configDir: fileURLToPath(new URL('./.storybook', import.meta.url))
+          })
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: !process.env.SHOW_BROWSER,
+            instances: [{ browser: 'chromium' }]
+          }
         }
       }
     ]

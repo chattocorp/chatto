@@ -205,6 +205,7 @@
         "server_description": "Steuert, wie du Benachrichtigungen für alle Räume auf diesem Server erhältst. Einzelne Räume können diese Einstellung überschreiben.",
         "room_title": "Raum-Ausnahmen",
         "room_description": "Überschreibe die serverweite Einstellung für einzelne Räume. Räume mit \"Standard\" übernehmen die Server-Einstellung ({level}).",
+        "room_level_label": "Benachrichtigungsstufe für #{room}",
         "effective": "Wirksam: {level}",
         "default": {
           "label": "Standard",

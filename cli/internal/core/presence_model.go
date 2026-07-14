@@ -35,3 +35,9 @@ func (s *PresenceModel) Subscribe(ctx context.Context) (*PresenceSubscription, e
 func (s *PresenceModel) Unsubscribe(sub *PresenceSubscription) {
 	s.hub.Unsubscribe(sub)
 }
+
+// LivePresenceCount returns the number of users with any current live presence
+// record, including Online, Away, and Do Not Disturb.
+func (s *PresenceModel) LivePresenceCount(ctx context.Context) (int, error) {
+	return s.hub.LivePresenceCount(ctx)
+}

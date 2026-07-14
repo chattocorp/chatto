@@ -613,33 +613,3 @@
     </div>
   {/if}
 </dialog>
-
-<style>
-  dialog.quick-switcher[open] {
-    animation: qs-fade-in 100ms ease-out;
-  }
-
-  dialog.quick-switcher[open]::backdrop {
-    animation: qs-backdrop-in 100ms ease-out;
-  }
-
-  @keyframes qs-fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes qs-backdrop-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-</style>

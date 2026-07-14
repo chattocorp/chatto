@@ -499,6 +499,15 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 	return out
 }
 
+// IsPublicLinkPreviewAsset reports whether durable message history references
+// assetID as a server-fetched link-preview image. Preview images are public
+// server assets; ordinary message attachments are deliberately excluded.
+func (p *RoomTimelineProjection) IsPublicLinkPreviewAsset(assetID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	return p.assets.isPublicLinkPreviewAsset(assetID)
+}
+
 func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *corev1.MessageBody) {
 	if roomID == "" || eventID == "" {
 		return

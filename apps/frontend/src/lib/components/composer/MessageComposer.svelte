@@ -293,13 +293,12 @@
       }
       if (cancelled) return false;
       mentionRoles =
-        roles
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? [];
+        roles.map((role) => ({
+          name: role.name,
+          isSystem: role.isSystem,
+          position: role.position,
+          pingable: role.pingable
+        })) ?? [];
       mentionRolesLoadFailed = false;
       mentionRolesLoadComplete = true;
       return true;
@@ -906,7 +905,7 @@
           <button
             type="button"
             onclick={() => removeFile(index)}
-            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
+            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-xs text-white transition-[background-color] hover:bg-danger/80"
           >
             ×
           </button>
@@ -935,7 +934,7 @@
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
-    class:sending={loading}
+    class:composer-sending={loading}
   >
     <!-- Emoji autocomplete popup -->
     {#if autocomplete.emoji}
@@ -1098,27 +1097,3 @@
     {m['composer.role_mention_confirm_body']()}
   </ConfirmDialog>
 {/if}
-
-<style>
-  .sending {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      var(--color-surface) 0%,
-      var(--color-surface-highlighted) 50%,
-      var(--color-surface) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-</style>

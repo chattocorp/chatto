@@ -121,6 +121,17 @@ authorization, live events, backup/restore, and backend tests.
 
 ## Attachment URL Authorization
 
+- `/assets/server/*` is unauthenticated and may serve only positively
+  classified public server assets: current/historical avatars, server branding,
+  and server-fetched link-preview images. Classification must happen before
+  transform-signature parsing, resize-cache lookup, object reads, or transforms.
+- New NATS public objects and URLs use `public/{assetId}`. Keep canonical
+  `{assetId}` aliases and the positive compatibility classifier for historical
+  flat-key public objects; never migrate content during an unauthenticated read.
+- `SERVER_ASSETS` is a mixed store. Never treat an opaque key, missing private
+  metadata, or a valid transform signature as proof that an object is public.
+  Deny room-asset declarations and tombstones, `Room-Id`/`Upload-Id` metadata,
+  reserved namespaces, and unknown object classes with the same 404 response.
 - Stable asset URLs use `/assets/files/{assetId}` and image transform variants.
 - Browser-facing ConnectRPC attachment URL fields append a signed per-user
   `access` ticket and expose expiry in the API asset URL object.

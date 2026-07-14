@@ -249,6 +249,12 @@ func (c *ChattoCore) SetPresenceWithOptions(ctx context.Context, userID string, 
 	return c.presenceModel.SetPresenceWithOptions(ctx, userID, status, manuallySet)
 }
 
+// LivePresenceCount returns how many users currently have live presence,
+// regardless of whether that status is Online, Away, or Do Not Disturb.
+func (c *ChattoCore) LivePresenceCount(ctx context.Context) (int, error) {
+	return c.presenceModel.LivePresenceCount(ctx)
+}
+
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {
 	return c.presenceModel.refreshPresence(ctx, userID)
 }

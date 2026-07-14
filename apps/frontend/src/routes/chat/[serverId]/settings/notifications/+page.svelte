@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PaneHeader, Hint, FormSection } from '$lib/ui';
+  import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
@@ -324,7 +324,7 @@
               </p>
             </div>
             <Button
-              variant="accent"
+              variant="action"
               size="sm"
               onclick={handleEnablePush}
               disabled={pushLoading}
@@ -349,24 +349,21 @@
       {#each soundCategories as category (category)}
         {@const sounds = getSoundsForCategory(category)}
         <div>
-          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted/70 uppercase">
+          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
             {soundCategoryLabel(category)}
           </h4>
-          <div class="flex flex-col gap-1">
+          <div
+            class="flex flex-col gap-1"
+            role="radiogroup"
+            aria-label={soundCategoryLabel(category)}
+          >
             {#each sounds as sound (sound.id)}
               {@const isSelected = userPreferences.notificationSound === sound.id}
-              <button
-                type="button"
-                class={['choice-row', isSelected && 'choice-row-selected']}
+              <ChoiceRow
+                label={soundNameLabel(sound.id)}
+                selected={isSelected}
                 onclick={() => selectSound(sound.id)}
-              >
-                <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-                  {#if isSelected}
-                    <span class="choice-indicator-dot"></span>
-                  {/if}
-                </span>
-                <span class={isSelected ? 'font-medium' : ''}>{soundNameLabel(sound.id)}</span>
-              </button>
+              />
             {/each}
           </div>
         </div>

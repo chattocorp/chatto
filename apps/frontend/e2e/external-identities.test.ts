@@ -200,7 +200,7 @@ test.describe('External identity confirmation flows', () => {
     });
 
     const disconnectButton = discordRow.getByRole('button', { name: 'Disconnect' });
-    await expect(disconnectButton).toHaveClass(/hover:!from-danger/);
+    await expect(disconnectButton).toHaveClass(/btn-danger-secondary/);
     await disconnectButton.click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();

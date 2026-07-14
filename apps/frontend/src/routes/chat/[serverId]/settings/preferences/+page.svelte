@@ -8,7 +8,7 @@
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { PaneHeader, FormSection } from '$lib/ui';
+  import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime } from '$lib/utils/formatTime';
@@ -256,23 +256,12 @@
     >
       {#each themeOptions as option (option.value)}
         {@const isSelected = userPreferences.displayTheme === option.value}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isSelected}
-          class={['choice-row', isSelected && 'choice-row-selected']}
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={isSelected}
           onclick={() => (userPreferences.displayTheme = option.value)}
-        >
-          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-            {#if isSelected}
-              <span class="choice-indicator-dot"></span>
-            {/if}
-          </span>
-          <div>
-            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
-            <div class="text-sm text-muted">{option.description}</div>
-          </div>
-        </button>
+        />
       {/each}
     </div>
   </FormSection>
@@ -288,22 +277,11 @@
     >
       {#each languageOptions as option (option.value)}
         {@const isSelected = activeLocale === option.value}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={isSelected}
-          class={['choice-row', isSelected && 'choice-row-selected']}
+        <ChoiceRow
+          label={option.label}
+          selected={isSelected}
           onclick={() => handleLocaleSelect(option.value)}
-        >
-          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-            {#if isSelected}
-              <span class="choice-indicator-dot"></span>
-            {/if}
-          </span>
-          <div>
-            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
-          </div>
-        </button>
+        />
       {/each}
     </div>
   </FormSection>
@@ -388,24 +366,19 @@
 
   <!-- Time Format -->
   <FormSection title={m['settings.preferences.time_format.title']()} maxWidth="max-w-md" bordered>
-    <div class="flex flex-col gap-2">
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m['settings.preferences.time_format.title']()}
+    >
       {#each timeFormatOptions as option (option.value)}
         {@const isSelected = selectedTimeFormat === option.value}
-        <button
-          type="button"
-          class={['choice-row', isSelected && 'choice-row-selected']}
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={isSelected}
           onclick={() => (selectedTimeFormat = option.value)}
-        >
-          <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-            {#if isSelected}
-              <span class="choice-indicator-dot"></span>
-            {/if}
-          </span>
-          <div>
-            <div class={isSelected ? 'font-medium' : ''}>{option.label}</div>
-            <div class="text-sm text-muted">{option.description}</div>
-          </div>
-        </button>
+        />
       {/each}
     </div>
   </FormSection>

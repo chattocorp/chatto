@@ -124,10 +124,10 @@ reverse proxy:
 | TCP 443 | Secure LiveKit API and WebSocket signaling, proxied to TCP 7880 |
 | TCP 7881 | ICE/TCP media fallback when UDP is unavailable |
 | UDP 3478 | Optional embedded TURN/STUN relay |
-| UDP media range | Direct WebRTC media; the Compose example uses 50000-50200 |
+| UDP 7882 | Direct WebRTC media in the Compose example |
 
-The port range must match `rtc.port_range_start` and `rtc.port_range_end` in
-your LiveKit configuration. Do not route the TCP or UDP media ports through a
+The Compose example sets `rtc.udp_port` to `7882` so LiveKit can multiplex
+direct UDP media on one port. Do not route the TCP or UDP media ports through a
 normal HTTP reverse proxy.
 
 When `rtc.use_external_ip` is enabled, the LiveKit server also uses outbound
@@ -182,11 +182,11 @@ turn:
   udp_port: 3478
 ```
 
-Expose UDP 3478 on the LiveKit host, keep the UDP media range open, and enable
-ICE/TCP on port 7881 as a fallback when UDP is unavailable. Networks that also
-block this TCP fallback need TURN/TLS. If your users can only reach outbound TCP
-443, LiveKit or TURN needs a dedicated IP address or host so it can listen on
-443 without conflicting with your HTTPS reverse proxy, and the TURN TLS
+Expose UDP 3478 on the LiveKit host, keep the direct UDP media port open, and
+enable ICE/TCP on port 7881 as a fallback when UDP is unavailable. Networks that
+also block this TCP fallback need TURN/TLS. If your users can only reach outbound
+TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen
+on 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS
 certificate must match the advertised TURN domain.
 
 Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration. The same coturn deployment can provide the private STUN endpoint listed in `rtc.stun_servers`, but these settings serve different paths: `stun_servers` discovers the LiveKit host's public IP, while `turn_servers` gives browsers a media relay.
