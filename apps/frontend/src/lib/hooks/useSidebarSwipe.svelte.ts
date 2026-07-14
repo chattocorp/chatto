@@ -25,7 +25,7 @@ function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTM
       element instanceof HTMLDialogElement ||
       element.hasAttribute('popover') ||
       element.matches(
-        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio, video, media-player, [data-sidebar-swipe-ignore]'
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio, video, media-player, [role="dialog"][aria-modal="true"], [data-sidebar-swipe-ignore]'
       )
     ) {
       return true;

@@ -176,6 +176,26 @@ describe('sidebarSwipe', () => {
     action.destroy();
   });
 
+  it('ignores gestures inside modal dialog fallbacks that are not in the top layer', () => {
+    const { host } = makeGestureHost();
+    const modal = document.createElement('div');
+    const control = document.createElement('button');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.append(control);
+    host.append(modal);
+    const action = sidebarSwipe(host);
+
+    control.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+
+    expect(sidebarNav.isOpen).toBe(false);
+    expect(sidebarNav.dragOffset).toBeNull();
+
+    action.destroy();
+  });
+
   it('ignores gestures that start inside the fullscreen top layer', () => {
     const { host } = makeGestureHost();
     const fullscreenSurface = document.createElement('div');
