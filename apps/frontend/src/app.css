@@ -33,15 +33,22 @@
   color-scheme: light;
 
   --color-background: var(--color-gray-100);
-  --color-text: var(--color-gray-700);
+  --color-text: var(--color-gray-600);
   --color-text-top: var(--color-black);
   --color-muted: var(--color-gray-600);
 
   --color-border: var(--color-gray-200);
-  --color-surface: var(--color-white);
-  --color-surface-emphasized: var(--color-gray-100);
-  --color-surface-strong: var(--color-gray-200);
-  --color-surface-selected: var(--color-gray-200);
+  /* Light mode is deliberately not a luminance mirror of dark mode. The pale
+     background is the primary work plane; cool gray surfaces make anchored
+     chrome and controls feel inset and substantial instead of pasted on. */
+  --color-surface: var(--color-gray-200);
+  --color-surface-emphasized: color-mix(
+    in srgb,
+    var(--color-gray-200),
+    var(--color-gray-300) 55%
+  );
+  --color-surface-strong: var(--color-gray-300);
+  --color-surface-selected: var(--color-gray-300);
 
   /* Form-field surface — distinct from any container surface so inputs
      never disappear into a dialog or panel. Pure white in light mode

@@ -75,14 +75,22 @@ a dark semantic foreground to maintain WCAG AA contrast.
 
 Surfaces form a small semantic ladder:
 
-- In light mode, `background` is the quiet gray canvas and `surface` is the
-  white paper above it. Preserve that separation for anchored chrome such as
-  composers, user cards, dialogs, and panels.
-- `surface` is the ordinary content plane for panels, dialogs, and controls.
-- `surface-emphasized` separates quiet chrome, hover states, and nested rows.
-- `surface-strong` provides firmer contrast for compact selected or framed UI.
+- Light and dark mode are intentionally asymmetric. Do not infer elevation by
+  mechanically reversing luminance between themes.
+- In light mode, `background` is the pale primary work plane and `surface` is
+  the cool gray used for anchored chrome, composers, user cards, dialogs, and
+  panels. These surfaces read as inset and substantial, not as white paper
+  floating above the application.
+- In dark mode, progressively lighter surfaces provide separation from the
+  dark primary plane.
+- `surface-emphasized` separates hover states and nested rows from their
+  surrounding surface.
+- `surface-strong` provides firmer contrast for compact framed UI.
 - `surface-selected` is reserved for persistent selection. Pair it with an
   action-colored indicator when selection must be obvious at a glance.
+- In light mode, reserve white for form fields or an explicitly reviewed
+  paper-like surface; do not use it as the default fill for persistent
+  application chrome.
 
 Panels, informational hints, table headers, table bodies, and sticky table
 cells share the same `surface`. Use dividers, spacing, type weight, and icons to
