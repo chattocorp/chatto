@@ -137,10 +137,6 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   vocabulary.
 - Update the docs website when changing user-facing features, config,
   deployment behavior, or public APIs.
-- In public documentation and release copy, describe concrete defaults,
-  limitations, compatibility, and support behavior instead of labeling Chatto
-  capabilities as "experimental". Internal ADRs/FDRs may still record
-  uncertainty when it is relevant to the decision.
 - Keep `NOTICE` current when adding, removing, or materially changing bundled
   dependencies or shipped assets.
 

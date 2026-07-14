@@ -30,8 +30,6 @@ maintenance unless they change user-visible behavior or operator action.
 
 Name the specific actor whenever one is known. Prefer "users", "members",
 "operators", "admins", or "integration authors" over generic actor wording.
-Do not label Chatto capabilities as "experimental". Describe their concrete
-defaults, limitations, compatibility, and support behavior instead.
 
 API changes belong on these pages only when they affect self-hosters or
 integration authors running against their own Chatto servers. Phrase them as

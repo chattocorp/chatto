@@ -203,7 +203,7 @@ Write this structure to `.context/release-announcement-<version>.md`:
 - <Client-developer-facing API changes, compatibility hazards, or migration notes. Say "None identified." if not applicable.>
 ```
 
-Keep announcement wording user-facing. Avoid maintainer-only phrases like "confirm this before publishing", "drift check", "PR #...", "candidate ref", "blocked", or "internal-only" in the announcement file. Do not label Chatto capabilities as "experimental"; state their concrete defaults, limitations, compatibility, and support behavior.
+Keep announcement wording user-facing. Avoid maintainer-only phrases like "confirm this before publishing", "drift check", "PR #...", "candidate ref", "blocked", or "internal-only" in the announcement file.
 
 ## Output
 

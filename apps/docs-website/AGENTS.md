@@ -43,9 +43,6 @@ Starlight.
 - Do not recommend MinIO. Prefer Cloudflare R2, Wasabi, Backblaze B2, or AWS S3
   in examples.
 - Use `example.com` placeholder domains and `<generate-me>` for secrets.
-- Do not label Chatto capabilities as "experimental" in public documentation.
-  Describe their concrete defaults, limitations, compatibility, and support
-  behavior instead. Internal ADRs may still discuss architectural uncertainty.
 
 ## Starlight
 
