@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Baskuligi flankbreton",
+    "notifications": "Sciigoj",
+    "open_quick_switcher": "Malfermu rapidan ŝaltilon",
+    "quick_switcher_shortcut": "Rapida ŝaltilo (Cmd+K)",
+    "realtime_paused": "Realtempaj ĝisdatigoj paŭzis. Rekonektante...",
+    "update_available": "Nova versio disponeblas",
+    "reload": "Reŝargi",
+    "sign_out": "Eliru",
+    "close": "Fermu",
+    "auth_status": {
+      "origin_title": "Sesio eksvalidiĝis",
+      "origin_message": "Vi povas daŭre legi tion, kio jam estas ŝargita. Ensalutu denove por sendi mesaĝojn kaj refreŝigi datumojn.",
+      "origin_action": "Ensalutu denove",
+      "remote_title": "{server} bezonas ensaluti",
+      "remote_message": "Ĉi tiu servilo malakceptis la konservitan ensaluto. Rekonektu ĝin por rekomenci vivajn ĝisdatigojn kaj agojn.",
+      "remote_action": "Rekonekti",
+      "remote_failed": "Malsukcesis komenci rekonekti",
+      "sidebar_reauth": "{server} bezonas ensaluti"
+    },
+    "access_denied": {
+      "title": "Aliro Malpermesita",
+      "message": "Vi ne havas permeson aliri ĉi tiun paĝon.",
+      "back": "Reiru al Babilejo",
+      "back_to_server": "Reiru al Servilo"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Pliaj informoj",
+      "about": "Pri {subject}"
+    },
+    "pane_header": {
+      "back": "Reen"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Reen al Babilejo"
+    },
+    "resize_handle": {
+      "resize": "Regrandigi",
+      "resize_sidebar": "Regrandigi flankbreton"
+    },
+    "data_table": {
+      "empty": "Neniuj datumoj",
+      "loading_more": "Ŝarĝante pli..."
+    },
+    "loading_page": {
+      "loading": "Ŝarĝante..."
+    },
+    "image_modal": {
+      "previous": "Antaŭa bildo",
+      "next": "Sekva bildo",
+      "fallback_alt": "Bildo"
+    },
+    "toast": {
+      "dismiss": "Forĵeti sciigon"
+    },
+    "combobox": {
+      "loading": "Ŝarĝante...",
+      "empty": "Neniuj kongruoj",
+      "clear": "Klara"
+    },
+    "expiry": {
+      "label": "Eksvalidiĝas",
+      "24h": "24 horoj",
+      "7d": "7 tagoj",
+      "30d": "30 tagoj",
+      "indefinite": "Neniu eksvalidiĝo",
+      "custom": "Propra",
+      "custom_label": "Propra eksvalidiĝo",
+      "error_required": "Elektu limdaton.",
+      "error_invalid": "Enigu validan eksvalidiĝon.",
+      "error_future": "Eksvalidiĝo devas esti estonte."
+    },
+    "form": {
+      "required": "Bezonata"
+    },
+    "dates": {
+      "today": "Hodiaŭ",
+      "yesterday": "Hieraŭ",
+      "this_week": "Ĉi-semajne",
+      "this_month": "Ĉi-monate"
+    }
+  }
+}

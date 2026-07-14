@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Перейти на сервер, кімнату чи розмову...",
+    "no_results": "Немає результатів",
+    "recent": "Останні",
+    "kind": {
+      "destination": "Перейти до",
+      "server": "Сервер",
+      "room": "Кімната",
+      "dm": "DM",
+      "user": "Користувач"
+    }
+  }
+}

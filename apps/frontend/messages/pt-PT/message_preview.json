@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "message_preview": {
+    "attachments_count": "Anexos {count}",
+    "attachment_image": "Imagem",
+    "attachment_video": "Vídeo",
+    "attachment_audio": "Áudio",
+    "attachment_file": "Ficheiro"
+  }
+}

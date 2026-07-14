@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Lägg till server",
+    "sign_in": "Logga in",
+    "connect": "Anslut",
+    "redirecting": "Omdirigerar...",
+    "connecting": "Ansluter...",
+    "start_failed": "Det gick inte att starta inloggningen.",
+    "invalid_url": "Ange en giltig URL.",
+    "already_connected": "Den här servern är redan ansluten.",
+    "not_chatto_server": "Det här verkar inte vara en Chatto-server.",
+    "oauth_unsupported": "Den här servern stöder inte OAuth-autentisering. Den kan behöva uppdateras.",
+    "connection_timed_out": "Anslutningen tog timeout. Kontrollera URL och försök igen.",
+    "connection_failed": "Kunde inte ansluta. Kontrollera URL och se till att CORS är konfigurerad.",
+    "connect_failed": "Det gick inte att ansluta.",
+    "edit_url": "Fel server? Redigera URL",
+    "description_url": "Chatto är distribuerad - din klient ansluter till varje server direkt. Ange en URL för att lägga till en annan.",
+    "description_preview": "Du håller på att logga in på den här servern. Du kommer att skickas till dess inloggningssida för att autentisera.",
+    "url_label": "Server URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

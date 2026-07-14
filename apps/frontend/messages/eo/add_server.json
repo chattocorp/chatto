@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "Aldonu Servilon",
+    "sign_in": "Ensalutu",
+    "connect": "Konekti",
+    "redirecting": "Alidirektante...",
+    "connecting": "Konektante...",
+    "start_failed": "Malsukcesis komenci ensaluti.",
+    "invalid_url": "Bonvolu enigi validan URL.",
+    "already_connected": "Ĉi tiu servilo jam estas konektita.",
+    "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
+    "oauth_unsupported": "Ĉi tiu servilo ne subtenas OAuth-aŭtentikigon. Ĝi eble devas esti ĝisdatigita.",
+    "connection_timed_out": "Konekto elĉerpita. Kontrolu la URL kaj provu denove.",
+    "connection_failed": "Ne eblis konekti. Kontrolu la URL kaj certigu, ke CORS estas agordita.",
+    "connect_failed": "Malsukcesis konekti.",
+    "edit_url": "Ĉu malĝusta servilo? Redaktu URL",
+    "description_url": "Chatto estas distribuita - via kliento konektas rekte al ĉiu servilo. Enigu URL por aldoni alian.",
+    "description_preview": "Vi estas ensalutinta en ĉi tiu servilo. Vi estos sendita al ĝia ensaluta paĝo por aŭtentikigi.",
+    "url_label": "Servilo URL",
+    "url_placeholder": "babilejo.ekzemplo.com"
+  }
+}

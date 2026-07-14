@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Algo correu mal",
+    "description": "Não foi possível abrir esta vista. Pode voltar ao Chatto e tentar novamente a partir daí.",
+    "unknown": "Erro desconhecido",
+    "home_link": "Voltar para Chatto",
+    "missing_media_title": "Suporte indisponível",
+    "missing_media_description": "Este ficheiro não pôde ser aberto neste link. Pode ter sido removido ou o link de média privada já não está disponível."
+  }
+}

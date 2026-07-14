@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Datei anhängen",
+    "send": "Nachricht senden",
+    "send_enter": "Nachricht senden (Enter)",
+    "send_ctrl_enter": "Nachricht senden (Strg/Cmd+Enter)",
+    "also_send_to_channel": "Auch an Kanal senden",
+    "replying_to": "Antwort an",
+    "esc_to_cancel": "zum Abbrechen",
+    "editing": "Nachricht bearbeiten",
+    "send_anyway": "Trotzdem senden",
+    "role_mention_confirm_title": "Erwähnung senden?",
+    "role_mention_confirm_body": "Diese Nachricht enthält eine Erwähnung, die mehrere Personen benachrichtigen kann.",
+    "link_url": "Link-URL",
+    "open_link": "Link öffnen",
+    "remove_link": "Link entfernen",
+    "code_language": "Codesprache",
+    "placeholder": "Nachricht schreiben...",
+    "editing_placeholder": "Nachricht wird bearbeitet...",
+    "drop_files_title": "Dateien hier ablegen",
+    "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
+    "send_failed": "Nachricht konnte nicht gesendet werden",
+    "edit_failed": "Nachricht konnte nicht bearbeitet werden",
+    "mention": {
+      "all_room_members": "Alle Raummitglieder",
+      "members_here": "Gerade anwesende Mitglieder",
+      "role": "Rolle"
+    }
+  }
+}

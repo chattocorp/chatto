@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Bannière du serveur",
+    "fullscreen_video": "Vidéo plein écran",
+    "close_fullscreen_video": "Fermer la vidéo en mode plein écran",
+    "video_alt": "Vidéo",
+    "video_original_missing": "La vidéo n'est pas disponible parce que le téléchargement original est manquant.",
+    "video_processing_failed_retry": "Le traitement vidéo a échoué. Veuillez réessayer de télécharger.",
+    "video_queued": "Vidéo en file d'attente pour traitement...",
+    "video_processing": "Traitement vidéo...",
+    "video_processing_failed": "Échec du traitement vidéo"
+  }
+}

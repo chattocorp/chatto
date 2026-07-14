@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Bestand bijvoegen",
+    "send": "Bericht verzenden",
+    "send_enter": "Bericht verzenden (Enter)",
+    "send_ctrl_enter": "Bericht verzenden (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Stuur ook naar kanaal",
+    "replying_to": "Beantwoordt aan",
+    "esc_to_cancel": "om te annuleren",
+    "editing": "Bericht bewerken",
+    "send_anyway": "Toch verzenden",
+    "role_mention_confirm_title": "Vermelding verzenden?",
+    "role_mention_confirm_body": "Dit bericht bevat een vermelding die mogelijk meerdere mensen op de hoogte stelt.",
+    "link_url": "Link URL",
+    "open_link": "Link openen",
+    "remove_link": "Link verwijderen",
+    "code_language": "Codetaal",
+    "placeholder": "Typ een bericht...",
+    "editing_placeholder": "Bericht bewerken...",
+    "drop_files_title": "Zet bestanden hier neer",
+    "drop_files_subtitle": "Afbeeldingen en video's worden aan je bericht toegevoegd",
+    "send_failed": "Kan bericht niet verzenden",
+    "edit_failed": "Kan bericht niet bewerken",
+    "mention": {
+      "all_room_members": "Alle kamerleden",
+      "members_here": "Leden zijn momenteel hier",
+      "role": "Rol"
+    }
+  }
+}

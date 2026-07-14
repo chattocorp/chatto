@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Bifoga fil",
+    "send": "Skicka meddelande",
+    "send_enter": "Skicka meddelande (Enter)",
+    "send_ctrl_enter": "Skicka meddelande (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Skicka även till kanal",
+    "replying_to": "Svarar på",
+    "esc_to_cancel": "för att avbryta",
+    "editing": "Redigerar meddelande",
+    "send_anyway": "Skicka ändå",
+    "role_mention_confirm_title": "Skicka omnämnande?",
+    "role_mention_confirm_body": "Det här meddelandet innehåller ett omnämnande som kan meddela flera personer.",
+    "link_url": "Länk URL",
+    "open_link": "Öppna länken",
+    "remove_link": "Ta bort länken",
+    "code_language": "Kodspråk",
+    "placeholder": "Skriv ett meddelande...",
+    "editing_placeholder": "Redigerar meddelande...",
+    "drop_files_title": "Släpp filer här",
+    "drop_files_subtitle": "Bilder och videor kommer att läggas till i ditt meddelande",
+    "send_failed": "Det gick inte att skicka meddelandet",
+    "edit_failed": "Det gick inte att redigera meddelandet",
+    "mention": {
+      "all_room_members": "Alla rumsmedlemmar",
+      "members_here": "Medlemmar här för närvarande",
+      "role": "Roll"
+    }
+  }
+}

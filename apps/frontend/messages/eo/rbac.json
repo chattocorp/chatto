@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Forigi Rolon",
+      "prompt": "Ĉu vi certas, ke vi volas forigi la rolon {role}? Ĉi tio:",
+      "remove_from_users": "Forigu la rolon de ĉiuj uzantoj kiuj havas ĝin",
+      "delete_grants": "Forigu ĉiujn permesojn por ĉi tiu rolo",
+      "irreversible": "Ĉi tiu ago ne povas esti malfarita.",
+      "deleting": "Forigante...",
+      "action": "Forigi Rolon"
+    },
+    "role_form": {
+      "save": "Konservu",
+      "saving": "Konservante...",
+      "name": "Nomo",
+      "name_placeholder": "ekz., moderiganto",
+      "name_description": "Nur minuskloj. Ne povas esti ŝanĝita post kreado.",
+      "name_too_long": "Nomo devas esti 32 signoj aŭ malpli",
+      "name_invalid": "Nomo devas uzi minusklojn, ciferojn kaj streketojn; komenci per letero",
+      "name_locked": "Rolnomoj ne povas esti ŝanĝitaj post kreado.",
+      "display_name": "Afiŝnomo",
+      "display_name_placeholder": "ekz., Moderiganto",
+      "display_name_too_long": "Afiŝnomo devas esti 64 signoj aŭ malpli",
+      "description": "Priskribo",
+      "description_placeholder": "Laŭvola priskribo por ĉi tiu rolo",
+      "pingable": "Permesu al homoj pingi ĉi tiun rolon",
+      "pingable_description": "Pingeblaj roloj aperas en @ aŭtokompleto kaj sciigas asignitajn ĉambrajn membrojn."
+    },
+    "permissions": {
+      "loading": "Ŝarĝante permesojn...",
+      "no_data": "Neniuj datumoj haveblaj.",
+      "no_roles": "Neniuj roloj aplikeblaj ĉe ĉi tiu amplekso.",
+      "permission": "Permeso",
+      "state": "Ŝtato",
+      "decided_by": "Decidita de",
+      "granted": "Koncedita",
+      "denied": "Neita",
+      "no_decision": "Neniu decido",
+      "no_role_decided": "Neniu rolo decidita",
+      "hide_trace": "Kaŝi spuron",
+      "show_trace": "Montru spuron",
+      "trace_one": "Rezolucia spuro (1 eniro)",
+      "trace_many": "Rezolucia spuro ({count}-enskriboj)",
+      "allow": "permesi",
+      "deny": "nei",
+      "winning_decision": "(gajna decido)",
+      "level_server": "Servilo",
+      "level_group": "Grupo",
+      "level_room": "Ĉambro",
+      "empty_category": "Neniuj permesoj en ĉi tiu kategorio",
+      "categories": {
+        "space": {
+          "title": "Servilaj Permesoj",
+          "description": "Servilnivelaj kapabloj konservitaj sub la hereda kategorioŝlosilo por kongruo"
+        },
+        "room": {
+          "title": "Ĉambro-Permesoj",
+          "description": "Servilo defaŭltas por ĉambra malkovro kaj aliĝo, kaj plie ĉambrokreado. Aldonu ĉambron/grupon rifuzas por lokaj limigoj"
+        },
+        "message": {
+          "title": "Mesaĝaj Permesoj",
+          "description": "Servilo defaŭltas por afiŝado, fadenoj, reagoj, eĥo kaj moderigo de mesaĝoj. Ĉambro/grupo neas krei lokajn esceptojn"
+        },
+        "member": {
+          "title": "Membro-Permesoj",
+          "description": "Kontrolu kiu povas inviti kaj forigi servilmembrojn"
+        },
+        "role": {
+          "title": "Rolaj Permesoj",
+          "description": "Kontrolu kiu povas redakti rolojn, asigni rolojn kaj administri permesajn antaŭdirojn"
+        },
+        "admin": {
+          "title": "Administraj Permesoj",
+          "description": "Kontrolu aliron al tutservilo administraj vidoj kaj diagnozoj"
+        },
+        "dm": {
+          "title": "DM-Permesoj",
+          "description": "Kontrolu aliron al rektaj mesaĝaj enirpunktoj"
+        },
+        "user": {
+          "title": "Permesoj de uzanto",
+          "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn. Ajna neposedanto neas nuligas subvenciojn"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
+      "room_create": "Krei novajn ĉambrojn",
+      "room_join": "Aliĝu al ekzistantaj ĉambroj",
+      "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",
+      "room_manage": "Redaktu agordojn kaj permesojn de ĉambro, kaj forigu ĉambrojn",
+      "room_ban_member": "Malpermesu membrojn de ĉambroj",
+      "message_post": "Afiŝu radikajn mesaĝojn en ĉambroj kaj komencu DM-ojn",
+      "message_post_in_thread": "Afiŝu respondojn ene de fadeno",
+      "message_attach": "Aligu dosierojn al mesaĝoj",
+      "message_echo": "Kiam vi afiŝas en fadenon, ankaŭ aperigu la mesaĝon en la ĉefa kanalo",
+      "message_manage": "Redaktu kaj forigu mesaĝojn de aliaj uzantoj",
+      "message_react": "Aldonu kaj forigu reagojn pri mesaĝoj",
+      "role_manage": "Krei, redakti, forigi kaj reordigi rolojn kaj iliajn permesojn.",
+      "role_assign": "Asigni kaj nuligi rolojn por uzantoj",
+      "admin_view_users": "Rigardu la uzantpaĝon en administranto",
+      "admin_view_system": "Rigardu projekciajn diagnozojn en administranto",
+      "admin_view_audit": "Rigardu la revizian protokolon en administranto",
+      "user_delete_any": "Forigu la konton de alia uzanto",
+      "user_delete_self": "Forigu vian propran konton",
+      "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
+      "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas"
+    }
+  }
+}

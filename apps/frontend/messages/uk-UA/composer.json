@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Прикріпити файл",
+    "send": "Надіслати повідомлення",
+    "send_enter": "Надіслати повідомлення (Enter)",
+    "send_ctrl_enter": "Надіслати повідомлення (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Також надіслати на канал",
+    "replying_to": "Відповідаю",
+    "esc_to_cancel": ", щоб скасувати",
+    "editing": "Редагування повідомлення",
+    "send_anyway": "Усе одно надіслати",
+    "role_mention_confirm_title": "Надіслати згадку?",
+    "role_mention_confirm_body": "Це повідомлення містить згадку, яка може сповістити кількох людей.",
+    "link_url": "Посилання URL",
+    "open_link": "Відкрити посилання",
+    "remove_link": "Видалити посилання",
+    "code_language": "Мова коду",
+    "placeholder": "Введіть повідомлення...",
+    "editing_placeholder": "Редагування повідомлення...",
+    "drop_files_title": "Перетягніть файли сюди",
+    "drop_files_subtitle": "До вашого повідомлення буде додано зображення та відео",
+    "send_failed": "Не вдалося надіслати повідомлення",
+    "edit_failed": "Не вдалося редагувати повідомлення",
+    "mention": {
+      "all_room_members": "Усі учасники кімнати",
+      "members_here": "Учасники зараз тут",
+      "role": "Роль"
+    }
+  }
+}

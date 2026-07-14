@@ -1,0 +1,31 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Legg ved fil",
+    "send": "Send melding",
+    "send_enter": "Send melding (Enter)",
+    "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Send også til kanalen",
+    "replying_to": "Svarer på",
+    "esc_to_cancel": "for å avbryte",
+    "editing": "Redigerer melding",
+    "send_anyway": "Send uansett",
+    "role_mention_confirm_title": "Vil du sende omtale?",
+    "role_mention_confirm_body": "Denne meldingen inneholder en omtale som kan varsle flere personer.",
+    "link_url": "Koble til URL",
+    "open_link": "Åpne lenken",
+    "remove_link": "Fjern lenken",
+    "code_language": "Kodespråk",
+    "placeholder": "Skriv inn en melding...",
+    "editing_placeholder": "Redigerer melding...",
+    "drop_files_title": "Slipp filer her",
+    "drop_files_subtitle": "Bilder og videoer vil bli lagt til meldingen din",
+    "send_failed": "Kunne ikke sende melding",
+    "edit_failed": "Kunne ikke redigere meldingen",
+    "mention": {
+      "all_room_members": "Alle medlemmer av rommet",
+      "members_here": "Medlemmer her for øyeblikket",
+      "role": "Rolle"
+    }
+  }
+}

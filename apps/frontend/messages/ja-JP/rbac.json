@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "ロールの削除",
+      "prompt": "ロール {role} を削除してもよろしいですか?これにより、次のことが行われます。",
+      "remove_from_users": "ロールを持つすべてのユーザーからロールを削除します",
+      "delete_grants": "このロールのすべての権限付与を削除します",
+      "irreversible": "この操作は元に戻すことができません。",
+      "deleting": "削除中...",
+      "action": "ロールの削除"
+    },
+    "role_form": {
+      "save": "保存",
+      "saving": "保存中...",
+      "name": "名前",
+      "name_placeholder": "例: モデレーター",
+      "name_description": "小文字のみ。作成後に変更することはできません。",
+      "name_too_long": "名前は 32 文字以下である必要があります",
+      "name_invalid": "名前には小文字、数字、ダッシュを使用する必要があります。手紙から始める",
+      "name_locked": "ロール名は作成後に変更できません。",
+      "display_name": "表示名",
+      "display_name_placeholder": "例: モデレーター",
+      "display_name_too_long": "表示名は 64 文字以下である必要があります",
+      "description": "説明",
+      "description_placeholder": "このロールの説明 (オプション)",
+      "pingable": "ユーザーがこのロールに ping できるようにします",
+      "pingable_description": "Ping 可能なロールが @ オートコンプリートに表示され、割り当てられたルーム メンバーに通知されます。"
+    },
+    "permissions": {
+      "loading": "権限を読み込み中...",
+      "no_data": "利用可能なデータがありません。",
+      "no_roles": "このスコープに適用できるロールはありません。",
+      "permission": "許可",
+      "state": "状態",
+      "decided_by": "決定者",
+      "granted": "許可されました",
+      "denied": "拒否されました",
+      "no_decision": "決定なし",
+      "no_role_decided": "役割が決まっていません",
+      "hide_trace": "トレースを非表示にする",
+      "show_trace": "トレースを表示",
+      "trace_one": "解決トレース (1 エントリ)",
+      "trace_many": "解決トレース ({count} エントリ)",
+      "allow": "許可します",
+      "deny": "拒否",
+      "winning_decision": "(優勝決定)",
+      "level_server": "サーバー",
+      "level_group": "グループ",
+      "level_room": "部屋",
+      "empty_category": "このカテゴリには権限がありません",
+      "categories": {
+        "space": {
+          "title": "サーバー権限",
+          "description": "サーバーレベルの機能は互換性のために従来のカテゴリキーの下に保持されます"
+        },
+        "room": {
+          "title": "ルーム権限",
+          "description": "サーバーのデフォルトでは、ルームの検出と参加、およびルームの作成が行われます。ローカル制限のために部屋/グループの拒否を追加する"
+        },
+        "message": {
+          "title": "メッセージ権限",
+          "description": "サーバーのデフォルトは、投稿、スレッド、反応、エコー、メッセージ管理です。ルーム/グループがローカル例外を作成することを拒否する"
+        },
+        "member": {
+          "title": "メンバー権限",
+          "description": "サーバーメンバーを招待および削除できるユーザーを制御します"
+        },
+        "role": {
+          "title": "ロール権限",
+          "description": "ロールの編集、ロールの割り当て、権限プリセットの管理を行えるユーザーを制御します"
+        },
+        "admin": {
+          "title": "管理者権限",
+          "description": "サーバー全体の管理ビューと診断へのアクセスを制御します"
+        },
+        "dm": {
+          "title": "DMの権限",
+          "description": "ダイレクト メッセージング エントリ ポイントへのアクセスを制御する"
+        },
+        "user": {
+          "title": "ユーザー権限",
+          "description": "ユーザーアカウントとユーザーごとの権限操作を制御します。所有者以外が拒否すると付与がキャンセルされます"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
+      "room_create": "新しいルームを作成する",
+      "room_join": "既存のルームに参加する",
+      "room_list": "ディレクトリ内のルームを参照してください。ユーザーは、ルームへの参加を許可されずに、ルームの閲覧を許可される (アクセスを要求するなど) ことができます。",
+      "room_manage": "ルームの設定と権限を編集し、ルームを削除します",
+      "room_ban_member": "メンバーのルームへのアクセスを禁止します",
+      "message_post": "ルートメッセージをルームに投稿し、DM を開始します",
+      "message_post_in_thread": "スレッド内に返信を投稿する",
+      "message_attach": "メッセージにファイルを添付する",
+      "message_echo": "スレッドに投稿するときは、メイン チャネルにもメッセージを表示します",
+      "message_manage": "他のユーザーのメッセージを編集および削除する",
+      "message_react": "メッセージに対するリアクションの追加と削除",
+      "role_manage": "ロールとその権限付与の作成、編集、削除、並べ替え",
+      "role_assign": "ユーザーのロールの割り当てと取り消し",
+      "admin_view_users": "管理者でユーザー ページを表示する",
+      "admin_view_system": "管理者で投影診断を表示する",
+      "admin_view_audit": "管理者で監査ログを表示する",
+      "user_delete_any": "別のユーザーのアカウントを削除する",
+      "user_delete_self": "自分のアカウントを削除してください",
+      "user_manage_accounts": "ユーザーの作成、アカウント ID の編集、パスワードのリセット、確認済みメールの添付、ログインのクールダウンのクリア",
+      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する"
+    }
+  }
+}

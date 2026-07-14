@@ -116,10 +116,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Internationalization
 
 - New or changed user-visible strings go through the British English (`en-GB`)
-  and German (`de`) Paraglide catalogs. Add a sparse US English (`en-US`)
-  override when spelling or terminology differs; do not duplicate identical
-  base messages. Locale identifiers use BCP 47 tags such as `en-GB`. Follow
-  ADR-043.
+  source and every complete translated Paraglide catalog. Preserve message
+  structure and placeholders. Add a sparse US English (`en-US`) override when
+  spelling or terminology differs; do not duplicate identical base messages.
+  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-043.
 - Import product messages from `$lib/i18n/messages`, not generated Paraglide
   internals.
 - Use nested keys grouped by feature/surface; do not use English sentences as

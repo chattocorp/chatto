@@ -1657,8 +1657,8 @@ describe('RoomSidebar', () => {
   });
 
   it('localizes room file date groups with the active locale', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
 
     attachmentMocks.listRoomAttachments.mockResolvedValueOnce({

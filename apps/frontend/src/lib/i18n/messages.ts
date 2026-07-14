@@ -18,7 +18,23 @@ const loadedLocales = new Map<Locale, Promise<LocaleMessages>>([
 const localeLoaders: Record<Locale, () => Promise<LocaleMessages>> = {
   "en-GB": () => Promise.resolve(baseMessages),
   "en-US": () => import('$lib/paraglide/messages/en-US.js') as Promise<LocaleMessages>,
-  "de": () => import('$lib/paraglide/messages/de.js') as Promise<LocaleMessages>,
+  "de-DE": () => import('$lib/paraglide/messages/de-DE.js') as Promise<LocaleMessages>,
+  "de-AT": () => import('$lib/paraglide/messages/de-AT.js') as Promise<LocaleMessages>,
+  "de-CH": () => import('$lib/paraglide/messages/de-CH.js') as Promise<LocaleMessages>,
+  "nl-NL": () => import('$lib/paraglide/messages/nl-NL.js') as Promise<LocaleMessages>,
+  "nl-BE": () => import('$lib/paraglide/messages/nl-BE.js') as Promise<LocaleMessages>,
+  "sv-SE": () => import('$lib/paraglide/messages/sv-SE.js') as Promise<LocaleMessages>,
+  "fr-FR": () => import('$lib/paraglide/messages/fr-FR.js') as Promise<LocaleMessages>,
+  "fr-CA": () => import('$lib/paraglide/messages/fr-CA.js') as Promise<LocaleMessages>,
+  "es-ES": () => import('$lib/paraglide/messages/es-ES.js') as Promise<LocaleMessages>,
+  "es-419": () => import('$lib/paraglide/messages/es-419.js') as Promise<LocaleMessages>,
+  "pt-BR": () => import('$lib/paraglide/messages/pt-BR.js') as Promise<LocaleMessages>,
+  "pt-PT": () => import('$lib/paraglide/messages/pt-PT.js') as Promise<LocaleMessages>,
+  "nb-NO": () => import('$lib/paraglide/messages/nb-NO.js') as Promise<LocaleMessages>,
+  "pl-PL": () => import('$lib/paraglide/messages/pl-PL.js') as Promise<LocaleMessages>,
+  "uk-UA": () => import('$lib/paraglide/messages/uk-UA.js') as Promise<LocaleMessages>,
+  "ja-JP": () => import('$lib/paraglide/messages/ja-JP.js') as Promise<LocaleMessages>,
+  "eo": () => import('$lib/paraglide/messages/eo.js') as Promise<LocaleMessages>,
 };
 
 function loadLocaleModule(locale: Locale): Promise<LocaleMessages> {

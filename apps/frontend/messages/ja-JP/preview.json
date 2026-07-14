@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "プレビューを閉じる",
+    "delete": "プレビューを削除",
+    "open_link": "リンクを開く",
+    "copy_url": "URL をコピー",
+    "youtube_title": "YouTube ビデオ",
+    "youtube_dismiss": "ビデオを閉じる",
+    "youtube_delete": "動画を削除",
+    "youtube_open": "YouTube でオープン",
+    "youtube_delete_embed": "埋め込みを削除"
+  }
+}

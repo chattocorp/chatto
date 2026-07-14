@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Banner do servidor",
+    "fullscreen_video": "Vídeo em tela cheia",
+    "close_fullscreen_video": "Fechar vídeo em tela cheia",
+    "video_alt": "Vídeo",
+    "video_original_missing": "O vídeo não está disponível porque falta o upload original.",
+    "video_processing_failed_retry": "Falha no processamento do vídeo. Por favor, tente fazer upload novamente.",
+    "video_queued": "Vídeo na fila para processamento...",
+    "video_processing": "Processando vídeo...",
+    "video_processing_failed": "Falha no processamento do vídeo"
+  }
+}

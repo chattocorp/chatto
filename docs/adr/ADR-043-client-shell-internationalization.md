@@ -1,6 +1,7 @@
 # ADR-043: Client-Shell Internationalization
 
 **Date:** 2026-06-22
+**Updated:** 2026-07-14
 
 ## Context
 
@@ -23,7 +24,9 @@ Chatto needs an i18n system that can be adopted incrementally, gives good type-s
 
 Chatto will internationalize the web client with a compile-time message catalog system, using Paraglide JS unless a future implementation spike finds a blocking issue. Paraglide is acceptable because it uses in-repository project configuration and message files; it must not require a hosted translation service, account, or network call for normal local development, CI builds, or runtime operation.
 
-British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology, and German (`de`) is the first supported non-English locale because the project can review it directly. Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
+British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology. German uses explicit `de-DE`, `de-AT`, and `de-CH` content locales; the former language-only `de` preference migrates to `de-DE`.
+
+The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Japanese (`ja-JP`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
 
 Locale identifiers use canonical BCP 47 language tags such as `en-GB`, not POSIX-style identifiers such as `en_GB`. A locale identifies translated content, not only formatting conventions: regional variants must be distinct locales when their spelling, terminology, grammar, or other wording differs. A regional catalog may contain only its differences and inherit missing messages through Paraglide's locale fallback. The locale picker must name supported variants explicitly rather than presenting an ambiguous language label such as “English”.
 
@@ -45,11 +48,11 @@ Locale selection is owned by the client shell, not by the active server. The eff
 2. The browser's language preferences.
 3. `en-GB`.
 
-Locale negotiation prefers an exact supported regional tag. Unsupported English variants fall back to `en-GB`, while regional variants of a supported language-only locale can fall back to that language locale. The former stored `en` preference migrates to `en-GB` so an explicit English choice is not lost during the transition.
+Locale negotiation prefers an exact supported regional tag. A language-only preference uses the project's documented default region for that language, such as `en-GB`, `de-DE`, `nl-NL`, `fr-FR`, `es-ES`, or `pt-BR`. The former stored `en` and `de` preferences migrate to `en-GB` and `de-DE`, respectively, so explicit choices are not lost during the transition.
 
 The selected locale applies to the whole SPA. It does not change when the user navigates between connected servers. This avoids conflicting per-server language settings in a multi-server client and keeps language selection available before authentication.
 
-The frontend includes a user-facing language preference UI backed by browser-local persistence. This gives users and testers a deterministic way to switch between `en-GB`, `en-US`, and `de` without changing browser settings.
+The frontend includes a user-facing language preference UI backed by browser-local persistence. Every supported regional content locale is listed explicitly, and language names are localised with `Intl.DisplayNames` so the picker remains readable after switching locale.
 
 Server-synced language preference may be added later as an additive user-profile feature, but it must define clear multi-server conflict semantics before becoming authoritative. A local browser override remains necessary for signed-out screens, first paint, and separately hosted clients.
 
@@ -65,7 +68,7 @@ Dates, times, numbers, plurals, and relative labels should be formatted with the
 
 Locales should be added only when Chatto can maintain acceptable translation quality. Machine translation may be used to draft catalogs, but supported locales should be reviewed and kept complete enough that the product does not feel half-translated.
 
-Agent and contributor instructions should be updated with the i18n policy. New user-visible frontend strings should normally add or update message keys in both `en-GB` and `de`, with a best-effort German translation when the author can provide one. Add an `en-US` override when US spelling or terminology differs; do not duplicate identical base messages. If a translation is uncertain, the PR should mark it clearly for review instead of silently omitting it or hardcoding English.
+Agent and contributor instructions should be updated with the i18n policy. New user-visible frontend strings must add or update the `en-GB` source and all complete translated catalogs while preserving message structure and placeholders. Add an `en-US` override only when US spelling or terminology differs; do not duplicate identical base messages. If a translation is uncertain, the PR should mark it clearly for review instead of silently omitting it or hardcoding English.
 
 ## Consequences
 

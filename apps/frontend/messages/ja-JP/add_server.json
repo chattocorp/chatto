@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "add_server": {
+    "title": "サーバーを追加",
+    "sign_in": "サインイン",
+    "connect": "接続する",
+    "redirecting": "リダイレクト中...",
+    "connecting": "接続中...",
+    "start_failed": "サインインの開始に失敗しました。",
+    "invalid_url": "有効な URL を入力してください。",
+    "already_connected": "このサーバーはすでに接続されています。",
+    "not_chatto_server": "これは Chatto サーバーではないようです。",
+    "oauth_unsupported": "このサーバーは OAuth 認証をサポートしていません。更新する必要がある場合があります。",
+    "connection_timed_out": "接続がタイムアウトしました。 URL を確認して、再試行してください。",
+    "connection_failed": "接続できませんでした。 URL をチェックし、CORS が構成されていることを確認します。",
+    "connect_failed": "接続に失敗しました。",
+    "edit_url": "サーバーが間違っていますか? URLを編集",
+    "description_url": "Chatto が配布されています - クライアントは各サーバーに直接接続します。別のものを追加するには、「URL」と入力します。",
+    "description_preview": "このサーバーにサインインしようとしています。認証のためにサインイン ページに移動します。",
+    "url_label": "サーバー URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

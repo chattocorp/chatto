@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Algo deu errado",
+    "description": "Não foi possível abrir esta visualização. Você pode retornar ao Chatto e tentar novamente a partir daí.",
+    "unknown": "Erro desconhecido",
+    "home_link": "Voltar para Chatto",
+    "missing_media_title": "Mídia indisponível",
+    "missing_media_description": "Este arquivo não pôde ser aberto neste link. Pode ter sido removido ou o link de mídia privada não está mais disponível."
+  }
+}

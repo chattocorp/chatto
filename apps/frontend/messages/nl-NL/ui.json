@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Zijbalk aan-/uitzetten",
+    "notifications": "Meldingen",
+    "open_quick_switcher": "Open snelwisselaar",
+    "quick_switcher_shortcut": "Snelle overstap (Cmd+K)",
+    "realtime_paused": "Realtime updates onderbroken. Opnieuw verbinding maken...",
+    "update_available": "Er is een nieuwe versie beschikbaar",
+    "reload": "Opnieuw laden",
+    "sign_out": "Meld u af",
+    "close": "Sluiten",
+    "auth_status": {
+      "origin_title": "Sessie verlopen",
+      "origin_message": "Je kunt blijven lezen wat al is geladen. Meld u opnieuw aan om berichten te verzenden en gegevens te vernieuwen.",
+      "origin_action": "Log opnieuw in",
+      "remote_title": "{server} moet inloggen",
+      "remote_message": "Deze server heeft de opgeslagen aanmelding afgewezen. Sluit hem opnieuw aan om live updates en acties te hervatten.",
+      "remote_action": "Opnieuw verbinding maken",
+      "remote_failed": "Kan opnieuw verbinden niet starten",
+      "sidebar_reauth": "{server} moet inloggen"
+    },
+    "access_denied": {
+      "title": "Toegang geweigerd",
+      "message": "U heeft geen toestemming om deze pagina te openen.",
+      "back": "Terug naar chat",
+      "back_to_server": "Terug naar de server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Meer informatie",
+      "about": "Over {subject}"
+    },
+    "pane_header": {
+      "back": "Terug"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Terug naar chatten"
+    },
+    "resize_handle": {
+      "resize": "Formaat wijzigen",
+      "resize_sidebar": "Formaat van zijbalk wijzigen"
+    },
+    "data_table": {
+      "empty": "Geen gegevens",
+      "loading_more": "Meer laden..."
+    },
+    "loading_page": {
+      "loading": "Laden..."
+    },
+    "image_modal": {
+      "previous": "Vorige afbeelding",
+      "next": "Volgende afbeelding",
+      "fallback_alt": "Afbeelding"
+    },
+    "toast": {
+      "dismiss": "Melding sluiten"
+    },
+    "combobox": {
+      "loading": "Laden...",
+      "empty": "Geen overeenkomsten",
+      "clear": "Duidelijk"
+    },
+    "expiry": {
+      "label": "Verloopt",
+      "24h": "24 uur",
+      "7d": "7 dagen",
+      "30d": "30 dagen",
+      "indefinite": "Geen vervaldatum",
+      "custom": "Aangepast",
+      "custom_label": "Aangepaste vervaldatum",
+      "error_required": "Kies een vervaldatum.",
+      "error_invalid": "Voer een geldige vervaldatum in.",
+      "error_future": "De vervaldatum moet in de toekomst liggen."
+    },
+    "form": {
+      "required": "Vereist"
+    },
+    "dates": {
+      "today": "Vandaag",
+      "yesterday": "Gisteren",
+      "this_week": "Deze week",
+      "this_month": "Deze maand"
+    }
+  }
+}

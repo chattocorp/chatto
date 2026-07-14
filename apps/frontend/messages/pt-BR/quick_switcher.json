@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Vá para servidor, sala ou conversa...",
+    "no_results": "Nenhum resultado",
+    "recent": "Recente",
+    "kind": {
+      "destination": "Vá para",
+      "server": "Servidor",
+      "room": "Quarto",
+      "dm": "DM",
+      "user": "Usuário"
+    }
+  }
+}

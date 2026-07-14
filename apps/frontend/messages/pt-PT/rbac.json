@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Apagar função",
+      "prompt": "Tem a certeza que pretende eliminar a função {role}? Isto irá:",
+      "remove_from_users": "Remover a função de todos os utilizadores que a possuem",
+      "delete_grants": "Apagar todas as concessões de permissões para esta função",
+      "irreversible": "Esta ação não pode ser anulada.",
+      "deleting": "A apagar...",
+      "action": "Apagar função"
+    },
+    "role_form": {
+      "save": "Guardar",
+      "saving": "A guardar...",
+      "name": "Nome",
+      "name_placeholder": "por exemplo, moderador",
+      "name_description": "Apenas letras minúsculas. Não pode ser alterado após a criação.",
+      "name_too_long": "O nome deve ter 32 caracteres ou menos",
+      "name_invalid": "O nome deve conter letras minúsculas, números e travessões; começar com uma carta",
+      "name_locked": "Os nomes das funções não podem ser alterados após a criação.",
+      "display_name": "Nome de visualização",
+      "display_name_placeholder": "por exemplo, moderador",
+      "display_name_too_long": "O nome de visualização deve ter 64 caracteres ou menos",
+      "description": "Descrição",
+      "description_placeholder": "Descrição opcional para esta função",
+      "pingable": "Permitir que as pessoas façam ping nesta função",
+      "pingable_description": "As funções pingáveis aparecem no preenchimento automático @ e notificam os membros atribuídos à sala."
+    },
+    "permissions": {
+      "loading": "A carregar permissões...",
+      "no_data": "Não há dados disponíveis.",
+      "no_roles": "Nenhuma função aplicável neste âmbito.",
+      "permission": "Permissão",
+      "state": "Estado",
+      "decided_by": "Decidido por",
+      "granted": "Concedido",
+      "denied": "Negado",
+      "no_decision": "Sem decisão",
+      "no_role_decided": "Nenhuma função decidida",
+      "hide_trace": "Ocultar rastreio",
+      "show_trace": "Mostrar rastreio",
+      "trace_one": "Seguimento de resolução (1 entrada)",
+      "trace_many": "Seguimento de resolução (entradas {count})",
+      "allow": "permitir",
+      "deny": "negar",
+      "winning_decision": "(decisão vencedora)",
+      "level_server": "Servidor",
+      "level_group": "Grupo",
+      "level_room": "Quarto",
+      "empty_category": "Não há permissão nesta categoria",
+      "categories": {
+        "space": {
+          "title": "Permissões do servidor",
+          "description": "Recursos ao nível do servidor mantidos sob a chave de categoria herdada para compatibilidade"
+        },
+        "room": {
+          "title": "Permissões da sala",
+          "description": "Padrões do servidor para descoberta e entrada em salas, bem como criação de salas. Adicionar negações de sala/grupo para restrições locais"
+        },
+        "message": {
+          "title": "Permissões de mensagens",
+          "description": "Padrões do servidor para publicação, tópicos, reações, eco e moderação de mensagens. Sala/grupo nega criação de exceções locais"
+        },
+        "member": {
+          "title": "Permissões de membros",
+          "description": "Controle quem pode convidar e remover membros do servidor"
+        },
+        "role": {
+          "title": "Permissões de função",
+          "description": "Controlar quem pode editar funções, atribuir funções e gerir predefinições de permissões"
+        },
+        "admin": {
+          "title": "Permissões de administrador",
+          "description": "Controlar o acesso às vistas e diagnósticos administrativos de todo o servidor"
+        },
+        "dm": {
+          "title": "Permissões de DM",
+          "description": "Controlar o acesso aos pontos de entrada de mensagens diretas"
+        },
+        "user": {
+          "title": "Permissões do utilizador",
+          "description": "Controle a conta do utilizador e as operações de permissão por utilizador. Qualquer negação de não proprietário cancela concessões"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Atualizar as definições do servidor (nome, descrição, logótipo)",
+      "room_create": "Criar novas salas",
+      "room_join": "Junte-se a salas existentes",
+      "room_list": "Ver salas no directório. Um utilizador pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para aderir a ela.",
+      "room_manage": "Edite as definições e permissões de uma sala e apague salas",
+      "room_ban_member": "Banir membros das salas",
+      "message_post": "Publicar mensagens root nas salas e iniciar DMs",
+      "message_post_in_thread": "Colocar respostas dentro de um tópico",
+      "message_attach": "Anexar ficheiros às mensagens",
+      "message_echo": "Ao publicar num tópico, apresente também a mensagem no canal principal",
+      "message_manage": "Edite e apague mensagens de outros utilizadores",
+      "message_react": "Adicionar e remover reações nas mensagens",
+      "role_manage": "Criar, editar, eliminar e reordenar funções e as suas concessões de permissões",
+      "role_assign": "Atribuir e revogar funções aos utilizadores",
+      "admin_view_users": "Visualizar a página de utilizadores no admin",
+      "admin_view_system": "Ver diagnóstico de projeção no admin",
+      "admin_view_audit": "Visualizar o registo de auditoria no admin",
+      "user_delete_any": "Apagar conta de outro utilizador",
+      "user_delete_self": "Apague a sua própria conta",
+      "user_manage_accounts": "Crie utilizadores, edite a identidade da conta, reponha palavras-passe, anexe e-mails verificados e limpe os tempos de espera de login",
+      "user_manage_permissions": "Editar substituições de permissões diretas por utilizador"
+    }
+  }
+}
