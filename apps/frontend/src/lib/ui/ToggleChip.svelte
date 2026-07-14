@@ -65,7 +65,7 @@ iconify icon in the slot:
     success: 'border-success/30 bg-success/12 text-success hover:bg-success/18',
     danger: 'border-danger/30 bg-danger/12 text-danger hover:bg-danger/18',
     warning: 'border-warning/30 bg-warning/12 text-warning hover:bg-warning/18',
-    action: 'border-action/30 bg-action/12 text-action hover:bg-action/18',
+    action: 'border-action/30 bg-action/10 text-action hover:bg-action/15',
     neutral: 'border-border bg-surface-strong text-text hover:bg-surface-selected'
   };
 
