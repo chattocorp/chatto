@@ -186,6 +186,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
+		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
 		{"OBJ_SERVER_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},
@@ -224,6 +225,7 @@ func TestClassifyStream(t *testing.T) {
 		{"KV_INSTANCE", "kv"},
 		{"KV_SPACE_abc_CONFIG", "kv"},
 		{"OBJ_INSTANCE_ASSETS", "object_store"},
+		{"OBJ_PROJECTION_SNAPSHOTS", "object_store"},
 		{"OBJ_SPACE_abc_ASSETS", "object_store"},
 		{"SPACE_abc_EVENTS", "stream"},
 		{"SOME_OTHER_STREAM", "stream"},
@@ -389,11 +391,11 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Projection snapshots use the ordinary SERVER_ASSETS object store when
-	// NATS is the configured asset backend. Both the encrypted bytes and EVT's
-	// incarnation metadata must survive the same backup/restore round trip.
+	// NATS-backed projection snapshots use a dedicated Object Store. Both the
+	// encrypted bytes and EVT's incarnation metadata must survive the same
+	// backup/restore round trip.
 	snapshotStore, err := srcJS.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{
-		Bucket:  "SERVER_ASSETS",
+		Bucket:  "PROJECTION_SNAPSHOTS",
 		Storage: jetstream.FileStorage,
 	})
 	if err != nil {
@@ -569,7 +571,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		t.Errorf("Restored EVT stream identity = %q", got)
 	}
 
-	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "SERVER_ASSETS")
+	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")
 	if err != nil {
 		t.Fatal("Failed to open restored snapshot object store:", err)
 	}
