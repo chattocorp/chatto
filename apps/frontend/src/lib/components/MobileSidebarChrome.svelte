@@ -1,11 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ServerGutter from '$lib/ServerGutter.svelte';
-  import {
-    SIDEBAR_PANEL_WIDTH_PX,
-    sidebarEdgeSwipe,
-    sidebarSwipe
-  } from '$lib/hooks/useSidebarSwipe.svelte';
+  import { SIDEBAR_PANEL_WIDTH_PX } from '$lib/hooks/useSidebarSwipe.svelte';
   import * as m from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
 
@@ -18,30 +14,8 @@
 </script>
 
 {#if sidebarNav.isMobile}
-  <!--
-		Edge gesture zone (swipe-to-open). `touch-action: none` is essential:
-		without it, Chrome / iOS Safari fire pointercancel ~8px into a
-		horizontal drag (text-selection / back-navigation gesture detection).
-		Hidden when sidebar is open (the backdrop takes over). Plain taps are
-		intentionally swallowed here; this target exists only to start swipes.
-	-->
-  {#if !sidebarNav.isOpen || dragging}
-    <div
-      use:sidebarEdgeSwipe
-      data-app-sidebar="true"
-      data-testid="mobile-sidebar-edge"
-      class="fixed top-11 bottom-0 left-0 z-40 w-6 touch-none md:hidden"
-      aria-hidden="true"
-      onpointerdown={(event) => event.stopPropagation()}
-      onpointerup={(event) => event.stopPropagation()}
-      onclick={(event) => event.stopPropagation()}
-      oncontextmenu={(event) => event.stopPropagation()}
-    ></div>
-  {/if}
-
   <button
     type="button"
-    use:sidebarSwipe
     data-app-sidebar="true"
     data-testid="mobile-sidebar-backdrop"
     class={[
@@ -60,7 +34,6 @@
 
 <div class="flex min-h-0 flex-1 flex-row">
   <div
-    use:sidebarSwipe
     data-app-sidebar="true"
     data-testid="mobile-sidebar-panel"
     class={[
