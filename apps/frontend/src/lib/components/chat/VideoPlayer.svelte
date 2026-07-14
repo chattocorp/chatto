@@ -264,4 +264,27 @@
   :global(media-player .vds-chapters-menu) {
     display: none !important;
   }
+
+  /* Vidstack defaults every video player to 16:9. Inherit the attachment's
+   * measured ratio and fill that frame while preserving the whole image. */
+  :global(media-player) {
+    aspect-ratio: inherit;
+    height: 100%;
+    width: 100%;
+  }
+
+  :global(media-player media-provider),
+  :global(media-player [data-media-provider]),
+  :global(media-player video),
+  :global(media-player .vds-poster),
+  :global(media-player .vds-poster img) {
+    height: 100%;
+    width: 100%;
+  }
+
+  :global(media-player video),
+  :global(media-player .vds-poster),
+  :global(media-player .vds-poster img) {
+    object-fit: contain;
+  }
 </style>

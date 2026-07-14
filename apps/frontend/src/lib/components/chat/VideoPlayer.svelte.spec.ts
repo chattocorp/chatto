@@ -66,6 +66,11 @@ function video(container: HTMLElement): HTMLVideoElement {
   return element!;
 }
 
+async function playerVideo(container: HTMLElement): Promise<HTMLVideoElement> {
+  await expect.poll(() => container.querySelector('media-provider video')).toBeTruthy();
+  return container.querySelector<HTMLVideoElement>('media-provider video')!;
+}
+
 async function mediaPlayer(container: HTMLElement): Promise<HTMLElement> {
   await expect.poll(() => container.querySelector('media-player')).toBeTruthy();
   return container.querySelector<HTMLElement>('media-player')!;
@@ -112,10 +117,19 @@ describe('VideoPlayer', () => {
       thumbnailUrl: TRANSPARENT_THUMBNAIL
     });
 
-    await mediaPlayer(container);
+    const player = await mediaPlayer(container);
+    const media = await playerVideo(container);
     const poster = await posterImage(container);
 
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 256 / 320');
+    expect(
+      Math.abs(media.getBoundingClientRect().width - player.getBoundingClientRect().width)
+    ).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs(media.getBoundingClientRect().height - player.getBoundingClientRect().height)
+    ).toBeLessThanOrEqual(2);
+    expect(getComputedStyle(player).aspectRatio).toBe('256 / 320');
+    expect(getComputedStyle(media).objectFit).toBe('contain');
     expect(getComputedStyle(poster).objectFit).toBe('contain');
   });
 
