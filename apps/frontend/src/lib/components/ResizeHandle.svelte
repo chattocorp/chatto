@@ -82,16 +82,17 @@
   aria-label={label}
   class={[
     'group absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
-    edge === 'right' ? '-right-3' : '-left-3'
+    edge === 'right' ? 'right-0' : 'left-0'
   ]}
   onpointerdown={onPointerDown}
   ondblclick={onDoubleClick}
   onkeydown={onKeyDown}
 >
   <span
+    data-testid="resize-handle-line"
     class={[
       'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
-      'left-1/2',
+      edge === 'right' ? 'right-0' : 'left-0',
       dragging
         ? 'bg-neutral-action'
         : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'

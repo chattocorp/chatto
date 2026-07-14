@@ -49,7 +49,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
   data-app-sidebar="true"
   data-testid="server-sidebar"
   class={[
-    'server-sidebar relative z-50 flex min-w-0 flex-col border-r border-border bg-background',
+    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
     width,
     mobileWidth,
     'md:flex-initial',
@@ -71,10 +71,8 @@ See the "UI" section of `docs/GLOSSARY.md`.
   style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
 >
-  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-    {@render children()}
-    <CurrentUserBar />
-  </div>
+  {@render children()}
+  <CurrentUserBar />
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
       width={serverSidebarWidth.value}
