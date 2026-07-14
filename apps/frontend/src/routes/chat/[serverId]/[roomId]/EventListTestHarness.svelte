@@ -19,7 +19,8 @@
     isJumpedMode = false,
     onJumpToPresent,
     updateCounter = 0,
-    pendingHighlightId = null
+    pendingHighlightId = null,
+    hasReachedStart = false
   }: {
     eventIds: string[];
     roomId?: string;
@@ -31,6 +32,7 @@
     onJumpToPresent?: () => Promise<boolean>;
     updateCounter?: number;
     pendingHighlightId?: string | null;
+    hasReachedStart?: boolean;
   } = $props();
 
   createComposerContext({ scroll: true });
@@ -104,6 +106,7 @@
   {onJumpToPresent}
   {updateCounter}
   {pendingHighlightId}
+  {hasReachedStart}
   {scrollToEventId}
   onScrollToEventComplete={onComplete}
 />

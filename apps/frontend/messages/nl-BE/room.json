@@ -61,6 +61,9 @@
       "leave_action": "Verlaat de server",
       "leave_prompt": "Weet je zeker dat je {server} wilt verlaten? U verliest de toegang tot de kamers en uw klant zal deze server vergeten. Je kunt het later opnieuw toevoegen via de zijbalk."
     },
+    "timeline": {
+      "beginning": "Dit is het begin van dit gesprek."
+    },
     "message": {
       "empty": "Nog geen berichten",
       "delete_title": "Bericht verwijderen",

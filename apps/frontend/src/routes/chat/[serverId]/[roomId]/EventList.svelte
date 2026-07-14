@@ -1020,7 +1020,7 @@
               <!-- Stale virtualizer index during data transition, skip -->
             {:else if item.type === 'start-marker'}
               <div class="pt-10 pb-2 text-center text-sm text-muted">
-                This is the beginning of this conversation.
+                {m['room.timeline.beginning']()}
               </div>
             {:else if item.type === 'day-separator'}
               <DaySeparator label={item.label} />

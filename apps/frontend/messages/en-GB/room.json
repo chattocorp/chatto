@@ -61,6 +61,9 @@
       "leave_action": "Leave Server",
       "leave_prompt": "Are you sure you want to leave {server}? You'll lose access to its rooms, and your client will forget about this server. You can re-add it later from the sidebar."
     },
+    "timeline": {
+      "beginning": "This is the beginning of this conversation."
+    },
     "message": {
       "empty": "No messages yet",
       "delete_title": "Delete Message",

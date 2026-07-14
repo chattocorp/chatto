@@ -61,6 +61,9 @@
       "leave_action": "Forlat serveren",
       "leave_prompt": "Er du sikker på at du vil forlate {server}? Du mister tilgangen til rommene, og klienten din vil glemme denne serveren. Du kan legge den til på nytt senere fra sidefeltet."
     },
+    "timeline": {
+      "beginning": "Dette er begynnelsen på denne samtalen."
+    },
     "message": {
       "empty": "Ingen meldinger ennå",
       "delete_title": "Slett melding",

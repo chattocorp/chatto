@@ -61,6 +61,9 @@
       "leave_action": "Forlasu Servilon",
       "leave_prompt": "Ĉu vi certas, ke vi volas forlasi {server}? Vi perdos la aliron al ĝiaj ĉambroj, kaj via kliento forgesos pri ĉi tiu servilo. Vi povas re-aldoni ĝin poste de la flanka kolumno."
     },
+    "timeline": {
+      "beginning": "Jen la komenco de ĉi tiu konversacio."
+    },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",
       "delete_title": "Forigi Mesaĝon",

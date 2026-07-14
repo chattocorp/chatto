@@ -638,6 +638,7 @@ const msg_room_server_leave_action = (): LocalizedString => messages().room_serv
 const msg_room_server_leave_prompt = (
   inputs: Parameters<LocaleMessages['room_server_leave_prompt']>[0]
 ): LocalizedString => messages().room_server_leave_prompt(inputs);
+const msg_room_timeline_beginning = (): LocalizedString => messages().room_timeline_beginning(empty());
 const msg_room_message_empty = (): LocalizedString => messages().room_message_empty(empty());
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
 const msg_room_message_delete_prompt = (): LocalizedString => messages().room_message_delete_prompt(empty());
@@ -2045,6 +2046,7 @@ export { msg_room_directory_leave_confirm as 'room.directory.leave_confirm' };
 export { msg_room_server_leave_title as 'room.server.leave_title' };
 export { msg_room_server_leave_action as 'room.server.leave_action' };
 export { msg_room_server_leave_prompt as 'room.server.leave_prompt' };
+export { msg_room_timeline_beginning as 'room.timeline.beginning' };
 export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
 export { msg_room_message_delete_prompt as 'room.message.delete_prompt' };

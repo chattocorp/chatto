@@ -61,6 +61,9 @@
       "leave_action": "Sair do servidor",
       "leave_prompt": "Tem a certeza que pretende sair do {server}? Perderá o acesso às salas e o seu cliente esquecerá este servidor. Pode adicioná-lo novamente mais tarde na barra lateral."
     },
+    "timeline": {
+      "beginning": "Este é o início desta conversa."
+    },
     "message": {
       "empty": "Ainda não há mensagens",
       "delete_title": "Apagar mensagem",

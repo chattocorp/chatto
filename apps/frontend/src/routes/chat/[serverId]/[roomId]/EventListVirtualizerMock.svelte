@@ -1,8 +1,13 @@
 <script module lang="ts">
   let scrollOffset = 700;
+  let forcedRenderedIndex: number | null = null;
 
   export function setVirtualizerScrollOffset(offset: number) {
     scrollOffset = offset;
+  }
+
+  export function setVirtualizerForcedRenderedIndex(index: number | null) {
+    forcedRenderedIndex = index;
   }
 </script>
 
@@ -17,7 +22,7 @@
     children: Snippet<[unknown]>;
   } = $props();
 
-  let renderedIndex = $state<number | null>(null);
+  let renderedIndex = $state<number | null>(forcedRenderedIndex);
   let scrollCalls = $state(0);
   let lastAlignment = $state('');
   let renderedItem = $derived(renderedIndex === null ? undefined : data[renderedIndex]);
@@ -26,7 +31,7 @@
   );
 
   export function scrollToIndex(index: number, options?: { align?: string }) {
-    renderedIndex = index;
+    renderedIndex = forcedRenderedIndex ?? index;
     scrollCalls += 1;
     lastAlignment = options?.align ?? '';
   }

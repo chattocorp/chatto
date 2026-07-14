@@ -61,6 +61,9 @@
       "leave_action": "Server verlassen",
       "leave_prompt": "Möchtest du {server} wirklich verlassen? Du verlierst den Zugriff auf seine Räume und dein Client vergisst diesen Server. Du kannst ihn später über die Seitenleiste erneut hinzufügen."
     },
+    "timeline": {
+      "beginning": "Dies ist der Anfang dieser Unterhaltung."
+    },
     "message": {
       "empty": "Noch keine Nachrichten",
       "delete_title": "Nachricht löschen",
