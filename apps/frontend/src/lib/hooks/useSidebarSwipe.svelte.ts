@@ -8,14 +8,16 @@ import { panGesture } from './panGesture.svelte';
  * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
  * rightward drags claim; when open, only leftward drags claim. Gestures that
  * begin inside horizontally scrollable content are ignored so galleries and
- * wide tables retain their native scrolling. Dialogs, popovers, form fields,
- * media controls, and elements marked with `data-sidebar-swipe-ignore` also
- * retain their own gestures. Unclaimed taps, long presses, and vertical
- * movement continue through normal browser event flow.
+ * wide tables retain their native scrolling. Dialogs, popovers, fullscreen
+ * surfaces, form fields, media controls, and elements marked with
+ * `data-sidebar-swipe-ignore` also retain their own gestures. Unclaimed taps,
+ * long presses, and vertical movement continue through normal browser event
+ * flow.
  */
 function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTMLElement): boolean {
   for (const pathEntry of event.composedPath()) {
     if (pathEntry === host) return false;
+    if (pathEntry === document.fullscreenElement) return true;
     if (!(pathEntry instanceof HTMLElement)) continue;
 
     const element = pathEntry;

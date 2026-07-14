@@ -56,6 +56,10 @@ describe('sidebarSwipe', () => {
   });
 
   afterEach(() => {
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: null
+    });
     document.body.replaceChildren();
   });
 
@@ -163,6 +167,28 @@ describe('sidebarSwipe', () => {
     window.dispatchEvent(pointer('pointermove', 310));
     window.dispatchEvent(pointer('pointerup', 310));
     popoverControl.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+
+    expect(sidebarNav.isOpen).toBe(false);
+    expect(sidebarNav.dragOffset).toBeNull();
+
+    action.destroy();
+  });
+
+  it('ignores gestures that start inside the fullscreen top layer', () => {
+    const { host } = makeGestureHost();
+    const fullscreenSurface = document.createElement('div');
+    const control = document.createElement('button');
+    fullscreenSurface.append(control);
+    host.append(fullscreenSurface);
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: fullscreenSurface
+    });
+    const action = sidebarSwipe(host);
+
+    control.dispatchEvent(pointer('pointerdown', 100));
     window.dispatchEvent(pointer('pointermove', 310));
     window.dispatchEvent(pointer('pointerup', 310));
 
