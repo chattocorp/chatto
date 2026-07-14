@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
+import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 import {
+  buildMessageLinkURL,
   classifyMessageBodyChatLink,
   copyMessageLinkToClipboard,
   parseMessageLink
@@ -12,6 +14,20 @@ const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
 const threadRootEventId = 'Ethread12345678';
+
+const remoteServer: RegisteredServer = {
+  id: 'remote',
+  url: 'https://remote.example.test',
+  name: 'Remote',
+  iconUrl: null,
+  token: null,
+  userId: null,
+  userLogin: null,
+  userDisplayName: null,
+  userAvatarUrl: null,
+  reauthRequiredAt: null,
+  addedAt: 1
+};
 
 function resolveServerSegment(segment: string): string | null {
   if (segment === '-') return 'origin';
@@ -39,6 +55,43 @@ function classify(input: string) {
     serverSegmentForId
   });
 }
+
+describe('buildMessageLinkURL', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', { location: { origin } });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('uses the SPA origin and home segment for an origin-server message', () => {
+    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(true);
+
+    expect(buildMessageLinkURL('origin', 'room-1', 'message-1')).toBe(
+      `${origin}/chat/-/room-1/m/message-1`
+    );
+  });
+
+  it('uses the SPA origin and remote hostname for a remote-server message', () => {
+    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(false);
+    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
+
+    expect(buildMessageLinkURL('remote', 'room-1', 'message-1')).toBe(
+      `${origin}/chat/remote.example.test/room-1/m/message-1`
+    );
+  });
+
+  it('preserves the thread root in a remote-server message link', () => {
+    vi.spyOn(serverRegistry, 'isOriginServer').mockReturnValue(false);
+    vi.spyOn(serverRegistry, 'getServer').mockReturnValue(remoteServer);
+
+    expect(buildMessageLinkURL('remote', 'room-1', 'message-1', 'thread-root-1')).toBe(
+      `${origin}/chat/remote.example.test/room-1/thread-root-1/m/message-1`
+    );
+  });
+});
 
 describe('copyMessageLinkToClipboard', () => {
   const writeText = vi.fn();

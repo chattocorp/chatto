@@ -171,7 +171,10 @@ export function buildMessageLinkPath(
   return messagePath(serverId, roomId, messageId, '', {}, threadRootEventId);
 }
 
-/** Absolute URL for clipboard copy. */
+/**
+ * Absolute URL for clipboard copy, anchored to the server hosting the SPA.
+ * Remote servers are identified by their hostname in the generated path.
+ */
 export function buildMessageLinkURL(
   serverId: string,
   roomId: string,
@@ -179,15 +182,6 @@ export function buildMessageLinkURL(
   threadRootEventId?: string | null
 ): string {
   const path = buildMessageLinkPath(serverId, roomId, messageId, threadRootEventId);
-
-  const server = serverRegistry.getServer(serverId);
-  if (server) {
-    try {
-      return new URL(path, server.url).toString();
-    } catch {
-      // fall through to window.location.origin
-    }
-  }
 
   if (typeof window !== 'undefined') {
     return new URL(path, window.location.origin).toString();
