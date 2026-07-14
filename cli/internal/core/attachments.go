@@ -18,6 +18,43 @@ import (
 	"hmans.de/chatto/pkg/signedurl"
 )
 
+const (
+	// ServerAssetVisibilityHeader positively marks legacy flat NATS objects that
+	// may be served by the unauthenticated public server-asset route. New public
+	// objects use PublicServerAssetObjectPrefix instead.
+	ServerAssetVisibilityHeader       = "Chatto-Asset-Visibility"
+	ServerAssetVisibilityPublic       = "public"
+	ServerAssetVisibilityNUIDHeader   = "Chatto-Asset-Public-NUID"
+	ServerAssetVisibilityDigestHeader = "Chatto-Asset-Public-Digest"
+
+	// PublicServerAssetObjectPrefix is the explicit SERVER_ASSETS namespace for
+	// newly written unauthenticated public assets. Historical public objects use
+	// flat asset-ID keys and remain available through the legacy classifier.
+	PublicServerAssetObjectPrefix = "public/"
+)
+
+// PublicServerAssetObjectKey returns the NATS object key for a new public
+// server asset while keeping its logical asset ID stable.
+func PublicServerAssetObjectKey(assetID string) string {
+	return PublicServerAssetObjectPrefix + assetID
+}
+
+// ServerAssetDeliveryKey returns the storage-aware key used in public server
+// asset URLs. New NATS assets carry their explicit public/ object key, while
+// S3 and historical records continue to use their logical asset ID.
+func ServerAssetDeliveryKey(asset *corev1.AssetRecord) string {
+	if asset == nil {
+		return ""
+	}
+	if stored := asset.GetNats(); stored != nil && stored.GetKey() != "" {
+		return stored.GetKey()
+	}
+	if stored := asset.GetS3(); stored != nil && stored.GetKey() != "" {
+		return stored.GetKey()
+	}
+	return asset.GetId()
+}
+
 // ============================================================================
 // Attachment Operations
 // ============================================================================
@@ -385,6 +422,19 @@ func attachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 // Attachment view used by API response mapping and asset URL helpers.
 func AttachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	return attachmentFromAsset(asset)
+}
+
+func assetRecordMatchesKey(asset *corev1.AssetRecord, key string) bool {
+	if asset == nil || key == "" {
+		return false
+	}
+	if asset.GetId() == key {
+		return true
+	}
+	if stored := asset.GetNats(); stored != nil && stored.GetKey() == key {
+		return true
+	}
+	return asset.GetS3() != nil && asset.GetS3().GetKey() == key
 }
 
 func applyDeprecatedAssetFromAttachmentStorage(asset *corev1.AssetRecord, storage *corev1.DeprecatedAsset) {

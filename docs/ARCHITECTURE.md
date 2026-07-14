@@ -769,7 +769,8 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 | Key         | Description                                    |
 | ----------- | ---------------------------------------------- |
-| `{assetId}` | Persisted asset binary by ID when stored in NATS |
+| `public/{assetId}` | New public avatars, server branding, and link-preview images |
+| `{assetId}` | Private attachment binaries and historical flat-key public assets |
 | `asset-upload.{uploadId}.{offset}` | Temporary attachment upload chunk before completion |
 
 **S3 asset keys:**
@@ -781,7 +782,21 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 Attachment upload storage: chunked uploads first store temporary `asset-upload.*` chunks in `SERVER_ASSETS`. Completion verifies the full SHA-256, stores the final attachment in NATS or S3, records SHA-256/uploader/pending-expiry/video hints in `AssetCreatedEvent`, and deletes temporary chunks. Completed but unclaimed pending attachment assets expire after 24 hours unless a message body claims them.
 
-Notes: Asset IDs are globally unique (NanoID), so NATS-backed assets do not need a kind segment. S3 stores logical, prefix-free keys; any configured `path_prefix` is applied only when talking to the S3 backend. Content-Type and original filename stored in object headers where available. S2 compression enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage and serving helpers; `AssetModel` owns durable lifecycle facts and elected message-asset deletion recovery. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. The `asset_cleanup` lease holder incrementally replays canonical `AssetDeletedEvent` facts, locates the matching creation fact through the asset ID, and idempotently deletes source/derivative bytes and transform-cache entries. Beta room-scoped histories without a canonical asset aggregate remain readable by projections but are not guessed at by the cleanup worker. New message bodies reference message-owned assets by ID. Link preview images are server-scoped persisted assets and are embedded in message bodies as `LinkPreview.image_asset` (`AssetRecord`) so the body records whether the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for compatibility with clients and older stored previews. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. The asset HTTP handler doesn't look up a separate index bucket; stable asset URLs resolve metadata and room scope from `AssetProjection`, while legacy locator URLs carry the body-or-video-manifest locator in the URL itself (see "Dynamic Image Transformation" below).
+Notes: Asset IDs are globally unique NanoIDs. New public NATS objects add the `public/` kind segment so their storage class is explicit; private attachments retain flat keys for compatibility. S3 stores logical, prefix-free keys; any configured `path_prefix` is applied only when talking to the S3 backend. Content-Type and original filename are stored in object headers where available. S2 compression is enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage and serving helpers; `AssetModel` owns durable lifecycle facts and elected message-asset deletion recovery. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. The `asset_cleanup` lease holder incrementally replays canonical `AssetDeletedEvent` facts, locates the matching creation fact through the asset ID, and idempotently deletes source/derivative bytes and transform-cache entries. Beta room-scoped histories without a canonical asset aggregate remain readable by projections but are not guessed at by the cleanup worker. New message bodies reference message-owned assets by ID. Link preview images are server-scoped persisted assets and are embedded in message bodies as `LinkPreview.image_asset` (`AssetRecord`) so the body records whether the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for compatibility with clients and older stored previews. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes.
+
+`/assets/server/*` is an unauthenticated route limited to positively classified
+public server assets. New NATS-backed URLs use
+`/assets/server/public/{assetId}` and map directly to the explicit
+`public/{assetId}` object namespace. Canonical `/assets/server/{assetId}` URLs
+remain aliases for those objects and preserve historical flat-key URLs. Before
+transform signature parsing, resize-cache access, object reads, or image
+transformation, the handler rejects unknown namespaces, every live or deleted
+`AssetProjection` declaration, and private NATS metadata (`Room-Id` or
+`Upload-Id`). Historical avatars and branding are recognized through their
+current durable pointers, while historical link-preview images are recognized
+through durable message-body references. S3 public delivery probes only
+`instance/{assetId}`; private current and historical attachment prefixes are
+never probed by this route. Disallowed classes return 404.
 
 ### Dynamic Image Transformation
 
@@ -834,6 +849,11 @@ URL plus `AssetURL.expiresAt` shape.
 **Security:**
 
 URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured in `[core.assets]` section, separate from session secret). The signature covers the full path to prevent parameter tampering. ConnectRPC room timeline responses, `MessageService` message read responses, `AssetService` asset read responses, and `RoomService` attachment list responses generate valid signed URLs.
+
+The public server-asset transform signature authorizes only the requested
+transform parameters; it does not authorize a viewer or classify the source as
+public. Public/private classification runs independently on every request,
+including internal resize-cache hits.
 
 **ConnectRPC Integration:**
 

@@ -324,3 +324,45 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	_, ok = p.GetByExternalIdentity("github-main", "12345")
 	require.False(t, ok)
 }
+
+func TestUserProjection_PublicAvatarIndexTracksLifecycle(t *testing.T) {
+	p := NewUserProjection(staticProjectionKeyWrapper{}, staticProjectionDEKStore{})
+
+	legacy := &corev1.Event{Event: &corev1.Event_UserAvatarSet{UserAvatarSet: &corev1.UserAvatarSetEvent{
+		UserId: "U1",
+		Avatar: &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "legacy-avatar-key"}}},
+	}}}
+	replacement := &corev1.AssetRecord{
+		Id:      "A-replacement",
+		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "replacement-storage-key"}},
+	}
+
+	require.NoError(t, p.Apply(legacy, 1))
+	require.True(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
+
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{
+		UserId: "U1",
+		Asset:  replacement,
+	}}}, 2))
+	require.False(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
+	require.True(t, p.IsPublicAvatarAsset("A-replacement"))
+	require.True(t, p.IsPublicAvatarAsset("replacement-storage-key"))
+
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
+		AssetId: "A-replacement",
+	}}}, 3))
+	require.False(t, p.IsPublicAvatarAsset("A-replacement"))
+	require.False(t, p.IsPublicAvatarAsset("replacement-storage-key"))
+
+	require.NoError(t, p.Apply(legacy, 4))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserAvatarCleared{UserAvatarCleared: &corev1.UserAvatarClearedEvent{
+		UserId: "U1",
+	}}}, 5))
+	require.False(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
+
+	require.NoError(t, p.Apply(legacy, 6))
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{
+		UserId: "U1",
+	}}}, 7))
+	require.False(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
+}

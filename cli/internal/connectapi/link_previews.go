@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -41,13 +42,15 @@ func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 	}
 
 	imageAssetID := preview.GetImageAssetId()
+	imageAssetKey := imageAssetID
 	if image := preview.GetImageAsset(); image != nil && image.GetId() != "" {
 		imageAssetID = image.GetId()
+		imageAssetKey = core.ServerAssetDeliveryKey(image)
 	}
 
 	imageURL := ""
-	if imageAssetID != "" {
-		imageURL = api.core.GetTransformedServerAssetURL(imageAssetID, 600, 314, "contain")
+	if imageAssetKey != "" {
+		imageURL = api.core.GetTransformedServerAssetURL(imageAssetKey, 600, 314, "contain")
 	}
 
 	out := &apiv1.LinkPreview{
