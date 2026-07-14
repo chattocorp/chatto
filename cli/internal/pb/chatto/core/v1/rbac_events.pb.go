@@ -839,9 +839,11 @@ func (x *RbacPermissionClearedEvent) GetSubject() *RbacPermissionSubject {
 // cleared so startup never mistakes an operator edit for missing bootstrap
 // state.
 type RbacDefaultsInitializedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *RbacPermissionScope   `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// SERVER with an empty ID marks deployment-wide defaults; ROOM with the
+	// channel room ID marks that room's defaults. GROUP is not currently used.
+	Scope         *RbacPermissionScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Version       uint32               `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
