@@ -231,11 +231,12 @@ export default defineConfig({
                   browserName,
                   ext
                 }) {
-                  // Keep one baseline across developer and CI operating systems.
-                  // The matcher allows a small anti-aliasing tolerance below.
+                  // Font rasterization differs across operating systems, so keep
+                  // platform-specific baselines while sharing them across machines.
                   return resolve(
                     root,
                     'src/lib/ui/__visual_snapshots__',
+                    process.platform,
                     testFileName,
                     `${arg}-${browserName}${ext}`
                   );

@@ -160,8 +160,9 @@ English and German messages.
   components and cover meaningful variants, disabled/loading/error states, and
   narrow layouts where applicable.
 - `DesignSystem.visual.svelte.spec.ts` protects the shared primitive language in
-  light/dark and desktop/mobile combinations. Update its committed baselines
-  only after visually reviewing the intended change.
+  light/dark and true desktop/mobile viewports. Its committed baselines are
+  platform-specific because browser font rasterization differs across operating
+  systems. Update them only after visually reviewing the intended change.
 - `e2e/accessibility.test.ts` scans representative public, chat, settings,
   mobile, admin, and dialog states against WCAG A/AA axe rules. Fix violations
   at their source; do not add blanket exclusions.

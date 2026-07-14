@@ -6,16 +6,12 @@
   import Hint from './Hint.svelte';
   import Pill from './Pill.svelte';
 
-  let { layout }: { layout: 'desktop' | 'mobile' } = $props();
   let displayName = $state('Ada Lovelace');
 </script>
 
 <section
   data-testid="design-system-visual-harness"
-  class={[
-    'bg-background p-4 text-text',
-    layout === 'desktop' ? 'w-180 p-6' : 'w-[343px]'
-  ]}
+  class="w-[343px] bg-background p-4 text-text sm:w-180 sm:p-6"
 >
   <div class="mb-5 flex items-start justify-between gap-4">
     <div>
@@ -27,12 +23,7 @@
   </div>
 
   <Panel title="Profile" subtitle="How other members see you">
-    <div
-      class={[
-        'grid gap-5',
-        layout === 'desktop' && 'grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]'
-      ]}
-    >
+    <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
       <div class="flex flex-col gap-4">
         <TextInput
           id="visual-display-name"

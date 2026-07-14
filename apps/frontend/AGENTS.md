@@ -187,7 +187,7 @@ mise test-e2e
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
 - Shared design-system visuals are covered by `pnpm run test:visual`. When a
   reviewed visual change is intentional, refresh with
-  `pnpm run test:visual --update`, inspect all four committed light/dark and
+  `pnpm run test:visual --update`, inspect the platform-specific light/dark and
   desktop/mobile baselines, then rerun without `--update`.
 - Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
   representative public, authenticated, mobile, admin, and dialog scans free of

@@ -5,20 +5,22 @@ import { afterEach, describe, expect, it } from 'vitest';
 import DesignSystemVisualHarness from './DesignSystemVisualHarness.svelte';
 
 const cases = [
-  { name: 'light desktop', theme: 'light', layout: 'desktop' },
-  { name: 'dark desktop', theme: 'dark', layout: 'desktop' },
-  { name: 'light mobile', theme: 'light', layout: 'mobile' },
-  { name: 'dark mobile', theme: 'dark', layout: 'mobile' }
+  { name: 'light desktop', theme: 'light', viewport: { width: 800, height: 900 } },
+  { name: 'dark desktop', theme: 'dark', viewport: { width: 800, height: 900 } },
+  { name: 'light mobile', theme: 'light', viewport: { width: 375, height: 900 } },
+  { name: 'dark mobile', theme: 'dark', viewport: { width: 375, height: 900 } }
 ] as const;
 
-afterEach(() => {
+afterEach(async () => {
   document.documentElement.dataset.theme = 'light';
   document.getElementById('visual-regression-stability')?.remove();
+  await page.viewport(414, 896);
 });
 
-describe('design-system visual regression', () => {
+describe.sequential('design-system visual regression', () => {
   for (const visualCase of cases) {
     it(visualCase.name, async () => {
+      await page.viewport(visualCase.viewport.width, visualCase.viewport.height);
       document.documentElement.dataset.theme = visualCase.theme;
       const stabilityStyles = document.createElement('style');
       stabilityStyles.id = 'visual-regression-stability';
@@ -31,7 +33,7 @@ describe('design-system visual regression', () => {
         }
       `;
       document.head.append(stabilityStyles);
-      render(DesignSystemVisualHarness, { props: { layout: visualCase.layout } });
+      render(DesignSystemVisualHarness);
       await document.fonts.ready;
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
