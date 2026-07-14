@@ -105,7 +105,7 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 			e.RbacPermissionCleared,
 		)
 	case *corev1.Event_RbacDefaultsInitialized:
-		p.applyDefaultsInitialized(e.RbacDefaultsInitialized.GetScope(), e.RbacDefaultsInitialized.GetVersion(), seq)
+		p.applyDefaultsInitialized(e.RbacDefaultsInitialized, seq)
 	}
 	return nil
 }
@@ -252,9 +252,14 @@ func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScop
 	delete(p.decisions, key)
 }
 
-func (p *RBACProjection) applyDefaultsInitialized(scope *corev1.RbacPermissionScope, version uint32, seq uint64) {
-	key, ok := rbacDefaultsKeyFromScope(scope)
-	if !ok || version <= p.defaults[key].version {
+func (p *RBACProjection) applyDefaultsInitialized(event *corev1.RbacDefaultsInitializedEvent, seq uint64) {
+	scope, scopeID, ok := rbacDefaultsScope(event)
+	if !ok {
+		return
+	}
+	key := rbacDefaultsKey{scope: scope, scopeID: scopeID}
+	version := event.GetVersion()
+	if version <= p.defaults[key].version {
 		return
 	}
 	p.defaults[key] = rbacDefaultsState{version: version, seq: seq}
@@ -371,18 +376,6 @@ func permissionScopeFromProto(scope *corev1.RbacPermissionScope) (PermissionScop
 	default:
 		return "", false
 	}
-}
-
-func rbacDefaultsKeyFromScope(scope *corev1.RbacPermissionScope) (rbacDefaultsKey, bool) {
-	permissionScope, ok := permissionScopeFromProto(scope)
-	if !ok {
-		return rbacDefaultsKey{}, false
-	}
-	scopeID := scope.GetId()
-	if permissionScope == ScopeServer {
-		scopeID = ""
-	}
-	return rbacDefaultsKey{scope: permissionScope, scopeID: scopeID}, true
 }
 
 func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Permission) rbacDecisionKey {

@@ -156,7 +156,7 @@ func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	p := NewRBACProjection()
 	serverMarker := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
-			Scope:   rbacPermissionScope(ScopeServer, ""),
+			Scope:   &corev1.RbacDefaultsInitializedEvent_Server{Server: &corev1.RbacDefaultsInitializedEvent_ServerScope{}},
 			Version: 2,
 		},
 	}})
@@ -165,13 +165,13 @@ func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	}
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
-			Scope:   rbacPermissionScope(ScopeRoom, "Rabc123"),
+			Scope:   &corev1.RbacDefaultsInitializedEvent_RoomId{RoomId: "Rabc123"},
 			Version: 3,
 		},
 	}})
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
-			Scope:   rbacPermissionScope(ScopeRoom, "Rabc123"),
+			Scope:   &corev1.RbacDefaultsInitializedEvent_RoomId{RoomId: "Rabc123"},
 			Version: 1,
 		},
 	}})

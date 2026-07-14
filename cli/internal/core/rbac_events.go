@@ -103,9 +103,30 @@ func rbacAggregateForEvent(event *corev1.Event) events.Aggregate {
 	case *corev1.Event_RbacPermissionCleared:
 		return rbacAggregateForPermissionScope(e.RbacPermissionCleared.GetScope())
 	case *corev1.Event_RbacDefaultsInitialized:
-		return rbacAggregateForPermissionScope(e.RbacDefaultsInitialized.GetScope())
+		scope, scopeID, ok := rbacDefaultsScope(e.RbacDefaultsInitialized)
+		if ok && scope == ScopeRoom {
+			return events.RBACScopedAggregate(scopeID)
+		}
+		return events.RBACServerAggregate()
 	default:
 		return events.RBACServerAggregate()
+	}
+}
+
+func rbacDefaultsScope(event *corev1.RbacDefaultsInitializedEvent) (PermissionScope, string, bool) {
+	if event == nil {
+		return "", "", false
+	}
+	switch scope := event.GetScope().(type) {
+	case *corev1.RbacDefaultsInitializedEvent_Server:
+		return ScopeServer, "", true
+	case *corev1.RbacDefaultsInitializedEvent_RoomId:
+		if scope.RoomId == "" {
+			return "", "", false
+		}
+		return ScopeRoom, scope.RoomId, true
+	default:
+		return "", "", false
 	}
 }
 

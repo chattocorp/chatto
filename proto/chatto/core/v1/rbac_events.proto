@@ -116,8 +116,13 @@ message RbacPermissionClearedEvent {
 // cleared so startup never mistakes an operator edit for missing bootstrap
 // state.
 message RbacDefaultsInitializedEvent {
-  // SERVER with an empty ID marks deployment-wide defaults; ROOM with the
-  // channel room ID marks that room's defaults. GROUP is not currently used.
-  RbacPermissionScope scope = 1;
-  uint32 version = 2;
+  message ServerScope {}
+
+  oneof scope {
+    // Presence marks deployment-wide defaults.
+    ServerScope server = 1;
+    // The channel room whose defaults were initialized.
+    string room_id = 2;
+  }
+  uint32 version = 3;
 }

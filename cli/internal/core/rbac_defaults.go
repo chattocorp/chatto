@@ -83,11 +83,17 @@ func (c *ChattoCore) hasPermissionDecisionsForDefaults(scope PermissionScope, sc
 }
 
 func rbacDefaultsInitializedEntry(scope PermissionScope, scopeID string, version uint32) events.BatchEntry {
+	marker := &corev1.RbacDefaultsInitializedEvent{Version: version}
+	switch scope {
+	case ScopeServer:
+		marker.Scope = &corev1.RbacDefaultsInitializedEvent_Server{Server: &corev1.RbacDefaultsInitializedEvent_ServerScope{}}
+	case ScopeRoom:
+		marker.Scope = &corev1.RbacDefaultsInitializedEvent_RoomId{RoomId: scopeID}
+	default:
+		panic(fmt.Sprintf("unsupported RBAC defaults scope %q", scope))
+	}
 	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
-		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
-			Scope:   rbacPermissionScope(scope, scopeID),
-			Version: version,
-		},
+		RbacDefaultsInitialized: marker,
 	}})
 	return events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event}
 }
