@@ -255,6 +255,18 @@ func (c *ChattoCore) SetupAnnouncementsRoomPermissions(ctx context.Context, room
 	if err := c.SeedDefaultChannelRoomPermissions(ctx, roomID, AnnouncementsRoomName); err != nil {
 		return err
 	}
+	// This is an explicit configuration command, not bootstrap. Preserve its
+	// contract when a regular room already has an initialization marker.
+	for _, perm := range DefaultAnnouncementsEveryonePermissions() {
+		if err := c.GrantRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm); err != nil {
+			return fmt.Errorf("configure announcements everyone %s: %w", perm, err)
+		}
+	}
+	for _, perm := range DefaultAnnouncementsEveryoneDenials() {
+		if err := c.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, perm); err != nil {
+			return fmt.Errorf("configure announcements everyone denial %s: %w", perm, err)
+		}
+	}
 	c.logger.Debug("Set up announcements room permissions", "room", roomID)
 	return nil
 }
@@ -285,20 +297,25 @@ func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) er
 	if err != nil {
 		return fmt.Errorf("list channel rooms: %w", err)
 	}
-	seedUnmarked := c.RBAC.DefaultsVersion(ScopeServer, "") >= serverRBACDefaultsVersion
+	serverMarkerSeq := c.RBAC.DefaultsInitializedSeq(ScopeServer, "")
 	for _, room := range rooms {
 		if err := c.ensureRBACDefaultsInitialized(
 			ctx,
 			ScopeRoom,
 			room.Id,
 			roomRBACDefaultsVersion,
-			seedUnmarked,
+			c.shouldSeedUnmarkedRoom(room.Id, serverMarkerSeq),
 			defaultChannelRoomDecisions(room.Id, room.Name),
 		); err != nil {
 			return fmt.Errorf("ensure room permissions for %s: %w", room.Id, err)
 		}
 	}
 	return nil
+}
+
+func (c *ChattoCore) shouldSeedUnmarkedRoom(roomID string, serverMarkerSeq uint64) bool {
+	createdSeq, ok := c.RoomCatalog.CreatedSeq(roomID)
+	return serverMarkerSeq > 0 && ok && createdSeq > serverMarkerSeq
 }
 
 // ============================================================================

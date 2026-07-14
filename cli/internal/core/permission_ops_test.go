@@ -612,6 +612,15 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
+	t.Run("explicitly configures an already initialized regular room", func(t *testing.T) {
+		if err := core.SetupAnnouncementsRoomPermissions(ctx, regularRoom.Id); err != nil {
+			t.Fatalf("SetupAnnouncementsRoomPermissions: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Fatalf("decision = %s, want %s", got, DecisionDeny)
+		}
+	})
+
 	t.Run("owner can post in announcements, regular member cannot", func(t *testing.T) {
 		// Owner should be able to post
 		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestEnsureDefaultRolePermissions_SeedsEmptyRBACAtomically(t *testing.T) {
@@ -148,6 +149,34 @@ func TestExistingRoomAdoption_PreservesCompletelyClearedScope(t *testing.T) {
 	}
 	if got := core.RBAC.DefaultsVersion(ScopeRoom, roomID); got != roomRBACDefaultsVersion {
 		t.Fatalf("room defaults version = %d, want %d", got, roomRBACDefaultsVersion)
+	}
+}
+
+func TestRoomDefaultsRolloutBoundaryUsesCreationSequence(t *testing.T) {
+	core := &ChattoCore{RBAC: NewRBACProjection(), RoomCatalog: NewRoomCatalogProjection()}
+	applyRoomCreated := func(roomID string, seq uint64) {
+		t.Helper()
+		event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RoomCreated{
+			RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL},
+		}})
+		if err := core.RoomCatalog.Apply(event, seq); err != nil {
+			t.Fatalf("apply room creation: %v", err)
+		}
+	}
+
+	applyRoomCreated("Rbefore", 10)
+	marker := rbacDefaultsInitializedEntry(ScopeServer, "", serverRBACDefaultsVersion)
+	if err := core.RBAC.Apply(marker.Event, 20); err != nil {
+		t.Fatalf("apply server marker: %v", err)
+	}
+	applyRoomCreated("Rafter", 30)
+
+	markerSeq := core.RBAC.DefaultsInitializedSeq(ScopeServer, "")
+	if core.shouldSeedUnmarkedRoom("Rbefore", markerSeq) {
+		t.Fatal("room created before the rollout marker would receive defaults")
+	}
+	if !core.shouldSeedUnmarkedRoom("Rafter", markerSeq) {
+		t.Fatal("room created after the rollout marker would not receive defaults")
 	}
 }
 

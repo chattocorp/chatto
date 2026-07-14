@@ -18,7 +18,7 @@ type RBACProjection struct {
 	roles       map[string]*corev1.Role
 	assignments map[string]map[string]struct{} // userID -> roleName set
 	decisions   map[rbacDecisionKey]DecisionKind
-	defaults    map[rbacDefaultsKey]uint32
+	defaults    map[rbacDefaultsKey]rbacDefaultsState
 	replayGuard projectionReplayGuard
 }
 
@@ -35,12 +35,17 @@ type rbacDefaultsKey struct {
 	scopeID string
 }
 
+type rbacDefaultsState struct {
+	version uint32
+	seq     uint64
+}
+
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
 		roles:       make(map[string]*corev1.Role),
 		assignments: make(map[string]map[string]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
-		defaults:    make(map[rbacDefaultsKey]uint32),
+		defaults:    make(map[rbacDefaultsKey]rbacDefaultsState),
 		replayGuard: newProjectionReplayGuard(),
 	}
 }
@@ -100,7 +105,7 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 			e.RbacPermissionCleared,
 		)
 	case *corev1.Event_RbacDefaultsInitialized:
-		p.applyDefaultsInitialized(e.RbacDefaultsInitialized.GetScope(), e.RbacDefaultsInitialized.GetVersion())
+		p.applyDefaultsInitialized(e.RbacDefaultsInitialized.GetScope(), e.RbacDefaultsInitialized.GetVersion(), seq)
 	}
 	return nil
 }
@@ -247,12 +252,12 @@ func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScop
 	delete(p.decisions, key)
 }
 
-func (p *RBACProjection) applyDefaultsInitialized(scope *corev1.RbacPermissionScope, version uint32) {
+func (p *RBACProjection) applyDefaultsInitialized(scope *corev1.RbacPermissionScope, version uint32, seq uint64) {
 	key, ok := rbacDefaultsKeyFromScope(scope)
-	if !ok || version <= p.defaults[key] {
+	if !ok || version <= p.defaults[key].version {
 		return
 	}
-	p.defaults[key] = version
+	p.defaults[key] = rbacDefaultsState{version: version, seq: seq}
 }
 
 func rbacDecisionKeyFromFields(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
@@ -540,7 +545,19 @@ func (p *RBACProjection) DefaultsVersion(scope PermissionScope, scopeID string) 
 	if scope == ScopeServer {
 		scopeID = ""
 	}
-	return p.defaults[rbacDefaultsKey{scope: scope, scopeID: scopeID}]
+	return p.defaults[rbacDefaultsKey{scope: scope, scopeID: scopeID}].version
+}
+
+// DefaultsInitializedSeq returns the EVT stream sequence of the marker that
+// established the current defaults version. Room rollout uses the server
+// marker as a durable boundary between pre-existing and newly created rooms.
+func (p *RBACProjection) DefaultsInitializedSeq(scope PermissionScope, scopeID string) uint64 {
+	p.RLock()
+	defer p.RUnlock()
+	if scope == ScopeServer {
+		scopeID = ""
+	}
+	return p.defaults[rbacDefaultsKey{scope: scope, scopeID: scopeID}].seq
 }
 
 func (p *RBACProjection) GetDecision(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {

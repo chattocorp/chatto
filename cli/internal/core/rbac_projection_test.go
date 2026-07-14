@@ -154,12 +154,15 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 
 func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	p := NewRBACProjection()
-	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
+	serverMarker := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
 			Scope:   rbacPermissionScope(ScopeServer, ""),
 			Version: 2,
 		},
 	}})
+	if err := p.Apply(serverMarker, 42); err != nil {
+		t.Fatalf("apply server defaults marker: %v", err)
+	}
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacDefaultsInitialized{
 		RbacDefaultsInitialized: &corev1.RbacDefaultsInitializedEvent{
 			Scope:   rbacPermissionScope(ScopeRoom, "Rabc123"),
@@ -181,6 +184,9 @@ func TestRBACProjection_DefaultsInitializedVersions(t *testing.T) {
 	}
 	if got := p.DefaultsVersion(ScopeRoom, "Rmissing"); got != 0 {
 		t.Fatalf("missing room defaults version = %d, want 0", got)
+	}
+	if got := p.DefaultsInitializedSeq(ScopeServer, ""); got != 42 {
+		t.Fatalf("server defaults marker sequence = %d, want 42", got)
 	}
 }
 

@@ -107,7 +107,7 @@ func (p *RoomCatalogProjection) adminProjectionEstimate() (int64, int64, []Proje
 	var bytes int64
 	var archived int64
 	for id, room := range p.rooms {
-		bytes += projectionMapEntryOverhead + int64(len(id)+len(room.name)+len(room.description)) + 8
+		bytes += projectionMapEntryOverhead + int64(len(id)+len(room.name)+len(room.description)) + 16
 		if room.archived {
 			archived++
 		}
@@ -259,7 +259,7 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	}
 	var defaultsBytes int64
 	for key := range p.defaults {
-		defaultsBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)) + 4
+		defaultsBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)) + 4 + 8
 	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
