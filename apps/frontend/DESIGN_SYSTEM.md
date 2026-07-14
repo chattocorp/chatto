@@ -85,7 +85,10 @@ If a legitimate variant is missing, add it to the component and its story.
 Do not add a Svelte `<style>` block for ordinary component styling. Scoped CSS
 is appropriate for keyframes, pseudo-elements, browser-specific behavior, or
 third-party content that cannot be expressed clearly with established
-utilities.
+utilities. Before adding one, prefer a named utility or narrowly scoped global
+recipe in `src/app.css` when the behavior is reusable. The reviewed exception
+list lives in `scripts/check-design-system.mjs`; adding to it requires a comment
+in the component explaining why Tailwind or a semantic utility is insufficient.
 
 ## Action Hierarchy
 
@@ -102,6 +105,11 @@ utilities.
 `Button` is not the universal representation of every clickable control.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
+
+The supported variants are `action`, `neutral`, `secondary`, `ghost`,
+`warning`, `danger`, and `danger-secondary`. Historical `primary` and `accent`
+button names are not supported; use the variant whose meaning matches the
+action.
 
 ## Shape, Type, And Motion
 
@@ -145,6 +153,21 @@ Stories should:
 Literal story fixture copy is exempt from application Paraglide catalogs.
 Strings added to production components and routes are not exempt and require
 English and German messages.
+
+## Regression Coverage
+
+- Storybook is the component-state catalog. Add stories for reusable public
+  components and cover meaningful variants, disabled/loading/error states, and
+  narrow layouts where applicable.
+- `DesignSystem.visual.svelte.spec.ts` protects the shared primitive language in
+  light/dark and desktop/mobile combinations. Update its committed baselines
+  only after visually reviewing the intended change.
+- `e2e/accessibility.test.ts` scans representative public, chat, settings,
+  mobile, admin, and dialog states against WCAG A/AA axe rules. Fix violations
+  at their source; do not add blanket exclusions.
+- Run `pnpm run test:visual --update` from `apps/frontend` to intentionally
+  refresh visual baselines, then run it again without `--update` to prove the
+  snapshots are stable.
 
 ## Public Surface
 

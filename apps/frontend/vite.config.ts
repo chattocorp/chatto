@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
@@ -220,7 +221,27 @@ export default defineConfig({
             enabled: true,
             provider: playwright(),
             headless: !process.env.SHOW_BROWSER,
-            instances: [{ browser: 'chromium' }]
+            instances: [{ browser: 'chromium' }],
+            expect: {
+              toMatchScreenshot: {
+                resolveScreenshotPath({
+                  root,
+                  testFileName,
+                  arg,
+                  browserName,
+                  ext
+                }) {
+                  // Keep one baseline across developer and CI operating systems.
+                  // The matcher allows a small anti-aliasing tolerance below.
+                  return resolve(
+                    root,
+                    'src/lib/ui/__visual_snapshots__',
+                    testFileName,
+                    `${arg}-${browserName}${ext}`
+                  );
+                }
+              }
+            }
           },
           include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
           exclude: ['src/lib/server/**'],

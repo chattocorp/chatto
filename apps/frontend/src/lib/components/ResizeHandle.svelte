@@ -81,8 +81,8 @@
   type="button"
   aria-label={label}
   class={[
-    'group absolute top-0 bottom-0 z-10 hidden w-1.5 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
-    edge === 'right' ? 'right-0' : 'left-0'
+    'group absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
+    edge === 'right' ? '-right-3' : '-left-3'
   ]}
   onpointerdown={onPointerDown}
   ondblclick={onDoubleClick}
@@ -91,7 +91,7 @@
   <span
     class={[
       'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
-      edge === 'right' ? 'right-0' : 'left-0',
+      'left-1/2',
       dragging
         ? 'bg-primary'
         : 'bg-transparent group-hover:bg-primary/60 group-focus-visible:bg-primary'

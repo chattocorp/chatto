@@ -97,7 +97,7 @@
   <!-- Actions: Version + Logout -->
   <div class="flex items-center gap-3">
     {#if version}
-      <span class="text-text/50">v{version}</span>
+      <span class="text-muted">v{version}</span>
     {/if}
 
     {#if hasInstances}

@@ -273,20 +273,10 @@
   @apply hover:from-neutral-action/75 hover:to-neutral-action;
 }
 
-/* Compatibility name for the historical neutral `primary` token. */
-@utility btn-primary {
-  @apply btn-neutral;
-}
-
 @utility btn-action {
   @apply btn text-white;
   @apply bg-gradient-to-br from-action/65 to-action/95 ring-1 ring-action/30;
   @apply hover:from-action/75 hover:to-action;
-}
-
-/* Compatibility name for the historical action `accent` token. */
-@utility btn-accent {
-  @apply btn-action;
 }
 
 @utility btn-success {
@@ -606,6 +596,101 @@
   scrollbar-width: none; /* Firefox */
   &::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+/* Specialized browser and motion helpers. Keep these recipes centralized so
+   components can compose them with Tailwind without owning scoped CSS. */
+@utility search-cancel-hidden {
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+}
+
+@utility composer-sending {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-highlighted) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: composer-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes composer-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@utility typing-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  animation: typing-bounce 1.4s ease-in-out infinite;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.quick-switcher[open] {
+  animation: quick-switcher-enter 100ms ease-out;
+}
+
+.quick-switcher[open]::backdrop {
+  animation: backdrop-enter 100ms ease-out;
+}
+
+.image-modal[open] {
+  animation: backdrop-enter 150ms ease-out;
+}
+
+@keyframes quick-switcher-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-sending,
+  .typing-dot,
+  .quick-switcher[open],
+  .quick-switcher[open]::backdrop,
+  .image-modal[open] {
+    animation: none;
   }
 }
 

@@ -349,7 +349,7 @@
       {#each soundCategories as category (category)}
         {@const sounds = getSoundsForCategory(category)}
         <div>
-          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted/70 uppercase">
+          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
             {soundCategoryLabel(category)}
           </h4>
           <div

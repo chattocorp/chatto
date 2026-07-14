@@ -1128,7 +1128,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           editable,
           autofocus: autofocus ? 'end' : false,
           editorProps: {
-            attributes: testid ? { 'data-testid': testid } : {},
+            attributes: {
+              'aria-label': placeholder,
+              ...(testid ? { 'data-testid': testid } : {})
+            },
             handleKeyDown: (_view, event) => {
               return onKeyDown?.(event) ?? false;
             },

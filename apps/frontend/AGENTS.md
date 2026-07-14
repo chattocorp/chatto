@@ -185,6 +185,13 @@ mise test-e2e
 - Literal fixture copy local to a story is exempt from Paraglide catalogs.
   Production component and route strings still require English and German.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
+- Shared design-system visuals are covered by `pnpm run test:visual`. When a
+  reviewed visual change is intentional, refresh with
+  `pnpm run test:visual --update`, inspect all four committed light/dark and
+  desktop/mobile baselines, then rerun without `--update`.
+- Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
+  representative public, authenticated, mobile, admin, and dialog scans free of
+  blanket axe exclusions.
 
 ## PWA And Assets
 

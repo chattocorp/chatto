@@ -302,6 +302,7 @@ These preferences are server-side and sync across devices.
               {/if}
             </div>
             <select
+              aria-label={m['settings.notifications.levels.room_level_label']({ room: room.name })}
               value={room.level}
               disabled={isSaving}
               onchange={(e) =>

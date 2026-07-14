@@ -22,11 +22,7 @@
       | 'ghost'
       | 'warning'
       | 'danger'
-      | 'danger-secondary'
-      /** @deprecated Use `neutral`. */
-      | 'primary'
-      /** @deprecated Use `action`. */
-      | 'accent';
+      | 'danger-secondary';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     disabled?: boolean;
@@ -41,8 +37,6 @@
   const variantClasses = {
     action: 'btn-action',
     neutral: 'btn-neutral',
-    primary: 'btn-primary',
-    accent: 'btn-accent',
     secondary: 'btn-secondary',
     ghost: 'btn-ghost',
     warning: 'btn-warning',

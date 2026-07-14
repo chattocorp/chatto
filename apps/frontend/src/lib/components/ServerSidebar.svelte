@@ -66,7 +66,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     // hidden, not just translated off-screen.
     mobileClosed && 'sidebar-mobile-closed',
     !dragging && 'sidebar-mobile-anim',
-    resizable && 'server-sidebar--resizable'
+    resizable && 'md:w-[var(--server-sidebar-width)]'
   ]}
   style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
@@ -84,11 +84,3 @@ See the "UI" section of `docs/GLOSSARY.md`.
     />
   {/if}
 </div>
-
-<style>
-  @media (min-width: 768px) {
-    .server-sidebar--resizable {
-      width: var(--server-sidebar-width);
-    }
-  }
-</style>

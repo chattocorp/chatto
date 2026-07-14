@@ -56,7 +56,7 @@
   onclick={(e) => {
     if (e.target === e.currentTarget) close();
   }}
-  class="fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
+  class="image-modal fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
 >
   {#if current}
     <div class="flex flex-col items-center gap-3">
@@ -65,7 +65,7 @@
           <button
             type="button"
             onclick={() => navigate(-1)}
-            class="nav-button"
+            class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
             aria-label={m['ui.image_modal.previous']()}
           >
             <span class="iconify text-2xl uil--angle-left-b"></span>
@@ -82,7 +82,7 @@
           <button
             type="button"
             onclick={() => navigate(1)}
-            class="nav-button"
+            class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
             aria-label={m['ui.image_modal.next']()}
           >
             <span class="iconify text-2xl uil--angle-right-b"></span>
@@ -113,36 +113,3 @@
     </div>
   {/if}
 </dialog>
-
-<style>
-  dialog[open] {
-    animation: fade-in 150ms ease-out;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .nav-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex-shrink: 0;
-    border-radius: 9999px;
-    color: white;
-    opacity: 0.6;
-    cursor: pointer;
-    transition: opacity 150ms;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-</style>

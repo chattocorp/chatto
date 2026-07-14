@@ -205,6 +205,7 @@
         "server_description": "Controls how you receive notifications for all rooms in this server. Individual rooms can override this setting.",
         "room_title": "Room Overrides",
         "room_description": "Override the server-level setting for individual rooms. Rooms set to \"Default\" inherit the server setting ({level}).",
+        "room_level_label": "Notification level for #{room}",
         "effective": "Effective: {level}",
         "default": {
           "label": "Default",

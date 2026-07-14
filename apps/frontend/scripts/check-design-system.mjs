@@ -7,20 +7,14 @@ const sourceRoot = resolve(frontendRoot, 'src');
 
 const styleBlockAllowlist = new Set([
   'src/lib/components/MobileSidebarChrome.svelte',
-  'src/lib/components/QuickSwitcher.svelte',
-  'src/lib/components/ServerSidebar.svelte',
   'src/lib/components/chat/FullscreenVideoOverlay.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
-  'src/lib/components/composer/MessageComposer.svelte',
   'src/lib/components/composer/TipTapEditor.svelte',
   'src/lib/components/voice/VoiceCallPanel.svelte',
   'src/lib/ui/AppHeader.svelte',
   'src/lib/ui/BottomSheet.svelte',
   'src/lib/ui/Dialog.svelte',
-  'src/lib/ui/ImageModal.svelte',
-  'src/lib/ui/toast/ToastContainer.svelte',
-  'src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte',
-  'src/routes/chat/[serverId]/[roomId]/TypingIndicator.svelte'
+  'src/lib/ui/toast/ToastContainer.svelte'
 ]);
 
 const checks = [

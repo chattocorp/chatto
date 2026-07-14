@@ -934,7 +934,7 @@
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
-    class:sending={loading}
+    class:composer-sending={loading}
   >
     <!-- Emoji autocomplete popup -->
     {#if autocomplete.emoji}
@@ -1097,27 +1097,3 @@
     {m['composer.role_mention_confirm_body']()}
   </ConfirmDialog>
 {/if}
-
-<style>
-  .sending {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      var(--color-surface) 0%,
-      var(--color-surface-highlighted) 50%,
-      var(--color-surface) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-</style>
