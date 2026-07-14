@@ -20,6 +20,7 @@ describe('ResizeHandle', () => {
 
     const handle = page.getByRole('button', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
+    await expect.element(handle).toHaveClass('w-2');
 
     const line = handle.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);

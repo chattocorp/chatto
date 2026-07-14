@@ -81,7 +81,7 @@
   type="button"
   aria-label={label}
   class={[
-    'group absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
+    'group absolute top-0 bottom-0 z-10 hidden w-2 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
     edge === 'right' ? 'right-0' : 'left-0'
   ]}
   onpointerdown={onPointerDown}
