@@ -71,9 +71,9 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	}
 }
 
-func TestThreadProjectionSnapshotCompatibilityExcludesLegacyFollowImports(t *testing.T) {
-	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "threads-v2" {
-		t.Fatalf("SnapshotCompatibilityID() = %q, want threads-v2", got)
+func TestThreadProjectionSnapshotCompatibilityID(t *testing.T) {
+	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "threads-v1" {
+		t.Fatalf("SnapshotCompatibilityID() = %q, want threads-v1", got)
 	}
 }
 

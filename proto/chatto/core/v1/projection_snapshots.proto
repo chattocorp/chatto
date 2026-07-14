@@ -30,7 +30,7 @@ message ProjectionSnapshotPointer {
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// threads-v2 projection compatibility contract. Repeated fields are emitted in
+// threads-v1 projection compatibility contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 message ThreadProjectionSnapshot {
   repeated ThreadSnapshot threads = 1;
