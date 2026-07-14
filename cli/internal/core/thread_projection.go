@@ -276,18 +276,6 @@ func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRoot
 	}
 }
 
-// SeedLegacyThreadFollowState imports pre-EVT thread follow state from
-// RUNTIME_STATE. TODO(remove-after-0.4): delete after a documented cutoff or
-// migration to canonical ThreadFollowed/ThreadUnfollowed events.
-func (p *ThreadProjection) SeedLegacyThreadFollowState(userID, roomID, threadRootEventID string, state ThreadFollowState) {
-	p.Lock()
-	defer p.Unlock()
-	if _, ok := p.followState[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)]; ok {
-		return
-	}
-	p.setThreadFollowStateLocked(userID, roomID, threadRootEventID, state)
-}
-
 func newThreadSummary() *threadSummary {
 	return &threadSummary{
 		participantCounts: make(map[string]int),

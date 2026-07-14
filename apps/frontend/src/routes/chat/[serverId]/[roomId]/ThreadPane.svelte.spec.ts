@@ -20,6 +20,7 @@ const { mocks } = vi.hoisted(() => {
       removeTypingUser: vi.fn(),
       sendTypingIndicator: vi.fn(),
       resetTypingDebounce: vi.fn(),
+      jumpToMessage: vi.fn(),
       onClose: vi.fn(),
       notifications: {
         dismissThreadNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
@@ -112,7 +113,7 @@ vi.mock('$lib/state/room', () => ({
     jumpState: {
       scrollToEventId: null,
       setJumpHandler: vi.fn(),
-      jumpToMessage: vi.fn()
+      jumpToMessage: mocks.jumpToMessage
     }
   }),
   MessagesStore: class {
@@ -188,6 +189,44 @@ describe('ThreadPane', () => {
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
     expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
+  });
+
+  it('loads a highlighted reply outside the latest thread page before jumping to it', async () => {
+    let resolveRefresh!: (result: {
+      hasOlder: boolean;
+      hasNewer: boolean;
+      refreshed: boolean;
+      changed: boolean;
+    }) => void;
+    mocks.refreshCurrentWindow.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRefresh = resolve;
+      })
+    );
+
+    render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        highlightEventId: 'older-reply',
+        onClose: mocks.onClose
+      }
+    });
+
+    await vi.waitFor(() => expect(mocks.refreshCurrentWindow).toHaveBeenCalledWith('older-reply'));
+    expect(mocks.jumpToMessage).not.toHaveBeenCalled();
+
+    resolveRefresh({
+      hasOlder: true,
+      hasNewer: true,
+      refreshed: true,
+      changed: true
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.jumpToMessage).toHaveBeenCalledWith('older-reply');
+    });
   });
 
   it('updates the thread follow button optimistically while the RPC is pending', async () => {

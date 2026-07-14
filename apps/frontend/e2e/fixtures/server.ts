@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'child_process';
-import { existsSync, mkdirSync, rmSync } from 'fs';
+import { chmodSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync } from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { TestInfo } from '@playwright/test';
@@ -11,6 +12,10 @@ export interface ServerInfo {
   baseURL: string;
   port: number;
   process: ChildProcess;
+  executablePath: string;
+  dataDir: string;
+  logPath: string;
+  operatorSocketPath?: string;
 }
 
 const PORT_STRIDE = 1;
@@ -47,11 +52,21 @@ function getPortsForTest(workerIndex: number, parallelIndex: number) {
  * Wait for the server to be ready by polling the readiness endpoint.
  * This verifies both NATS connectivity and JetStream initialization.
  */
-async function waitForServer(port: number, timeoutMs = 45000): Promise<void> {
+async function waitForServer(
+  baseURL: string,
+  process: ChildProcess,
+  logPath: string,
+  timeoutMs = 45000
+): Promise<void> {
   const start = Date.now();
-  const url = `http://localhost:${port}/readyz`;
+  const url = new URL('/readyz', baseURL);
 
   while (Date.now() - start < timeoutMs) {
+    if (process.exitCode !== null) {
+      throw new Error(
+        `Server exited with code ${process.exitCode} before becoming ready; see ${logPath}`
+      );
+    }
     try {
       const response = await fetch(url);
       if (response.ok) {
@@ -63,12 +78,28 @@ async function waitForServer(port: number, timeoutMs = 45000): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 25));
   }
-  throw new Error(`Server on port ${port} did not become ready within ${timeoutMs}ms`);
+  throw new Error(
+    `Server at ${baseURL} did not become ready within ${timeoutMs}ms; see ${logPath}`
+  );
 }
 
 export interface StartServerOptions {
   /** Additional environment variables for the server process */
   env?: Record<string, string>;
+  /** Chatto executable to launch. Defaults to the test-tagged E2E binary. */
+  executablePath?: string;
+  /** Stable suffix used to isolate this process's data, logs, and operator socket. */
+  instanceId?: string;
+  /** Port offset for additional servers started by the same Playwright test. */
+  portOffset?: number;
+  /** Hostname advertised to the browser. The server still listens on its configured port. */
+  hostname?: string;
+  /** Enable the local production operator API and expose its socket in ServerInfo. */
+  operatorApi?: boolean;
+}
+
+function safePathSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9-]/g, '-');
 }
 
 /**
@@ -79,70 +110,104 @@ export async function startServer(
   testInfo: TestInfo,
   options: StartServerOptions = {}
 ): Promise<ServerInfo> {
-  const ports = getPortsForTest(testInfo.workerIndex, testInfo.parallelIndex);
-  // Use testId for unique data directory per test
-  const dataDir = path.join(__dirname, `data-${testInfo.testId.replace(/[^a-zA-Z0-9]/g, '-')}`);
+  const ports = getPortsForTest(
+    testInfo.workerIndex,
+    testInfo.parallelIndex + (options.portOffset ?? 0)
+  );
+  const instanceId = safePathSegment(options.instanceId ?? 'primary');
+  const testId = safePathSegment(testInfo.testId);
+  const dataDir = path.join(__dirname, `data-${testId}-${instanceId}`);
+  const executablePath = options.executablePath ?? path.join(__dirname, 'bin', 'chatto');
+  const hostname = options.hostname ?? 'localhost';
+  const baseURL = `http://${hostname}:${ports.webserver}`;
+  const logPath = testInfo.outputPath(`${instanceId}-server.log`);
+  // Unix-domain socket paths are short (roughly 100 bytes on macOS/Linux), so
+  // keep operator sockets out of the potentially long workspace/test path.
+  const operatorDir = options.operatorApi
+    ? mkdtempSync(path.join(os.tmpdir(), 'chatto-e2e-operator-'))
+    : undefined;
+  const operatorSocketPath = operatorDir ? path.join(operatorDir, 'operator.sock') : undefined;
 
-  // Clean up and create data directory
   if (existsSync(dataDir)) {
     rmSync(dataDir, { recursive: true });
   }
   mkdirSync(dataDir, { recursive: true });
+  mkdirSync(path.dirname(logPath), { recursive: true });
+  const logStream = createWriteStream(logPath, { flags: 'w' });
 
-  // chatto.toml seeds the e2eadmin user via [bootstrap] for each fresh data dir.
-  const serverProcess = spawn(
-    path.join(__dirname, 'bin', 'chatto'),
-    ['start', '-c', 'chatto.toml'],
-    {
-      cwd: __dirname,
-      env: {
-        ...process.env,
-        CHATTO_VIDEO_ENABLED: 'false',
-        ...options.env,
-        CHATTO_WEBSERVER_PORT: String(ports.webserver),
-        CHATTO_WEBSERVER_URL: `http://localhost:${ports.webserver}`,
-        CHATTO_NATS_EMBEDDED_PORT: '0',
-        CHATTO_NATS_EMBEDDED_HTTP_PORT: '0',
-        CHATTO_NATS_EMBEDDED_DATA_DIR: dataDir,
-        CHATTO_TEST_EMAIL_ENDPOINT: 'true' // Enable test email endpoint for E2E tests
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
-  );
+  if (operatorDir) {
+    chmodSync(operatorDir, 0o700);
+  }
 
-  // Log server output for debugging (prefix with test title)
-  const prefix = `[${testInfo.title}]`;
+  // The default test binary honors chatto.toml's bootstrap section. Production
+  // binaries ignore it and can instead be provisioned through the operator API.
+  const serverProcess = spawn(executablePath, ['start', '-c', 'chatto.toml'], {
+    cwd: __dirname,
+    env: {
+      ...process.env,
+      CHATTO_VIDEO_ENABLED: 'false',
+      CHATTO_TEST_EMAIL_ENDPOINT: 'true',
+      ...options.env,
+      CHATTO_WEBSERVER_PORT: String(ports.webserver),
+      CHATTO_WEBSERVER_URL: baseURL,
+      CHATTO_NATS_EMBEDDED_PORT: '0',
+      CHATTO_NATS_EMBEDDED_HTTP_PORT: '0',
+      CHATTO_NATS_EMBEDDED_DATA_DIR: dataDir,
+      ...(operatorSocketPath
+        ? {
+            CHATTO_OPERATOR_API_ENABLED: 'true',
+            CHATTO_OPERATOR_API_SOCKET_PATH: operatorSocketPath
+          }
+        : {})
+    },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  const prefix = `[${testInfo.title}:${instanceId}]`;
   serverProcess.stdout?.on('data', (data) => {
+    logStream.write(data);
     if (process.env.DEBUG_E2E) {
       console.log(`${prefix} ${data.toString().trim()}`);
     }
   });
   serverProcess.stderr?.on('data', (data) => {
+    logStream.write(data);
     if (process.env.DEBUG_E2E) {
       console.error(`${prefix} ${data.toString().trim()}`);
     }
   });
+  serverProcess.on('close', () => logStream.end());
 
-  // Wait for server to be ready. The admin user is created during startup via
-  // the [bootstrap] section in chatto.toml, so by the time the readiness check
-  // passes the user exists.
-  await waitForServer(ports.webserver);
-
-  return {
-    baseURL: `http://localhost:${ports.webserver}`,
+  const server = {
+    baseURL,
     port: ports.webserver,
-    process: serverProcess
+    process: serverProcess,
+    executablePath,
+    dataDir,
+    logPath,
+    operatorSocketPath
   };
+  try {
+    await waitForServer(baseURL, serverProcess, logPath);
+  } catch (error) {
+    await stopServer(server);
+    throw error;
+  }
+
+  return server;
 }
 
 /**
  * Stops a Chatto server and cleans up its data directory.
  */
-export async function stopServer(server: ServerInfo, testInfo: TestInfo): Promise<void> {
-  const dataDir = path.join(__dirname, `data-${testInfo.testId.replace(/[^a-zA-Z0-9]/g, '-')}`);
-
+export async function stopServer(server: ServerInfo, _testInfo?: TestInfo): Promise<void> {
   // Kill the server process
-  server.process.kill('SIGTERM');
+  if (server.process.exitCode === null) {
+    server.process.kill('SIGTERM');
+  } else {
+    cleanupServerDirectories(server);
+    return;
+  }
 
   // Wait for process to exit
   await new Promise<void>((resolve) => {
@@ -151,14 +216,23 @@ export async function stopServer(server: ServerInfo, testInfo: TestInfo): Promis
       resolve();
     }, 5000);
 
-    server.process.on('exit', () => {
+    server.process.once('exit', () => {
       clearTimeout(timeout);
       resolve();
     });
   });
 
-  // Clean up data directory
-  if (existsSync(dataDir)) {
-    rmSync(dataDir, { recursive: true });
+  cleanupServerDirectories(server);
+}
+
+function cleanupServerDirectories(server: ServerInfo): void {
+  if (existsSync(server.dataDir)) {
+    rmSync(server.dataDir, { recursive: true });
+  }
+  if (server.operatorSocketPath) {
+    const operatorDir = path.dirname(server.operatorSocketPath);
+    if (existsSync(operatorDir)) {
+      rmSync(operatorDir, { recursive: true });
+    }
   }
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -124,7 +125,7 @@ func (c *Cache) setWithTTL(ctx context.Context, key string, data []byte, ttl tim
 	for attempt := 0; attempt < 3; attempt++ {
 		if _, err := c.kv.Create(ctx, key, data, jetstream.KeyTTL(ttl)); err == nil {
 			return nil
-		} else if !errors.Is(err, jetstream.ErrKeyExists) {
+		} else if !jetstreamutil.IsSequenceConflict(err) {
 			return err
 		} else {
 			lastErr = err

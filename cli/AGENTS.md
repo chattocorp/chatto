@@ -64,6 +64,15 @@ authorization, live events, backup/restore, and backend tests.
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
   prefix so reads can filter by subject/prefix without deserializing everything.
+- Projection snapshots are disposable acceleration data, never recovery data.
+  Bind them to the durable EVT incarnation identity in stream metadata as well
+  as the stream name and cutoff sequence; reject missing, corrupt,
+  incompatible, or future snapshots by replaying EVT. Do not use
+  `StreamInfo.Created` as a persisted identity.
+- Snapshot restore codecs must be transactional on error and must account for
+  compatibility state preloaded before projector startup. Privacy-review every
+  persisted field: do not snapshot decrypted bodies, raw PII, credentials,
+  unwrapped keys, or state that would weaken crypto-shredding.
 
 ## Live Events
 
@@ -74,6 +83,9 @@ authorization, live events, backup/restore, and backend tests.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a transient live event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.
+- Do not use a locally published NATS message as a global ordering fence for
+  JetStream republish or messages from other replicas. Tie projection snapshots
+  and stale-event suppression to authoritative EVT stream sequences.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
 - New live event types usually require protobuf, publishing, authorization,
@@ -112,6 +124,17 @@ authorization, live events, backup/restore, and backend tests.
 
 ## Attachment URL Authorization
 
+- `/assets/server/*` is unauthenticated and may serve only positively
+  classified public server assets: current/historical avatars, server branding,
+  and server-fetched link-preview images. Classification must happen before
+  transform-signature parsing, resize-cache lookup, object reads, or transforms.
+- New NATS public objects and URLs use `public/{assetId}`. Keep canonical
+  `{assetId}` aliases and the positive compatibility classifier for historical
+  flat-key public objects; never migrate content during an unauthenticated read.
+- `SERVER_ASSETS` is a mixed store. Never treat an opaque key, missing private
+  metadata, or a valid transform signature as proof that an object is public.
+  Deny room-asset declarations and tombstones, `Room-Id`/`Upload-Id` metadata,
+  reserved namespaces, and unknown object classes with the same 404 response.
 - Stable asset URLs use `/assets/files/{assetId}` and image transform variants.
 - Browser-facing ConnectRPC attachment URL fields append a signed per-user
   `access` ticket and expose expiry in the API asset URL object.

@@ -65,6 +65,28 @@ describe('panGesture', () => {
     action.destroy();
   });
 
+  it('passes the originating element to the start gate', () => {
+    const host = hostElement();
+    const child = document.createElement('button');
+    host.append(child);
+    const enabled = vi.fn(() => false);
+    const onStart = vi.fn();
+    const action = panGesture(host, {
+      axis: 'x',
+      enabled,
+      onStart
+    });
+
+    child.dispatchEvent(pointer('pointerdown', 20));
+    window.dispatchEvent(pointer('pointermove', 120));
+    window.dispatchEvent(pointer('pointerup', 120));
+
+    expect(enabled).toHaveBeenCalledWith(expect.objectContaining({ target: child }));
+    expect(onStart).not.toHaveBeenCalled();
+
+    action.destroy();
+  });
+
   it('tracks touch drags and prevents default after claiming', () => {
     const host = hostElement();
     const onStart = vi.fn();

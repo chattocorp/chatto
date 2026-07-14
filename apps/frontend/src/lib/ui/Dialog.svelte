@@ -28,9 +28,9 @@
   // that began inside (e.g. text selection) from closing on release outside.
   // Defaults to `true` so a click that reaches the dialog without an observed
   // pointerdown is treated as "not a backdrop click" and ignored — only a
-  // real pointerdown on the backdrop arms the close path. Required on mobile,
-  // where the sidebar's tap-forwarding (`useSidebarSwipe`) can synthesize a
-  // stray click that bubbles to the dialog right as it opens.
+  // real pointerdown on the backdrop arms the close path. This also protects
+  // against programmatic or keyboard-synthesized clicks being mistaken for a
+  // backdrop dismissal.
   let pressStartedInside = true;
 
   // Stable per-instance id for the title (so screen readers announce it

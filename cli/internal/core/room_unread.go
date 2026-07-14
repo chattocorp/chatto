@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -117,7 +118,7 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 	// (PostMessage auto-mark, MarkRoomAsRead) may have set a real marker
 	// between our Get and our write, and we must not clobber it.
 	if _, err := bucket.Create(ctx, key, []byte(lastID)); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			entry, getErr := bucket.Get(ctx, key)
 			if getErr != nil {
 				return "", fmt.Errorf("failed to re-read read marker after concurrent init: %w", getErr)
@@ -177,7 +178,7 @@ func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, 
 					return &LastReadEventIDAdvance{}, nil
 				}
 				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return nil, fmt.Errorf("failed to create read marker: %w", err)
@@ -209,7 +210,7 @@ func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, 
 		}
 
 		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return nil, fmt.Errorf("failed to advance read marker: %w", err)

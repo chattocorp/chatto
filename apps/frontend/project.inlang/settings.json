@@ -28,6 +28,6 @@
       "./messages/{locale}/admin.json"
     ]
   },
-  "baseLocale": "en",
-  "locales": ["en", "de"]
+  "baseLocale": "en-GB",
+  "locales": ["en-GB", "en-US", "de"]
 }

@@ -60,7 +60,11 @@
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
-  let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
+  let {
+    roomId,
+    threadId,
+    routeMessageId
+  }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
   const connection = useConnection();
   const roomFilesStore = new RoomFilesStore(connection());
@@ -78,6 +82,7 @@
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
   let pendingThreadReplyId = 0;
+  let appliedThreadMessageRoute: string | null = null;
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
     pendingThreadHighlight = options.highlightEventId ?? null;
@@ -265,6 +270,15 @@
     // until the new room's data has actually loaded.
     if (room.roomData.room.id !== roomId) return;
 
+    if (threadId && routeMessageId) {
+      const threadMessageRoute = `${roomId}:${threadId}:${routeMessageId}`;
+      if (appliedThreadMessageRoute === threadMessageRoute) return;
+      appliedThreadMessageRoute = threadMessageRoute;
+      applyHighlight(routeMessageId);
+      return;
+    }
+    appliedThreadMessageRoute = null;
+
     const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
       applyHighlight(pending);
@@ -297,11 +311,7 @@
       pendingMainHighlightId = eventId;
       tick().then(async () => {
         const jumped = await jumpState.jumpToMessage(eventId);
-        if (
-          !jumped &&
-          mainHighlightRequestId === requestId &&
-          pendingMainHighlightId === eventId
-        ) {
+        if (!jumped && mainHighlightRequestId === requestId && pendingMainHighlightId === eventId) {
           pendingMainHighlightId = null;
           toast.error(m['room.jump_failed']());
         }

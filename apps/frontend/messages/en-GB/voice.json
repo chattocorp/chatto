@@ -50,7 +50,7 @@
     "camera_not_found": "No camera was found. Choose another camera and try again.",
     "camera_in_use": "Your camera is already in use by another app.",
     "camera_failed": "Could not turn on your camera.",
-    "screen_share_blocked": "Screen sharing was canceled or blocked.",
+    "screen_share_blocked": "Screen sharing was cancelled or blocked.",
     "screen_share_failed": "Could not start screen sharing.",
     "speaker_switch_failed": "Could not switch speakers. This browser or device may not support speaker selection.",
     "device_switch_failed": "Could not switch to that device.",

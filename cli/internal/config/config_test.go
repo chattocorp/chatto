@@ -143,6 +143,7 @@ cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+projection_snapshots = true
 
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
@@ -160,6 +161,25 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	// Verify file values were applied
 	if cfg.Webserver.Port != 5000 {
 		t.Errorf("expected port 5000 from file, got %d", cfg.Webserver.Port)
+	}
+	if !cfg.Core.ProjectionSnapshots {
+		t.Error("expected projection snapshots from file")
+	}
+}
+
+func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOTS", "true")
+
+	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Core.ProjectionSnapshots {
+		t.Error("expected projection snapshots from environment")
 	}
 }
 

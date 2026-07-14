@@ -230,8 +230,8 @@ vi.mock('./RoomEventsPane.svelte', async () => {
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: ThreadPaneMock } = await import('./RoomThreadPaneMock.svelte');
+  return { default: ThreadPaneMock };
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
@@ -343,6 +343,24 @@ beforeEach(() => {
 });
 
 describe('Room local message echo', () => {
+  it('opens and highlights the explicit message from a nested thread route', async () => {
+    const { container } = render(Room, {
+      props: {
+        roomId: 'room-1',
+        threadId: 'thread-root',
+        routeMessageId: 'thread-message'
+      }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="thread-pane-root-id"]'))
+      .toHaveTextContent('thread-root');
+    await expect
+      .element(q(container, '[data-testid="thread-pane-highlight-id"]'))
+      .toHaveTextContent('thread-message');
+    expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
+  });
+
   it('keeps root message-link highlights pending until the jump completes', async () => {
     mocks.pendingHighlightConsume.mockReturnValueOnce('msg-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
@@ -371,7 +389,9 @@ describe('Room local message echo', () => {
 
     (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
 
-    await expect.element(q(container, '[data-testid="pending-highlight-id"]')).toHaveTextContent('');
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
   });
 
   it('clears root message-link highlights when the jump target cannot be loaded', async () => {
@@ -393,7 +413,9 @@ describe('Room local message echo', () => {
         limit: 50
       });
     });
-    await expect.element(q(container, '[data-testid="pending-highlight-id"]')).toHaveTextContent('');
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
   });
 
   it('inserts a returned main-room post into the same store rendered by the room timeline', async () => {

@@ -161,8 +161,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
+  Persist encrypted `ThreadProjection` snapshots to validate snapshot storage and restoration. This canary does not reduce total startup time because the shared replay still starts at the beginning of `EVT`. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
-  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive.
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
 </EnvVar>
 
 ## Assets

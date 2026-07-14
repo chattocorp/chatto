@@ -182,7 +182,8 @@ Stories should:
 
 Literal story fixture copy is exempt from application Paraglide catalogs.
 Strings added to production components and routes are not exempt and require
-English and German messages.
+British English and German messages, plus US English overrides where wording
+differs.
 
 ## Regression Coverage
 

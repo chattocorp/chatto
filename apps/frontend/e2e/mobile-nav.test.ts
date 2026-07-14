@@ -117,7 +117,7 @@ test.describe('Mobile Navigation', () => {
     await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('sidebar opens on a rightward mobile edge swipe', async ({ page, chatPage }) => {
+  test('sidebar opens on a rightward mobile swipe from app content', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const roomPage = await chatPage.enterRoom('general');
@@ -130,7 +130,7 @@ test.describe('Mobile Navigation', () => {
     await expect(hamburger).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     await expect(roomList).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-    await touchDrag(page, 2, 220, 160);
+    await touchDrag(page, 100, 320, 160);
 
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });

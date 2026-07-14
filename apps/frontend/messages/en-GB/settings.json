@@ -78,7 +78,7 @@
           "label": "Template",
           "none": "No status",
           "out_for_lunch": "Out for lunch",
-          "vacation": "Vacation",
+          "vacation": "Holiday",
           "sick": "Sick",
           "custom": "Custom"
         },
@@ -124,8 +124,9 @@
       },
       "language": {
         "title": "Language",
-        "description": "Choose the language for this browser.",
-        "english": "English",
+        "description": "Choose the language and regional wording for this browser.",
+        "english_uk": "English (United Kingdom)",
+        "english_us": "English (United States)",
         "german": "Deutsch"
       },
       "timezone": {

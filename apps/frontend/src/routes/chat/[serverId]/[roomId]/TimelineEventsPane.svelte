@@ -12,6 +12,7 @@
 
   let {
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore,
     events,
     updateCounter = events.length,
@@ -46,6 +47,7 @@
     pendingHighlightId = null
   }: {
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore: MessagesStore;
     events: RoomEventView[];
     updateCounter?: number;
@@ -110,6 +112,7 @@
 
 <EventList
   {roomId}
+  {permalinkThreadRootEventId}
   {messageStore}
   {events}
   {alwaysScrollToBottom}

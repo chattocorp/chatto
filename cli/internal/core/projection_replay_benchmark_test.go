@@ -64,6 +64,48 @@ func BenchmarkProjectionReplay(b *testing.B) {
 	}
 }
 
+// BenchmarkThreadProjectionSnapshotCodec measures only the canary's canonical
+// protobuf encode and derived-index rebuild costs. It does not represent total
+// startup wall time because the shared EVT fanout still replays for other
+// projections.
+func BenchmarkThreadProjectionSnapshotCodec(b *testing.B) {
+	for _, logicalMessages := range []int{1_000, 10_000} {
+		fixture := newProjectionBenchmarkFixture(b, logicalMessages)
+		targets, err := replayProjectionBenchmarkFixture(fixture, "threads")
+		if err != nil {
+			b.Fatal(err)
+		}
+		threads := targets[0].projection.(*ThreadProjection)
+		payload, err := threads.Snapshot()
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		b.Run(fmt.Sprintf("%s/snapshot/messages_%d", projectionBenchmarkFixtureVersion, logicalMessages), func(b *testing.B) {
+			b.ReportAllocs()
+			b.ReportMetric(float64(len(payload)), "snapshot-bytes")
+			for range b.N {
+				encoded, err := threads.Snapshot()
+				if err != nil {
+					b.Fatal(err)
+				}
+				runtime.KeepAlive(encoded)
+			}
+		})
+		b.Run(fmt.Sprintf("%s/restore/messages_%d", projectionBenchmarkFixtureVersion, logicalMessages), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(len(payload)))
+			for range b.N {
+				restored := NewThreadProjection()
+				if err := restored.Restore(payload); err != nil {
+					b.Fatal(err)
+				}
+				runtime.KeepAlive(restored)
+			}
+		})
+	}
+}
+
 // BenchmarkProjectionRetainedHeap reports live Go heap after a full replay,
 // startup-only dedupe state release, and forced GC. Run it with
 // -benchtime=1x: retaining more than one replay in a benchmark iteration would

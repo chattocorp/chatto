@@ -13,6 +13,7 @@ unknown instance) the component renders nothing.
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
   import {
     FitMode,
@@ -21,7 +22,6 @@ unknown instance) the component renders nothing.
     type UserAvatarUserView
   } from '$lib/render/types';
   import { useRenderData } from '$lib/render/data';
-  import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
@@ -65,6 +65,7 @@ unknown instance) the component renders nothing.
   let preview = $state<{
     serverId: string;
     roomId: string;
+    threadRootEventId?: string;
     eventId: string;
     body: string | null;
     attachments: Attachment[];
@@ -115,7 +116,7 @@ unknown instance) the component renders nothing.
   }
 
   $effect(() => {
-    const { serverId, roomId, messageId } = link;
+    const { serverId, roomId, threadRootEventId, messageId } = link;
 
     preview = null;
     if (!serverId) return;
@@ -156,6 +157,7 @@ unknown instance) the component renders nothing.
         preview = {
           serverId,
           roomId,
+          threadRootEventId,
           eventId: messageId,
           body: inner.body ?? null,
           attachments: attachments.map((a: MessageAttachmentView) => {
@@ -316,13 +318,7 @@ unknown instance) the component renders nothing.
     const target = event.target as HTMLElement;
     if (target.closest('a, button')) return;
 
-    goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
-        roomId: preview.roomId,
-        messageId: preview.eventId
-      })
-    );
+    navigateToPreview();
   }
 
   function handlePreviewKeydown(event: KeyboardEvent) {
@@ -331,9 +327,27 @@ unknown instance) the component renders nothing.
     if (event.key !== 'Enter' && event.key !== ' ') return;
 
     event.preventDefault();
+    navigateToPreview();
+  }
+
+  function navigateToPreview() {
+    if (!preview) return;
+    const serverId = serverIdToSegment(preview.serverId);
+    if (preview.threadRootEventId) {
+      goto(
+        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+          serverId,
+          roomId: preview.roomId,
+          threadId: preview.threadRootEventId,
+          messageId: preview.eventId
+        })
+      );
+      return;
+    }
+
     goto(
       resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
+        serverId,
         roomId: preview.roomId,
         messageId: preview.eventId
       })

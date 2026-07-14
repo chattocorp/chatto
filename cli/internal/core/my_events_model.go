@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
@@ -32,10 +31,11 @@ const (
 // MyEventsModel owns the server-side myEvents live stream machinery.
 //
 // ChattoCore remains the public facade, while this model keeps live root
-// filtering, projection readiness, and per-subscription room membership state
-// together.
+// filtering, projection readiness, shared per-user room visibility, and
+// per-session delivery together.
 type MyEventsModel struct {
 	core              *ChattoCore
+	hub               *MyEventsHub
 	activeStreams     atomic.Int64
 	deliveredEvents   atomic.Uint64
 	slowDisconnects   atomic.Uint64
@@ -44,7 +44,14 @@ type MyEventsModel struct {
 }
 
 func NewMyEventsModel(core *ChattoCore) *MyEventsModel {
-	return &MyEventsModel{core: core}
+	model := &MyEventsModel{core: core}
+	model.hub = NewMyEventsHub(model)
+	return model
+}
+
+// Run starts the process-wide live-event ingress and blocks until ctx ends.
+func (s *MyEventsModel) Run(ctx context.Context) error {
+	return s.hub.Run(ctx)
 }
 
 // StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
@@ -93,12 +100,12 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // StreamMyEvents creates a unified stream of every event on this deployment
 // that is relevant to a specific user.
 //
-// Events arrive via NATS Core subscriptions on two internal subject roots:
+// The process-wide MyEventsHub receives two internal NATS Core subject roots:
 // live.sync.> carries transient LiveEvent messages and live.evt.> is the raw
 // singleton republish of committed EVT facts. EVT delivery is not UI-safe by
-// itself: filterLiveEvent waits for the relevant local projection(s) to reach
-// the republished stream sequence, then applies this user's authorization
-// before forwarding the event through the realtime API.
+// itself: the hub waits for the relevant local projection(s) to reach the
+// republished stream sequence, then applies each user's authorization before
+// forwarding the event through the realtime API.
 //
 // Authorization:
 //   - Room events (live.sync.room.> and deliverable live.evt.room.>) are
@@ -128,36 +135,14 @@ func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID strin
 func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
 	c := s.core
 
-	// memberRooms is the per-subscription visibility cache: the user receives
-	// live events for rooms they are an explicit member of. Seeded from room
-	// membership projections and mutated by relevant room facts.
-	memberRooms := make(map[string]struct{})
-	if err := s.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
-		return nil, err
-	}
-
-	// live.sync.> is the transient LiveEvent subject root. live.evt.> is the
-	// raw committed-event feed from the EVT stream. The 256-message buffer
-	// absorbs bursts; slow-consumer notifications tear the resolver down so the
-	// client can reconnect and refresh projected state.
-	msgChan := make(chan *nats.Msg, 256)
-	liveSyncSub, err := c.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
+	hubSub, err := s.hub.Subscribe(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to live sync events: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to myEvents hub: %w", err)
 	}
-	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
-
-	liveEVTSub, err := c.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
-	if err != nil {
-		liveSyncSub.Unsubscribe()
-		return nil, fmt.Errorf("failed to subscribe to live EVT events: %w", err)
-	}
-	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
 
 	presenceSub, err := c.presenceModel.Subscribe(ctx)
 	if err != nil {
-		liveSyncSub.Unsubscribe()
-		liveEVTSub.Unsubscribe()
+		s.hub.Unsubscribe(hubSub)
 		return nil, fmt.Errorf("failed to subscribe to presence hub: %w", err)
 	}
 
@@ -165,7 +150,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 
 	s.activeStreams.Add(1)
 	go func() {
-		c.logger.Debug("Server event stream started", "user_id", userID, "member_rooms", len(memberRooms))
+		c.logger.Debug("Server event stream started", "user_id", userID)
 
 		var presenceTicker *time.Ticker
 		var presenceTickerC <-chan time.Time
@@ -188,8 +173,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 		defer func() {
 			s.activeStreams.Add(-1)
 			c.logger.Debug("Server event stream closed", "user_id", userID)
-			liveSyncSub.Unsubscribe()
-			liveEVTSub.Unsubscribe()
+			s.hub.Unsubscribe(hubSub)
 			c.presenceModel.Unsubscribe(presenceSub)
 			close(eventChan)
 		}()
@@ -197,6 +181,10 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 		send := func(event EventEnvelope) bool {
 			select {
 			case <-ctx.Done():
+				return false
+			case <-hubSub.Done:
+				return false
+			case <-presenceSub.Done:
 				return false
 			case eventChan <- event:
 				s.deliveredEvents.Add(1)
@@ -208,19 +196,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 			select {
 			case <-ctx.Done():
 				return
-
-			case <-slowEVTConsumerCh:
-				dropped, _ := liveEVTSub.Dropped()
-				s.slowDisconnects.Add(1)
-				c.logger.Warn("Slow consumer on live EVT subscription - tearing down",
-					"user_id", userID, "dropped", dropped)
-				return
-
-			case <-slowSyncConsumerCh:
-				dropped, _ := liveSyncSub.Dropped()
-				s.slowDisconnects.Add(1)
-				c.logger.Warn("Slow consumer on live sync subscription - tearing down",
-					"user_id", userID, "dropped", dropped)
+			case <-hubSub.Done:
 				return
 
 			case <-presenceTickerC:
@@ -236,14 +212,17 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 					return
 				}
 
-			case msg := <-msgChan:
-				event, ok, closeStream := s.filterLiveEvent(ctx, userID, memberRooms, msg)
-				if closeStream {
+			case delivery, ok := <-hubSub.C:
+				if !ok {
 					return
 				}
-				if !ok {
-					continue
+				select {
+				case <-hubSub.Done:
+					return
+				default:
 				}
+				s.hub.consume(hubSub, delivery)
+				event := delivery.event
 				if !send(event) {
 					return
 				}
@@ -255,7 +234,17 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 					return
 				}
 
-			case update := <-presenceSub.C:
+			case update, ok := <-presenceSub.C:
+				if !ok {
+					if presenceSub.Lagged() {
+						s.slowDisconnects.Add(1)
+					}
+					return
+				}
+				if presenceSub.Lagged() {
+					s.slowDisconnects.Add(1)
+					return
+				}
 				live := newLiveEvent(update.UserID, &corev1.LiveEvent{
 					Event: &corev1.LiveEvent_PresenceChanged{
 						PresenceChanged: &corev1.PresenceChangedEvent{Status: update.Status},
@@ -264,6 +253,11 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 				if !send(NewLiveEventEnvelope(live)) {
 					return
 				}
+			case <-presenceSub.Done:
+				if presenceSub.Lagged() {
+					s.slowDisconnects.Add(1)
+				}
+				return
 			}
 		}
 	}()
@@ -271,8 +265,8 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 	return eventChan, nil
 }
 
-// populateMemberRoomsCache (re)builds the per-subscription room visibility set
-// in place. The cache contains every channel room the user is an explicit
+// populateMemberRoomsCache (re)builds one user's room visibility set in place.
+// The cache contains every channel room the user is an explicit or effective
 // member of, plus every DM room they participate in.
 func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID string, memberRooms map[string]struct{}) error {
 	for k := range memberRooms {
@@ -299,36 +293,6 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 	}
 
 	return nil
-}
-
-// filterLiveEvent unmarshals a message from one of the live delivery roots and
-// applies per-user authorization. The third return value tells the caller to
-// close the stream because a deliverable event could not be made projection-safe;
-// the client will resubscribe and refresh projected state. Mutates memberRooms
-// when the subscriber themselves joins/leaves a room or when a room is deleted.
-func (s *MyEventsModel) filterLiveEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg) (EventEnvelope, bool, bool) {
-	if strings.HasPrefix(msg.Subject, "live.sync.") {
-		var live corev1.LiveEvent
-		if err := proto.Unmarshal(msg.Data, &live); err != nil {
-			s.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
-			return nil, false, false
-		}
-		event, ok := s.filterLiveSyncEvent(ctx, userID, memberRooms, msg, &live)
-		return event, ok, false
-	}
-
-	if !strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
-		s.core.logger.Warn("Unknown live event subject root", "subject", msg.Subject)
-		return nil, false, false
-	}
-
-	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data, &event); err != nil {
-		s.core.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
-		return nil, false, false
-	}
-
-	return s.filterLiveEVTEvent(ctx, userID, memberRooms, msg, &event)
 }
 
 func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
@@ -365,78 +329,6 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 	}
 
 	return NewLiveEventEnvelope(event), true
-}
-
-func (s *MyEventsModel) filterLiveEVTEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.Event) (EventEnvelope, bool, bool) {
-	seq := liveEVTMsgSeq(msg)
-	if seq == 0 {
-		s.core.logger.Warn("live EVT message missing stream sequence", "subject", msg.Subject, "sequence", msg.Header.Get(nats.JSSequence))
-		return nil, false, false
-	}
-
-	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
-	if strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
-		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-		defer cancel()
-		if err := s.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(events.RBACSubjectFilter(), seq)); err != nil {
-			s.core.logger.Warn("Live EVT RBAC projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false, true
-		}
-		if err := s.populateMemberRoomsCache(waitCtx, userID, memberRooms); err != nil {
-			s.core.logger.Warn("Live EVT room visibility refresh failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false, true
-		}
-		return nil, false, false
-	}
-
-	if roomID, ok := events.ParseRoomSubject(msg.Subject); ok {
-		if !isDeliverableLiveEVTRoomEvent(event) {
-			return nil, false, false
-		}
-		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-		defer cancel()
-		if err := s.waitForLiveEVTRoomEvent(waitCtx, evtSubject, event, seq); err != nil {
-			s.core.logger.Warn("Live EVT projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false, true
-		}
-
-		filtered, ok := s.filterReadyEVTRoomSubjectEvent(userID, memberRooms, roomID, event, seq)
-		return filtered, ok, false
-	}
-
-	if _, ok := events.ParseAssetSubject(msg.Subject); ok {
-		if !isDeliverableLiveEVTAssetEvent(event) {
-			return nil, false, false
-		}
-		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-		defer cancel()
-		if err := s.waitForLiveEVTAssetEvent(waitCtx, evtSubject, seq); err != nil {
-			s.core.logger.Warn("Live EVT asset projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false, true
-		}
-		assetID := assetIDOfLifecycleEvent(event)
-		roomID, ok := s.core.assetLifecycle().AssetRoomID(assetID)
-		if !ok {
-			return nil, false, false
-		}
-		filtered, ok := s.filterReadyEVTAssetSubjectEvent(userID, memberRooms, roomID, event, seq)
-		return filtered, ok, false
-	}
-
-	if _, ok := events.ParseUserSubject(msg.Subject); ok {
-		if !isDeliverableLiveEVTUserEvent(event) {
-			return nil, false, false
-		}
-		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-		defer cancel()
-		if err := s.waitForLiveEVTUserEvent(waitCtx, evtSubject, seq); err != nil {
-			s.core.logger.Warn("Live EVT user projection readiness failed - tearing down stream", "subject", msg.Subject, "sequence", seq, "error", err)
-			return nil, false, true
-		}
-		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true, false
-	}
-
-	return nil, false, false
 }
 
 func liveEVTMsgSeq(msg *nats.Msg) uint64 {

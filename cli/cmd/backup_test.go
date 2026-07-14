@@ -19,6 +19,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -185,6 +186,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
+		{"OBJ_SERVER_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},
 		{"KV_SPACE_abc123_RBAC", false, false, ""},
@@ -368,6 +370,9 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		Name:     "TEST_EVENTS",
 		Subjects: []string{"events.>"},
 		Storage:  jetstream.FileStorage,
+		Metadata: map[string]string{
+			events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
 	})
 	if err != nil {
 		t.Fatal("Failed to create stream:", err)
@@ -382,6 +387,22 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		if _, err := srcJS.Publish(ctx, subj, []byte("payload:"+subj)); err != nil {
 			t.Fatalf("Failed to publish to %s: %v", subj, err)
 		}
+	}
+
+	// Projection snapshots use the ordinary SERVER_ASSETS object store when
+	// NATS is the configured asset backend. Both the encrypted bytes and EVT's
+	// incarnation metadata must survive the same backup/restore round trip.
+	snapshotStore, err := srcJS.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:  "SERVER_ASSETS",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatal("Failed to create snapshot object store:", err)
+	}
+	const snapshotObject = "internal/projection-snapshots/v1/test-generation"
+	snapshotPayload := []byte("encrypted-snapshot-envelope")
+	if _, err := snapshotStore.PutBytes(ctx, snapshotObject, snapshotPayload); err != nil {
+		t.Fatal("Failed to store snapshot object:", err)
 	}
 
 	// Create a memory-only stream (should be skipped)
@@ -543,6 +564,21 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	if info.State.Msgs != uint64(len(testMessages)) {
 		t.Errorf("Stream has %d messages, want %d", info.State.Msgs, len(testMessages))
+	}
+	if got := info.Config.Metadata[events.EVTStreamIdentityMetadataKey]; got != "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Errorf("Restored EVT stream identity = %q", got)
+	}
+
+	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "SERVER_ASSETS")
+	if err != nil {
+		t.Fatal("Failed to open restored snapshot object store:", err)
+	}
+	restoredSnapshot, err := restoredSnapshotStore.GetBytes(ctx, snapshotObject)
+	if err != nil {
+		t.Fatal("Failed to load restored snapshot object:", err)
+	}
+	if !bytes.Equal(restoredSnapshot, snapshotPayload) {
+		t.Errorf("Restored snapshot payload = %q, want %q", restoredSnapshot, snapshotPayload)
 	}
 
 	// Read back each message and verify payload

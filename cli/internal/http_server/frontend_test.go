@@ -18,6 +18,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 func TestExtractImmutableETag(t *testing.T) {
@@ -244,7 +245,7 @@ func TestDynamicPWAManifest(t *testing.T) {
 	})
 }
 
-func TestSameOriginPWAAssetURL(t *testing.T) {
+func TestSameOriginServerAssetURL(t *testing.T) {
 	tests := []struct {
 		name string
 		url  string
@@ -269,18 +270,9 @@ func TestSameOriginPWAAssetURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, sameOriginPWAAssetURL(tt.url))
+			assert.Equal(t, tt.want, sameOriginServerAssetURL(tt.url))
 		})
 	}
-}
-
-func TestInjectAppleTouchIcon(t *testing.T) {
-	content := []byte(`<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />`)
-
-	got := injectAppleTouchIcon(content, "/assets/server/logo/t/180?a=1&b=2")
-
-	assert.Contains(t, string(got), `href="/assets/server/logo/t/180?a=1&amp;b=2"`)
-	assert.NotContains(t, string(got), defaultAppleTouchIconHref)
 }
 
 func TestClientAcceptsEncoding(t *testing.T) {
@@ -400,31 +392,6 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.NotContains(t, w.Body.String(), "OG_META_PLACEHOLDER")
 	})
 
-	t.Run("injects server logo apple touch icon when server logo exists", func(t *testing.T) {
-		mockFS := fstest.MapFS{
-			"200.html": &fstest.MapFile{
-				Data: []byte(`<!DOCTYPE html><html><head><!-- OG_META_PLACEHOLDER --><link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" /></head><body>SPA</body></html>`),
-			},
-		}
-
-		server := newTestServer()
-		server.core = setupFrontendTestCoreWithLogo(t)
-		server.core.AssetBaseURL = "https://assets.example.com"
-		router := gin.New()
-		router.GET("/test", func(c *gin.Context) {
-			server.serveSPAFallback(c, mockFS)
-		})
-
-		req := httptest.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `href="/assets/server/logo-asset/t/`)
-		assert.NotContains(t, w.Body.String(), "assets.example.com")
-		assert.NotContains(t, w.Body.String(), defaultAppleTouchIconHref)
-	})
-
 	t.Run("returns 500 when 200.html is missing", func(t *testing.T) {
 		// Empty filesystem - no 200.html
 		mockFS := fstest.MapFS{}
@@ -441,6 +408,78 @@ func TestServeSPAFallback(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Equal(t, "Failed to load application", w.Body.String())
+	})
+}
+
+func TestBrowserIconRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newServer := func(t *testing.T, chattoCore *core.ChattoCore) *HTTPServer {
+		t.Helper()
+		server := &HTTPServer{
+			config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+			core:   chattoCore,
+			router: gin.New(),
+		}
+		if err := server.setupFrontendRoutes(); err != nil {
+			t.Fatalf("setupFrontendRoutes: %v", err)
+		}
+		return server
+	}
+
+	t.Run("redirects to distinct same-origin server logo transforms", func(t *testing.T) {
+		chattoCore := setupFrontendTestCoreWithLogo(t)
+		chattoCore.AssetBaseURL = "https://assets.example.com"
+		server := newServer(t, chattoCore)
+
+		expectedSizes := map[string]int{
+			"/favicon":          32,
+			"/apple-touch-icon": 180,
+		}
+		locations := make(map[string]string)
+		for iconPath, expectedSize := range expectedSizes {
+			req := httptest.NewRequest(http.MethodGet, iconPath, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+			assert.Equal(t, cacheControlNoCache, w.Header().Get("Cache-Control"))
+			location := w.Header().Get("Location")
+			assert.True(t, strings.HasPrefix(location, "/assets/server/logo-asset/t/"))
+			assert.NotContains(t, location, "assets.example.com")
+
+			signedPath := strings.TrimPrefix(location, "/assets/server/logo-asset/t/")
+			params, err := signedurl.ParseSignedTransformPath(
+				"test-signing-secret",
+				core.ServerAssetSignResource,
+				"logo-asset",
+				signedPath,
+			)
+			if err != nil {
+				t.Fatalf("parse transform for %s: %v", iconPath, err)
+			}
+			assert.Equal(t, expectedSize, params.Width)
+			assert.Equal(t, expectedSize, params.Height)
+			assert.Equal(t, "cover", params.Fit)
+			locations[iconPath] = location
+		}
+		assert.NotEqual(t, locations["/favicon"], locations["/apple-touch-icon"])
+	})
+
+	t.Run("redirects to embedded icons when no server logo exists", func(t *testing.T) {
+		server := newServer(t, nil)
+		tests := map[string]string{
+			"/favicon":          "/icons/favicon.png",
+			"/apple-touch-icon": "/icons/apple-touch-icon.png",
+		}
+		for iconPath, fallbackPath := range tests {
+			req := httptest.NewRequest(http.MethodGet, iconPath, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+			assert.Equal(t, fallbackPath, w.Header().Get("Location"))
+		}
 	})
 }
 

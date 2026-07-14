@@ -4,26 +4,27 @@
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
-  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
+  import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { UserSettingsState } from '$lib/state/userSettings.svelte';
-  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import type { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import AuthenticatedChatProvider from './AuthenticatedChatProvider.svelte';
 
   let {
     user,
     userSettings,
+    profileCache,
+    presenceCache,
     children
   }: {
     user: CurrentUser;
     userSettings: UserSettingsState;
+    profileCache: ReturnType<typeof createUserProfileCache>;
+    presenceCache: PresenceCache;
     children: Snippet;
   } = $props();
-
-  const profileCache = createUserProfileCache();
-  const presenceCache = createPresenceCache();
 
   function startAuthenticatedBuses() {
     if (shouldPauseLiveEventsForStoredPresence()) {

@@ -155,24 +155,42 @@ describe('root layout mobile sidebar animation', () => {
     resetSidebar();
   });
 
-  it('keeps edge target presses from bubbling to app-level outside-click handlers', async () => {
+  it('keeps the left edge free for normal app controls', async () => {
     const { container } = renderLayout();
-    const onWindowPointerDown = vi.fn();
-    window.addEventListener('pointerdown', onWindowPointerDown);
+    await tick();
 
-    try {
-      await tick();
+    const child = q(container, '[data-testid="layout-child"]');
+    expect(child).not.toBeNull();
+    if (!child) return;
+    const onClick = vi.fn();
+    child.addEventListener('click', onClick);
 
-      const edge = q(container, '[data-testid="mobile-sidebar-edge"]');
-      expect(edge).not.toBeNull();
-      if (!edge) return;
+    child.dispatchEvent(pointer('pointerdown', 2));
+    window.dispatchEvent(pointer('pointerup', 2));
+    child.click();
 
-      edge.dispatchEvent(pointer('pointerdown', 2));
+    expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(sidebarNav.isOpen).toBe(false);
+  });
 
-      expect(onWindowPointerDown).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener('pointerdown', onWindowPointerDown);
-    }
+  it('opens the mobile sidebar from a rightward drag in app content', async () => {
+    const { container } = renderLayout();
+    await tick();
+
+    const child = q(container, '[data-testid="layout-child"]');
+    expect(child).not.toBeNull();
+    if (!child) return;
+
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+    await tick();
+
+    expect(sidebarNav.isOpen).toBe(true);
+    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.style.transform).toBe(
+      'translateX(0px)'
+    );
   });
 
   it('keeps the sidebar and backdrop mounted while the mobile close animation runs', async () => {

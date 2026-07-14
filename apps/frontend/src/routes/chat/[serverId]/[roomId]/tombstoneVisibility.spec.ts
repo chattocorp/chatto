@@ -185,7 +185,7 @@ describe('tombstone visibility', () => {
     const visible = visibleTombstoneEvents(timeline, deletedAtMs + MESSAGE_TOMBSTONE_GRACE_MS);
     const unreadId = visibleUnreadMarkerEventId(timeline, visible, expired.id);
     const items = buildVirtualItems(
-      computeEventMetadata(visible, utcSettings, 'en'),
+      computeEventMetadata(visible, utcSettings, 'en-GB'),
       unreadId,
       false
     );
@@ -198,8 +198,8 @@ describe('tombstone visibility', () => {
 
   it('removes separators when the last event expires', () => {
     const visible = visibleTombstoneEvents([message()], deletedAtMs + MESSAGE_TOMBSTONE_GRACE_MS);
-    expect(buildVirtualItems(computeEventMetadata(visible, utcSettings, 'en'), null, true)).toEqual(
-      []
-    );
+    expect(
+      buildVirtualItems(computeEventMetadata(visible, utcSettings, 'en-GB'), null, true)
+    ).toEqual([]);
   });
 });

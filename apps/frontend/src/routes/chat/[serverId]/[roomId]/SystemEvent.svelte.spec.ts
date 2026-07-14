@@ -45,8 +45,8 @@ function systemEvent(
 
 describe('SystemEvent', () => {
   beforeEach(async () => {
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
   });
 
   it('renders member join copy with the actor name', () => {

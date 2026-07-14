@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ProjectionSnapshotGeneration is the encrypted, immutable unit published by
+// the projection snapshot repository. It is derived cache data,
+// not an authoritative domain record.
+message ProjectionSnapshotGeneration {
+  string generation_id = 1;
+  string stream_name = 2;
+  uint64 cutoff_sequence = 3;
+  string projection_key = 4;
+  string compatibility_id = 5;
+  string producer_version = 6;
+  google.protobuf.Timestamp created_at = 7;
+  bytes payload = 8;
+  uint64 payload_size = 9;
+  bytes payload_sha256 = 10;
+  // Versioned identity of the EVT stream incarnation.
+  string stream_identity = 11;
+}
+
+// ProjectionSnapshotPointer names the two most recently published immutable
+// generations for one projection. It is encrypted and may safely be stale.
+message ProjectionSnapshotPointer {
+  string current_generation_id = 1;
+  string previous_generation_id = 2;
+}
+
+// ThreadProjectionSnapshot is the canonical restorable state for the
+// threads-v1 projection compatibility contract. Repeated fields are emitted in
+// deterministic key order by the codec.
+message ThreadProjectionSnapshot {
+  repeated ThreadSnapshot threads = 1;
+  repeated ThreadReplySnapshot replies = 2;
+  repeated ThreadFollowSnapshot follows = 3;
+  repeated string shredded_user_ids = 4;
+  ProjectionReplayGuardSnapshot replay_guard = 5;
+}
+
+message ThreadSnapshot {
+  string root_event_id = 1;
+  repeated ThreadTimelineEntrySnapshot entries = 2;
+}
+
+message ThreadTimelineEntrySnapshot {
+  string event_id = 1;
+  uint64 stream_sequence = 2;
+}
+
+message ThreadReplySnapshot {
+  string event_id = 1;
+  string thread_root_event_id = 2;
+  string actor_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  bool retracted = 5;
+}
+
+message ThreadFollowSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  string state = 4;
+}
+
+message ProjectionReplayGuardSnapshot {
+  uint64 highest_sequence = 1;
+  bool compatibility_mode = 2;
+  repeated string event_ids = 3;
+  bool replay_complete = 4;
+}

@@ -23,9 +23,9 @@ export function getBrowserLocale(): string {
 /**
  * Combine Chatto's selected language with the browser's region for Intl formatting.
  *
- * Paraglide locales are language-only (for example, `en`), which would otherwise
- * make Intl fall back to US conventions instead of the browser's `en-GB` region.
- * Explicit region-bearing locales are preserved for deterministic callers and tests.
+ * Region-bearing content locales (for example, `en-GB`) are preserved. Language-only
+ * locales such as `de` inherit the browser's region so regional formatting remains
+ * useful until Chatto offers a more specific translation locale.
  */
 export function getFormattingLocale(locale: string = getLocale()): string {
   if (typeof Intl.Locale !== 'function') return locale;

@@ -452,13 +452,15 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey    string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets       AssetsConfig   `toml:"assets"`
-	AuthTokenTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	EmailOTP     EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
-	Replicas     int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits       LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners       OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey           string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
+	ProjectionSnapshots bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted Thread projection snapshots to validate snapshot storage and restoration. This canary does not reduce total startup time. Default: false."`
+	Assets              AssetsConfig   `toml:"assets"`
+	AuthTokenTTL        time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	EmailOTP            EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas            int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits              LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners              OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	Version             string         `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 }
 
 const (

@@ -1,5 +1,8 @@
 /**
- * Message link URL format: `/chat/<serverSegment>/<roomId>/m/<messageId>`.
+ * Message link URL formats:
+ * - Room message: `/chat/<serverSegment>/<roomId>/m/<messageId>`
+ * - Thread message: `/chat/<serverSegment>/<roomId>/<threadRootEventId>/m/<messageId>`
+ *
  * The `m/` prefix distinguishes message URLs from the `[threadId]` route that sits
  * at the same level (thread IDs and message IDs share the same ID space).
  */
@@ -15,6 +18,8 @@ export interface MessageLink {
   /** Resolved server ID, or null if the segment doesn't match a registered server. */
   serverId: string | null;
   roomId: string;
+  /** Thread to open when following this message link. */
+  threadRootEventId?: string;
   messageId: string;
 }
 
@@ -39,6 +44,15 @@ export type MessageBodyChatLink =
       serverSegment: string;
       serverId: string;
       roomId: string;
+      messageId: string;
+      path: string;
+    }
+  | {
+      kind: 'thread-message';
+      serverSegment: string;
+      serverId: string;
+      roomId: string;
+      threadRootEventId: string;
       messageId: string;
       path: string;
     };
@@ -106,9 +120,18 @@ function messagePath(
   roomId: string,
   messageId: string,
   suffix: string,
-  options: MessageBodyChatLinkOptions
+  options: MessageBodyChatLinkOptions,
+  threadRootEventId?: string | null
 ): string {
   const serverSegment = options.serverSegmentForId?.(serverId) ?? serverIdToSegment(serverId);
+  if (threadRootEventId) {
+    return `${resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+      serverId: serverSegment,
+      roomId,
+      threadId: threadRootEventId,
+      messageId
+    })}${suffix}`;
+  }
   return `${resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
     serverId: serverSegment,
     roomId,
@@ -139,26 +162,26 @@ function resolveChatLinkServerId(
   return resolveServerSegment(serverSegment);
 }
 
-export function buildMessageLinkPath(serverId: string, roomId: string, messageId: string): string {
-  return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-    serverId: serverIdToSegment(serverId),
-    roomId,
-    messageId
-  });
+export function buildMessageLinkPath(
+  serverId: string,
+  roomId: string,
+  messageId: string,
+  threadRootEventId?: string | null
+): string {
+  return messagePath(serverId, roomId, messageId, '', {}, threadRootEventId);
 }
 
-/** Absolute URL for clipboard copy. */
-export function buildMessageLinkURL(serverId: string, roomId: string, messageId: string): string {
-  const path = buildMessageLinkPath(serverId, roomId, messageId);
-
-  const server = serverRegistry.getServer(serverId);
-  if (server) {
-    try {
-      return new URL(path, server.url).toString();
-    } catch {
-      // fall through to window.location.origin
-    }
-  }
+/**
+ * Absolute URL for clipboard copy, anchored to the server hosting the SPA.
+ * Remote servers are identified by their hostname in the generated path.
+ */
+export function buildMessageLinkURL(
+  serverId: string,
+  roomId: string,
+  messageId: string,
+  threadRootEventId?: string | null
+): string {
+  const path = buildMessageLinkPath(serverId, roomId, messageId, threadRootEventId);
 
   if (typeof window !== 'undefined') {
     return new URL(path, window.location.origin).toString();
@@ -170,10 +193,13 @@ export function buildMessageLinkURL(serverId: string, roomId: string, messageId:
 export async function copyMessageLinkToClipboard(
   serverId: string,
   roomId: string,
-  messageId: string
+  messageId: string,
+  threadRootEventId?: string | null
 ): Promise<void> {
   try {
-    await navigator.clipboard.writeText(buildMessageLinkURL(serverId, roomId, messageId));
+    await navigator.clipboard.writeText(
+      buildMessageLinkURL(serverId, roomId, messageId, threadRootEventId)
+    );
     toast.success('Message link copied');
   } catch {
     toast.error('Failed to copy link');
@@ -204,7 +230,7 @@ export function classifyMessageBodyChatLink(
 
   const parts = url.pathname.split('/').filter(Boolean);
   if (parts[0] !== 'chat') return null;
-  if (parts.length !== 3 && parts.length !== 4 && parts.length !== 5) return null;
+  if (parts.length < 3 || parts.length > 6) return null;
 
   const [, serverSegment, roomId] = parts;
   if (!serverSegment || !isMessageRoomId(roomId)) return null;
@@ -235,6 +261,26 @@ export function classifyMessageBodyChatLink(
       roomId,
       threadRootEventId,
       path: threadPath(serverId, roomId, threadRootEventId, suffix, options)
+    };
+  }
+
+  if (parts.length === 6) {
+    const [, , , threadRootEventId, marker, messageId] = parts;
+    if (
+      marker !== 'm' ||
+      !eventIdPattern.test(threadRootEventId) ||
+      !eventIdPattern.test(messageId)
+    ) {
+      return null;
+    }
+    return {
+      kind: 'thread-message',
+      serverSegment: localServerSegment,
+      serverId,
+      roomId,
+      threadRootEventId,
+      messageId,
+      path: messagePath(serverId, roomId, messageId, suffix, options, threadRootEventId)
     };
   }
 
@@ -275,17 +321,23 @@ export function parseMessageLink(input: string): MessageLink | null {
   }
 
   const parts = pathname.split('/').filter(Boolean);
-  // Expected: ['chat', serverSegment, roomId, 'm', messageId]
-  if (parts.length !== 5) return null;
-  if (parts[0] !== 'chat' || parts[3] !== 'm') return null;
+  // Expected room link: ['chat', serverSegment, roomId, 'm', messageId]
+  // Expected thread link: ['chat', serverSegment, roomId, threadRootEventId, 'm', messageId]
+  if (parts.length !== 5 && parts.length !== 6) return null;
+  if (parts[0] !== 'chat') return null;
 
-  const [, serverSegment, roomId, , messageId] = parts;
+  const [, serverSegment, roomId] = parts;
+  const threadRootEventId = parts.length === 6 ? parts[3] : undefined;
+  const marker = parts.length === 6 ? parts[4] : parts[3];
+  const messageId = parts.length === 6 ? parts[5] : parts[4];
+  if (marker !== 'm' || !messageId) return null;
   const effectiveSegment = hostnameSegment ?? serverSegment;
 
   return {
     serverSegment: effectiveSegment,
     serverId: segmentToServerId(effectiveSegment),
     roomId,
+    threadRootEventId,
     messageId
   };
 }

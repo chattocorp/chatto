@@ -32,6 +32,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId,
     deleteEventId = eventId,
     messageBody,
+    permalinkThreadRootEventId = null,
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
@@ -53,6 +54,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    permalinkThreadRootEventId?: string | null;
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
@@ -85,6 +87,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId,
     deleteEventId,
     messageBody,
+    permalinkThreadRootEventId,
     threadRootEventId,
     channelEchoEventId,
     canAddChannelEcho,

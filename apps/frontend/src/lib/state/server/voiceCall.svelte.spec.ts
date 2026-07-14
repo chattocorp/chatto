@@ -602,7 +602,7 @@ describe('VoiceCallState', () => {
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.isInAnyCall).toBe(true);
     expect(state.roomId).toBe('R1');
-    expect(toastMocks.error).toHaveBeenCalledWith('Screen sharing was canceled or blocked.');
+    expect(toastMocks.error).toHaveBeenCalledWith('Screen sharing was cancelled or blocked.');
     expect(toastMocks.error).toHaveBeenCalledOnce();
   });
 
@@ -685,7 +685,7 @@ describe('VoiceCallState', () => {
         Object.assign(new Error('permission denied'), { name: 'NotAllowedError' }),
         'enable'
       )
-    ).toBe('Screen sharing was canceled or blocked.');
+    ).toBe('Screen sharing was cancelled or blocked.');
     expect(
       getVoiceCallMediaDeviceErrorMessage(
         'microphone',

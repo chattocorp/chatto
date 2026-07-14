@@ -10,6 +10,7 @@ const { mocks } = vi.hoisted(() => ({
     goto: vi.fn(),
     page: {
       params: { serverId: '-', roomId: 'room-1' } as Record<string, string | undefined>,
+      route: { id: '/chat/[serverId]/[roomId]' as string | null },
       state: {},
       url: new URL('https://chat.example.test/chat/-/room-1')
     },
@@ -110,6 +111,7 @@ function renderLayout() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.page.params = { serverId: '-', roomId: 'room-1' };
+  mocks.page.route.id = '/chat/[serverId]/[roomId]';
   mocks.page.state = {};
   mocks.page.url = new URL('https://chat.example.test/chat/-/room-1');
   mocks.roomsStore.rooms = [room()];
@@ -181,6 +183,27 @@ describe('room route layout access handling', () => {
     expect(q(container, 'button')).toBeNull();
     expect(mocks.joinRoom).not.toHaveBeenCalled();
     expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('renders a nested thread message route with its thread and message targets', async () => {
+    mocks.page.params = {
+      serverId: '-',
+      roomId: 'room-1',
+      threadId: 'Ethread123ABC456',
+      messageId: 'Ereply123ABC4567'
+    };
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/[threadId]/m/[messageId]';
+    mocks.page.url = new URL(
+      'https://chat.example.test/chat/-/room-1/Ethread123ABC456/m/Ereply123ABC4567'
+    );
+
+    const { container } = renderLayout();
+    await tick();
+
+    const renderedRoom = q(container, '[data-testid="room-layout-room"]') as HTMLElement;
+    expect(renderedRoom?.dataset.threadId).toBe('Ethread123ABC456');
+    expect(renderedRoom?.dataset.routeMessageId).toBe('Ereply123ABC4567');
+    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
   });
 
   it('renders the target thread after joining has made the viewer a member', async () => {
