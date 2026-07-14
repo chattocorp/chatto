@@ -27,7 +27,9 @@ concerns. In particular:
 - multiple Chatto replicas can attempt the same background work.
 
 Event expiration, compaction, and archival are separate decisions. Chatto does
-not need them in order to use snapshots as a startup accelerator.
+not need them in order to validate snapshot persistence and restoration. Using
+snapshots to reduce total startup time requires a later change to the shared
+replay frontier.
 
 ## Decision
 
@@ -83,10 +85,12 @@ NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `SERVER_ASSETS` is part of the JetStream backup. S3-backed
 snapshots follow the deployment's S3 backup policy, like S3-backed user assets;
 the Chatto backup command does not copy either kind of S3 object into its NATS
-archive. A carried snapshot is a useful restore accelerator when the restored
-deployment retains the same `core.secret_key`, but snapshots remain optional:
-an absent or undecryptable snapshot causes cold replay. Backup tooling does not
-decrypt, interpret, or make snapshots part of backup correctness.
+archive. A carried snapshot can avoid reconstructing the snapshotted projection
+state when the restored deployment retains the same `core.secret_key`, but the
+Thread-only canary does not reduce total startup time. Snapshots remain
+optional: an absent or undecryptable snapshot causes cold replay. Backup
+tooling does not decrypt, interpret, or make snapshots part of backup
+correctness.
 
 Asset-storage migration may copy the reserved snapshot namespace when doing so
 is cheap, but does not promise to preserve it. Moving to another storage backend
@@ -159,10 +163,13 @@ operations is invalid.
 
 The canary retains the current and previous referenced generations. It deletes
 the generation that falls out of that window and rolls back a newly uploaded
-generation when pointer publication reports failure. A process crash or a stale
-writer racing between upload and pointer publication can still leave an
-unreferenced encrypted object; a backend-listing sweeper and final storage
-budget remain follow-up work informed by canary measurements.
+generation when pointer publication reports failure. Writers treat a missing
+pointer as an empty history and may replace a cryptographically or structurally
+invalid pointer. A storage transport error while reading the pointer aborts the
+write without uploading a generation or changing either retained fallback. A
+process crash or a stale writer racing between upload and pointer publication
+can still leave an unreferenced encrypted object; a backend-listing sweeper and
+final storage budget remain follow-up work informed by canary measurements.
 
 The canary rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
@@ -225,7 +232,8 @@ frontier remain separate follow-up work.
 
 ## Consequences
 
-- Chatto can experiment with faster projection startup without weakening the
+- Chatto can validate the storage, encryption, compatibility, and restore
+  mechanics needed for future startup acceleration without weakening the
   authority or retention of `EVT`.
 - Snapshots naturally use cheaper S3 storage where configured while preserving
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;

@@ -22,7 +22,7 @@ Backups contain all persistent JetStream streams, KV buckets, and object stores:
 - **Server data** — users, memberships, roles, permissions, notifications, rooms, messages, threads, reactions, message bodies
 - **Call facts** — room-scoped call start/join/leave/end events used to rebuild active call participant state
 - **NATS-backed assets** — user avatars, server icon and banner, message attachments
-- **NATS-backed projection snapshots** — opaque encrypted accelerators when `core.projection_snapshots` is enabled
+- **NATS-backed projection snapshots** — opaque encrypted derived state when `core.projection_snapshots` is enabled
 
 ## What's excluded
 

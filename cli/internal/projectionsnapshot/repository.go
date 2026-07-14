@@ -32,6 +32,7 @@ var (
 	ErrBlobNotFound     = errors.New("projection snapshot blob not found")
 	ErrSnapshotNotFound = errors.New("projection snapshot not found")
 	ErrIncompatible     = errors.New("incompatible projection snapshot")
+	errInvalidPointer   = errors.New("invalid projection snapshot pointer")
 )
 
 type Logger interface {
@@ -129,6 +130,21 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if len(input.Payload) > r.maxPayloadSize {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
 	}
+	pointer, err := r.loadPointer(ctx, input.ProjectionKey)
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrSnapshotNotFound):
+		pointer = &corev1.ProjectionSnapshotPointer{}
+	case errors.Is(err, errInvalidPointer):
+		r.logWarn("Projection snapshot pointer invalid; replacing it", input.ProjectionKey, "pointer_read", err)
+		pointer = &corev1.ProjectionSnapshotPointer{}
+	default:
+		return LoadedSnapshot{}, fmt.Errorf("read snapshot pointer: %w", err)
+	}
+	if pointer == nil {
+		pointer = &corev1.ProjectionSnapshotPointer{}
+	}
+
 	started := time.Now()
 	var generationID [generationIDSize]byte
 	if _, err := io.ReadFull(r.rand, generationID[:]); err != nil {
@@ -169,14 +185,6 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		return LoadedSnapshot{}, fmt.Errorf("write snapshot generation: %w", err)
 	}
 
-	pointer, err := r.loadPointer(ctx, input.ProjectionKey)
-	if err != nil && !errors.Is(err, ErrSnapshotNotFound) {
-		r.logWarn("Projection snapshot pointer unreadable; replacing it", input.ProjectionKey, "pointer_read", err)
-		pointer = &corev1.ProjectionSnapshotPointer{}
-	}
-	if pointer == nil {
-		pointer = &corev1.ProjectionSnapshotPointer{}
-	}
 	dropped := pointer.GetPreviousGenerationId()
 	pointer.PreviousGenerationId = pointer.GetCurrentGenerationId()
 	pointer.CurrentGenerationId = generationIDText
@@ -315,13 +323,27 @@ func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*co
 		}
 		return nil, err
 	}
-	_, plain, err := r.codec.open(sealed)
+	envelopeID, plain, err := r.codec.open(sealed)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", errInvalidPointer, err)
+	}
+	if envelopeID != [generationIDSize]byte{} {
+		return nil, fmt.Errorf("%w: envelope generation id is not empty", errInvalidPointer)
 	}
 	var pointer corev1.ProjectionSnapshotPointer
 	if err := proto.Unmarshal(plain, &pointer); err != nil {
-		return nil, fmt.Errorf("unmarshal snapshot pointer: %w", err)
+		return nil, fmt.Errorf("%w: unmarshal: %v", errInvalidPointer, err)
+	}
+	for name, id := range map[string]string{
+		"current generation id":  pointer.GetCurrentGenerationId(),
+		"previous generation id": pointer.GetPreviousGenerationId(),
+	} {
+		if id == "" {
+			continue
+		}
+		if _, err := parseGenerationID(id); err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", errInvalidPointer, name, err)
+		}
 	}
 	return &pointer, nil
 }

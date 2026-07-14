@@ -18,8 +18,10 @@ func testSaveInput(seq uint64, payload []byte) SaveInput {
 }
 
 type memoryBlobStore struct {
-	objects map[string][]byte
-	failPut func(string) bool
+	objects    map[string][]byte
+	failPut    func(string) bool
+	failGet    func(string) bool
+	failDelete func(string) bool
 }
 
 type capturedLog struct {
@@ -59,6 +61,9 @@ func (m *memoryBlobStore) Put(_ context.Context, key string, data []byte, _ stri
 	return nil
 }
 func (m *memoryBlobStore) Get(_ context.Context, key string, max int64) ([]byte, error) {
+	if m.failGet != nil && m.failGet(key) {
+		return nil, errors.New("injected get failure")
+	}
 	data, ok := m.objects[key]
 	if !ok {
 		return nil, ErrBlobNotFound
@@ -69,6 +74,9 @@ func (m *memoryBlobStore) Get(_ context.Context, key string, max int64) ([]byte,
 	return append([]byte(nil), data...), nil
 }
 func (m *memoryBlobStore) Delete(_ context.Context, key string) error {
+	if m.failDelete != nil && m.failDelete(key) {
+		return errors.New("injected delete failure")
+	}
 	if _, ok := m.objects[key]; !ok {
 		return ErrBlobNotFound
 	}
@@ -224,6 +232,84 @@ func TestRepositoryDoesNotPublishPointerAfterGenerationWriteFailure(t *testing.T
 	}
 }
 
+func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	first, err := repository.Save(ctx, testSaveInput(1, []byte("first")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := repository.Save(ctx, testSaveInput(2, []byte("second")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	objectCount := len(blobs.objects)
+	pointerKey := repository.pointerKey("threads")
+	blobs.failGet = func(key string) bool { return key == pointerKey }
+
+	_, err = repository.Save(ctx, testSaveInput(3, []byte("third")))
+	if err == nil || !strings.Contains(err.Error(), "read snapshot pointer") {
+		t.Fatalf("Save error = %v, want pointer read failure", err)
+	}
+	if len(blobs.objects) != objectCount {
+		t.Fatalf("pointer read failure changed object count from %d to %d", objectCount, len(blobs.objects))
+	}
+
+	blobs.failGet = nil
+	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != second.GenerationID || string(loaded.Payload) != "second" {
+		t.Fatalf("pointer changed after read failure: %#v", loaded)
+	}
+
+	blobs.objects[generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
+	loaded, err = repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != first.GenerationID || string(loaded.Payload) != "first" {
+		t.Fatalf("previous fallback changed after read failure: %#v", loaded)
+	}
+}
+
+func TestRepositoryReplacesDefinitivelyInvalidPointer(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	logger := &captureLogger{}
+	repository, err := NewRepository(blobs, RepositoryOptions{SecretHex: testSecret, Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Save(ctx, testSaveInput(1, []byte("first"))); err != nil {
+		t.Fatal(err)
+	}
+	blobs.objects[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
+
+	second, err := repository.Save(ctx, testSaveInput(2, []byte("second")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != second.GenerationID || string(loaded.Payload) != "second" {
+		t.Fatalf("loaded snapshot = %#v", loaded)
+	}
+	foundWarning := false
+	for _, record := range logger.logs {
+		if record.message == "Projection snapshot pointer invalid; replacing it" && errors.Is(record.fields["error"].(error), errInvalidPointer) {
+			foundWarning = true
+		}
+	}
+	if !foundWarning {
+		t.Fatal("invalid pointer replacement was not logged")
+	}
+}
+
 func TestRepositoryRejectsOversizedPayloadOnSaveAndLoad(t *testing.T) {
 	ctx := context.Background()
 	t.Run("save", func(t *testing.T) {
@@ -262,6 +348,34 @@ func TestRepositoryDeletesGenerationAfterPointerWriteFailure(t *testing.T) {
 	}
 	if len(blobs.objects) != 0 {
 		t.Fatalf("pointer failure left %d orphan objects", len(blobs.objects))
+	}
+}
+
+func TestRepositoryLogsFailedGenerationCleanupAfterPointerWriteFailure(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	blobs.failPut = func(key string) bool { return strings.Contains(key, "/pointers/") }
+	blobs.failDelete = func(key string) bool { return strings.Contains(key, "/objects/") }
+	logger := &captureLogger{}
+	repository, err := NewRepository(blobs, RepositoryOptions{SecretHex: testSecret, Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = repository.Save(ctx, testSaveInput(1, []byte("state")))
+	if err == nil || !strings.Contains(err.Error(), "publish snapshot pointer") {
+		t.Fatalf("Save error = %v, want pointer publication failure", err)
+	}
+	if len(blobs.objects) != 1 {
+		t.Fatalf("failed cleanup object count = %d, want 1 orphan", len(blobs.objects))
+	}
+	foundWarning := false
+	for _, record := range logger.logs {
+		if record.message == "Unpublished projection snapshot cleanup failed" && record.fields["stage"] == "publish_rollback" {
+			foundWarning = true
+		}
+	}
+	if !foundWarning {
+		t.Fatal("failed unpublished generation cleanup was not logged")
 	}
 }
 
