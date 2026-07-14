@@ -1,4 +1,5 @@
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- generic component with dynamic routes */
   import { page } from '$app/state';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import * as m from '$lib/i18n/messages';

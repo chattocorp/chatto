@@ -42,6 +42,11 @@ const checks = [
   {
     description: 'retired numbered surface token; use a semantic surface token',
     pattern: /surface-(?:100|200|300|highlighted)(?:\b|\/)/g
+  },
+  {
+    description: 'hard-coded white on a semantic fill; use the matching on-* foreground token',
+    pattern:
+      /(?:bg-(?:action|success|warning|danger)[^'"\n]*text-white|text-white[^'"\n]*bg-(?:action|success|warning|danger))/g
   }
 ];
 
