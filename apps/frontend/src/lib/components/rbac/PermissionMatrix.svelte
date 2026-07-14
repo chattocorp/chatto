@@ -144,7 +144,7 @@ focusing a cell highlights its permission row and role column.
   let data = $state<TierRoles | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let updating = $state<string | null>(null); // "{roleName}::{permission}" while a mutation is in flight
+  let updating = $state<string[]>([]); // "{roleName}::{permission}" entries with mutations in flight
   let hoveredCell = $state<MatrixCoordinate | null>(null);
   let focusedCell = $state<MatrixCoordinate | null>(null);
   const highlightedCell = $derived(hoveredCell ?? focusedCell);
@@ -286,14 +286,15 @@ focusing a cell highlights its permission row and role column.
   async function cycle(role: TierRole, permission: string, next: State) {
     if (!data) return;
     const cellKey = `${role.roleName}::${permission}`;
-    updating = cellKey;
+    if (updating.includes(cellKey)) return;
+    updating = [...updating, cellKey];
     error = null;
 
     const result = await setRolePermission(permissionAPI(), scopeFor(role), permission, next);
     if (result.error) {
       error = result.error;
       toast.error(result.error);
-      updating = null;
+      updating = updating.filter((key) => key !== cellKey);
       return;
     }
 
@@ -307,7 +308,7 @@ focusing a cell highlights its permission row and role column.
     } else if (next === 'deny') {
       role.override.permissionDenials = [...role.override.permissionDenials, permission];
     }
-    updating = null;
+    updating = updating.filter((key) => key !== cellKey);
   }
 </script>
 
@@ -401,7 +402,7 @@ focusing a cell highlights its permission row and role column.
                 {@const displayOverride = virtualOwner ? 'allow' : ov}
                 {@const displayInherited = virtualOwner ? 'neutral' : inh}
                 {@const cellKey = `${role.roleName}::${permission}`}
-                {@const isUpdating = updating === cellKey}
+                {@const isUpdating = updating.includes(cellKey)}
                 {@const ariaParts = virtualOwner
                   ? [`Owner is always granted ${permission}`]
                   : [
