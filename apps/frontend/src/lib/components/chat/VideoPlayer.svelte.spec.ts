@@ -103,6 +103,7 @@ describe('VideoPlayer', () => {
 
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
     expect(player.dataset.fit).toBe('cover');
+    expect(player.dataset.fitPosition).toBe('top');
     expect(getComputedStyle(poster).objectFit).toBe('cover');
   });
 
@@ -118,7 +119,9 @@ describe('VideoPlayer', () => {
 
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 480 / 270');
     expect(player.dataset.fit).toBe('cover');
+    expect(player.dataset.fitPosition).toBe('center');
     expect(getComputedStyle(poster).objectFit).toBe('cover');
+    expect(getComputedStyle(poster).objectPosition).toBe('50% 50%');
   });
 
   it('preserves true portrait posted videos', async () => {
@@ -134,6 +137,19 @@ describe('VideoPlayer', () => {
     expect(frame(container).getAttribute('style')).toContain('aspect-ratio: 180 / 320');
     expect(player.dataset.fit).toBe('contain');
     expect(getComputedStyle(poster).objectFit).toBe('contain');
+  });
+
+  it('preserves exact 2:3 and 3:2 boundary videos', async () => {
+    const portrait = renderPostedVideo({ width: 1000, height: 1500 });
+    const landscape = renderPostedVideo({ width: 1500, height: 1000 });
+
+    const portraitPlayer = await mediaPlayer(portrait.container);
+    const landscapePlayer = await mediaPlayer(landscape.container);
+
+    expect(frame(portrait.container).getAttribute('style')).toContain('aspect-ratio: 213 / 320');
+    expect(portraitPlayer.dataset.fit).toBe('contain');
+    expect(frame(landscape.container).getAttribute('style')).toContain('aspect-ratio: 480 / 320');
+    expect(landscapePlayer.dataset.fit).toBe('contain');
   });
 
   it('corrects stale metadata after the browser loads intrinsic video dimensions', async () => {

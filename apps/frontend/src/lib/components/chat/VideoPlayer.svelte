@@ -88,7 +88,7 @@
       status === 'COMPLETED' &&
       selectedVariant &&
       !autoLoop &&
-      ratio >= NEAR_SQUARE_MIN_RATIO &&
+      ratio > NEAR_SQUARE_MIN_RATIO &&
       ratio < NEAR_SQUARE_MAX_RATIO
     ) {
       return {
@@ -117,6 +117,8 @@
       ? 'cover'
       : 'contain';
   });
+
+  const fitPosition = $derived(sourceDimensions.width < sourceDimensions.height ? 'center' : 'top');
 
   const frameStyle = $derived(
     `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
@@ -256,6 +258,7 @@
       playsinline
       onerror={onMediaError}
       data-fit={fitMode}
+      data-fit-position={fitPosition}
       class="block h-full w-full"
     >
       <media-provider>
@@ -311,6 +314,12 @@
   :global(media-player[data-fit='cover'] .vds-poster),
   :global(media-player[data-fit='cover'] .vds-poster img) {
     object-fit: cover;
+    object-position: center center;
+  }
+
+  :global(media-player[data-fit='cover'][data-fit-position='top'] video),
+  :global(media-player[data-fit='cover'][data-fit-position='top'] .vds-poster),
+  :global(media-player[data-fit='cover'][data-fit-position='top'] .vds-poster img) {
     object-position: top center;
   }
 </style>
