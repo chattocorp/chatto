@@ -75,6 +75,9 @@ a dark semantic foreground to maintain WCAG AA contrast.
 
 Surfaces form a small semantic ladder:
 
+- In light mode, `background` is the quiet gray canvas and `surface` is the
+  white paper above it. Preserve that separation for anchored chrome such as
+  composers, user cards, dialogs, and panels.
 - `surface` is the ordinary content plane for panels, dialogs, and controls.
 - `surface-emphasized` separates quiet chrome, hover states, and nested rows.
 - `surface-strong` provides firmer contrast for compact selected or framed UI.

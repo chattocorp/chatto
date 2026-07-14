@@ -32,7 +32,7 @@
 :root {
   color-scheme: light;
 
-  --color-background: var(--color-gray-50);
+  --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-700);
   --color-text-top: var(--color-black);
   --color-muted: var(--color-gray-600);
