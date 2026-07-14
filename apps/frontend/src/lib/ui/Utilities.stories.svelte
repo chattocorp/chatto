@@ -113,8 +113,8 @@
   <div class="flex max-w-3xl flex-col gap-4">
     <p class="max-w-prose text-sm text-muted">
       Use <code>panel-shell</code> for admin panels, directory group cards, and other durable
-      content containers. Combine with <code>panel-header</code> and <code>panel-body</code>
-      when the surface has a header band.
+      content containers. Combine with <code>panel-header</code> when the surface has a
+      structured header.
     </p>
 
     <div class="grid gap-4 md:grid-cols-2">
@@ -123,7 +123,7 @@
           <h3 class="font-semibold">Flat shell</h3>
           <p class="text-sm text-muted">Embedded in a dense view.</p>
         </header>
-        <div class="p-4 text-sm text-muted panel-body">
+        <div class="p-4 text-sm text-muted">
           Bordered, token-backed background, no elevation.
         </div>
       </section>
@@ -133,7 +133,7 @@
           <h3 class="font-semibold">Raised shell</h3>
           <p class="text-sm text-muted">Used by admin panels.</p>
         </header>
-        <div class="p-4 text-sm text-muted panel-body">
+        <div class="p-4 text-sm text-muted">
           Same shell with the approved quiet shadow.
         </div>
       </section>

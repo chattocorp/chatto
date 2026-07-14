@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -105,6 +106,24 @@ describe('PermissionMatrix', () => {
     // two categories ('message' and 'room'), so 8 header cells total.
     expect(container.querySelectorAll('thead th').length).toBe(8);
     expect(container.querySelectorAll('tbody tr').length).toBe(2);
+  });
+
+  it('keeps panel, table header, and sticky cells on one surface', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const panel = container.querySelector('.panel-shell') as HTMLElement;
+    const panelHeader = panel.querySelector(':scope > .panel-header') as HTMLElement;
+    const tableHeader = panel.querySelector('thead tr') as HTMLElement;
+    const stickyHeader = panel.querySelector('thead th.sticky') as HTMLElement;
+    const stickyBody = panel.querySelector('tbody td.sticky') as HTMLElement;
+    const surfaceColor = getComputedStyle(panel).backgroundColor;
+
+    expect(surfaceColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(panelHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(tableHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(stickyBody).backgroundColor).toBe(surfaceColor);
   });
 
   it('reflects override + inherited state in cell aria-pressed', async () => {

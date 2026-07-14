@@ -84,6 +84,10 @@ Surfaces form a small semantic ladder:
 - `surface-selected` is reserved for persistent selection. Pair it with an
   action-colored indicator when selection must be obvious at a glance.
 
+Panels, informational hints, table headers, table bodies, and sticky table
+cells share the same `surface`. Use dividers, spacing, type weight, and icons to
+express their different roles; do not introduce another header-band fill.
+
 Do not infer a new numeric surface level. Choose the nearest semantic role, or
 adjust the owning component when the hierarchy itself is wrong.
 

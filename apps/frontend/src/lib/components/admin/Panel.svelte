@@ -44,7 +44,7 @@
       {/if}
     </div>
   {/if}
-  <div class={[noPadding ? '' : 'p-5', title && 'panel-body']}>
+  <div class={noPadding ? '' : 'p-5'}>
     {@render children()}
   </div>
 </div>

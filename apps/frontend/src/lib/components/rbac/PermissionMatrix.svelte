@@ -310,7 +310,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
           >
             {#snippet header()}
               <th
-                class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+                class="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom font-medium"
                 style="width: 14rem"
               >
                 {m['rbac.permissions.permission']()}
@@ -347,7 +347,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
               {/each}
             {/snippet}
             {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
+              <td class="sticky left-0 z-10 bg-surface px-4 py-2 whitespace-nowrap">
                 <code data-testid="permission-name" class="text-sm">{permission}</code>
                 <HelpTooltip label={`About ${permission}`}>
                   {getPermissionDescription(permission)}
