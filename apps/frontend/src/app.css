@@ -38,11 +38,17 @@
   --color-muted: var(--color-gray-600);
 
   --color-border: var(--color-gray-200);
+  /* Light mode is deliberately not a luminance mirror of dark mode. The pale
+     background is the primary work plane; cool gray surfaces make anchored
+     chrome and controls feel inset and substantial instead of pasted on. */
   --color-surface: var(--color-gray-200);
-  --color-surface-100: var(--color-gray-200);
-  --color-surface-200: var(--color-gray-300);
-  --color-surface-300: var(--color-gray-400);
-  --color-surface-highlighted: var(--color-gray-300);
+  --color-surface-emphasized: color-mix(
+    in srgb,
+    var(--color-gray-200),
+    var(--color-gray-300) 55%
+  );
+  --color-surface-strong: var(--color-gray-300);
+  --color-surface-selected: var(--color-gray-300);
 
   /* Form-field surface — distinct from any container surface so inputs
      never disappear into a dialog or panel. Pure white in light mode
@@ -50,19 +56,20 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  --color-accent: var(--color-sky-700);
-  --color-primary: #475569;
-  --color-primary-hover: #334155;
-  /* Canonical semantic names. `accent` / `primary` remain compatibility
-     aliases for existing call sites; new code should use these names. */
-  --color-action: var(--color-accent);
-  --color-neutral-action: var(--color-primary);
-  --color-neutral-action-hover: var(--color-primary-hover);
-  --color-link: var(--color-accent);
-  --color-link-hover: color-mix(in srgb, var(--color-accent), black 20%);
+  --color-action: var(--color-sky-700);
+  --color-action-hover: var(--color-sky-800);
+  --color-on-action: var(--color-white);
+  --color-neutral-action: var(--color-slate-600);
+  --color-neutral-action-hover: var(--color-slate-700);
+  --color-on-neutral-action: var(--color-white);
+  --color-link: var(--color-action);
+  --color-link-hover: color-mix(in srgb, var(--color-action), black 20%);
   --color-success: var(--color-green-800);
+  --color-on-success: var(--color-white);
   --color-warning: var(--color-amber-800);
+  --color-on-warning: var(--color-white);
   --color-danger: var(--color-red-700);
+  --color-on-danger: var(--color-white);
   --color-error: var(--color-red-700);
   --color-server: var(--color-indigo-700);
   --color-presence-online: var(--color-green-500);
@@ -71,12 +78,6 @@
   --color-presence-offline: var(--color-gray-500);
   --color-presence-invisible: var(--color-gray-400);
 
-  /* Panel header band tint + 1px inset highlight just under the divider.
-     Tint matches the outer app frame (`bg-surface-100`) so the header
-     reads as if cut from that surface. Highlight is tuned per theme
-     (bright in light, barely-there in dark) — see dark override. */
-  --color-panel-tint: var(--color-surface-100);
-  --color-panel-highlight: rgba(255, 255, 255, 0.7);
   --color-image-outline: rgba(0, 0, 0, 0.1);
 
   /* Shimmer hover effect gradient */
@@ -93,34 +94,38 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --color-background: var(--color-neutral-900);
+  --color-background: var(--color-neutral-950);
   --color-text: var(--color-neutral-300);
   --color-text-top: var(--color-white);
   --color-muted: var(--color-neutral-400);
 
   --color-border: var(--color-neutral-800);
-  --color-surface: var(--color-neutral-800);
-  --color-surface-100: var(--color-neutral-800);
-  --color-surface-200: var(--color-neutral-700);
-  --color-surface-300: var(--color-neutral-600);
-  --color-surface-highlighted: var(--color-neutral-600);
+  --color-surface: var(--color-neutral-900);
+  --color-surface-emphasized: var(--color-neutral-800);
+  --color-surface-strong: var(--color-neutral-700);
+  --color-surface-selected: var(--color-neutral-700);
 
   /* See light-mode comment — sits below all surfaces for an inset well look. */
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-accent: var(--color-sky-400);
-  --color-primary: var(--color-neutral-600);
-  --color-primary-hover: var(--color-neutral-500);
-  --color-link: var(--color-accent);
-  --color-link-hover: color-mix(in srgb, var(--color-accent), white 20%);
+  --color-action: var(--color-sky-400);
+  --color-action-hover: var(--color-sky-300);
+  --color-on-action: var(--color-neutral-950);
+  --color-neutral-action: var(--color-neutral-600);
+  --color-neutral-action-hover: var(--color-neutral-500);
+  --color-on-neutral-action: var(--color-white);
+  --color-link: var(--color-action);
+  --color-link-hover: color-mix(in srgb, var(--color-action), white 20%);
   --color-success: var(--color-green-500);
+  --color-on-success: var(--color-neutral-950);
   --color-warning: var(--color-amber-500);
+  --color-on-warning: var(--color-neutral-950);
   --color-danger: var(--color-red-400);
+  --color-on-danger: var(--color-neutral-950);
   --color-error: var(--color-red-400);
   --color-server: var(--color-indigo-400);
 
-  --color-panel-highlight: rgba(255, 255, 255, 0.04);
   --color-image-outline: rgba(255, 255, 255, 0.1);
 }
 
@@ -135,25 +140,27 @@
 
   --color-border: var(--color-border);
   --color-surface: var(--color-surface);
-  --color-surface-100: var(--color-surface-100);
-  --color-surface-200: var(--color-surface-200);
-  --color-surface-300: var(--color-surface-300);
-  --color-surface-highlighted: var(--color-surface-highlighted);
+  --color-surface-emphasized: var(--color-surface-emphasized);
+  --color-surface-strong: var(--color-surface-strong);
+  --color-surface-selected: var(--color-surface-selected);
 
   --color-input: var(--color-input);
   --color-input-border: var(--color-input-border);
 
-  --color-accent: var(--color-accent);
-  --color-primary: var(--color-primary);
-  --color-primary-hover: var(--color-primary-hover);
   --color-action: var(--color-action);
+  --color-action-hover: var(--color-action-hover);
+  --color-on-action: var(--color-on-action);
   --color-neutral-action: var(--color-neutral-action);
   --color-neutral-action-hover: var(--color-neutral-action-hover);
+  --color-on-neutral-action: var(--color-on-neutral-action);
   --color-link: var(--color-link);
   --color-link-hover: var(--color-link-hover);
   --color-success: var(--color-success);
+  --color-on-success: var(--color-on-success);
   --color-warning: var(--color-warning);
+  --color-on-warning: var(--color-on-warning);
   --color-danger: var(--color-danger);
+  --color-on-danger: var(--color-on-danger);
   --color-error: var(--color-error);
   --color-server: var(--color-server);
   --color-presence-online: var(--color-presence-online);
@@ -161,30 +168,27 @@
   --color-presence-do-not-disturb: var(--color-presence-do-not-disturb);
   --color-presence-offline: var(--color-presence-offline);
   --color-presence-invisible: var(--color-presence-invisible);
-
-  --color-panel-tint: var(--color-panel-tint);
-  --color-panel-highlight: var(--color-panel-highlight);
 }
 
 /* Panel/card shells - canonical bordered surfaces for admin panels, room
  * directory group cards, and similar content containers. Pair with
- * `.panel-header` / `.panel-body` when the container has a distinct header.
+ * `.panel-header` when the container has a distinct header.
  */
 @utility panel-shell {
-  @apply rounded-xl border border-border bg-background;
+  @apply rounded-lg border border-border bg-surface;
 }
 
 @utility panel-shell-raised {
-  @apply shadow-md;
+  @apply shadow-sm;
 }
 
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */
 @utility surface-box {
-  @apply rounded-lg border border-border bg-surface-100;
+  @apply rounded-md border border-border bg-surface-emphasized/60;
 }
 
 /* Message composer mode surface. Simple mode is intentionally unadorned;
-   data-composer-mode="rich" reveals the accent ring and glow. */
+   data-composer-mode="rich" reveals the action ring and glow. */
 @utility composer-mode-surface {
   --composer-ring-opacity: 0;
   @apply relative isolate;
@@ -202,10 +206,10 @@
     border-radius: calc(0.75rem + 2px);
     background: linear-gradient(
       115deg,
-      color-mix(in srgb, var(--color-accent) 72%, white),
-      var(--color-accent),
-      color-mix(in srgb, var(--color-accent) 72%, #a855f7),
-      color-mix(in srgb, var(--color-accent) 72%, white)
+      color-mix(in srgb, var(--color-action) 72%, white),
+      var(--color-action),
+      color-mix(in srgb, var(--color-action) 72%, #a855f7),
+      color-mix(in srgb, var(--color-action) 72%, white)
     );
     background-size: 220% 100%;
     opacity: var(--composer-ring-opacity);
@@ -220,8 +224,8 @@
   &[data-composer-mode='rich'] {
     --composer-ring-opacity: 1;
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
-      0 0 16px color-mix(in srgb, var(--color-accent) 22%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--color-action) 45%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-action) 22%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -233,95 +237,65 @@
   }
 }
 
-/* Panel header band — tinted background, hairline divider underneath, and
- * a 1px inset highlight on whatever follows so the divider reads as an
- * engraved ridge rather than a flat rule. The body inset is achieved via
- * `box-shadow` on the *next* sibling (see `.panel-body`). Apply to the
- * header element of any panel-like container (admin Panel, DataTable
- * thead, hand-rolled room-group section).
+/* Panel and table header — one surface with a hairline divider. Typography,
+ * spacing, and structure carry hierarchy instead of another background band.
+ * Apply to the header element of any panel-like container (admin Panel,
+ * DataTable thead, hand-rolled room-group section).
  */
 @utility panel-header {
-  background-color: var(--color-panel-tint);
+  background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 
-@utility panel-body {
-  box-shadow: inset 0 1px 0 var(--color-panel-highlight);
-}
-
-/* Button utilities — share the gradient + shadow visual language with
- * ToggleChip / MatrixCell so primary actions, mini-buttons and chips
- * all read as one coherent "interactive UI" system. Solid variants get
- * a top-left → bottom-right gradient (lighter to saturated), a tone-
- * tinted shadow, and a 1px ring; the secondary variant gets a quiet
- * surface gradient + neutral ring. Disabled state collapses everything
- * via opacity.
+/* Buttons are deliberately solid and compact. Tone communicates hierarchy;
+ * subtle borders and pressed scale provide depth without decorative gradients.
  */
 @utility btn {
-  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-medium;
-  @apply transition-[background-color,color,box-shadow,scale,--tw-gradient-from,--tw-gradient-to] duration-150 active:scale-[0.96];
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 font-medium;
+  @apply transition-[background-color,border-color,color,box-shadow,scale] duration-150 active:scale-[0.97];
+  @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Solid variants: top-light → bottom-saturated gradient + a soft tone
- * ring. No drop shadows — the gradient gives them depth on its own and
- * keeps the visual language consistent with the rest of the app, which
- * doesn't use shadows. */
 @utility btn-neutral {
-  @apply btn text-white;
-  @apply bg-gradient-to-br from-neutral-action/65 to-neutral-action/95 ring-1 ring-neutral-action/30;
-  @apply hover:from-neutral-action/75 hover:to-neutral-action;
+  @apply btn bg-neutral-action text-on-neutral-action hover:bg-neutral-action-hover;
 }
 
 @utility btn-action {
-  @apply btn text-white;
-  @apply bg-gradient-to-br from-action/65 to-action/95 ring-1 ring-action/30;
-  @apply hover:from-action/75 hover:to-action;
+  @apply btn bg-action text-on-action hover:bg-action-hover;
 }
 
 @utility btn-success {
-  @apply btn text-white;
-  @apply bg-gradient-to-br from-success/65 to-success/95 ring-1 ring-success/30;
-  @apply hover:from-success/75 hover:to-success;
+  @apply btn bg-success text-on-success hover:bg-success/90;
 }
 
 @utility btn-secondary {
-  /* Quiet surface gradient + neutral ring — distinct from surfaces
-     (dialogs, panels) without competing with the saturated variants. */
-  @apply btn text-text;
-  @apply bg-gradient-to-br from-surface-100/80 to-surface-200/80 ring-1 ring-text/5;
-  @apply hover:from-surface-200 hover:to-surface-300 hover:ring-text/10;
+  @apply btn border border-border bg-surface text-text hover:bg-surface-emphasized;
 }
 
 @utility btn-ghost {
-  /* Stays minimal — no fill or ring until hover. Used for in-row icon
-     actions where a gradient would be too loud. */
-  @apply btn bg-transparent text-text hover:bg-surface;
+  @apply btn bg-transparent text-text hover:bg-surface-emphasized;
 }
 
 @utility btn-warning {
-  @apply btn text-white;
-  @apply bg-gradient-to-br from-warning/65 to-warning/95 ring-1 ring-warning/30;
-  @apply hover:from-warning/75 hover:to-warning;
+  @apply btn bg-warning text-on-warning hover:bg-warning/90;
 }
 
 @utility btn-danger {
-  @apply btn text-white;
-  @apply bg-gradient-to-br from-danger/65 to-danger/95 ring-1 ring-danger/30;
-  @apply hover:from-danger/75 hover:to-danger;
+  @apply btn bg-danger text-on-danger hover:bg-danger/90;
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */
 @utility btn-danger-secondary {
   @apply btn-secondary;
-  @apply hover:from-danger/65 hover:to-danger/95 hover:text-white hover:ring-danger/30;
-  @apply focus-visible:from-danger/65 focus-visible:to-danger/95 focus-visible:text-white focus-visible:ring-danger/30;
+  @apply hover:border-danger/30 hover:bg-danger/10 hover:text-danger;
+  @apply focus-visible:border-danger/30 focus-visible:bg-danger/10 focus-visible:text-danger focus-visible:ring-danger/25;
 }
 
 /* Quiet room-membership action that reveals its destructive meaning on hover. */
 @utility btn-danger-ghost {
-  @apply btn border border-border bg-background text-muted;
-  @apply hover:border-danger hover:bg-danger hover:text-white;
+  @apply btn border border-border bg-transparent text-muted;
+  @apply hover:border-danger/30 hover:bg-danger/10 hover:text-danger;
 }
 
 @utility btn-sm {
@@ -333,13 +307,13 @@
   @apply min-h-8 min-w-0 rounded-md px-3 py-1 text-xs;
 }
 
-/* Desktop-only dense action used inside the current-call status card. */
+/* Equal-width icon action used inside the current-call control row. */
 @utility btn-compact {
-  @apply h-7 min-h-0 min-w-0 px-2 py-0 text-xs;
+  @apply h-10 min-h-10 w-full min-w-0 shrink-0 p-0 text-xs;
 }
 
 @utility btn-lg {
-  @apply px-6 py-3 font-semibold;
+  @apply min-h-12 px-5 py-2.5 font-semibold;
 }
 
 @utility btn-icon-action {
@@ -348,10 +322,10 @@
 
 /* Form input utilities */
 @utility input {
-  @apply w-full rounded-lg border border-input-border bg-input px-3 py-2 text-text;
+  @apply min-h-10 w-full rounded-md border border-input-border bg-input px-3 py-2 text-text;
   @apply placeholder:text-muted/70;
   @apply transition-[border-color,box-shadow] duration-100;
-  @apply focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none;
+  @apply focus:border-action focus:ring-2 focus:ring-action/30 focus:outline-none;
   @apply aria-invalid:border-error aria-invalid:focus:ring-error/30;
   @apply disabled:cursor-not-allowed disabled:opacity-60;
   @apply select-text; /* Re-enable text selection in form fields */
@@ -363,16 +337,16 @@
 
 /* Checkbox utility */
 @utility checkbox {
-  @apply h-4 w-4 cursor-pointer rounded border-input-border bg-input text-accent;
+  @apply h-4 w-4 cursor-pointer rounded border-input-border bg-input text-action;
   @apply transition-[border-color,box-shadow] duration-100;
-  @apply focus:ring-2 focus:ring-accent/30 focus:ring-offset-0;
+  @apply focus:ring-2 focus:ring-action/30 focus:ring-offset-0;
   @apply disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 @utility checkbox-option {
-  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface/45 px-3 py-3;
+  @apply flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface px-3 py-3;
   @apply transition-[background-color,border-color,box-shadow] duration-100;
-  @apply hover:border-input-border hover:bg-surface-100;
+  @apply hover:border-input-border hover:bg-surface-emphasized;
 }
 
 @utility checkbox-box {
@@ -382,13 +356,13 @@
 
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
-  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors;
-  @apply hover:border-input-border hover:bg-surface-100;
+  @apply flex cursor-pointer items-center gap-3 overflow-hidden rounded-md border border-transparent bg-surface px-3 py-2.5 text-left transition-[background-color,border-color,box-shadow];
+  @apply hover:border-border hover:bg-surface-emphasized;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @utility choice-row-selected {
-  @apply border-accent bg-accent/10 hover:border-accent hover:bg-accent/10;
+  @apply border-action/30 bg-action/8 shadow-[inset_3px_0_0_var(--color-action)] hover:border-action/40 hover:bg-action/10;
 }
 
 @utility choice-indicator {
@@ -396,7 +370,7 @@
 }
 
 @utility choice-indicator-selected {
-  @apply border-accent bg-accent;
+  @apply border-action bg-action;
 }
 
 @utility choice-indicator-dot {
@@ -408,16 +382,14 @@
   @apply text-sm text-error;
 }
 
-/* Inline link — accent (sky) tint with a persistent underline. The `primary`
- * design token is slate/neutral and would render links indistinguishable
- * from body copy; accent is the canonical link color. */
+/* Inline link — the action tint with a persistent underline. */
 @utility link {
-  @apply text-accent underline decoration-accent/50 underline-offset-2 hover:decoration-accent;
+  @apply text-action underline decoration-action/50 underline-offset-2 hover:decoration-action;
 }
 
 /* Mention styling in messages */
 .mention {
-  @apply cursor-pointer rounded-sm bg-surface-200 px-0.5 font-semibold;
+  @apply cursor-pointer rounded-sm bg-surface-emphasized px-0.5 font-semibold;
 }
 
 .mention-self {
@@ -426,7 +398,7 @@
 
 /* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
 @utility embed-frame {
-  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface-100 shadow-sm outline-[3px] outline-offset-0 outline-surface-300 transition-shadow hover:shadow-md focus-visible:shadow-md;
+  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface shadow-sm outline-[3px] outline-offset-0 outline-surface-strong transition-shadow hover:shadow-md focus-visible:shadow-md;
 }
 
 @utility embed-control-button {
@@ -434,7 +406,7 @@
 }
 
 @utility attachment-remove-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 transition-[opacity,scale] outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.96] md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 transition-[opacity,scale] outline-none focus-visible:ring-2 focus-visible:ring-neutral-action focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.96] md:opacity-0;
 
   &::before {
     content: '';
@@ -456,9 +428,9 @@
   @apply relative overflow-hidden opacity-30;
   background: linear-gradient(
     90deg,
-    var(--color-surface-100) 0%,
-    var(--color-surface-200) 50%,
-    var(--color-surface-100) 100%
+    var(--color-surface) 0%,
+    var(--color-surface-emphasized) 50%,
+    var(--color-surface) 100%
   );
   background-size: 200% 100%;
   animation: skeleton-shimmer 2s linear infinite;
@@ -486,13 +458,13 @@
    Containers should add `group/badges` so the hover elevation works. */
 @utility meta-badge {
   @apply inline-flex items-center rounded-sm border leading-none;
-  @apply bg-surface group-hover/badges:bg-surface-200 hover:bg-surface-300;
+  @apply bg-surface group-hover/badges:bg-surface-emphasized hover:bg-surface-strong;
 }
 
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
-  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface-100 md:mx-2 md:rounded-md md:pr-8;
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface md:mx-2 md:rounded-md md:pr-8;
 }
 
 @utility message-row-footer {
@@ -516,7 +488,7 @@
 }
 
 @utility pane-header-icon-button-active {
-  @apply bg-surface-200 text-text-top hover:text-text-top;
+  @apply bg-surface-emphasized text-text-top hover:text-text-top;
 }
 
 /* Sidebar navigation utilities */
@@ -526,7 +498,7 @@
 
 @utility sidebar-item {
   @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
-  @apply hover:bg-surface-100 hover:text-text;
+  @apply hover:bg-surface hover:text-text;
 }
 
 @utility sidebar-item-attention {
@@ -577,7 +549,7 @@
 /* Icon button in the app header: 44px tap target, negative margin to keep
    visual alignment tight, subtle hover/active feedback. */
 @utility app-header-icon {
-  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-200;
+  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-emphasized;
 }
 
 /* Compact inline icon-only action for row/input affordances such as copy,
@@ -586,7 +558,7 @@
  */
 @utility icon-action {
   @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] active:scale-[0.96];
-  @apply hover:bg-surface-200 hover:text-text;
+  @apply hover:bg-surface-emphasized hover:text-text;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -615,7 +587,7 @@
   background: linear-gradient(
     90deg,
     var(--color-surface) 0%,
-    var(--color-surface-highlighted) 50%,
+    var(--color-surface-selected) 50%,
     var(--color-surface) 100%
   );
   background-size: 200% 100%;
@@ -697,11 +669,11 @@
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
   @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-colors duration-100;
-  @apply bg-surface text-text/70 hover:bg-surface-highlighted hover:text-text;
+  @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text;
 }
 
 @utility server-gutter-item-active {
-  @apply bg-surface-highlighted text-text hover:bg-surface-highlighted hover:text-text;
+  @apply bg-surface-selected text-text hover:bg-surface-selected hover:text-text;
   @apply ring-2 ring-text;
 }
 
@@ -715,7 +687,7 @@
   /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
      (which is pure white in dark mode, not the app's slightly-off neutral-100).
      Menu items that need a different color still override it on their own. */
-  @apply rounded-lg border border-text/10 bg-surface-100 p-1 text-sm text-text shadow-xl;
+  @apply rounded-lg border border-text/10 bg-surface p-1 text-sm text-text shadow-xl;
 }
 
 @utility menu-section {
@@ -727,16 +699,16 @@
 }
 
 @utility menu-item {
-  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96];
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] hover:bg-surface active:scale-[0.96];
 }
 
 @utility menu-item-active {
-  @apply bg-surface-100;
+  @apply bg-surface;
 }
 
 /* Simple non-interactive tooltip surface for FloatingTooltip. */
 @utility floating-tooltip {
-  @apply max-w-xs rounded-md border border-text/10 bg-surface-200 px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
+  @apply max-w-xs rounded-md border border-text/10 bg-surface-emphasized px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
 }
 
 @layer base {

@@ -135,7 +135,7 @@ describe('RoomSidebarToggle', () => {
     ) as HTMLButtonElement | null;
 
     expect(callButton).toBeTruthy();
-    expect(callButton!.classList.contains('text-accent')).toBe(true);
+    expect(callButton!.classList.contains('text-action')).toBe(true);
     expect(callButton!.querySelector('[data-testid="active-call-pulse-icon"]')).toBeTruthy();
   });
 
@@ -153,7 +153,7 @@ describe('RoomSidebarToggle', () => {
     ) as HTMLButtonElement | null;
 
     expect(callButton).toBeTruthy();
-    expect(callButton!.classList.contains('text-accent')).toBe(true);
+    expect(callButton!.classList.contains('text-action')).toBe(true);
     expect(callButton!.classList.contains('pane-header-icon-button-active')).toBe(true);
     expect(callButton!.querySelector('[data-testid="active-call-pulse-icon"]')).toBeFalsy();
   });

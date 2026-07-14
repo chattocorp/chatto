@@ -86,7 +86,7 @@ resolution to request for sidebar-width tiles.
 <div
 	class={[
 		'relative block w-full overflow-hidden rounded-md',
-		fit === 'contain' ? 'bg-black' : 'bg-surface-200',
+		fit === 'contain' ? 'bg-black' : 'bg-surface-emphasized',
 		fill ? 'h-full min-h-0' : 'aspect-video'
 	]}
 >
@@ -102,7 +102,7 @@ resolution to request for sidebar-width tiles.
 	></video>
 	{#if showIdentityOverlay}
 		<div
-			class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface-100)]"
+			class="absolute top-2 left-2 h-6 w-6 rounded-full shadow-[0_0_0_1.5px_var(--color-surface)]"
 		>
 			<UserAvatar {user} size="xs" />
 		</div>

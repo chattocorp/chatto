@@ -118,7 +118,7 @@
   <tbody>
     {#each items as item, index (keyFn(item, index))}
       {#if shouldRenderGroup(item, index)}
-        <tr class="border-b border-border bg-surface-100/80">
+        <tr class="border-b border-border bg-surface/80">
           <td colspan={columns} class="px-4 py-2">
             {@render group?.(item)}
           </td>
@@ -127,7 +127,7 @@
       <tr
         class={[
           'border-b border-border last:border-0',
-          hoverable ? 'hover:bg-surface-200/40' : '',
+          hoverable ? 'hover:bg-surface-emphasized/40' : '',
           onRowClick ? 'cursor-pointer' : ''
         ]}
         onclick={() => onRowClick?.(item)}

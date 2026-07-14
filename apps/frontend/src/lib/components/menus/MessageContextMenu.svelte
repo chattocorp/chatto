@@ -139,7 +139,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     <div class="flex justify-between">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => handleReaction(emoji)}
           aria-label={m['room.message.actions.react_with']({ emoji })}
           role="menuitem"
@@ -149,7 +149,7 @@ Rendered inside a ContextMenu when right-clicking a message.
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base text-muted transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base text-muted transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => {
             onOpenEmojiPicker();
             onClose();

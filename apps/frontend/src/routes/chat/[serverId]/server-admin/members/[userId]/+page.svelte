@@ -16,7 +16,7 @@
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, Form, FormError, TextInput, z, validate } from '$lib/ui/form';
+  import { Button, Checkbox, Form, FormError, TextInput, z, validate } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { formatDate, formatDateTime } from '$lib/utils/formatTime';
@@ -358,7 +358,7 @@
               />
             {:else}
               <div
-                class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface-300 text-3xl text-muted"
+                class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface-strong text-3xl text-muted"
               >
                 {getAvatarInitials(member.displayName, member.login)}
               </div>
@@ -385,7 +385,7 @@
                 {:else}
                   <Pill tone="muted">{m['admin.members.email_hidden']()}</Pill>
                 {/if}
-                <Pill tone={serverRoleCount > 0 ? 'primary' : 'muted'}>
+                <Pill tone={serverRoleCount > 0 ? 'neutral' : 'muted'}>
                   {serverRoleCount === 1
                     ? m['admin.members.server_role_one']()
                     : m['admin.members.server_role_many']({ count: serverRoleCount })}
@@ -395,7 +395,7 @@
                     ? m['admin.members.deletion_allowed']()
                     : m['admin.members.deletion_protected']()}
                 </Pill>
-                <Pill tone={cooldownActive ? 'accent' : 'muted'}>
+                <Pill tone={cooldownActive ? 'action' : 'muted'}>
                   {cooldownActive
                     ? m['admin.members.rename_cooldown']()
                     : m['admin.members.rename_available']()}
@@ -429,7 +429,7 @@
               <div class="text-sm text-muted">{m['admin.members.server_roles']()}</div>
               <div class="mt-1 flex flex-wrap gap-1">
                 {#each sortedServerRoles as roleName (roleName)}
-                  <Pill tone="primary">{getRoleDisplayName(roleName)}</Pill>
+                  <Pill tone="neutral">{getRoleDisplayName(roleName)}</Pill>
                 {/each}
                 <Pill>{m['admin.members.member']()}</Pill>
               </div>
@@ -575,39 +575,23 @@
                 ? m['admin.members.cannot_revoke_own_role']({ role: role.displayName })
                 : ''}
 
-            <div
-              class={[
-                'flex items-center gap-3 rounded-lg border border-border p-3',
-                isDisabled ? 'opacity-50' : ''
-              ]}
-            >
-              <label
-                class={[
-                  'flex flex-1 items-center gap-3',
-                  isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'
-                ]}
-                title={tooltip}
-              >
-                <input
-                  type="checkbox"
+            <div class="flex items-center gap-3">
+              <div class="min-w-0 flex-1" title={tooltip}>
+                <Checkbox
+                  id={`role-assignment-${role.name}`}
                   checked={has}
                   disabled={isDisabled}
-                  class={[
-                    'h-5 w-5',
-                    isDisabled ? 'cursor-not-allowed' : 'cursor-pointer',
-                    isUpdating ? 'animate-pulse' : ''
-                  ]}
+                  loading={isUpdating}
                   onchange={() => toggleRole(role.name, has)}
-                />
-                <div class="flex-1">
-                  <div class="font-medium">{role.displayName}</div>
+                >
+                  <span class="block">{role.displayName}</span>
                   {#if isImplicit}
-                    <div class="text-xs text-muted">
+                    <span class="block text-xs font-normal text-muted">
                       {m['admin.members.implicit_all_members']()}
-                    </div>
+                    </span>
                   {/if}
-                </div>
-              </label>
+                </Checkbox>
+              </div>
               {#if canManageRoles}
                 <a
                   href={resolve('/chat/[serverId]/server-admin/permissions/[name]', {

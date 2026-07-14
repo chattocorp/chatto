@@ -425,7 +425,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {#if kind}
     <span
       class={[
-        'iconify shrink-0 text-xs leading-none text-accent',
+        'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'uil--video' : 'uil--phone'
       ]}
       title={kind === 'video'

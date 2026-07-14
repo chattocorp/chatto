@@ -236,12 +236,12 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface-100 p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-200/70';
+    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-emphasized/70';
   const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
   const callTileIdentityButtonClass =
-    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
   const callTileMediaButtonClass =
-    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -848,9 +848,9 @@ Room sidebar panel for voice/video calls.
   :global(.call-speaking-card)::after {
     position: absolute;
     inset: 0;
-    border: 2px solid var(--color-accent);
+    border: 2px solid var(--color-action);
     border-radius: inherit;
-    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-accent) 30%, transparent);
+    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 30%, transparent);
     content: '';
     opacity: var(--call-speaking-ring-opacity);
     pointer-events: none;

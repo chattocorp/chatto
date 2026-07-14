@@ -87,7 +87,7 @@
 {#snippet frame()}
   <div
     use:sidebarSwipe
-    class="flex h-full w-full flex-col overscroll-y-contain bg-surface-100 pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
+    class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
   >
     <ConnectionIndicator />
 

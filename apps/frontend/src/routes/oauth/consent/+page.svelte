@@ -118,7 +118,7 @@
   <div class="flex flex-col gap-6">
     <div class="text-center">
       <div
-        class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent"
+        class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-action/10 text-action"
       >
         <span class="iconify text-2xl mdi--shield-check"></span>
       </div>
@@ -140,15 +140,15 @@
           <div class="mb-3 text-sm font-medium">{m['auth.oauth.allow_intro']()}</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
               <span>{m['auth.oauth.allow_profile']()}</span>
             </li>
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
               <span>{m['auth.oauth.allow_messages']()}</span>
             </li>
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-accent mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
               <span>{m['auth.oauth.allow_remember']()}</span>
             </li>
           </ul>

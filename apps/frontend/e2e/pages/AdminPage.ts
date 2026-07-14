@@ -256,7 +256,12 @@ export class AdminPage {
    * Get a role checkbox in the Role Assignments section.
    */
   getRoleCheckbox(roleDisplayName: string): Locator {
-    return this.page.locator('label').filter({ hasText: roleDisplayName }).getByRole('checkbox');
+    return this.getRoleOption(roleDisplayName).getByRole('checkbox');
+  }
+
+  /** Get the visible option label that owns the role checkbox hit area. */
+  getRoleOption(roleDisplayName: string): Locator {
+    return this.page.locator('label').filter({ hasText: roleDisplayName });
   }
 
   /**
@@ -264,7 +269,7 @@ export class AdminPage {
    */
   async assignRole(roleDisplayName: string): Promise<void> {
     const checkbox = this.getRoleCheckbox(roleDisplayName);
-    await checkbox.click();
+    await this.getRoleOption(roleDisplayName).click();
     await expect(checkbox).toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
@@ -273,7 +278,7 @@ export class AdminPage {
    */
   async revokeRole(roleDisplayName: string): Promise<void> {
     const checkbox = this.getRoleCheckbox(roleDisplayName);
-    await checkbox.click();
+    await this.getRoleOption(roleDisplayName).click();
     await expect(checkbox).not.toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
@@ -413,7 +418,7 @@ export class AdminPage {
       Roles: this.rolesLink,
       Permissions: this.rolesLink
     };
-    await expect(linkMap[linkName]).toHaveClass(/bg-surface-100/);
+    await expect(linkMap[linkName]).toHaveAttribute('aria-current', 'page');
   }
 
   /** Assert that the normal server sidebar offers a way back to chat. */

@@ -200,20 +200,20 @@ registry.
   {@const primarySolid = `btn btn-action border-transparent ${sizing}`}
   <!--
     Joined rooms get a "ghost"-style button that fades into the card
-    background, so the eye is drawn to the saturated accent Join
+    background, so the eye is drawn to the saturated action-colored Join
     buttons next to rooms the viewer can act on. Hover swaps to a
     solid danger fill to telegraph the leave action.
   -->
   {@const joinedGhost = `btn-danger-ghost ${sizing}`}
   {@const restrictedSoft = `btn border-border bg-background text-muted/70 !cursor-default opacity-80 ${sizing}`}
-  {@const universalSoft = `btn border-border bg-accent/10 text-accent !cursor-default ${sizing}`}
+  {@const universalSoft = `btn border-border bg-action/10 text-action !cursor-default ${sizing}`}
   {@const roomHref = resolve('/chat/[serverId]/[roomId]', {
     serverId: serverSegment,
     roomId: room.id
   })}
   <li
     class="flex items-center gap-3 rounded px-3 py-1.5 transition-colors {joined
-      ? 'hover:bg-surface-200'
+      ? 'hover:bg-surface-emphasized'
       : ''}"
   >
     {#snippet roomLabel()}
@@ -292,7 +292,7 @@ registry.
              header action lines up vertically with Join / Joined. -->
         <button
           type="button"
-          class="btn btn-action w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
+          class="btn-action btn w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
           onclick={() => handleJoinGroup(set)}
           disabled={joining}
         >

@@ -55,15 +55,15 @@
       class={[
         'mb-5 flex h-12 w-12 items-center justify-center rounded-full border',
         room.viewerCanJoinRoom
-          ? 'border-primary/30 bg-primary/10 text-primary'
+          ? 'border-neutral-action/30 bg-neutral-action/10 text-neutral-action'
           : 'border-border bg-surface text-muted'
       ]}
       aria-hidden="true"
     >
       {#if room.viewerCanJoinRoom}
-        <span class="iconify uil--plus text-2xl"></span>
+        <span class="iconify text-2xl uil--plus"></span>
       {:else}
-        <span class="iconify uil--lock text-2xl"></span>
+        <span class="iconify text-2xl uil--lock"></span>
       {/if}
     </div>
 

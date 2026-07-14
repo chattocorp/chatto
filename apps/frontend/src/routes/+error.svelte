@@ -6,7 +6,7 @@
 <div class="flex min-h-full flex-1 items-center justify-center px-6 py-12 text-center">
   <section class="flex max-w-md flex-col items-center gap-5" aria-labelledby="error-page-title">
     <div
-      class="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-100 text-muted ring-1 ring-text/5"
+      class="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-muted ring-1 ring-text/5"
       aria-hidden="true"
     >
       <span class="iconify text-3xl uil--exclamation-triangle"></span>

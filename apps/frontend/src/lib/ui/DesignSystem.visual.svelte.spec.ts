@@ -42,6 +42,10 @@ describe.sequential('design-system visual regression', () => {
       await expect
         .element(page.getByTestId('design-system-visual-harness'))
         .toMatchScreenshot(visualCase.name.replace(' ', '-'), {
+          // Full-suite browser contention can delay two identical captures even
+          // after fonts and animation have settled. Keep strict stability, but
+          // give Chromium enough time to prove it under load.
+          timeout: 15_000,
           comparatorName: 'pixelmatch',
           comparatorOptions: {
             allowedMismatchedPixelRatio: 0.01,

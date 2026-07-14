@@ -73,7 +73,7 @@
   {:else}
     <div>
       <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>
-      <code class="rounded bg-surface-200 px-2 py-1">{name}</code>
+      <code class="rounded bg-surface-emphasized px-2 py-1">{name}</code>
       <p class="mt-1 text-xs text-muted">{m['rbac.role_form.name_locked']()}</p>
     </div>
   {/if}

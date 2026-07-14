@@ -347,7 +347,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet activeCallIcon()}
   <span
-    class="relative sidebar-icon text-accent"
+    class="relative sidebar-icon text-action"
     aria-label={m['room_list.active_call']()}
     data-testid="room-call-icon"
   >
@@ -357,7 +357,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         aria-hidden="true"
         data-testid="active-call-pulse-icon"
       ></span>
-      <span class="relative pane-header-icon-glyph text-accent uil--phone" aria-hidden="true"
+      <span class="relative pane-header-icon-glyph text-action uil--phone" aria-hidden="true"
       ></span>
     </span>
   </span>
@@ -385,7 +385,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {/each}
       {#if participants.length > 4}
         <span
-          class="hidden h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-surface-200 px-1 text-[10px] leading-none font-medium text-muted ring-1 ring-background @min-[380px]:inline-flex"
+          class="hidden h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-surface-emphasized px-1 text-[10px] leading-none font-medium text-muted ring-1 ring-background @min-[380px]:inline-flex"
           data-testid="room-call-overflow"
         >
           +{participants.length - 4}
@@ -406,7 +406,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     !notificationLevelStore.isRoomMuted(room.id)}
   {@const rowClass = [
     '@container sidebar-item group/badges',
-    room.id === activeRoomId ? 'bg-surface-100' : '',
+    room.id === activeRoomId ? 'bg-surface' : '',
     hasUnreadAttention ? 'sidebar-item-attention' : '',
     !isJoined ? 'opacity-60 hover:opacity-85' : ''
   ]}
@@ -447,7 +447,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </span>
       <!-- Unread Indicator (subtle) -->
     {:else if isJoined && hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
-      <UnreadDot color="primary" testid="room-unread-dot" />
+      <UnreadDot color="action" testid="room-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
@@ -461,7 +461,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'group/badges @container sidebar-item',
-      room.id === activeRoomId ? 'bg-surface-100' : '',
+      room.id === activeRoomId ? 'bg-surface' : '',
       hasUnreadAttention ? 'sidebar-item-attention' : ''
     ]}
     aria-current={room.id === activeRoomId ? 'page' : undefined}
@@ -494,7 +494,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {m['room_list.new_direct_messages']({ count: room.viewerNotificationCount })}
       </span>
     {:else if hasUnread}
-      <UnreadDot color="primary" testid="dm-unread-dot" />
+      <UnreadDot color="action" testid="dm-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>

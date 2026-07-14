@@ -34,6 +34,19 @@ const checks = [
     description: 'raw palette colors; use Chatto semantic color tokens',
     pattern:
       /(?:text|bg|border|ring|outline|from|to)-(?:gray|slate|zinc|neutral|stone|red|green|blue|sky|amber|yellow|indigo)-\d+/g
+  },
+  {
+    description: 'retired color token; use action or neutral-action',
+    pattern: /(?:text|bg|border|ring|outline|from|to)-(?:accent|primary)(?:\b|\/)/g
+  },
+  {
+    description: 'retired numbered surface token; use a semantic surface token',
+    pattern: /surface-(?:100|200|300|highlighted)(?:\b|\/)/g
+  },
+  {
+    description: 'hard-coded white on a semantic fill; use the matching on-* foreground token',
+    pattern:
+      /(?:(?:bg|from|to)-(?:action|success|warning|danger)[^'"\n]*text-white|text-white[^'"\n]*(?:bg|from|to)-(?:action|success|warning|danger))/g
   }
 ];
 

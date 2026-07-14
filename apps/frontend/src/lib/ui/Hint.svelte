@@ -43,7 +43,7 @@ a page without competing with primary content.
   } = $props();
 
   const toneStyles: Record<Tone, string> = {
-    info: 'border-border bg-surface-100/80 text-muted',
+    info: 'border-border bg-surface text-muted',
     warning: 'border-warning/30 bg-warning/10 text-warning',
     success: 'border-success/30 bg-success/10 text-success',
     danger: 'border-danger/30 bg-danger/10 text-danger'

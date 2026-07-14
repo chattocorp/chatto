@@ -212,12 +212,14 @@ ADR-027 — only user-facing copy says "server".
       autofocus
     />
   {:else if probedInfo}
-    <div class="overflow-hidden rounded-lg border border-border bg-surface-100">
+    <div class="overflow-hidden rounded-lg border border-border bg-surface">
       {#if probedInfo.bannerUrl}
         <img src={probedInfo.bannerUrl} alt="" class="aspect-[1200/630] w-full object-cover" />
       {/if}
       <div class="flex items-start gap-3 p-4">
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-200">
+        <div
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-emphasized"
+        >
           {#if probedInfo.iconUrl}
             <img src={probedInfo.iconUrl} alt="" class="h-12 w-12 rounded-lg object-cover" />
           {:else}

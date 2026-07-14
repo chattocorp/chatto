@@ -9,7 +9,10 @@
 
   import { useRenderData } from '$lib/render/data';
   import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
-  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '$lib/api-client/threads';
+  import {
+    createThreadAPI,
+    type FollowedThread as APIFollowedThread
+  } from '$lib/api-client/threads';
   import { EmptyState, Hint, PaneHeader } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -192,7 +195,7 @@
         <button
           class={[
             'cursor-pointer rounded-l-md px-3 py-1',
-            filter === 'all' ? 'bg-surface-200 font-medium' : 'text-muted hover:bg-surface-100'
+            filter === 'all' ? 'bg-surface-emphasized font-medium' : 'text-muted hover:bg-surface'
           ]}
           onclick={() => setFilter('all')}
           role="radio"
@@ -201,7 +204,9 @@
         <button
           class={[
             'cursor-pointer rounded-r-md border-l border-border px-3 py-1',
-            filter === 'unread' ? 'bg-surface-200 font-medium' : 'text-muted hover:bg-surface-100'
+            filter === 'unread'
+              ? 'bg-surface-emphasized font-medium'
+              : 'text-muted hover:bg-surface'
           ]}
           onclick={() => setFilter('unread')}
           role="radio"

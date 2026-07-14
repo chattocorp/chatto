@@ -54,24 +54,18 @@ to render an inert "—" cell with an explanation tooltip.
   const visual = $derived(override !== 'neutral' ? override : inherited);
   const isOverride = $derived(override !== 'neutral');
 
-  // Override = saturated gradient + white icon (poppy).
-  // Inherited = lighter gradient (recognisable but quiet).
-  // Neutral = barely-there surface gradient (clickable hint).
-  // Drop shadows are intentionally absent — the design language uses
-  // gradients + soft rings for depth, not shadows.
+  // Overrides use a solid semantic fill and its contrast-safe foreground.
+  // Inherited states use a quiet tint; neutral uses the surface ladder.
   const overrideClasses: Record<State, string> = {
-    allow:
-      'bg-gradient-to-br from-success/65 to-success/95 text-white hover:from-success/75 hover:to-success',
-    deny: 'bg-gradient-to-br from-danger/65 to-danger/95 text-white hover:from-danger/75 hover:to-danger',
+    allow: 'bg-success text-on-success hover:bg-success/90',
+    deny: 'bg-danger text-on-danger hover:bg-danger/90',
     // Unreachable — neutral isn't an override state, but keep a value for type safety.
     neutral: ''
   };
   const inheritedClasses: Record<State, string> = {
-    allow:
-      'bg-gradient-to-br from-success/15 to-success/30 text-success/85 hover:from-success/25 hover:to-success/40',
-    deny: 'bg-gradient-to-br from-danger/15 to-danger/30 text-danger/85 hover:from-danger/25 hover:to-danger/40',
-    neutral:
-      'bg-gradient-to-br from-surface-200/40 to-surface-300/60 text-muted/60 hover:from-surface-200/60 hover:to-surface-300/80'
+    allow: 'bg-success/15 text-success/85 hover:bg-success/25',
+    deny: 'bg-danger/15 text-danger/85 hover:bg-danger/25',
+    neutral: 'bg-surface-emphasized/60 text-muted/60 hover:bg-surface-strong/80'
   };
 
   const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);
@@ -107,7 +101,7 @@ to render an inert "—" cell with an explanation tooltip.
   >
     <span
       class={[
-        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color,box-shadow,--tw-gradient-from,--tw-gradient-to]',
+        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color]',
         surfaceClasses
       ]}
     >

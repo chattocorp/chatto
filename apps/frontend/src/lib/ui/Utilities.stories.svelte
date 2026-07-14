@@ -27,7 +27,7 @@
     docs: {
       description: {
         story:
-          '`composer-mode-surface` keeps simple mode unadorned and adds an accent-gradient ring when `data-composer-mode="rich"` is present.'
+          '`composer-mode-surface` keeps simple mode unadorned and adds an action-gradient ring when `data-composer-mode="rich"` is present.'
       }
     }
   }}
@@ -41,7 +41,7 @@
       <section>
         <p class="mb-2 text-sm font-medium text-muted">Simple mode</p>
         <div
-          class="flex min-h-12 items-center rounded-xl bg-surface px-4 composer-mode-surface"
+          class="composer-mode-surface flex min-h-12 items-center rounded-xl bg-surface px-4"
           data-composer-mode="simple"
         >
           <span class="text-muted">Write a message…</span>
@@ -50,7 +50,7 @@
       <section>
         <p class="mb-2 text-sm font-medium text-muted">Rich mode</p>
         <div
-          class="flex min-h-12 items-center rounded-xl bg-surface px-4 composer-mode-surface"
+          class="composer-mode-surface flex min-h-12 items-center rounded-xl bg-surface px-4"
           data-composer-mode="rich"
         >
           <span class="text-text">A message with multiple paragraphs</span>
@@ -74,8 +74,8 @@
 >
   <div class="flex flex-col gap-3">
     <p class="max-w-prose text-sm text-muted">
-      Inline link styling. <code>link</code> applies <code>text-accent hover:underline</code> — sky
-      (our accent tone) so links stand out against the slate/neutral body copy, with an underline
+      Inline link styling. <code>link</code> applies <code>text-action hover:underline</code> — sky
+      (our action tone) so links stand out against the slate/neutral body copy, with an underline
       only on hover for a quiet resting state. Use this anywhere an <code>&lt;a&gt;</code>
       should read as a link in body or chrome text.
     </p>
@@ -113,8 +113,8 @@
   <div class="flex max-w-3xl flex-col gap-4">
     <p class="max-w-prose text-sm text-muted">
       Use <code>panel-shell</code> for admin panels, directory group cards, and other durable
-      content containers. Combine with <code>panel-header</code> and <code>panel-body</code>
-      when the surface has a header band.
+      content containers. Combine with <code>panel-header</code> when the surface has a
+      structured header.
     </p>
 
     <div class="grid gap-4 md:grid-cols-2">
@@ -123,7 +123,7 @@
           <h3 class="font-semibold">Flat shell</h3>
           <p class="text-sm text-muted">Embedded in a dense view.</p>
         </header>
-        <div class="p-4 text-sm text-muted panel-body">
+        <div class="p-4 text-sm text-muted">
           Bordered, token-backed background, no elevation.
         </div>
       </section>
@@ -133,7 +133,7 @@
           <h3 class="font-semibold">Raised shell</h3>
           <p class="text-sm text-muted">Used by admin panels.</p>
         </header>
-        <div class="p-4 text-sm text-muted panel-body">
+        <div class="p-4 text-sm text-muted">
           Same shell with the approved quiet shadow.
         </div>
       </section>
@@ -201,7 +201,7 @@
 
     <div class="flex items-center gap-3 surface-box p-3">
       <span
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
         <span class="iconify uil--user"></span>
       </span>
@@ -229,7 +229,7 @@
     <p class="max-w-prose text-sm text-muted">
       Icon button used in the global app header (hamburger, notifications, quick switcher). 44px tap
       target with a negative margin so the visual footprint stays tight, plus a hover text-color
-      shift and a subtle <code>active:bg-surface-200</code> press state.
+      shift and a subtle <code>active:bg-surface-emphasized</code> press state.
     </p>
     <div
       class="flex items-center gap-3 rounded border border-input-border bg-surface p-2 text-muted"

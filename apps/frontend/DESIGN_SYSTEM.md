@@ -28,25 +28,25 @@ semantic utility because their behavior is not a committed form action.
 
 ## Choosing A Primitive
 
-| Need                                      | Use                                                          | Avoid                                                        |
-| ----------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Committed text action or button-like link | `Button` from `$lib/ui/form`                                 | Rebuilding `btn-*` recipes in feature code                   |
-| Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, or `Checkbox` | Raw controls unless the interaction is genuinely specialized |
-| One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                            | Repeating indicator and selected-state markup                |
-| Modal form                                | `FormDialog`                                                 | A dialog containing an unrelated hand-rolled form footer     |
-| Confirmation                              | `ConfirmDialog`                                              | A custom destructive modal                                   |
-| General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation      | Fixed-position modal shells                                  |
-| Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`           | Hand-written fixed positioning and z-index                   |
-| Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                 | Textual primary actions in the pane header                   |
-| Inline icon action                        | `icon-action`                                                | Repeating hit-area, hover, and pressed classes               |
-| Global app-header icon                    | `app-header-icon`                                            | `icon-action` with compensating margins                      |
-| Durable content container                 | `Panel` or `panel-shell`                                     | Ad hoc card borders, radius, and elevation                   |
-| Compact nested row                        | `surface-box`                                                | A panel nested inside another panel                          |
-| Status or scope label                     | `Pill`; `ToggleChip` when interactive                        | One-off colored badges                                       |
-| Inline contextual notice                  | `Hint`                                                       | A panel used as an alert                                     |
-| Transient feedback                        | `toast`                                                      | Persistent inline copy that disappears automatically         |
-| Empty collection or search result         | `EmptyState`                                                 | Bespoke centered placeholder markup                          |
-| Loading image                             | `SkeletonImg`                                                | `<img class="skeleton">`                                     |
+| Need                                      | Use                                                                        | Avoid                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Committed text action or button-like link | `Button` from `$lib/ui/form`                                               | Rebuilding `btn-*` recipes in feature code                   |
+| Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
+| One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
+| Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
+| Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
+| General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
+| Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
+| Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
+| Inline icon action                        | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
+| Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
+| Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
+| Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
+| Status or scope label                     | `Pill`; `ToggleChip` when interactive                                      | One-off colored badges                                       |
+| Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
+| Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
+| Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
+| Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
 
 ## Semantic Color Language
 
@@ -54,19 +54,50 @@ Use semantic tokens instead of Tailwind palette colors for application chrome.
 Media overlays may use literal black and white where contrast must be
 independent of the active theme.
 
-| Meaning                                    | Canonical token  | Compatibility name      |
-| ------------------------------------------ | ---------------- | ----------------------- |
-| Recommended action, selection, focus, link | `action`         | `accent`                |
-| Neutral emphasized control                 | `neutral-action` | `primary`               |
-| Positive state                             | `success`        | —                       |
-| Caution                                    | `warning`        | —                       |
-| Destructive or failed state                | `danger`         | `error` for form errors |
-| Server identity                            | `server`         | —                       |
+| Meaning                                    | Canonical token  |
+| ------------------------------------------ | ---------------- |
+| Recommended action, selection, focus, link | `action`         |
+| Neutral emphasized control                 | `neutral-action` |
+| Positive state                             | `success`        |
+| Caution                                    | `warning`        |
+| Destructive or failed state                | `danger`         |
+| Form validation failure                    | `error`          |
+| Server identity                            | `server`         |
 
-`primary` historically means a muted neutral in Chatto. It does **not** mean
-the recommended action. New code should use `action` or `neutral-action` so the
-intent is obvious. The compatibility names remain available while existing
-call sites migrate.
+The token name describes intent, not visual intensity. Use `action` for the
+recommended path and `neutral-action` for an emphasized control that should not
+compete with it. Retired `accent` and `primary` color utilities are rejected by
+the design-system guardrail.
+
+Filled controls pair each tone with its `on-*` foreground token. Never assume
+white text: dark-theme action and status fills are intentionally bright and use
+a dark semantic foreground to maintain WCAG AA contrast.
+
+Surfaces form a small semantic ladder:
+
+- Light and dark mode are intentionally asymmetric. Do not infer elevation by
+  mechanically reversing luminance between themes.
+- In light mode, `background` is the pale primary work plane and `surface` is
+  the cool gray used for anchored chrome, composers, user cards, dialogs, and
+  panels. These surfaces read as inset and substantial, not as white paper
+  floating above the application.
+- In dark mode, progressively lighter surfaces provide separation from the
+  dark primary plane.
+- `surface-emphasized` separates hover states and nested rows from their
+  surrounding surface.
+- `surface-strong` provides firmer contrast for compact framed UI.
+- `surface-selected` is reserved for persistent selection. Pair it with an
+  action-colored indicator when selection must be obvious at a glance.
+- In light mode, reserve white for form fields or an explicitly reviewed
+  paper-like surface; do not use it as the default fill for persistent
+  application chrome.
+
+Panels, informational hints, table headers, table bodies, and sticky table
+cells share the same `surface`. Use dividers, spacing, type weight, and icons to
+express their different roles; do not introduce another header-band fill.
+
+Do not infer a new numeric surface level. Choose the nearest semantic role, or
+adjust the owning component when the hierarchy itself is wrong.
 
 For text, use `text-text` for normal copy, `text-text-top` for the strongest
 heading contrast, and `text-muted` for metadata. Use `link` for inline links.
@@ -107,17 +138,16 @@ Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
 
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
-`warning`, `danger`, and `danger-secondary`. Historical `primary` and `accent`
-button names are not supported; use the variant whose meaning matches the
-action.
+`warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
+matches the action.
 
 ## Shape, Type, And Motion
 
-- `rounded` and `rounded-md` are for compact controls, pills, and embedded
-  content.
-- `rounded-lg` is the default for fields, menus, dialogs, and substantial
-  controls.
-- `rounded-xl` is reserved for panels and major shells.
+- `rounded` and `rounded-md` are the default for compact controls, fields,
+  nested rows, pills, and embedded content.
+- `rounded-lg` is reserved for menus, dialogs, panels, and major shells.
+- `rounded-xl` is exceptional and should communicate a deliberately softer
+  product-specific object, such as a server tile—not an ordinary card.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
   metadata, timestamps, and terse labels.
@@ -132,9 +162,9 @@ action.
   toolbar has a documented non-overlapping exception.
 
 Chatto deliberately uses browser/platform text rendering. Do not add global
-font smoothing. Chatto also uses borders for structure and quiet gradients or
-shadows for selected elevated surfaces; do not replace one with the other as a
-blanket rule.
+font smoothing. Ordinary controls are solid rather than gradient-filled;
+borders define structure, and shadows are reserved for genuinely floating or
+raised surfaces.
 
 ## Storybook Contract
 

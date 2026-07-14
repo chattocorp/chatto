@@ -9,7 +9,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
-  import { Button, FormError } from '$lib/ui/form';
+  import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime } from '$lib/utils/formatTime';
 
@@ -31,15 +31,10 @@
 
   // Form state - initialize from current settings
   let timezoneSearch = $state(userSettings.timezone ?? '');
-  let selectedTimezone = $state<string | null>(userSettings.timezone);
+  let selectedTimezone = $state(userSettings.timezone ?? '');
   let selectedTimeFormat = $state<TimeFormat>(userSettings.timeFormat);
   let isSaving = $state(false);
   let error = $state('');
-
-  // Dropdown state
-  let dropdownOpen = $state(false);
-  let highlightedIndex = $state(-1);
-  let listRef = $state<HTMLUListElement | null>(null);
 
   // Filter timezone list based on search input
   let filteredTimezones = $derived(
@@ -53,7 +48,8 @@
 
   // Track if the form has been modified
   const isModified = $derived(
-    selectedTimezone !== userSettings.timezone || selectedTimeFormat !== userSettings.timeFormat
+    (selectedTimezone || null) !== userSettings.timezone ||
+      selectedTimeFormat !== userSettings.timeFormat
   );
 
   // Timezone validation
@@ -76,77 +72,13 @@
     );
   });
 
-  function handleTimezoneInput(e: Event) {
-    const value = (e.target as HTMLInputElement).value;
-    timezoneSearch = value;
-    highlightedIndex = -1;
-
-    if (value === '') {
-      selectedTimezone = null;
-      dropdownOpen = false;
-    } else if (allTimezones.includes(value)) {
-      selectedTimezone = value;
-      dropdownOpen = false;
-    } else {
-      dropdownOpen = true;
-    }
-  }
-
-  function selectTimezone(tz: string) {
-    timezoneSearch = tz;
-    selectedTimezone = tz;
-    dropdownOpen = false;
-  }
-
-  function handleClearTimezone() {
-    timezoneSearch = '';
-    selectedTimezone = null;
-    dropdownOpen = false;
+  function handleTimezoneTextChange(text: string) {
+    if (!text || allTimezones.includes(text)) selectedTimezone = text;
   }
 
   function handleLocaleSelect(locale: Locale) {
     if (locale === activeLocale) return;
     void setLocale(locale);
-  }
-
-  function handleTimezoneKeydown(e: KeyboardEvent) {
-    if (!dropdownOpen) {
-      if (e.key === 'ArrowDown' && timezoneSearch) {
-        dropdownOpen = true;
-        highlightedIndex = 0;
-        e.preventDefault();
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        highlightedIndex = Math.min(highlightedIndex + 1, displayedTimezones.length - 1);
-        listRef?.children[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        highlightedIndex = Math.max(highlightedIndex - 1, 0);
-        listRef?.children[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (highlightedIndex >= 0 && highlightedIndex < displayedTimezones.length) {
-          selectTimezone(displayedTimezones[highlightedIndex]);
-        }
-        break;
-      case 'Escape':
-        dropdownOpen = false;
-        break;
-    }
-  }
-
-  function handleTimezoneBlur() {
-    // Delay to allow click on dropdown item to register
-    setTimeout(() => {
-      dropdownOpen = false;
-    }, 150);
   }
 
   async function handleSave() {
@@ -162,7 +94,7 @@
     try {
       // Update the local settings state so formatting changes take effect immediately
       const settings = await accountAPI().updateSettings({
-        timezone: selectedTimezone,
+        timezone: selectedTimezone || null,
         timeFormat: selectedTimeFormat
       });
       userSettings.updateFromData(settings);
@@ -292,74 +224,23 @@
 
   <!-- Timezone -->
   <FormSection title={m['settings.preferences.timezone.title']()} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m['settings.preferences.timezone.description']()}</p>
-
-    <div class="relative">
-      <input
-        type="text"
-        data-testid="timezone-input"
-        value={timezoneSearch}
-        oninput={handleTimezoneInput}
-        onfocus={() => {
-          if (timezoneSearch && !allTimezones.includes(timezoneSearch)) dropdownOpen = true;
-        }}
-        onblur={handleTimezoneBlur}
-        onkeydown={handleTimezoneKeydown}
-        placeholder={m['settings.preferences.timezone.browser_default']()}
-        class="input w-full"
-        autocomplete="off"
-        role="combobox"
-        aria-expanded={dropdownOpen}
-        aria-controls="timezone-listbox"
-        aria-autocomplete="list"
-      />
-      {#if timezoneSearch}
-        <button
-          type="button"
-          class="absolute top-1/2 right-2 icon-action -translate-y-1/2"
-          onclick={handleClearTimezone}
-          title={m['settings.preferences.timezone.clear']()}
-        >
-          <span class="iconify uil--times"></span>
-        </button>
-      {/if}
-
-      {#if dropdownOpen && displayedTimezones.length > 0}
-        <ul
-          id="timezone-listbox"
-          role="listbox"
-          bind:this={listRef}
-          class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-surface shadow-lg"
-        >
-          {#each displayedTimezones as tz, i (tz)}
-            <li
-              role="option"
-              aria-selected={i === highlightedIndex}
-              class={[
-                'cursor-pointer px-3 py-1.5 text-sm',
-                i === highlightedIndex
-                  ? 'bg-accent/20 text-text'
-                  : 'text-muted hover:bg-surface-100 hover:text-text'
-              ]}
-              onmousedown={() => selectTimezone(tz)}
-            >
-              {tz}
-            </li>
-          {/each}
-          {#if filteredTimezones.length > 50}
-            <li class="px-3 py-1.5 text-xs text-muted">
-              {m['settings.preferences.timezone.more_results']({
-                count: filteredTimezones.length - 50
-              })}
-            </li>
-          {/if}
-        </ul>
-      {/if}
-    </div>
-
-    {#if timezoneError}
-      <p class="mt-1 text-sm text-danger">{timezoneError}</p>
-    {/if}
+    <Combobox
+      id="timezone"
+      testid="timezone-input"
+      label={m['settings.preferences.timezone.title']()}
+      labelHidden
+      description={m['settings.preferences.timezone.description']()}
+      error={timezoneError}
+      items={displayedTimezones}
+      getValue={(timezone) => timezone}
+      getLabel={(timezone) => timezone}
+      placeholder={m['settings.preferences.timezone.browser_default']()}
+      clearLabel={m['settings.preferences.timezone.clear']()}
+      allowFreeform={false}
+      bind:value={selectedTimezone}
+      bind:text={timezoneSearch}
+      ontextchange={handleTimezoneTextChange}
+    />
 
     {#if selectedTimezoneTime}
       <p class="mt-1 text-sm text-muted">

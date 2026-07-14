@@ -873,7 +873,7 @@
 
   <!-- Selected files preview -->
   {#if attachments.filesWithUrls.length > 0}
-    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-300 p-2">
+    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-strong p-2">
       {#each attachments.filesWithUrls as { file, url }, index (url)}
         <div class="relative">
           {#if file.type.startsWith('image/')}
@@ -890,14 +890,14 @@
           {:else if file.type.startsWith('audio/')}
             <div
               data-testid="audio-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
             >
               <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
             <div
               data-testid="file-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
             >
               <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
             </div>
@@ -905,7 +905,7 @@
           <button
             type="button"
             onclick={() => removeFile(index)}
-            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-xs text-white transition-[background-color] hover:bg-danger/80"
+            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-xs text-on-danger transition-[background-color] hover:bg-danger/80"
           >
             ×
           </button>
@@ -1021,7 +1021,7 @@
         type="checkbox"
         bind:checked={alsoSendToChannel}
         disabled={inputDisabled}
-        class="cursor-pointer accent-primary"
+        class="cursor-pointer accent-neutral-action"
       />
       {m['composer.also_send_to_channel']()}
     </label>
@@ -1031,7 +1031,7 @@
   {#if inReplyTo && replyDisplayName}
     <div
       data-testid="reply-indicator"
-      class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm"
+      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
     >
       <span class="min-w-0 truncate text-text">
         {m['composer.replying_to']()} <strong>{replyDisplayName}</strong>
@@ -1045,14 +1045,14 @@
         onclick={() => onCancelReply?.()}
         class="hidden shrink-0 cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
         {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
         type="button"
         onclick={() => onCancelReply?.()}
-        class="shrink-0 cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
+        class="shrink-0 cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
       >
         {m['common.cancel']()}
       </button>
@@ -1061,7 +1061,9 @@
 
   <!-- Edit mode indicator -->
   {#if isEditing}
-    <div class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm">
+    <div
+      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
+    >
       <span class="text-text">{m['composer.editing']()}</span>
       <!-- Desktop: clickable "Esc to cancel" -->
       <button
@@ -1069,14 +1071,14 @@
         onclick={cancelEdit}
         class="hidden cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
         {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
         type="button"
         onclick={cancelEdit}
-        class="cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
+        class="cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
       >
         {m['common.cancel']()}
       </button>

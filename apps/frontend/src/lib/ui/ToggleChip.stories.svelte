@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-  const tones = ['success', 'danger', 'warning', 'primary', 'neutral'] as const;
+  const tones = ['success', 'danger', 'warning', 'action', 'neutral'] as const;
 
   let pressedAllow = $state(false);
   let pressedDeny = $state(false);

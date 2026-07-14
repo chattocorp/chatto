@@ -394,9 +394,9 @@ unknown instance) the component renders nothing.
   >
     <div class="flex min-w-0 flex-col">
       <div
-        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-200/60 px-3 py-2"
+        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
       >
-        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-accent/70"></div>
+        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-action/70"></div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           {#if preview.spaceName || preview.roomName}
             <span class="truncate text-xs tracking-wide text-muted">
@@ -418,11 +418,11 @@ unknown instance) the component renders nothing.
       {#if hasBody}
         <div class="relative">
           <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface-100 via-surface-100/80 to-transparent"
+            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface via-surface/80 to-transparent"
             aria-hidden="true"
           ></div>
           <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent"
+            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface via-surface/80 to-transparent"
             aria-hidden="true"
           ></div>
           <div
@@ -464,7 +464,7 @@ unknown instance) the component renders nothing.
               </div>
             {:else}
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-200 text-xs text-muted"
+                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-emphasized text-xs text-muted"
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span

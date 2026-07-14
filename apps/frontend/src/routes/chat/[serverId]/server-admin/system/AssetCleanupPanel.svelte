@@ -11,7 +11,7 @@
     status.health === 'healthy'
       ? 'success'
       : status.health === 'retrying' || status.health === 'initializing'
-        ? 'primary'
+        ? 'action'
         : status.health === 'unavailable'
           ? 'muted'
           : 'danger'

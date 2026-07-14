@@ -486,7 +486,7 @@
     />
   {:else}
     <span
-      class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-[10px] font-semibold text-muted"
+      class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-[10px] font-semibold text-muted"
       aria-label={user.login}
     >
       {getAvatarInitials(user.displayName, user.login)}
@@ -512,7 +512,7 @@
 >
   {#if quickSwitcher.visible}
     <div
-      class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface-100 p-1 text-sm shadow-xl"
+      class="flex w-140 max-w-[90vw] flex-col gap-1 rounded-lg border border-text/10 bg-surface p-1 text-sm shadow-xl"
     >
       <!-- Search section -->
       <div class="menu-section">
@@ -552,7 +552,7 @@
               <button
                 data-index={i}
                 type="button"
-                class={['sidebar-item text-left', i === selectedIndex ? 'bg-surface-100' : '']}
+                class={['sidebar-item text-left', i === selectedIndex ? 'bg-surface' : '']}
                 onclick={() => select(item)}
                 onpointerenter={() => (selectedIndex = i)}
               >

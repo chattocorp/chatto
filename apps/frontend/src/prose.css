@@ -10,7 +10,7 @@
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
-  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
   --prose-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
   font-size: inherit;
@@ -100,18 +100,18 @@
 
   /* Inline code */
   & code:not(pre code) {
-    @apply rounded bg-surface-200 px-1.5 py-0.5 font-mono text-[0.9em];
+    @apply rounded bg-surface-emphasized px-1.5 py-0.5 font-mono text-[0.9em];
   }
 
   /* Code blocks */
   & pre {
-    @apply overflow-x-auto rounded-md bg-surface-200 p-3 font-mono text-sm;
+    @apply overflow-x-auto rounded-md bg-surface-emphasized p-3 font-mono text-sm;
   }
 
   /* Highlighted code block styling - overflow moved to code element so the
 	   language label (positioned on pre) stays fixed during horizontal scroll */
   & pre.hljs {
-    @apply relative overflow-hidden border border-surface-200 py-2 shadow-xs;
+    @apply relative overflow-hidden border border-surface-emphasized py-2 shadow-xs;
     background-color: transparent !important;
     color: var(--composer-code-text);
     line-height: 1.5;
@@ -120,7 +120,7 @@
   /* Language label */
   & pre.hljs[data-language]::after {
     content: attr(data-language);
-    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-200 px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
+    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-emphasized px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
   }
 
   /* Line numbers */
@@ -218,7 +218,7 @@
 
   & th {
     font-weight: 600;
-    background-color: var(--color-surface-100);
+    background-color: var(--color-surface);
   }
 }
 

@@ -60,7 +60,7 @@
       {:else}
         <!-- Deleted user placeholder -->
         <div
-          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
           <span class="iconify text-xs uil--user-times"></span>
         </div>

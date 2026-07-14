@@ -20,7 +20,8 @@ Scope is implied by which of `spaceId` / `roomId` are set:
 The container scrolls horizontally when there are too many roles to fit;
 the first column (permission name) is sticky so role columns can scroll
 under it. Column headers are clickable when `onRoleClick` is provided
-(routing to per-role detail pages owned by the parent route).
+(routing to per-role detail pages owned by the parent route). Hovering or
+focusing a cell highlights its permission row and role column.
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
@@ -34,6 +35,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   import * as m from '$lib/i18n/messages';
 
   type State = 'allow' | 'deny' | 'neutral';
+  type MatrixCoordinate = { category: string; column: string; permission: string };
 
   type TierPerms = { permissions: string[]; permissionDenials: string[] };
   type TierRole = {
@@ -143,6 +145,9 @@ under it. Column headers are clickable when `onRoleClick` is provided
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updating = $state<string | null>(null); // "{roleName}::{permission}" while a mutation is in flight
+  let hoveredCell = $state<MatrixCoordinate | null>(null);
+  let focusedCell = $state<MatrixCoordinate | null>(null);
+  const highlightedCell = $derived(hoveredCell ?? focusedCell);
 
   $effect(() => {
     const s = spaceId ?? null;
@@ -246,6 +251,26 @@ under it. Column headers are clickable when `onRoleClick` is provided
     return role.roleName === 'owner';
   }
 
+  function coordinate(category: string, column: string, permission: string): MatrixCoordinate {
+    return { category, column, permission };
+  }
+
+  function columnIsHighlighted(category: string, column: string): boolean {
+    return highlightedCell?.category === category && highlightedCell.column === column;
+  }
+
+  function rowIsHighlighted(category: string, permission: string): boolean {
+    return highlightedCell?.category === category && highlightedCell.permission === permission;
+  }
+
+  function cellHighlightClass(category: string, column: string, permission: string): string {
+    const row = rowIsHighlighted(category, permission);
+    const columnHighlighted = columnIsHighlighted(category, column);
+    if (row && columnHighlighted) return 'bg-action/15';
+    if (row || columnHighlighted) return 'bg-action/8';
+    return '';
+  }
+
   // ----- Mutations --------------------------------------------------------
 
   function scopeFor(role: TierRole): MutationScope {
@@ -310,7 +335,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
           >
             {#snippet header()}
               <th
-                class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+                class="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom font-medium"
                 style="width: 14rem"
               >
                 {m['rbac.permissions.permission']()}
@@ -321,7 +346,12 @@ under it. Column headers are clickable when `onRoleClick` is provided
                     ? onRoleClick
                     : undefined}
                 <th
-                  class="px-0 py-3 text-center align-bottom font-medium"
+                  class={[
+                    'px-0 py-3 text-center align-bottom font-medium',
+                    columnIsHighlighted(group.category, role.roleName)
+                      ? 'bg-action/10 text-action'
+                      : ''
+                  ]}
                   style="width: 2rem; min-width: 2rem; height: 12rem"
                   title={`${role.displayName} — click to manage`}
                   data-role={role.roleName}
@@ -347,8 +377,19 @@ under it. Column headers are clickable when `onRoleClick` is provided
               {/each}
             {/snippet}
             {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
-                <code data-testid="permission-name" class="text-sm">{permission}</code>
+              <td
+                class={[
+                  'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
+                  rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-surface'
+                ]}
+              >
+                <code
+                  data-testid="permission-name"
+                  class={[
+                    'text-sm',
+                    rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                  ]}>{permission}</code
+                >
                 <HelpTooltip label={`About ${permission}`}>
                   {getPermissionDescription(permission)}
                 </HelpTooltip>
@@ -387,10 +428,19 @@ under it. Column headers are clickable when `onRoleClick` is provided
                       ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
                     ].filter(Boolean)}
                 <td
-                  class="px-0 py-2 text-center"
+                  class={[
+                    'px-0 py-2 text-center',
+                    cellHighlightClass(group.category, role.roleName, permission)
+                  ]}
                   style="width: 2.5rem; min-width: 2.5rem"
                   data-role={role.roleName}
                   data-permission={permission}
+                  onmouseenter={() =>
+                    (hoveredCell = coordinate(group.category, role.roleName, permission))}
+                  onmouseleave={() => (hoveredCell = null)}
+                  onfocusin={() =>
+                    (focusedCell = coordinate(group.category, role.roleName, permission))}
+                  onfocusout={() => (focusedCell = null)}
                 >
                   <MatrixCell
                     override={displayOverride}

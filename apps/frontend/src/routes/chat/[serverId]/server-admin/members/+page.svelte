@@ -205,7 +205,7 @@
                     <img src={user.avatarUrl} alt="" class="h-8 w-8 rounded-full object-cover" />
                   {:else}
                     <div
-                      class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-200 text-sm"
+                      class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-emphasized text-sm"
                     >
                       {user.displayName[0]?.toUpperCase() || '?'}
                     </div>

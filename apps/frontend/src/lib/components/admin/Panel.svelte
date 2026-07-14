@@ -22,9 +22,9 @@
 
 <div class={['panel-shell panel-shell-raised', noPadding && 'overflow-hidden']}>
   {#if title}
-    <div class="flex items-center justify-between gap-4 rounded-t-xl panel-header p-4">
+    <div class="flex items-center justify-between gap-4 rounded-t-lg panel-header px-5 py-4">
       <div class="min-w-0">
-        <h2 class="flex items-center gap-2 text-lg font-semibold">
+        <h2 class="flex items-center gap-2 text-base font-semibold text-text-top">
           {#if icon}
             <span class={icon}></span>
           {/if}
@@ -44,7 +44,7 @@
       {/if}
     </div>
   {/if}
-  <div class={[noPadding ? '' : 'p-6', title && 'panel-body']}>
+  <div class={noPadding ? '' : 'p-5'}>
     {@render children()}
   </div>
 </div>

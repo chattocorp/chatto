@@ -653,7 +653,7 @@
   {#if kind}
     <span
       class={[
-        'iconify shrink-0 text-xs leading-none text-accent',
+        'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'uil--video' : 'uil--phone'
       ]}
       title={kind === 'video' ? 'In a video call' : 'In a voice call'}
@@ -680,7 +680,7 @@
         'group/msg group/badges message-row',
         hasMessageFooter ? 'message-row-footer' : '',
         compact && msg?.body ? 'items-baseline' : 'items-start',
-        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface-100' : ''
+        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface' : ''
       ]}
       ontouchstart={handleTouchStart}
       ontouchend={handleTouchEnd}
@@ -729,7 +729,7 @@
           <!-- Deleted user placeholder avatar -->
           <div
             class={[
-              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30',
+              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-emphasized text-muted shadow-md ring-1 ring-surface-emphasized/30',
               replyPreview ? 'top-8' : 'top-1'
             ]}
           >
@@ -763,12 +763,12 @@
             {#if compact}
               <span
                 aria-hidden="true"
-                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
+                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
               ></span>
             {:else}
               <span
                 aria-hidden="true"
-                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
+                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
               ></span>
             {/if}
             {#if replyPreview.actor}

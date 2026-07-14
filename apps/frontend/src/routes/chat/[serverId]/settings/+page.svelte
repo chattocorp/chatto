@@ -274,7 +274,7 @@
       />
       <!-- Avatar Preview -->
       <div
-        class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-200 text-4xl font-black text-muted shadow-md"
+        class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-emphasized text-4xl font-black text-muted shadow-md"
       >
         {#if avatarUrl}
           <img

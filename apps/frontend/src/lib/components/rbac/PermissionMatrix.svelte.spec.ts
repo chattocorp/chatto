@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -105,6 +106,99 @@ describe('PermissionMatrix', () => {
     // two categories ('message' and 'room'), so 8 header cells total.
     expect(container.querySelectorAll('thead th').length).toBe(8);
     expect(container.querySelectorAll('tbody tr').length).toBe(2);
+  });
+
+  it('keeps panel, table header, and sticky cells on one surface', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const panel = container.querySelector('.panel-shell') as HTMLElement;
+    const panelHeader = panel.querySelector(':scope > .panel-header') as HTMLElement;
+    const tableHeader = panel.querySelector('thead tr') as HTMLElement;
+    const stickyHeader = panel.querySelector('thead th.sticky') as HTMLElement;
+    const stickyBody = panel.querySelector('tbody td.sticky') as HTMLElement;
+    const surfaceColor = getComputedStyle(panel).backgroundColor;
+
+    expect(surfaceColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(panelHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(tableHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(surfaceColor);
+    expect(getComputedStyle(stickyBody).backgroundColor).toBe(surfaceColor);
+  });
+
+  it('highlights the hovered permission row and role column', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      applicablePermissions: ['message.post', 'message.delete']
+    };
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const intersection = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.post"]'
+    ) as HTMLTableCellElement;
+    const sameRow = container.querySelector(
+      'td[data-role="admin"][data-permission="message.post"]'
+    ) as HTMLTableCellElement;
+    const sameColumn = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.delete"]'
+    ) as HTMLTableCellElement;
+    const unrelated = container.querySelector(
+      'td[data-role="admin"][data-permission="message.delete"]'
+    ) as HTMLTableCellElement;
+    const columnHeader = container.querySelector('th[data-role="moderator"]') as HTMLElement;
+    const rowLabel = intersection.parentElement!.querySelector('td.sticky') as HTMLElement;
+
+    intersection.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    expect(intersection.className).toContain('bg-action/15');
+    expect(sameRow.className).toContain('bg-action/8');
+    expect(sameColumn.className).toContain('bg-action/8');
+    expect(unrelated.className).not.toContain('bg-action/');
+    expect(columnHeader.className).toContain('bg-action/10');
+    expect(rowLabel.className).toContain('bg-action/8');
+    expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).toContain(
+      'text-action'
+    );
+    expect(getComputedStyle(intersection).backgroundColor).not.toBe(
+      getComputedStyle(sameRow).backgroundColor
+    );
+    expect(getComputedStyle(sameRow).backgroundColor).not.toBe(
+      getComputedStyle(unrelated).backgroundColor
+    );
+
+    intersection.dispatchEvent(new MouseEvent('mouseleave'));
+    flushSync();
+
+    expect(intersection.className).not.toContain('bg-action/');
+    expect(sameRow.className).not.toContain('bg-action/');
+    expect(sameColumn.className).not.toContain('bg-action/');
+    expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).not.toContain(
+      'text-action'
+    );
+  });
+
+  it('keeps the coordinate highlight visible for keyboard focus', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      applicablePermissions: ['message.post', 'message.delete']
+    };
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const button = container.querySelector(
+      'td[data-role="moderator"][data-permission="message.post"] button'
+    ) as HTMLButtonElement;
+    const cell = button.closest('td')!;
+
+    button.focus();
+    flushSync();
+    expect(cell.className).toContain('bg-action/15');
+
+    button.blur();
+    flushSync();
+    expect(cell.className).not.toContain('bg-action/');
   });
 
   it('reflects override + inherited state in cell aria-pressed', async () => {

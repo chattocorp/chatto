@@ -1,9 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import {
-    createMemberDirectoryAPI,
-    type DirectoryMember
-  } from '$lib/api-client/memberDirectory';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -105,7 +102,7 @@
       />
     {:else}
       <div
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-200 text-xs font-semibold text-muted"
+        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
         {getAvatarInitials(user.displayName, user.login)}
       </div>

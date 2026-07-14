@@ -31,7 +31,7 @@ The submit button's color follows `submitTone` (`action` by default; use
   import Dialog from './Dialog.svelte';
   import { Button, FormError } from './form';
 
-  type SubmitTone = 'action' | 'warning' | 'danger' | 'primary' | 'info';
+  type SubmitTone = 'action' | 'warning' | 'danger';
 
   let {
     children,
@@ -86,8 +86,6 @@ The submit button's color follows `submitTone` (`action` by default; use
     onsubmit(e);
   }
 
-  // `primary` and `info` remain compatibility names for the canonical action
-  // tone. Dialog submit buttons should read clearly as the recommended action.
   const submitVariant = $derived<'action' | 'warning' | 'danger'>(
     submitTone === 'danger' ? 'danger' : submitTone === 'warning' ? 'warning' : 'action'
   );

@@ -1,11 +1,11 @@
 <script lang="ts">
-  type Color = 'primary' | 'success' | 'warning' | 'danger';
+  type Color = 'action' | 'success' | 'warning' | 'danger';
 
   let {
     value,
     label,
     icon,
-    color = 'primary',
+    color = 'action',
     subtitle
   }: {
     value: string | number;
@@ -16,7 +16,7 @@
   } = $props();
 
   const colorClasses: Record<Color, { bg: string; text: string }> = {
-    primary: { bg: 'bg-primary/10', text: 'text-primary' },
+    action: { bg: 'bg-action/10', text: 'text-action' },
     success: { bg: 'bg-success/10', text: 'text-success' },
     warning: { bg: 'bg-warning/10', text: 'text-warning' },
     danger: { bg: 'bg-danger/10', text: 'text-danger' }

@@ -104,7 +104,7 @@
         ? 'success'
         : row.visibility === 'Private'
           ? 'muted'
-          : 'primary'}
+          : 'neutral'}
     >
       {row.visibility}
     </Pill>

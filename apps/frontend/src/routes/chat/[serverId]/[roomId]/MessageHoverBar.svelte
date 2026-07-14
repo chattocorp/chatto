@@ -126,7 +126,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 
 <div
   class={[
-    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface-100 p-0.5 hover-actions:flex',
+    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface p-0.5 hover-actions:flex',
     'hover-actions:group-hover:visible'
   ]}
   class:!visible={forceVisible}
@@ -142,7 +142,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
     <div class="flex items-center menu-section-sm">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => handleReaction(emoji)}
           aria-label={hasReacted(emoji)
             ? m['room.message.actions.remove_reaction']({ emoji })
@@ -153,7 +153,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenEmojiPicker}
           aria-label={m['room.message.actions.more_reactions']()}
         >
@@ -167,7 +167,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
     <div class="flex items-center menu-section-sm">
       {#if onReplyInRoom}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={handleReplyInRoom}
           aria-label={replyInRoomActionLabel}
         >
@@ -177,7 +177,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 
       {#if onReply}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={handleReply}
           aria-label={replyThreadActionLabel}
         >
@@ -187,7 +187,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 
       {#if canEdit}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={handleEdit}
           aria-label={m['room.message.actions.edit']()}
         >
@@ -197,7 +197,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 
       {#if onOpenMenu}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenMenu}
           aria-label={m['room.message.actions.more']()}
         >

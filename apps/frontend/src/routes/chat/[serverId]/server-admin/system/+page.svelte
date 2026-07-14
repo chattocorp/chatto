@@ -139,7 +139,7 @@
       {:else if systemInfo}
         <Panel title={m['admin.system.broker']()} icon="iconify uil--server">
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
-            <div class="rounded-lg border border-border bg-surface-100/70 p-4">
+            <div class="rounded-lg border border-border bg-surface/70 p-4">
               <div class="text-sm text-muted">{m['admin.common.status']()}</div>
               <div class="mt-1 flex items-center gap-2 text-xl font-semibold">
                 <span
@@ -192,7 +192,7 @@
               value={formatBytes(systemInfo.account.storageUsed)}
               label={m['admin.system.account_storage']()}
               icon="iconify uil--hdd"
-              color="primary"
+              color="action"
               subtitle={m['admin.system.limit']({
                 limit: formatLimit(systemInfo.account.storage, formatBytes)
               })}
@@ -238,7 +238,7 @@
               value={formatNumber(systemInfo.nats.totalMessages)}
               label={m['admin.system.messages_stored']()}
               icon="iconify uil--database"
-              color="primary"
+              color="action"
               subtitle={m['admin.system.average_message_size']({
                 size: formatBytes(averageEventBytes)
               })}
@@ -419,7 +419,7 @@
               </td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
-                  <Pill tone={consumer.pullBased ? 'primary' : 'muted'}>
+                  <Pill tone={consumer.pullBased ? 'neutral' : 'muted'}>
                     {consumer.pullBased ? m['admin.system.pull']() : m['admin.system.push']()}
                   </Pill>
                   {#if !consumer.pullBased}

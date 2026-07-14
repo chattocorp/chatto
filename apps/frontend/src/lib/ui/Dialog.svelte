@@ -138,41 +138,39 @@
     leak into selectors like `button[type="submit"]` on the host page.
   -->
   {#if visible || closing}
-    <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-    <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
-      <!-- Inner content well, mirroring .menu-section. -->
-      <div class="max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
-        <!--
+    <div
+      class="max-h-[78vh] overflow-y-auto rounded-lg border border-text/10 bg-surface p-5 shadow-xl"
+    >
+      <!--
           Header row holds the title (if any) and the close button, so
           they share a baseline and the title isn't artificially indented
           relative to the body content below.
         -->
-        <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
-          {#if title}
-            <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
-          {:else}
-            <span></span>
-          {/if}
-          <button
-            type="button"
-            onclick={close}
-            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
-            aria-label={m['ui.close']()}
-          >
-            <span class="iconify text-xl uil--times"></span>
-          </button>
-        </header>
-
-        <div class="text-text">
-          {@render children()}
-        </div>
-
-        {#if footer}
-          <footer class="mt-6">
-            {@render footer()}
-          </footer>
+      <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
+        {#if title}
+          <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
+        {:else}
+          <span></span>
         {/if}
+        <button
+          type="button"
+          onclick={close}
+          class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
+          aria-label={m['ui.close']()}
+        >
+          <span class="iconify text-xl uil--times"></span>
+        </button>
+      </header>
+
+      <div class="text-text">
+        {@render children()}
       </div>
+
+      {#if footer}
+        <footer class="mt-6">
+          {@render footer()}
+        </footer>
+      {/if}
     </div>
   {/if}
 </dialog>

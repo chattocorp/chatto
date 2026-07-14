@@ -389,7 +389,8 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
     expect(q(container, '[data-testid="current-user-identity-card"]')).toBeTruthy();
     const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
-    expect(link.textContent).toContain('# general');
+    expect(link.getAttribute('aria-label')).toBe('Open # general');
+    expect(link.textContent?.trim()).toBe('');
     link.click();
 
     const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
@@ -429,6 +430,28 @@ describe('CurrentUserBar', () => {
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
     window.removeEventListener('storage', listener);
+  });
+
+  it('aligns the equal-width call controls with the user card', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const bar = container.firstElementChild as HTMLElement;
+    bar.style.width = '224px';
+
+    const callCard = q(container, '[data-testid="current-user-call-card"]')!;
+    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    const callCardRect = callCard.getBoundingClientRect();
+    const identityCardRect = identityCard.getBoundingClientRect();
+    const controlWidths = Array.from(callCard.children, (control) =>
+      control.getBoundingClientRect().width
+    );
+
+    expect(callCardRect.left).toBe(identityCardRect.left);
+    expect(callCardRect.right).toBe(identityCardRect.right);
+    expect(controlWidths).toHaveLength(5);
+    expect(controlWidths.every((width) => width === controlWidths[0])).toBe(true);
   });
 
   it('uses green only for active compact call media controls', () => {
@@ -506,6 +529,7 @@ describe('CurrentUserBar', () => {
 
     const callLink = q(container, '[data-testid="current-user-call-link"]');
     expect(callLink).toBeTruthy();
-    expect(callLink!.textContent ?? '').toContain('Bob');
+    expect(callLink!.getAttribute('aria-label')).toBe('Open Bob');
+    expect(callLink!.textContent?.trim()).toBe('');
   });
 });

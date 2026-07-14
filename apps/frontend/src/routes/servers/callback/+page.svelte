@@ -8,6 +8,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import { Button } from '$lib/ui/form';
 
   let status = $state<'loading' | 'error'>('loading');
   let errorMessage = $state('');
@@ -147,7 +148,7 @@
       <span class="iconify text-4xl text-danger uil--exclamation-triangle"></span>
       <p class="font-medium">{m['auth.callback.failed_title']()}</p>
       <p class="text-sm text-muted">{errorMessage}</p>
-      <a href={resolve('/')} class="btn-secondary btn cursor-pointer">{m['common.retry']()}</a>
+      <Button href={resolve('/')} variant="secondary">{m['common.retry']()}</Button>
     </div>
   {/if}
 </div>
