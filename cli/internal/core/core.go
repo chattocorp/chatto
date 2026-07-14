@@ -1245,6 +1245,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		}
 		if snapshotBlobs != nil {
 			snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+				Pointers:        natsSnapshotPointerStore{kv: storage.runtimeStateKV},
 				SecretHex:       cfg.SecretKey,
 				ProducerVersion: cfg.Version,
 				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),

@@ -50,12 +50,12 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 		return SweepResult{}, fmt.Errorf("snapshot cleanup byte limit must be positive")
 	}
 	referenced := make(map[string]struct{}, len(projectionV1Keys)*2)
-	activePointers := make(map[string]struct{}, len(projectionV1Keys))
+	activePointerCount := 0
 	for _, projectionKey := range projectionV1Keys {
-		activePointers[r.pointerKey(projectionKey)] = struct{}{}
 		pointer, err := r.loadPointer(ctx, projectionKey)
 		switch {
 		case err == nil:
+			activePointerCount++
 		case errors.Is(err, ErrSnapshotNotFound):
 			continue
 		default:
@@ -70,11 +70,13 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 
 	cutoff := r.now().UTC().Add(-opts.GracePeriod)
 	var result SweepResult
+	result.ActivePointers = activePointerCount
 	candidates := make([]BlobInfo, 0, min(opts.MaxDeletes, 16))
 	var candidateBytes int64
-	if err := r.blobs.Walk(ctx, objectPrefix, func(info BlobInfo) error {
-		result.recordInventory(info, referenced, activePointers, cutoff)
-		id, valid := generationIDFromObjectKey(info.Key)
+	generationPrefix := r.generationObjectPrefix()
+	if err := r.blobs.Walk(ctx, generationPrefix, func(info BlobInfo) error {
+		result.recordInventory(info, referenced, generationPrefix, cutoff)
+		id, valid := generationIDFromObjectKey(info.Key, generationPrefix)
 		_, protected := referenced[id]
 		if !valid || protected || info.Size < 0 || info.ModifiedAt.IsZero() || info.ModifiedAt.UTC().After(cutoff) {
 			return nil
@@ -111,18 +113,14 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 	return result, nil
 }
 
-func (r *SweepResult) recordInventory(info BlobInfo, referenced, activePointers map[string]struct{}, cutoff time.Time) {
+func (r *SweepResult) recordInventory(info BlobInfo, referenced map[string]struct{}, generationPrefix string, cutoff time.Time) {
 	r.ScannedObjects++
 	if info.Size >= 0 {
 		r.ScannedBytes = saturatedAdd(r.ScannedBytes, info.Size)
 	}
-	id, valid := generationIDFromObjectKey(info.Key)
+	id, valid := generationIDFromObjectKey(info.Key, generationPrefix)
 	if !valid {
-		if _, active := activePointers[info.Key]; active {
-			r.ActivePointers++
-		} else {
-			r.IgnoredObjects++
-		}
+		r.IgnoredObjects++
 		return
 	}
 	if info.Size < 0 || info.ModifiedAt.IsZero() {
@@ -148,8 +146,7 @@ func saturatedAdd(left, right int64) int64 {
 	return left + right
 }
 
-func generationIDFromObjectKey(key string) (string, bool) {
-	prefix := objectPrefix + "objects/"
+func generationIDFromObjectKey(key, prefix string) (string, bool) {
 	id, ok := strings.CutPrefix(key, prefix)
 	if !ok || strings.Contains(id, "/") {
 		return "", false

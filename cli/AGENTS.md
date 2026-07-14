@@ -75,8 +75,11 @@ authorization, live events, backup/restore, and backend tests.
   unwrapped keys, or state that would weaken crypto-shredding.
 - Treat the set of projection keys inside a shipped snapshot namespace as
   immutable. Adding a snapshotted projection requires a new namespace version
-  so older replicas cannot delete the newer projection's opaque pointer and
-  referenced generations during a mixed-version rollout.
+  so older replicas cannot delete the newer projection's referenced generations
+  during a mixed-version rollout. Keep snapshot pointers on a durable
+  revisioned store and publish them with OCC; a process lease is not fencing.
+  Scope generation object paths by encryption-key epoch so cleanup cannot cross
+  secrets during a rolling key change.
 
 ## Live Events
 

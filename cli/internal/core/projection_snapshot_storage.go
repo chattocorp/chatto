@@ -12,11 +12,49 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 type projectionSnapshotSource struct {
 	repository *projectionsnapshot.Repository
+}
+
+type natsSnapshotPointerStore struct {
+	kv jetstream.KeyValue
+}
+
+func (n natsSnapshotPointerStore) GetPointer(ctx context.Context, key string) ([]byte, uint64, error) {
+	entry, err := n.kv.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil, 0, projectionsnapshot.ErrPointerNotFound
+		}
+		return nil, 0, fmt.Errorf("get projection snapshot pointer: %w", err)
+	}
+	return append([]byte(nil), entry.Value()...), entry.Revision(), nil
+}
+
+func (n natsSnapshotPointerStore) CreatePointer(ctx context.Context, key string, value []byte) (uint64, error) {
+	revision, err := n.kv.Create(ctx, key, value)
+	if err != nil {
+		if jetstreamutil.IsSequenceConflict(err) {
+			return 0, projectionsnapshot.ErrPointerConflict
+		}
+		return 0, fmt.Errorf("create projection snapshot pointer: %w", err)
+	}
+	return revision, nil
+}
+
+func (n natsSnapshotPointerStore) UpdatePointer(ctx context.Context, key string, value []byte, expected uint64) (uint64, error) {
+	revision, err := n.kv.Update(ctx, key, value, expected)
+	if err != nil {
+		if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return 0, projectionsnapshot.ErrPointerConflict
+		}
+		return 0, fmt.Errorf("update projection snapshot pointer: %w", err)
+	}
+	return revision, nil
 }
 
 func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {

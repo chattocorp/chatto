@@ -46,7 +46,7 @@ func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 2)
+	waitForSnapshotObjects(t, ctx, first, 1)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
 	for _, name := range firstSnapshotObjects {
 		if _, err := first.storage.serverAssets.GetInfo(ctx, name); !errors.Is(err, jetstream.ErrObjectNotFound) {
@@ -126,7 +126,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 2)
+	waitForSnapshotObjects(t, ctx, first, 1)
 	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)

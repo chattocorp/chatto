@@ -15,6 +15,7 @@ func newSweepRepository(t *testing.T, blobs *memoryBlobStore, secret string) *Re
 	t.Helper()
 	blobs.now = func() time.Time { return sweepNow }
 	repository, err := NewRepository(blobs, RepositoryOptions{
+		Pointers:        blobs,
 		SecretHex:       secret,
 		ProducerVersion: "sweep-test",
 		Now:             func() time.Time { return sweepNow },
@@ -33,8 +34,8 @@ func sweepOptions() SweepOptions {
 	}
 }
 
-func putSweepObject(blobs *memoryBlobStore, id string, modified time.Time, size int) string {
-	key := generationObjectKey(id)
+func putSweepObject(repository *Repository, blobs *memoryBlobStore, id string, modified time.Time, size int) string {
+	key := repository.generationObjectKey(id)
 	blobs.objects[key] = make([]byte, size)
 	blobs.modified[key] = modified
 	return key
@@ -52,22 +53,19 @@ func TestRepositorySweepRetainsReferencesAndRecentGenerations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blobs.modified[generationObjectKey(first.GenerationID)] = sweepNow.Add(-30 * 24 * time.Hour)
-	blobs.modified[generationObjectKey(second.GenerationID)] = sweepNow.Add(-30 * 24 * time.Hour)
-	oldOrphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-25*time.Hour), 17)
-	recentOrphan := putSweepObject(blobs, strings.Repeat("b", 32), sweepNow.Add(-23*time.Hour), 19)
-	invalid := objectPrefix + "objects/not-a-generation"
+	blobs.modified[repository.generationObjectKey(first.GenerationID)] = sweepNow.Add(-30 * 24 * time.Hour)
+	blobs.modified[repository.generationObjectKey(second.GenerationID)] = sweepNow.Add(-30 * 24 * time.Hour)
+	oldOrphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-25*time.Hour), 17)
+	recentOrphan := putSweepObject(repository, blobs, strings.Repeat("b", 32), sweepNow.Add(-23*time.Hour), 19)
+	invalid := repository.generationObjectPrefix() + "not-a-generation"
 	blobs.objects[invalid] = []byte("unknown")
 	blobs.modified[invalid] = sweepNow.Add(-30 * 24 * time.Hour)
-	invalidPointer := objectPrefix + "pointers/future-format"
-	blobs.objects[invalidPointer] = []byte("unknown")
-	blobs.modified[invalidPointer] = sweepNow.Add(-30 * 24 * time.Hour)
 
 	result, err := repository.Sweep(ctx, sweepOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ScannedObjects != 7 || result.ReferencedObjects != 2 || result.ActivePointers != 1 || result.RecentObjects != 1 || result.EligibleObjects != 1 || result.IgnoredObjects != 2 {
+	if result.ScannedObjects != 5 || result.ReferencedObjects != 2 || result.ActivePointers != 1 || result.RecentObjects != 1 || result.EligibleObjects != 1 || result.IgnoredObjects != 1 {
 		t.Fatalf("unexpected inventory result: %#v", result)
 	}
 	if result.DeletedObjects != 1 || result.DeletedBytes != 17 || result.DeleteLimitHit {
@@ -76,7 +74,7 @@ func TestRepositorySweepRetainsReferencesAndRecentGenerations(t *testing.T) {
 	if _, ok := blobs.objects[oldOrphan]; ok {
 		t.Fatal("old unreferenced generation was retained")
 	}
-	for _, key := range []string{generationObjectKey(first.GenerationID), generationObjectKey(second.GenerationID), recentOrphan, invalid, invalidPointer, repository.pointerKey("threads")} {
+	for _, key := range []string{repository.generationObjectKey(first.GenerationID), repository.generationObjectKey(second.GenerationID), recentOrphan, invalid} {
 		if _, ok := blobs.objects[key]; !ok {
 			t.Fatalf("protected object %q was deleted", key)
 		}
@@ -94,7 +92,7 @@ func TestRepositorySweepGraceProtectsGenerationPublishedAfterInventoryStarts(t *
 	for key := range blobs.objects {
 		blobs.modified[key] = sweepNow.Add(-48 * time.Hour)
 	}
-	orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+	orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 	var published LoadedSnapshot
 	blobs.walkHook = func(call int, _ string) {
 		if call != 1 || published.GenerationID != "" {
@@ -114,7 +112,7 @@ func TestRepositorySweepGraceProtectsGenerationPublishedAfterInventoryStarts(t *
 		t.Fatalf("concurrent publication result = %#v", result)
 	}
 	for _, generation := range []LoadedSnapshot{first, published} {
-		if _, ok := blobs.objects[generationObjectKey(generation.GenerationID)]; !ok {
+		if _, ok := blobs.objects[repository.generationObjectKey(generation.GenerationID)]; !ok {
 			t.Fatalf("generation %q was deleted", generation.GenerationID)
 		}
 	}
@@ -130,7 +128,7 @@ func TestRepositorySweepGraceProtectsGenerationPublishedAfterInventoryStarts(t *
 func TestRepositorySweepTreatsGraceBoundaryAsEligible(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	key := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-24*time.Hour), 1)
+	key := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-24*time.Hour), 1)
 
 	result, err := repository.Sweep(context.Background(), sweepOptions())
 	if err != nil {
@@ -158,7 +156,7 @@ func TestRepositorySweepPointerFailuresDeleteNothing(t *testing.T) {
 		{
 			name: "invalid pointer",
 			mutate: func(blobs *memoryBlobStore, repository *Repository) {
-				blobs.objects[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
+				blobs.pointers[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
 			},
 		},
 	} {
@@ -169,7 +167,7 @@ func TestRepositorySweepPointerFailuresDeleteNothing(t *testing.T) {
 			if _, err := repository.Save(ctx, testSaveInput(1, []byte("current"))); err != nil {
 				t.Fatal(err)
 			}
-			orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+			orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 			test.mutate(blobs, repository)
 
 			result, err := repository.Sweep(ctx, sweepOptions())
@@ -189,7 +187,7 @@ func TestRepositorySweepPointerFailuresDeleteNothing(t *testing.T) {
 func TestRepositorySweepIncompleteInventoryDeletesNothing(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+	orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 	blobs.failWalk = func(call int) error {
 		if call == 1 {
 			return errors.New("injected listing failure")
@@ -212,7 +210,7 @@ func TestRepositorySweepIncompleteInventoryDeletesNothing(t *testing.T) {
 func TestRepositorySweepUsesOneInventoryWalk(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+	orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 	blobs.failWalk = func(call int) error {
 		if call == 2 {
 			return errors.New("unexpected second listing")
@@ -253,7 +251,7 @@ func TestRepositorySweepStopsOnOwnershipOrDeleteFailure(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			blobs := newMemoryBlobStore()
 			repository := newSweepRepository(t, blobs, testSecret)
-			orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+			orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 			opts := sweepOptions()
 			test.mutate(blobs, &opts)
 
@@ -271,6 +269,44 @@ func TestRepositorySweepStopsOnOwnershipOrDeleteFailure(t *testing.T) {
 	}
 }
 
+func TestRepositorySweepReportsPartialDeletionAndRetriesRemainder(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newSweepRepository(t, blobs, testSecret)
+	keys := make([]string, 0, 3)
+	for _, id := range []string{strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32)} {
+		keys = append(keys, putSweepObject(repository, blobs, id, sweepNow.Add(-48*time.Hour), 10))
+	}
+	deleteCalls := 0
+	blobs.failDelete = func(string) bool {
+		deleteCalls++
+		return deleteCalls == 2
+	}
+
+	result, err := repository.Sweep(context.Background(), sweepOptions())
+	if err == nil || result.DeletedObjects != 1 || result.DeletedBytes != 10 {
+		t.Fatalf("partial sweep result=%#v err=%v", result, err)
+	}
+	if _, ok := blobs.objects[keys[0]]; ok {
+		t.Fatal("first candidate was not deleted before later failure")
+	}
+	for _, key := range keys[1:] {
+		if _, ok := blobs.objects[key]; !ok {
+			t.Fatalf("candidate %q was deleted after the failure", key)
+		}
+	}
+
+	blobs.failDelete = nil
+	result, err = repository.Sweep(context.Background(), sweepOptions())
+	if err != nil || result.DeletedObjects != 2 || result.DeletedBytes != 20 {
+		t.Fatalf("retry sweep result=%#v err=%v", result, err)
+	}
+	for _, key := range keys {
+		if _, ok := blobs.objects[key]; ok {
+			t.Fatalf("retry retained orphan %q", key)
+		}
+	}
+}
+
 func TestRepositorySweepBoundsEachPass(t *testing.T) {
 	for _, test := range []struct {
 		name     string
@@ -285,7 +321,7 @@ func TestRepositorySweepBoundsEachPass(t *testing.T) {
 			blobs := newMemoryBlobStore()
 			repository := newSweepRepository(t, blobs, testSecret)
 			for _, id := range []string{strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32)} {
-				putSweepObject(blobs, id, sweepNow.Add(-48*time.Hour), 10)
+				putSweepObject(repository, blobs, id, sweepNow.Add(-48*time.Hour), 10)
 			}
 			opts := sweepOptions()
 			opts.MaxDeletes = test.maxCount
@@ -313,9 +349,9 @@ func TestRepositorySweepBoundsEachPass(t *testing.T) {
 func TestRepositorySweepTreatsInvalidSizesConservativelyAndSaturatesTotals(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	largeA := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 1)
-	largeB := putSweepObject(blobs, strings.Repeat("b", 32), sweepNow.Add(-48*time.Hour), 1)
-	invalid := putSweepObject(blobs, strings.Repeat("c", 32), sweepNow.Add(-48*time.Hour), 1)
+	largeA := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 1)
+	largeB := putSweepObject(repository, blobs, strings.Repeat("b", 32), sweepNow.Add(-48*time.Hour), 1)
+	invalid := putSweepObject(repository, blobs, strings.Repeat("c", 32), sweepNow.Add(-48*time.Hour), 1)
 	blobs.walkInfo = func(_ int, info BlobInfo) BlobInfo {
 		switch info.Key {
 		case largeA, largeB:
@@ -343,7 +379,7 @@ func TestRepositorySweepTreatsInvalidSizesConservativelyAndSaturatesTotals(t *te
 	}
 }
 
-func TestRepositorySweepAfterSecretRotationRemovesOldGenerationsButNeverPointers(t *testing.T) {
+func TestRepositorySweepAfterSecretRotationCannotSeeOldGenerationEpoch(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	oldRepository := newSweepRepository(t, blobs, testSecret)
@@ -360,11 +396,14 @@ func TestRepositorySweepAfterSecretRotationRemovesOldGenerationsButNeverPointers
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.DeletedObjects != 1 || result.IgnoredObjects != 1 {
+	if result.ScannedObjects != 0 || result.DeletedObjects != 0 {
 		t.Fatalf("rotation result = %#v", result)
 	}
-	if _, ok := blobs.objects[oldPointer]; !ok {
-		t.Fatal("cleanup deleted opaque pointer from prior key scheme")
+	if _, ok := blobs.pointers[oldPointer]; !ok {
+		t.Fatal("cleanup removed pointer from prior key epoch")
+	}
+	if _, err := oldRepository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 1); err != nil {
+		t.Fatalf("old-key snapshot no longer loads: %v", err)
 	}
 }
 
@@ -380,6 +419,7 @@ func TestRepositorySweepNeverDeletesPointerRefreshedAfterInventory(t *testing.T)
 		blobs.modified[key] = sweepNow.Add(-48 * time.Hour)
 	}
 	newRepository := newSweepRepository(t, blobs, strings.Repeat("11", 32))
+	newOrphan := putSweepObject(newRepository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 	beforeDeleteCalls := 0
 	var refreshed LoadedSnapshot
 	opts := sweepOptions()
@@ -400,8 +440,11 @@ func TestRepositorySweepNeverDeletesPointerRefreshedAfterInventory(t *testing.T)
 	if result.DeletedObjects != 1 || beforeDeleteCalls != 1 {
 		t.Fatalf("pointer refresh result=%#v checks=%d", result, beforeDeleteCalls)
 	}
-	if _, ok := blobs.objects[oldPointer]; !ok {
+	if _, ok := blobs.pointers[oldPointer]; !ok {
 		t.Fatal("cleanup deleted a pointer refreshed after inventory")
+	}
+	if _, ok := blobs.objects[newOrphan]; ok {
+		t.Fatal("cleanup retained orphan from its own key epoch")
 	}
 	loaded, err := oldRepository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 2)
 	if err != nil || loaded.GenerationID != refreshed.GenerationID {
@@ -412,7 +455,7 @@ func TestRepositorySweepNeverDeletesPointerRefreshedAfterInventory(t *testing.T)
 func TestRepositorySweepHonorsCancellationBeforeDeletion(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	orphan := putSweepObject(blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
+	orphan := putSweepObject(repository, blobs, strings.Repeat("a", 32), sweepNow.Add(-48*time.Hour), 10)
 	ctx, cancel := context.WithCancel(context.Background())
 	blobs.walkHook = func(call int, _ string) {
 		if call == 1 {

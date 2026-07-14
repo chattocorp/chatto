@@ -20,16 +20,20 @@ func testSaveInput(seq uint64, payload []byte) SaveInput {
 }
 
 type memoryBlobStore struct {
-	objects    map[string][]byte
-	modified   map[string]time.Time
-	failPut    func(string) bool
-	failGet    func(string) bool
-	failDelete func(string) bool
-	failWalk   func(int) error
-	walkHook   func(int, string)
-	walkInfo   func(int, BlobInfo) BlobInfo
-	walkCalls  int
-	now        func() time.Time
+	objects             map[string][]byte
+	modified            map[string]time.Time
+	pointers            map[string][]byte
+	revisions           map[string]uint64
+	nextRev             uint64
+	failPut             func(string) bool
+	failGet             func(string) bool
+	failDelete          func(string) bool
+	failWalk            func(int) error
+	beforePointerUpdate func(string, uint64)
+	walkHook            func(int, string)
+	walkInfo            func(int, BlobInfo) BlobInfo
+	walkCalls           int
+	now                 func() time.Time
 }
 
 type capturedLog struct {
@@ -61,10 +65,55 @@ func (l *captureLogger) Error(message interface{}, keyvals ...interface{}) {
 
 func newMemoryBlobStore() *memoryBlobStore {
 	return &memoryBlobStore{
-		objects:  make(map[string][]byte),
-		modified: make(map[string]time.Time),
-		now:      func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
+		objects:   make(map[string][]byte),
+		modified:  make(map[string]time.Time),
+		pointers:  make(map[string][]byte),
+		revisions: make(map[string]uint64),
+		nextRev:   1,
+		now:       func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
 	}
+}
+
+func (m *memoryBlobStore) GetPointer(_ context.Context, key string) ([]byte, uint64, error) {
+	if m.failGet != nil && m.failGet(key) {
+		return nil, 0, errors.New("injected pointer get failure")
+	}
+	value, ok := m.pointers[key]
+	if !ok {
+		return nil, 0, ErrPointerNotFound
+	}
+	return append([]byte(nil), value...), m.revisions[key], nil
+}
+
+func (m *memoryBlobStore) CreatePointer(_ context.Context, key string, value []byte) (uint64, error) {
+	if m.failPut != nil && m.failPut(key) {
+		return 0, errors.New("injected pointer create failure")
+	}
+	if _, ok := m.pointers[key]; ok {
+		return 0, ErrPointerConflict
+	}
+	revision := m.nextRev
+	m.nextRev++
+	m.pointers[key] = append([]byte(nil), value...)
+	m.revisions[key] = revision
+	return revision, nil
+}
+
+func (m *memoryBlobStore) UpdatePointer(_ context.Context, key string, value []byte, expected uint64) (uint64, error) {
+	if m.failPut != nil && m.failPut(key) {
+		return 0, errors.New("injected pointer update failure")
+	}
+	if m.beforePointerUpdate != nil {
+		m.beforePointerUpdate(key, expected)
+	}
+	if m.revisions[key] != expected || expected == 0 {
+		return 0, ErrPointerConflict
+	}
+	revision := m.nextRev
+	m.nextRev++
+	m.pointers[key] = append([]byte(nil), value...)
+	m.revisions[key] = revision
+	return revision, nil
 }
 func (*memoryBlobStore) Backend() string { return "memory" }
 func (m *memoryBlobStore) Put(_ context.Context, key string, data []byte, _ string) error {
@@ -136,9 +185,10 @@ func (m *memoryBlobStore) Walk(ctx context.Context, prefix string, visit func(Bl
 	return nil
 }
 
-func newTestRepository(t *testing.T, blobs BlobStore, secret string) *Repository {
+func newTestRepository(t *testing.T, blobs *memoryBlobStore, secret string) *Repository {
 	t.Helper()
 	r, err := NewRepository(blobs, RepositoryOptions{
+		Pointers:        blobs,
 		SecretHex:       secret,
 		ProducerVersion: "test-version",
 		Now:             func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
@@ -172,6 +222,44 @@ func TestRepositoryRoundTripKeepsMetadataOpaque(t *testing.T) {
 	}
 }
 
+func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	first, err := repository.Save(ctx, testSaveInput(1, []byte("first")))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var newest LoadedSnapshot
+	blobs.beforePointerUpdate = func(_ string, _ uint64) {
+		blobs.beforePointerUpdate = nil
+		if _, err := repository.Save(ctx, testSaveInput(2, []byte("second"))); err != nil {
+			t.Fatal(err)
+		}
+		blobs.failDelete = func(key string) bool { return key == repository.generationObjectKey(first.GenerationID) }
+		newest, err = repository.Save(ctx, testSaveInput(3, []byte("third")))
+		blobs.failDelete = nil
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := repository.Save(ctx, testSaveInput(4, []byte("stale"))); !errors.Is(err, ErrPointerConflict) {
+		t.Fatalf("stale Save error = %v, want pointer conflict", err)
+	}
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != newest.GenerationID || loaded.CutoffSequence != 3 {
+		t.Fatalf("stale writer regressed pointer: loaded=%#v newest=%#v", loaded, newest)
+	}
+	if len(blobs.objects) != 3 {
+		t.Fatalf("stale publication left unexpected generation count: %d", len(blobs.objects))
+	}
+}
+
 func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
@@ -184,7 +272,7 @@ func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blobs.objects[generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
+	blobs.objects[repository.generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
 
 	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
 	if err != nil {
@@ -230,11 +318,11 @@ func TestRepositoryRetainsCurrentAndPrevious(t *testing.T) {
 		}
 		generations = append(generations, generation)
 	}
-	if _, ok := blobs.objects[generationObjectKey(generations[0].GenerationID)]; ok {
+	if _, ok := blobs.objects[repository.generationObjectKey(generations[0].GenerationID)]; ok {
 		t.Fatal("oldest generation was not deleted")
 	}
 	for _, generation := range generations[1:] {
-		if _, ok := blobs.objects[generationObjectKey(generation.GenerationID)]; !ok {
+		if _, ok := blobs.objects[repository.generationObjectKey(generation.GenerationID)]; !ok {
 			t.Fatalf("retained generation %s is missing", generation.GenerationID)
 		}
 	}
@@ -317,7 +405,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 		t.Fatalf("pointer changed after read failure: %#v", loaded)
 	}
 
-	blobs.objects[generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
+	blobs.objects[repository.generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
 	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)
@@ -331,14 +419,14 @@ func TestRepositoryReplacesDefinitivelyInvalidPointer(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	logger := &captureLogger{}
-	repository, err := NewRepository(blobs, RepositoryOptions{SecretHex: testSecret, Logger: logger})
+	repository, err := NewRepository(blobs, RepositoryOptions{Pointers: blobs, SecretHex: testSecret, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := repository.Save(ctx, testSaveInput(1, []byte("first"))); err != nil {
 		t.Fatal(err)
 	}
-	blobs.objects[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
+	blobs.pointers[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
 
 	second, err := repository.Save(ctx, testSaveInput(2, []byte("second")))
 	if err != nil {
@@ -392,7 +480,7 @@ func TestRepositoryRejectsOversizedPayloadOnSaveAndLoad(t *testing.T) {
 func TestRepositoryDeletesGenerationAfterPointerWriteFailure(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
-	blobs.failPut = func(key string) bool { return strings.Contains(key, "/pointers/") }
+	blobs.failPut = func(key string) bool { return strings.HasPrefix(key, "projection_snapshot_pointer.") }
 	repository := newTestRepository(t, blobs, testSecret)
 	_, err := repository.Save(ctx, testSaveInput(1, []byte("state")))
 	if err == nil {
@@ -406,10 +494,10 @@ func TestRepositoryDeletesGenerationAfterPointerWriteFailure(t *testing.T) {
 func TestRepositoryLogsFailedGenerationCleanupAfterPointerWriteFailure(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
-	blobs.failPut = func(key string) bool { return strings.Contains(key, "/pointers/") }
+	blobs.failPut = func(key string) bool { return strings.HasPrefix(key, "projection_snapshot_pointer.") }
 	blobs.failDelete = func(key string) bool { return strings.Contains(key, "/objects/") }
 	logger := &captureLogger{}
-	repository, err := NewRepository(blobs, RepositoryOptions{SecretHex: testSecret, Logger: logger})
+	repository, err := NewRepository(blobs, RepositoryOptions{Pointers: blobs, SecretHex: testSecret, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +523,7 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	logger := &captureLogger{}
-	repository, err := NewRepository(blobs, RepositoryOptions{SecretHex: testSecret, Logger: logger})
+	repository, err := NewRepository(blobs, RepositoryOptions{Pointers: blobs, SecretHex: testSecret, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
