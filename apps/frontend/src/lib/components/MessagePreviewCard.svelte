@@ -13,7 +13,8 @@ unknown instance) the component renders nothing.
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { buildMessageLinkPath, type MessageLink } from '$lib/messageLinks';
+  import { resolve } from '$app/paths';
+  import type { MessageLink } from '$lib/messageLinks';
   import {
     FitMode,
     MessageAttachmentViewDocument,
@@ -22,6 +23,7 @@ unknown instance) the component renders nothing.
   } from '$lib/render/types';
   import { useRenderData } from '$lib/render/data';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+  import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -316,14 +318,7 @@ unknown instance) the component renders nothing.
     const target = event.target as HTMLElement;
     if (target.closest('a, button')) return;
 
-    goto(
-      buildMessageLinkPath(
-        preview.serverId,
-        preview.roomId,
-        preview.eventId,
-        preview.threadRootEventId
-      )
-    );
+    navigateToPreview();
   }
 
   function handlePreviewKeydown(event: KeyboardEvent) {
@@ -332,13 +327,30 @@ unknown instance) the component renders nothing.
     if (event.key !== 'Enter' && event.key !== ' ') return;
 
     event.preventDefault();
+    navigateToPreview();
+  }
+
+  function navigateToPreview() {
+    if (!preview) return;
+    const serverId = serverIdToSegment(preview.serverId);
+    if (preview.threadRootEventId) {
+      goto(
+        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+          serverId,
+          roomId: preview.roomId,
+          threadId: preview.threadRootEventId,
+          messageId: preview.eventId
+        })
+      );
+      return;
+    }
+
     goto(
-      buildMessageLinkPath(
-        preview.serverId,
-        preview.roomId,
-        preview.eventId,
-        preview.threadRootEventId
-      )
+      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId,
+        roomId: preview.roomId,
+        messageId: preview.eventId
+      })
     );
   }
 
