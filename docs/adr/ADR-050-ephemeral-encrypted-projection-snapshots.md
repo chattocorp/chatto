@@ -92,6 +92,11 @@ The small encrypted current/previous pointer lives in `RUNTIME_STATE`, using KV
 both NATS and S3 payload backends. A stale lease holder can upload a generation,
 but it cannot regress a newer pointer; a failed pointer CAS rolls back the
 unpublished upload and leaves the newer history intact.
+The pointer also carries each generation's cutoff sequence, EVT incarnation,
+and projection compatibility ID. A writer rejects a captured state that does
+not advance the current generation for the same EVT incarnation and
+compatibility contract. Revision OCC alone is insufficient because a writer
+can capture old projection state before reading a newer pointer revision.
 
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
@@ -122,6 +127,12 @@ new-key cleaner cannot delete generations still used by an old-key replica
 during a rolling secret change. Old key epochs are not automatically swept by
 the new key and remain subject to the deployment's storage lifecycle or later
 key-migration tooling.
+
+The pre-epoch canary layout placed generation IDs directly below
+`internal/projection-snapshots/v1/objects/`. Upgrading from that unshipped
+canary layout intentionally cold-replays and does not let the new cleaner cross
+the unauthenticated epoch boundary. Those legacy objects require the storage
+provider's lifecycle policy or explicit later migration tooling.
 
 The unencrypted envelope contains only the framing data required to select the
 decryption scheme, derive the key, and authenticate the ciphertext: a magic
@@ -225,6 +236,11 @@ The lease reduces duplicate work but is not the correctness boundary.
 Immutable generation bundles, current/previous fallback, and validation keep
 stale workers and interrupted uploads harmless. Loaders never trust
 process-local ownership state.
+
+Initialization is best-effort as well: snapshot Object Store, repository, EVT
+identity, projector configuration, and lease failures disable the affected
+snapshot workers and log the reason. They do not prevent core startup when EVT
+is available.
 
 The initial canary attempts one generation after boot, and only when the Thread
 projection has advanced beyond the currently referenced compatible snapshot.

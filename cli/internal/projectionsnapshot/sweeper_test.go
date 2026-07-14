@@ -407,6 +407,28 @@ func TestRepositorySweepAfterSecretRotationCannotSeeOldGenerationEpoch(t *testin
 	}
 }
 
+func TestRepositorySweepLeavesPreEpochLayoutForProviderLifecycle(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newSweepRepository(t, blobs, testSecret)
+	legacyKey := objectPrefix + "objects/" + strings.Repeat("a", 32)
+	blobs.objects[legacyKey] = []byte("legacy encrypted generation")
+	blobs.modified[legacyKey] = sweepNow.Add(-48 * time.Hour)
+
+	result, err := repository.Sweep(context.Background(), sweepOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ScannedObjects != 0 || result.DeletedObjects != 0 {
+		t.Fatalf("legacy layout entered current epoch cleanup: %#v", result)
+	}
+	if _, ok := blobs.objects[legacyKey]; !ok {
+		t.Fatal("legacy object was deleted without an authenticated epoch boundary")
+	}
+	if _, err := repository.Load(context.Background(), ProjectionV1ThreadsKey, testCompatibilityID, "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
+		t.Fatalf("Load error = %v, want cold replay for legacy layout", err)
+	}
+}
+
 func TestRepositorySweepNeverDeletesPointerRefreshedAfterInventory(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()

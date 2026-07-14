@@ -260,6 +260,63 @@ func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
 	}
 }
 
+func TestRepositoryRejectsSnapshotCapturedBeforeCurrentPublication(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	newest, err := repository.Save(ctx, testSaveInput(200, []byte("newest")))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, cutoff := range []uint64{100, 200} {
+		if _, err := repository.Save(ctx, testSaveInput(cutoff, []byte("captured earlier"))); !errors.Is(err, ErrSnapshotNotAdvanced) {
+			t.Fatalf("Save cutoff %d error = %v, want snapshot-not-advanced", cutoff, err)
+		}
+	}
+	loaded, err := repository.Load(ctx, ProjectionV1ThreadsKey, testCompatibilityID, "EVT", testStreamIdentity, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != newest.GenerationID || loaded.CutoffSequence != 200 || len(blobs.objects) != 1 {
+		t.Fatalf("non-advancing save changed repository: loaded=%#v objects=%d", loaded, len(blobs.objects))
+	}
+}
+
+func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	if _, err := repository.Save(ctx, testSaveInput(200, []byte("original"))); err != nil {
+		t.Fatal(err)
+	}
+
+	newCompatibility := testSaveInput(200, []byte("new compatibility"))
+	newCompatibility.CompatibilityID = "test-v2"
+	if _, err := repository.Save(ctx, newCompatibility); err != nil {
+		t.Fatalf("new compatibility Save: %v", err)
+	}
+	newHistory := newCompatibility
+	newHistory.CutoffSequence = 1
+	newHistory.StreamIdentity = otherStreamIdentity
+	if _, err := repository.Save(ctx, newHistory); err != nil {
+		t.Fatalf("new EVT history Save: %v", err)
+	}
+}
+
+func TestRepositoryRejectsProjectionOutsideFrozenV1Namespace(t *testing.T) {
+	ctx := context.Background()
+	repository := newTestRepository(t, newMemoryBlobStore(), testSecret)
+	input := testSaveInput(1, []byte("state"))
+	input.ProjectionKey = "typo"
+	if _, err := repository.Save(ctx, input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v1") {
+		t.Fatalf("Save error = %v", err)
+	}
+	if _, err := repository.Load(ctx, "typo", testCompatibilityID, "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "not a member of namespace v1") {
+		t.Fatalf("Load error = %v", err)
+	}
+}
+
 func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()

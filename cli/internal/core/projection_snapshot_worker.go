@@ -98,6 +98,14 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 		CutoffSequence:  captured.CutoffSequence,
 		Payload:         captured.Payload,
 	})
+	if errors.Is(err, projectionsnapshot.ErrSnapshotNotAdvanced) {
+		w.logger.Debug("Projection snapshot generation skipped after a newer publication",
+			"projection", w.projectionKey,
+			"backend", w.repository.Backend(),
+			"stage", "generate_skip",
+			"cutoff_seq", captured.CutoffSequence)
+		return nil
+	}
 	if err != nil {
 		return err
 	}

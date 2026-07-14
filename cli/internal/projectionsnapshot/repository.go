@@ -41,12 +41,13 @@ const ProjectionV1ThreadsKey = "threads"
 var projectionV1Keys = [...]string{ProjectionV1ThreadsKey}
 
 var (
-	ErrBlobNotFound     = errors.New("projection snapshot blob not found")
-	ErrPointerNotFound  = errors.New("projection snapshot pointer not found")
-	ErrPointerConflict  = errors.New("projection snapshot pointer revision conflict")
-	ErrSnapshotNotFound = errors.New("projection snapshot not found")
-	ErrIncompatible     = errors.New("incompatible projection snapshot")
-	errInvalidPointer   = errors.New("invalid projection snapshot pointer")
+	ErrBlobNotFound        = errors.New("projection snapshot blob not found")
+	ErrPointerNotFound     = errors.New("projection snapshot pointer not found")
+	ErrPointerConflict     = errors.New("projection snapshot pointer revision conflict")
+	ErrSnapshotNotFound    = errors.New("projection snapshot not found")
+	ErrSnapshotNotAdvanced = errors.New("projection snapshot does not advance the current generation")
+	ErrIncompatible        = errors.New("incompatible projection snapshot")
+	errInvalidPointer      = errors.New("invalid projection snapshot pointer")
 )
 
 type Logger interface {
@@ -162,6 +163,9 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
 	}
+	if input.ProjectionKey != ProjectionV1ThreadsKey {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", input.ProjectionKey)
+	}
 	if !validStreamIdentity(input.StreamIdentity) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
 	}
@@ -181,6 +185,12 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	}
 	if pointer == nil {
 		pointer = &corev1.ProjectionSnapshotPointer{}
+	}
+	if pointer.GetCurrentGenerationId() != "" &&
+		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
+		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
+		input.CutoffSequence <= pointer.GetCurrentCutoffSequence() {
+		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d does not exceed current cutoff %d", ErrSnapshotNotAdvanced, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
 	}
 
 	started := time.Now()
@@ -225,7 +235,13 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 
 	dropped := pointer.GetPreviousGenerationId()
 	pointer.PreviousGenerationId = pointer.GetCurrentGenerationId()
+	pointer.PreviousCutoffSequence = pointer.GetCurrentCutoffSequence()
+	pointer.PreviousStreamIdentity = pointer.GetCurrentStreamIdentity()
+	pointer.PreviousCompatibilityId = pointer.GetCurrentCompatibilityId()
 	pointer.CurrentGenerationId = generationIDText
+	pointer.CurrentCutoffSequence = input.CutoffSequence
+	pointer.CurrentStreamIdentity = input.StreamIdentity
+	pointer.CurrentCompatibilityId = input.CompatibilityID
 	if err := r.savePointer(ctx, input.ProjectionKey, pointer, pointerRevision); err != nil {
 		if cleanupErr := r.blobs.Delete(ctx, objectKey); cleanupErr != nil && !errors.Is(cleanupErr, ErrBlobNotFound) {
 			r.logWarn("Unpublished projection snapshot cleanup failed", input.ProjectionKey, "publish_rollback", cleanupErr, "generation_id", generationIDText)
@@ -249,6 +265,9 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+	if projectionKey != ProjectionV1ThreadsKey {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", projectionKey)
+	}
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
 	if err != nil {
@@ -389,6 +408,26 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey st
 		}
 		if _, err := parseGenerationID(id); err != nil {
 			return nil, revision, fmt.Errorf("%w: %s: %v", errInvalidPointer, name, err)
+		}
+	}
+	positions := []struct {
+		name            string
+		id              string
+		streamIdentity  string
+		compatibilityID string
+	}{
+		{"current", pointer.GetCurrentGenerationId(), pointer.GetCurrentStreamIdentity(), pointer.GetCurrentCompatibilityId()},
+		{"previous", pointer.GetPreviousGenerationId(), pointer.GetPreviousStreamIdentity(), pointer.GetPreviousCompatibilityId()},
+	}
+	for _, position := range positions {
+		if position.id == "" {
+			if position.streamIdentity != "" || position.compatibilityID != "" {
+				return nil, revision, fmt.Errorf("%w: %s metadata exists without a generation", errInvalidPointer, position.name)
+			}
+			continue
+		}
+		if !validStreamIdentity(position.streamIdentity) || position.compatibilityID == "" {
+			return nil, revision, fmt.Errorf("%w: %s generation metadata is incomplete", errInvalidPointer, position.name)
 		}
 	}
 	return &pointer, revision, nil

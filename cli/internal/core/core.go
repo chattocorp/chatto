@@ -1258,12 +1258,16 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			} else {
 				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
 				if err != nil {
-					return nil, fmt.Errorf("read EVT stream identity for projection snapshots: %w", err)
+					logger.Warn("Projection snapshots disabled after EVT identity read failure",
+						"stage", "stream_identity",
+						"error", err)
+					snapshotRepository = nil
+				} else {
+					logger.Info("Projection snapshots enabled",
+						"projection", projectionsnapshot.ProjectionV1ThreadsKey,
+						"compatibility_id", threadSnapshotCompatibilityID,
+						"backend", snapshotRepository.Backend())
 				}
-				logger.Info("Projection snapshots enabled",
-					"projection", projectionsnapshot.ProjectionV1ThreadsKey,
-					"compatibility_id", threadSnapshotCompatibilityID,
-					"backend", snapshotRepository.Backend())
 			}
 		}
 	}
@@ -1322,7 +1326,12 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
 	if snapshotRepository != nil {
 		if err := threadsProjector.ConfigureSnapshots(projectionsnapshot.ProjectionV1ThreadsKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
-			return nil, fmt.Errorf("configure Thread projection snapshots: %w", err)
+			logger.Warn("Projection snapshots disabled after projector configuration failure",
+				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
+				"stage", "projector_configure",
+				"error", err)
+			snapshotRepository = nil
+			snapshotStreamIdentity = ""
 		}
 	}
 

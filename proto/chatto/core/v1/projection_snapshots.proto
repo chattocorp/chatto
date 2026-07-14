@@ -27,6 +27,12 @@ message ProjectionSnapshotGeneration {
 message ProjectionSnapshotPointer {
   string current_generation_id = 1;
   string previous_generation_id = 2;
+  uint64 current_cutoff_sequence = 3;
+  string current_stream_identity = 4;
+  string current_compatibility_id = 5;
+  uint64 previous_cutoff_sequence = 6;
+  string previous_stream_identity = 7;
+  string previous_compatibility_id = 8;
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the

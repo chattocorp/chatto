@@ -267,6 +267,23 @@ func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
+		SecretKey:           "not-a-32-byte-hex-secret",
+		ProjectionSnapshots: true,
+		Assets:              config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("optional snapshot initialization prevented core construction: %v", err)
+	}
+	if core.projectionSnapshotWorker != nil || core.projectionSnapshotCleanupWorker != nil {
+		t.Fatal("snapshot workers enabled after repository initialization failure")
+	}
+	stop := startSnapshotTestCore(t, core)
+	stop()
+}
+
 func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())

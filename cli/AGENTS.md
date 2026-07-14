@@ -78,6 +78,9 @@ authorization, live events, backup/restore, and backend tests.
   so older replicas cannot delete the newer projection's referenced generations
   during a mixed-version rollout. Keep snapshot pointers on a durable
   revisioned store and publish them with OCC; a process lease is not fencing.
+  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer and
+  reject non-advancing captures; pointer revision OCC alone cannot detect state
+  captured before the latest pointer read.
   Scope generation object paths by encryption-key epoch so cleanup cannot cross
   secrets during a rolling key change.
 
