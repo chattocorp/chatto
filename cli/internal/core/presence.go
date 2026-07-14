@@ -10,6 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -161,11 +162,11 @@ func (s *PresenceModel) refreshPresence(ctx context.Context, userID string) erro
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = s.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
+	_, err = s.putWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
-		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
+		// A sequence conflict means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to refresh presence: %w", err)
@@ -179,7 +180,7 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				_, err = s.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
-				if errors.Is(err, jetstream.ErrKeyExists) {
+				if jetstreamutil.IsSequenceConflict(err) {
 					continue
 				}
 				return err
@@ -191,11 +192,11 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 			return nil
 		}
 
-		_, err = s.putPresenceWithTTL(ctx, key, data, entry.Revision())
+		_, err = s.putWithTTL(ctx, key, data, entry.Revision())
 		if err == nil {
 			return nil
 		}
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		return err

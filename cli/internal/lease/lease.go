@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 const (
@@ -178,7 +180,7 @@ func (l *Lease) TryAcquire(ctx context.Context) (bool, error) {
 	if _, err := l.kv.Create(ctx, l.key, data, jetstream.KeyTTL(l.ttl)); err == nil {
 		l.logDebug("lease acquired")
 		return true, nil
-	} else if !errors.Is(err, jetstream.ErrKeyExists) {
+	} else if !jetstreamutil.IsSequenceConflict(err) {
 		return false, fmt.Errorf("create lease %s: %w", l.name, err)
 	}
 
@@ -225,7 +227,7 @@ func (l *Lease) Release(ctx context.Context) error {
 		return err
 	}
 	if err := l.kv.Delete(ctx, l.key, jetstream.LastRevision(entry.Revision())); err != nil {
-		if isMissingKey(err) || errors.Is(err, jetstream.ErrKeyExists) {
+		if isMissingKey(err) || jetstreamutil.IsSequenceConflict(err) {
 			return nil
 		}
 		return fmt.Errorf("release lease %s: %w", l.name, err)
@@ -325,7 +327,7 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 		jetstream.WithMsgTTL(l.ttl),
 	)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) || isMissingKey(err) {
+		if jetstreamutil.IsSequenceConflict(err) || isMissingKey(err) {
 			return ErrLost
 		}
 		return fmt.Errorf("renew lease %s: %w", l.name, err)

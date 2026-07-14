@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 const (
@@ -110,7 +112,7 @@ func (c *ChattoCore) createEmailOTP(ctx context.Context, scope, subject string, 
 
 		codeKey = c.emailOTPCodeKey(scope, subject, code)
 		codeRevision, err = c.storage.runtimeStateKV.Create(ctx, codeKey, data, jetstream.KeyTTL(ttl))
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		if err != nil {
@@ -199,7 +201,7 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 			if err == nil {
 				return key, revision, true, nil
 			}
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return "", 0, false, fmt.Errorf("failed to create email otp challenge: %w", err)

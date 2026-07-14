@@ -154,6 +154,73 @@ func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
 	}
 }
 
+func TestPresenceModelWriteRetriesSequenceConflictVariants(t *testing.T) {
+	tests := []struct {
+		name string
+		code jetstream.ErrorCode
+	}{
+		{name: "detailed form", code: jetstream.ErrorCode(10071)},
+		{name: "constant form", code: jetstream.ErrorCode(10164)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _, _ := newTestPresenceModel(t)
+			ctx := testContext(t)
+			if err := service.SetPresence(ctx, "U-conflict", PresenceStatusOnline); err != nil {
+				t.Fatalf("seed presence: %v", err)
+			}
+
+			putWithTTL := service.putWithTTL
+			attempts := 0
+			service.putWithTTL = func(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+				attempts++
+				if attempts == 1 {
+					return 0, &jetstream.APIError{Code: 400, ErrorCode: tt.code, Description: "wrong last sequence"}
+				}
+				return putWithTTL(ctx, key, data, revision)
+			}
+
+			if err := service.SetPresence(ctx, "U-conflict", PresenceStatusAway); err != nil {
+				t.Fatalf("SetPresence after conflict: %v", err)
+			}
+			if attempts != 2 {
+				t.Fatalf("put attempts = %d, want 2", attempts)
+			}
+			if got, err := service.GetUserPresence(ctx, "U-conflict"); err != nil || got != PresenceStatusAway {
+				t.Fatalf("GetUserPresence = %q, %v; want %q, nil", got, err, PresenceStatusAway)
+			}
+		})
+	}
+}
+
+func TestPresenceModelRefreshIgnoresSequenceConflictVariants(t *testing.T) {
+	tests := []struct {
+		name string
+		code jetstream.ErrorCode
+	}{
+		{name: "detailed form", code: jetstream.ErrorCode(10071)},
+		{name: "constant form", code: jetstream.ErrorCode(10164)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _, _ := newTestPresenceModel(t)
+			ctx := testContext(t)
+			if err := service.SetPresence(ctx, "U-refresh-conflict", PresenceStatusOnline); err != nil {
+				t.Fatalf("seed presence: %v", err)
+			}
+			service.putWithTTL = func(context.Context, string, []byte, uint64) (uint64, error) {
+				return 0, &jetstream.APIError{Code: 400, ErrorCode: tt.code, Description: "wrong last sequence"}
+			}
+
+			if err := service.refreshPresence(ctx, "U-refresh-conflict"); err != nil {
+				t.Fatalf("refreshPresence returned conflict: %v", err)
+			}
+		})
+	}
+}
+
 func TestPresenceModelKeyHelpers(t *testing.T) {
 	if got := presenceKey("U-key"); got != "presence.U-key" {
 		t.Fatalf("presenceKey = %q, want %q", got, "presence.U-key")
