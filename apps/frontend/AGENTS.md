@@ -148,6 +148,8 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
+- When changing multi-server authentication or shared chat providers, cover an
+  authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state

@@ -264,7 +264,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
    * click the static "Sign in" button on the preview.
    */
   async function driveAddServerToOAuth(page: Page, hostname: string): Promise<void> {
-    await page.getByTitle('Add Server').click();
+    await page.getByRole('button', { name: 'Add Server', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Connect' }).click();
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
@@ -329,6 +329,42 @@ test.describe('Add Server - Remote Auth Flow', () => {
     await expect(
       page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first()
     ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('signing in to a remote server works while the origin is anonymous', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(routes.login);
+
+    const baseURL = remoteBaseURL(remoteServer);
+    const hostname = new URL(baseURL).host;
+    const remoteHostname = new URL(baseURL).hostname;
+    await createUserOnRemote(baseURL, 'remoteonlyuser', 'password123');
+
+    await driveAddServerToOAuth(page, hostname);
+    await expect(page).toHaveURL(/\/login\?redirect=/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+
+    await page.locator('input[autocomplete="username"]').fill('remoteonlyuser');
+    await page.locator('input[autocomplete="current-password"]').fill('password123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    await expect(page).toHaveURL(/\/oauth\/consent/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await page.getByRole('button', { name: 'Allow Access' }).click();
+
+    const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+    await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(
+      page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first()
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(page.getByTestId('server-subscription-active')).toBeAttached();
+    expect(pageErrors).toEqual([]);
   });
 
   test('invalid credentials show error on remote OAuth login page', async ({ page, chatPage }) => {
