@@ -402,6 +402,7 @@ test.describe('jump to message', () => {
     const timestamp = Date.now();
     const targetBody = `Interrupted room target - ${timestamp}`;
     const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    const latestBody = `Interrupted room filler 60 - ${timestamp}`;
     await postMessagesViaConnect(
       page,
       roomId,
@@ -411,6 +412,13 @@ test.describe('jump to message', () => {
       )
     );
 
+    // Establish a fully projected latest window before testing room-switch
+    // cancellation. Otherwise the return navigation can fetch between the EVT
+    // append and projection update, leaving this test waiting on unrelated
+    // projection convergence rather than the delayed jump response.
+    await page.reload();
+    await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
     const deferred = await deferNextAroundRequest(page);
     await page.goto(routes.messageLink(roomId, targetEventId));
     await deferred.waitUntilBlocked();
@@ -419,7 +427,7 @@ test.describe('jump to message', () => {
     await deferred.waitUntilDelivered();
 
     await chatPage.enterRoom('general');
-    await expect(page.getByText(`Interrupted room filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(latestBody)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).not.toBeVisible();
