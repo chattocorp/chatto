@@ -1,7 +1,7 @@
 # FDR-027: PWA Shell & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-07-14
 
 ## Overview
 
@@ -17,7 +17,7 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 - On install, the worker caches the SPA fallback shell and SvelteKit build assets required to boot it.
 - On activate, old Chatto shell caches are deleted and the new worker claims open clients.
 - Known shell assets are served cache-first from the versioned cache; static PWA assets other than the web manifest are cached lazily on first request.
-- The served web manifest, favicon, and Apple touch icon metadata use the uploaded server logo when one exists, falling back to bundled Chatto icons otherwise.
+- The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
 - API, auth, OAuth, webhook, uploaded-asset, dynamic branding metadata, non-GET, and cross-origin requests are network-only.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
@@ -52,9 +52,9 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ### 5. Install metadata follows server branding
 
-**Decision:** The HTTP frontend server generates the web manifest from the bundled manifest and swaps in transformed server-logo URLs for install icons when a logo is configured. Stable favicon and Apple touch icon endpoints redirect to purpose-sized transforms of the current server logo, or to the bundled Chatto icons when no logo is configured.
+**Decision:** The HTTP frontend server generates the web manifest from the bundled manifest, uses the current server name for the installed app name, and swaps in transformed server-logo URLs for install icons when a logo is configured. Stable favicon and Apple touch icon endpoints redirect to purpose-sized transforms of the current server logo, or to the bundled Chatto icons when no logo is configured.
 **Why:** Self-hosted servers should install with their own visible identity without requiring a custom frontend build.
-**Tradeoff:** Browsers decide when to refresh installed PWA metadata and may cache browser icons aggressively, so existing installs or tabs may keep the previous icon until the browser revalidates the metadata or the user reinstalls the app.
+**Tradeoff:** Browsers decide when to refresh installed PWA metadata and may cache it aggressively, so existing installs or tabs may keep the previous name or icon until the browser revalidates the metadata or the user reinstalls the app.
 
 ## Related
 
