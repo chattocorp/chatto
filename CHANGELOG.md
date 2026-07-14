@@ -3,6 +3,19 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.11](https://github.com/chattocorp/chatto/compare/v0.4.10...v0.4.11) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** add direct thread message routes ([#1524](https://github.com/chattocorp/chatto/issues/1524)) ([6f644a0](https://github.com/chattocorp/chatto/commit/6f644a0ccc09e20c06176f9e98a735a6226693c6))
+* **frontend:** preserve unusual video aspect ratios ([#1521](https://github.com/chattocorp/chatto/issues/1521)) ([2f845af](https://github.com/chattocorp/chatto/commit/2f845af6578b4c6a83696b5197369dbf87ed4f2b))
+* **frontend:** support remote-only sessions ([#1530](https://github.com/chattocorp/chatto/issues/1530)) ([af84281](https://github.com/chattocorp/chatto/commit/af8428179a9ed9bd1cb179aab00e0f65ad210c5b))
+* **frontend:** use origin host for message links ([#1526](https://github.com/chattocorp/chatto/issues/1526)) ([1448ecd](https://github.com/chattocorp/chatto/commit/1448ecd5496f63c3ca7550ea4d4560b96b4d7121))
+* **frontend:** use server logo for browser icons ([#1506](https://github.com/chattocorp/chatto/issues/1506)) ([41cffa9](https://github.com/chattocorp/chatto/commit/41cffa928fd3406cf70444c2dd40bb1d1cfb9796))
+* **presence:** handle constant wrong-sequence errors ([#1511](https://github.com/chattocorp/chatto/issues/1511)) ([c27cbee](https://github.com/chattocorp/chatto/commit/c27cbeecd8a1d6da479685d4acb15ef7f405594f))
+* **security:** restrict public server assets ([#1499](https://github.com/chattocorp/chatto/issues/1499)) ([0a10c3f](https://github.com/chattocorp/chatto/commit/0a10c3f49ff28e9d04f9da6da96b1cc5bb2953a5))
+
 ## [0.4.10](https://github.com/chattocorp/chatto/compare/v0.4.9...v0.4.10) (2026-07-13)
 
 
