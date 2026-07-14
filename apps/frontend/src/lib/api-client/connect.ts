@@ -26,14 +26,11 @@ export function connectEndpoint(baseUrl: string): string {
 
 export function createChattoTransport(
   config: { baseUrl: string },
-  options: { useBinaryFormat?: boolean; useHttpGet?: boolean } = {},
+  options: { useBinaryFormat?: boolean } = {},
 ): Transport {
   return createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: options.useBinaryFormat ?? true,
-    ...(options.useHttpGet === undefined
-      ? {}
-      : { useHttpGet: options.useHttpGet }),
   });
 }
 
@@ -52,7 +49,7 @@ export function createPublicChattoClient<T extends ServiceType>(
     service,
     createChattoTransport(
       { baseUrl: connectEndpoint(baseUrl) },
-      { useBinaryFormat: false, useHttpGet: true },
+      { useBinaryFormat: false },
     ),
   );
 }
