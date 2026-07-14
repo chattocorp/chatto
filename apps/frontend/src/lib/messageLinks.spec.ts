@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToasts, toast } from '$lib/ui/toast';
-import { classifyMessageBodyChatLink, copyMessageLinkToClipboard } from './messageLinks';
+import {
+  classifyMessageBodyChatLink,
+  copyMessageLinkToClipboard,
+  parseMessageLink
+} from './messageLinks';
 
 const origin = 'https://chat.example.test';
 const registeredRemoteOrigin = 'https://chat.chatto.run';
@@ -64,6 +68,16 @@ describe('copyMessageLinkToClipboard', () => {
 
     expect(getToasts().map((t) => t.message)).toContain('Failed to copy link');
   });
+
+  it('copies a nested thread message link when a thread root is provided', async () => {
+    writeText.mockResolvedValue(undefined);
+
+    await copyMessageLinkToClipboard('server-1', 'room-1', 'message-1', 'thread-root-1');
+
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining('/chat/-/room-1/thread-root-1/m/message-1')
+    );
+  });
 });
 
 describe('classifyMessageBodyChatLink', () => {
@@ -99,6 +113,20 @@ describe('classifyMessageBodyChatLink', () => {
       roomId: channelRoomId,
       messageId,
       path: `/chat/-/${channelRoomId}/m/${messageId}`
+    });
+  });
+
+  it('accepts same-origin thread message URLs', () => {
+    expect(
+      classify(
+        `${origin}/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}?focus=1#message`
+      )
+    ).toMatchObject({
+      kind: 'thread-message',
+      roomId: channelRoomId,
+      threadRootEventId,
+      messageId,
+      path: `/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}?focus=1#message`
     });
   });
 
@@ -159,7 +187,8 @@ describe('classifyMessageBodyChatLink', () => {
       `${origin}/chat/-/room-1`,
       `${origin}/chat/-/R123/m/${messageId}`,
       `${origin}/chat/-/${channelRoomId}/m/message-1`,
-      `${origin}/chat/-/${channelRoomId}/thread-1`
+      `${origin}/chat/-/${channelRoomId}/thread-1`,
+      `${origin}/chat/-/${channelRoomId}/${threadRootEventId}/m/message-1`
     ];
 
     for (const url of rejected) {
@@ -173,5 +202,17 @@ describe('classifyMessageBodyChatLink', () => {
 
   it('rejects unregistered cross-origin URLs', () => {
     expect(classify(`https://other.example.test/chat/-/${channelRoomId}`)).toBeNull();
+  });
+});
+
+describe('parseMessageLink', () => {
+  it('preserves the thread root from a nested message link', () => {
+    expect(
+      parseMessageLink(`/chat/-/${channelRoomId}/${threadRootEventId}/m/${messageId}`)
+    ).toMatchObject({
+      roomId: channelRoomId,
+      threadRootEventId,
+      messageId
+    });
   });
 });

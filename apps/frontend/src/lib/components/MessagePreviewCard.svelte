@@ -13,7 +13,7 @@ unknown instance) the component renders nothing.
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import type { MessageLink } from '$lib/messageLinks';
+  import { buildMessageLinkPath, type MessageLink } from '$lib/messageLinks';
   import {
     FitMode,
     MessageAttachmentViewDocument,
@@ -21,9 +21,7 @@ unknown instance) the component renders nothing.
     type UserAvatarUserView
   } from '$lib/render/types';
   import { useRenderData } from '$lib/render/data';
-  import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -65,6 +63,7 @@ unknown instance) the component renders nothing.
   let preview = $state<{
     serverId: string;
     roomId: string;
+    threadRootEventId?: string;
     eventId: string;
     body: string | null;
     attachments: Attachment[];
@@ -115,7 +114,7 @@ unknown instance) the component renders nothing.
   }
 
   $effect(() => {
-    const { serverId, roomId, messageId } = link;
+    const { serverId, roomId, threadRootEventId, messageId } = link;
 
     preview = null;
     if (!serverId) return;
@@ -156,6 +155,7 @@ unknown instance) the component renders nothing.
         preview = {
           serverId,
           roomId,
+          threadRootEventId,
           eventId: messageId,
           body: inner.body ?? null,
           attachments: attachments.map((a: MessageAttachmentView) => {
@@ -317,11 +317,12 @@ unknown instance) the component renders nothing.
     if (target.closest('a, button')) return;
 
     goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
-        roomId: preview.roomId,
-        messageId: preview.eventId
-      })
+      buildMessageLinkPath(
+        preview.serverId,
+        preview.roomId,
+        preview.eventId,
+        preview.threadRootEventId
+      )
     );
   }
 
@@ -332,11 +333,12 @@ unknown instance) the component renders nothing.
 
     event.preventDefault();
     goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
-        roomId: preview.roomId,
-        messageId: preview.eventId
-      })
+      buildMessageLinkPath(
+        preview.serverId,
+        preview.roomId,
+        preview.eventId,
+        preview.threadRootEventId
+      )
     );
   }
 

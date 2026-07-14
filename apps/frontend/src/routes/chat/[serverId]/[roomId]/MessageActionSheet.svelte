@@ -12,6 +12,7 @@
     eventId,
     deleteEventId = eventId,
     messageBody,
+    permalinkThreadRootEventId = null,
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
@@ -33,6 +34,7 @@
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    permalinkThreadRootEventId?: string | null;
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
@@ -65,6 +67,7 @@
     eventId,
     deleteEventId,
     messageBody,
+    permalinkThreadRootEventId,
     threadRootEventId,
     channelEchoEventId,
     canAddChannelEcho,

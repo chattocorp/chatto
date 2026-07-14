@@ -317,6 +317,7 @@
 
   <TimelineEventsPane
     {roomId}
+    permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}
