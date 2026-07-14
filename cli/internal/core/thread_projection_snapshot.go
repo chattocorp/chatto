@@ -12,7 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const threadSnapshotCompatibilityID = "threads-v1"
+const threadSnapshotCompatibilityID = "threads-v2"
 
 func (*ThreadProjection) SnapshotCompatibilityID() string {
 	return threadSnapshotCompatibilityID
@@ -82,8 +82,6 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 
 func (p *ThreadProjection) Restore(data []byte) (err error) {
 	if len(data) == 0 {
-		// Legacy thread-follow state is seeded from RUNTIME_STATE before Run.
-		// A cold replay must preserve that preloaded compatibility state.
 		return nil
 	}
 	p.Lock()
@@ -234,19 +232,6 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 	}
 
-	// NewChattoCore seeds pre-EVT thread follow records before projectors run.
-	// Snapshot state wins for keys it knows; legacy-only keys remain available
-	// until that compatibility import is retired.
-	for key, state := range previous.followState {
-		if _, exists := p.followState[key]; exists {
-			continue
-		}
-		parts := strings.SplitN(key, "\x00", 3)
-		if len(parts) != 3 {
-			return fmt.Errorf("invalid preloaded thread follow key")
-		}
-		p.setThreadFollowStateLocked(parts[0], parts[1], parts[2], state)
-	}
 	return nil
 }
 

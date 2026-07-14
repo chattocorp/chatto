@@ -1269,61 +1269,28 @@ func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *tes
 	}
 }
 
-func TestChattoCore_LegacyThreadFollowValueStillLists(t *testing.T) {
+func TestChattoCore_LegacyThreadFollowValueIsIgnored(t *testing.T) {
 	ctx := testContext(t)
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",
-		Assets: config.AssetsConfig{
-			SigningSecret: "test-signing-secret",
-		},
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
 	}
 
 	first, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("NewChattoCore first: %v", err)
 	}
-	startCoreServices(t, first)
-
-	room, _ := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
-	rootAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-root", "Legacy Root", "password123")
-	replyAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-reply", "Legacy Reply", "password123")
-	legacyFollower, _ := first.CreateUser(ctx, SystemActorID, "legacy-follower", "Legacy Follower", "password123")
-	first.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
-	first.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
-	first.JoinRoom(ctx, legacyFollower.Id, KindChannel, legacyFollower.Id, room.Id)
-
-	rootMsg, _ := first.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
-	if _, err := first.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Reply", nil, rootMsg.Id, "", nil, false); err != nil {
-		t.Fatalf("Post reply: %v", err)
-	}
-	if _, err := first.storage.runtimeStateKV.Put(ctx, threadFollowKey(legacyFollower.Id, room.Id, rootMsg.Id), []byte{0x01}); err != nil {
-		t.Fatalf("write legacy thread follow marker: %v", err)
+	if _, err := first.storage.runtimeStateKV.Put(ctx, "thread_follow.U1.R1.ROOT", []byte{0x01}); err != nil {
+		t.Fatalf("write retired thread follow marker: %v", err)
 	}
 
 	second, err := NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("NewChattoCore second: %v", err)
 	}
-	startCoreServices(t, second)
-	if err := second.WaitForProjectionsCurrent(ctx); err != nil {
-		t.Fatalf("WaitForProjectionsCurrent: %v", err)
-	}
-
-	isFollowing, err := second.IsFollowingThread(ctx, KindChannel, legacyFollower.Id, room.Id, rootMsg.Id)
-	if err != nil {
-		t.Fatalf("IsFollowingThread: %v", err)
-	}
-	if !isFollowing {
-		t.Fatal("legacy positive value should still count as following")
-	}
-
-	page, err := second.ListFollowedThreadsPage(ctx, legacyFollower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)}, 10, 0)
-	if err != nil {
-		t.Fatalf("ListFollowedThreadsPage: %v", err)
-	}
-	if len(page.Threads) != 1 || page.Threads[0].ThreadRootEventID != rootMsg.Id {
-		t.Fatalf("followed threads = %#v, want legacy-followed thread %s", page.Threads, rootMsg.Id)
+	if got := second.Threads.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateNone {
+		t.Fatalf("retired thread follow marker was imported: %q", got)
 	}
 }
 

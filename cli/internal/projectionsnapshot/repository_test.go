@@ -12,9 +12,10 @@ import (
 const testSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 const testStreamIdentity = "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const otherStreamIdentity = "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+const testCompatibilityID = "test-v1"
 
 func testSaveInput(seq uint64, payload []byte) SaveInput {
-	return SaveInput{ProjectionKey: "threads", CompatibilityID: "threads-v1", StreamName: "EVT", StreamIdentity: testStreamIdentity, CutoffSequence: seq, Payload: payload}
+	return SaveInput{ProjectionKey: "threads", CompatibilityID: testCompatibilityID, StreamName: "EVT", StreamIdentity: testStreamIdentity, CutoffSequence: seq, Payload: payload}
 }
 
 type memoryBlobStore struct {
@@ -106,7 +107,7 @@ func TestRepositoryRoundTripKeepsMetadataOpaque(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 42)
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 42)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	}
 	blobs.objects[generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
 
-	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 20)
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +158,7 @@ func TestRepositoryFallsBackWhenCurrentGenerationHasDifferentStreamIdentity(t *t
 		t.Fatal(err)
 	}
 
-	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 20)
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,17 +199,17 @@ func TestRepositoryRejectsWrongKeyCompatibilityAndFutureCutoff(t *testing.T) {
 	}
 
 	wrongKey := newTestRepository(t, blobs, strings.Repeat("11", 32))
-	if _, err := wrongKey.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 10); err == nil {
+	if _, err := wrongKey.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 10); err == nil {
 		t.Fatal("wrong key loaded snapshot")
 	}
 	for _, test := range []struct {
 		compatibility, stream, identity string
 		max                             uint64
 	}{
-		{"threads-v2", "EVT", testStreamIdentity, 10},
-		{"threads-v1", "OTHER", testStreamIdentity, 10},
-		{"threads-v1", "EVT", otherStreamIdentity, 10},
-		{"threads-v1", "EVT", testStreamIdentity, 9},
+		{"test-v2", "EVT", testStreamIdentity, 10},
+		{testCompatibilityID, "OTHER", testStreamIdentity, 10},
+		{testCompatibilityID, "EVT", otherStreamIdentity, 10},
+		{testCompatibilityID, "EVT", testStreamIdentity, 9},
 	} {
 		if _, err := repository.Load(ctx, "threads", test.compatibility, test.stream, test.identity, test.max); err == nil {
 			t.Fatalf("invalid constraints loaded snapshot: %#v", test)
@@ -257,7 +258,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 	}
 
 	blobs.failGet = nil
-	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 3)
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +267,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 	}
 
 	blobs.objects[generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
-	loaded, err = repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 3)
+	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +293,7 @@ func TestRepositoryReplacesDefinitivelyInvalidPointer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 2)
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +332,7 @@ func TestRepositoryRejectsOversizedPayloadOnSaveAndLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 		repository.maxPayloadSize = 4
-		if _, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
+		if _, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
 			t.Fatalf("oversized Load error = %v", err)
 		}
 	})
@@ -391,7 +392,7 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := repository.Load(ctx, "threads", "threads-v1", "EVT", testStreamIdentity, 12); err != nil {
+	if _, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 12); err != nil {
 		t.Fatal(err)
 	}
 

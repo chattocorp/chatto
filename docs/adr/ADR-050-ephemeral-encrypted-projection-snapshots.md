@@ -54,7 +54,7 @@ Each snapshot records three distinct versions:
 
 - an envelope format version for framing, compression, encryption, and
   integrity metadata;
-- a projection compatibility ID, such as `threads-v1`, for the meaning and
+- a projection compatibility ID, such as `threads-v2`, for the meaning and
   serialized shape of one projection; and
 - the producing Chatto version for diagnostics only.
 
@@ -200,6 +200,12 @@ It has meaningful replay cost and existing replay benchmarks, while its
 canonical state can be represented by identifiers, sequences, timestamps,
 counters, follow state, shred markers, and replay-compatibility metadata rather
 than message bodies or decrypted PII.
+
+The initial 0.5 implementation uses compatibility ID `threads-v2`. It does not
+import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
+rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
+facts. Earlier canary generations are rejected so they cannot reintroduce
+legacy-only follow values after that compatibility path is removed.
 
 The canary must prove that restoring at sequence `S` and applying later events
 produces the same observable and canonical state as replaying the complete

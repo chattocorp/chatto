@@ -71,42 +71,22 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	}
 }
 
+func TestThreadProjectionSnapshotCompatibilityExcludesLegacyFollowImports(t *testing.T) {
+	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "threads-v2" {
+		t.Fatalf("SnapshotCompatibilityID() = %q, want threads-v2", got)
+	}
+}
+
 func TestThreadProjectionSnapshotRestoreFailureIsTransactional(t *testing.T) {
 	p := NewThreadProjection()
-	p.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateFollowing)
+	if err := p.Apply(threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U1", true), 1); err != nil {
+		t.Fatal(err)
+	}
 	if err := p.Restore([]byte("not protobuf")); err == nil {
 		t.Fatal("Restore accepted malformed snapshot")
 	}
 	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
-		t.Fatalf("legacy follow state after failed restore = %q", got)
-	}
-	if err := p.Restore(nil); err != nil {
-		t.Fatal(err)
-	}
-	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
-		t.Fatalf("legacy follow state after cold restore = %q", got)
-	}
-}
-
-func TestThreadProjectionSnapshotPreservesLegacyOnlyFollowState(t *testing.T) {
-	source := NewThreadProjection()
-	source.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateUnfollowed)
-	payload, err := source.Snapshot()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	restored := NewThreadProjection()
-	restored.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateFollowing)
-	restored.SeedLegacyThreadFollowState("U2", "R2", "OTHER", ThreadFollowStateFollowing)
-	if err := restored.Restore(payload); err != nil {
-		t.Fatal(err)
-	}
-	if got := restored.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateUnfollowed {
-		t.Fatalf("snapshot state did not override legacy state: %q", got)
-	}
-	if got := restored.FollowState("U2", "R2", "OTHER"); got != ThreadFollowStateFollowing {
-		t.Fatalf("legacy-only state was lost: %q", got)
+		t.Fatalf("canonical follow state after failed restore = %q", got)
 	}
 }
 
@@ -483,36 +463,6 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 	}
 	if followed := p.FollowedThreadsForUser("U1"); len(followed) != 0 {
 		t.Fatalf("FollowedThreadsForUser(U1) after unfollow = %#v, want empty", followed)
-	}
-}
-
-func TestThreadProjection_SeedLegacyThreadFollowState(t *testing.T) {
-	p := NewThreadProjection()
-	p.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateFollowing)
-
-	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
-		t.Fatalf("seeded FollowState = %q, want following", got)
-	}
-	if followers := p.ThreadFollowers("R1", "ROOT"); !slices.Equal(followers, []string{"U1"}) {
-		t.Fatalf("seeded ThreadFollowers = %v, want [U1]", followers)
-	}
-
-	applyAll(t, p, []*corev1.Event{
-		{
-			Id:      "UNFOLLOW-U1",
-			ActorId: "U1",
-			Event: &corev1.Event_ThreadUnfollowed{
-				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
-					RoomId:            "R1",
-					ThreadRootEventId: "ROOT",
-					UserId:            "U1",
-				},
-			},
-		},
-	})
-
-	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateUnfollowed {
-		t.Fatalf("EVT should override seeded legacy state, got %q", got)
 	}
 }
 
