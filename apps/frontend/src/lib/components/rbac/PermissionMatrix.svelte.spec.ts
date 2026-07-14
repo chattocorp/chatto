@@ -158,6 +158,9 @@ describe('PermissionMatrix', () => {
     expect(unrelated.className).not.toContain('bg-action/');
     expect(columnHeader.className).toContain('bg-action/10');
     expect(rowLabel.className).toContain('bg-action/8');
+    expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).toContain(
+      'text-action'
+    );
     expect(getComputedStyle(intersection).backgroundColor).not.toBe(
       getComputedStyle(sameRow).backgroundColor
     );
@@ -171,6 +174,9 @@ describe('PermissionMatrix', () => {
     expect(intersection.className).not.toContain('bg-action/');
     expect(sameRow.className).not.toContain('bg-action/');
     expect(sameColumn.className).not.toContain('bg-action/');
+    expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).not.toContain(
+      'text-action'
+    );
   });
 
   it('keeps the coordinate highlight visible for keyboard focus', async () => {

@@ -55,6 +55,9 @@ it('highlights the hovered permission row and scope column', () => {
     'td[data-scope="server"][data-permission="message.delete"]'
   ) as HTMLTableCellElement;
   const columnHeader = container.querySelector('th[data-scope="group:general"]') as HTMLElement;
+  const permissionName = intersection.parentElement!.querySelector(
+    '[data-testid="permission-name"]'
+  ) as HTMLElement;
 
   intersection.dispatchEvent(new MouseEvent('mouseenter'));
   flushSync();
@@ -64,6 +67,7 @@ it('highlights the hovered permission row and scope column', () => {
   expect(sameColumn.className).toContain('bg-action/8');
   expect(unrelated.className).not.toContain('bg-action/');
   expect(columnHeader.className).toContain('bg-action/10');
+  expect(permissionName.className).toContain('text-action');
   expect(getComputedStyle(intersection).backgroundColor).not.toBe(
     getComputedStyle(sameRow).backgroundColor
   );

@@ -278,7 +278,13 @@ its permission row and scope column.
                   rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-surface'
                 ]}
               >
-                <code data-testid="permission-name" class="text-sm">{permission}</code>
+                <code
+                  data-testid="permission-name"
+                  class={[
+                    'text-sm',
+                    rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                  ]}>{permission}</code
+                >
                 <HelpTooltip label={`About ${permission}`}>
                   {getPermissionDescription(permission)}
                 </HelpTooltip>
