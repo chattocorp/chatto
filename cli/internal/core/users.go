@@ -577,8 +577,9 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 		// Upload to NATS ObjectStore
 		headers := nats.Header{}
 		headers.Set("Content-Type", "image/webp")
+		objectKey := PublicServerAssetObjectKey(assetID)
 		meta := jetstream.ObjectMeta{
-			Name:    assetID,
+			Name:    objectKey,
 			Headers: headers,
 		}
 		info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(webpData))
@@ -587,7 +588,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 		}
 		asset.Storage = &corev1.AssetRecord_Nats{
 			Nats: &corev1.NATSAsset{
-				Key: assetID,
+				Key: objectKey,
 			},
 		}
 		c.logger.Info("Uploaded avatar", "user_id", userID, "size", info.Size)
@@ -750,14 +751,8 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 		return "", nil
 	}
 
-	// Get the asset ID (same format for both NATS and S3)
-	var assetID string
-	switch {
-	case avatar.GetNats() != nil:
-		assetID = avatar.GetNats().GetKey()
-	case avatar.GetS3() != nil:
-		assetID = avatar.GetS3().GetKey()
-	default:
+	assetKey := ServerAssetDeliveryKey(avatar)
+	if assetKey == "" {
 		return "", fmt.Errorf("unknown asset type")
 	}
 
@@ -766,9 +761,9 @@ func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width,
 		if fit == "" {
 			fit = "cover"
 		}
-		return c.GetTransformedServerAssetURL(assetID, *width, *height, fit), nil
+		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit), nil
 	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID)), nil
+	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey)), nil
 }
 
 // ============================================================================

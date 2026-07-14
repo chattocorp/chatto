@@ -73,6 +73,9 @@ func TestChattoCore_DeleteServerBranding_CleansUpCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadServerLogo failed: %v", err)
 	}
+	if want := PublicServerAssetObjectKey(logo.GetId()); logo.GetNats().GetKey() != want {
+		t.Fatalf("logo NATS key = %q, want %q", logo.GetNats().GetKey(), want)
+	}
 	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
 		t.Fatalf("SetServerLogo failed: %v", err)
 	}

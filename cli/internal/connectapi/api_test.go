@@ -4726,6 +4726,9 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	if !strings.Contains(preview.GetImageUrl(), preview.GetImageAssetId()) {
 		t.Fatalf("ImageUrl %q does not contain asset id %q", preview.GetImageUrl(), preview.GetImageAssetId())
 	}
+	if !strings.Contains(preview.GetImageUrl(), "/assets/server/"+core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("ImageUrl %q does not use the public NATS namespace", preview.GetImageUrl())
+	}
 	if resp.Msg.GetPreviewToken() == "" {
 		t.Fatalf("PreviewToken is empty")
 	}
