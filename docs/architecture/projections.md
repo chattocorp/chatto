@@ -6,14 +6,11 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore`
 registers each top-level projector once with a stable machine-readable key, such
 as `content_keys`, and a human display name, such as `Content Keys`.
 
-`ChattoCore.Run` replays `evt.>` through one process-local ordered consumer. It
-decodes each event once, dispatches it to projections whose logical subject
-filters match, records initial replay duration, and waits for projections to
-become current at boot. Writers wait for the relevant projector sequence before
-returning read-your-writes.
-
-With snapshots enabled, the eligible snapshot cohort and the cold
-`UserAuthProjection` run as separate ordered replay groups.
+`ChattoCore.Run` starts one process-local ordered EVT consumer per registered
+projection. Each projector owns its physical filters, replay progress, failure
+state, and readiness. Chatto still waits for every registered projection to
+become current before completing boot. Writers wait for the relevant projector
+sequence before returning read-your-writes.
 
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
@@ -32,17 +29,17 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 
 ## Snapshot support
 
-`core.projection_snapshots` enables the ADR-050 encrypted snapshot cohort.
+`core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
 Every eligible projection owns a per-projection compatibility version and
 generation prefix. Most codecs currently use `v1`; the user profile codec uses
 `v2`.
 
-Snapshot loads run concurrently. If every projection with matching history
-restores successfully, the cohort's shared `evt.>` consumer starts after its
-lowest restored cutoff and each projector skips through its own cutoff. A
-missing, invalid, or unavailable required snapshot moves that cohort's frontier
-back to sequence 1. Credential-bearing user state is owned by
-`UserAuthProjection` and cold-replays independently from eight focused user
+Snapshot loads and replay frontiers are projection-local. A successful restore
+starts that projection's ordered consumer at one greater than its cutoff. A
+missing, invalid, or unavailable snapshot cold-replays only its owning
+projection. Projections without matching EVT history have no state to
+accelerate and do not publish zero-cutoff generations. Credential-bearing user
+state is owned by `UserAuthProjection` and cold-replays from eight focused user
 event families.
 
 The projector framework atomically captures each projection's explicit
@@ -103,10 +100,10 @@ Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
 read models, but only their parent projector is started by `ChattoCore.Run`.
 
-The shared replay fanout reduces duplicate delivery and protobuf decoding while
-keeping each projection's status, lag, failure, and read-your-writes waiters
-independent. `Subjects()` is the logical consumption and readiness contract;
-optional replay subjects are only the physical consumer filter.
+Independent consumers isolate snapshot availability, replay cost, status, lag,
+failure, and read-your-writes waiters per projection. `Subjects()` is the
+logical consumption and readiness contract; optional replay subjects are the
+projection-owned physical consumer filters.
 
 Focused logical filters suit stable derived indexes such as Threads. Broad
 filters remain intentional for projections whose snapshots expose room-tail

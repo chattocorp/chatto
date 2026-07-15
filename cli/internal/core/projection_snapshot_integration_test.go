@@ -55,7 +55,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	}
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
 	if len(firstSnapshotObjects) < 2 {
-		t.Fatalf("snapshot cohort published only %d objects", len(firstSnapshotObjects))
+		t.Fatalf("snapshot worker published only %d objects", len(firstSnapshotObjects))
 	}
 	for _, name := range firstSnapshotObjects {
 		if _, err := first.storage.serverAssets.GetInfo(ctx, name); !errors.Is(err, jetstream.ErrObjectNotFound) {
@@ -95,12 +95,17 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 		t.Fatalf("Thread projector replayed %d messages after current snapshot restore", status.StartupMessages)
 	}
 	for _, registration := range second.projections {
-		if !registration.snapshotCohort {
+		if !registration.snapshotEnabled {
 			continue
 		}
 		status := registration.projector.Status()
+		if status.StartupTargetSeq == 0 {
+			// Empty projections have no state or replay tail to accelerate, and
+			// therefore do not publish or restore a zero-cutoff generation.
+			continue
+		}
 		if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 {
-			t.Errorf("%s projector did not restore its cohort snapshot: %#v", registration.key, status)
+			t.Errorf("%s projector did not restore its snapshot: %#v", registration.key, status)
 		}
 		if status.StartupMessages != 0 {
 			t.Errorf("%s projector replayed %d messages after current snapshot restore", registration.key, status.StartupMessages)
@@ -123,6 +128,66 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 		if !slices.Contains(refreshedObjects, previous) {
 			t.Fatalf("daily refresh discarded previous generation %q", previous)
 		}
+	}
+}
+
+func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey:           "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets:              config.AssetsConfig{SigningSecret: "test-signing-secret", StorageBackend: config.StorageBackendNATS},
+		ProjectionSnapshots: true,
+		Version:             "snapshot-independent-replay-test",
+	}
+
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range []*corev1.Event{
+		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
+		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+	} {
+		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stopFirst := startSnapshotTestCore(t, first)
+	select {
+	case <-first.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not publish initial generations")
+	}
+	store := projectionSnapshotObjectStore(t, ctx, first)
+	deleted := 0
+	for _, name := range projectionSnapshotObjectNames(t, ctx, first) {
+		if !strings.Contains(name, "/threads/") {
+			continue
+		}
+		if err := store.Delete(ctx, name); err != nil {
+			t.Fatal(err)
+		}
+		deleted++
+	}
+	if deleted == 0 {
+		t.Fatal("initial worker did not publish a Threads snapshot")
+	}
+	stopFirst()
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopSecond := startSnapshotTestCore(t, second)
+	t.Cleanup(stopSecond)
+	threadsStatus := second.ThreadsProjector.Status()
+	if threadsStatus.SnapshotRestored || threadsStatus.StartupMessages == 0 {
+		t.Fatalf("Threads did not cold replay after its snapshot was removed: %#v", threadsStatus)
+	}
+	roomDirectoryStatus := second.RoomDirectoryProjector.Status()
+	if !roomDirectoryStatus.SnapshotRestored || roomDirectoryStatus.StartupMessages != 0 {
+		t.Fatalf("Room Directory did not restore independently: %#v", roomDirectoryStatus)
 	}
 }
 

@@ -7,8 +7,8 @@
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) makes `EVT` the
 source of truth and process-local projections the read side. Every Chatto
 process currently rebuilds every projection by replaying `EVT` from the
-beginning. Shared replay, bounded replay-only idempotency state, profiling
-hooks, and reproducible benchmarks have reduced and exposed that cost, but
+beginning. Bounded replay-only idempotency state, profiling hooks, and
+reproducible benchmarks have reduced and exposed that cost, but
 startup time and allocation still grow with retained event history.
 
 Snapshots can accelerate startup by persisting a derived projection state and
@@ -251,7 +251,7 @@ one projection is logged and does not prevent the remaining jobs from running.
 On S3, the same elected worker runs bounded expiry after publication; expiry
 failure does not stop the daily cadence.
 
-### Eligible projections share a coordinated replay frontier
+### Each projection owns its replay frontier
 
 Each projection has its own compatibility version, pointer, current/previous
 generations, cutoff, and fallback behavior. Most initial codecs use `v1`; the
@@ -262,14 +262,17 @@ import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
 rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
 
-Eligible projection snapshots load concurrently. Once every restore finishes,
-their shared ordered `evt.>` consumer begins at one greater than the lowest
-restored cutoff. Any eligible projection with a non-zero startup target and no
-usable snapshot forces that cohort to sequence 1. Projections with no matching
-EVT history do not constrain the frontier. Every projector still skips events
-through its own restored cutoff, so different generation cutoffs are safe.
+Each eligible projection loads its snapshot independently. A successful restore
+starts that projection's ordered EVT consumer at one greater than its own
+cutoff. A projection with no usable snapshot starts its consumer at sequence 1
+without changing any sibling's frontier. Projections with no matching EVT
+history have no state to accelerate and do not publish zero-cutoff generations.
 Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
+
+Every registered projection must still become current before Chatto completes
+boot. A cold projection can therefore determine total startup wall time, but it
+does not make restored projections reread or decode their earlier history.
 
 `UserProjection` retains encrypted PII source fields and materializes them only
 at read boundaries. Its explicit `v2` codec stores those encrypted
@@ -299,9 +302,9 @@ configure S3 lifecycle expiry disable Chatto's redundant pass with
 
 ## Consequences
 
-- Chatto can start the room-heavy projection cohort from the lowest compatible
-  snapshot cutoff and replay only the later EVT delta without weakening the
-  authority or retention of `EVT`.
+- Each eligible projection can start from its own compatible snapshot cutoff
+  and replay only its later EVT delta without weakening the authority or
+  retention of `EVT`.
 - Snapshots naturally use cheaper S3 storage where configured while preserving
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
   S3 snapshots follow the operator's S3 backup policy.
@@ -323,7 +326,7 @@ configure S3 lifecycle expiry disable Chatto's redundant pass with
   projection semantics require an explicit compatibility decision.
 - `UserAuthProjection` still cold-replays its focused subject families. Startup
   time therefore includes authentication replay, snapshot loading, index
-  reconstruction, and the eligible cohort's tail replay.
+  reconstruction, and each eligible projection's tail replay.
 
 ## Out of Scope
 

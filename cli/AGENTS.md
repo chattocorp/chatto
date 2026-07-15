@@ -96,11 +96,13 @@ authorization, live events, backup/restore, and backend tests.
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.
-- A shared snapshot replay consumer may start only after every projector restore
-  attempt finishes, at one greater than the lowest usable cutoff. Any required
-  cold projection forces that cohort to sequence 1. Release boot-time sequence
-  waiters when installing a restored cutoff, and test all-restored, partial,
-  corrupt, future, tail-replay, and restore-in-flight waiter interleavings.
+- Every projection owns its ordered EVT consumer, snapshot restore, and replay
+  frontier. A usable snapshot starts only that consumer after its cutoff; a
+  missing snapshot cold-replays only its owning projection. Keep global boot
+  readiness gated on every required projection becoming current. Release
+  boot-time sequence waiters when installing a restored cutoff, and test
+  all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
+  waiter interleavings.
 
 ## Live Events
 
