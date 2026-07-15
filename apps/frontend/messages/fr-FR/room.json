@@ -66,9 +66,12 @@
       "leave_confirm": "Etes-vous sûr de vouloir quitter #{room} ?"
     },
     "server": {
-      "leave_title": "Quitter le serveur",
-      "leave_action": "Quitter le serveur",
-      "leave_prompt": "Êtes-vous sûr de vouloir quitter {server} ? Vous perdrez l'accès à ses salles et votre client oubliera ce serveur. Vous pourrez le rajouter plus tard à partir de la barre latérale."
+      "remove_title": "Retirer le serveur",
+      "remove_action": "Retirer le serveur",
+      "remove_prompt": "Retirer {server} de cette barre latérale ? Cette action retire uniquement le serveur de cet appareil. Votre compte et vos données sur le serveur ne seront pas supprimés.",
+      "remove_account_prefix": "Pour supprimer définitivement votre compte, ouvrez les ",
+      "remove_account_link": "Paramètres du compte",
+      "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
       "beginning": "Ceci est le début de cette conversation."

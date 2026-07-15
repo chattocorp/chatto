@@ -66,7 +66,7 @@ survives restart but is not content/domain history. See
 | `external_identity_create.{hmac}` | Pending account-creation confirmation JSON containing provider identity and optional verified-email/profile hints. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL. |
 | `external_identity_link.{hmac}` | Pending link confirmation JSON containing provider identity and optional verified-email/profile hints, bound to the authenticated user. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL. |
 | `external_identity_link_start.{hmac}` | One-time browser handoff JSON containing the provider ID, redirect path, and bound user ID. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL and is deleted when consumed. |
-| `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
+| `link_preview.{urlHash}` | Versioned cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. Pre-v1 negative entries refresh once after validated multi-address dialing was added; pre-v1 Mastodon-shaped generic entries also refresh for federated proxy discovery. Current failures and generic fallbacks retain their normal TTL. |
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 | `client_sync.{userId}.preferences` | No-TTL `chatto.clientsync.v1.Preferences` document containing portable locale, timezone, and time-format choices. Mutations use KV revision OCC; account deletion purges the record. |
@@ -159,9 +159,12 @@ the event as `message`, `derivative`, `user_avatar`, or `server_branding`, not
 inside `Asset`. New message bodies reference message-owned assets by ID.
 
 Link preview images are server-scoped persisted assets embedded in message
-bodies as `LinkPreview.image_asset` (`AssetRecord`). The body records whether
-the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for older
-clients and stored previews.
+bodies as `AssetRecord` values. Generic previews use `LinkPreview.image_asset`;
+structured social-post snapshots can also carry an author avatar, website-card
+image, up to four post images, and one quoted post with the same media fields.
+Provider adapters populate the same bounded snapshot shape, and all media in
+the outer and quoted posts shares one fetch budget. Each record identifies whether its image lives in S3 or
+`SERVER_ASSETS`; `image_asset_id` remains for older generic previews.
 
 ### Asset lifecycle and compatibility
 

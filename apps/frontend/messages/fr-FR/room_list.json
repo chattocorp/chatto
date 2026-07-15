@@ -12,6 +12,11 @@
     "empty_title": "Aucune chambre pour l'instant",
     "empty_prefix": "Vous n'avez rejoint aucune salle sur ce serveur. Dirigez-vous vers le",
     "empty_overview": "Présentation",
-    "empty_suffix": "pour parcourir l'annuaire et rejoindre ceux qui vous intéressent."
+    "empty_suffix": "pour parcourir l'annuaire et rejoindre ceux qui vous intéressent.",
+    "mark_as_read": "Marquer comme lu",
+    "remove_server": "Retirer le serveur",
+    "leave_room": "Quitter le salon",
+    "server_actions": "Actions pour {server}",
+    "room_actions": "Actions pour #{room}"
   }
 }

@@ -12,6 +12,11 @@
     "empty_title": "Ainda não há quartos",
     "empty_prefix": "Não entrou em nenhuma sala deste servidor. Vá para o",
     "empty_overview": "Visão geral",
-    "empty_suffix": "para navegar no diretório e juntar-se aos que lhe interessam."
+    "empty_suffix": "para navegar no diretório e juntar-se aos que lhe interessam.",
+    "mark_as_read": "Marcar como lido",
+    "remove_server": "Remover servidor",
+    "leave_room": "Sair da sala",
+    "server_actions": "Ações para {server}",
+    "room_actions": "Ações para #{room}"
   }
 }

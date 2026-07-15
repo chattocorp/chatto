@@ -2,7 +2,7 @@
 @component
 
 Displays an OpenGraph link preview card with image, title, description, and site name.
-YouTube URLs render a YouTubeEmbed instead. Supports dismiss (composer) and delete (posted message) actions.
+Recognized YouTube videos and social posts render rich embeds instead. Supports dismiss (composer) and delete (posted message) actions.
 When `canDelete` is true, right-click / long-press opens a context menu with Open link, Copy URL, and Delete.
 
 **Props:**
@@ -29,6 +29,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { toast } from '$lib/ui/toast';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
+  import SocialPostEmbed from './SocialPostEmbed.svelte';
 
   let {
     preview: rawPreview,
@@ -97,6 +98,16 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   <YouTubeEmbed
     videoId={preview.embedId}
     url={preview.url}
+    {onDismiss}
+    {showDismiss}
+    {canDelete}
+    {roomId}
+    {eventId}
+  />
+{:else if preview.socialPost}
+  <SocialPostEmbed
+    url={preview.url}
+    post={preview.socialPost}
     {onDismiss}
     {showDismiss}
     {canDelete}

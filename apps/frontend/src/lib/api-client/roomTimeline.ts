@@ -2,7 +2,11 @@ import { notifyUserSummaries } from './hooks.js';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { RawEvent, EventConnectionPage, UserSummaryForCache } from './events.js';
 import { RoomEventKind } from './eventKinds.js';
-import { PresenceStatus, type RoomEventView } from './renderTypes.js';
+import {
+  PresenceStatus,
+  type RoomEventView,
+  type SocialPostPreviewView
+} from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
@@ -444,7 +448,45 @@ function linkPreviewView(preview?: LinkPreview) {
     siteName: preview.siteName || null,
     imageUrl: preview.imageUrl || null,
     embedType: preview.embedType || null,
-    embedId: preview.embedId || null
+    embedId: preview.embedId || null,
+    socialPost: socialPostPreviewView(preview.socialPost)
+  };
+}
+
+function socialPostPreviewView(
+  post?: LinkPreview['socialPost'],
+  quoteDepth = 0
+): SocialPostPreviewView | null {
+  if (!post) return null;
+  return {
+    provider: post.provider,
+    url: post.url || null,
+    author: post.author
+      ? {
+          displayName: post.author.displayName,
+          handle: post.author.handle,
+          avatarUrl: post.author.avatarUrl || null
+        }
+      : null,
+    text: post.text,
+    publishedAt: timestampToISOOrNull(post.publishedAt),
+    externalLink: post.externalLink
+      ? {
+          url: post.externalLink.url,
+          title: post.externalLink.title || null,
+          description: post.externalLink.description || null,
+          imageUrl: post.externalLink.imageUrl || null
+        }
+      : null,
+    contentWarning: post.contentWarning || null,
+    images: post.images.map((image) => ({
+      url: image.url,
+      alt: image.alt || null,
+      width: image.width || null,
+      height: image.height || null
+    })),
+    quotedPost:
+      quoteDepth === 0 ? socialPostPreviewView(post.quotedPost, quoteDepth + 1) : null
   };
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -21,6 +21,13 @@
   import ServerIcon from './ServerIcon.svelte';
   import { onMount } from 'svelte';
   import * as m from '$lib/i18n/messages';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
+  import {
+    contextMenuTrigger,
+    type ContextMenuTriggerDetails
+  } from '$lib/ui/contextMenuTrigger.svelte';
+  import { markNavigationServerAsRead } from '$lib/navigation/readActions';
 
   let {
     serverId,
@@ -86,6 +93,30 @@
         ? `${iconServer.name} (connection unavailable)`
         : iconServer.name
   );
+  let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
+  const serverContextMenuTrigger = contextMenuTrigger((details) => {
+    contextMenu = details;
+  });
+
+  function closeContextMenu(): void {
+    contextMenu = null;
+  }
+
+  function handleMarkServerRead(): void {
+    closeContextMenu();
+    void markNavigationServerAsRead(serverId);
+  }
+
+  function handleRemoveServer(): void {
+    closeContextMenu();
+    pushState('', {
+      modal: {
+        type: 'removeServer',
+        serverId,
+        spaceName: iconServer.name
+      }
+    });
+  }
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()
   // so the two paths can't drift out of sync with what was rendered.
@@ -270,8 +301,25 @@
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}
   onIndicatorClick={handleServerIndicatorClick}
+  contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   dimmed={iconDimmed}
   home={isHomeServer}
   homeLabel={m['client_sync.settings.home.title']()}
 />
+
+{#if contextMenu}
+  <ContextMenu
+    position={contextMenu.position}
+    presentation={contextMenu.presentation}
+    ariaLabel={m['room_list.server_actions']({ server: iconServer.name })}
+    onclose={closeContextMenu}
+  >
+    <NavigationContextMenu
+      kind="server"
+      canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
+      onMarkRead={handleMarkServerRead}
+      onLeave={handleRemoveServer}
+    />
+  </ContextMenu>
+{/if}

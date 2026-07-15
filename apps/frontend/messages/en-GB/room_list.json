@@ -12,6 +12,11 @@
     "empty_title": "No rooms yet",
     "empty_prefix": "You haven't joined any rooms on this server. Head to the",
     "empty_overview": "Overview",
-    "empty_suffix": "to browse the directory and join the ones you're interested in."
+    "empty_suffix": "to browse the directory and join the ones you're interested in.",
+    "mark_as_read": "Mark as read",
+    "remove_server": "Remove server",
+    "leave_room": "Leave room",
+    "server_actions": "Actions for {server}",
+    "room_actions": "Actions for #{room}"
   }
 }

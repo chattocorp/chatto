@@ -12,6 +12,11 @@
     "empty_title": "Inga rum än",
     "empty_prefix": "Du har inte gått med i några rum på den här servern. Gå till",
     "empty_overview": "Översikt",
-    "empty_suffix": "för att bläddra i katalogen och gå med i de du är intresserad av."
+    "empty_suffix": "för att bläddra i katalogen och gå med i de du är intresserad av.",
+    "mark_as_read": "Markera som läst",
+    "remove_server": "Ta bort server",
+    "leave_room": "Lämna rum",
+    "server_actions": "Åtgärder för {server}",
+    "room_actions": "Åtgärder för #{room}"
   }
 }

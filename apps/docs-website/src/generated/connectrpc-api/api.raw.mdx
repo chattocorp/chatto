@@ -3582,6 +3582,74 @@ client-provided metadata fields.
 | `site_name` | `optional string` | Site name, when known. |
 | `embed_type` | `optional string` | Embed provider or type, when recognized. |
 | `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
+| `social_post` | [`SocialPostPreview`](#chatto-api-v1-SocialPostPreview) | Structured, provider-neutral social-post data for native rendering. |
+
+
+
+<a id="chatto-api-v1-SocialPostAuthor"></a>
+
+### SocialPostAuthor
+
+Author shown on a social-post preview.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `display_name` | `string` | Author display name. |
+| `handle` | `string` | Provider-native handle without a leading at-sign when applicable. |
+| `avatar_url` | `optional string` | Locally served author avatar URL, when available. |
+| `avatar_asset_id` | `optional string` | Locally stored author avatar asset ID, when available. |
+
+
+
+<a id="chatto-api-v1-SocialPostExternalLink"></a>
+
+### SocialPostExternalLink
+
+Website card embedded in a social post.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Destination URL. |
+| `title` | `optional string` | Card title, when available. |
+| `description` | `optional string` | Card description, when available. |
+| `image_url` | `optional string` | Locally served card image URL, when available. |
+| `image_asset_id` | `optional string` | Locally stored card image asset ID, when available. |
+
+
+
+<a id="chatto-api-v1-SocialPostImage"></a>
+
+### SocialPostImage
+
+One image attached directly to a social post.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Locally served image URL. |
+| `asset_id` | `string` | Locally stored image asset ID. |
+| `alt` | `optional string` | Author-provided alternative text. |
+| `width` | `optional uint32` | Source aspect-ratio width, when known. |
+| `height` | `optional uint32` | Source aspect-ratio height, when known. |
+
+
+
+<a id="chatto-api-v1-SocialPostPreview"></a>
+
+### SocialPostPreview
+
+Bounded, provider-neutral social-post data used for native preview cards.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider` | `string` | Stable lowercase provider identifier, such as "bluesky". |
+| `author` | [`SocialPostAuthor`](#chatto-api-v1-SocialPostAuthor) | Author shown on the post. |
+| `text` | `string` | Plain-text post body. |
+| `published_at` | `google.protobuf.Timestamp` | Post publication time. |
+| `images` | repeated [`SocialPostImage`](#chatto-api-v1-SocialPostImage) | Images attached directly to the post, in display order. |
+| `external_link` | [`SocialPostExternalLink`](#chatto-api-v1-SocialPostExternalLink) | Website card embedded in the post, when present. |
+| `content_warning` | `optional string` | Provider-supplied content warning, when present. |
+| `url` | `string` | Canonical URL for this post. Always set for quoted posts; the outer post may also use LinkPreview.url. |
+| `quoted_post` | [`SocialPostPreview`](#chatto-api-v1-SocialPostPreview) | Post quoted by this post, when present. Quotes inside this snapshot are omitted so preview size and rendering depth remain bounded. |
 
 
 
