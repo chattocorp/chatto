@@ -86,6 +86,8 @@ authorization, live events, backup/restore, and backend tests.
   and publish them with OCC; a process lease is not fencing.
   Carry cutoff, creation time, EVT incarnation, and compatibility metadata in
   the pointer.
+  Version the opaque pointer lineage whenever the meaning of the cutoff changes;
+  never compare or apply no-regression rules across incompatible cursor models.
   Allow same-cutoff refreshes for retention, but do not republish a fresh,
   unchanged generation merely because a process restarted. Reject regressing
   captures, and use pointer revision OCC to prevent concurrent writers from

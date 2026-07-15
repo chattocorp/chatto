@@ -497,20 +497,54 @@ func TestRepositoryLocatesPreviousGenerationAcrossCompatibilityUpgrade(t *testin
 	}
 }
 
-func TestRepositoryIgnoresLegacyCohortPointerKey(t *testing.T) {
+func TestRepositoryIgnoresLegacyPointerLineages(t *testing.T) {
+	for _, locator := range []string{"v1:threads", "projection:threads"} {
+		t.Run(locator, func(t *testing.T) {
+			blobs := newMemoryBlobStore()
+			repository := newTestRepository(t, blobs, testSecret)
+			if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
+				t.Fatal(err)
+			}
+			currentKey := repository.pointerKey("threads")
+			legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, locator)
+			blobs.pointers[legacyKey] = blobs.pointers[currentKey]
+			blobs.revisions[legacyKey] = blobs.revisions[currentKey]
+			delete(blobs.pointers, currentKey)
+			delete(blobs.revisions, currentKey)
+			if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
+				t.Fatalf("legacy pointer Load error = %v", err)
+			}
+		})
+	}
+}
+
+func TestRepositoryProjectionLocalLineageCanStartBelowLegacySharedCutoff(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
-	if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
+	ctx := context.Background()
+	if _, err := repository.Save(ctx, testSaveInput(206, []byte("shared frontier"))); err != nil {
 		t.Fatal(err)
 	}
 	currentKey := repository.pointerKey("threads")
-	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "v1:threads")
+	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "projection:threads")
 	blobs.pointers[legacyKey] = blobs.pointers[currentKey]
 	blobs.revisions[legacyKey] = blobs.revisions[currentKey]
 	delete(blobs.pointers, currentKey)
 	delete(blobs.revisions, currentKey)
-	if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
-		t.Fatalf("legacy cohort pointer Load error = %v", err)
+
+	local, err := repository.Save(ctx, testSaveInput(43, []byte("projection-local frontier")))
+	if err != nil {
+		t.Fatalf("Save below legacy shared cutoff: %v", err)
+	}
+	if local.CutoffSequence != 43 {
+		t.Fatalf("saved cutoff = %d, want 43", local.CutoffSequence)
+	}
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 43)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != local.GenerationID || string(loaded.Payload) != "projection-local frontier" {
+		t.Fatalf("loaded = %#v, want projection-local generation %#v", loaded, local)
 	}
 }
 

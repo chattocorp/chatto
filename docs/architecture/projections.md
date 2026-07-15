@@ -59,7 +59,9 @@ XChaCha20-Poly1305 under an HKDF key derived from `core.secret_key`, then stored
 `internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueEpoch}/{generationId}`
 in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3
 bucket. Their encrypted current/previous pointers live in `RUNTIME_STATE` and
-use KV revision OCC regardless of payload backend.
+use KV revision OCC regardless of payload backend. The opaque pointer locator
+includes a projection-local cursor-lineage version; changing cutoff semantics
+starts a fresh lineage instead of comparing incompatible sequence frontiers.
 
 A new secret uses a different generation epoch and pointer locator. EVT carries
 a versioned opaque incarnation ID so snapshot compatibility survives process

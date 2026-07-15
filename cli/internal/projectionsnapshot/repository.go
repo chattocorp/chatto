@@ -27,6 +27,8 @@ const (
 	contentType          = "application/vnd.chatto.projection-snapshot"
 	streamIdentityPrefix = "evt-incarnation-v1:"
 	objectPurpose        = "projection-snapshot"
+	// Change the pointer lineage whenever the meaning of CutoffSequence changes.
+	pointerLineage = "projection-local-v1:"
 )
 
 // ObjectContentType and object-purpose metadata identify encrypted snapshot
@@ -506,7 +508,7 @@ func (r *Repository) savePointer(ctx context.Context, projectionKey string, poin
 }
 
 func (r *Repository) pointerKey(projectionKey string) string {
-	return "projection_snapshot_pointer." + opaqueLocator(r.secret, "projection:"+projectionKey)
+	return "projection_snapshot_pointer." + opaqueLocator(r.secret, pointerLineage+projectionKey)
 }
 
 func (r *Repository) generationObjectPrefix(projectionKey, compatibilityID string) string {

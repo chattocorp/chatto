@@ -100,6 +100,14 @@ generation. Missing or corrupt current objects are repaired instead. It rejects
 a lower cutoff for the same EVT incarnation and compatibility contract.
 Revision OCC prevents a concurrent writer from replacing newer history.
 
+The opaque pointer locator includes a cursor-lineage version. A change to the
+meaning of cutoff sequences, such as moving from one shared EVT frontier to
+projection-local frontiers, starts a new pointer lineage. This preserves the
+no-regression invariant within each model without allowing a legacy global
+cutoff to block a lower but valid projection-local cutoff. Superseded pointers
+are harmless encrypted runtime records, and their unreferenced generation
+objects expire through the normal snapshot retention policy.
+
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
 S3-backed snapshot generations follow the deployment's S3 backup policy, like
