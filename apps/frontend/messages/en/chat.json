@@ -4,6 +4,7 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
+      "back_to_chat": "Back to chat",
       "clear_all": "Clear all",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",

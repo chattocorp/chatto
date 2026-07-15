@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -6,6 +6,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
+    afterNavigate: vi.fn(),
     goto: vi.fn(),
     appUi: {
       disableRoomCallWideFor: vi.fn()
@@ -47,6 +48,7 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({
+  afterNavigate: mocks.afterNavigate,
   goto: mocks.goto,
   pushState: vi.fn(),
   replaceState: vi.fn()
@@ -70,6 +72,10 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
 import NotificationsPage from './+page.svelte';
 
 describe('notifications page', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     await loadLocaleMessages('en');
@@ -102,5 +108,42 @@ describe('notifications page', () => {
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
     });
+  });
+
+  it('renders an accessible back button and returns through history for in-app navigation', async () => {
+    const historyBack = vi.spyOn(history, 'back').mockImplementation(() => {});
+    const { container } = render(NotificationsPage);
+
+    const callback = mocks.afterNavigate.mock.calls.at(-1)?.[0];
+    if (!callback) throw new Error('afterNavigate callback was not registered');
+    callback({
+      type: 'link',
+      from: {
+        url: new URL('/chat/-/room-1', window.location.origin),
+        route: { id: '/chat/[serverId]/[roomId]' }
+      }
+    });
+
+    const backButton = q(container, 'button[aria-label="Back to chat"]') as HTMLButtonElement;
+    await expect.element(backButton).toBeInTheDocument();
+    backButton.click();
+
+    expect(historyBack).toHaveBeenCalledOnce();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('returns to chat with replacement after a direct page entry', async () => {
+    const historyBack = vi.spyOn(history, 'back').mockImplementation(() => {});
+    const { container } = render(NotificationsPage);
+
+    const callback = mocks.afterNavigate.mock.calls.at(-1)?.[0];
+    if (!callback) throw new Error('afterNavigate callback was not registered');
+    callback({ type: 'enter', from: null });
+
+    const backButton = q(container, 'button[aria-label="Back to chat"]') as HTMLButtonElement;
+    backButton.click();
+
+    expect(historyBack).not.toHaveBeenCalled();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat', { replaceState: true });
   });
 });
