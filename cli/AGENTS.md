@@ -56,6 +56,9 @@ authorization, live events, backup/restore, and backend tests.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- Defaults required for a newly created aggregate must commit with its creation
+  facts in the same atomic EVT batch. Do not reconstruct creation-time defaults
+  later by scanning projections during startup.
 - When a committed EVT fact requires a KMS, LiveKit, object-store, or other
   external side effect, that fact must provide a durable recovery path. Verify
   crash recovery, multi-replica discovery, lease handover, and bounded
