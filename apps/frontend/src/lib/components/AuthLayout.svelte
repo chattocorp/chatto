@@ -3,7 +3,7 @@
   import { getAuthServerInfo } from './authServerInfo';
   import ServerBranding from './ServerBranding.svelte';
 
-  let { children }: { children: Snippet } = $props();
+  let { children, compact = false }: { children: Snippet; compact?: boolean } = $props();
 
   const getServerInfo = getAuthServerInfo();
   const serverInfo = $derived(getServerInfo());
@@ -17,7 +17,7 @@
 
 <div class="flex min-h-0 flex-1 overflow-hidden">
   <!-- Left pane: server branding (hidden on mobile, hidden entirely if no branding content) -->
-  {#if hasBranding}
+  {#if hasBranding && !compact}
     <div class="hidden flex-1 overflow-y-auto border-r border-border bg-surface/30 p-8 md:block">
       <div class="mx-auto max-w-md">
         <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
@@ -26,10 +26,19 @@
   {/if}
 
   <!-- Right pane: form content -->
-  <div class="flex flex-1 items-start justify-center overflow-y-auto p-8">
+  <div
+    class={[
+      'flex flex-1 items-start justify-center overflow-y-auto',
+      compact ? 'p-5 sm:p-6' : 'p-8'
+    ]}
+  >
     <div class="w-full max-w-sm">
       <!-- Show compact branding header on mobile, or when no left pane -->
-      {#if !hasBranding}
+      {#if compact}
+        <div class="mb-5">
+          <ServerBranding name={serverName} {iconUrl} compact />
+        </div>
+      {:else if !hasBranding}
         <div class="mb-8">
           <ServerBranding name={serverName} {iconUrl} />
         </div>
