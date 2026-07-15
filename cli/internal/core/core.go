@@ -289,16 +289,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.applyConfigOwners(gctx); err != nil {
 			return fmt.Errorf("apply config owners: %w", err)
 		}
-		// Commit the server marker with a durable evt.room.> cutoff before
-		// adopting rooms. Every replica then classifies rooms against the
-		// same boundary, including rooms created concurrently by an older
-		// serving replica during a rolling deployment.
-		if err := c.EnsureDefaultRolePermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default role permissions: %w", err)
-		}
-		if err := c.EnsureDefaultChannelRoomPermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default channel room permissions: %w", err)
-		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are

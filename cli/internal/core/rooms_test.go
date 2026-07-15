@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -43,6 +44,40 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 
 	if retrievedRoom.Id != room.Id {
 		t.Errorf("Retrieved room ID = %s, want %s", retrievedRoom.Id, room.Id)
+	}
+}
+
+func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
+	}
+
+	created, createdSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		events.RoomAggregate(room.Id).Subject(events.EventRoomCreated),
+	)
+	if err != nil {
+		t.Fatalf("read RoomCreated event: %v", err)
+	}
+	denied, deniedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		events.RBACScopedAggregate(room.Id).Subject(events.EventRBACPermissionDenied),
+	)
+	if err != nil {
+		t.Fatalf("read room default denial: %v", err)
+	}
+	if len(created) != 1 || len(denied) != 1 {
+		t.Fatalf("created events = %d, denied events = %d; want 1 each", len(created), len(denied))
+	}
+	if deniedSeq != createdSeq+1 {
+		t.Fatalf("room default seq = %d, want contiguous seq %d after RoomCreated", deniedSeq, createdSeq+1)
 	}
 }
 

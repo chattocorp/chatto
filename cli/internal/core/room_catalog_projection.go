@@ -39,7 +39,6 @@ type roomCatalogEntry struct {
 	kind        corev1.RoomKind
 	archived    bool
 	universal   bool
-	createdSeq  uint64
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -79,7 +78,6 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 			description: c.GetDescription(),
 			kind:        c.GetKind(),
 			universal:   c.GetUniversal(),
-			createdSeq:  seq,
 		}
 	case *corev1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -124,18 +122,6 @@ func (p *RoomCatalogProjection) Exists(roomID string) bool {
 	defer p.RUnlock()
 	_, ok := p.rooms[roomID]
 	return ok
-}
-
-// CreatedSeq returns the EVT stream sequence of the room's creation fact.
-// Sequences are comparable with RBAC marker sequences because both live in EVT.
-func (p *RoomCatalogProjection) CreatedSeq(roomID string) (uint64, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	entry, ok := p.rooms[roomID]
-	if !ok {
-		return 0, false
-	}
-	return entry.createdSeq, true
 }
 
 // AllByKind returns every room of the given kind. Order is

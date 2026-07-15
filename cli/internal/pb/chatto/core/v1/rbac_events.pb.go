@@ -834,148 +834,6 @@ func (x *RbacPermissionClearedEvent) GetSubject() *RbacPermissionSubject {
 	return nil
 }
 
-// Records that the defaults for one permission scope have been considered at
-// the given schema version. The marker remains after individual decisions are
-// cleared so startup never mistakes an operator edit for missing bootstrap
-// state.
-type RbacDefaultsInitializedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Scope:
-	//
-	//	*RbacDefaultsInitializedEvent_Server
-	//	*RbacDefaultsInitializedEvent_RoomId
-	Scope   isRbacDefaultsInitializedEvent_Scope `protobuf_oneof:"scope"`
-	Version uint32                               `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	// EVT stream sequence of the evt.room.> tail captured before server
-	// initialization. Only set on the server variant.
-	RoomStreamCutoff uint64 `protobuf:"varint,4,opt,name=room_stream_cutoff,json=roomStreamCutoff,proto3" json:"room_stream_cutoff,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *RbacDefaultsInitializedEvent) Reset() {
-	*x = RbacDefaultsInitializedEvent{}
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RbacDefaultsInitializedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RbacDefaultsInitializedEvent) ProtoMessage() {}
-
-func (x *RbacDefaultsInitializedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RbacDefaultsInitializedEvent.ProtoReflect.Descriptor instead.
-func (*RbacDefaultsInitializedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *RbacDefaultsInitializedEvent) GetScope() isRbacDefaultsInitializedEvent_Scope {
-	if x != nil {
-		return x.Scope
-	}
-	return nil
-}
-
-func (x *RbacDefaultsInitializedEvent) GetServer() *RbacDefaultsInitializedEvent_ServerScope {
-	if x != nil {
-		if x, ok := x.Scope.(*RbacDefaultsInitializedEvent_Server); ok {
-			return x.Server
-		}
-	}
-	return nil
-}
-
-func (x *RbacDefaultsInitializedEvent) GetRoomId() string {
-	if x != nil {
-		if x, ok := x.Scope.(*RbacDefaultsInitializedEvent_RoomId); ok {
-			return x.RoomId
-		}
-	}
-	return ""
-}
-
-func (x *RbacDefaultsInitializedEvent) GetVersion() uint32 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
-}
-
-func (x *RbacDefaultsInitializedEvent) GetRoomStreamCutoff() uint64 {
-	if x != nil {
-		return x.RoomStreamCutoff
-	}
-	return 0
-}
-
-type isRbacDefaultsInitializedEvent_Scope interface {
-	isRbacDefaultsInitializedEvent_Scope()
-}
-
-type RbacDefaultsInitializedEvent_Server struct {
-	// Presence marks deployment-wide defaults.
-	Server *RbacDefaultsInitializedEvent_ServerScope `protobuf:"bytes,1,opt,name=server,proto3,oneof"`
-}
-
-type RbacDefaultsInitializedEvent_RoomId struct {
-	// The channel room whose defaults were initialized.
-	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3,oneof"`
-}
-
-func (*RbacDefaultsInitializedEvent_Server) isRbacDefaultsInitializedEvent_Scope() {}
-
-func (*RbacDefaultsInitializedEvent_RoomId) isRbacDefaultsInitializedEvent_Scope() {}
-
-type RbacDefaultsInitializedEvent_ServerScope struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RbacDefaultsInitializedEvent_ServerScope) Reset() {
-	*x = RbacDefaultsInitializedEvent_ServerScope{}
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RbacDefaultsInitializedEvent_ServerScope) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RbacDefaultsInitializedEvent_ServerScope) ProtoMessage() {}
-
-func (x *RbacDefaultsInitializedEvent_ServerScope) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_rbac_events_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RbacDefaultsInitializedEvent_ServerScope.ProtoReflect.Descriptor instead.
-func (*RbacDefaultsInitializedEvent_ServerScope) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_rbac_events_proto_rawDescGZIP(), []int{13, 0}
-}
-
 var File_chatto_core_v1_rbac_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
@@ -1030,14 +888,7 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"permission\x18\x03 \x01(\tR\n" +
 	"permission\x129\n" +
 	"\x05scope\x18\x04 \x01(\v2#.chatto.core.v1.RbacPermissionScopeR\x05scope\x12?\n" +
-	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation\"\xed\x01\n" +
-	"\x1cRbacDefaultsInitializedEvent\x12R\n" +
-	"\x06server\x18\x01 \x01(\v28.chatto.core.v1.RbacDefaultsInitializedEvent.ServerScopeH\x00R\x06server\x12\x19\n" +
-	"\aroom_id\x18\x02 \x01(\tH\x00R\x06roomId\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\rR\aversion\x12,\n" +
-	"\x12room_stream_cutoff\x18\x04 \x01(\x04R\x10roomStreamCutoff\x1a\r\n" +
-	"\vServerScopeB\a\n" +
-	"\x05scope*\xb7\x01\n" +
+	"\asubject\x18\x05 \x01(\v2%.chatto.core.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation*\xb7\x01\n" +
 	"\x17RbacPermissionScopeKind\x12*\n" +
 	"&RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!RBAC_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12$\n" +
@@ -1062,25 +913,23 @@ func file_chatto_core_v1_rbac_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_rbac_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_chatto_core_v1_rbac_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_core_v1_rbac_events_proto_goTypes = []any{
-	(RbacPermissionScopeKind)(0),                     // 0: chatto.core.v1.RbacPermissionScopeKind
-	(RbacPermissionSubjectKind)(0),                   // 1: chatto.core.v1.RbacPermissionSubjectKind
-	(*RbacRoleCreatedEvent)(nil),                     // 2: chatto.core.v1.RbacRoleCreatedEvent
-	(*RbacRoleDisplayNameChangedEvent)(nil),          // 3: chatto.core.v1.RbacRoleDisplayNameChangedEvent
-	(*RbacRoleDescriptionChangedEvent)(nil),          // 4: chatto.core.v1.RbacRoleDescriptionChangedEvent
-	(*RbacRolePingableChangedEvent)(nil),             // 5: chatto.core.v1.RbacRolePingableChangedEvent
-	(*RbacRoleDeletedEvent)(nil),                     // 6: chatto.core.v1.RbacRoleDeletedEvent
-	(*RbacRolesReorderedEvent)(nil),                  // 7: chatto.core.v1.RbacRolesReorderedEvent
-	(*RbacRoleAssignedEvent)(nil),                    // 8: chatto.core.v1.RbacRoleAssignedEvent
-	(*RbacRoleRevokedEvent)(nil),                     // 9: chatto.core.v1.RbacRoleRevokedEvent
-	(*RbacPermissionScope)(nil),                      // 10: chatto.core.v1.RbacPermissionScope
-	(*RbacPermissionSubject)(nil),                    // 11: chatto.core.v1.RbacPermissionSubject
-	(*RbacPermissionGrantedEvent)(nil),               // 12: chatto.core.v1.RbacPermissionGrantedEvent
-	(*RbacPermissionDeniedEvent)(nil),                // 13: chatto.core.v1.RbacPermissionDeniedEvent
-	(*RbacPermissionClearedEvent)(nil),               // 14: chatto.core.v1.RbacPermissionClearedEvent
-	(*RbacDefaultsInitializedEvent)(nil),             // 15: chatto.core.v1.RbacDefaultsInitializedEvent
-	(*RbacDefaultsInitializedEvent_ServerScope)(nil), // 16: chatto.core.v1.RbacDefaultsInitializedEvent.ServerScope
+	(RbacPermissionScopeKind)(0),            // 0: chatto.core.v1.RbacPermissionScopeKind
+	(RbacPermissionSubjectKind)(0),          // 1: chatto.core.v1.RbacPermissionSubjectKind
+	(*RbacRoleCreatedEvent)(nil),            // 2: chatto.core.v1.RbacRoleCreatedEvent
+	(*RbacRoleDisplayNameChangedEvent)(nil), // 3: chatto.core.v1.RbacRoleDisplayNameChangedEvent
+	(*RbacRoleDescriptionChangedEvent)(nil), // 4: chatto.core.v1.RbacRoleDescriptionChangedEvent
+	(*RbacRolePingableChangedEvent)(nil),    // 5: chatto.core.v1.RbacRolePingableChangedEvent
+	(*RbacRoleDeletedEvent)(nil),            // 6: chatto.core.v1.RbacRoleDeletedEvent
+	(*RbacRolesReorderedEvent)(nil),         // 7: chatto.core.v1.RbacRolesReorderedEvent
+	(*RbacRoleAssignedEvent)(nil),           // 8: chatto.core.v1.RbacRoleAssignedEvent
+	(*RbacRoleRevokedEvent)(nil),            // 9: chatto.core.v1.RbacRoleRevokedEvent
+	(*RbacPermissionScope)(nil),             // 10: chatto.core.v1.RbacPermissionScope
+	(*RbacPermissionSubject)(nil),           // 11: chatto.core.v1.RbacPermissionSubject
+	(*RbacPermissionGrantedEvent)(nil),      // 12: chatto.core.v1.RbacPermissionGrantedEvent
+	(*RbacPermissionDeniedEvent)(nil),       // 13: chatto.core.v1.RbacPermissionDeniedEvent
+	(*RbacPermissionClearedEvent)(nil),      // 14: chatto.core.v1.RbacPermissionClearedEvent
 }
 var file_chatto_core_v1_rbac_events_proto_depIdxs = []int32{
 	0,  // 0: chatto.core.v1.RbacPermissionScope.kind:type_name -> chatto.core.v1.RbacPermissionScopeKind
@@ -1091,12 +940,11 @@ var file_chatto_core_v1_rbac_events_proto_depIdxs = []int32{
 	11, // 5: chatto.core.v1.RbacPermissionDeniedEvent.subject:type_name -> chatto.core.v1.RbacPermissionSubject
 	10, // 6: chatto.core.v1.RbacPermissionClearedEvent.scope:type_name -> chatto.core.v1.RbacPermissionScope
 	11, // 7: chatto.core.v1.RbacPermissionClearedEvent.subject:type_name -> chatto.core.v1.RbacPermissionSubject
-	16, // 8: chatto.core.v1.RbacDefaultsInitializedEvent.server:type_name -> chatto.core.v1.RbacDefaultsInitializedEvent.ServerScope
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_rbac_events_proto_init() }
@@ -1104,17 +952,13 @@ func file_chatto_core_v1_rbac_events_proto_init() {
 	if File_chatto_core_v1_rbac_events_proto != nil {
 		return
 	}
-	file_chatto_core_v1_rbac_events_proto_msgTypes[13].OneofWrappers = []any{
-		(*RbacDefaultsInitializedEvent_Server)(nil),
-		(*RbacDefaultsInitializedEvent_RoomId)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_rbac_events_proto_rawDesc), len(file_chatto_core_v1_rbac_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   15,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

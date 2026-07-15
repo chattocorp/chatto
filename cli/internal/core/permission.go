@@ -265,8 +265,8 @@ func DefaultEveryonePermissions() []Permission {
 
 // DefaultSeedEveryonePermissions returns permissions granted to everyone when
 // RBAC is freshly seeded or explicitly reset. Keep permissions here out of
-// EnsureDefaultRolePermissions when adding them would silently change existing
-// deployments on boot.
+// the legacy EnsureDefaultRolePermissions helper when adding them would
+// silently change existing deployments if that helper is invoked explicitly.
 func DefaultSeedEveryonePermissions() []Permission {
 	return append(DefaultEveryonePermissions(), PermMessageAttach)
 }

@@ -211,7 +211,7 @@ func TestChattoCore_initServerRBAC_PreservesPermissionChanges(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RestartPreservesClearedDefaultPermission(t *testing.T) {
+func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T) {
 	ctx := testContext(t)
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
@@ -226,8 +226,16 @@ func TestChattoCore_RestartPreservesClearedDefaultPermission(t *testing.T) {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
 	startCoreServices(t, core1)
-	if err := core1.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomJoin); err != nil {
-		t.Fatalf("ClearServerPermissionState: %v", err)
+	for _, decision := range core1.RBAC.Decisions() {
+		if decision.scope != ScopeServer {
+			t.Fatalf("unexpected non-server seed decision: %+v", decision)
+		}
+		if err := core1.ClearServerPermissionState(ctx, SystemActorID, decision.subject, decision.permission); err != nil {
+			t.Fatalf("ClearServerPermissionState(%s, %s): %v", decision.subject, decision.permission, err)
+		}
+	}
+	if got := len(core1.RBAC.Decisions()); got != 0 {
+		t.Fatalf("decisions after clear = %d, want 0", got)
 	}
 
 	core2, err := NewChattoCore(ctx, nc, cfg)
@@ -235,8 +243,8 @@ func TestChattoCore_RestartPreservesClearedDefaultPermission(t *testing.T) {
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
 	startCoreServices(t, core2)
-	if got := core2.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomJoin); got != DecisionNone {
-		t.Fatalf("decision after restart = %s, want %s", got, DecisionNone)
+	if got := len(core2.RBAC.Decisions()); got != 0 {
+		t.Fatalf("decisions after restart = %d, want 0", got)
 	}
 }
 
@@ -270,9 +278,6 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 	startCoreServices(t, core2)
 	if got := core2.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
 		t.Fatalf("room decision after restart = %s, want %s", got, DecisionNone)
-	}
-	if got := core2.RBAC.DefaultsVersion(ScopeRoom, room.Id); got != roomRBACDefaultsVersion {
-		t.Fatalf("room defaults version after restart = %d, want %d", got, roomRBACDefaultsVersion)
 	}
 }
 
