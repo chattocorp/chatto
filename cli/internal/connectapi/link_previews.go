@@ -77,7 +77,7 @@ func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 	if embedID := preview.GetEmbedId(); embedID != "" {
 		out.EmbedId = stringPtr(embedID)
 	}
-	if socialPost := socialPostPreview(preview); socialPost != nil {
+	if socialPost := preview.GetSocialPost(); socialPost != nil {
 		out.SocialPost = apiSocialPostPreview(api, socialPost, 0)
 	}
 	return out
@@ -123,40 +123,6 @@ func apiSocialPostPreview(api *API, socialPost *corev1.SocialPostPreview, quoteD
 		mapped.QuotedPost = apiSocialPostPreview(api, socialPost.GetQuotedPost(), quoteDepth+1)
 	}
 	return mapped
-}
-
-func socialPostPreview(preview *corev1.LinkPreview) *corev1.SocialPostPreview {
-	if preview == nil {
-		return nil
-	}
-	if socialPost := preview.GetSocialPost(); socialPost != nil {
-		return socialPost
-	}
-
-	legacy := preview.GetLegacyBlueskyPost()
-	if legacy == nil {
-		return nil
-	}
-
-	out := &corev1.SocialPostPreview{
-		Provider: "bluesky",
-		Author: &corev1.SocialPostAuthor{
-			DisplayName: legacy.GetAuthorDisplayName(),
-			Handle:      legacy.GetAuthorHandle(),
-			AvatarAsset: legacy.GetAuthorAvatarAsset(),
-		},
-		Text:        preview.GetDescription(),
-		PublishedAt: legacy.GetPublishedAt(),
-	}
-	if legacy.GetExternalUrl() != "" || legacy.GetExternalTitle() != "" || legacy.GetExternalDescription() != "" || legacy.GetExternalImageAsset() != nil {
-		out.ExternalLink = &corev1.SocialPostExternalLink{
-			Url:         legacy.GetExternalUrl(),
-			Title:       legacy.GetExternalTitle(),
-			Description: legacy.GetExternalDescription(),
-			ImageAsset:  legacy.GetExternalImageAsset(),
-		}
-	}
-	return out
 }
 
 func linkPreviewAsset(api *API, asset *corev1.AssetRecord, width, height int, fit string) (*string, *string) {

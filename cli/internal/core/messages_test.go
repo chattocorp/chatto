@@ -779,19 +779,9 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 	}
 }
 
-func TestValidateLinkPreviewRejectsLegacyBlueskyPostWrites(t *testing.T) {
-	err := validateLinkPreview(&corev1.LinkPreview{
-		LegacyBlueskyPost: &corev1.LegacyBlueskyPostPreview{
-			AuthorDisplayName: "Legacy author",
-		},
-	})
-	require.ErrorContains(t, err, "legacy Bluesky post previews cannot be submitted")
-}
-
-func TestLinkPreviewSocialPostFieldNumbersPreserveLegacyReplay(t *testing.T) {
+func TestLinkPreviewSocialPostFieldNumbers(t *testing.T) {
 	fields := (&corev1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
-	require.EqualValues(t, 9, fields.ByName("legacy_bluesky_post").Number())
-	require.EqualValues(t, 10, fields.ByName("social_post").Number())
+	require.EqualValues(t, 9, fields.ByName("social_post").Number())
 	socialFields := (&corev1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
 	require.EqualValues(t, 8, socialFields.ByName("url").Number())
 	require.EqualValues(t, 9, socialFields.ByName("quoted_post").Number())

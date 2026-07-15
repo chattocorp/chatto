@@ -69,7 +69,6 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Decision:** Provider adapters resolve recognized public social posts into one bounded snapshot containing common presentation data. A snapshot may include one quoted post, but quotes within that post are omitted. Chatto persists the snapshot and its images, then renders it with native card components. Bluesky and Mastodon use the same snapshot and native card; the existing OpenGraph card remains the fallback. Mastodon normally uses origin-bound oEmbed discovery. Federated proxy permalinks that lack oEmbed metadata instead require origin-bound public instance metadata before Chatto trusts the server's status API.
 **Why:** A provider-neutral snapshot keeps durable message data and the public API independent from any one social network. Native cards stay visually consistent with the timeline, avoid loading a full third-party website inside a message, and prevent client-side provider requests when reading history.
 **Tradeoff:** Chatto deliberately implements only a common subset of social-post presentation. Provider-specific features require explicit additive support, changes made to the original post are not reflected after the snapshot is stored, and the current snapshot does not identify who boosted or reposted a post.
-**Compatibility:** Persisted core tag 9 retains the deprecated Bluesky-specific prototype shape for replay compatibility; new provider-neutral snapshots use tag 10. The public API exposes only the provider-neutral shape.
 
 ## Permissions
 

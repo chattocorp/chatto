@@ -62,24 +62,6 @@ func TestCacheReplacesExistingPreviewInRuntimeStateWithTTL(t *testing.T) {
 	assertRuntimeStateCacheTTL(t, ctx, js, kv, cacheKey(url))
 }
 
-func TestCacheRefreshesBlueskySnapshotsFromBeforeQuoteSupport(t *testing.T) {
-	ctx, _, kv := setupRuntimeStateKV(t)
-	cache := NewCache(kv)
-	url := "https://bsky.app/profile/example.test/post/example"
-
-	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{
-		Url: url,
-		SocialPost: &corev1.SocialPostPreview{
-			Provider: "bluesky",
-			Author:   &corev1.SocialPostAuthor{Handle: "example.test"},
-		},
-	}))
-
-	got, err := cache.Get(ctx, url)
-	require.NoError(t, err)
-	require.Nil(t, got)
-}
-
 func TestCacheKeepsCurrentBlueskySnapshots(t *testing.T) {
 	ctx, _, kv := setupRuntimeStateKV(t)
 	cache := NewCache(kv)

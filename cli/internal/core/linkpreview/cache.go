@@ -98,15 +98,6 @@ func (c *Cache) Get(ctx context.Context, url string) (*corev1.LinkPreview, error
 	if cached.FetchFailed {
 		return nil, ErrCachedFailure
 	}
-	// Older builds cached Bluesky snapshots before the neutral model carried
-	// its canonical URL and quoted-post data. Treat that bounded
-	// legacy shape as a miss so an upgraded server replaces it immediately
-	// instead of serving an incomplete card for the rest of the 24-hour TTL.
-	if preview := cached.GetPreview(); preview.GetLegacyBlueskyPost() != nil ||
-		(preview.GetSocialPost().GetProvider() == "bluesky" && preview.GetSocialPost().GetUrl() == "") {
-		return nil, nil
-	}
-
 	return cached.Preview, nil
 }
 
