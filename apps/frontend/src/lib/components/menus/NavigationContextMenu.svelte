@@ -36,6 +36,7 @@ The parent owns read and leave behavior so this component stays presentation-onl
 		</button>
 
 		{#if canLeave}
+			<div role="separator" class="mx-2 my-1 border-t border-text/10"></div>
 			<button
 				type="button"
 				class="sidebar-item text-danger hover:text-danger"

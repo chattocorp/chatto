@@ -287,6 +287,7 @@ describe('ServerSidebarEntry', () => {
     );
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
+    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
     markRead!.click();
 
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');

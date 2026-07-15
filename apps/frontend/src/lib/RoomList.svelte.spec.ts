@@ -317,6 +317,7 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
+    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
 
     markRead!.click();
 
