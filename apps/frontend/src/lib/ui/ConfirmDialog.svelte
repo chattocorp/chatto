@@ -76,5 +76,5 @@ Use the `tone` prop to communicate the weight of the action:
   onsubmit={() => onconfirm()}
   {onclose}
 >
-  <p class="text-muted">{@render children()}</p>
+  <div class="text-muted">{@render children()}</div>
 </FormDialog>
