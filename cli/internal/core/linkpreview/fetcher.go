@@ -44,11 +44,22 @@ const (
 
 	// MaxOEmbedSize bounds metadata returned by recognized embed providers.
 	MaxOEmbedSize = 256 * 1024
+
+	// SocialPostFetchTimeout bounds provider metadata and media work as one unit.
+	SocialPostFetchTimeout = 20 * time.Second
+
+	// MaxSocialPostImageBytes bounds total source image bytes fetched for one post.
+	MaxSocialPostImageBytes int64 = 10 * 1024 * 1024
+
+	// MaxSocialPostImageFetches bounds image downloads and decode attempts per post.
+	MaxSocialPostImageFetches = 5
 )
 
 // ErrUnavailable marks URLs that were fetched or inspected successfully enough
 // to know that Chatto cannot produce a useful preview for them.
 var ErrUnavailable = errors.New("link preview unavailable")
+
+var errProviderModeration = errors.New("provider moderation prevents structured preview")
 
 // StoreImageFunc persists a processed preview image under the supplied asset ID.
 type StoreImageFunc func(ctx context.Context, assetID string, data []byte, contentType string) (*corev1.AssetRecord, error)
@@ -107,6 +118,9 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		result, err := f.fetchBluesky(ctx, rawURL)
 		if err == nil {
 			return result, nil
+		}
+		if errors.Is(err, errProviderModeration) {
+			return nil, fmt.Errorf("%w: provider moderation prevents preview", ErrUnavailable)
 		}
 		f.logger.Warn("Failed to fetch Bluesky oEmbed metadata", "url", rawURL, "error", err)
 	}
@@ -237,6 +251,9 @@ type blueskyPost struct {
 }
 
 func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, SocialPostFetchTimeout)
+	defer cancel()
+
 	endpoint, err := url.Parse("https://embed.bsky.app/oembed")
 	if err != nil {
 		return nil, fmt.Errorf("parse oEmbed endpoint: %w", err)
@@ -291,19 +308,19 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 	if publishedAt, err := time.Parse(time.RFC3339Nano, post.Record.CreatedAt); err == nil {
 		snapshot.PublishedAt = timestamppb.New(publishedAt)
 	}
-	if post.Author.Avatar != "" {
-		snapshot.Author.AvatarAsset = f.downloadBlueskyImage(ctx, post.Author.Avatar)
+	imageBudget := socialPostImageBudget{
+		bytesRemaining:   MaxSocialPostImageBytes,
+		fetchesRemaining: MaxSocialPostImageFetches,
 	}
 	if external := post.Embed.External; external != nil {
 		snapshot.ExternalLink = &corev1.SocialPostExternalLink{
 			Url:         external.URI,
 			Title:       external.Title,
 			Description: external.Description,
-			ImageAsset:  f.downloadBlueskyImage(ctx, external.Thumb),
 		}
 	}
 	for _, image := range post.Embed.Images[:min(len(post.Embed.Images), 4)] {
-		asset := f.downloadBlueskyImage(ctx, image.Fullsize)
+		asset := f.downloadSocialPostImage(ctx, image.Fullsize, &imageBudget)
 		if asset == nil {
 			continue
 		}
@@ -314,15 +331,30 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 		}
 		snapshot.Images = append(snapshot.Images, out)
 	}
+	if external := post.Embed.External; external != nil {
+		snapshot.ExternalLink.ImageAsset = f.downloadSocialPostImage(ctx, external.Thumb, &imageBudget)
+	}
+	if post.Author.Avatar != "" {
+		snapshot.Author.AvatarAsset = f.downloadSocialPostImage(ctx, post.Author.Avatar, &imageBudget)
+	}
 
 	title := snapshot.Author.DisplayName
 	if snapshot.Author.Handle != "" {
 		title += " (@" + snapshot.Author.Handle + ")"
 	}
+	title = truncateUTF8Bytes(title, 300)
+
+	var compatibilityImage *corev1.AssetRecord
+	if len(snapshot.Images) > 0 {
+		compatibilityImage = snapshot.Images[0].GetAsset()
+	} else if snapshot.ExternalLink != nil {
+		compatibilityImage = snapshot.ExternalLink.GetImageAsset()
+	}
 	return &FetchResult{
 		Title:       title,
 		Description: post.Record.Text,
 		SiteName:    "Bluesky",
+		ImageAsset:  compatibilityImage,
 		EmbedType:   "bluesky",
 		EmbedID:     embedID,
 		SocialPost:  snapshot,
@@ -356,7 +388,7 @@ func (f *Fetcher) fetchBlueskyPost(ctx context.Context, atURI string) (*blueskyP
 		return nil, errors.New("Bluesky post API returned no matching post")
 	}
 	if len(result.Posts[0].Labels) > 0 || len(result.Posts[0].Author.Labels) > 0 {
-		return nil, errors.New("Bluesky post requires provider moderation rendering")
+		return nil, errProviderModeration
 	}
 	post := &result.Posts[0]
 	post.Author.DisplayName = truncateUTF8Bytes(post.Author.DisplayName, 300)
@@ -396,13 +428,21 @@ func truncateUTF8Bytes(value string, maxBytes int) string {
 	return value
 }
 
-func (f *Fetcher) downloadBlueskyImage(ctx context.Context, imageURL string) *corev1.AssetRecord {
-	if imageURL == "" || f.imageClient == nil {
+type socialPostImageBudget struct {
+	bytesRemaining   int64
+	fetchesRemaining int
+}
+
+func (f *Fetcher) downloadSocialPostImage(ctx context.Context, imageURL string, budget *socialPostImageBudget) *corev1.AssetRecord {
+	if imageURL == "" || f.imageClient == nil || budget == nil || budget.bytesRemaining <= 0 || budget.fetchesRemaining <= 0 {
 		return nil
 	}
-	asset, err := f.downloadAndStoreImage(ctx, imageURL)
+	budget.fetchesRemaining--
+	maxBytes := min(int64(MaxImageSize), budget.bytesRemaining)
+	asset, consumed, err := f.downloadAndStoreImageWithLimit(ctx, imageURL, maxBytes)
+	budget.bytesRemaining -= min(consumed, budget.bytesRemaining)
 	if err != nil {
-		f.logger.Warn("Failed to persist Bluesky image", "url", imageURL, "error", err)
+		f.logger.Warn("Failed to persist social-post image", "url", imageURL, "error", err)
 		return nil
 	}
 	return asset
@@ -473,17 +513,22 @@ func truncate(s string, maxLen int) string {
 
 // downloadAndStoreImage downloads an image and stores it as an server asset.
 func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*corev1.AssetRecord, error) {
+	asset, _, err := f.downloadAndStoreImageWithLimit(ctx, imageURL, int64(MaxImageSize))
+	return asset, err
+}
+
+func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL string, maxBytes int64) (*corev1.AssetRecord, int64, error) {
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, 0, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
 
 	// Fetch the image
 	resp, err := f.imageClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch image: %w", err)
+		return nil, 0, fmt.Errorf("fetch image: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -495,23 +540,27 @@ func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*
 	)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("image returned status %d", resp.StatusCode)
+		return nil, 0, fmt.Errorf("image returned status %d", resp.StatusCode)
 	}
 
 	// Check content type - be lenient since some servers don't set it properly
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" && !strings.HasPrefix(contentType, "image/") && contentType != "application/octet-stream" {
-		return nil, fmt.Errorf("not an image: %s", contentType)
+		return nil, 0, fmt.Errorf("not an image: %s", contentType)
+	}
+	if resp.ContentLength > maxBytes {
+		return nil, 0, fmt.Errorf("image too large (>%d bytes)", maxBytes)
 	}
 
 	// Read with size limit
-	limitedReader := io.LimitReader(resp.Body, MaxImageSize+1)
+	limitedReader := io.LimitReader(resp.Body, maxBytes+1)
 	imageData, err := io.ReadAll(limitedReader)
 	if err != nil {
-		return nil, fmt.Errorf("read image: %w", err)
+		return nil, int64(len(imageData)), fmt.Errorf("read image: %w", err)
 	}
-	if len(imageData) > MaxImageSize {
-		return nil, fmt.Errorf("image too large (>%d bytes)", MaxImageSize)
+	consumed := int64(len(imageData))
+	if consumed > maxBytes {
+		return nil, consumed, fmt.Errorf("image too large (>%d bytes)", maxBytes)
 	}
 
 	f.logger.Debug("Downloaded image data", "size", len(imageData))
@@ -519,12 +568,12 @@ func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*
 	// Process the image (resize to fit OG dimensions, convert to WebP)
 	processedReader, err := assets.ProcessLinkPreviewImageWithConfig(bytes.NewReader(imageData), *f.assetsConfig)
 	if err != nil {
-		return nil, fmt.Errorf("process image: %w", err)
+		return nil, consumed, fmt.Errorf("process image: %w", err)
 	}
 
 	processedData, err := io.ReadAll(processedReader)
 	if err != nil {
-		return nil, fmt.Errorf("read processed image: %w", err)
+		return nil, consumed, fmt.Errorf("read processed image: %w", err)
 	}
 
 	f.logger.Debug("Processed image", "original_size", len(imageData), "processed_size", len(processedData))
@@ -533,16 +582,16 @@ func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*
 	assetID := f.newAssetID()
 
 	if f.storeImage == nil {
-		return nil, fmt.Errorf("store image: no image store configured")
+		return nil, consumed, fmt.Errorf("store image: no image store configured")
 	}
 	asset, err := f.storeImage(ctx, assetID, processedData, "image/webp")
 	if err != nil {
-		return nil, fmt.Errorf("store image: %w", err)
+		return nil, consumed, fmt.Errorf("store image: %w", err)
 	}
 
 	f.logger.Debug("Stored image asset", "asset_id", assetID)
 
-	return asset, nil
+	return asset, consumed, nil
 }
 
 // ToProto converts a FetchResult to a protobuf LinkPreview.

@@ -578,6 +578,11 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	}
 
 	preview := result.ToProto(url)
+	if err := validateLinkPreview(preview); err != nil {
+		_ = c.linkPreviewCache.SetFailure(ctx, url, err.Error())
+		c.logger.Warn("Discarding invalid fetched link preview", "url", url, "error", err)
+		return nil, nil
+	}
 
 	// Cache the result
 	if err := c.linkPreviewCache.Set(ctx, url, preview); err != nil {

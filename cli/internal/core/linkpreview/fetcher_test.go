@@ -10,6 +10,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"hmans.de/chatto/internal/assets"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -121,6 +124,100 @@ func TestFetchBlueskyPostRejectsLabelledContent(t *testing.T) {
 
 	_, err := fetcher.fetchBlueskyPost(context.Background(), atURI)
 	require.ErrorContains(t, err, "moderation")
+}
+
+func TestFetchBlueskyPostDoesNotOpenGraphFallbackForLabelledContent(t *testing.T) {
+	const postURL = "https://bsky.app/profile/bsky.app/post/3kq7aeuwbg42k"
+	const atURI = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3kq7aeuwbg42k"
+	fetcher := &Fetcher{
+		logger: log.New(io.Discard),
+		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Host {
+			case "embed.bsky.app":
+				return response(http.StatusOK, "application/json", `{
+					"html":"<blockquote data-bluesky-uri=\"`+atURI+`\"></blockquote>"
+				}`), nil
+			case "public.api.bsky.app":
+				return response(http.StatusOK, "application/json", `{"posts":[{
+					"uri":"`+atURI+`",
+					"labels":[{"val":"porn"}],
+					"author":{"displayName":"Bluesky","handle":"bsky.app"},
+					"record":{"text":"Labelled post","createdAt":"2024-04-15T21:48:40.709Z"},
+					"embed":{}
+				}]}`), nil
+			default:
+				t.Fatalf("unexpected fallback request to %q", req.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	_, err := fetcher.Fetch(context.Background(), postURL)
+	require.ErrorIs(t, err, ErrUnavailable)
+}
+
+func TestFetchBlueskyPostBoundsCompatibilityTitle(t *testing.T) {
+	const postURL = "https://bsky.app/profile/bsky.app/post/3kq7aeuwbg42k"
+	const atURI = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3kq7aeuwbg42k"
+	fetcher := &Fetcher{
+		logger: log.New(io.Discard),
+		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host == "embed.bsky.app" {
+				return response(http.StatusOK, "application/json", `{
+					"html":"<blockquote data-bluesky-uri=\"`+atURI+`\"></blockquote>"
+				}`), nil
+			}
+			return response(http.StatusOK, "application/json", `{"posts":[{
+				"uri":"`+atURI+`",
+				"author":{"displayName":"`+strings.Repeat("d", 300)+`","handle":"`+strings.Repeat("h", 200)+`"},
+				"record":{"text":"Post","createdAt":"2024-04-15T21:48:40.709Z"},
+				"embed":{}
+			}]}`), nil
+		})},
+	}
+
+	result, err := fetcher.Fetch(context.Background(), postURL)
+	require.NoError(t, err)
+	assert.Len(t, result.Title, 300)
+}
+
+func TestSocialPostImageBudgetBoundsFetchesAndBytes(t *testing.T) {
+	requests := 0
+	fetcher := &Fetcher{
+		logger:       log.New(io.Discard),
+		assetsConfig: &assets.Config{},
+		imageClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			requests++
+			return response(http.StatusOK, "image/png", "bad"), nil
+		})},
+	}
+	budget := socialPostImageBudget{bytesRemaining: 6, fetchesRemaining: 2}
+
+	assert.Nil(t, fetcher.downloadSocialPostImage(context.Background(), "https://example.com/one.png", &budget))
+	assert.Nil(t, fetcher.downloadSocialPostImage(context.Background(), "https://example.com/two.png", &budget))
+	assert.Nil(t, fetcher.downloadSocialPostImage(context.Background(), "https://example.com/three.png", &budget))
+	assert.Equal(t, 2, requests)
+	assert.Zero(t, budget.fetchesRemaining)
+	assert.Zero(t, budget.bytesRemaining)
+}
+
+func TestFetchResultPopulatesCompatibilityImage(t *testing.T) {
+	asset := &corev1.AssetRecord{
+		Id:      "preview_asset",
+		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "preview_asset"}},
+	}
+	result := &FetchResult{
+		ImageAsset: asset,
+		SocialPost: &corev1.SocialPostPreview{
+			Provider: "bluesky",
+			Author:   &corev1.SocialPostAuthor{Handle: "bsky.app"},
+		},
+	}
+
+	preview := result.ToProto("https://bsky.app/profile/bsky.app/post/example")
+	assert.Equal(t, "preview_asset", preview.GetImageAssetId())
+	require.NotNil(t, preview.GetImageAsset())
+	assert.Equal(t, "preview_asset", preview.GetImageAsset().GetId())
 }
 
 func TestTruncateUTF8BytesPreservesValidUTF8(t *testing.T) {
