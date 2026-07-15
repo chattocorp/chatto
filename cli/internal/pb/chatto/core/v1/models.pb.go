@@ -2184,7 +2184,7 @@ func (x *SocialPostExternalLink) GetImageAsset() *AssetRecord {
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.
-// Stored in LINK_PREVIEW_CACHE KV bucket.
+// Stored under link_preview.* keys in the RUNTIME_STATE KV bucket.
 type CachedLinkPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The original URL (for verification)
@@ -2197,6 +2197,8 @@ type CachedLinkPreview struct {
 	ErrorReason string `protobuf:"bytes,4,opt,name=error_reason,json=errorReason,proto3" json:"error_reason,omitempty"`
 	// When this cache entry was created (Unix timestamp)
 	FetchedAtUnix int64 `protobuf:"varint,5,opt,name=fetched_at_unix,json=fetchedAtUnix,proto3" json:"fetched_at_unix,omitempty"`
+	// Cache interpretation version used for bounded compatibility refreshes.
+	SchemaVersion uint32 `protobuf:"varint,6,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2262,6 +2264,13 @@ func (x *CachedLinkPreview) GetErrorReason() string {
 func (x *CachedLinkPreview) GetFetchedAtUnix() int64 {
 	if x != nil {
 		return x.FetchedAtUnix
+	}
+	return 0
+}
+
+func (x *CachedLinkPreview) GetSchemaVersion() uint32 {
+	if x != nil {
+		return x.SchemaVersion
 	}
 	return 0
 }
@@ -2938,13 +2947,14 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12<\n" +
 	"\vimage_asset\x18\x04 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\n" +
-	"imageAsset\"\xca\x01\n" +
+	"imageAsset\"\xf1\x01\n" +
 	"\x11CachedLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x125\n" +
 	"\apreview\x18\x02 \x01(\v2\x1b.chatto.core.v1.LinkPreviewR\apreview\x12!\n" +
 	"\ffetch_failed\x18\x03 \x01(\bR\vfetchFailed\x12!\n" +
 	"\ferror_reason\x18\x04 \x01(\tR\verrorReason\x12&\n" +
-	"\x0ffetched_at_unix\x18\x05 \x01(\x03R\rfetchedAtUnix\"\xae\x01\n" +
+	"\x0ffetched_at_unix\x18\x05 \x01(\x03R\rfetchedAtUnix\x12%\n" +
+	"\x0eschema_version\x18\x06 \x01(\rR\rschemaVersion\"\xae\x01\n" +
 	"\n" +
 	"RoomLayout\x12F\n" +
 	"\x0flegacy_sections\x18\x01 \x03(\v2\x19.chatto.core.v1.RoomGroupB\x02\x18\x01R\x0elegacySections\x12;\n" +

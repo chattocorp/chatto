@@ -390,7 +390,7 @@ message SocialPostExternalLink {
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.
-// Stored in LINK_PREVIEW_CACHE KV bucket.
+// Stored under link_preview.* keys in the RUNTIME_STATE KV bucket.
 message CachedLinkPreview {
   // The original URL (for verification)
   string url = 1;
@@ -406,6 +406,9 @@ message CachedLinkPreview {
 
   // When this cache entry was created (Unix timestamp)
   int64 fetched_at_unix = 5;
+
+  // Cache interpretation version used for bounded compatibility refreshes.
+  uint32 schema_version = 6;
 }
 
 // Visual + permission organization of channel rooms (see ADR-031).

@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -98,10 +99,63 @@ func TestCacheKeepsCurrentBlueskySnapshots(t *testing.T) {
 	require.NotNil(t, got)
 }
 
+func TestCacheRefreshesLegacyGenericMastodonPreview(t *testing.T) {
+	ctx, _, kv := setupRuntimeStateKV(t)
+	cache := NewCache(kv)
+	url := "https://mastodon.social/@alice@remote.example/123"
+
+	putLegacyCachedPreview(t, ctx, kv, url, &corev1.CachedLinkPreview{
+		Url:           url,
+		Preview:       &corev1.LinkPreview{Url: url, Title: "Mastodon"},
+		FetchedAtUnix: time.Now().Unix(),
+	})
+
+	got, err := cache.Get(ctx, url)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestCacheRefreshesLegacyNegativePreview(t *testing.T) {
+	ctx, _, kv := setupRuntimeStateKV(t)
+	cache := NewCache(kv)
+	url := "https://docs.example.com/"
+
+	putLegacyCachedPreview(t, ctx, kv, url, &corev1.CachedLinkPreview{
+		Url:           url,
+		FetchFailed:   true,
+		ErrorReason:   "no preview",
+		FetchedAtUnix: time.Now().Unix(),
+	})
+
+	got, err := cache.Get(ctx, url)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestCacheKeepsCurrentGenericMastodonFallback(t *testing.T) {
+	ctx, _, kv := setupRuntimeStateKV(t)
+	cache := NewCache(kv)
+	url := "https://social.example/@alice/123"
+
+	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{Url: url, Title: "Fallback"}))
+
+	got, err := cache.Get(ctx, url)
+	require.NoError(t, err)
+	require.Equal(t, "Fallback", got.GetTitle())
+}
+
 func TestCacheKeyUsesRuntimeStatePrefix(t *testing.T) {
 	key := cacheKey("https://example.com/article")
 	require.True(t, strings.HasPrefix(key, RuntimeStateKeyPrefix), "key %q should use runtime-state prefix", key)
 	require.NotContains(t, key, "example.com")
+}
+
+func putLegacyCachedPreview(t *testing.T, ctx context.Context, kv jetstream.KeyValue, url string, cached *corev1.CachedLinkPreview) {
+	t.Helper()
+	data, err := proto.Marshal(cached)
+	require.NoError(t, err)
+	_, err = kv.Put(ctx, cacheKey(url), data)
+	require.NoError(t, err)
 }
 
 func setupRuntimeStateKV(t *testing.T) (context.Context, jetstream.JetStream, jetstream.KeyValue) {
