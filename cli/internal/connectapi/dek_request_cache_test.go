@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestHandlerOptionsEstablishDEKRequestCache(t *testing.T) {
 		procedure,
 		func(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
 			if got := core.WithDEKRequestCache(ctx); got != ctx {
-				t.Fatal("handler context does not contain a DEK request cache")
+				return nil, connect.NewError(connect.CodeInternal, errors.New("handler context does not contain a DEK request cache"))
 			}
 			return connect.NewResponse(&emptypb.Empty{}), nil
 		},
