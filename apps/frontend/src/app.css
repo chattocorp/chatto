@@ -380,7 +380,7 @@
 }
 
 @utility choice-row-selected {
-  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
+  @apply border-(--color-button-action) bg-(--color-button-action)/10 hover:border-(--color-button-action) hover:bg-(--color-button-action)/10;
 }
 
 @utility choice-indicator {
@@ -388,7 +388,7 @@
 }
 
 @utility choice-indicator-selected {
-  @apply border-action bg-action;
+  @apply border-(--color-button-action) bg-(--color-button-action);
 }
 
 @utility choice-indicator-dot {
