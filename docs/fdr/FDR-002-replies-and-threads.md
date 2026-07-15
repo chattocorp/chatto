@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -64,5 +64,5 @@ Chatto messages can link to one another via reply attribution, and they can live
 
 ## Related
 
-- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots)
-- **FDRs:** FDR-003 (Thread Reply Echo)
+- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-051 (convergent notification policy and pending state)
+- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications)

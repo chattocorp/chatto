@@ -1,11 +1,11 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-04
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
-Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions of users/roles/virtual groups, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per space and per room.
+Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions of users/roles/virtual groups, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per server and per room.
 
 ## Behavior
 
@@ -22,9 +22,9 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 
 ## Notification Levels
 
-Per space and per room, the user picks one of four levels:
+Per server and per room, the user picks one of four levels:
 
-- **DEFAULT** — inherit from the parent (room → space → system default of NORMAL).
+- **DEFAULT** — inherit from the parent (room → server → system default of NORMAL).
 - **MUTED** — suppress everything for this scope, including @mentions. The room doesn't even show as unread in the sidebar.
 - **NORMAL** — notifications for mentions, DMs, and thread replies. Default behavior.
 - **ALL_MESSAGES** — like NORMAL plus every root message in the room.
@@ -108,5 +108,15 @@ Notification preferences are user-scoped and don't require special permissions t
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (convergent notification policy and pending state)
 - **FDRs:** FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)
+
+## Open Questions
+
+[Notifications 2.0](https://github.com/chattocorp/chatto/issues/1556) tracks a
+planned redesign of this feature under ADR-051. Before this FDR can describe
+the replacement behavior, the project still needs to settle the user-facing
+names and defaults for cause-specific delivery intensities, the exact legacy
+preference mapping, and whether changing a preference clears existing pending
+notifications. Until that behavior ships, the four notification levels above
+remain the supported contract.

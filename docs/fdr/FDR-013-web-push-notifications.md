@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -95,4 +95,5 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
+- **ADRs:** ADR-051 (convergent notification policy and pending state)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)
