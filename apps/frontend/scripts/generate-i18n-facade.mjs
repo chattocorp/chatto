@@ -5,17 +5,30 @@ const settingsUrl = new URL('./project.inlang/settings.json', root);
 const settings = JSON.parse(readFileSync(settingsUrl, 'utf8'));
 const baseLocale = settings.baseLocale;
 const locales = settings.locales;
-const baseTypesUrl = new URL(`./src/lib/paraglide/messages/${baseLocale}.d.ts`, root);
+const baseMessagesUrl = new URL(`./src/lib/paraglide/messages/${baseLocale}.js`, root);
 const messageIndexUrl = new URL('./src/lib/paraglide/messages/_index.js', root);
 const outputUrl = new URL('./src/lib/i18n/messages.ts', root);
+
+function writeIfChanged(url, contents) {
+  try {
+    if (readFileSync(url, 'utf8') === contents) return;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  writeFileSync(url, contents);
+}
 
 if (typeof baseLocale !== 'string' || !Array.isArray(locales) || !locales.includes(baseLocale)) {
   throw new Error('project.inlang/settings.json must define a baseLocale included in locales');
 }
 
-const source = readFileSync(baseTypesUrl, 'utf8');
+// Paraglide's generated JavaScript already contains complete JSDoc types. Reading
+// those avoids asking TypeScript to emit a duplicate declaration tree, which is
+// substantially more expensive for Chatto's large locale catalog.
+const source = readFileSync(baseMessagesUrl, 'utf8');
 const messageIndex = readFileSync(messageIndexUrl, 'utf8');
-const functionNames = [...source.matchAll(/^export const ([A-Za-z0-9_]+):/gm)].map(
+const functionNames = [...source.matchAll(/^export const ([A-Za-z0-9_]+) =/gm)].map(
   ([, name]) => name
 );
 const aliases = new Map(
@@ -26,15 +39,36 @@ const aliases = new Map(
 
 if (functionNames.length === 0) {
   throw new Error(
-    `No Paraglide message functions found in src/lib/paraglide/messages/${baseLocale}.d.ts`
+    `No Paraglide message functions found in src/lib/paraglide/messages/${baseLocale}.js`
   );
 }
 
 const typeNames = new Map(
-  [...source.matchAll(/^export type ([A-Za-z0-9_]+Inputs) = ([\s\S]*?);\n/gm)].map(
-    ([, typeName, body]) => [typeName, body.trim()]
+  [...source.matchAll(/^\/\*\* @typedef \{(.*)} ([A-Za-z0-9_]+Inputs) \*\/$/gm)].map(
+    ([, body, typeName]) => [typeName, body.trim()]
   )
 );
+
+const declarationLines = [
+  'export type LocalizedString = import("../runtime.js").LocalizedString;',
+  ...[...typeNames].map(([typeName, body]) => `export type ${typeName} = ${body};`),
+  ...functionNames.map((functionName) => {
+    const inputsName = inputTypeName(functionName);
+    return `export const ${functionName}: (inputs: ${inputsName}) => LocalizedString;`;
+  })
+];
+
+for (const locale of locales) {
+  writeIfChanged(
+    new URL(`./src/lib/paraglide/messages/${locale}.d.ts`, root),
+    `${declarationLines.join('\n')}\n`
+  );
+}
+
+// The app deliberately avoids Paraglide's eager all-locale index. An adjacent
+// declaration keeps TypeScript from parsing its generated message previews as
+// JSDoc (where literal strings such as "@{login}" look like malformed tags).
+writeIfChanged(new URL('./src/lib/paraglide/messages/_index.d.ts', root), 'export {};\n');
 
 function inputTypeName(functionName) {
   return `${functionName
@@ -112,7 +146,11 @@ const lines = [
 for (const functionName of functionNames) {
   const constName = `msg_${functionName}`;
   const inputsName = inputTypeName(functionName);
-  const isEmpty = typeNames.get(inputsName) === '{}';
+  const inputType = typeNames.get(inputsName);
+  if (inputType === undefined) {
+    throw new Error(`No generated Paraglide input type found for ${functionName}`);
+  }
+  const isEmpty = inputType === '{}';
 
   if (isEmpty) {
     lines.push(`const ${constName} = (): LocalizedString => messages().${functionName}(empty());`);
@@ -133,4 +171,4 @@ for (const functionName of functionNames) {
   lines.push(`export { msg_${functionName} as '${alias}' };`);
 }
 
-writeFileSync(outputUrl, `${lines.join('\n')}\n`);
+writeIfChanged(outputUrl, `${lines.join('\n')}\n`);

@@ -1,6 +1,8 @@
 /// <reference types="vitest/config" />
+import { execFile } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -17,6 +19,7 @@ const backendTarget =
 const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
+const execFileAsync = promisify(execFile);
 const i18nSettings = JSON.parse(
   readFileSync(new URL('./project.inlang/settings.json', import.meta.url), 'utf8')
 ) as { baseLocale: string };
@@ -120,6 +123,21 @@ function highlightLanguageMetadata(): Plugin {
   };
 }
 
+function i18nFacade(): Plugin {
+  return {
+    name: 'chatto-i18n-facade',
+    buildStart: {
+      order: 'post',
+      sequential: true,
+      async handler() {
+        await execFileAsync(process.execPath, [
+          fileURLToPath(new URL('./scripts/generate-i18n-facade.mjs', import.meta.url))
+        ]);
+      }
+    }
+  };
+}
+
 export default defineConfig({
   clearScreen: false,
   plugins: [
@@ -129,9 +147,10 @@ export default defineConfig({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
       strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: true,
+      emitTsDeclarations: false,
       outputStructure: 'locale-modules'
     }),
+    i18nFacade(),
     sveltekit(),
     devtoolsJson()
   ],
