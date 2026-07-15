@@ -40,6 +40,9 @@ message ProjectionSnapshotPointer {
   uint64 previous_cutoff_sequence = 6;
   string previous_stream_identity = 7;
   string previous_compatibility_id = 8;
+  // Authenticated publication times used to coordinate refreshes across replicas.
+  google.protobuf.Timestamp current_created_at = 9;
+  google.protobuf.Timestamp previous_created_at = 10;
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the

@@ -313,6 +313,147 @@ func TestRepositoryRejectsOlderSnapshotAndAllowsDailySameCutoffRefresh(t *testin
 	}
 }
 
+func TestRepositorySkipsFreshSameCutoffAcrossLeaseHandover(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	newRepository := func() *Repository {
+		repository, err := NewRepository(blobs, RepositoryOptions{
+			Pointers: blobs, SecretHex: testSecret, ProducerVersion: "test-version",
+			Now: func() time.Time { return now },
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return repository
+	}
+
+	first := newRepository()
+	published, err := first.Save(ctx, testSaveInput(200, []byte("first leader")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Hour)
+	second := newRepository()
+	refresh := testSaveInput(200, []byte("second leader"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	current, err := second.Save(ctx, refresh)
+	if !errors.Is(err, ErrSnapshotFresh) {
+		t.Fatalf("handover Save error = %v, want snapshot-fresh", err)
+	}
+	if current.GenerationID != published.GenerationID || !current.CreatedAt.Equal(published.CreatedAt) || len(blobs.objects) != 1 {
+		t.Fatalf("handover changed fresh generation: first=%#v current=%#v objects=%d", published, current, len(blobs.objects))
+	}
+
+	now = published.CreatedAt.Add(23 * time.Hour)
+	refreshed, err := second.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("stale same-cutoff refresh: %v", err)
+	}
+	if refreshed.GenerationID == published.GenerationID || len(blobs.objects) != 2 {
+		t.Fatalf("stale generation was not refreshed: first=%#v refreshed=%#v objects=%d", published, refreshed, len(blobs.objects))
+	}
+}
+
+func TestRepositoryRefreshesSameCutoffWithFutureTimestamp(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	actualNow := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	producerNow := actualNow.Add(24 * time.Hour)
+	producer, err := NewRepository(blobs, RepositoryOptions{
+		Pointers: blobs, SecretHex: testSecret, ProducerVersion: "ahead",
+		Now: func() time.Time { return producerNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := producer.Save(ctx, testSaveInput(200, []byte("future")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	correctClock, err := NewRepository(blobs, RepositoryOptions{
+		Pointers: blobs, SecretHex: testSecret, ProducerVersion: "correct",
+		Now: func() time.Time { return actualNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refresh := testSaveInput(200, []byte("corrected"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	corrected, err := correctClock.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("future timestamp refresh: %v", err)
+	}
+	if corrected.GenerationID == first.GenerationID || !corrected.CreatedAt.Equal(actualNow) {
+		t.Fatalf("future generation was not corrected: first=%#v corrected=%#v", first, corrected)
+	}
+}
+
+func TestRepositoryRepairsFreshPointerWithMissingCurrentGeneration(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	first, err := repository.Save(ctx, testSaveInput(200, []byte("first")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(blobs.objects, repository.generationObjectKey("threads", testCompatibilityID, first.GenerationID))
+
+	refresh := testSaveInput(200, []byte("repaired"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	repaired, err := repository.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("repair missing current generation: %v", err)
+	}
+	if repaired.GenerationID == first.GenerationID || len(blobs.objects) != 1 {
+		t.Fatalf("missing current generation was not repaired: first=%#v repaired=%#v objects=%d", first, repaired, len(blobs.objects))
+	}
+}
+
+func TestRepositoryRepairsFreshCorruptCurrentAfterFallback(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	previous, err := repository.Save(ctx, testSaveInput(10, []byte("previous")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := repository.Save(ctx, testSaveInput(20, []byte("current")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentKey := repository.generationObjectKey("threads", testCompatibilityID, current.GenerationID)
+	blobs.objects[currentKey][0] ^= 0xff
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != previous.GenerationID {
+		t.Fatalf("corrupt current did not fall back: loaded=%#v previous=%#v", loaded, previous)
+	}
+
+	refresh := testSaveInput(20, []byte("repaired"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	repaired, err := repository.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("repair corrupt current generation: %v", err)
+	}
+	if repaired.GenerationID == current.GenerationID {
+		t.Fatalf("corrupt current generation was not replaced: current=%#v repaired=%#v", current, repaired)
+	}
+	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != repaired.GenerationID || string(loaded.Payload) != "repaired" {
+		t.Fatalf("repaired current did not load: %#v", loaded)
+	}
+}
+
 func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
@@ -356,20 +497,54 @@ func TestRepositoryLocatesPreviousGenerationAcrossCompatibilityUpgrade(t *testin
 	}
 }
 
-func TestRepositoryIgnoresLegacyCohortPointerKey(t *testing.T) {
+func TestRepositoryIgnoresLegacyPointerLineages(t *testing.T) {
+	for _, locator := range []string{"v1:threads", "projection:threads"} {
+		t.Run(locator, func(t *testing.T) {
+			blobs := newMemoryBlobStore()
+			repository := newTestRepository(t, blobs, testSecret)
+			if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
+				t.Fatal(err)
+			}
+			currentKey := repository.pointerKey("threads")
+			legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, locator)
+			blobs.pointers[legacyKey] = blobs.pointers[currentKey]
+			blobs.revisions[legacyKey] = blobs.revisions[currentKey]
+			delete(blobs.pointers, currentKey)
+			delete(blobs.revisions, currentKey)
+			if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
+				t.Fatalf("legacy pointer Load error = %v", err)
+			}
+		})
+	}
+}
+
+func TestRepositoryProjectionLocalLineageCanStartBelowLegacySharedCutoff(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
-	if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
+	ctx := context.Background()
+	if _, err := repository.Save(ctx, testSaveInput(206, []byte("shared frontier"))); err != nil {
 		t.Fatal(err)
 	}
 	currentKey := repository.pointerKey("threads")
-	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "v1:threads")
+	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "projection:threads")
 	blobs.pointers[legacyKey] = blobs.pointers[currentKey]
 	blobs.revisions[legacyKey] = blobs.revisions[currentKey]
 	delete(blobs.pointers, currentKey)
 	delete(blobs.revisions, currentKey)
-	if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
-		t.Fatalf("legacy cohort pointer Load error = %v", err)
+
+	local, err := repository.Save(ctx, testSaveInput(43, []byte("projection-local frontier")))
+	if err != nil {
+		t.Fatalf("Save below legacy shared cutoff: %v", err)
+	}
+	if local.CutoffSequence != 43 {
+		t.Fatalf("saved cutoff = %d, want 43", local.CutoffSequence)
+	}
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 43)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != local.GenerationID || string(loaded.Payload) != "projection-local frontier" {
+		t.Fatalf("loaded = %#v, want projection-local generation %#v", loaded, local)
 	}
 }
 

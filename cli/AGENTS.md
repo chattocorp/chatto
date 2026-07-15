@@ -84,10 +84,14 @@ authorization, live events, backup/restore, and backend tests.
 - Scope snapshot generation paths by projection key and projection-local
   compatibility version. Keep snapshot pointers on a durable revisioned store
   and publish them with OCC; a process lease is not fencing.
-  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer.
-  Allow same-cutoff refreshes for retention, reject regressing captures, and use
-  pointer revision OCC to prevent concurrent writers from replacing newer
-  history.
+  Carry cutoff, creation time, EVT incarnation, and compatibility metadata in
+  the pointer.
+  Version the opaque pointer lineage whenever the meaning of the cutoff changes;
+  never compare or apply no-regression rules across incompatible cursor models.
+  Allow same-cutoff refreshes for retention, but do not republish a fresh,
+  unchanged generation merely because a process restarted. Reject regressing
+  captures, and use pointer revision OCC to prevent concurrent writers from
+  replacing newer history.
   Scope generation object paths by encryption-key epoch. NATS Object Store TTL
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.
@@ -96,11 +100,13 @@ authorization, live events, backup/restore, and backend tests.
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.
-- A shared snapshot replay consumer may start only after every projector restore
-  attempt finishes, at one greater than the lowest usable cutoff. Any required
-  cold projection forces that cohort to sequence 1. Release boot-time sequence
-  waiters when installing a restored cutoff, and test all-restored, partial,
-  corrupt, future, tail-replay, and restore-in-flight waiter interleavings.
+- Every projection owns its ordered EVT consumer, snapshot restore, and replay
+  frontier. A usable snapshot starts only that consumer after its cutoff; a
+  missing snapshot cold-replays only its owning projection. Keep global boot
+  readiness gated on every required projection becoming current. Release
+  boot-time sequence waiters when installing a restored cutoff, and test
+  all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
+  waiter interleavings.
 
 ## Live Events
 
