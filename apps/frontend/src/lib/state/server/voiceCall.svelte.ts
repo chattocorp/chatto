@@ -891,7 +891,9 @@ export class VoiceCallState {
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
-    participant.setVolume(this.isParticipantLocallyMuted(participant.identity) ? 0 : 1);
+    const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
+    participant.setVolume(volume, Track.Source.Microphone);
+    participant.setVolume(volume, Track.Source.ScreenShareAudio);
   }
 
   /**
