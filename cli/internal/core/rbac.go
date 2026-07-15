@@ -212,7 +212,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}
 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
 	}})
 
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
@@ -244,7 +244,7 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	}
 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
 	}})
 
 	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
@@ -266,7 +266,8 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	return nil
 }
 
-// RevokeServerRole removes every current source of a role from a user.
+// RevokeServerRole removes a manual assignment. OIDC-managed assignments are
+// owned by their identity provider and are never changed by this operation.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
 // Authorization is enforced by the API boundary (`role.assign`). The only
 // service-level guard is self-owner lockout prevention. An enabled OIDC
@@ -283,7 +284,16 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return nil, ErrRoleNotFound
 		}
-		return c.roleSourceRevocationEntries(actorID, userID, roleName), nil
+		if !c.RBAC.HasManualRole(userID, roleName) {
+			if c.RBAC.HasRole(userID, roleName) {
+				return nil, ErrRoleManagedByIdentityProvider
+			}
+			return nil, nil
+		}
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
+		}})
+		return []events.BatchEntry{{Subject: rbacSubjectForEvent(event), Event: event}}, nil
 	}); err != nil {
 		return err
 	}
@@ -292,7 +302,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 	return nil
 }
 
-// RevokeServerRoleFromExistingUser revokes every source of a role from an
+// RevokeServerRoleFromExistingUser revokes a manual role assignment from an
 // existing user.
 // Unlike RevokeServerRole, it validates target-user existence inside the append
 // OCC loop so operator APIs cannot report NotFound after persisting a role fact
@@ -309,35 +319,22 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return nil, ErrRoleNotFound
 		}
-		return c.roleSourceRevocationEntries(actorID, userID, roleName), nil
+		if !c.RBAC.HasManualRole(userID, roleName) {
+			if c.RBAC.HasRole(userID, roleName) {
+				return nil, ErrRoleManagedByIdentityProvider
+			}
+			return nil, nil
+		}
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
+		}})
+		return []events.BatchEntry{{Subject: rbacSubjectForEvent(event), Event: event}}, nil
 	}); err != nil {
 		return err
 	}
 
 	c.logger.Info("Revoked role", "role", roleName, "user_id", userID, "actor_id", actorID)
 	return nil
-}
-
-func (c *ChattoCore) roleSourceRevocationEntries(actorID, userID, roleName string) []events.BatchEntry {
-	manual := c.RBAC.HasManualRole(userID, roleName)
-	providers := c.RBAC.OIDCProvidersForRole(userID, roleName)
-	entries := make([]events.BatchEntry, 0, 1+len(providers))
-	if manual {
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-	}
-	for _, providerID := range providers {
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
-			RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: roleName, ProviderId: providerID},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-	}
-	if !manual && len(providers) > 0 {
-		entries = append(entries, compatibilityRoleRevokedEntry(actorID, userID, roleName))
-	}
-	return entries
 }
 
 // GetRoleUsers returns all user IDs explicitly assigned to a role.
@@ -857,7 +854,7 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID str
 	roles := c.RBAC.GetUserRoles(userID)
 	entries := make([]events.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {
-		entries = append(entries, c.roleSourceRevocationEntries(actorID, userID, roleName)...)
+		entries = append(entries, c.allRoleSourceRevocationEntries(actorID, userID, roleName)...)
 	}
 	if _, err := c.appendRBACBatch(ctx, entries, nil); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)
@@ -865,4 +862,25 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID str
 
 	c.logger.Debug("Revoked all roles for user", "user_id", userID, "actor_id", actorID)
 	return nil
+}
+
+func (c *ChattoCore) allRoleSourceRevocationEntries(actorID, userID, roleName string) []events.BatchEntry {
+	entries := make([]events.BatchEntry, 0, 1+len(c.RBAC.OIDCProvidersForRole(userID, roleName)))
+	if c.RBAC.HasManualRole(userID, roleName) {
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	for _, providerID := range c.RBAC.OIDCProvidersForRole(userID, roleName) {
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+				UserId: userID, RoleName: roleName,
+				Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+				SourceProviderId: providerID,
+			},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	return entries
 }

@@ -99,8 +99,9 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrPasswordAlreadySet) ||
 		errors.Is(err, core.ErrAdminCannotSetOwnPassword) ||
 		errors.Is(err, core.ErrCannotLeaveDMConversation) ||
-		errors.Is(err, core.ErrCannotLeaveUniversalRoom) ||
-		errors.Is(err, core.ErrCannotRevokeSelfAdmin) ||
+	errors.Is(err, core.ErrCannotLeaveUniversalRoom) ||
+	errors.Is(err, core.ErrCannotRevokeSelfAdmin) ||
+		errors.Is(err, core.ErrRoleManagedByIdentityProvider) ||
 		errors.Is(err, core.ErrExternalIdentityLastMethod) ||
 		errors.Is(err, core.ErrCannotDeleteSystemRole) ||
 		errors.Is(err, core.ErrRoomGroupHasRooms) ||

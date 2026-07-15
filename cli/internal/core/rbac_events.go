@@ -343,20 +343,6 @@ func (c *ChattoCore) appendRBACBatchBuilt(ctx context.Context, build func() ([]e
 	return 0, fmt.Errorf("RBAC built batch OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
-func compatibilityRoleAssignedEntry(actorID, userID, roleName string) events.BatchEntry {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName, CompatibilityShadow: true},
-	}})
-	return events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event}
-}
-
-func compatibilityRoleRevokedEntry(actorID, userID, roleName string) events.BatchEntry {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, CompatibilityShadow: true},
-	}})
-	return events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event}
-}
-
 // appendRBACBatchWithUserCheck atomically updates RBAC facts while ensuring a
 // concurrently deleted target user cannot receive new durable assignments. The
 // builder runs after projections are current on every retry, so an OCC conflict

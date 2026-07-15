@@ -101,6 +101,7 @@
       "view_roles_description": "Zeige die Rollen an, die diesem Mitglied zugewiesen sind.",
       "implicit_role_tooltip": "Alle Servermitglieder haben diese Rolle implizit",
       "cannot_revoke_own_role": "Du kannst deine eigene Rolle {role} nicht entziehen",
+      "role_managed_by_identity_provider": "Diese Rolle wird vom Identitätsanbieter verwaltet",
       "edit": "Bearbeiten",
       "assigned_role": "Rolle {role} zugewiesen",
       "removed_role": "Rolle {role} entfernt",

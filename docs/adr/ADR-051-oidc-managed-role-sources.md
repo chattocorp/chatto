@@ -11,10 +11,11 @@ otherwise revoke administrator-made assignments or grants from another provider.
 
 ## Decision
 
-Store OIDC-managed role grants as separate, additive RBAC events keyed by the
-provider ID and role name. Effective membership is the union of manual and all
-provider-managed sources. A provider may add roles only or reconcile only its
-own sources at successful interactive OIDC authentication.
+Record the source on the existing RBAC role-assignment and role-revocation
+facts. A source is either manual or OIDC; OIDC sources also carry the configured
+provider ID. Effective membership is the union of assignment sources. A
+provider may add roles only or reconcile only its own sources at successful
+interactive OIDC authentication.
 
 Raw OIDC claim values are transient callback data. They are never written to
 EVT; only accepted role names and provider IDs are durable. Operators opt in
@@ -25,7 +26,9 @@ assignable role, including roles added later and `owner`.
 
 - Manual assignments and independent identity providers cannot clobber each
   other during reconciliation.
-- An OIDC-only role cannot be revoked through ordinary role administration;
-  operators change the identity provider or its Chatto configuration instead.
+- Ordinary administrator role changes affect manual assignments only. A solely
+  IdP-managed role reports that it is managed by the identity provider;
+  disconnecting the identity, disabling the role claim, or resetting RBAC can
+  remove the OIDC source.
 - Group-to-role mappings and background provider-token refresh remain outside
   this first version. Role changes take effect on the next OIDC authentication.

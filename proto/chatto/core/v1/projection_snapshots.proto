@@ -149,14 +149,26 @@ message ContentKeyProjectionSnapshot {
 
 message RBACProjectionSnapshot {
   repeated Role roles = 1;
+  // Legacy effective assignments used by rbac-v1 snapshots. rbac-v2 snapshots
+  // preserve source-aware assignments in assignment_sources instead.
   repeated RBACAssignmentSnapshot assignments = 2;
   repeated RBACDecisionSnapshot decisions = 3;
   ProjectionReplayGuardSnapshot replay_guard = 4;
+  repeated RBACAssignmentSourceSnapshot assignment_sources = 5;
 }
 
 message RBACAssignmentSnapshot {
   string user_id = 1;
   repeated string role_names = 2;
+}
+
+// One durable role-assignment source. The effective assignment is the union
+// of all sources for a user and role; it is derived on restore.
+message RBACAssignmentSourceSnapshot {
+  string user_id = 1;
+  string role_name = 2;
+  RbacRoleAssignmentSource source = 3;
+  string source_provider_id = 4;
 }
 
 message RBACDecisionSnapshot {

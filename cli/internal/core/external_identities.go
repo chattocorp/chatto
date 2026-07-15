@@ -428,14 +428,14 @@ func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userI
 		entries := []events.BatchEntry{{Subject: userSubject, Event: unlink}}
 		if !providerStillLinked {
 			for _, roleName := range c.RBAC.OIDCRolesForProvider(userID, disconnected.ProviderID) {
-				providers := c.RBAC.OIDCProvidersForRole(userID, roleName)
-				revoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
-					RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: roleName, ProviderId: disconnected.ProviderID},
+				revoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+					RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+						UserId: userID, RoleName: roleName,
+						Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+						SourceProviderId: disconnected.ProviderID,
+					},
 				}})
 				entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(revoke), Event: revoke})
-				if !c.RBAC.HasManualRole(userID, roleName) && len(providers) == 1 {
-					entries = append(entries, compatibilityRoleRevokedEntry(SystemActorID, userID, roleName))
-				}
 			}
 		}
 		entries[0].HasOCC = true

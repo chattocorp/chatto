@@ -15,12 +15,10 @@ import (
 // explicit permission decisions from durable evt.rbac.> events.
 type RBACProjection struct {
 	events.MemoryProjection
-	roles             map[string]*corev1.Role
-	assignments       map[string]map[string]struct{}            // Effective union: userID -> roleName set.
-	manualAssignments map[string]map[string]struct{}            // Legacy/manual role facts.
-	oidcAssignments   map[string]map[string]map[string]struct{} // userID -> roleName -> providerID set.
-	decisions         map[rbacDecisionKey]DecisionKind
-	replayGuard       projectionReplayGuard
+	roles       map[string]*corev1.Role
+	assignments map[string]map[string]map[roleAssignmentSource]struct{} // userID -> roleName -> source set.
+	decisions   map[rbacDecisionKey]DecisionKind
+	replayGuard projectionReplayGuard
 }
 
 type rbacDecisionKey struct {
@@ -33,12 +31,10 @@ type rbacDecisionKey struct {
 
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
-		roles:             make(map[string]*corev1.Role),
-		assignments:       make(map[string]map[string]struct{}),
-		manualAssignments: make(map[string]map[string]struct{}),
-		oidcAssignments:   make(map[string]map[string]map[string]struct{}),
-		decisions:         make(map[rbacDecisionKey]DecisionKind),
-		replayGuard:       newProjectionReplayGuard(),
+		roles:       make(map[string]*corev1.Role),
+		assignments: make(map[string]map[string]map[roleAssignmentSource]struct{}),
+		decisions:   make(map[rbacDecisionKey]DecisionKind),
+		replayGuard: newProjectionReplayGuard(),
 	}
 }
 
@@ -70,17 +66,9 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
 	case *corev1.Event_RbacRoleAssigned:
-		if !e.RbacRoleAssigned.GetCompatibilityShadow() {
-			p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
-		}
+		p.applyRoleAssigned(e.RbacRoleAssigned)
 	case *corev1.Event_RbacRoleRevoked:
-		if !e.RbacRoleRevoked.GetCompatibilityShadow() {
-			p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
-		}
-	case *corev1.Event_RbacOidcRoleGranted:
-		p.applyOIDCRoleGranted(e.RbacOidcRoleGranted.GetUserId(), e.RbacOidcRoleGranted.GetRoleName(), e.RbacOidcRoleGranted.GetProviderId())
-	case *corev1.Event_RbacOidcRoleRevoked:
-		p.applyOIDCRoleRevoked(e.RbacOidcRoleRevoked.GetUserId(), e.RbacOidcRoleRevoked.GetRoleName(), e.RbacOidcRoleRevoked.GetProviderId())
+		p.applyRoleRevoked(e.RbacRoleRevoked)
 	case *corev1.Event_RbacPermissionGranted:
 		p.applyPermissionDecision(
 			e.RbacPermissionGranted.GetScope(),
@@ -201,18 +189,6 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 			delete(p.assignments, userID)
 		}
 	}
-	for userID, roles := range p.manualAssignments {
-		delete(roles, roleName)
-		if len(roles) == 0 {
-			delete(p.manualAssignments, userID)
-		}
-	}
-	for userID, roles := range p.oidcAssignments {
-		delete(roles, roleName)
-		if len(roles) == 0 {
-			delete(p.oidcAssignments, userID)
-		}
-	}
 	for key := range p.decisions {
 		if key.subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == roleName {
 			delete(p.decisions, key)
@@ -220,79 +196,65 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 	}
 }
 
-func (p *RBACProjection) applyRoleAssigned(userID, roleName string) {
-	if userID == "" || roleName == "" {
-		return
-	}
-	if p.manualAssignments[userID] == nil {
-		p.manualAssignments[userID] = make(map[string]struct{})
-	}
-	p.manualAssignments[userID][roleName] = struct{}{}
-	p.refreshEffectiveRole(userID, roleName)
+type roleAssignmentSource struct {
+	source     corev1.RbacRoleAssignmentSource
+	providerID string
 }
 
-func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
-	if userID == "" || roleName == "" {
-		return
-	}
-	delete(p.manualAssignments[userID], roleName)
-	if len(p.manualAssignments[userID]) == 0 {
-		delete(p.manualAssignments, userID)
-	}
-	// A normal legacy revoke is the compatibility representation of an
-	// operator removing every current source. This keeps older writers safe
-	// during rolling deployments. Source-specific OIDC cleanup uses its own
-	// event and compatibility shadows are filtered before reaching this method.
-	delete(p.oidcAssignments[userID], roleName)
-	if len(p.oidcAssignments[userID]) == 0 {
-		delete(p.oidcAssignments, userID)
-	}
-	p.refreshEffectiveRole(userID, roleName)
-}
-
-func (p *RBACProjection) applyOIDCRoleGranted(userID, roleName, providerID string) {
-	if userID == "" || roleName == "" || providerID == "" {
-		return
-	}
-	if p.oidcAssignments[userID] == nil {
-		p.oidcAssignments[userID] = make(map[string]map[string]struct{})
-	}
-	if p.oidcAssignments[userID][roleName] == nil {
-		p.oidcAssignments[userID][roleName] = make(map[string]struct{})
-	}
-	p.oidcAssignments[userID][roleName][providerID] = struct{}{}
-	p.refreshEffectiveRole(userID, roleName)
-}
-
-func (p *RBACProjection) applyOIDCRoleRevoked(userID, roleName, providerID string) {
-	if userID == "" || roleName == "" || providerID == "" {
-		return
-	}
-	providers := p.oidcAssignments[userID][roleName]
-	delete(providers, providerID)
-	if len(providers) == 0 {
-		delete(p.oidcAssignments[userID], roleName)
-	}
-	if len(p.oidcAssignments[userID]) == 0 {
-		delete(p.oidcAssignments, userID)
-	}
-	p.refreshEffectiveRole(userID, roleName)
-}
-
-func (p *RBACProjection) refreshEffectiveRole(userID, roleName string) {
-	_, manual := p.manualAssignments[userID][roleName]
-	_, oidc := p.oidcAssignments[userID][roleName]
-	if !manual && !oidc {
-		delete(p.assignments[userID], roleName)
-		if len(p.assignments[userID]) == 0 {
-			delete(p.assignments, userID)
+func roleAssignmentSourceFromFields(source corev1.RbacRoleAssignmentSource, providerID string) (roleAssignmentSource, bool) {
+	switch source {
+	case corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED,
+		corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL:
+		return roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL}, true
+	case corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC:
+		if providerID == "" {
+			return roleAssignmentSource{}, false
 		}
+		return roleAssignmentSource{source: source, providerID: providerID}, true
+	default:
+		return roleAssignmentSource{}, false
+	}
+}
+
+func (p *RBACProjection) applyRoleAssigned(event *corev1.RbacRoleAssignedEvent) {
+	if event.GetUserId() == "" || event.GetRoleName() == "" {
 		return
 	}
-	if p.assignments[userID] == nil {
-		p.assignments[userID] = make(map[string]struct{})
+	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId())
+	if !ok {
+		return
 	}
-	p.assignments[userID][roleName] = struct{}{}
+	if p.assignments[event.GetUserId()] == nil {
+		p.assignments[event.GetUserId()] = make(map[string]map[roleAssignmentSource]struct{})
+	}
+	if p.assignments[event.GetUserId()][event.GetRoleName()] == nil {
+		p.assignments[event.GetUserId()][event.GetRoleName()] = make(map[roleAssignmentSource]struct{})
+	}
+	p.assignments[event.GetUserId()][event.GetRoleName()][source] = struct{}{}
+}
+
+func (p *RBACProjection) applyRoleRevoked(event *corev1.RbacRoleRevokedEvent) {
+	if event.GetUserId() == "" || event.GetRoleName() == "" {
+		return
+	}
+	roles := p.assignments[event.GetUserId()]
+	if roles == nil {
+		return
+	}
+	if event.GetSource() == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED {
+		// Historical revocations predate source-aware assignments and retain their
+		// original meaning: remove the complete assignment.
+		delete(roles, event.GetRoleName())
+	} else if source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId()); ok {
+		sources := roles[event.GetRoleName()]
+		delete(sources, source)
+		if len(sources) == 0 {
+			delete(roles, event.GetRoleName())
+		}
+	}
+	if len(roles) == 0 {
+		delete(p.assignments, event.GetUserId())
+	}
 }
 
 func (p *RBACProjection) applyPermissionDecision(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, decision DecisionKind, legacy proto.Message) {
@@ -479,7 +441,10 @@ func (p *RBACProjection) GetUserRoles(userID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	roles := make([]string, 0, len(p.assignments[userID]))
-	for roleName := range p.assignments[userID] {
+	for roleName, sources := range p.assignments[userID] {
+		if len(sources) == 0 {
+			continue
+		}
 		roles = append(roles, roleName)
 	}
 	sort.Strings(roles)
@@ -489,8 +454,7 @@ func (p *RBACProjection) GetUserRoles(userID string) []string {
 func (p *RBACProjection) HasRole(userID, roleName string) bool {
 	p.RLock()
 	defer p.RUnlock()
-	_, ok := p.assignments[userID][roleName]
-	return ok
+	return len(p.assignments[userID][roleName]) > 0
 }
 
 // HasManualRole reports whether a user holds a role through a manual or
@@ -498,7 +462,7 @@ func (p *RBACProjection) HasRole(userID, roleName string) bool {
 func (p *RBACProjection) HasManualRole(userID, roleName string) bool {
 	p.RLock()
 	defer p.RUnlock()
-	_, ok := p.manualAssignments[userID][roleName]
+	_, ok := p.assignments[userID][roleName][roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL}]
 	return ok
 }
 
@@ -508,8 +472,8 @@ func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []strin
 	p.RLock()
 	defer p.RUnlock()
 	roles := make([]string, 0)
-	for roleName, providers := range p.oidcAssignments[userID] {
-		if _, ok := providers[providerID]; ok {
+	for roleName, sources := range p.assignments[userID] {
+		if _, ok := sources[roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, providerID: providerID}]; ok {
 			roles = append(roles, roleName)
 		}
 	}
@@ -522,9 +486,11 @@ func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []strin
 func (p *RBACProjection) OIDCProvidersForRole(userID, roleName string) []string {
 	p.RLock()
 	defer p.RUnlock()
-	providers := make([]string, 0, len(p.oidcAssignments[userID][roleName]))
-	for providerID := range p.oidcAssignments[userID][roleName] {
-		providers = append(providers, providerID)
+	providers := make([]string, 0, len(p.assignments[userID][roleName]))
+	for source := range p.assignments[userID][roleName] {
+		if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+			providers = append(providers, source.providerID)
+		}
 	}
 	sort.Strings(providers)
 	return providers
@@ -535,9 +501,11 @@ func (p *RBACProjection) OIDCRoleAssignmentsForUser(userID string) []oidcRoleAss
 	p.RLock()
 	defer p.RUnlock()
 	assignments := make([]oidcRoleAssignment, 0)
-	for roleName, providers := range p.oidcAssignments[userID] {
-		for providerID := range providers {
-			assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: providerID})
+	for roleName, sources := range p.assignments[userID] {
+		for source := range sources {
+			if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID})
+			}
 		}
 	}
 	sort.Slice(assignments, func(i, j int) bool {
@@ -561,10 +529,12 @@ func (p *RBACProjection) OIDCRoleAssignments() []oidcRoleAssignment {
 	p.RLock()
 	defer p.RUnlock()
 	assignments := make([]oidcRoleAssignment, 0)
-	for userID, roles := range p.oidcAssignments {
-		for roleName, providers := range roles {
-			for providerID := range providers {
-				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: providerID})
+	for userID, roles := range p.assignments {
+		for roleName, sources := range roles {
+			for source := range sources {
+				if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+					assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID})
+				}
 			}
 		}
 	}
@@ -585,7 +555,7 @@ func (p *RBACProjection) GetRoleUsers(roleName string) []string {
 	defer p.RUnlock()
 	users := make([]string, 0)
 	for userID, roles := range p.assignments {
-		if _, ok := roles[roleName]; ok {
+		if len(roles[roleName]) > 0 {
 			users = append(users, userID)
 		}
 	}
@@ -598,7 +568,10 @@ func (p *RBACProjection) Assignments() []rbacSeedAssignment {
 	defer p.RUnlock()
 	assignments := make([]rbacSeedAssignment, 0)
 	for userID, roles := range p.assignments {
-		for roleName := range roles {
+		for roleName, sources := range roles {
+			if len(sources) == 0 {
+				continue
+			}
 			assignments = append(assignments, rbacSeedAssignment{userID: userID, roleName: roleName})
 		}
 	}

@@ -136,7 +136,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
-**OIDC-managed role assignment** — A durable role source derived from a configured, verified OIDC role claim. It is effective alongside manual and other-provider assignments, and is changed through OIDC synchronization rather than ordinary role revocation. See [ADR-049](adr/ADR-049-oidc-managed-role-sources.md).
+**OIDC-managed role assignment** — A durable role source derived from a configured, verified OIDC role claim. It is effective alongside manual and other-provider assignments, and changes through OIDC synchronization, identity disconnect, or RBAC reset. See [ADR-051](adr/ADR-051-oidc-managed-role-sources.md).
 
 **Live Event** — Transient `corev1.LiveEvent` published on `live.sync.>` (typing, notification sync, voice-call presence). Durable EVT facts reach live subscribers through the internal `live.evt.>` republish path after server-side projection readiness and authorization checks.
 

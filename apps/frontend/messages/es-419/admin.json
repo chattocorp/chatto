@@ -101,6 +101,7 @@
       "view_roles_description": "Ver los roles asignados a este miembro.",
       "implicit_role_tooltip": "Todos los miembros del servidor tienen este rol implícitamente",
       "cannot_revoke_own_role": "No puedes revocar tu propio rol {role}",
+      "role_managed_by_identity_provider": "Este rol está gestionado por el proveedor de identidad",
       "edit": "Editar",
       "assigned_role": "Rol {role} asignado",
       "removed_role": "Se eliminó el rol {role}",

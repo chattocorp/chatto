@@ -289,11 +289,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return fmt.Errorf("wait for projections current: %w", err)
 		}
 		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
-		// Revoke sources for OIDC providers removed from configuration or with
-		// role synchronization disabled before materializing config owners.
-		if err := c.ReconcileConfiguredOIDCRoleSources(gctx); err != nil {
-			return fmt.Errorf("reconcile configured OIDC role sources: %w", err)
-		}
 		// Apply config-designated owners to already-verified users on every
 		// boot. Changing owners.emails requires a process restart, so this
 		// is the natural point to materialize new config owners as RBAC

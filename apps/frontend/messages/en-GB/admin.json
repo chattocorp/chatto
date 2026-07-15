@@ -101,6 +101,7 @@
       "view_roles_description": "View the roles assigned to this member.",
       "implicit_role_tooltip": "All server members have this role implicitly",
       "cannot_revoke_own_role": "You cannot revoke your own {role} role",
+      "role_managed_by_identity_provider": "This role is managed by the identity provider",
       "edit": "Edit",
       "assigned_role": "Assigned {role} role",
       "removed_role": "Removed {role} role",

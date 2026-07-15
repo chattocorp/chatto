@@ -8,7 +8,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // DURABLE RBAC EVENTS (evt.rbac.>)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 800-815: durable RBAC role, assignment, and permission events
+//   - 800-813: durable RBAC role, assignment, and permission events
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -45,37 +45,32 @@ message RbacRolesReorderedEvent {
   repeated string role_names = 1;
 }
 
+// Identifies why a role-assignment fact exists. Historical events with an
+// unspecified source are manual assignments.
+enum RbacRoleAssignmentSource {
+  RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED = 0;
+  RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL = 1;
+  RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC = 2;
+}
+
 message RbacRoleAssignedEvent {
   string user_id = 1;
   string role_name = 2;
+  RbacRoleAssignmentSource source = 3;
 
-  // Mirrors an OIDC source transition for replicas that predate source-aware
-  // role events. Current projections ignore compatibility shadows.
-  bool compatibility_shadow = 3;
+  // Required when source is OIDC. This is a configured provider ID, not a
+  // claim value or external subject.
+  string source_provider_id = 4;
 }
 
 message RbacRoleRevokedEvent {
   string user_id = 1;
   string role_name = 2;
+  RbacRoleAssignmentSource source = 3;
 
-  // Mirrors an OIDC source transition for replicas that predate source-aware
-  // role events. Current projections ignore compatibility shadows.
-  bool compatibility_shadow = 3;
-}
-
-// Records a role granted from a verified OIDC role claim. Provider IDs are
-// configuration identifiers; raw claim values are intentionally not durable.
-message RbacOIDCRoleGrantedEvent {
-  string user_id = 1;
-  string role_name = 2;
-  string provider_id = 3;
-}
-
-// Removes a role grant previously managed by a specific OIDC provider.
-message RbacOIDCRoleRevokedEvent {
-  string user_id = 1;
-  string role_name = 2;
-  string provider_id = 3;
+  // Required when source is OIDC. This is a configured provider ID, not a
+  // claim value or external subject.
+  string source_provider_id = 4;
 }
 
 enum RbacPermissionScopeKind {

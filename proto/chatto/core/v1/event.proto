@@ -176,7 +176,6 @@ message Event {
     UserCustomStatusSetEvent user_custom_status_set = 715;
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
-    UserOIDCRolesSynchronizedEvent user_oidc_roles_synchronized = 718;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;
@@ -190,8 +189,6 @@ message Event {
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
     RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
-    RbacOIDCRoleGrantedEvent rbac_oidc_role_granted = 814;
-    RbacOIDCRoleRevokedEvent rbac_oidc_role_revoked = 815;
 
     // ----- Moderation (840-899, durable, room-owned) -----
     RoomMemberBannedEvent room_member_banned = 840;

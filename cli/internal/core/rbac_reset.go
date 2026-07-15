@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -92,32 +91,19 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 		}
 		revokedUsers[key] = struct{}{}
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
-			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-	}
-	oidcOnlyRoles := make(map[string]oidcRoleAssignment)
-	for _, assignment := range c.RBAC.OIDCRoleAssignments() {
-		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacOidcRoleRevoked{
-			RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{
-				UserId: assignment.userID, RoleName: assignment.roleName, ProviderId: assignment.providerID,
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+				UserId: assignment.userID, RoleName: assignment.roleName,
+				Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL,
 			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-		if !c.RBAC.HasManualRole(assignment.userID, assignment.roleName) {
-			oidcOnlyRoles[assignment.userID+"|"+assignment.roleName] = assignment
-		}
 	}
-	oidcOnlyKeys := make([]string, 0, len(oidcOnlyRoles))
-	for key := range oidcOnlyRoles {
-		oidcOnlyKeys = append(oidcOnlyKeys, key)
-	}
-	sort.Strings(oidcOnlyKeys)
-	for _, key := range oidcOnlyKeys {
-		assignment := oidcOnlyRoles[key]
+	for _, assignment := range c.RBAC.OIDCRoleAssignments() {
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
-				UserId: assignment.userID, RoleName: assignment.roleName, CompatibilityShadow: true,
+				UserId: assignment.userID, RoleName: assignment.roleName,
+				Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+				SourceProviderId: assignment.providerID,
 			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

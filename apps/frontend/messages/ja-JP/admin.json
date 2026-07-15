@@ -101,6 +101,7 @@
       "view_roles_description": "このメンバーに割り当てられたロールを表示します。",
       "implicit_role_tooltip": "すべてのサーバーメンバーが暗黙的にこのロールを持っています",
       "cannot_revoke_own_role": "自分の {role} ロールを取り消すことはできません",
+      "role_managed_by_identity_provider": "このロールはIDプロバイダーによって管理されています",
       "edit": "編集",
       "assigned_role": "{role} ロールが割り当てられました",
       "removed_role": "{role} ロールを削除しました",
