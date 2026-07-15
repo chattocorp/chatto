@@ -481,7 +481,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	snapshotPayload := []byte("restorable projection state")
 	savedSnapshot, err := snapshotRepository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey: projectionsnapshot.ProjectionThreadsKey, CompatibilityID: "v1", StreamName: "TEST_EVENTS",
+		ProjectionKey: projectionsnapshot.ProjectionThreadsKey, ContractID: "v1", StreamName: "TEST_EVENTS",
 		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 3, Payload: snapshotPayload,
 	})
 	if err != nil {

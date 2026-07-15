@@ -101,12 +101,13 @@ type Projection interface {
 	Restore(snapshot []byte) error
 }
 
-// SnapshotCompatibleProjection opts a Projection into persisted snapshots.
-// The compatibility ID describes the projection's serialized state and replay
-// semantics; changing unrelated Chatto versions must not invalidate it.
-type SnapshotCompatibleProjection interface {
+// SnapshotContractProjection opts a Projection into persisted snapshots.
+// The contract ID covers every projection-specific input that determines
+// whether restoring a snapshot is equivalent to replaying EVT through its
+// cutoff. Changing unrelated Chatto versions must not invalidate it.
+type SnapshotContractProjection interface {
 	Projection
-	SnapshotCompatibilityID() string
+	SnapshotContractID() string
 }
 
 // ProjectionSnapshot is a validated snapshot returned by a snapshot source.
@@ -121,11 +122,11 @@ type ProjectionSnapshot struct {
 // constraints owned by the Projector. Sources must reject mismatched or newer
 // stream state before returning a snapshot.
 type ProjectionSnapshotLoadRequest struct {
-	ProjectionKey   string
-	CompatibilityID string
-	StreamName      string
-	StreamIdentity  string
-	MaxCutoff       uint64
+	ProjectionKey  string
+	ContractID     string
+	StreamName     string
+	StreamIdentity string
+	MaxCutoff      uint64
 }
 
 type ProjectionSnapshotSource interface {
@@ -249,9 +250,9 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if !ValidStreamIdentity(streamIdentity) {
 		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
 	}
-	compatible, ok := p.proj.(SnapshotCompatibleProjection)
-	if !ok || compatible.SnapshotCompatibilityID() == "" {
-		return fmt.Errorf("projection %q does not declare snapshot compatibility", key)
+	contractProjection, ok := p.proj.(SnapshotContractProjection)
+	if !ok || contractProjection.SnapshotContractID() == "" {
+		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -941,7 +942,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	if source == nil {
 		return coldRestore()
 	}
-	compatible := p.proj.(SnapshotCompatibleProjection)
+	contractProjection := p.proj.(SnapshotContractProjection)
 	streamName := ""
 	if info := p.stream.CachedInfo(); info != nil {
 		streamName = info.Config.Name
@@ -952,11 +953,11 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
 	defer cancelLoad()
 	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
-		ProjectionKey:   key,
-		CompatibilityID: compatible.SnapshotCompatibilityID(),
-		StreamName:      streamName,
-		StreamIdentity:  streamIdentity,
-		MaxCutoff:       targetSeq,
+		ProjectionKey:  key,
+		ContractID:     contractProjection.SnapshotContractID(),
+		StreamName:     streamName,
+		StreamIdentity: streamIdentity,
+		MaxCutoff:      targetSeq,
 	})
 	if err != nil {
 		p.logger.Info("Projection snapshot unavailable; replaying EVT",

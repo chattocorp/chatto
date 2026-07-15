@@ -1312,28 +1312,28 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if snapshotRepository != nil {
 		streamName := storage.serverEvtStream.CachedInfo().Config.Name
 		type snapshotSpec struct {
-			key, compatibility string
-			projector          *events.Projector
+			key, contractID string
+			projector       *events.Projector
 		}
 		specs := []snapshotSpec{
-			{projectionsnapshot.ProjectionThreadsKey, threadSnapshotCompatibilityID, threadsProjector},
-			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotCompatibilityID, roomDirectoryProjector},
-			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotCompatibilityID, serverConfigProjector},
-			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotCompatibilityID, roomGroupLayoutProjector},
-			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotCompatibilityID, roomTimelineProjector},
-			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotCompatibilityID, callStateProjector},
-			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotCompatibilityID, assetProjector},
-			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotCompatibilityID, reactionsProjector},
-			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector},
-			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector},
-			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector},
-			{projectionsnapshot.ProjectionUsersKey, userSnapshotCompatibilityID, usersProjector},
+			{projectionsnapshot.ProjectionThreadsKey, threadSnapshotContractID, threadsProjector},
+			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotContractID, roomDirectoryProjector},
+			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotContractID, serverConfigProjector},
+			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotContractID, roomGroupLayoutProjector},
+			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotContractID, roomTimelineProjector},
+			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotContractID, callStateProjector},
+			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotContractID, assetProjector},
+			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotContractID, reactionsProjector},
+			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotContractID, contentKeysProjector},
+			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotContractID, rbacProjector},
+			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotContractID, mentionablesProjector},
+			{projectionsnapshot.ProjectionUsersKey, userSnapshotContractID, usersProjector},
 		}
 		for _, spec := range specs {
 			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
 				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
 			}
-			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
+			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, contractID: spec.contractID, streamName: streamName, streamIdentity: snapshotStreamIdentity})
 			for i := range projections {
 				if projections[i].key == spec.key {
 					projections[i].snapshotEnabled = true

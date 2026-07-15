@@ -11,10 +11,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomTimelineSnapshotCompatibilityID = "v1"
+const roomTimelineSnapshotContractID = "v1"
 
-func (*RoomTimelineProjection) SnapshotCompatibilityID() string {
-	return roomTimelineSnapshotCompatibilityID
+func (*RoomTimelineProjection) SnapshotContractID() string {
+	return roomTimelineSnapshotContractID
 }
 
 func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {

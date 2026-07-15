@@ -644,7 +644,7 @@ func newSnapshotTrackingProjection(subs ...string) *snapshotTrackingProjection {
 	return &snapshotTrackingProjection{trackingProjection: newTrackingProjection(subs...), snapshot: []byte("captured")}
 }
 
-func (*snapshotTrackingProjection) SnapshotCompatibilityID() string { return "tracking-v1" }
+func (*snapshotTrackingProjection) SnapshotContractID() string { return "tracking-v1" }
 func (p *snapshotTrackingProjection) Snapshot() ([]byte, error) {
 	return append([]byte(nil), p.snapshot...), nil
 }
@@ -796,7 +796,7 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	if status.LatestSnapshotSeq != seqs[1] || !status.LatestSnapshotAt.Equal(createdAt) {
 		t.Fatalf("latest snapshot status = %#v", status)
 	}
-	if source.request.StreamName != "EVT_TEST" || !ValidStreamIdentity(source.request.StreamIdentity) || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
+	if source.request.StreamName != "EVT_TEST" || !ValidStreamIdentity(source.request.StreamIdentity) || source.request.MaxCutoff != seqs[2] || source.request.ContractID != "tracking-v1" {
 		t.Fatalf("snapshot load request = %#v", source.request)
 	}
 }

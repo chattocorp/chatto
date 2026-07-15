@@ -8,9 +8,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const reactionSnapshotCompatibilityID = "v1"
+const reactionSnapshotContractID = "v1"
 
-func (*ReactionProjection) SnapshotCompatibilityID() string { return reactionSnapshotCompatibilityID }
+func (*ReactionProjection) SnapshotContractID() string { return reactionSnapshotContractID }
 
 func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	p.RLock()

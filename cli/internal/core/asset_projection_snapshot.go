@@ -9,9 +9,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const assetSnapshotCompatibilityID = "v1"
+const assetSnapshotContractID = "v1"
 
-func (*AssetProjection) SnapshotCompatibilityID() string { return assetSnapshotCompatibilityID }
+func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContractID }
 
 func (p *AssetProjection) Snapshot() ([]byte, error) {
 	p.RLock()

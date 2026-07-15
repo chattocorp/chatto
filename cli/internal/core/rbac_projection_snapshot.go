@@ -9,9 +9,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const rbacSnapshotCompatibilityID = "v1"
+const rbacSnapshotContractID = "v1"
 
-func (*RBACProjection) SnapshotCompatibilityID() string { return rbacSnapshotCompatibilityID }
+func (*RBACProjection) SnapshotContractID() string { return rbacSnapshotContractID }
 
 func (p *RBACProjection) Snapshot() ([]byte, error) {
 	p.RLock()

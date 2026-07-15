@@ -111,6 +111,26 @@ Projection implementations should be boring and replay-safe:
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
+
+### Snapshot Evolution Checklist
+
+A projection's opaque snapshot contract ID is its complete restore-equivalence
+boundary. Review the contract whenever changing projection state, `Apply`,
+`Snapshot`, `Restore`, `Subjects`, `ReplaySubjects`, consumer construction, or
+cutoff handling.
+
+- Keep the existing contract only when restoring its snapshot still produces
+  the same state as replaying EVT through the recorded cutoff.
+- Bump the projection's contract ID when that equivalence can change. Contract
+  IDs are bounded path-safe, projection-local equality tokens, not Chatto
+  versions or ordered schema versions.
+- Scope pointers and generation objects by projection plus contract. Different
+  contracts must never read, rotate, delete, or apply no-regression checks to
+  each other's generations.
+- Test forward deployment and rollback when changing a contract: both old and
+  new contracts must remain independently loadable, and either may safely fall
+  back to cold EVT replay.
+
 When optimizing projection replay or retained memory, follow the projection
 benchmark workflow in `cli/AGENTS.md`: capture repeated before/after results
 with `mise bench-projections`, use `mise bench-projections-profile` for exact

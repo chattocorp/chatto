@@ -71,9 +71,9 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	}
 }
 
-func TestThreadProjectionSnapshotCompatibilityID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "v1" {
-		t.Fatalf("SnapshotCompatibilityID() = %q, want v1", got)
+func TestThreadProjectionSnapshotContractID(t *testing.T) {
+	if got := NewThreadProjection().SnapshotContractID(); got != "v1" {
+		t.Fatalf("SnapshotContractID() = %q, want v1", got)
 	}
 }
 
