@@ -129,3 +129,10 @@ func TestSSRFSafeDialRejectsAllResultsWhenAnyAddressIsPrivate(t *testing.T) {
 	_, err := dial(context.Background(), "tcp", "preview.example:443")
 	assert.ErrorContains(t, err, "resolves to private IP")
 }
+
+func TestSSRFSafeDialRejectsEmptyDNSResults(t *testing.T) {
+	dial := ssrfSafeDialContextWithResolver(time.Second, staticIPResolver{})
+
+	_, err := dial(context.Background(), "tcp", "preview.example:443")
+	assert.ErrorContains(t, err, "resolved to no addresses")
+}
