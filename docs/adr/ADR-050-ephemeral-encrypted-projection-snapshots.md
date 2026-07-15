@@ -270,11 +270,6 @@ history have no state to accelerate and do not publish zero-cutoff generations.
 Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
 
-Cutoffs remain global EVT stream sequences and are validated against the global
-EVT tail, not only the last event matching a projection's logical subjects.
-This preserves compatible generations produced by the earlier process-local
-shared fanout, whose cutoff recorded the fanout watermark.
-
 Every registered projection must still become current before Chatto completes
 boot. A cold projection can therefore determine total startup wall time, but it
 does not make restored projections reread or decode their earlier history.

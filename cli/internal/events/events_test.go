@@ -841,32 +841,24 @@ func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
 	}
 }
 
-func TestProjectorAcceptsLegacyGlobalCutoffAndStartsAfterIt(t *testing.T) {
+func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
-	joined := makeEvent("R1", "U1")
-	joinedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
-	if err != nil {
-		t.Fatal(err)
-	}
-	posted := makeMessagePostedEvent("R1", "U2")
-	globalCutoff, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(posted), posted)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if globalCutoff <= joinedSeq {
-		t.Fatalf("global cutoff = %d, want newer than logical target %d", globalCutoff, joinedSeq)
+	var seqs []uint64
+	for i := 0; i < 3; i++ {
+		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seqs = append(seqs, seq)
 	}
 
-	projection := &snapshotReplayTrackingProjection{
-		snapshotTrackingProjection: newSnapshotTrackingProjection(RoomEventTypeFilter(EventUserJoinedRoom)),
-		replay:                     []string{RoomSubjectFilter()},
-	}
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
 	projector := NewProjector(js, stream, projection, testLogger())
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{
 		GenerationID:   "generation",
-		CutoffSequence: globalCutoff,
+		CutoffSequence: seqs[1],
 		Payload:        []byte("restored"),
 	}}
 	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
@@ -876,10 +868,6 @@ func TestProjectorAcceptsLegacyGlobalCutoffAndStartsAfterIt(t *testing.T) {
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
 	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
-	status := projector.Status()
-	if !status.SnapshotRestored || status.StartupTargetSeq != joinedSeq || status.SnapshotCutoffSeq != globalCutoff || status.StartupMessages != 0 {
-		t.Fatalf("projector status = %#v", status)
-	}
 
 	var info *jetstream.ConsumerInfo
 	waitFor(t, 2*time.Second, func() bool {
@@ -893,8 +881,8 @@ func TestProjectorAcceptsLegacyGlobalCutoffAndStartsAfterIt(t *testing.T) {
 	if info.Config.DeliverPolicy != jetstream.DeliverByStartSequencePolicy {
 		t.Fatalf("consumer deliver policy = %v, want start sequence", info.Config.DeliverPolicy)
 	}
-	if info.Config.OptStartSeq != globalCutoff+1 {
-		t.Fatalf("consumer start sequence = %d, want %d", info.Config.OptStartSeq, globalCutoff+1)
+	if info.Config.OptStartSeq != seqs[1]+1 {
+		t.Fatalf("consumer start sequence = %d, want %d", info.Config.OptStartSeq, seqs[1]+1)
 	}
 }
 

@@ -42,10 +42,6 @@ accelerate and do not publish zero-cutoff generations. Credential-bearing user
 state is owned by `UserAuthProjection` and cold-replays from eight focused user
 event families.
 
-Snapshot cutoffs are validated against the global EVT tail. This keeps
-generations produced by the earlier process-local shared fanout compatible even
-when their cutoff is newer than the projection's last matching event.
-
 The projector framework atomically captures each projection's explicit
 protobuf state with its physical EVT watermark. Room Timeline retains encrypted
 body envelopes and rebuilds derived indexes. Mentionables retains encrypted
