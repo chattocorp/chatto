@@ -11,9 +11,9 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
+	clientsyncapiv1connect "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
-	clientsyncapiv1connect "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1/apiv1connect"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.

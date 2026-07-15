@@ -78,7 +78,7 @@ message ListKnownServersRequest {}
 // ListKnownServersResponse returns the portable server directory and home marker.
 message ListKnownServersResponse {
   // Servers known to the user, without authentication credentials.
-  repeated KnownServer servers = 1;
+  repeated KnownServer servers = 1 [(buf.validate.field).repeated.max_items = 100];
   // ID of the server designated as home, when one has been chosen.
   optional string home_server_id = 2;
 }

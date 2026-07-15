@@ -44,6 +44,7 @@ message KnownServer {
 // user's known servers and the server designated as their home.
 message ServerDirectory {
   // Servers known to the user, without authentication credentials.
+  // Bounded by the owning service to 100 entries.
   repeated KnownServer servers = 1;
   // ID of the server designated as home.
   optional string home_server_id = 2;

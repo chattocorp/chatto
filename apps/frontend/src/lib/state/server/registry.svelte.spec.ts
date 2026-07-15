@@ -223,6 +223,7 @@ describe('ServerRegistry', () => {
 			const registry = await createRegistry();
 			registry.addServer(makeServer({ id: 'a', token: 'token' }));
 			registry.getStore('a').serverInfo.clientSyncEnabled = true;
+			registry.getStore('a').serverInfo.loading = false;
 
 			registry.serverAuthenticated('a');
 
@@ -232,6 +233,7 @@ describe('ServerRegistry', () => {
 		it('does not choose a server that does not advertise client sync', async () => {
 			const registry = await createRegistry();
 			registry.addServer(makeServer({ id: 'a', token: 'token' }));
+			registry.getStore('a').serverInfo.loading = false;
 
 			registry.serverAuthenticated('a');
 
@@ -244,11 +246,28 @@ describe('ServerRegistry', () => {
 			registry.addServer(makeServer({ id: 'b', token: 'token' }));
 			registry.getStore('a').serverInfo.clientSyncEnabled = true;
 			registry.getStore('b').serverInfo.clientSyncEnabled = true;
+			registry.getStore('a').serverInfo.loading = false;
+			registry.getStore('b').serverInfo.loading = false;
 
 			registry.chooseAutomaticHomeServer();
 
 			expect(registry.homeServerId).toBeNull();
 			expect(registry.clientSyncCandidates.map((server) => server.id)).toEqual(['a', 'b']);
+		});
+
+		it('waits for every authenticated server discovery request before choosing', async () => {
+			const registry = await createRegistry();
+			registry.addServer(makeServer({ id: 'a', token: 'token' }));
+			registry.addServer(makeServer({ id: 'b', token: 'token' }));
+			registry.getStore('a').serverInfo.clientSyncEnabled = true;
+			registry.getStore('a').serverInfo.loading = false;
+
+			registry.chooseAutomaticHomeServer();
+			expect(registry.homeServerId).toBeNull();
+
+			registry.getStore('b').serverInfo.loading = false;
+			registry.chooseAutomaticHomeServer();
+			expect(registry.homeServerId).toBe('a');
 		});
 
 		it('can require reauthentication when clearing remote credentials', async () => {

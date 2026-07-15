@@ -48,7 +48,8 @@ fine-grained: preference updates use field masks and server-directory entries
 use resource operations. The owning core service reads the current protobuf,
 applies the requested mutation, and writes with a JetStream KV revision. It
 retries revision conflicts so replicas and concurrent clients cannot silently
-replace each other's changes.
+replace each other's changes. A directory is limited to 100 servers to bound
+the size and rewrite cost of its single KV document.
 
 Persistence and public transport contracts use dedicated packages instead of
 expanding the event or general API packages:
@@ -106,4 +107,6 @@ added later if real-world conflict behaviour requires them.
 Server URLs can reveal community membership. Operators already control
 `RUNTIME_STATE`, which contains other private authenticated runtime records;
 access to this API is strictly limited to the authenticated owner and code must
-not log directory contents.
+not log directory contents. Account deletion purges both plaintext client-sync
+records and active-user checks prevent an in-flight request from recreating
+them after the durable account tombstone.

@@ -35,12 +35,20 @@ device from account and notification policy that belongs to one server.
   it can discover and continue from the new home. A failed update is retained
   locally and retried while the client still has authenticated access to the
   former home.
+- A client which learns that home moved restores the destination without
+  credentials, preserves the remote marker, and waits for destination sign-in;
+  it never writes the former home back while that redirect is pending.
+- A home move is committed locally only after the destination accepts the
+  transferred settings and directory. Failed transfers roll back to the former
+  home and are reported as failures.
 - Personal caches and reconciliation baselines are scoped to the authenticated
   account on the home origin. Signing into that home as a different account
   does not reuse them; signing out of all servers explicitly clears the local
   account binding.
 - When the home server is offline, the settings screen remains usable from its
   local cache and reports that sync is unavailable.
+- Preference edits made while an initial sync request is outstanding win over
+  the older response and are uploaded after that response settles.
 - The former per-server display route redirects to personal settings. The
   legacy server display API remains available for older clients.
 

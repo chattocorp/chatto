@@ -322,7 +322,7 @@ describe('ServerSidebarEntry', () => {
     await expect.element(marker).toBeInTheDocument();
     await expect.element(marker).toHaveAttribute('role', 'img');
     await expect.element(marker).toHaveAttribute('aria-label', 'Home server');
-    expect(marker.querySelector('svg path')).not.toBeNull();
+    expect(marker?.querySelector('svg path')).not.toBeNull();
   });
 
   it('removes the dimmed state after sidebar init succeeds', async () => {

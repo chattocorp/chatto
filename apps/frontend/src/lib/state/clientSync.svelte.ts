@@ -3,7 +3,7 @@ import { createClientSyncAPI, ClientSyncTimeFormat } from '$lib/api-client/clien
 import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
 import { selectableLocales } from '$lib/i18n/locales';
 import { TimeFormat } from '$lib/render/types';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { serverConnectionManager } from './server/serverConnection.svelte';
 import { serverRegistry, type RegisteredServer } from './server/registry.svelte';
@@ -60,7 +60,7 @@ const pendingHomeMovesSlot = globalSlot(
 
 export type ClientSyncStatus = 'local' | 'loading' | 'synced' | 'unavailable' | 'error';
 
-class ClientSyncState {
+export class ClientSyncState {
   #cache = $state<CachedPersonalSettings>(anonymousCacheSlot.get());
   #accountCaches = accountCachesSlot.get();
   #homeAccountBindings = homeAccountBindingsSlot.get();
@@ -70,11 +70,13 @@ class ClientSyncState {
   status = $state<ClientSyncStatus>('local');
   loadedHomeServerId = $state<string | null>(null);
   #loadGeneration = 0;
+  #preferenceMutationGeneration = 0;
   #directoryQueue: Promise<void> = Promise.resolve();
   #homeMoveQueue: Promise<void> = Promise.resolve();
   #homeMoveRetryTimer: ReturnType<typeof setTimeout> | null = null;
   #explicitHomeServerId: string | null = null;
   #movingHomeServerId: string | null = null;
+  #pendingRemoteHomeServerId: string | null = null;
 
   get locale(): Locale {
     return this.#cache.locale;
@@ -93,12 +95,14 @@ class ClientSyncState {
   }
 
   async setLocale(locale: Locale): Promise<void> {
+    this.#preferenceMutationGeneration++;
     this.#persist({ locale, initialized: true });
     await setLocale(locale);
     await this.#savePreferences({ locale }, ['locale']);
   }
 
   async setDisplaySettings(timezone: string | null, timeFormat: TimeFormat): Promise<void> {
+    this.#preferenceMutationGeneration++;
     this.#persist({ timezone, timeFormat, initialized: true });
     await this.#savePreferences(
       {
@@ -117,6 +121,7 @@ class ClientSyncState {
     ) {
       return false;
     }
+    this.#pendingRemoteHomeServerId = null;
     const previousHomeServerId = serverRegistry.homeServerId;
     this.#explicitHomeServerId = homeServerId;
     this.#movingHomeServerId =
@@ -128,7 +133,12 @@ class ClientSyncState {
     }
     try {
       if (previousHomeServerId && previousHomeServerId !== homeServerId) {
-        await this.#moveToHomeServer(homeServerId, previousHomeServerId);
+        const moved = await this.#moveToHomeServer(homeServerId, previousHomeServerId);
+        if (!moved) {
+          serverRegistry.setHomeServer(previousHomeServerId);
+          await this.load(previousHomeServerId);
+          return false;
+        }
       } else {
         await this.load(homeServerId);
       }
@@ -145,6 +155,7 @@ class ClientSyncState {
     // that automatic load replace the state being transferred.
     if (this.#movingHomeServerId === homeServerId) return;
     const generation = ++this.#loadGeneration;
+    const preferenceGeneration = this.#preferenceMutationGeneration;
     const accountKey = this.#activateHomeAccount(homeServerId);
     if (!accountKey) {
       this.#rejectHomeAccount();
@@ -169,7 +180,9 @@ class ClientSyncState {
         remotePreferences.timezone !== undefined ||
         remotePreferences.timeFormat !== undefined;
 
-      if (hasRemotePreferences) {
+      if (preferenceGeneration !== this.#preferenceMutationGeneration) {
+        await this.#pushCurrentPreferences(api);
+      } else if (hasRemotePreferences) {
         const locale = isSelectableLocale(remotePreferences.locale)
           ? remotePreferences.locale
           : this.#cache.locale;
@@ -197,13 +210,26 @@ class ClientSyncState {
         remoteDirectory.homeServerId,
         accountKey
       );
-      if (
-        this.#explicitHomeServerId === null &&
-        remoteHome &&
-        serverRegistry.isAuthenticated(remoteHome) &&
-        serverRegistry.isClientSyncCapable(remoteHome)
-      ) {
-        serverRegistry.setHomeServer(remoteHome);
+      const shouldFollowRemoteHome =
+        this.#explicitHomeServerId === null && remoteHome && remoteHome !== homeServerId;
+      if (shouldFollowRemoteHome) {
+        if (
+          serverRegistry.isAuthenticated(remoteHome) &&
+          serverRegistry.isClientSyncCapable(remoteHome)
+        ) {
+          this.#pendingRemoteHomeServerId = null;
+          serverRegistry.setHomeServer(remoteHome);
+        } else {
+          // Another client already moved home. Keep the restored destination
+          // in the gutter, but never write the former home's marker back while
+          // this device waits for the user to authenticate the destination.
+          this.#pendingRemoteHomeServerId = remoteHome;
+          this.loadedHomeServerId = null;
+          this.status = 'unavailable';
+          return;
+        }
+      } else {
+        this.#pendingRemoteHomeServerId = null;
       }
 
       this.loadedHomeServerId = serverRegistry.homeServerId;
@@ -224,20 +250,20 @@ class ClientSyncState {
     }
   }
 
-  async #moveToHomeServer(homeServerId: string, previousHomeServerId: string): Promise<void> {
+  async #moveToHomeServer(homeServerId: string, previousHomeServerId: string): Promise<boolean> {
     const generation = ++this.#loadGeneration;
     const transferredPreferences = { ...this.#cache };
     const accountKey = this.#activateHomeAccount(homeServerId);
     if (!accountKey) {
       this.#rejectHomeAccount();
-      return;
+      return false;
     }
     this.#replaceCache(transferredPreferences);
     const api = this.#api(homeServerId);
     if (!api) {
       this.loadedHomeServerId = null;
       this.#setLocalStatus();
-      return;
+      return false;
     }
 
     this.status = 'loading';
@@ -251,10 +277,10 @@ class ClientSyncState {
         },
         ['locale', 'timezone', 'time_format']
       );
-      if (generation !== this.#loadGeneration) return;
+      if (generation !== this.#loadGeneration) return false;
 
       const remoteDirectory = await api.listKnownServers();
-      if (generation !== this.#loadGeneration) return;
+      if (generation !== this.#loadGeneration) return false;
       this.#mergeRemoteServers(remoteDirectory.servers, remoteDirectory.homeServerId, accountKey);
 
       this.loadedHomeServerId = homeServerId;
@@ -262,25 +288,34 @@ class ClientSyncState {
       await this.reconcileDirectory();
       this.#recordPendingHomeMove(previousHomeServerId, homeServerId);
       await this.retryPendingHomeMoves();
+      return true;
     } catch (error) {
-      if (generation !== this.#loadGeneration) return;
+      if (generation !== this.#loadGeneration) return false;
       this.loadedHomeServerId = null;
       if (
         error instanceof ConnectError &&
         (error.code === Code.Unimplemented || error.code === Code.NotFound)
       ) {
         this.status = 'unavailable';
-        return;
+        return false;
       }
       console.error('[client-sync] failed to move home-server data', error);
       this.status = 'error';
+      return false;
     }
   }
 
   reconcileDirectory(): Promise<void> {
     const homeServerId = this.loadedHomeServerId;
     const accountKey = homeServerId ? this.#homeAccountKey(homeServerId, false) : null;
-    if (!homeServerId || !accountKey || this.status !== 'synced') return Promise.resolve();
+    if (
+      !homeServerId ||
+      !accountKey ||
+      this.status !== 'synced' ||
+      this.#pendingRemoteHomeServerId
+    ) {
+      return Promise.resolve();
+    }
     this.#directoryQueue = this.#directoryQueue
       .catch(() => {})
       .then(() => this.#reconcileDirectoryNow(homeServerId, accountKey));
@@ -294,6 +329,20 @@ class ClientSyncState {
     this.#replaceCache(anonymousCacheSlot.get(), false);
     if (this.#cache.locale !== getLocale()) void setLocale(this.#cache.locale);
     this.#setLocalStatus();
+  }
+
+  /** Follow a remotely moved home once its restored server has been authenticated. */
+  tryFollowPendingRemoteHome(): void {
+    const homeServerId = this.#pendingRemoteHomeServerId;
+    if (
+      !homeServerId ||
+      !serverRegistry.isAuthenticated(homeServerId) ||
+      !serverRegistry.isClientSyncCapable(homeServerId)
+    ) {
+      return;
+    }
+    this.#pendingRemoteHomeServerId = null;
+    serverRegistry.setHomeServer(homeServerId);
   }
 
   forgetDeviceAccounts(): void {
@@ -377,6 +426,21 @@ class ClientSyncState {
     }
   }
 
+  async #pushCurrentPreferences(api: ReturnType<typeof createClientSyncAPI>): Promise<void> {
+    let syncedGeneration: number;
+    do {
+      syncedGeneration = this.#preferenceMutationGeneration;
+      await api.updatePreferences(
+        {
+          locale: this.#cache.locale,
+          timezone: this.#cache.timezone ?? undefined,
+          timeFormat: renderTimeFormatToClientSync(this.#cache.timeFormat)
+        },
+        ['locale', 'timezone', 'time_format']
+      );
+    } while (syncedGeneration !== this.#preferenceMutationGeneration);
+  }
+
   async #reconcileDirectoryNow(homeServerId: string, accountKey: string): Promise<void> {
     const api = this.#api(homeServerId);
     if (!api) return;
@@ -389,7 +453,7 @@ class ClientSyncState {
     const localServers = [...serverRegistry.servers].sort((a, b) =>
       a.id === serverRegistry.homeServerId ? -1 : b.id === serverRegistry.homeServerId ? 1 : 0
     );
-    const localURLs = new Set(localServers.map((server) => serverOrigin(server.url)));
+    const localURLs = new SvelteSet(localServers.map((server) => serverOrigin(server.url)));
 
     for (const local of localServers) {
       const origin = serverOrigin(local.url);
@@ -411,7 +475,7 @@ class ClientSyncState {
       remoteByURL.delete(origin);
     }
 
-    const previousURLs = new Set(this.#directorySnapshots[accountKey] ?? []);
+    const previousURLs = new SvelteSet(this.#directorySnapshots[accountKey] ?? []);
     for (const removed of remoteByURL.values()) {
       if (
         removed.id !== remote.homeServerId &&
@@ -436,8 +500,8 @@ class ClientSyncState {
     remoteHomeServerId: string | undefined,
     accountKey: string
   ): string | undefined {
-    const remoteURLs = new Set(servers.map((server) => serverOrigin(server.url)));
-    const previousURLs = new Set(this.#directorySnapshots[accountKey] ?? []);
+    const remoteURLs = new SvelteSet(servers.map((server) => serverOrigin(server.url)));
+    const previousURLs = new SvelteSet(this.#directorySnapshots[accountKey] ?? []);
     for (const local of [...serverRegistry.servers]) {
       const origin = serverOrigin(local.url);
       if (
@@ -616,11 +680,16 @@ export const clientSync = new ClientSyncState();
 export function useClientSync(): void {
   const candidateFingerprint = $derived(
     JSON.stringify(
-      serverRegistry.servers.map((server) => [
-        server.id,
-        serverRegistry.isAuthenticated(server.id),
-        serverRegistry.isClientSyncCapable(server.id)
-      ])
+      serverRegistry.servers.map((server) => {
+        const info = serverRegistry.tryGetStore(server.id)?.serverInfo;
+        return [
+          server.id,
+          serverRegistry.isAuthenticated(server.id),
+          info?.clientSyncEnabled ?? false,
+          info?.loading ?? true,
+          info?.error ?? null
+        ];
+      })
     )
   );
 
@@ -637,6 +706,7 @@ export function useClientSync(): void {
     ) {
       serverRegistry.clearHomeServer();
     }
+    clientSync.tryFollowPendingRemoteHome();
     serverRegistry.chooseAutomaticHomeServer();
   });
 

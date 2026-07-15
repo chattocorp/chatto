@@ -226,6 +226,7 @@ func (x *KnownServer) GetAddedAt() *timestamppb.Timestamp {
 type ServerDirectory struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Servers known to the user, without authentication credentials.
+	// Bounded by the owning service to 100 entries.
 	Servers []*KnownServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
 	// ID of the server designated as home.
 	HomeServerId  *string `protobuf:"bytes,2,opt,name=home_server_id,json=homeServerId,proto3,oneof" json:"home_server_id,omitempty"`

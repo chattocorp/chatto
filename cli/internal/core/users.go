@@ -1403,9 +1403,11 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if err := c.deleteUserSettings(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
 	}
+	var clientSyncCleanupErr error
 	if c.ClientSync != nil {
 		if err := c.ClientSync.DeleteUser(ctx, userID); err != nil {
 			c.logger.Warn("Failed to delete client sync during user deletion", "user_id", userID, "error", err)
+			clientSyncCleanupErr = err
 		}
 	}
 
@@ -1429,5 +1431,8 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 
 	c.logger.Info("Deleted user account", "id", userID)
 
+	if clientSyncCleanupErr != nil {
+		return fmt.Errorf("account deleted but client sync cleanup failed: %w", clientSyncCleanupErr)
+	}
 	return nil
 }

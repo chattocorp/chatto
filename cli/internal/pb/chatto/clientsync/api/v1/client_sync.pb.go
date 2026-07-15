@@ -898,9 +898,9 @@ const file_chatto_clientsync_api_v1_client_sync_proto_rawDesc = "" +
 	"updateMask\"d\n" +
 	"\x19UpdatePreferencesResponse\x12G\n" +
 	"\vpreferences\x18\x01 \x01(\v2%.chatto.clientsync.api.v1.PreferencesR\vpreferences\"\x19\n" +
-	"\x17ListKnownServersRequest\"\x99\x01\n" +
-	"\x18ListKnownServersResponse\x12?\n" +
-	"\aservers\x18\x01 \x03(\v2%.chatto.clientsync.api.v1.KnownServerR\aservers\x12)\n" +
+	"\x17ListKnownServersRequest\"\xa3\x01\n" +
+	"\x18ListKnownServersResponse\x12I\n" +
+	"\aservers\x18\x01 \x03(\v2%.chatto.clientsync.api.v1.KnownServerB\b\xbaH\x05\x92\x01\x02\x10dR\aservers\x12)\n" +
 	"\x0ehome_server_id\x18\x02 \x01(\tH\x00R\fhomeServerId\x88\x01\x01B\x11\n" +
 	"\x0f_home_server_id\"a\n" +
 	"\x18CreateKnownServerRequest\x12E\n" +

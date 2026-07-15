@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
+	"golang.org/x/net/idna"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	clientsyncapiv1 "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1"
@@ -205,12 +207,31 @@ func apiClientSyncServerToStored(server *clientsyncapiv1.KnownServer, create boo
 
 func canonicalClientSyncServerURL(raw string) (string, error) {
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil {
+	if err != nil || parsed.Host == "" || parsed.User != nil {
 		return "", invalidArgument("server.url must be an HTTP or HTTPS origin without credentials")
 	}
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
-	hostname := strings.ToLower(parsed.Hostname())
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", invalidArgument("server.url must be an HTTP or HTTPS origin without credentials")
+	}
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return "", invalidArgument("server.url must contain a valid hostname")
+	}
+	if net.ParseIP(hostname) == nil {
+		hostname, err = idna.Lookup.ToASCII(hostname)
+		if err != nil || hostname == "" {
+			return "", invalidArgument("server.url must contain a valid hostname")
+		}
+	}
+	hostname = strings.ToLower(hostname)
 	port := parsed.Port()
+	if port != "" {
+		portNumber, err := strconv.ParseUint(port, 10, 16)
+		if err != nil || portNumber > 65535 {
+			return "", invalidArgument("server.url contains an invalid port")
+		}
+	}
 	if (parsed.Scheme == "https" && port == "443") || (parsed.Scheme == "http" && port == "80") {
 		port = ""
 	}

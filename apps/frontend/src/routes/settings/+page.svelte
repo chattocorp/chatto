@@ -24,6 +24,7 @@
   const homeSupportsSync = $derived(
     homeServer ? serverRegistry.isClientSyncCapable(homeServer.id) : false
   );
+  const syncLoading = $derived(clientSync.status === 'loading');
   const returnTo = $derived.by(() => {
     const candidate = page.url.searchParams.get('returnTo');
     return candidate?.startsWith('/') && !candidate.startsWith('//') ? candidate : resolve('/chat');
@@ -242,6 +243,7 @@
           <ChoiceRow
             label={localeDisplayName(locale, activeLocale)}
             selected={activeLocale === locale}
+            disabled={syncLoading}
             onclick={() => chooseLocale(locale)}
           />
         {/each}
@@ -262,6 +264,7 @@
         placeholder={m['settings.preferences.timezone.browser_default']()}
         clearLabel={m['settings.preferences.timezone.clear']()}
         allowFreeform={false}
+        disabled={syncLoading}
         bind:value={selectedTimezone}
         bind:text={timezoneSearch}
         ontextchange={handleTimezoneTextChange}
@@ -284,6 +287,7 @@
             label={option.label}
             description={option.description}
             selected={selectedTimeFormat === option.value}
+            disabled={syncLoading}
             onclick={() => (selectedTimeFormat = option.value)}
           />
         {/each}
@@ -294,7 +298,7 @@
     <div class="max-w-md">
       <Button
         onclick={saveDisplaySettings}
-        disabled={!displayModified || isSaving || !!timezoneError}
+        disabled={!displayModified || syncLoading || isSaving || !!timezoneError}
         loading={isSaving}
       >
         {m['settings.preferences.save_button']()}

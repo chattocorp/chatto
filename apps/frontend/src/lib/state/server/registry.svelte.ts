@@ -145,6 +145,8 @@ class ServerRegistry {
 	/** Select the home automatically only when there is exactly one safe choice. */
 	chooseAutomaticHomeServer(): void {
 		if (this.homeServerId) return;
+		const authenticated = this.servers.filter((server) => this.isAuthenticated(server.id));
+		if (authenticated.some((server) => this.tryGetStore(server.id)?.serverInfo.loading)) return;
 		const candidates = this.clientSyncCandidates;
 		if (candidates.length === 1) this.setHomeServer(candidates[0].id);
 	}

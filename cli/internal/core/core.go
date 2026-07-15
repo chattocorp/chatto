@@ -1471,7 +1471,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.readStateModel = &ReadStateModel{core: core}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
-	core.ClientSync = NewClientSyncService(storage.runtimeStateKV)
+	core.ClientSync = NewClientSyncService(storage.runtimeStateKV, func(ctx context.Context, userID string) error {
+		_, err := core.GetUser(ctx, userID)
+		return err
+	})
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
