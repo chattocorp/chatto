@@ -21,11 +21,12 @@ import (
 
 // S3Client wraps the AWS S3 client for S3-compatible storage operations.
 type S3Client struct {
-	client      *s3.Client
-	presign     *s3.PresignClient
-	bucket      string
-	pathPrefix  string
-	awsEndpoint bool
+	client       *s3.Client
+	presign      *s3.PresignClient
+	bucket       string
+	pathPrefix   string
+	awsEndpoint  bool
+	listPageSize int32
 }
 
 // NewS3Client creates a new S3 client from configuration.
@@ -130,6 +131,37 @@ type S3ObjectInfo struct {
 	Key         string
 	Size        int64
 	ContentType string
+	ModifiedAt  time.Time
+}
+
+// WalkObjects visits every object under a logical key prefix using bounded S3
+// ListObjectsV2 pages. Returning an error from visit stops pagination.
+func (s *S3Client) WalkObjects(ctx context.Context, prefix string, visit func(S3ObjectInfo) error) error {
+	pageSize := s.listPageSize
+	if pageSize <= 0 {
+		pageSize = 1000
+	}
+	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
+		Bucket:  aws.String(s.bucket),
+		Prefix:  aws.String(s.physicalKey(prefix)),
+		MaxKeys: aws.Int32(pageSize),
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list objects: %w", err)
+		}
+		for _, object := range page.Contents {
+			if err := visit(S3ObjectInfo{
+				Key:        s.logicalKey(aws.ToString(object.Key)),
+				Size:       aws.ToInt64(object.Size),
+				ModifiedAt: aws.ToTime(object.LastModified),
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // PutObject uploads an object to S3.

@@ -153,11 +153,17 @@ func (x *ProjectionSnapshotGeneration) GetStreamIdentity() string {
 // ProjectionSnapshotPointer names the two most recently published immutable
 // generations for one projection. It is encrypted and may safely be stale.
 type ProjectionSnapshotPointer struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	CurrentGenerationId  string                 `protobuf:"bytes,1,opt,name=current_generation_id,json=currentGenerationId,proto3" json:"current_generation_id,omitempty"`
-	PreviousGenerationId string                 `protobuf:"bytes,2,opt,name=previous_generation_id,json=previousGenerationId,proto3" json:"previous_generation_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	CurrentGenerationId     string                 `protobuf:"bytes,1,opt,name=current_generation_id,json=currentGenerationId,proto3" json:"current_generation_id,omitempty"`
+	PreviousGenerationId    string                 `protobuf:"bytes,2,opt,name=previous_generation_id,json=previousGenerationId,proto3" json:"previous_generation_id,omitempty"`
+	CurrentCutoffSequence   uint64                 `protobuf:"varint,3,opt,name=current_cutoff_sequence,json=currentCutoffSequence,proto3" json:"current_cutoff_sequence,omitempty"`
+	CurrentStreamIdentity   string                 `protobuf:"bytes,4,opt,name=current_stream_identity,json=currentStreamIdentity,proto3" json:"current_stream_identity,omitempty"`
+	CurrentCompatibilityId  string                 `protobuf:"bytes,5,opt,name=current_compatibility_id,json=currentCompatibilityId,proto3" json:"current_compatibility_id,omitempty"`
+	PreviousCutoffSequence  uint64                 `protobuf:"varint,6,opt,name=previous_cutoff_sequence,json=previousCutoffSequence,proto3" json:"previous_cutoff_sequence,omitempty"`
+	PreviousStreamIdentity  string                 `protobuf:"bytes,7,opt,name=previous_stream_identity,json=previousStreamIdentity,proto3" json:"previous_stream_identity,omitempty"`
+	PreviousCompatibilityId string                 `protobuf:"bytes,8,opt,name=previous_compatibility_id,json=previousCompatibilityId,proto3" json:"previous_compatibility_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ProjectionSnapshotPointer) Reset() {
@@ -200,6 +206,48 @@ func (x *ProjectionSnapshotPointer) GetCurrentGenerationId() string {
 func (x *ProjectionSnapshotPointer) GetPreviousGenerationId() string {
 	if x != nil {
 		return x.PreviousGenerationId
+	}
+	return ""
+}
+
+func (x *ProjectionSnapshotPointer) GetCurrentCutoffSequence() uint64 {
+	if x != nil {
+		return x.CurrentCutoffSequence
+	}
+	return 0
+}
+
+func (x *ProjectionSnapshotPointer) GetCurrentStreamIdentity() string {
+	if x != nil {
+		return x.CurrentStreamIdentity
+	}
+	return ""
+}
+
+func (x *ProjectionSnapshotPointer) GetCurrentCompatibilityId() string {
+	if x != nil {
+		return x.CurrentCompatibilityId
+	}
+	return ""
+}
+
+func (x *ProjectionSnapshotPointer) GetPreviousCutoffSequence() uint64 {
+	if x != nil {
+		return x.PreviousCutoffSequence
+	}
+	return 0
+}
+
+func (x *ProjectionSnapshotPointer) GetPreviousStreamIdentity() string {
+	if x != nil {
+		return x.PreviousStreamIdentity
+	}
+	return ""
+}
+
+func (x *ProjectionSnapshotPointer) GetPreviousCompatibilityId() string {
+	if x != nil {
+		return x.PreviousCompatibilityId
 	}
 	return ""
 }
@@ -618,10 +666,16 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\fpayload_size\x18\t \x01(\x04R\vpayloadSize\x12%\n" +
 	"\x0epayload_sha256\x18\n" +
 	" \x01(\fR\rpayloadSha256\x12'\n" +
-	"\x0fstream_identity\x18\v \x01(\tR\x0estreamIdentity\"\x85\x01\n" +
+	"\x0fstream_identity\x18\v \x01(\tR\x0estreamIdentity\"\xdf\x03\n" +
 	"\x19ProjectionSnapshotPointer\x122\n" +
 	"\x15current_generation_id\x18\x01 \x01(\tR\x13currentGenerationId\x124\n" +
-	"\x16previous_generation_id\x18\x02 \x01(\tR\x14previousGenerationId\"\xd1\x02\n" +
+	"\x16previous_generation_id\x18\x02 \x01(\tR\x14previousGenerationId\x126\n" +
+	"\x17current_cutoff_sequence\x18\x03 \x01(\x04R\x15currentCutoffSequence\x126\n" +
+	"\x17current_stream_identity\x18\x04 \x01(\tR\x15currentStreamIdentity\x128\n" +
+	"\x18current_compatibility_id\x18\x05 \x01(\tR\x16currentCompatibilityId\x128\n" +
+	"\x18previous_cutoff_sequence\x18\x06 \x01(\x04R\x16previousCutoffSequence\x128\n" +
+	"\x18previous_stream_identity\x18\a \x01(\tR\x16previousStreamIdentity\x12:\n" +
+	"\x19previous_compatibility_id\x18\b \x01(\tR\x17previousCompatibilityId\"\xd1\x02\n" +
 	"\x18ThreadProjectionSnapshot\x128\n" +
 	"\athreads\x18\x01 \x03(\v2\x1e.chatto.core.v1.ThreadSnapshotR\athreads\x12=\n" +
 	"\areplies\x18\x02 \x03(\v2#.chatto.core.v1.ThreadReplySnapshotR\areplies\x12>\n" +

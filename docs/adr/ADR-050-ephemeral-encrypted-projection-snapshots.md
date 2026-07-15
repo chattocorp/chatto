@@ -73,19 +73,38 @@ indexes and rebuild them during restore.
 Snapshot persistence uses a private internal blob-store boundary backed by the
 configured asset-storage backend:
 
-- NATS-backed deployments store snapshot objects in NATS Object Store; and
+- NATS-backed deployments store snapshot objects in the dedicated
+  `PROJECTION_SNAPSHOTS` NATS Object Store; and
 - S3-backed deployments store snapshot objects in the configured S3 bucket.
 
-Snapshot objects use a reserved internal prefix such as
-`internal/projection-snapshots/v1/`. They are not assets: they do not produce
+Snapshot generations use a reserved internal prefix such as
+`internal/projection-snapshots/v1/objects/<opaque-key-epoch>/`. They are not assets: they do not produce
 asset lifecycle events, receive signed URLs, participate in user-facing asset
 APIs, or enter asset cleanup decisions.
 
+Namespace membership is immutable once shipped: `v1` contains only the Thread
+projection. Adding another projection requires a new namespace version. This
+prevents an older replica's cleaner from treating a newer projection's
+generations as abandoned during a mixed-version rollout.
+
+The small encrypted current/previous pointer lives in `RUNTIME_STATE`, using KV
+`Create` and revisioned `Update` for optimistic concurrency. This is true for
+both NATS and S3 payload backends. A stale lease holder can upload a generation,
+but it cannot regress a newer pointer; a failed pointer CAS rolls back the
+unpublished upload and leaves the newer history intact.
+The pointer also carries each generation's cutoff sequence, EVT incarnation,
+and projection compatibility ID. A writer rejects a captured state that does
+not advance the current generation for the same EVT incarnation and
+compatibility contract. Revision OCC alone is insufficient because a writer
+can capture old projection state before reading a newer pointer revision.
+
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
-objects because `SERVER_ASSETS` is part of the JetStream backup. S3-backed
-snapshots follow the deployment's S3 backup policy, like S3-backed user assets;
-the Chatto backup command does not copy either kind of S3 object into its NATS
-archive. A carried snapshot can avoid reconstructing the snapshotted projection
+objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
+S3-backed snapshot generations follow the deployment's S3 backup policy, like
+S3-backed user assets; the Chatto backup command does not copy either kind of
+S3 object into its NATS archive. The encrypted pointer remains in the backed-up
+`RUNTIME_STATE` bucket but is disposable when its S3 generation is absent. A
+carried snapshot can avoid reconstructing the snapshotted projection
 state when the restored deployment retains the same `core.secret_key`, but the
 Thread-only canary does not reduce total startup time. Snapshots remain
 optional: an absent or undecryptable snapshot causes cold replay. Backup
@@ -103,6 +122,17 @@ then encrypted with an authenticated cipher before upload. The initial
 envelope uses XChaCha20-Poly1305 with a random salt and nonce and a key derived
 from `core.secret_key` using a snapshot-specific domain separator. Rotating
 `core.secret_key` invalidates existing snapshots and causes cold replay.
+Generation object paths include an opaque epoch derived from that key, so a
+new-key cleaner cannot delete generations still used by an old-key replica
+during a rolling secret change. Old key epochs are not automatically swept by
+the new key and remain subject to the deployment's storage lifecycle or later
+key-migration tooling.
+
+The pre-epoch canary layout placed generation IDs directly below
+`internal/projection-snapshots/v1/objects/`. Upgrading from that unshipped
+canary layout intentionally cold-replays and does not let the new cleaner cross
+the unauthenticated epoch boundary. Those legacy objects require the storage
+provider's lifecycle policy or explicit later migration tooling.
 
 The unencrypted envelope contains only the framing data required to select the
 decryption scheme, derive the key, and authenticate the ciphertext: a magic
@@ -140,11 +170,11 @@ manifest and projection payload. The encrypted manifest records at least:
 
 Writers upload the complete immutable bundle before replacing an encrypted
 pointer containing the current and previous opaque generation IDs. The pointer
-is not authoritative because the shared backend may be S3 and cannot be assumed
-to provide JetStream KV OCC semantics. Loaders validate the current generation,
-then the previous generation, and cold-replay if neither is valid. The pointer's
-object locator is derived from `core.secret_key` and the projection key so it
-does not disclose which projection it addresses.
+is stored in NATS KV independently of the payload backend and uses revision OCC,
+so concurrent or stale writers cannot regress its history. Loaders validate the
+current generation, then the previous generation, and cold-replay if neither is
+valid. The pointer's KV key is derived from `core.secret_key` and the projection
+key so it does not disclose which projection it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
 compatibility, cutoff bounds, and the current EVT incarnation identity before
@@ -165,11 +195,29 @@ The canary retains the current and previous referenced generations. It deletes
 the generation that falls out of that window and rolls back a newly uploaded
 generation when pointer publication reports failure. Writers treat a missing
 pointer as an empty history and may replace a cryptographically or structurally
-invalid pointer. A storage transport error while reading the pointer aborts the
-write without uploading a generation or changing either retained fallback. A
-process crash or a stale writer racing between upload and pointer publication
-can still leave an unreferenced encrypted object; a backend-listing sweeper and
-final storage budget remain follow-up work informed by canary measurements.
+invalid pointer at its observed revision. A storage transport error while
+reading the pointer aborts the write without uploading a generation or changing
+either retained fallback. A revision conflict aborts publication and rolls back
+the uploaded generation rather than overwriting newer history.
+
+An elected backend-listing sweeper reclaims objects abandoned by a process crash,
+stale writer, or failed rollback deletion. It first
+authenticates every registered projection pointer and completes a read-only
+inventory of the current opaque key epoch while collecting a bounded batch of unreferenced generation objects
+that are at least 24 hours old. Only after the inventory succeeds does it check
+lease ownership and delete the collected batch. Pointers are not blob objects
+and are never part of backend inventory. Current
+and previous generations, recent objects, malformed keys, and unknown namespace
+entries are never deleted. Pointer or listing failures delete nothing; lease
+loss, cancellation, or deletion failure stops the pass.
+
+The sweeper runs only while projection snapshots are enabled. One replica holds
+a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
+and then sweeps every six hours. Failed passes and successful passes that reach
+a deletion limit retry after 30 minutes. Each pass has a five-minute deadline
+and deletes at most 100 objects or 1 GiB. These fixed canary limits bound cleanup
+work and provide catch-up behavior, but they are not a hard namespace storage
+cap. Production evidence still needs to inform a final operator-tunable budget.
 
 The canary rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
@@ -189,9 +237,16 @@ Immutable generation bundles, current/previous fallback, and validation keep
 stale workers and interrupted uploads harmless. Loaders never trust
 process-local ownership state.
 
+Initialization is best-effort as well: snapshot Object Store, repository, EVT
+identity, projector configuration, and lease failures disable the affected
+snapshot workers and log the reason. They do not prevent core startup when EVT
+is available.
+
 The initial canary attempts one generation after boot, and only when the Thread
 projection has advanced beyond the currently referenced compatible snapshot.
-It does not add a periodic cadence or operator-tunable interval.
+It does not add a periodic generation cadence or operator-tunable interval.
+Cleanup uses its own elected periodic worker and does not delay generation,
+readiness, or request handling.
 
 ### ThreadProjection is the first canary
 
@@ -244,9 +299,12 @@ frontier remain separate follow-up work.
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
   S3 snapshots follow the operator's S3 backup policy.
 - Snapshot payloads consume additional storage, network bandwidth, and
-  background CPU. Compression and current/previous generation retention keep
-  normal use bounded, while rare abandoned objects still require a future
-  sweeper and measured storage budget.
+  background CPU. Compression, current/previous generation retention, and the
+  elected grace-period sweeper reclaim normal and abandoned objects. A hard
+  namespace storage cap, final generation cadence, and operator-tunable budgets
+  remain follow-up decisions informed by production measurements. Key rotation
+  intentionally leaves the prior opaque generation epoch for provider lifecycle
+  or later migration tooling rather than letting a new-key cleaner cross epochs.
 - Upgrades and rollbacks remain safe but may cold-replay when projection
   compatibility changes.
 - Storage-backend availability can affect the optimization but cannot affect

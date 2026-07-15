@@ -20,8 +20,70 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
+	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
 )
+
+const backupTestSnapshotSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+type backupTestSnapshotBlobs struct{ store jetstream.ObjectStore }
+
+func (b backupTestSnapshotBlobs) Backend() string { return "nats" }
+func (b backupTestSnapshotBlobs) Put(ctx context.Context, key string, data []byte, _ string) error {
+	_, err := b.store.PutBytes(ctx, key, data)
+	return err
+}
+func (b backupTestSnapshotBlobs) Get(ctx context.Context, key string, max int64) ([]byte, error) {
+	data, err := b.store.GetBytes(ctx, key)
+	if errors.Is(err, jetstream.ErrObjectNotFound) {
+		return nil, projectionsnapshot.ErrBlobNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > max {
+		return nil, fmt.Errorf("snapshot exceeds %d bytes", max)
+	}
+	return data, nil
+}
+func (b backupTestSnapshotBlobs) Delete(ctx context.Context, key string) error {
+	if err := b.store.Delete(ctx, key); errors.Is(err, jetstream.ErrObjectNotFound) {
+		return projectionsnapshot.ErrBlobNotFound
+	} else {
+		return err
+	}
+}
+func (backupTestSnapshotBlobs) Walk(context.Context, string, func(projectionsnapshot.BlobInfo) error) error {
+	return errors.New("backup test snapshot inventory is not implemented")
+}
+
+type backupTestSnapshotPointers struct{ kv jetstream.KeyValue }
+
+func (p backupTestSnapshotPointers) GetPointer(ctx context.Context, key string) ([]byte, uint64, error) {
+	entry, err := p.kv.Get(ctx, key)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return nil, 0, projectionsnapshot.ErrPointerNotFound
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	return entry.Value(), entry.Revision(), nil
+}
+func (p backupTestSnapshotPointers) CreatePointer(ctx context.Context, key string, value []byte) (uint64, error) {
+	revision, err := p.kv.Create(ctx, key, value)
+	if jetstreamutil.IsSequenceConflict(err) {
+		return 0, projectionsnapshot.ErrPointerConflict
+	}
+	return revision, err
+}
+func (p backupTestSnapshotPointers) UpdatePointer(ctx context.Context, key string, value []byte, expected uint64) (uint64, error) {
+	revision, err := p.kv.Update(ctx, key, value, expected)
+	if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return 0, projectionsnapshot.ErrPointerConflict
+	}
+	return revision, err
+}
 
 func TestBackupStagingIsPrivateAndRemoved(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "backup.tar.gz")
@@ -186,6 +248,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
+		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
 		{"OBJ_SERVER_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},
@@ -224,6 +287,7 @@ func TestClassifyStream(t *testing.T) {
 		{"KV_INSTANCE", "kv"},
 		{"KV_SPACE_abc_CONFIG", "kv"},
 		{"OBJ_INSTANCE_ASSETS", "object_store"},
+		{"OBJ_PROJECTION_SNAPSHOTS", "object_store"},
 		{"OBJ_SPACE_abc_ASSETS", "object_store"},
 		{"SPACE_abc_EVENTS", "stream"},
 		{"SOME_OTHER_STREAM", "stream"},
@@ -389,20 +453,36 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Projection snapshots use the ordinary SERVER_ASSETS object store when
-	// NATS is the configured asset backend. Both the encrypted bytes and EVT's
-	// incarnation metadata must survive the same backup/restore round trip.
+	// NATS-backed projection snapshots use a dedicated Object Store and an
+	// encrypted OCC pointer in RUNTIME_STATE. Save a real snapshot so the test
+	// proves the two restored resources remain usable together.
 	snapshotStore, err := srcJS.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{
-		Bucket:  "SERVER_ASSETS",
+		Bucket:  "PROJECTION_SNAPSHOTS",
 		Storage: jetstream.FileStorage,
 	})
 	if err != nil {
 		t.Fatal("Failed to create snapshot object store:", err)
 	}
-	const snapshotObject = "internal/projection-snapshots/v1/test-generation"
-	snapshotPayload := []byte("encrypted-snapshot-envelope")
-	if _, err := snapshotStore.PutBytes(ctx, snapshotObject, snapshotPayload); err != nil {
-		t.Fatal("Failed to store snapshot object:", err)
+	runtimeState, err := srcJS.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "RUNTIME_STATE",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatal("Failed to create runtime state bucket:", err)
+	}
+	snapshotRepository, err := projectionsnapshot.NewRepository(backupTestSnapshotBlobs{store: snapshotStore}, projectionsnapshot.RepositoryOptions{
+		Pointers: backupTestSnapshotPointers{kv: runtimeState}, SecretHex: backupTestSnapshotSecret, ProducerVersion: "backup-test",
+	})
+	if err != nil {
+		t.Fatal("Failed to create snapshot repository:", err)
+	}
+	snapshotPayload := []byte("restorable projection state")
+	savedSnapshot, err := snapshotRepository.Save(ctx, projectionsnapshot.SaveInput{
+		ProjectionKey: projectionsnapshot.ProjectionV1ThreadsKey, CompatibilityID: "threads-v1", StreamName: "TEST_EVENTS",
+		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 3, Payload: snapshotPayload,
+	})
+	if err != nil {
+		t.Fatal("Failed to save snapshot:", err)
 	}
 
 	// Create a memory-only stream (should be skipped)
@@ -569,16 +649,26 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		t.Errorf("Restored EVT stream identity = %q", got)
 	}
 
-	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "SERVER_ASSETS")
+	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")
 	if err != nil {
 		t.Fatal("Failed to open restored snapshot object store:", err)
 	}
-	restoredSnapshot, err := restoredSnapshotStore.GetBytes(ctx, snapshotObject)
+	restoredRuntimeState, err := dstJS.KeyValue(ctx, "RUNTIME_STATE")
 	if err != nil {
-		t.Fatal("Failed to load restored snapshot object:", err)
+		t.Fatal("Failed to open restored runtime state:", err)
 	}
-	if !bytes.Equal(restoredSnapshot, snapshotPayload) {
-		t.Errorf("Restored snapshot payload = %q, want %q", restoredSnapshot, snapshotPayload)
+	restoredRepository, err := projectionsnapshot.NewRepository(backupTestSnapshotBlobs{store: restoredSnapshotStore}, projectionsnapshot.RepositoryOptions{
+		Pointers: backupTestSnapshotPointers{kv: restoredRuntimeState}, SecretHex: backupTestSnapshotSecret, ProducerVersion: "restore-test",
+	})
+	if err != nil {
+		t.Fatal("Failed to create restored snapshot repository:", err)
+	}
+	restoredSnapshot, err := restoredRepository.Load(ctx, projectionsnapshot.ProjectionV1ThreadsKey, "threads-v1", "TEST_EVENTS", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 3)
+	if err != nil {
+		t.Fatal("Failed to load restored snapshot:", err)
+	}
+	if restoredSnapshot.GenerationID != savedSnapshot.GenerationID || restoredSnapshot.CutoffSequence != 3 || !bytes.Equal(restoredSnapshot.Payload, snapshotPayload) {
+		t.Errorf("Restored snapshot = %#v, want generation %s with original payload", restoredSnapshot, savedSnapshot.GenerationID)
 	}
 
 	// Read back each message and verify payload

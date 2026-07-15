@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
@@ -44,8 +46,13 @@ func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 2)
+	waitForSnapshotObjects(t, ctx, first, 1)
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
+	for _, name := range firstSnapshotObjects {
+		if _, err := first.storage.serverAssets.GetInfo(ctx, name); !errors.Is(err, jetstream.ErrObjectNotFound) {
+			t.Fatalf("snapshot object %q leaked into shared SERVER_ASSETS: %v", name, err)
+		}
+	}
 	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +126,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 2)
+	waitForSnapshotObjects(t, ctx, first, 1)
 	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
@@ -255,6 +262,26 @@ func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 	if core.projectionSnapshotWorker != nil {
 		t.Fatal("snapshot worker enabled without projection snapshot configuration")
 	}
+	if core.projectionSnapshotCleanupWorker != nil {
+		t.Fatal("snapshot cleanup worker enabled without projection snapshot configuration")
+	}
+}
+
+func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
+		SecretKey:           "not-a-32-byte-hex-secret",
+		ProjectionSnapshots: true,
+		Assets:              config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("optional snapshot initialization prevented core construction: %v", err)
+	}
+	if core.projectionSnapshotWorker != nil || core.projectionSnapshotCleanupWorker != nil {
+		t.Fatal("snapshot workers enabled after repository initialization failure")
+	}
+	stop := startSnapshotTestCore(t, core)
+	stop()
 }
 
 func startSnapshotTestCore(t *testing.T, core *ChattoCore) func() {
@@ -285,7 +312,7 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		objects, err := core.storage.serverAssets.List(ctx)
+		objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
 		if err == nil {
 			count := 0
 			for _, object := range objects {
@@ -304,7 +331,7 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 
 func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *ChattoCore) []string {
 	t.Helper()
-	objects, err := core.storage.serverAssets.List(ctx)
+	objects, err := projectionSnapshotObjectStore(t, ctx, core).List(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,4 +343,13 @@ func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *Chat
 	}
 	slices.Sort(names)
 	return names
+}
+
+func projectionSnapshotObjectStore(t *testing.T, ctx context.Context, core *ChattoCore) jetstream.ObjectStore {
+	t.Helper()
+	store, err := core.js.ObjectStore(ctx, projectionSnapshotObjectStoreName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
 }

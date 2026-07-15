@@ -20,6 +20,10 @@ import (
 )
 
 const (
+	// Namespace membership is immutable for mixed-version cleanup safety. The
+	// v1 namespace contains only the Threads projection. Adding another
+	// projection requires a new namespace version so an older replica cannot
+	// mistake the newer projection's opaque pointer and generations for orphans.
 	objectPrefix         = "internal/projection-snapshots/v1/"
 	maxPayloadSize       = 64 << 20
 	maxEncryptedSize     = 80 << 20
@@ -28,11 +32,22 @@ const (
 	streamIdentityPrefix = "evt-incarnation-v1:"
 )
 
+// ProjectionV1ThreadsKey is the sole projection key in snapshot namespace v1.
+const ProjectionV1ThreadsKey = "threads"
+
+// projectionV1Keys is the immutable membership of the v1 snapshot namespace.
+// Adding a projection requires a new namespace so mixed-version sweepers cannot
+// mistake its generations for orphans.
+var projectionV1Keys = [...]string{ProjectionV1ThreadsKey}
+
 var (
-	ErrBlobNotFound     = errors.New("projection snapshot blob not found")
-	ErrSnapshotNotFound = errors.New("projection snapshot not found")
-	ErrIncompatible     = errors.New("incompatible projection snapshot")
-	errInvalidPointer   = errors.New("invalid projection snapshot pointer")
+	ErrBlobNotFound        = errors.New("projection snapshot blob not found")
+	ErrPointerNotFound     = errors.New("projection snapshot pointer not found")
+	ErrPointerConflict     = errors.New("projection snapshot pointer revision conflict")
+	ErrSnapshotNotFound    = errors.New("projection snapshot not found")
+	ErrSnapshotNotAdvanced = errors.New("projection snapshot does not advance the current generation")
+	ErrIncompatible        = errors.New("incompatible projection snapshot")
+	errInvalidPointer      = errors.New("invalid projection snapshot pointer")
 )
 
 type Logger interface {
@@ -49,9 +64,29 @@ type BlobStore interface {
 	Put(context.Context, string, []byte, string) error
 	Get(context.Context, string, int64) ([]byte, error)
 	Delete(context.Context, string) error
+	Walk(context.Context, string, func(BlobInfo) error) error
+}
+
+// PointerStore provides durable optimistic concurrency for the encrypted
+// latest-generation pointer. Payload blobs may live in NATS or S3, but pointer
+// publication must be revisioned so a stale writer cannot regress history.
+type PointerStore interface {
+	GetPointer(context.Context, string) ([]byte, uint64, error)
+	CreatePointer(context.Context, string, []byte) (uint64, error)
+	UpdatePointer(context.Context, string, []byte, uint64) (uint64, error)
+}
+
+// BlobInfo is the storage metadata required for conservative snapshot cleanup.
+// Keys are private logical locators and must not be logged or exposed through
+// operator APIs.
+type BlobInfo struct {
+	Key        string
+	Size       int64
+	ModifiedAt time.Time
 }
 
 type RepositoryOptions struct {
+	Pointers        PointerStore
 	SecretHex       string
 	ProducerVersion string
 	Logger          Logger
@@ -61,6 +96,7 @@ type RepositoryOptions struct {
 
 type Repository struct {
 	blobs           BlobStore
+	pointers        PointerStore
 	codec           *envelopeCodec
 	secret          []byte
 	producerVersion string
@@ -92,6 +128,9 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	if blobs == nil {
 		return nil, fmt.Errorf("snapshot blob store is nil")
 	}
+	if opts.Pointers == nil {
+		return nil, fmt.Errorf("snapshot pointer store is nil")
+	}
 	secret, err := hex.DecodeString(opts.SecretHex)
 	if err != nil || len(secret) != 32 {
 		return nil, fmt.Errorf("decode core.secret_key for snapshots: expected 32-byte hex secret")
@@ -113,7 +152,7 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 		version = "unknown"
 	}
 	return &Repository{
-		blobs: blobs, codec: codec, secret: secret, producerVersion: version,
+		blobs: blobs, pointers: opts.Pointers, codec: codec, secret: secret, producerVersion: version,
 		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize,
 	}, nil
 }
@@ -124,13 +163,16 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
 	}
+	if input.ProjectionKey != ProjectionV1ThreadsKey {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", input.ProjectionKey)
+	}
 	if !validStreamIdentity(input.StreamIdentity) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
 	}
 	if len(input.Payload) > r.maxPayloadSize {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
 	}
-	pointer, err := r.loadPointer(ctx, input.ProjectionKey)
+	pointer, pointerRevision, err := r.loadPointerAtRevision(ctx, input.ProjectionKey)
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrSnapshotNotFound):
@@ -143,6 +185,12 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	}
 	if pointer == nil {
 		pointer = &corev1.ProjectionSnapshotPointer{}
+	}
+	if pointer.GetCurrentGenerationId() != "" &&
+		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
+		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
+		input.CutoffSequence <= pointer.GetCurrentCutoffSequence() {
+		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d does not exceed current cutoff %d", ErrSnapshotNotAdvanced, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
 	}
 
 	started := time.Now()
@@ -180,22 +228,28 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if len(sealed) > maxEncryptedSize {
 		return LoadedSnapshot{}, fmt.Errorf("encrypted snapshot exceeds %d bytes", maxEncryptedSize)
 	}
-	objectKey := generationObjectKey(generationIDText)
+	objectKey := r.generationObjectKey(generationIDText)
 	if err := r.blobs.Put(ctx, objectKey, sealed, contentType); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("write snapshot generation: %w", err)
 	}
 
 	dropped := pointer.GetPreviousGenerationId()
 	pointer.PreviousGenerationId = pointer.GetCurrentGenerationId()
+	pointer.PreviousCutoffSequence = pointer.GetCurrentCutoffSequence()
+	pointer.PreviousStreamIdentity = pointer.GetCurrentStreamIdentity()
+	pointer.PreviousCompatibilityId = pointer.GetCurrentCompatibilityId()
 	pointer.CurrentGenerationId = generationIDText
-	if err := r.savePointer(ctx, input.ProjectionKey, pointer); err != nil {
+	pointer.CurrentCutoffSequence = input.CutoffSequence
+	pointer.CurrentStreamIdentity = input.StreamIdentity
+	pointer.CurrentCompatibilityId = input.CompatibilityID
+	if err := r.savePointer(ctx, input.ProjectionKey, pointer, pointerRevision); err != nil {
 		if cleanupErr := r.blobs.Delete(ctx, objectKey); cleanupErr != nil && !errors.Is(cleanupErr, ErrBlobNotFound) {
 			r.logWarn("Unpublished projection snapshot cleanup failed", input.ProjectionKey, "publish_rollback", cleanupErr, "generation_id", generationIDText)
 		}
 		return LoadedSnapshot{}, fmt.Errorf("publish snapshot pointer: %w", err)
 	}
 	if dropped != "" && dropped != pointer.GetPreviousGenerationId() {
-		if err := r.blobs.Delete(ctx, generationObjectKey(dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
+		if err := r.blobs.Delete(ctx, r.generationObjectKey(dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
 			r.logWarn("Projection snapshot cleanup failed", input.ProjectionKey, "cleanup", err)
 		}
 	}
@@ -211,6 +265,9 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+	if projectionKey != ProjectionV1ThreadsKey {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", projectionKey)
+	}
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
 	if err != nil {
@@ -251,7 +308,7 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
-	sealed, err := r.blobs.Get(ctx, generationObjectKey(id), maxEncryptedSize)
+	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(id), maxEncryptedSize)
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
@@ -316,23 +373,31 @@ func validStreamIdentity(identity string) bool {
 }
 
 func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, error) {
-	sealed, err := r.blobs.Get(ctx, r.pointerKey(projectionKey), maxEncryptedSize)
+	pointer, _, err := r.loadPointerAtRevision(ctx, projectionKey)
+	return pointer, err
+}
+
+func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, uint64, error) {
+	sealed, revision, err := r.pointers.GetPointer(ctx, r.pointerKey(projectionKey))
 	if err != nil {
-		if errors.Is(err, ErrBlobNotFound) {
-			return nil, ErrSnapshotNotFound
+		if errors.Is(err, ErrPointerNotFound) {
+			return nil, 0, ErrSnapshotNotFound
 		}
-		return nil, err
+		return nil, 0, err
+	}
+	if int64(len(sealed)) > maxEncryptedSize {
+		return nil, revision, fmt.Errorf("%w: pointer exceeds %d bytes", errInvalidPointer, maxEncryptedSize)
 	}
 	envelopeID, plain, err := r.codec.open(sealed)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errInvalidPointer, err)
+		return nil, revision, fmt.Errorf("%w: %v", errInvalidPointer, err)
 	}
 	if envelopeID != [generationIDSize]byte{} {
-		return nil, fmt.Errorf("%w: envelope generation id is not empty", errInvalidPointer)
+		return nil, revision, fmt.Errorf("%w: envelope generation id is not empty", errInvalidPointer)
 	}
 	var pointer corev1.ProjectionSnapshotPointer
 	if err := proto.Unmarshal(plain, &pointer); err != nil {
-		return nil, fmt.Errorf("%w: unmarshal: %v", errInvalidPointer, err)
+		return nil, revision, fmt.Errorf("%w: unmarshal: %v", errInvalidPointer, err)
 	}
 	for name, id := range map[string]string{
 		"current generation id":  pointer.GetCurrentGenerationId(),
@@ -342,13 +407,33 @@ func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*co
 			continue
 		}
 		if _, err := parseGenerationID(id); err != nil {
-			return nil, fmt.Errorf("%w: %s: %v", errInvalidPointer, name, err)
+			return nil, revision, fmt.Errorf("%w: %s: %v", errInvalidPointer, name, err)
 		}
 	}
-	return &pointer, nil
+	positions := []struct {
+		name            string
+		id              string
+		streamIdentity  string
+		compatibilityID string
+	}{
+		{"current", pointer.GetCurrentGenerationId(), pointer.GetCurrentStreamIdentity(), pointer.GetCurrentCompatibilityId()},
+		{"previous", pointer.GetPreviousGenerationId(), pointer.GetPreviousStreamIdentity(), pointer.GetPreviousCompatibilityId()},
+	}
+	for _, position := range positions {
+		if position.id == "" {
+			if position.streamIdentity != "" || position.compatibilityID != "" {
+				return nil, revision, fmt.Errorf("%w: %s metadata exists without a generation", errInvalidPointer, position.name)
+			}
+			continue
+		}
+		if !validStreamIdentity(position.streamIdentity) || position.compatibilityID == "" {
+			return nil, revision, fmt.Errorf("%w: %s generation metadata is incomplete", errInvalidPointer, position.name)
+		}
+	}
+	return &pointer, revision, nil
 }
 
-func (r *Repository) savePointer(ctx context.Context, projectionKey string, pointer *corev1.ProjectionSnapshotPointer) error {
+func (r *Repository) savePointer(ctx context.Context, projectionKey string, pointer *corev1.ProjectionSnapshotPointer, revision uint64) error {
 	plain, err := proto.MarshalOptions{Deterministic: true}.Marshal(pointer)
 	if err != nil {
 		return err
@@ -357,15 +442,24 @@ func (r *Repository) savePointer(ctx context.Context, projectionKey string, poin
 	if err != nil {
 		return err
 	}
-	return r.blobs.Put(ctx, r.pointerKey(projectionKey), sealed, contentType)
+	if revision == 0 {
+		_, err = r.pointers.CreatePointer(ctx, r.pointerKey(projectionKey), sealed)
+	} else {
+		_, err = r.pointers.UpdatePointer(ctx, r.pointerKey(projectionKey), sealed, revision)
+	}
+	return err
 }
 
 func (r *Repository) pointerKey(projectionKey string) string {
-	return objectPrefix + "pointers/" + opaqueLocator(r.secret, projectionKey)
+	return "projection_snapshot_pointer." + opaqueLocator(r.secret, "v1:"+projectionKey)
 }
 
-func generationObjectKey(generationID string) string {
-	return objectPrefix + "objects/" + generationID
+func (r *Repository) generationObjectPrefix() string {
+	return objectPrefix + "objects/" + opaqueLocator(r.secret, "generation-key-epoch-v1") + "/"
+}
+
+func (r *Repository) generationObjectKey(generationID string) string {
+	return r.generationObjectPrefix() + generationID
 }
 
 func compress(plain []byte) ([]byte, error) {

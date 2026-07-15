@@ -76,6 +76,16 @@ authorization, live events, backup/restore, and backend tests.
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
   unwrapped keys, or state that would weaken crypto-shredding.
+- Treat the set of projection keys inside a shipped snapshot namespace as
+  immutable. Adding a snapshotted projection requires a new namespace version
+  so older replicas cannot delete the newer projection's referenced generations
+  during a mixed-version rollout. Keep snapshot pointers on a durable
+  revisioned store and publish them with OCC; a process lease is not fencing.
+  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer and
+  reject non-advancing captures; pointer revision OCC alone cannot detect state
+  captured before the latest pointer read.
+  Scope generation object paths by encryption-key epoch so cleanup cannot cross
+  secrets during a rolling key change.
 
 ## Live Events
 
@@ -161,8 +171,8 @@ authorization, live events, backup/restore, and backend tests.
   conflict modes `error`, `skip`, and `overwrite`.
 - `KV_ENCRYPTION_KEYS`/KEK material is intentionally separate from data backups.
   Use `chatto keys export`/`import` for built-in KMS key records.
-- When adding streams or KV buckets, decide whether backup should include or skip
-  them and update `skipReason()` if needed.
+- When adding streams, KV buckets, or Object Stores, decide whether backup should
+  include or skip them and update `skipReason()` if needed.
 
 ## Backend Tests
 

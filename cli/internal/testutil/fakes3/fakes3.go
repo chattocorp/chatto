@@ -114,7 +114,7 @@ func (s *objectStore) handleBucket(w http.ResponseWriter, r *http.Request, bucke
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Query().Get("list-type") == "2" {
-			s.writeListObjectsV2(w, bucket, r.URL.Query().Get("prefix"))
+			s.writeListObjectsV2(w, bucket, r.URL.Query())
 			return
 		}
 		if r.Method == http.MethodGet && hasQueryKey(r.URL, "versions") {
@@ -230,15 +230,34 @@ func decodeAWSChunked(encoded []byte) ([]byte, error) {
 	}
 }
 
-func (s *objectStore) writeListObjectsV2(w http.ResponseWriter, bucket, prefix string) {
+func (s *objectStore) writeListObjectsV2(w http.ResponseWriter, bucket string, query url.Values) {
+	prefix := query.Get("prefix")
 	objects := s.listObjects(bucket, prefix)
+	continuationToken := query.Get("continuation-token")
+	if continuationToken != "" {
+		start := sort.Search(len(objects), func(i int) bool { return objects[i].Key > continuationToken })
+		objects = objects[start:]
+	}
+	maxKeys := 1000
+	if value := query.Get("max-keys"); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 {
+			maxKeys = parsed
+		}
+	}
+	isTruncated := len(objects) > maxKeys
+	nextToken := ""
+	if isTruncated {
+		objects = objects[:maxKeys]
+		nextToken = objects[len(objects)-1].Key
+	}
 	w.Header().Set("Content-Type", "application/xml")
 	_ = xml.NewEncoder(w).Encode(listObjectsV2Result{
-		Name:        bucket,
-		Prefix:      prefix,
-		IsTruncated: false,
-		KeyCount:    len(objects),
-		Contents:    objects,
+		Name:                  bucket,
+		Prefix:                prefix,
+		IsTruncated:           isTruncated,
+		NextContinuationToken: nextToken,
+		KeyCount:              len(objects),
+		Contents:              objects,
 	})
 }
 
@@ -332,12 +351,13 @@ type errorResponse struct {
 }
 
 type listObjectsV2Result struct {
-	XMLName     xml.Name       `xml:"ListBucketResult"`
-	Name        string         `xml:"Name"`
-	Prefix      string         `xml:"Prefix"`
-	KeyCount    int            `xml:"KeyCount"`
-	IsTruncated bool           `xml:"IsTruncated"`
-	Contents    []objectResult `xml:"Contents"`
+	XMLName               xml.Name       `xml:"ListBucketResult"`
+	Name                  string         `xml:"Name"`
+	Prefix                string         `xml:"Prefix"`
+	KeyCount              int            `xml:"KeyCount"`
+	IsTruncated           bool           `xml:"IsTruncated"`
+	NextContinuationToken string         `xml:"NextContinuationToken,omitempty"`
+	Contents              []objectResult `xml:"Contents"`
 }
 
 type listObjectVersionsResult struct {
