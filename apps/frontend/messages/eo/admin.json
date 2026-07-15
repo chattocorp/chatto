@@ -101,6 +101,7 @@
       "view_roles_description": "Rigardu la rolojn asignitajn al ĉi tiu membro.",
       "implicit_role_tooltip": "Ĉiuj servilanoj havas ĉi tiun rolon implicite",
       "cannot_revoke_own_role": "Vi ne povas revoki vian propran rolon {role}",
+      "role_managed_by_identity_provider": "Ĉi tiu rolo estas administrata de la identeca provizanto",
       "edit": "Redaktu",
       "assigned_role": "Asignita rolo {role}",
       "removed_role": "Forigita rolo {role}",

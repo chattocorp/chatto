@@ -60,6 +60,42 @@ func TestProviderScopesForOIDC(t *testing.T) {
 	})
 }
 
+func TestOIDCStringClaim(t *testing.T) {
+	tests := []struct {
+		name  string
+		raw   json.RawMessage
+		state oidcStringClaimState
+		want  []string
+	}{
+		{name: "string", raw: json.RawMessage(`"moderator"`), state: oidcStringClaimPresent, want: []string{"moderator"}},
+		{name: "array", raw: json.RawMessage(`["moderator", "admin"]`), state: oidcStringClaimPresent, want: []string{"moderator", "admin"}},
+		{name: "null is malformed", raw: json.RawMessage(`null`), state: oidcStringClaimMalformed},
+		{name: "object is malformed", raw: json.RawMessage(`{"role":"moderator"}`), state: oidcStringClaimMalformed},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, roles := oidcStringClaim(map[string]json.RawMessage{"roles": tt.raw}, "roles")
+			if state != tt.state || !slices.Equal(roles, tt.want) {
+				t.Fatalf("oidcStringClaim() = (%v, %v), want (%v, %v)", state, roles, tt.state, tt.want)
+			}
+		})
+	}
+}
+
+func TestMergeOIDCProfileClaimsPreservesIDTokenProfile(t *testing.T) {
+	primary := oidcProfileClaims{
+		Name: "ID Token Name", PreferredUser: "id-token-user", Picture: "https://id.example/avatar.png",
+	}
+	fallback := oidcProfileClaims{Email: "user@example.com", EmailVerified: true}
+	got := mergeOIDCProfileClaims(primary, fallback)
+	if got.Email != fallback.Email || !got.EmailVerified {
+		t.Fatalf("merged email = %q verified=%v", got.Email, got.EmailVerified)
+	}
+	if got.Name != primary.Name || got.PreferredUser != primary.PreferredUser || got.Picture != primary.Picture {
+		t.Fatalf("merged profile = %+v, want ID-token profile preserved", got)
+	}
+}
+
 func TestProviderScopesForGoogle(t *testing.T) {
 	t.Run("default keeps openid profile", func(t *testing.T) {
 		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle})
@@ -413,6 +449,130 @@ func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
 	}
 }
 
+func TestOIDCRoleClaimSynchronizesMatchedLogin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetSubject("role-subject")
+	issuer.SetRoleClaims([]string{core.RoleModerator}, []string{})
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+			IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret",
+			RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+		}}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-role-login", "OIDC Role Login", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), "oidc-roles", "oidc", issuer.URL(), "role-subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+
+	location := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-roles", "/chat")
+	if location != "/chat" {
+		t.Fatalf("OIDC login Location = %q, want /chat", location)
+	}
+	if !chattoCore.RBAC.HasRole(user.Id, core.RoleModerator) {
+		t.Fatal("matched OIDC login should synchronize moderator role")
+	}
+}
+
+func TestOIDCRoleClaimMalformedIDTokenPreservesManagedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetSubject("malformed-role-subject")
+	issuer.SetRoleClaims(map[string]string{"role": core.RoleModerator}, []string{})
+	provider := config.AuthProviderConfig{
+		ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+		IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret",
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{provider}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-malformed-role", "OIDC Malformed Role", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), provider.ID, "oidc", issuer.URL(), "malformed-role-subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := chattoCore.SyncOIDCRoleClaims(t.Context(), user.Id, provider, true, []string{core.RoleModerator}); err != nil {
+		t.Fatalf("initial SyncOIDCRoleClaims: %v", err)
+	}
+
+	_ = completeNoEmailOIDCLogin(t, client, ts.URL, provider.ID, "/chat")
+	if !chattoCore.RBAC.HasRole(user.Id, core.RoleModerator) {
+		t.Fatal("a malformed ID-token claim must preserve managed roles even when UserInfo has an empty claim")
+	}
+}
+
+func TestOIDCRoleClaimMalformedUserInfoPreservesManagedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetSubject("malformed-userinfo-role-subject")
+	issuer.SetRoleClaims(nil, map[string]string{"role": core.RoleModerator})
+	provider := config.AuthProviderConfig{
+		ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+		IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret",
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{provider}
+		s.setupOIDCRoutes()
+	})
+	user, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-malformed-userinfo-role", "OIDC Malformed UserInfo Role", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := chattoCore.LinkExternalIdentity(t.Context(), provider.ID, "oidc", issuer.URL(), "malformed-userinfo-role-subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := chattoCore.SyncOIDCRoleClaims(t.Context(), user.Id, provider, true, []string{core.RoleModerator}); err != nil {
+		t.Fatalf("initial SyncOIDCRoleClaims: %v", err)
+	}
+
+	_ = completeNoEmailOIDCLogin(t, client, ts.URL, provider.ID, "/chat")
+	if !chattoCore.RBAC.HasRole(user.Id, core.RoleModerator) {
+		t.Fatal("a malformed UserInfo claim must preserve managed roles")
+	}
+}
+
+func TestOIDCRoleClaimPendingFlowStoresOnlyAcceptedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	issuer.SetRoles([]string{core.RoleModerator, "provider-only-role"})
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID: "oidc-roles", Type: config.AuthProviderTypeOpenIDConnect, Label: "OIDC Roles",
+			IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: boolPtr(true),
+			RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleModerator},
+		}}
+		s.setupOIDCRoutes()
+	})
+
+	token := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-roles", "/chat")
+	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), token)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if !slices.Equal(flow.OIDCRoles, []string{core.RoleModerator}) {
+		t.Fatalf("pending OIDC roles = %v, want only %q", flow.OIDCRoles, core.RoleModerator)
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -597,6 +757,9 @@ type noEmailOIDCIssuer struct {
 	key              *rsa.PrivateKey
 	clientID         string
 	subject          string
+	roles            []string
+	idTokenRoles     any
+	userInfoRoles    any
 	failUserInfo     bool
 	userInfoRequests int
 }
@@ -626,6 +789,17 @@ func (i *noEmailOIDCIssuer) URL() string {
 
 func (i *noEmailOIDCIssuer) SetSubject(subject string) {
 	i.subject = subject
+}
+
+func (i *noEmailOIDCIssuer) SetRoles(roles []string) {
+	i.roles = append([]string(nil), roles...)
+	i.idTokenRoles = i.roles
+	i.userInfoRoles = i.roles
+}
+
+func (i *noEmailOIDCIssuer) SetRoleClaims(idTokenRoles, userInfoRoles any) {
+	i.idTokenRoles = idTokenRoles
+	i.userInfoRoles = userInfoRoles
 }
 
 func (i *noEmailOIDCIssuer) UserInfoRequests() int {
@@ -668,10 +842,11 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"sub":                i.subject,
 			"name":               "No Email User",
 			"preferred_username": "no-email-user",
+			"roles":              i.userInfoRoles,
 		})
 	default:
 		http.NotFound(w, r)
@@ -697,9 +872,11 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 	profileClaims := struct {
 		Name          string `json:"name"`
 		PreferredUser string `json:"preferred_username"`
+		Roles         any    `json:"roles,omitempty"`
 	}{
 		Name:          "No Email User",
 		PreferredUser: "no-email-user",
+		Roles:         i.idTokenRoles,
 	}
 	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).CompactSerialize()
 	if err != nil {

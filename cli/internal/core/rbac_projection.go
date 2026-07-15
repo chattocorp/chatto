@@ -16,7 +16,7 @@ import (
 type RBACProjection struct {
 	events.MemoryProjection
 	roles       map[string]*corev1.Role
-	assignments map[string]map[string]struct{} // userID -> roleName set
+	assignments map[string]map[string]map[roleAssignmentSource]struct{} // userID -> roleName -> source set.
 	decisions   map[rbacDecisionKey]DecisionKind
 	replayGuard projectionReplayGuard
 }
@@ -32,7 +32,7 @@ type rbacDecisionKey struct {
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
 		roles:       make(map[string]*corev1.Role),
-		assignments: make(map[string]map[string]struct{}),
+		assignments: make(map[string]map[string]map[roleAssignmentSource]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
 		replayGuard: newProjectionReplayGuard(),
 	}
@@ -66,9 +66,9 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
 	case *corev1.Event_RbacRoleAssigned:
-		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
+		p.applyRoleAssigned(e.RbacRoleAssigned)
 	case *corev1.Event_RbacRoleRevoked:
-		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
+		p.applyRoleRevoked(e.RbacRoleRevoked)
 	case *corev1.Event_RbacPermissionGranted:
 		p.applyPermissionDecision(
 			e.RbacPermissionGranted.GetScope(),
@@ -196,23 +196,70 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 	}
 }
 
-func (p *RBACProjection) applyRoleAssigned(userID, roleName string) {
-	if userID == "" || roleName == "" {
-		return
-	}
-	if p.assignments[userID] == nil {
-		p.assignments[userID] = make(map[string]struct{})
-	}
-	p.assignments[userID][roleName] = struct{}{}
+type roleAssignmentSource struct {
+	source     corev1.RbacRoleAssignmentSource
+	providerID string
+	issuer     string
 }
 
-func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
-	if userID == "" || roleName == "" {
+func roleAssignmentSourceFromFields(source corev1.RbacRoleAssignmentSource, providerID, issuer string) (roleAssignmentSource, bool) {
+	switch source {
+	case corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED,
+		corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL:
+		return roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL}, true
+	case corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC:
+		if providerID == "" {
+			return roleAssignmentSource{}, false
+		}
+		// A missing issuer is a legacy source emitted before issuer provenance
+		// was added. It remains replayable, but boot reconciliation removes it
+		// once the provider is configured because it cannot safely cross an
+		// issuer boundary.
+		return roleAssignmentSource{source: source, providerID: providerID, issuer: issuer}, true
+	default:
+		return roleAssignmentSource{}, false
+	}
+}
+
+func (p *RBACProjection) applyRoleAssigned(event *corev1.RbacRoleAssignedEvent) {
+	if event.GetUserId() == "" || event.GetRoleName() == "" {
 		return
 	}
-	delete(p.assignments[userID], roleName)
-	if len(p.assignments[userID]) == 0 {
-		delete(p.assignments, userID)
+	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer())
+	if !ok {
+		return
+	}
+	if p.assignments[event.GetUserId()] == nil {
+		p.assignments[event.GetUserId()] = make(map[string]map[roleAssignmentSource]struct{})
+	}
+	if p.assignments[event.GetUserId()][event.GetRoleName()] == nil {
+		p.assignments[event.GetUserId()][event.GetRoleName()] = make(map[roleAssignmentSource]struct{})
+	}
+	p.assignments[event.GetUserId()][event.GetRoleName()][source] = struct{}{}
+}
+
+func (p *RBACProjection) applyRoleRevoked(event *corev1.RbacRoleRevokedEvent) {
+	if event.GetUserId() == "" || event.GetRoleName() == "" {
+		return
+	}
+	roles := p.assignments[event.GetUserId()]
+	if roles == nil {
+		return
+	}
+	// Historical revocations had no source and therefore revoke the manual
+	// source. Before source-aware assignments this was the entire assignment;
+	// during a mixed-version rollout it must not erase a newer OIDC source.
+	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer())
+	if !ok {
+		return
+	}
+	sources := roles[event.GetRoleName()]
+	delete(sources, source)
+	if len(sources) == 0 {
+		delete(roles, event.GetRoleName())
+	}
+	if len(roles) == 0 {
+		delete(p.assignments, event.GetUserId())
 	}
 }
 
@@ -400,7 +447,10 @@ func (p *RBACProjection) GetUserRoles(userID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	roles := make([]string, 0, len(p.assignments[userID]))
-	for roleName := range p.assignments[userID] {
+	for roleName, sources := range p.assignments[userID] {
+		if len(sources) == 0 {
+			continue
+		}
 		roles = append(roles, roleName)
 	}
 	sort.Strings(roles)
@@ -410,8 +460,123 @@ func (p *RBACProjection) GetUserRoles(userID string) []string {
 func (p *RBACProjection) HasRole(userID, roleName string) bool {
 	p.RLock()
 	defer p.RUnlock()
-	_, ok := p.assignments[userID][roleName]
+	return len(p.assignments[userID][roleName]) > 0
+}
+
+// HasManualRole reports whether a user holds a role through a manual or
+// historical role-assignment fact, rather than only an OIDC-managed source.
+func (p *RBACProjection) HasManualRole(userID, roleName string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, ok := p.assignments[userID][roleName][roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL}]
 	return ok
+}
+
+// OIDCRolesForProvider returns roles currently managed for a user by one OIDC
+// provider. The returned values are sorted and safe for callers to retain.
+func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	roles := make([]string, 0)
+	for roleName, sources := range p.assignments[userID] {
+		for source := range sources {
+			if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC && source.providerID == providerID {
+				roles = append(roles, roleName)
+				break
+			}
+		}
+	}
+	sort.Strings(roles)
+	return roles
+}
+
+// OIDCRolesForProviderIssuer returns roles currently managed by one exact OIDC
+// provider and issuer source. The returned values are sorted and safe for
+// callers to retain.
+func (p *RBACProjection) OIDCRolesForProviderIssuer(userID, providerID, issuer string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	roles := make([]string, 0)
+	for roleName, sources := range p.assignments[userID] {
+		if _, ok := sources[roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, providerID: providerID, issuer: issuer}]; ok {
+			roles = append(roles, roleName)
+		}
+	}
+	sort.Strings(roles)
+	return roles
+}
+
+// OIDCProvidersForRole returns every provider currently backing one effective
+// user-role assignment. The returned values are sorted and safe to retain.
+func (p *RBACProjection) OIDCProvidersForRole(userID, roleName string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	providers := make([]string, 0, len(p.assignments[userID][roleName]))
+	for source := range p.assignments[userID][roleName] {
+		if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+			providers = append(providers, source.providerID)
+		}
+	}
+	sort.Strings(providers)
+	return providers
+}
+
+// OIDCRoleAssignmentsForUser returns every provider-managed source for a user.
+func (p *RBACProjection) OIDCRoleAssignmentsForUser(userID string) []oidcRoleAssignment {
+	p.RLock()
+	defer p.RUnlock()
+	assignments := make([]oidcRoleAssignment, 0)
+	for roleName, sources := range p.assignments[userID] {
+		for source := range sources {
+			if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID, issuer: source.issuer})
+			}
+		}
+	}
+	sort.Slice(assignments, func(i, j int) bool {
+		if assignments[i].roleName != assignments[j].roleName {
+			return assignments[i].roleName < assignments[j].roleName
+		}
+		return assignments[i].providerID < assignments[j].providerID
+	})
+	return assignments
+}
+
+type oidcRoleAssignment struct {
+	userID     string
+	roleName   string
+	providerID string
+	issuer     string
+}
+
+// OIDCRoleAssignments returns every OIDC-managed assignment. It is used by
+// destructive maintenance paths that must remove all durable role sources.
+func (p *RBACProjection) OIDCRoleAssignments() []oidcRoleAssignment {
+	p.RLock()
+	defer p.RUnlock()
+	assignments := make([]oidcRoleAssignment, 0)
+	for userID, roles := range p.assignments {
+		for roleName, sources := range roles {
+			for source := range sources {
+				if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
+					assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID, issuer: source.issuer})
+				}
+			}
+		}
+	}
+	sort.Slice(assignments, func(i, j int) bool {
+		if assignments[i].userID != assignments[j].userID {
+			return assignments[i].userID < assignments[j].userID
+		}
+		if assignments[i].roleName != assignments[j].roleName {
+			return assignments[i].roleName < assignments[j].roleName
+		}
+		if assignments[i].providerID != assignments[j].providerID {
+			return assignments[i].providerID < assignments[j].providerID
+		}
+		return assignments[i].issuer < assignments[j].issuer
+	})
+	return assignments
 }
 
 func (p *RBACProjection) GetRoleUsers(roleName string) []string {
@@ -419,7 +584,7 @@ func (p *RBACProjection) GetRoleUsers(roleName string) []string {
 	defer p.RUnlock()
 	users := make([]string, 0)
 	for userID, roles := range p.assignments {
-		if _, ok := roles[roleName]; ok {
+		if len(roles[roleName]) > 0 {
 			users = append(users, userID)
 		}
 	}
@@ -432,7 +597,10 @@ func (p *RBACProjection) Assignments() []rbacSeedAssignment {
 	defer p.RUnlock()
 	assignments := make([]rbacSeedAssignment, 0)
 	for userID, roles := range p.assignments {
-		for roleName := range roles {
+		for roleName, sources := range roles {
+			if len(sources) == 0 {
+				continue
+			}
 			assignments = append(assignments, rbacSeedAssignment{userID: userID, roleName: roleName})
 		}
 	}

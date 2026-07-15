@@ -11,6 +11,7 @@
     type AdminRoleDetails
   } from '$lib/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
+  import { Code, ConnectError } from '$lib/api-client/connect';
   import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { Hint, Pill } from '$lib/ui';
@@ -304,9 +305,17 @@
           await loadData();
         }
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();
-    }
+	} catch (err) {
+		if (
+			err instanceof ConnectError &&
+			err.code === Code.FailedPrecondition &&
+			err.rawMessage === 'role is managed by an identity provider'
+		) {
+			error = m['admin.members.role_managed_by_identity_provider']();
+		} else {
+			error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();
+		}
+	}
 
     updating = null;
   }

@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-716: durable user aggregate events on evt.user.{userId}.*
+//   - 700-717: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers

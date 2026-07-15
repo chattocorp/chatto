@@ -121,6 +121,57 @@ func TestRBACProjection_AssignRevokeAndDeleteRole(t *testing.T) {
 	}
 }
 
+func TestRBACProjection_SnapshotRoundTripPreservesAssignmentSources(t *testing.T) {
+	p := NewRBACProjection()
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{
+			UserId: "U1", RoleName: "moderator",
+			Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL,
+		},
+	}})
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{
+			UserId: "U1", RoleName: "moderator",
+			Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+			SourceProviderId: "oidc-a",
+			SourceIssuer:     "https://issuer-a.example",
+		},
+	}})
+
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	restored := NewRBACProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !restored.HasManualRole("U1", "moderator") {
+		t.Fatal("manual assignment source missing after restore")
+	}
+	if got := restored.OIDCRolesForProvider("U1", "oidc-a"); len(got) != 1 || got[0] != "moderator" {
+		t.Fatalf("OIDC assignment sources after restore = %v, want moderator", got)
+	}
+	if got := restored.OIDCRolesForProviderIssuer("U1", "oidc-a", "https://issuer-a.example"); len(got) != 1 || got[0] != "moderator" {
+		t.Fatalf("OIDC issuer assignment sources after restore = %v, want moderator", got)
+	}
+
+	applyRBACProjectionEvent(t, restored, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+			UserId: "U1", RoleName: "moderator",
+			Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+			SourceProviderId: "oidc-a",
+			SourceIssuer:     "https://issuer-a.example",
+		},
+	}})
+	if !restored.HasRole("U1", "moderator") {
+		t.Fatal("revoking the restored OIDC source must preserve the manual assignment")
+	}
+	if got := restored.OIDCRolesForProvider("U1", "oidc-a"); len(got) != 0 {
+		t.Fatalf("OIDC assignment sources after revoke = %v, want none", got)
+	}
+}
+
 func TestRBACProjection_PermissionLocations(t *testing.T) {
 	p := NewRBACProjection()
 

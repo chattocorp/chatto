@@ -134,7 +134,10 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 	})
 	for _, assignment := range assignments {
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleAssigned{
-			RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
+			RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{
+				UserId: assignment.userID, RoleName: assignment.roleName,
+				Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL,
+			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}

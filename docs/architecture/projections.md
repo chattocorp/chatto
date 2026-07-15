@@ -43,12 +43,15 @@ state is owned by `UserAuthProjection` and cold-replays from eight focused user
 event families.
 
 The projector framework atomically captures each projection's explicit
-protobuf state with its latest applied logical EVT sequence. Room Timeline
-retains encrypted body envelopes and rebuilds derived indexes. Mentionables
-retains encrypted login source events and wrapped DEK records rather than
-plaintext handles or lookup digests. The Users codec retains encrypted login,
-display-name, and verified-email values, lookup digests, wrapped DEK records,
-and non-secret profile metadata. Its schema has no fields for password verifiers,
+protobuf state with its latest applied logical EVT sequence. RBAC snapshots
+retain each manual and OIDC assignment source, including each OIDC source's
+provider ID and issuer, from which effective role membership is derived on
+restore. Room Timeline retains encrypted body envelopes and rebuilds derived
+indexes. Mentionables retains encrypted login source events and wrapped DEK
+records rather than plaintext handles or lookup digests. The Users codec
+retains encrypted login, display-name, and verified-email values, lookup
+digests, wrapped DEK records, and non-secret profile metadata. Its schema has
+no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
 One replica is elected through a `MEMORY_CACHE` lease after boot. It checks

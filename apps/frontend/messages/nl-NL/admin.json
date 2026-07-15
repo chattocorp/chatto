@@ -101,6 +101,7 @@
       "view_roles_description": "Bekijk de rollen die aan dit lid zijn toegewezen.",
       "implicit_role_tooltip": "Alle serverleden hebben deze rol impliciet",
       "cannot_revoke_own_role": "U kunt uw eigen {role}-rol niet intrekken",
+      "role_managed_by_identity_provider": "Deze rol wordt beheerd door de identiteitsprovider",
       "edit": "Bewerken",
       "assigned_role": "Rol {role} toegewezen",
       "removed_role": "Rol {role} verwijderd",

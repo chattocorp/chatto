@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 
@@ -293,11 +295,21 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "external_identity_conflict"))
 			return
 		}
+		if err := s.core.SyncOIDCRoleClaims(ctx, user.Id, providerRuntime.config, identity.oidcRoleClaimPresent, identity.oidcRoles); err != nil {
+			log.Error("Failed to synchronize OIDC role claims", "provider_id", providerRuntime.config.ID, "user_id", user.Id, "error", err)
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_failed"))
+			return
+		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
 		return
 	}
 
 	log.Info("Provider login matched by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id)
+	if err := s.core.SyncOIDCRoleClaims(ctx, user.Id, providerRuntime.config, identity.oidcRoleClaimPresent, identity.oidcRoles); err != nil {
+		log.Error("Failed to synchronize OIDC role claims", "provider_id", providerRuntime.config.ID, "user_id", user.Id, "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
 
 	if identity.avatarURL != "" {
 		existingAvatar, _ := s.core.GetUserAvatar(ctx, user.Id)
@@ -323,12 +335,14 @@ type authProviderRuntime struct {
 }
 
 type resolvedProviderIdentity struct {
-	issuer          string
-	subject         string
-	verifiedEmail   string
-	avatarURL       string
-	loginHint       string
-	displayNameHint string
+	issuer               string
+	subject              string
+	verifiedEmail        string
+	avatarURL            string
+	loginHint            string
+	displayNameHint      string
+	oidcRoleClaimPresent bool
+	oidcRoles            []string
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -429,6 +443,31 @@ func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.S
 	return r.resolveGothIdentity(c, session)
 }
 
+type oidcProfileClaims struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	PreferredUser string `json:"preferred_username"`
+	Picture       string `json:"picture"`
+}
+
+func mergeOIDCProfileClaims(primary, fallback oidcProfileClaims) oidcProfileClaims {
+	if primary.Email == "" {
+		primary.Email = fallback.Email
+		primary.EmailVerified = fallback.EmailVerified
+	}
+	if primary.Name == "" {
+		primary.Name = fallback.Name
+	}
+	if primary.PreferredUser == "" {
+		primary.PreferredUser = fallback.PreferredUser
+	}
+	if primary.Picture == "" {
+		primary.Picture = fallback.Picture
+	}
+	return primary
+}
+
 func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
 	ctx := c.Request.Context()
 	codeVerifier, _ := session.Get(providerSessionKey(r.config.ID, "code_verifier")).(string)
@@ -456,28 +495,43 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	// Extract claims from the ID token first
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
-		PreferredUser string `json:"preferred_username"`
-		Picture       string `json:"picture"`
-	}
+	var claims oidcProfileClaims
 	if err := idToken.Claims(&claims); err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("parse id token claims: %w", err)
 	}
+	var rawClaims map[string]json.RawMessage
+	if err := idToken.Claims(&rawClaims); err != nil {
+		return resolvedProviderIdentity{}, fmt.Errorf("parse raw id token claims: %w", err)
+	}
+	roleClaimState, roleClaims := oidcStringClaim(rawClaims, r.config.RoleClaim)
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
 
-	// Some providers (e.g. Zitadel) don't include email in the ID token.
-	// Fall back to the userinfo endpoint.
-	if claims.Email == "" {
-		log.Info("OIDC ID token missing email, falling back to userinfo", "provider_id", r.config.ID)
+	// Some providers (e.g. Zitadel) don't include email or custom role claims
+	// in the ID token. Fall back to UserInfo, but only accept a response whose
+	// subject matches the verified ID token.
+	if claims.Email == "" || (r.config.RoleClaim != "" && roleClaimState == oidcStringClaimAbsent) {
+		log.Info("OIDC ID token needs userinfo fallback", "provider_id", r.config.ID)
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
-			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID, "error", err)
-		} else if err := userInfo.Claims(&claims); err != nil {
-			log.Warn("OIDC userinfo claims ignored", "provider_id", r.config.ID, "error", err)
+			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
+		} else if userInfo.Subject != idToken.Subject {
+			log.Warn("OIDC userinfo subject mismatch", "provider_id", r.config.ID)
+		} else {
+			var userInfoClaims oidcProfileClaims
+			if err := userInfo.Claims(&userInfoClaims); err != nil {
+				log.Warn("OIDC userinfo profile claims ignored", "provider_id", r.config.ID, "error", err)
+			} else {
+				claims = mergeOIDCProfileClaims(claims, userInfoClaims)
+			}
+			if roleClaimState == oidcStringClaimAbsent && r.config.RoleClaim != "" {
+				var rawUserInfoClaims map[string]json.RawMessage
+				if err := userInfo.Claims(&rawUserInfoClaims); err != nil {
+					log.Warn("OIDC userinfo role claim ignored", "provider_id", r.config.ID, "error", err)
+				} else {
+					roleClaimState, roleClaims = oidcStringClaim(rawUserInfoClaims, r.config.RoleClaim)
+				}
+			}
 		}
 	}
 
@@ -486,13 +540,50 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		verifiedEmail = strings.ToLower(strings.TrimSpace(claims.Email))
 	}
 	return resolvedProviderIdentity{
-		issuer:          idToken.Issuer,
-		subject:         idToken.Subject,
-		verifiedEmail:   verifiedEmail,
-		avatarURL:       claims.Picture,
-		loginHint:       loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
-		displayNameHint: displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
+		issuer:               idToken.Issuer,
+		subject:              idToken.Subject,
+		verifiedEmail:        verifiedEmail,
+		avatarURL:            claims.Picture,
+		loginHint:            loginHintFromParts(claims.PreferredUser, verifiedEmail, claims.Name),
+		displayNameHint:      displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
+		oidcRoleClaimPresent: roleClaimState == oidcStringClaimPresent,
+		oidcRoles:            roleClaims,
 	}, nil
+}
+
+type oidcStringClaimState uint8
+
+const (
+	oidcStringClaimAbsent oidcStringClaimState = iota
+	oidcStringClaimPresent
+	oidcStringClaimMalformed
+)
+
+// oidcStringClaim returns the state of a named custom OIDC claim and, when
+// well-formed, its string values. Callers must preserve grants for malformed
+// claims and must not substitute a UserInfo value for a malformed ID-token
+// claim.
+func oidcStringClaim(claims map[string]json.RawMessage, name string) (oidcStringClaimState, []string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return oidcStringClaimAbsent, nil
+	}
+	raw, ok := claims[name]
+	if !ok {
+		return oidcStringClaimAbsent, nil
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return oidcStringClaimMalformed, nil
+	}
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		return oidcStringClaimPresent, []string{single}
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return oidcStringClaimMalformed, nil
+	}
+	return oidcStringClaimPresent, values
 }
 
 func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
@@ -613,16 +704,18 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (s
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {
 	ctx := c.Request.Context()
 	flow := core.PendingExternalIdentityFlow{
-		ProviderID:      providerConfig.ID,
-		ProviderType:    providerConfig.Type,
-		ProviderLabel:   providerConfig.LabelOrDefault(),
-		Issuer:          identity.issuer,
-		Subject:         identity.subject,
-		VerifiedEmail:   identity.verifiedEmail,
-		AvatarURL:       identity.avatarURL,
-		LoginHint:       identity.loginHint,
-		DisplayNameHint: identity.displayNameHint,
-		RedirectPath:    providerReturnPath(session, "/"),
+		ProviderID:           providerConfig.ID,
+		ProviderType:         providerConfig.Type,
+		ProviderLabel:        providerConfig.LabelOrDefault(),
+		Issuer:               identity.issuer,
+		Subject:              identity.subject,
+		VerifiedEmail:        identity.verifiedEmail,
+		AvatarURL:            identity.avatarURL,
+		LoginHint:            identity.loginHint,
+		DisplayNameHint:      identity.displayNameHint,
+		OIDCRoleClaimPresent: identity.oidcRoleClaimPresent,
+		OIDCRoles:            s.acceptedOIDCRoleClaims(providerConfig, identity.oidcRoles),
+		RedirectPath:         providerReturnPath(session, "/"),
 	}
 
 	var (
@@ -648,6 +741,46 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
+}
+
+// acceptedOIDCRoleClaims filters callback claims before a pending account or
+// link flow is stored in RUNTIME_STATE. This keeps unrecognized provider role
+// values out of persisted workflow state; direct login passes values straight
+// to core, where they are likewise filtered before any EVT write.
+func (s *HTTPServer) acceptedOIDCRoleClaims(provider config.AuthProviderConfig, claimedRoles []string) []string {
+	if provider.Type != config.AuthProviderTypeOpenIDConnect || strings.TrimSpace(provider.RoleClaim) == "" {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(provider.RoleClaimAllowedRoles))
+	wildcard := false
+	for _, roleName := range provider.RoleClaimAllowedRoles {
+		roleName = strings.TrimSpace(roleName)
+		if roleName == "*" {
+			wildcard = true
+			continue
+		}
+		allowed[roleName] = struct{}{}
+	}
+	accepted := make(map[string]struct{})
+	for _, roleName := range claimedRoles {
+		roleName = strings.TrimSpace(roleName)
+		if roleName == "" || roleName == core.RoleEveryone || !s.core.RBAC.RoleExists(roleName) {
+			continue
+		}
+		if wildcard {
+			accepted[roleName] = struct{}{}
+			continue
+		}
+		if _, ok := allowed[roleName]; ok {
+			accepted[roleName] = struct{}{}
+		}
+	}
+	roles := make([]string, 0, len(accepted))
+	for roleName := range accepted {
+		roles = append(roles, roleName)
+	}
+	sort.Strings(roles)
+	return roles
 }
 
 func providerReturnPath(session sessions.Session, fallback string) string {

@@ -55,6 +55,10 @@ var (
 	// (like member or verified) which cannot be explicitly managed.
 	ErrImplicitRole = errors.New("implicit role cannot be explicitly assigned or revoked")
 
+	// ErrRoleManagedByIdentityProvider is returned when an administrator tries
+	// to revoke a role that is only granted by an identity provider.
+	ErrRoleManagedByIdentityProvider = errors.New("role is managed by an identity provider")
+
 	// ErrCannotDeleteSystemRole is returned when attempting to delete a system role
 	// (owner, moderator, everyone, etc.) which are protected.
 	ErrCannotDeleteSystemRole = errors.New("cannot delete system role")

@@ -101,6 +101,7 @@
       "view_roles_description": "Переглянути ролі, призначені цьому учаснику.",
       "implicit_role_tooltip": "Усі учасники сервера мають цю роль неявно",
       "cannot_revoke_own_role": "Ви не можете відкликати власну роль {role}",
+      "role_managed_by_identity_provider": "Цією роллю керує постачальник ідентифікаційних даних",
       "edit": "Редагувати",
       "assigned_role": "Призначено роль {role}",
       "removed_role": "Вилучено роль {role}",

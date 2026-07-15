@@ -299,3 +299,105 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 	}
 	return 0, fmt.Errorf("RBAC batch OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
+
+// appendRBACBatchBuilt rebuilds an RBAC-only replacement batch after every OCC
+// conflict so concurrent source changes cannot be omitted by a stale retry.
+func (c *ChattoCore) appendRBACBatchBuilt(ctx context.Context, build func() ([]events.BatchEntry, error)) (uint64, error) {
+	filter := events.RBACSubjectFilter()
+	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+		entries, err := build()
+		if err != nil {
+			return 0, err
+		}
+		if len(entries) == 0 {
+			return 0, nil
+		}
+		chunk := append([]events.BatchEntry(nil), entries...)
+		chunk[0].HasOCC = true
+		chunk[0].ExpectedSeq = filterSeq
+		chunk[0].FilterSubject = filter
+		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
+		if err == nil {
+			last := len(chunk) - 1
+			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(chunk[last].Subject, seqs[last])); err != nil {
+				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+			}
+			return seqs[last], nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return 0, fmt.Errorf("RBAC built batch OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+}
+
+// appendRBACBatchWithUserCheck atomically updates RBAC facts while ensuring a
+// concurrently deleted target user cannot receive new durable assignments. The
+// builder runs after projections are current on every retry, so an OCC conflict
+// cannot replay a stale state-replacement batch.
+func (c *ChattoCore) appendRBACBatchWithUserCheck(ctx context.Context, userID string, build func() ([]events.BatchEntry, error)) (uint64, error) {
+	filter := events.EventSubjectFilter()
+	userFilter := events.UserAggregate(userID).AllEventsFilter()
+
+	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return 0, fmt.Errorf("read event OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsersCurrent(ctx, "OIDC role target user", userFilter); err != nil {
+			return 0, err
+		}
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read RBAC projection seq: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+		if _, err := c.GetUser(ctx, userID); err != nil {
+			return 0, err
+		}
+		entries, err := build()
+		if err != nil {
+			return 0, err
+		}
+		if len(entries) == 0 {
+			return 0, nil
+		}
+
+		chunk := append([]events.BatchEntry(nil), entries...)
+		chunk[0].HasOCC = true
+		chunk[0].ExpectedSeq = filterSeq
+		chunk[0].FilterSubject = filter
+		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
+		if err == nil {
+			lastSeq := seqs[len(seqs)-1]
+			lastSubject := chunk[len(chunk)-1].Subject
+			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
+			}
+			return lastSeq, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return 0, fmt.Errorf("RBAC user batch OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+}

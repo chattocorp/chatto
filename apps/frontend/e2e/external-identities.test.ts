@@ -216,18 +216,12 @@ test.describe('External identity confirmation flows', () => {
 
   test('disconnects a linked identity for an unconfigured provider', async ({ page, authPage }) => {
     const user = await createAndLoginTestUser(page, { loginPrefix: 'ssoretired' });
-    const flow = await authPage.createExternalIdentityFlow({
-      kind: 'link',
+    await authPage.linkExternalIdentity({
+      userId: user.id,
       providerId: 'retired-provider',
       providerType: 'github',
-      providerLabel: 'Retired Provider',
-      subject: `retired-${Date.now()}`,
-      boundUserId: user.id
+      subject: `retired-${Date.now()}`
     });
-
-    await page.goto(flow.confirmUrl);
-    await page.getByRole('button', { name: 'Link Account' }).click();
-    await page.waitForURL(routes.patterns.chatRedirect);
 
     await page.goto(routes.settingsAccount);
     const retiredRow = page.locator('div.rounded.border').filter({ hasText: 'retired-provider' });

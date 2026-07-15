@@ -595,6 +595,20 @@ export class AuthPage {
     return response.json();
   }
 
+  /** Directly seed an external identity in the test-only server. */
+  async linkExternalIdentity(input: {
+    userId: string;
+    providerId: string;
+    providerType: string;
+    issuer?: string;
+    subject: string;
+  }): Promise<void> {
+    const response = await this.page.request.post('/auth/test/link-external-identity', {
+      data: input
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+
   // --- Assertions ---
 
   /**

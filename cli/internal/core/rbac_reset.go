@@ -82,13 +82,30 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 
 	revokedUsers := make(map[string]struct{})
 	for _, assignment := range c.RBAC.Assignments() {
+		if !c.RBAC.HasManualRole(assignment.userID, assignment.roleName) {
+			continue
+		}
 		key := assignment.userID + "|" + assignment.roleName
 		if _, ok := revokedUsers[key]; ok {
 			continue
 		}
 		revokedUsers[key] = struct{}{}
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
-			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+				UserId: assignment.userID, RoleName: assignment.roleName,
+				Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL,
+			},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	for _, assignment := range c.RBAC.OIDCRoleAssignments() {
+		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
+				UserId: assignment.userID, RoleName: assignment.roleName,
+				Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
+				SourceProviderId: assignment.providerID,
+				SourceIssuer:     assignment.issuer,
+			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}

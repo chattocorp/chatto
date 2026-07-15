@@ -9,7 +9,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const rbacSnapshotCompatibilityID = "v1"
+// v3 adds issuer provenance to source-aware role assignments. Older snapshots
+// cold-replay because their effective assignments cannot reconstruct sources.
+const rbacSnapshotCompatibilityID = "v3"
 
 func (*RBACProjection) SnapshotCompatibilityID() string { return rbacSnapshotCompatibilityID }
 
@@ -21,7 +23,26 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 		snapshot.Roles = append(snapshot.Roles, proto.Clone(p.roles[roleName]).(*corev1.Role))
 	}
 	for _, userID := range sortedMapKeys(p.assignments) {
-		snapshot.Assignments = append(snapshot.Assignments, &corev1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])})
+		for _, roleName := range sortedMapKeys(p.assignments[userID]) {
+			sources := make([]roleAssignmentSource, 0, len(p.assignments[userID][roleName]))
+			for source := range p.assignments[userID][roleName] {
+				sources = append(sources, source)
+			}
+			sort.Slice(sources, func(i, j int) bool {
+				if sources[i].source != sources[j].source {
+					return sources[i].source < sources[j].source
+				}
+				if sources[i].providerID != sources[j].providerID {
+					return sources[i].providerID < sources[j].providerID
+				}
+				return sources[i].issuer < sources[j].issuer
+			})
+			for _, source := range sources {
+				snapshot.AssignmentSources = append(snapshot.AssignmentSources, &corev1.RBACAssignmentSourceSnapshot{
+					UserId: userID, RoleName: roleName, Source: source.source, SourceProviderId: source.providerID, SourceIssuer: source.issuer,
+				})
+			}
+		}
 	}
 	keys := make([]rbacDecisionKey, 0, len(p.decisions))
 	for key := range p.decisions {
@@ -70,25 +91,25 @@ func (p *RBACProjection) Restore(data []byte) error {
 		}
 		roles[role.GetName()] = proto.Clone(role).(*corev1.Role)
 	}
-	assignments := make(map[string]map[string]struct{}, len(snapshot.GetAssignments()))
-	for _, assignment := range snapshot.GetAssignments() {
-		if assignment.GetUserId() == "" {
-			return fmt.Errorf("RBAC snapshot has empty assignment user ID")
+	assignments := make(map[string]map[string]map[roleAssignmentSource]struct{}, len(snapshot.GetAssignmentSources()))
+	for _, assignment := range snapshot.GetAssignmentSources() {
+		if assignment.GetUserId() == "" || assignment.GetRoleName() == "" {
+			return fmt.Errorf("RBAC snapshot has empty assignment user ID or role")
 		}
-		if _, duplicate := assignments[assignment.GetUserId()]; duplicate {
-			return fmt.Errorf("RBAC snapshot repeats assignments for user %q", assignment.GetUserId())
+		source, ok := roleAssignmentSourceFromFields(assignment.GetSource(), assignment.GetSourceProviderId(), assignment.GetSourceIssuer())
+		if !ok {
+			return fmt.Errorf("RBAC snapshot has invalid assignment source")
 		}
-		set := make(map[string]struct{}, len(assignment.GetRoleNames()))
-		for _, roleName := range assignment.GetRoleNames() {
-			if roleName == "" {
-				return fmt.Errorf("RBAC snapshot has empty assigned role")
-			}
-			if _, duplicate := set[roleName]; duplicate {
-				return fmt.Errorf("RBAC snapshot repeats assigned role %q", roleName)
-			}
-			set[roleName] = struct{}{}
+		if assignments[assignment.GetUserId()] == nil {
+			assignments[assignment.GetUserId()] = make(map[string]map[roleAssignmentSource]struct{})
 		}
-		assignments[assignment.GetUserId()] = set
+		if assignments[assignment.GetUserId()][assignment.GetRoleName()] == nil {
+			assignments[assignment.GetUserId()][assignment.GetRoleName()] = make(map[roleAssignmentSource]struct{})
+		}
+		if _, duplicate := assignments[assignment.GetUserId()][assignment.GetRoleName()][source]; duplicate {
+			return fmt.Errorf("RBAC snapshot repeats assignment source")
+		}
+		assignments[assignment.GetUserId()][assignment.GetRoleName()][source] = struct{}{}
 	}
 	decisions := make(map[rbacDecisionKey]DecisionKind, len(snapshot.GetDecisions()))
 	for _, row := range snapshot.GetDecisions() {

@@ -452,17 +452,18 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey                   string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
-	ProjectionSnapshots         bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
-	ProjectionSnapshotRetention Duration       `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
-	ProjectionSnapshotS3Cleanup *bool          `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
-	Assets                      AssetsConfig   `toml:"assets"`
-	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	EmailOTP                    EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
-	Replicas                    int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits                      LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners                      OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
-	Version                     string         `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
+	SecretKey                   string               `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
+	ProjectionSnapshots         bool                 `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
+	ProjectionSnapshotRetention Duration             `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
+	ProjectionSnapshotS3Cleanup *bool                `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
+	Assets                      AssetsConfig         `toml:"assets"`
+	AuthTokenTTL                time.Duration        `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	EmailOTP                    EmailOTPConfig       `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas                    int                  `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits                      LimitsConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners                      OwnersConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	AuthProviders               []AuthProviderConfig `toml:"-" env:"-"` // Set by caller from ChattoConfig.Auth.Providers for startup OIDC source reconciliation
+	Version                     string               `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 }
 
 // ProjectionSnapshotRetentionOrDefault returns the configured retention, or
@@ -487,6 +488,11 @@ const (
 	AuthProviderTypeDiscord       = "discord"
 )
 
+const (
+	OIDCRoleClaimModeAdditive  = "additive"
+	OIDCRoleClaimModeReconcile = "reconcile"
+)
+
 var authProviderDefaultLabels = map[string]string{
 	AuthProviderTypeOpenIDConnect: "OpenID Connect",
 	AuthProviderTypeGitHub:        "GitHub",
@@ -499,16 +505,19 @@ var authProviderDefaultLabels = map[string]string{
 // a stable local issuer namespace for OAuth-only providers and must not be
 // changed after users link identities through it.
 type AuthProviderConfig struct {
-	ID              string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
-	Type            string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
-	Label           string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
-	ClientID        string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
-	ClientSecret    string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
-	IssuerURL       string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
-	Scopes          []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
-	RequestEmail    *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
-	AutoProvision   *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
-	ProviderOptions map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
+	ID                    string            `toml:"id" comment:"Stable provider ID used in callback URLs and external identity links. Do not change after users link accounts."`
+	Type                  string            `toml:"type" comment:"Provider type: oidc, github, gitlab, google, or discord."`
+	Label                 string            `toml:"label,commented" comment:"Button label shown on the login page. Defaults to the provider type's display name."`
+	ClientID              string            `toml:"client_id" comment:"OAuth/OIDC client ID."`
+	ClientSecret          string            `toml:"client_secret" comment:"OAuth/OIDC client secret. NEVER SHARE THIS!"`
+	IssuerURL             string            `toml:"issuer_url,commented" comment:"OIDC issuer URL. Required when type = 'oidc'."`
+	Scopes                []string          `toml:"scopes,commented" comment:"Optional OAuth scopes. Defaults are provider-specific."`
+	RequestEmail          *bool             `toml:"request_email,commented" comment:"Whether to request email scopes for providers that support it. Default: false. Chatto still matches by provider subject without an email claim."`
+	AutoProvision         *bool             `toml:"auto_provision,commented" comment:"Whether unlinked external identities may create a new passwordless account after explicit confirmation. Default: false. The linked provider identity counts as a verified sign-in factor."`
+	RoleClaim             string            `toml:"role_claim,commented" comment:"OIDC claim containing Chatto role names to synchronize after login. Empty disables role synchronization."`
+	RoleClaimAllowedRoles []string          `toml:"role_claim_allowed_roles,commented" comment:"Allowed role names from role_claim, or exactly [\"*\"] to allow every non-implicit role including owner. Required when role_claim is set."`
+	RoleClaimMode         string            `toml:"role_claim_mode,commented" comment:"Role synchronization mode: additive (default) or reconcile."`
+	ProviderOptions       map[string]string `toml:"provider_options,commented" comment:"Provider-specific options reserved for future use."`
 }
 
 // LabelOrDefault returns the configured label, or a provider-specific default.
@@ -520,6 +529,14 @@ func (c AuthProviderConfig) LabelOrDefault() string {
 		return label
 	}
 	return c.ID
+}
+
+// CanonicalOIDCIssuer returns the issuer representation used when comparing
+// verified identities, pending flows, and OIDC-managed RBAC sources. OIDC
+// discovery normalizes trailing slashes, while configuration often preserves
+// an operator's spelling.
+func CanonicalOIDCIssuer(issuer string) string {
+	return strings.TrimRight(strings.TrimSpace(issuer), "/")
 }
 
 func (c AuthProviderConfig) RequestEmailOrDefault() bool {
@@ -534,6 +551,15 @@ func (c AuthProviderConfig) AutoProvisionOrDefault() bool {
 		return false
 	}
 	return *c.AutoProvision
+}
+
+// OIDCRoleClaimModeOrDefault returns the configured OIDC role synchronization
+// mode. Configuration validation rejects unknown values.
+func (c AuthProviderConfig) OIDCRoleClaimModeOrDefault() string {
+	if c.RoleClaimMode == "" {
+		return OIDCRoleClaimModeAdditive
+	}
+	return c.RoleClaimMode
 }
 
 func IsAllowedAuthProviderType(providerType string) bool {
@@ -1101,6 +1127,7 @@ func (c *ChattoConfig) Validate() error {
 
 	// External auth providers
 	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	seenOIDCIssuers := make(map[string]string, len(c.Auth.Providers))
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
 		if c.Webserver.URL == "" {
@@ -1126,6 +1153,56 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
+		}
+		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL != "" {
+			issuerKey := CanonicalOIDCIssuer(provider.IssuerURL)
+			if existingID, exists := seenOIDCIssuers[issuerKey]; exists {
+				errs = append(errs, fmt.Sprintf("OIDC issuer %q is configured by both provider %q and %q; configure each issuer only once", issuerKey, existingID, provider.ID))
+			} else {
+				seenOIDCIssuers[issuerKey] = provider.ID
+			}
+		}
+		roleClaim := strings.TrimSpace(provider.RoleClaim)
+		roleSettingsConfigured := roleClaim != "" || len(provider.RoleClaimAllowedRoles) > 0 || provider.RoleClaimMode != ""
+		if roleSettingsConfigured && provider.Type != AuthProviderTypeOpenIDConnect {
+			errs = append(errs, prefix+".role_claim settings are only supported for type = 'oidc'")
+		}
+		if roleClaim == "" {
+			if len(provider.RoleClaimAllowedRoles) > 0 || provider.RoleClaimMode != "" {
+				errs = append(errs, prefix+".role_claim is required when role claim settings are configured")
+			}
+		} else {
+			if len(provider.RoleClaimAllowedRoles) == 0 {
+				errs = append(errs, prefix+".role_claim_allowed_roles is required when role_claim is set")
+			}
+			seenRoles := make(map[string]struct{}, len(provider.RoleClaimAllowedRoles))
+			wildcard := false
+			for _, roleName := range provider.RoleClaimAllowedRoles {
+				roleName = strings.TrimSpace(roleName)
+				if roleName == "" {
+					errs = append(errs, prefix+".role_claim_allowed_roles cannot contain an empty role name")
+					continue
+				}
+				if _, exists := seenRoles[roleName]; exists {
+					errs = append(errs, prefix+".role_claim_allowed_roles cannot contain duplicate role names")
+					continue
+				}
+				seenRoles[roleName] = struct{}{}
+				if roleName == "everyone" {
+					errs = append(errs, prefix+".role_claim_allowed_roles cannot include the implicit everyone role")
+				}
+				if roleName == "*" {
+					wildcard = true
+				}
+			}
+			if wildcard && len(provider.RoleClaimAllowedRoles) != 1 {
+				errs = append(errs, prefix+".role_claim_allowed_roles wildcard must be the only value")
+			}
+			switch provider.OIDCRoleClaimModeOrDefault() {
+			case OIDCRoleClaimModeAdditive, OIDCRoleClaimModeReconcile:
+			default:
+				errs = append(errs, prefix+".role_claim_mode must be one of: additive, reconcile")
+			}
 		}
 		if provider.IssuerURL != "" {
 			if err := validateAbsoluteHTTPURL(prefix+".issuer_url", provider.IssuerURL); err != nil {
@@ -1422,6 +1499,12 @@ func applyAuthProviderEnvField(provider *AuthProviderConfig, name, field, value 
 			return fmt.Errorf("%s must be a boolean: %w", name, err)
 		}
 		provider.AutoProvision = &autoProvision
+	case "ROLE_CLAIM":
+		provider.RoleClaim = value
+	case "ROLE_CLAIM_ALLOWED_ROLES":
+		provider.RoleClaimAllowedRoles = splitCommaSeparatedEnv(value)
+	case "ROLE_CLAIM_MODE":
+		provider.RoleClaimMode = value
 	default:
 		const providerOptionsPrefix = "PROVIDER_OPTIONS_"
 		if strings.HasPrefix(field, providerOptionsPrefix) {

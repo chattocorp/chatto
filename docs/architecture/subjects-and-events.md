@@ -234,6 +234,11 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
+`RbacRoleAssignedEvent` and `RbacRoleRevokedEvent` carry a source. Historical
+events without one are manual; an OIDC source also carries the configured
+provider ID and canonical verified issuer. The RBAC projection derives effective membership from the union
+of those sources.
+
 ## Transient live subjects
 
 Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted and are not projection input.

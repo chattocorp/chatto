@@ -101,6 +101,7 @@
       "view_roles_description": "Wyświetl role przypisane temu użytkownikowi.",
       "implicit_role_tooltip": "Wszyscy członkowie serwera domyślnie pełnią tę rolę",
       "cannot_revoke_own_role": "Nie możesz odwołać swojej własnej roli {role}",
+      "role_managed_by_identity_provider": "Ta rola jest zarządzana przez dostawcę tożsamości",
       "edit": "Edytuj",
       "assigned_role": "Przypisano rolę {role}",
       "removed_role": "Usunięto rolę {role}",

@@ -61,6 +61,13 @@ client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 # auto_provision allows unlinked provider identities to create passwordless
 # accounts after an explicit confirmation screen.
 auto_provision = false
+# Request the provider's role scope explicitly, then synchronize direct role
+# claim values. Use ["*"] only when the provider should control every role,
+# including owner and roles created later.
+# scopes = ["openid", "profile", "roles"]
+# role_claim = "roles"
+# role_claim_allowed_roles = ["moderator"]
+# role_claim_mode = "additive" # or "reconcile"
 
 [smtp]
 enabled = true

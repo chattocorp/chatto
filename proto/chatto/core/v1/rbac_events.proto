@@ -45,14 +45,40 @@ message RbacRolesReorderedEvent {
   repeated string role_names = 1;
 }
 
+// Identifies why a role-assignment fact exists. Historical events with an
+// unspecified source are manual assignments.
+enum RbacRoleAssignmentSource {
+  RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED = 0;
+  RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL = 1;
+  RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC = 2;
+}
+
 message RbacRoleAssignedEvent {
   string user_id = 1;
   string role_name = 2;
+  RbacRoleAssignmentSource source = 3;
+
+  // Required when source is OIDC. This is a configured provider ID, not a
+  // claim value or external subject.
+  string source_provider_id = 4;
+
+  // The canonical verified OIDC issuer. Required for new OIDC sources so a
+  // reused provider ID cannot carry authorization across issuer boundaries.
+  string source_issuer = 5;
 }
 
 message RbacRoleRevokedEvent {
   string user_id = 1;
   string role_name = 2;
+  RbacRoleAssignmentSource source = 3;
+
+  // Required when source is OIDC. This is a configured provider ID, not a
+  // claim value or external subject.
+  string source_provider_id = 4;
+
+  // The canonical verified OIDC issuer. Required for new OIDC sources so a
+  // reused provider ID cannot carry authorization across issuer boundaries.
+  string source_issuer = 5;
 }
 
 enum RbacPermissionScopeKind {

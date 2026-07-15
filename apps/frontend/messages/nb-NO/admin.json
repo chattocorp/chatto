@@ -101,6 +101,7 @@
       "view_roles_description": "Se rollene som er tildelt dette medlemmet.",
       "implicit_role_tooltip": "Alle servermedlemmer har denne rollen implisitt",
       "cannot_revoke_own_role": "Du kan ikke tilbakekalle din egen {role}-rolle",
+      "role_managed_by_identity_provider": "Denne rollen administreres av identitetsleverandøren",
       "edit": "Rediger",
       "assigned_role": "Tildelt {role}-rolle",
       "removed_role": "Fjernet {role}-rolle",

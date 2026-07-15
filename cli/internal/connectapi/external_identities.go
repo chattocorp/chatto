@@ -33,7 +33,11 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, connectError(err)
 	}
 	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), flow.DisplayNameHint)
-	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
+	provider, err := s.currentProviderForFlow(flow)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	user, err := s.api.core.CreateUserForExternalIdentityWithOIDCRoleClaims(ctx, req.Msg.GetLogin(), displayName, flow, provider)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -78,8 +82,15 @@ func (s *externalIdentityAuthService) ConfirmExternalIdentityLink(ctx context.Co
 	if err != nil {
 		return nil, connectError(err)
 	}
+	provider, err := s.currentProviderForFlow(flow)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	identity, err := s.api.core.ConfirmPendingExternalIdentityLink(ctx, flow)
 	if err != nil {
+		return nil, connectError(err)
+	}
+	if err := s.api.core.SyncOIDCRoleClaims(ctx, flow.BoundUserID, provider, flow.OIDCRoleClaimPresent, flow.OIDCRoles); err != nil {
 		return nil, connectError(err)
 	}
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
@@ -228,6 +239,21 @@ func (a *API) authProvider(providerID string) (config.AuthProviderConfig, bool) 
 	return config.AuthProviderConfig{}, false
 }
 
+func (s *externalIdentityAuthService) currentProviderForFlow(flow *core.PendingExternalIdentityFlow) (config.AuthProviderConfig, error) {
+	if flow == nil {
+		return config.AuthProviderConfig{}, core.ErrExternalIdentityProviderChanged
+	}
+	provider, ok := s.api.authProvider(flow.ProviderID)
+	if !ok || provider.Type != flow.ProviderType {
+		return config.AuthProviderConfig{}, core.ErrExternalIdentityProviderChanged
+	}
+	if provider.Type == config.AuthProviderTypeOpenIDConnect &&
+		config.CanonicalOIDCIssuer(provider.IssuerURL) != config.CanonicalOIDCIssuer(flow.Issuer) {
+		return config.AuthProviderConfig{}, core.ErrExternalIdentityProviderChanged
+	}
+	return provider, nil
+}
+
 func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, token string) string {
 	baseURL := strings.TrimRight(requestBaseURLFromContext(ctx), "/")
 	if baseURL == "" {
@@ -242,7 +268,8 @@ func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, toke
 
 func providerLinkedIdentity(provider config.AuthProviderConfig, identities []core.ExternalIdentity) (core.ExternalIdentity, bool) {
 	for _, identity := range identities {
-		if identity.ProviderID == provider.ID {
+		if identity.ProviderID == provider.ID && (provider.Type != config.AuthProviderTypeOpenIDConnect ||
+			config.CanonicalOIDCIssuer(identity.Issuer) == config.CanonicalOIDCIssuer(provider.IssuerURL)) {
 			return identity, true
 		}
 		if provider.Type == config.AuthProviderTypeOpenIDConnect &&

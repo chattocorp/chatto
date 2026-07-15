@@ -296,6 +296,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.applyConfigOwners(gctx); err != nil {
 			return fmt.Errorf("apply config owners: %w", err)
 		}
+		if err := c.reconcileOIDCRoleSources(gctx); err != nil {
+			return fmt.Errorf("reconcile OIDC role sources: %w", err)
+		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are

@@ -101,6 +101,7 @@
       "view_roles_description": "Veja as funções atribuídas a este membro.",
       "implicit_role_tooltip": "Todos os membros do servidor têm esta função implicitamente",
       "cannot_revoke_own_role": "Você não pode revogar sua própria função {role}",
+      "role_managed_by_identity_provider": "Esta função é gerenciada pelo provedor de identidade",
       "edit": "Editar",
       "assigned_role": "Função {role} atribuída",
       "removed_role": "Função {role} removida",

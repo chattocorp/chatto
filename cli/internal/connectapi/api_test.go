@@ -697,6 +697,40 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 
 }
 
+func TestExternalIdentityConfirmationRejectsReusedOIDCProviderID(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.Auth.Providers = []config.AuthProviderConfig{{
+		ID: "company-sso", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://login.new.example",
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{core.RoleOwner},
+	}}
+
+	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "company-sso", ProviderType: config.AuthProviderTypeOpenIDConnect,
+		Issuer: "https://login.old.example", Subject: "old-subject",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+	if _, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: createToken, Login: "old-idp-user",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("CreateExternalIdentityAccount reused provider ID code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+
+	linkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "company-sso", ProviderType: config.AuthProviderTypeOpenIDConnect,
+		Issuer: "https://login.old.example", Subject: "old-subject-link",
+	}, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkFlow: %v", err)
+	}
+	if _, err := env.externalAuth.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&authv1.ConfirmExternalIdentityLinkRequest{
+		Token: linkToken,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("ConfirmExternalIdentityLink reused provider ID code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+}
+
 func TestExternalIdentityCreateDisplayName(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -7524,6 +7558,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"string length", &core.StringLengthError{Field: "field", Max: 10}, connect.CodeInvalidArgument},
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
 		{"edit window expired", core.ErrEditWindowExpired, connect.CodeFailedPrecondition},
+		{"OIDC-managed role", core.ErrRoleManagedByIdentityProvider, connect.CodeFailedPrecondition},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
 

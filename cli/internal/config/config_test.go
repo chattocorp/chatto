@@ -306,6 +306,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_SCOPES", "openid, profile, groups")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL", "false")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION", "true")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ROLE_CLAIM", "roles")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ROLE_CLAIM_ALLOWED_ROLES", "admin,moderator")
+	t.Setenv("CHATTO_AUTH_PROVIDERS_0_ROLE_CLAIM_MODE", "reconcile")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_0_PROVIDER_OPTIONS_PROMPT", "select_account")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_ID", "github-main")
 	t.Setenv("CHATTO_AUTH_PROVIDERS_1_TYPE", "github")
@@ -334,6 +337,9 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	if got := cfg.Auth.Providers[0].ProviderOptions["prompt"]; got != "select_account" {
 		t.Fatalf("Auth.Providers[0].ProviderOptions[prompt] = %q", got)
 	}
+	if got := cfg.Auth.Providers[0]; got.RoleClaim != "roles" || strings.Join(got.RoleClaimAllowedRoles, ",") != "admin,moderator" || got.RoleClaimMode != OIDCRoleClaimModeReconcile {
+		t.Fatalf("Auth.Providers[0] role claim config = %+v", got)
+	}
 	if got := cfg.Auth.Providers[1]; got.ID != "github-main" || got.Type != AuthProviderTypeGitHub || got.ClientID != "github-id" || got.ClientSecret != "github-secret" {
 		t.Fatalf("Auth.Providers[1] = %+v", got)
 	}
@@ -342,6 +348,66 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 func TestAuthProviderConfig_RequestEmailDefault(t *testing.T) {
 	if got := (AuthProviderConfig{}).RequestEmailOrDefault(); got {
 		t.Fatalf("RequestEmailOrDefault() = %v, want false", got)
+	}
+}
+
+func TestChattoConfig_ValidateOIDCRoleClaims(t *testing.T) {
+	provider := func() AuthProviderConfig {
+		return AuthProviderConfig{
+			ID: "hub", Type: AuthProviderTypeOpenIDConnect, IssuerURL: "https://issuer.example", ClientID: "id", ClientSecret: "secret",
+		}
+	}
+	tests := []struct {
+		name      string
+		configure func(*AuthProviderConfig)
+		wantError string
+	}{
+		{name: "explicit roles default additive", configure: func(p *AuthProviderConfig) {
+			p.RoleClaim = "roles"
+			p.RoleClaimAllowedRoles = []string{"admin", "moderator"}
+		}},
+		{name: "wildcard allows owner", configure: func(p *AuthProviderConfig) { p.RoleClaim = "roles"; p.RoleClaimAllowedRoles = []string{"*"} }},
+		{name: "missing allowlist", configure: func(p *AuthProviderConfig) { p.RoleClaim = "roles" }, wantError: "role_claim_allowed_roles is required"},
+		{name: "implicit everyone", configure: func(p *AuthProviderConfig) { p.RoleClaim = "roles"; p.RoleClaimAllowedRoles = []string{"everyone"} }, wantError: "cannot include the implicit everyone role"},
+		{name: "wildcard mix", configure: func(p *AuthProviderConfig) { p.RoleClaim = "roles"; p.RoleClaimAllowedRoles = []string{"*", "admin"} }, wantError: "wildcard must be the only value"},
+		{name: "unknown mode", configure: func(p *AuthProviderConfig) {
+			p.RoleClaim = "roles"
+			p.RoleClaimAllowedRoles = []string{"admin"}
+			p.RoleClaimMode = "strict"
+		}, wantError: "role_claim_mode must be one of"},
+		{name: "non oidc", configure: func(p *AuthProviderConfig) {
+			p.Type = AuthProviderTypeGitHub
+			p.RoleClaim = "roles"
+			p.RoleClaimAllowedRoles = []string{"admin"}
+		}, wantError: "only supported for type = 'oidc'"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Webserver.URL = "https://chat.example"
+			p := provider()
+			tt.configure(&p)
+			cfg.Auth.Providers = []AuthProviderConfig{p}
+			err := cfg.Validate()
+			if tt.wantError == "" && err != nil {
+				t.Fatalf("Validate() error = %v", err)
+			}
+			if tt.wantError != "" && (err == nil || !strings.Contains(err.Error(), tt.wantError)) {
+				t.Fatalf("Validate() error = %v, want %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_RejectsDuplicateOIDCIssuer(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example"
+	cfg.Auth.Providers = []AuthProviderConfig{
+		{ID: "primary", Type: AuthProviderTypeOpenIDConnect, IssuerURL: "https://issuer.example", ClientID: "id", ClientSecret: "secret"},
+		{ID: "privileged", Type: AuthProviderTypeOpenIDConnect, IssuerURL: "https://issuer.example/", ClientID: "id", ClientSecret: "secret"},
+	}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "configure each issuer only once") {
+		t.Fatalf("Validate() error = %v, want duplicate OIDC issuer error", err)
 	}
 }
 
