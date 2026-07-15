@@ -232,7 +232,7 @@ test.describe('Personal Settings', () => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
 
-    await page.waitForURL(new RegExp(`^${routes.personalSettings}\\?`));
+    await page.waitForURL((url) => url.pathname === routes.personalSettings);
     await expect(page.getByRole('heading', { name: 'Personal settings' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });

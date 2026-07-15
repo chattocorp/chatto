@@ -22,13 +22,14 @@ test.describe('Notification Settings', () => {
   test('personal settings are accessible from the app header', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
+    await page.waitForURL(routes.browseRooms);
 
     await page
       .locator('header.app-header')
       .getByRole('link', { name: 'Settings', exact: true })
       .click();
 
-    await page.waitForURL(new RegExp(`^${routes.personalSettings}\\?`));
+    await page.waitForURL((url) => url.pathname === routes.personalSettings);
     await expect(
       page.getByRole('heading', { name: 'Personal settings', exact: true })
     ).toBeVisible();
