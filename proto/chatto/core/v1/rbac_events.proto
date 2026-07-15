@@ -8,7 +8,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // DURABLE RBAC EVENTS (evt.rbac.>)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 800-813: durable RBAC role, assignment, and permission events
+//   - 800-815: durable RBAC role, assignment, and permission events
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -48,11 +48,19 @@ message RbacRolesReorderedEvent {
 message RbacRoleAssignedEvent {
   string user_id = 1;
   string role_name = 2;
+
+  // Mirrors an OIDC source transition for replicas that predate source-aware
+  // role events. Current projections ignore compatibility shadows.
+  bool compatibility_shadow = 3;
 }
 
 message RbacRoleRevokedEvent {
   string user_id = 1;
   string role_name = 2;
+
+  // Mirrors an OIDC source transition for replicas that predate source-aware
+  // role events. Current projections ignore compatibility shadows.
+  bool compatibility_shadow = 3;
 }
 
 // Records a role granted from a verified OIDC role claim. Provider IDs are

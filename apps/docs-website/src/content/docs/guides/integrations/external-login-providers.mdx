@@ -254,6 +254,8 @@ The configured claim may be a string or a list of strings. Chatto reads it from 
 - `reconcile` grants matching values and removes roles managed by this provider when the claim is present but no longer contains them. It never removes a manual assignment or another provider's grant.
 - A missing or malformed claim does not remove existing managed roles.
 - Synchronization runs when the person completes OIDC login, creates an account, or links the provider. Chatto does not store provider refresh tokens or poll for changes.
+- Removing a role in Server Admin clears every current source for that member. An enabled provider can grant it again at the next synchronization.
+- Removing the provider configuration or its role-claim settings revokes its remaining managed sources during the next server startup.
 
 You can intentionally delegate every role, including `owner` and roles created later, with `role_claim_allowed_roles = ["*"]`. Do this only when the provider is trusted to control full server access. The implicit `everyone` role is never assignable. Omitting `role_claim_allowed_roles` is invalid; it never means "allow all".
 

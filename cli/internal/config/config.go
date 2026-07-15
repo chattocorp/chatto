@@ -462,6 +462,7 @@ type CoreConfig struct {
 	Replicas                    int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
 	Limits                      LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
 	Owners                      OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	AuthProviders               []AuthProviderConfig `toml:"-" env:"-"` // Set by caller from ChattoConfig.Auth.Providers for startup OIDC source reconciliation
 	Version                     string         `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 }
 

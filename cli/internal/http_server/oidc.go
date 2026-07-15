@@ -443,6 +443,31 @@ func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.S
 	return r.resolveGothIdentity(c, session)
 }
 
+type oidcProfileClaims struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	PreferredUser string `json:"preferred_username"`
+	Picture       string `json:"picture"`
+}
+
+func mergeOIDCProfileClaims(primary, fallback oidcProfileClaims) oidcProfileClaims {
+	if primary.Email == "" {
+		primary.Email = fallback.Email
+		primary.EmailVerified = fallback.EmailVerified
+	}
+	if primary.Name == "" {
+		primary.Name = fallback.Name
+	}
+	if primary.PreferredUser == "" {
+		primary.PreferredUser = fallback.PreferredUser
+	}
+	if primary.Picture == "" {
+		primary.Picture = fallback.Picture
+	}
+	return primary
+}
+
 func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
 	ctx := c.Request.Context()
 	codeVerifier, _ := session.Get(providerSessionKey(r.config.ID, "code_verifier")).(string)
@@ -470,13 +495,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	// Extract claims from the ID token first
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
-		PreferredUser string `json:"preferred_username"`
-		Picture       string `json:"picture"`
-	}
+	var claims oidcProfileClaims
 	if err := idToken.Claims(&claims); err != nil {
 		return resolvedProviderIdentity{}, fmt.Errorf("parse id token claims: %w", err)
 	}
@@ -499,17 +518,11 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		} else if userInfo.Subject != idToken.Subject {
 			log.Warn("OIDC userinfo subject mismatch", "provider_id", r.config.ID)
 		} else {
-			var userInfoClaims struct {
-				Email         string `json:"email"`
-				EmailVerified bool   `json:"email_verified"`
-				Name          string `json:"name"`
-				PreferredUser string `json:"preferred_username"`
-				Picture       string `json:"picture"`
-			}
+			var userInfoClaims oidcProfileClaims
 			if err := userInfo.Claims(&userInfoClaims); err != nil {
 				log.Warn("OIDC userinfo profile claims ignored", "provider_id", r.config.ID, "error", err)
-			} else if claims.Email == "" {
-				claims = userInfoClaims
+			} else {
+				claims = mergeOIDCProfileClaims(claims, userInfoClaims)
 			}
 			if roleClaimState == oidcStringClaimAbsent && r.config.RoleClaim != "" {
 				var rawUserInfoClaims map[string]json.RawMessage

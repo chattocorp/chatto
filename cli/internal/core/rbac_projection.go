@@ -70,9 +70,13 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
 	case *corev1.Event_RbacRoleAssigned:
-		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
+		if !e.RbacRoleAssigned.GetCompatibilityShadow() {
+			p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
+		}
 	case *corev1.Event_RbacRoleRevoked:
-		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
+		if !e.RbacRoleRevoked.GetCompatibilityShadow() {
+			p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
+		}
 	case *corev1.Event_RbacOidcRoleGranted:
 		p.applyOIDCRoleGranted(e.RbacOidcRoleGranted.GetUserId(), e.RbacOidcRoleGranted.GetRoleName(), e.RbacOidcRoleGranted.GetProviderId())
 	case *corev1.Event_RbacOidcRoleRevoked:
@@ -234,6 +238,14 @@ func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
 	delete(p.manualAssignments[userID], roleName)
 	if len(p.manualAssignments[userID]) == 0 {
 		delete(p.manualAssignments, userID)
+	}
+	// A normal legacy revoke is the compatibility representation of an
+	// operator removing every current source. This keeps older writers safe
+	// during rolling deployments. Source-specific OIDC cleanup uses its own
+	// event and compatibility shadows are filtered before reaching this method.
+	delete(p.oidcAssignments[userID], roleName)
+	if len(p.oidcAssignments[userID]) == 0 {
+		delete(p.oidcAssignments, userID)
 	}
 	p.refreshEffectiveRole(userID, roleName)
 }
@@ -503,6 +515,19 @@ func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []strin
 	}
 	sort.Strings(roles)
 	return roles
+}
+
+// OIDCProvidersForRole returns every provider currently backing one effective
+// user-role assignment. The returned values are sorted and safe to retain.
+func (p *RBACProjection) OIDCProvidersForRole(userID, roleName string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	providers := make([]string, 0, len(p.oidcAssignments[userID][roleName]))
+	for providerID := range p.oidcAssignments[userID][roleName] {
+		providers = append(providers, providerID)
+	}
+	sort.Strings(providers)
+	return providers
 }
 
 // OIDCRoleAssignmentsForUser returns every provider-managed source for a user.

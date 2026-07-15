@@ -443,11 +443,14 @@ func (x *RbacRolesReorderedEvent) GetRoleNames() []string {
 }
 
 type RbacRoleAssignedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Mirrors an OIDC source transition for replicas that predate source-aware
+	// role events. Current projections ignore compatibility shadows.
+	CompatibilityShadow bool `protobuf:"varint,3,opt,name=compatibility_shadow,json=compatibilityShadow,proto3" json:"compatibility_shadow,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RbacRoleAssignedEvent) Reset() {
@@ -494,12 +497,22 @@ func (x *RbacRoleAssignedEvent) GetRoleName() string {
 	return ""
 }
 
+func (x *RbacRoleAssignedEvent) GetCompatibilityShadow() bool {
+	if x != nil {
+		return x.CompatibilityShadow
+	}
+	return false
+}
+
 type RbacRoleRevokedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleName string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	// Mirrors an OIDC source transition for replicas that predate source-aware
+	// role events. Current projections ignore compatibility shadows.
+	CompatibilityShadow bool `protobuf:"varint,3,opt,name=compatibility_shadow,json=compatibilityShadow,proto3" json:"compatibility_shadow,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RbacRoleRevokedEvent) Reset() {
@@ -544,6 +557,13 @@ func (x *RbacRoleRevokedEvent) GetRoleName() string {
 		return x.RoleName
 	}
 	return ""
+}
+
+func (x *RbacRoleRevokedEvent) GetCompatibilityShadow() bool {
+	if x != nil {
+		return x.CompatibilityShadow
+	}
+	return false
 }
 
 // Records a role granted from a verified OIDC role claim. Provider IDs are
@@ -981,13 +1001,15 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"8\n" +
 	"\x17RbacRolesReorderedEvent\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tR\troleNames\"M\n" +
+	"role_names\x18\x01 \x03(\tR\troleNames\"\x80\x01\n" +
 	"\x15RbacRoleAssignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\trole_name\x18\x02 \x01(\tR\broleName\"L\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\x121\n" +
+	"\x14compatibility_shadow\x18\x03 \x01(\bR\x13compatibilityShadow\"\x7f\n" +
 	"\x14RbacRoleRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\trole_name\x18\x02 \x01(\tR\broleName\"q\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\x121\n" +
+	"\x14compatibility_shadow\x18\x03 \x01(\bR\x13compatibilityShadow\"q\n" +
 	"\x18RbacOIDCRoleGrantedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12\x1f\n" +

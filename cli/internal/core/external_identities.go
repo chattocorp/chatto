@@ -373,24 +373,24 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 }
 
 // appendExternalIdentityDisconnect atomically unlinks an identity and revokes
-// the now-unbacked OIDC role sources for its provider. The global EVT OCC
-// boundary prevents a concurrent login or link from leaving a stale source.
+// the now-unbacked OIDC role sources for its provider. Independent user and
+// RBAC OCC guards prevent stale sources without contending on unrelated EVT.
 func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userID, subjectHash string) error {
-	filter := events.EventSubjectFilter()
 	userFilter := events.UserAggregate(userID).AllEventsFilter()
+	rbacFilter := events.RBACSubjectFilter()
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
 		if err != nil {
-			return fmt.Errorf("read external identity disconnect OCC filter seq: %w", err)
+			return fmt.Errorf("read external identity disconnect user OCC seq: %w", err)
 		}
 		if err := c.userModel.waitForUsersCurrent(ctx, "external identity disconnect", userFilter); err != nil {
 			return err
 		}
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
 		if err != nil {
 			return fmt.Errorf("read RBAC projection seq: %w", err)
 		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
 			return fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 
@@ -428,15 +428,24 @@ func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userI
 		entries := []events.BatchEntry{{Subject: userSubject, Event: unlink}}
 		if !providerStillLinked {
 			for _, roleName := range c.RBAC.OIDCRolesForProvider(userID, disconnected.ProviderID) {
+				providers := c.RBAC.OIDCProvidersForRole(userID, roleName)
 				revoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
 					RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: roleName, ProviderId: disconnected.ProviderID},
 				}})
 				entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(revoke), Event: revoke})
+				if !c.RBAC.HasManualRole(userID, roleName) && len(providers) == 1 {
+					entries = append(entries, compatibilityRoleRevokedEntry(SystemActorID, userID, roleName))
+				}
 			}
 		}
 		entries[0].HasOCC = true
-		entries[0].ExpectedSeq = filterSeq
-		entries[0].FilterSubject = filter
+		entries[0].ExpectedSeq = userSeq
+		entries[0].FilterSubject = userFilter
+		if len(entries) > 1 {
+			entries[1].HasOCC = true
+			entries[1].ExpectedSeq = rbacSeq
+			entries[1].FilterSubject = rbacFilter
+		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userSubject, seqs[0])); err != nil {

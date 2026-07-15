@@ -266,30 +266,24 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	return nil
 }
 
-// RevokeServerRole removes an role from a user.
+// RevokeServerRole removes every current source of a role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
 // Authorization is enforced by the API boundary (`role.assign`). The only
-// service-level guard is self-owner lockout prevention.
+// service-level guard is self-owner lockout prevention. An enabled OIDC
+// provider may grant the role again on a later successful synchronization.
 func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
-	}})
-
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRBACBatchBuilt(ctx, func() ([]events.BatchEntry, error) {
 		if roleName == RoleOwner && actorID == userID {
-			return ErrCannotRevokeSelfAdmin
+			return nil, ErrCannotRevokeSelfAdmin
 		}
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
-			return ErrRoleNotFound
+			return nil, ErrRoleNotFound
 		}
-		if !c.RBAC.HasManualRole(userID, roleName) && c.RBAC.HasRole(userID, roleName) {
-			return ErrRoleManagedByOIDC
-		}
-		return nil
+		return c.roleSourceRevocationEntries(actorID, userID, roleName), nil
 	}); err != nil {
 		return err
 	}
@@ -298,7 +292,8 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 	return nil
 }
 
-// RevokeServerRoleFromExistingUser revokes a role from an existing user.
+// RevokeServerRoleFromExistingUser revokes every source of a role from an
+// existing user.
 // Unlike RevokeServerRole, it validates target-user existence inside the append
 // OCC loop so operator APIs cannot report NotFound after persisting a role fact
 // for a user that was already deleted.
@@ -307,27 +302,42 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
-	}})
-
-	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
+	if _, err := c.appendRBACBatchWithUserCheck(ctx, userID, func() ([]events.BatchEntry, error) {
 		if roleName == RoleOwner && actorID == userID {
-			return ErrCannotRevokeSelfAdmin
+			return nil, ErrCannotRevokeSelfAdmin
 		}
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
-			return ErrRoleNotFound
+			return nil, ErrRoleNotFound
 		}
-		if !c.RBAC.HasManualRole(userID, roleName) && c.RBAC.HasRole(userID, roleName) {
-			return ErrRoleManagedByOIDC
-		}
-		return nil
+		return c.roleSourceRevocationEntries(actorID, userID, roleName), nil
 	}); err != nil {
 		return err
 	}
 
 	c.logger.Info("Revoked role", "role", roleName, "user_id", userID, "actor_id", actorID)
 	return nil
+}
+
+func (c *ChattoCore) roleSourceRevocationEntries(actorID, userID, roleName string) []events.BatchEntry {
+	manual := c.RBAC.HasManualRole(userID, roleName)
+	providers := c.RBAC.OIDCProvidersForRole(userID, roleName)
+	entries := make([]events.BatchEntry, 0, 1+len(providers))
+	if manual {
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	for _, providerID := range providers {
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
+			RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: roleName, ProviderId: providerID},
+		}})
+		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+	}
+	if !manual && len(providers) > 0 {
+		entries = append(entries, compatibilityRoleRevokedEntry(actorID, userID, roleName))
+	}
+	return entries
 }
 
 // GetRoleUsers returns all user IDs explicitly assigned to a role.
@@ -845,22 +855,9 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID str
 	}
 
 	roles := c.RBAC.GetUserRoles(userID)
-	oidcAssignments := c.RBAC.OIDCRoleAssignmentsForUser(userID)
-	entries := make([]events.BatchEntry, 0, len(roles)+len(oidcAssignments))
+	entries := make([]events.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {
-		if !c.RBAC.HasManualRole(userID, roleName) {
-			continue
-		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
-	}
-	for _, assignment := range oidcAssignments {
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleRevoked{
-			RbacOidcRoleRevoked: &corev1.RbacOIDCRoleRevokedEvent{UserId: userID, RoleName: assignment.roleName, ProviderId: assignment.providerID},
-		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, c.roleSourceRevocationEntries(actorID, userID, roleName)...)
 	}
 	if _, err := c.appendRBACBatch(ctx, entries, nil); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)

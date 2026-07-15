@@ -82,6 +82,20 @@ func TestOIDCStringClaim(t *testing.T) {
 	}
 }
 
+func TestMergeOIDCProfileClaimsPreservesIDTokenProfile(t *testing.T) {
+	primary := oidcProfileClaims{
+		Name: "ID Token Name", PreferredUser: "id-token-user", Picture: "https://id.example/avatar.png",
+	}
+	fallback := oidcProfileClaims{Email: "user@example.com", EmailVerified: true}
+	got := mergeOIDCProfileClaims(primary, fallback)
+	if got.Email != fallback.Email || !got.EmailVerified {
+		t.Fatalf("merged email = %q verified=%v", got.Email, got.EmailVerified)
+	}
+	if got.Name != primary.Name || got.PreferredUser != primary.PreferredUser || got.Picture != primary.Picture {
+		t.Fatalf("merged profile = %+v, want ID-token profile preserved", got)
+	}
+}
+
 func TestProviderScopesForGoogle(t *testing.T) {
 	t.Run("default keeps openid profile", func(t *testing.T) {
 		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle})

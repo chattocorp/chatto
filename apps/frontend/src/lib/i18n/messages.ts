@@ -1248,7 +1248,6 @@ const msg_admin_members_removed_role = (
   inputs: Parameters<LocaleMessages['admin_members_removed_role']>[0]
 ): LocalizedString => messages().admin_members_removed_role(inputs);
 const msg_admin_members_role_update_failed = (): LocalizedString => messages().admin_members_role_update_failed(empty());
-const msg_admin_members_role_managed_by_identity_provider = (): LocalizedString => messages().admin_members_role_managed_by_identity_provider(empty());
 const msg_admin_member_detail_no_self_rename = (): LocalizedString => messages().admin_member_detail_no_self_rename(empty());
 const msg_admin_member_detail_self_rename_cooldown = (
   inputs: Parameters<LocaleMessages['admin_member_detail_self_rename_cooldown']>[0]
@@ -2596,7 +2595,6 @@ export { msg_admin_members_edit as 'admin.members.edit' };
 export { msg_admin_members_assigned_role as 'admin.members.assigned_role' };
 export { msg_admin_members_removed_role as 'admin.members.removed_role' };
 export { msg_admin_members_role_update_failed as 'admin.members.role_update_failed' };
-export { msg_admin_members_role_managed_by_identity_provider as 'admin.members.role_managed_by_identity_provider' };
 export { msg_admin_member_detail_no_self_rename as 'admin.member_detail.no_self_rename' };
 export { msg_admin_member_detail_self_rename_cooldown as 'admin.member_detail.self_rename_cooldown' };
 export { msg_admin_member_detail_last_self_rename as 'admin.member_detail.last_self_rename' };

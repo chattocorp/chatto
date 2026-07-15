@@ -199,6 +199,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
 | `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |
 | `evt.user.{userId}.external_identity_unlinked`              | `UserExternalIdentityUnlinkedEvent`                 |
+| `evt.user.{userId}.oidc_roles_synchronized`                 | `UserOIDCRolesSynchronizedEvent`                    |
 | `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
@@ -233,6 +234,10 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
+
+Source-aware OIDC grants also emit compatibility-shadow `role_assigned` or
+`role_revoked` facts when the effective role changes. Replicas that predate
+source-aware events consume the shadow; current projections ignore it.
 
 ## Transient live subjects
 

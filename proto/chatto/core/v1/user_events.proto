@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-716: durable user aggregate events on evt.user.{userId}.*
+//   - 700-718: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -140,6 +140,13 @@ message UserExternalIdentityUnlinkedEvent {
   // Stable one-way identity hash previously written by
   // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
   string subject_hash = 2;
+}
+
+// Records that accepted role sources from one linked OIDC provider changed.
+// Raw claim values and provider subjects are intentionally not persisted.
+message UserOIDCRolesSynchronizedEvent {
+  string user_id = 1;
+  string provider_id = 2;
 }
 
 message UserServerPreferencesChangedEvent {

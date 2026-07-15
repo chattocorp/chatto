@@ -1,10 +1,10 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
 	"hmans.de/chatto/internal/config"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func linkOIDCTestIdentity(t *testing.T, chatto *ChattoCore, userID, providerID string) {
@@ -65,13 +65,16 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 	}
 
 	if err := chatto.RevokeServerRoleFromExistingUser(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
-		t.Fatalf("manual moderator revoke: %v", err)
+		t.Fatalf("operator moderator revoke: %v", err)
 	}
-	if !chatto.RBAC.HasRole(user.Id, RoleModerator) {
-		t.Fatal("provider B's moderator grant must survive manual revoke")
+	if chatto.RBAC.HasRole(user.Id, RoleModerator) {
+		t.Fatal("operator revocation must remove manual and OIDC role sources")
 	}
-	if err := chatto.RevokeServerRoleFromExistingUser(ctx, SystemActorID, user.Id, RoleModerator); !errors.Is(err, ErrRoleManagedByOIDC) {
-		t.Fatalf("revoke OIDC-only role error = %v, want ErrRoleManagedByOIDC", err)
+	if got := chatto.RBAC.OIDCRolesForProvider(user.Id, providerB.ID); len(got) != 0 {
+		t.Fatalf("provider B sources after operator revoke = %v, want none", got)
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, providerB, true, []string{RoleModerator}); err != nil {
+		t.Fatalf("provider B regrant after operator revoke: %v", err)
 	}
 
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, providerB, false, nil); err != nil {
@@ -86,6 +89,109 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 	}
 	if chatto.RBAC.HasRole(user.Id, RoleModerator) {
 		t.Fatal("disabled role claim must remove provider-managed grants")
+	}
+}
+
+func TestChattoCore_SyncOIDCRoleClaimsEmitsCompatibilityShadows(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "oidc-shadow", "OIDC Shadow", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	provider := config.AuthProviderConfig{
+		ID: "oidc-shadow", Type: config.AuthProviderTypeOpenIDConnect,
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
+	grantEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
+	if len(grantEntries) != 2 {
+		t.Fatalf("grant entries = %d, want source event plus compatibility shadow", len(grantEntries))
+	}
+	grantShadow := grantEntries[1].Event.GetRbacRoleAssigned()
+	if grantShadow == nil || !grantShadow.GetCompatibilityShadow() {
+		t.Fatalf("grant compatibility event = %v", grantEntries[1].Event.GetEvent())
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleModerator}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims grant: %v", err)
+	}
+	if !chatto.RBAC.HasRole(user.Id, RoleModerator) || chatto.RBAC.HasManualRole(user.Id, RoleModerator) {
+		t.Fatal("current projection must keep the compatibility shadow out of manual role sources")
+	}
+	grantEntries = chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
+	if len(grantEntries) != 0 {
+		t.Fatalf("idempotent grant entries = %d, want 0", len(grantEntries))
+	}
+
+	revokeEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{})
+	if len(revokeEntries) != 2 {
+		t.Fatalf("revoke entries = %d, want source event plus compatibility shadow", len(revokeEntries))
+	}
+	shadow := revokeEntries[1].Event.GetRbacRoleRevoked()
+	if shadow == nil || !shadow.GetCompatibilityShadow() {
+		t.Fatalf("revoke compatibility event = %v", revokeEntries[1].Event.GetEvent())
+	}
+
+	projection := NewRBACProjection()
+	grant := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleGranted{
+		RbacOidcRoleGranted: &corev1.RbacOIDCRoleGrantedEvent{UserId: user.Id, RoleName: RoleModerator, ProviderId: provider.ID},
+	}})
+	if err := projection.Apply(grant, 1); err != nil {
+		t.Fatalf("apply OIDC grant: %v", err)
+	}
+	legacyRevoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: user.Id, RoleName: RoleModerator},
+	}})
+	if err := projection.Apply(legacyRevoke, 2); err != nil {
+		t.Fatalf("apply legacy revoke: %v", err)
+	}
+	if projection.HasRole(user.Id, RoleModerator) || len(projection.OIDCRolesForProvider(user.Id, provider.ID)) != 0 {
+		t.Fatal("a legacy writer's normal revoke must clear source-aware assignments")
+	}
+}
+
+func TestChattoCore_ReconcileConfiguredOIDCRoleSourcesRevokesDisabledProvider(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "oidc-disabled", "OIDC Disabled", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	provider := config.AuthProviderConfig{
+		ID: "oidc-disabled", Type: config.AuthProviderTypeOpenIDConnect,
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleAdmin},
+	}
+	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleAdmin}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims: %v", err)
+	}
+	chatto.config.AuthProviders = []config.AuthProviderConfig{provider}
+	if err := chatto.ReconcileConfiguredOIDCRoleSources(ctx); err != nil {
+		t.Fatalf("ReconcileConfiguredOIDCRoleSources enabled: %v", err)
+	}
+	if !chatto.RBAC.HasRole(user.Id, RoleAdmin) {
+		t.Fatal("enabled provider source must survive startup reconciliation")
+	}
+	chatto.config.AuthProviders = nil
+	if err := chatto.ReconcileConfiguredOIDCRoleSources(ctx); err != nil {
+		t.Fatalf("ReconcileConfiguredOIDCRoleSources: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, RoleAdmin) {
+		t.Fatal("disabled provider sources must be revoked")
+	}
+
+	ghostID := "deleted-oidc-user"
+	ghostGrant := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacOidcRoleGranted{
+		RbacOidcRoleGranted: &corev1.RbacOIDCRoleGrantedEvent{UserId: ghostID, RoleName: RoleAdmin, ProviderId: provider.ID},
+	}})
+	if _, err := chatto.appendRBACEvent(ctx, ghostGrant, nil); err != nil {
+		t.Fatalf("append stale deleted-user source: %v", err)
+	}
+	if err := chatto.ReconcileConfiguredOIDCRoleSources(ctx); err != nil {
+		t.Fatalf("ReconcileConfiguredOIDCRoleSources deleted user: %v", err)
+	}
+	if got := chatto.RBAC.OIDCRolesForProvider(ghostID, provider.ID); len(got) != 0 {
+		t.Fatalf("deleted-user OIDC sources after reconciliation = %v, want none", got)
 	}
 }
 

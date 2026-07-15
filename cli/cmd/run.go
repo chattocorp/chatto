@@ -141,6 +141,7 @@ func runServer(configPath string) {
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
+	cfg.Core.AuthProviders = append([]config.AuthProviderConfig(nil), cfg.Auth.Providers...)
 	cfg.Core.Version = Version
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
