@@ -24,6 +24,7 @@ path-specific guidance.
 - Chatto is public, self-hosted, and has real user data.
 - The project is pre-1.0, but people are already self-hosting Chatto, so we want to avoid breaking changes where possible. For new API surface, prefer new protobuf fields on existing protobuf types, then new protobuf types. Only implement _breaking_ API changes if absolutely necessary, but discuss this with the user first. Changes to the `core` protobuf messages (used by our persistence layer) must never be breaking.
 - Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
+- The next planned version is `0.5.0`. There's a 0.5.0 milestone on GitHub, but also we're locally tracking planned features and changes for 0.5.0 in `docs/TODO-0-5.md`. Please use these for guidance, and update them as we cross off features from the list. Do not add to the list unless the user specifically asks you to.
 
 ## Prime Directives
 
