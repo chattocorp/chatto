@@ -22,7 +22,7 @@ describe('UserAvatar', () => {
     expect(avatar.className).toContain('rounded-full');
     expect(avatar.className).toContain('ring-1');
     expect(avatar.className).toContain('ring-inset');
-    expect(avatar.className).toContain('ring-muted/20');
+    expect(avatar.className).toContain('ring-muted/15');
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
