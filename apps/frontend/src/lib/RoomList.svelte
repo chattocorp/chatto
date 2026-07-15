@@ -619,7 +619,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       kind="room"
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
-      canLeave={!contextRoom.isUniversal}
+      canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />

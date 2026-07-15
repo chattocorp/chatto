@@ -323,12 +323,14 @@ describe('RoomList', () => {
     expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
   });
 
-  it('opens room actions after a touch long-press', async () => {
+  it('opens room actions after a touch long-press and suppresses its synthetic click', async () => {
     vi.useFakeTimers();
+    mocks.activeCallRoomIds.add('channel-1');
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    const callIcon = q(row, '[data-testid="room-call-icon"]') as HTMLElement;
 
-    row.dispatchEvent(
+    callIcon.dispatchEvent(
       new PointerEvent('pointerdown', {
         bubbles: true,
         pointerId: 1,
@@ -344,7 +346,90 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Leave room'
     );
     await expect.element(leave ?? null).toBeInTheDocument();
+
+    callIcon.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 1,
+        pointerType: 'touch',
+        isPrimary: true
+      })
+    );
+    callIcon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+
+    callIcon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
     vi.useRealTimers();
+  });
+
+  it('cancels a pending long-press when touch movement indicates scrolling', async () => {
+    vi.useFakeTimers();
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 2,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 10,
+        clientY: 10
+      })
+    );
+    row.dispatchEvent(
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        pointerId: 2,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 20,
+        clientY: 10
+      })
+    );
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(document.querySelector('dialog.bottom-sheet')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('keeps a touch-native contextmenu in the sheet presentation', async () => {
+    vi.useFakeTimers();
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 3,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 12,
+        clientY: 16
+      })
+    );
+    row.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 12, clientY: 16 })
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect
+      .element(q(document.body, 'dialog.bottom-sheet'))
+      .toHaveAttribute('aria-label', 'Actions for #general');
+    vi.useRealTimers();
+  });
+
+  it('does not offer leave for direct-message rooms', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    expect(leave).toBeUndefined();
   });
 
   it('opens the existing leave-room confirmation flow from room actions', async () => {

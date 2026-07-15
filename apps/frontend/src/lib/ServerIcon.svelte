@@ -31,14 +31,14 @@
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     /** Optional right-click/long-press behavior for the server link. */
-    contextMenuTrigger?: Attachment<HTMLAnchorElement>;
+    contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
   } = $props();
 </script>
 
-<div class="server-icon-wrapper relative">
+<div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
     {href}
     {title}
@@ -49,7 +49,6 @@
       dimmed && 'opacity-40 grayscale'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
-    {@attach contextMenuTrigger}
   >
     {#if server}
       <ServerLogo {server} />

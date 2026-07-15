@@ -76,10 +76,16 @@ describe('ContextMenu', () => {
     inputCapabilities.prefersTouchActions.mockReturnValue(true);
     inputCapabilities.supportsHoverActions.mockReturnValue(true);
 
-    const { container } = renderMenu({ presentation: 'sheet' });
+    const { container } = renderMenu({
+      presentation: 'sheet',
+      ariaLabel: 'Room actions'
+    });
 
     await expect.element(q(container, 'dialog.bottom-sheet')).toBeInTheDocument();
-    expect(q(container, '[role="menu"]')).toBeNull();
+    await expect
+      .element(q(container, 'dialog.bottom-sheet'))
+      .toHaveAttribute('aria-label', 'Room actions');
+    await expect.element(q(container, '[role="menu"]')).toHaveAttribute('aria-label', 'Room actions');
     expect(container.textContent).toContain('Menu body');
   });
 });

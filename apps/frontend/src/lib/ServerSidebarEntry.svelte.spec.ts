@@ -292,6 +292,23 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
   });
 
+  it('opens server actions from the overlaid unread badge', async () => {
+    mocks.store.serverIndicator.mockReturnValue('unread');
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const badge = q(container, '[data-testid="server-unread-dot"]')?.closest(
+      'button'
+    ) as HTMLButtonElement;
+
+    badge.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+    await expect
+      .element(q(document.body, '[role="menu"]'))
+      .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
+  });
+
   it('opens the leave-server confirmation for the selected server', async () => {
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote', currentUserId: 'user-1' }
