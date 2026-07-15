@@ -264,6 +264,11 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 	if c.ClientSync != nil {
 		g.Go(func() error {
+			select {
+			case <-c.bootDone:
+			case <-gctx.Done():
+				return gctx.Err()
+			}
 			ticker := time.NewTicker(time.Minute)
 			defer ticker.Stop()
 			for {

@@ -111,11 +111,12 @@ Server URLs can reveal community membership. Operators already control
 `RUNTIME_STATE`, which contains other private authenticated runtime records;
 access to this API is strictly limited to the authenticated owner and code must
 not log directory contents. Account deletion retains a marker before purging
-both plaintext client-sync records. Mutations check the retained fence before
-and after writing. A separate pending marker is removed only after successful
-cleanup, and every replica periodically scans that bounded work set after
-confirming the account-deletion projection. Marker creation is exclusive and
-failed commands roll back only their own KV revisions with a bounded,
+both plaintext client-sync records. An exclusive, timestamped preparation
+marker blocks mutations before the account event; after commit, the command
+creates the retained deletion fence and uses the preparation as its retry
+marker. Recovery starts only after projections catch up, completes confirmed
+deletions, and revision-purges active-account preparations stale for one hour.
+Failed commands roll back only their own preparation revision with a bounded,
 non-cancelled context. Deletion therefore wins over in-flight requests and
-transient failures without letting pre-commit recovery erase active data or
-repeatedly traversing every historical deletion fence.
+transient failures without letting cold or pre-commit recovery erase active
+data or repeatedly traversing every historical committed fence.

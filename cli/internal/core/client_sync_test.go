@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -346,11 +347,38 @@ func TestClientSyncConcurrentDeletionCannotCancelOwnerFence(t *testing.T) {
 	if !errors.Is(err, errClientSyncDeletionInProgress) || loserFence != nil {
 		t.Fatalf("second BeginDeleteUser = (%v, %v), want owned conflict", loserFence, err)
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionMarkerKey(userID)); err != nil {
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionPendingKey(userID)); err != nil {
 		t.Fatalf("owner fence missing after concurrent attempt: %v", err)
 	}
 	if err := chatto.ClientSync.CancelDeleteUser(ctx, ownerFence); err != nil {
 		t.Fatalf("owner CancelDeleteUser: %v", err)
+	}
+}
+
+func TestClientSyncRecoveryRollsBackStalePreparationForActiveAccount(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "stale-preparation")
+	if _, err := chatto.ClientSync.BeginDeleteUser(ctx, userID); err != nil {
+		t.Fatalf("BeginDeleteUser: %v", err)
+	}
+	key := clientSyncDeletionPendingKey(userID)
+	entry, err := chatto.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("Get pending marker: %v", err)
+	}
+	staleData, err := proto.Marshal(timestamppb.New(time.Now().Add(-2 * clientSyncDeletionPreparationTTL)))
+	if err != nil {
+		t.Fatalf("marshal stale marker: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Update(ctx, key, staleData, entry.Revision()); err != nil {
+		t.Fatalf("age pending marker: %v", err)
+	}
+	if err := chatto.ClientSync.RecoverPendingDeletions(ctx); err != nil {
+		t.Fatalf("RecoverPendingDeletions: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, key); !isClientSyncKeyAbsent(err) {
+		t.Fatalf("stale preparation error = %v, want absent", err)
 	}
 }
 
