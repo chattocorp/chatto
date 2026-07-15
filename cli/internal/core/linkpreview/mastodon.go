@@ -184,11 +184,11 @@ func (f *Fetcher) fetchMastodonStatus(ctx context.Context, origin, statusID stri
 	if status.ID != statusID {
 		return nil, errors.New("Mastodon status API returned no matching status")
 	}
-	_, _, canonicalOK := ParseMastodonStatusURL(status.URL)
-	if !canonicalOK && status.Reblog != nil {
-		_, _, canonicalOK = ParseMastodonStatusURL(status.Reblog.URL)
+	canonicalURL := status.URL
+	if status.Reblog != nil {
+		canonicalURL = status.Reblog.URL
 	}
-	if !canonicalOK {
+	if safeExternalURL(canonicalURL) == "" {
 		return nil, errors.New("Mastodon status API returned an invalid canonical URL")
 	}
 	return &status, nil

@@ -36,11 +36,17 @@ preview-card styling and the same actions as other link previews.
     post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : ''
   );
 
-  let contentRevealed = $state(false);
-  let quotedContentRevealed = $state(false);
-  const contentConcealed = $derived(Boolean(post.contentWarning) && !contentRevealed);
+  const contentKey = $derived(`${post.url || url}\n${post.contentWarning || ''}`);
+  const quotedContentKey = $derived(
+    `${post.quotedPost?.url || ''}\n${post.quotedPost?.contentWarning || ''}`
+  );
+  let revealedContentKey = $state<string | null>(null);
+  let revealedQuotedContentKey = $state<string | null>(null);
+  const contentConcealed = $derived(
+    Boolean(post.contentWarning) && revealedContentKey !== contentKey
+  );
   const quotedContentConcealed = $derived(
-    Boolean(post.quotedPost?.contentWarning) && !quotedContentRevealed
+    Boolean(post.quotedPost?.contentWarning) && revealedQuotedContentKey !== quotedContentKey
   );
 
   function displayAuthor(post: SocialPostPreviewView) {
@@ -142,7 +148,7 @@ preview-card styling and the same actions as other link previews.
         onclick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          contentRevealed = !contentRevealed;
+          revealedContentKey = contentConcealed ? contentKey : null;
         }}
       >
         {contentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
@@ -237,7 +243,7 @@ preview-card styling and the same actions as other link previews.
               onclick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                quotedContentRevealed = !quotedContentRevealed;
+                revealedQuotedContentKey = quotedContentConcealed ? quotedContentKey : null;
               }}
             >
               {quotedContentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}

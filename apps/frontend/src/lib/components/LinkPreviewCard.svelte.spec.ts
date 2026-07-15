@@ -107,7 +107,7 @@ describe('LinkPreviewCard', () => {
   });
 
   it('renders a native social-post snapshot and conceals a warned quote', async () => {
-    const { container } = render(LinkPreviewCard, {
+    const { container, rerender } = render(LinkPreviewCard, {
       props: {
         preview: preview({
           url: 'https://bsky.app/profile/bsky.app/post/3kq7aeuwbg42k',
@@ -166,10 +166,30 @@ describe('LinkPreviewCard', () => {
       expect(card?.querySelector<HTMLImageElement>('img[alt="Quoted image"]')).not.toBeNull();
     });
     expect(card?.querySelector('iframe')).toBeNull();
+
+    await rerender({
+      preview: preview({
+        url: 'https://social.example/@alice/next',
+        socialPost: {
+          provider: 'mastodon',
+          text: 'Outer post',
+          images: [],
+          quotedPost: {
+            provider: 'mastodon',
+            url: 'https://remote.example/@bob/next',
+            text: 'A different warned quote.',
+            contentWarning: 'A different warning',
+            images: []
+          }
+        }
+      })
+    });
+    expect(card?.textContent).toContain('A different warning');
+    expect(card?.textContent).not.toContain('A different warned quote.');
   });
 
   it('conceals a warned social post until the reader reveals it', async () => {
-    const { container } = render(LinkPreviewCard, {
+    const { container, rerender } = render(LinkPreviewCard, {
       props: {
         preview: preview({
           url: 'https://social.example/@alice/123',
@@ -196,5 +216,19 @@ describe('LinkPreviewCard', () => {
       expect(card?.textContent).toContain('Hidden post text');
       expect(card?.querySelector<HTMLImageElement>('img[alt="Hidden image"]')).not.toBeNull();
     });
+
+    await rerender({
+      preview: preview({
+        url: 'https://social.example/@bob/456',
+        socialPost: {
+          provider: 'mastodon',
+          text: 'A different hidden post',
+          contentWarning: 'Another sensitive topic',
+          images: []
+        }
+      })
+    });
+    expect(card?.textContent).toContain('Another sensitive topic');
+    expect(card?.textContent).not.toContain('A different hidden post');
   });
 });

@@ -243,25 +243,25 @@ func TestFetchMastodonStatusAcceptsFederatedCanonicalURL(t *testing.T) {
 	assert.Equal(t, "https://home.example/@alice/123", status.URL)
 }
 
-func TestFetchMastodonStatusAcceptsBoostActivityCanonicalURL(t *testing.T) {
+func TestFetchMastodonStatusAcceptsFederatedBoostCanonicalURL(t *testing.T) {
 	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return response(http.StatusOK, "application/json", `{
 			"id":"123","url":"https://social.example/users/alice/statuses/123/activity","visibility":"public",
 			"account":{"display_name":"Alice","acct":"alice"},
-			"reblog":{"id":"456","url":"https://home.example/@bob/789","visibility":"public","account":{"display_name":"Bob","acct":"bob@home.example"}}
+			"reblog":{"id":"456","url":"https://home.example/objects/01JABCDEF","visibility":"public","account":{"display_name":"Bob","acct":"bob@home.example"}}
 		}`), nil
 	})}}
 
 	status, err := fetcher.fetchMastodonStatus(context.Background(), "https://social.example", "123")
 	require.NoError(t, err)
 	require.NotNil(t, status.Reblog)
-	assert.Equal(t, "https://home.example/@bob/789", status.Reblog.URL)
+	assert.Equal(t, "https://home.example/objects/01JABCDEF", status.Reblog.URL)
 }
 
 func TestFetchMastodonStatusRejectsInvalidCanonicalURL(t *testing.T) {
 	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return response(http.StatusOK, "application/json", `{
-			"id":"123","url":"https://attacker.example/not-a-status","visibility":"public",
+			"id":"123","url":"javascript:alert(1)","visibility":"public",
 			"content":"<p>Mislabelled</p>","account":{"display_name":"Alice","acct":"alice"}
 		}`), nil
 	})}}
