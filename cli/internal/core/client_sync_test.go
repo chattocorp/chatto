@@ -244,6 +244,69 @@ func TestClientSyncDeleteUserAttemptsEveryRecord(t *testing.T) {
 	}
 }
 
+func TestClientSyncDeletionMarkerWinsAfterMutationValidation(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "deletion-race")
+	beforeCreate := make(chan struct{})
+	resumeCreate := make(chan struct{})
+	kv := &pausingClientSyncKV{
+		KeyValue:     chatto.storage.runtimeStateKV,
+		key:          clientSyncPreferencesKey(userID),
+		beforeCreate: beforeCreate,
+		resumeCreate: resumeCreate,
+	}
+	service := NewClientSyncService(kv, nil)
+
+	mutationDone := make(chan error, 1)
+	go func() {
+		_, err := service.UpdatePreferences(ctx, userID, func(preferences *clientsyncv1.Preferences) error {
+			locale := "en-GB"
+			preferences.Locale = &locale
+			return nil
+		})
+		mutationDone <- err
+	}()
+	<-beforeCreate
+	if err := service.DeleteUser(ctx, userID); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	close(resumeCreate)
+	if err := <-mutationDone; !errors.Is(err, ErrNotFound) {
+		t.Fatalf("UpdatePreferences error = %v, want ErrNotFound", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncPreferencesKey(userID)); !isClientSyncKeyAbsent(err) {
+		t.Fatalf("preferences after deletion race error = %v, want absent", err)
+	}
+}
+
+func TestClientSyncRecoversTransientDeletionFailure(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "deletion-recovery")
+	if _, err := chatto.ClientSync.UpdatePreferences(ctx, userID, func(preferences *clientsyncv1.Preferences) error {
+		locale := "en-GB"
+		preferences.Locale = &locale
+		return nil
+	}); err != nil {
+		t.Fatalf("UpdatePreferences: %v", err)
+	}
+	kv := &transientPurgeClientSyncKV{
+		KeyValue: chatto.storage.runtimeStateKV,
+		failKey:  clientSyncPreferencesKey(userID),
+	}
+	service := NewClientSyncService(kv, nil)
+	if err := service.DeleteUser(ctx, userID); err == nil {
+		t.Fatal("DeleteUser succeeded, want transient purge failure")
+	}
+	if err := service.RecoverPendingDeletions(ctx); err != nil {
+		t.Fatalf("RecoverPendingDeletions: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncPreferencesKey(userID)); !isClientSyncKeyAbsent(err) {
+		t.Fatalf("preferences after recovery error = %v, want absent", err)
+	}
+}
+
 func TestClientSyncMutationRechecksAccountBeforeWrite(t *testing.T) {
 	kv := &failingClientSyncKV{}
 	validations := 0
@@ -306,9 +369,16 @@ func (*failingClientSyncKV) Get(context.Context, string) (jetstream.KeyValueEntr
 	return nil, jetstream.ErrKeyNotFound
 }
 
-func (kv *failingClientSyncKV) Create(context.Context, string, []byte, ...jetstream.KVCreateOpt) (uint64, error) {
+func (kv *failingClientSyncKV) Create(_ context.Context, key string, _ []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
+	if strings.HasSuffix(key, ".deleted") {
+		return 1, nil
+	}
 	kv.creates++
 	return 0, errors.New("unexpected Create")
+}
+
+func (*failingClientSyncKV) ListKeysFiltered(context.Context, ...string) (jetstream.KeyLister, error) {
+	return nil, jetstream.ErrNoKeysFound
 }
 
 func (*failingClientSyncKV) Update(context.Context, string, []byte, uint64) (uint64, error) {
@@ -320,6 +390,39 @@ func (kv *failingClientSyncKV) Purge(_ context.Context, key string, _ ...jetstre
 	defer kv.mu.Unlock()
 	kv.purged = append(kv.purged, key)
 	return kv.purgeErrors[key]
+}
+
+type pausingClientSyncKV struct {
+	jetstream.KeyValue
+	key          string
+	beforeCreate chan struct{}
+	resumeCreate chan struct{}
+}
+
+func (kv *pausingClientSyncKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
+	if key == kv.key {
+		close(kv.beforeCreate)
+		<-kv.resumeCreate
+	}
+	return kv.KeyValue.Create(ctx, key, value, opts...)
+}
+
+type transientPurgeClientSyncKV struct {
+	jetstream.KeyValue
+	mu      sync.Mutex
+	failKey string
+	failed  bool
+}
+
+func (kv *transientPurgeClientSyncKV) Purge(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
+	kv.mu.Lock()
+	if key == kv.failKey && !kv.failed {
+		kv.failed = true
+		kv.mu.Unlock()
+		return errors.New("transient storage failure")
+	}
+	kv.mu.Unlock()
+	return kv.KeyValue.Purge(ctx, key, opts...)
 }
 
 func stringsContainAll(value string, parts ...string) bool {

@@ -77,6 +77,8 @@ export class ClientSyncState {
   #explicitHomeServerId: string | null = null;
   #movingHomeServerId: string | null = null;
   #pendingRemoteHomeServerId: string | null = null;
+  #pendingRemoteHomeSourceServerId: string | null = null;
+  #pendingRemoteHomeAccountKey: string | null = null;
 
   get locale(): Locale {
     return this.#cache.locale;
@@ -92,6 +94,10 @@ export class ClientSyncState {
 
   get isInitialized(): boolean {
     return this.#cache.initialized;
+  }
+
+  get hasPendingRemoteHome(): boolean {
+    return this.#pendingRemoteHomeServerId !== null;
   }
 
   async setLocale(locale: Locale): Promise<void> {
@@ -121,7 +127,7 @@ export class ClientSyncState {
     ) {
       return false;
     }
-    this.#pendingRemoteHomeServerId = null;
+    this.#clearPendingRemoteHome();
     const previousHomeServerId = serverRegistry.homeServerId;
     this.#explicitHomeServerId = homeServerId;
     this.#movingHomeServerId =
@@ -217,19 +223,21 @@ export class ClientSyncState {
           serverRegistry.isAuthenticated(remoteHome) &&
           serverRegistry.isClientSyncCapable(remoteHome)
         ) {
-          this.#pendingRemoteHomeServerId = null;
+          this.#clearPendingRemoteHome();
           serverRegistry.setHomeServer(remoteHome);
         } else {
           // Another client already moved home. Keep the restored destination
           // in the gutter, but never write the former home's marker back while
           // this device waits for the user to authenticate the destination.
           this.#pendingRemoteHomeServerId = remoteHome;
+          this.#pendingRemoteHomeSourceServerId = homeServerId;
+          this.#pendingRemoteHomeAccountKey = accountKey;
           this.loadedHomeServerId = null;
           this.status = 'unavailable';
           return;
         }
       } else {
-        this.#pendingRemoteHomeServerId = null;
+        this.#clearPendingRemoteHome();
       }
 
       this.loadedHomeServerId = serverRegistry.homeServerId;
@@ -326,6 +334,7 @@ export class ClientSyncState {
     this.#loadGeneration++;
     this.loadedHomeServerId = null;
     this.#activeAccountKey = null;
+    this.#clearPendingRemoteHome();
     this.#replaceCache(anonymousCacheSlot.get(), false);
     if (this.#cache.locale !== getLocale()) void setLocale(this.#cache.locale);
     this.#setLocalStatus();
@@ -334,6 +343,18 @@ export class ClientSyncState {
   /** Follow a remotely moved home once its restored server has been authenticated. */
   tryFollowPendingRemoteHome(): void {
     const homeServerId = this.#pendingRemoteHomeServerId;
+    const sourceServerId = this.#pendingRemoteHomeSourceServerId;
+    const sourceAccountKey = this.#pendingRemoteHomeAccountKey;
+    if (
+      !sourceServerId ||
+      !sourceAccountKey ||
+      !serverRegistry.isAuthenticated(sourceServerId) ||
+      this.#activeAccountKey !== sourceAccountKey ||
+      this.#homeAccountKey(sourceServerId, false) !== sourceAccountKey
+    ) {
+      this.#clearPendingRemoteHome();
+      return;
+    }
     if (
       !homeServerId ||
       !serverRegistry.isAuthenticated(homeServerId) ||
@@ -341,7 +362,7 @@ export class ClientSyncState {
     ) {
       return;
     }
-    this.#pendingRemoteHomeServerId = null;
+    this.#clearPendingRemoteHome();
     serverRegistry.setHomeServer(homeServerId);
   }
 
@@ -634,6 +655,12 @@ export class ClientSyncState {
   #authenticatedUserID(serverId: string): string | null {
     const server = serverRegistry.getServer(serverId);
     return serverRegistry.tryGetStore(serverId)?.currentUser.user?.id ?? server?.userId ?? null;
+  }
+
+  #clearPendingRemoteHome(): void {
+    this.#pendingRemoteHomeServerId = null;
+    this.#pendingRemoteHomeSourceServerId = null;
+    this.#pendingRemoteHomeAccountKey = null;
   }
 
   #scheduleHomeMoveRetry(): void {

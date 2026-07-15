@@ -231,6 +231,31 @@ func TestClientSyncServiceManagesCallerScopedData(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unsupported preference mask code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	invalidTimezone := "Definitely/Not_A_Timezone"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &invalidTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid timezone code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	timezone := "Europe/Berlin"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &timezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); err != nil {
+		t.Fatalf("set timezone: %v", err)
+	}
+	emptyTimezone := ""
+	cleared, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &emptyTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	}))
+	if err != nil {
+		t.Fatalf("clear timezone: %v", err)
+	}
+	if cleared.Msg.GetPreferences().Timezone != nil {
+		t.Fatalf("cleared timezone = %q, want absent", cleared.Msg.GetPreferences().GetTimezone())
+	}
 
 	created, err := env.clientSync.CreateKnownServer(ctx, connect.NewRequest(&clientsyncapiv1.CreateKnownServerRequest{
 		Server: &clientsyncapiv1.KnownServer{Id: "one", Url: "https://one.example/path?ignored=yes", Name: "One"},

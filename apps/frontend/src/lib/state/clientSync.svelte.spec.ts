@@ -199,6 +199,49 @@ describe('ClientSyncState', () => {
     expect(mocks.homeServerId).toBe(restoredId);
   });
 
+  it('lets the user keep the current capable home when a remote destination is unusable', async () => {
+    const api = installAPI('a');
+    api.listKnownServers.mockResolvedValue({
+      servers: [
+        { id: 'a', url: 'https://a.example', name: 'A' },
+        { id: 'b', url: 'https://b.example', name: 'B' }
+      ],
+      homeServerId: 'b'
+    });
+    const state = new ClientSyncState();
+
+    await state.load('a');
+    expect(state.hasPendingRemoteHome).toBe(true);
+    await expect(state.selectHomeServer('a')).resolves.toBe(true);
+
+    expect(state.hasPendingRemoteHome).toBe(false);
+    expect(state.status).toBe('synced');
+    expect(api.setHomeServer).toHaveBeenCalledWith('a');
+  });
+
+  it('does not follow another account into a pending remote home', async () => {
+    const api = installAPI('a');
+    api.listKnownServers.mockResolvedValue({
+      servers: [
+        { id: 'a', url: 'https://a.example', name: 'A' },
+        { id: 'b', url: 'https://b.example', name: 'B' }
+      ],
+      homeServerId: 'b'
+    });
+    const state = new ClientSyncState();
+
+    await state.load('a');
+    const restored = mocks.servers.find((server) => server.url === 'https://b.example');
+    const restoredId = String(restored?.id);
+    mocks.authenticated.delete('a');
+    mocks.authenticated.add(restoredId);
+    mocks.capable.add(restoredId);
+    state.tryFollowPendingRemoteHome();
+
+    expect(mocks.homeServerId).toBe('a');
+    expect(state.hasPendingRemoteHome).toBe(false);
+  });
+
   it('rolls back a home move when the destination transfer fails', async () => {
     mocks.servers.push(server('b'));
     mocks.authenticated.add('b');

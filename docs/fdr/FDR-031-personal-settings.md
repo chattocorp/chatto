@@ -38,6 +38,9 @@ device from account and notification policy that belongs to one server.
 - A client which learns that home moved restores the destination without
   credentials, preserves the remote marker, and waits for destination sign-in;
   it never writes the former home back while that redirect is pending.
+- A pending redirect remains bound to its source account. If the destination
+  cannot provide client sync, the home choices remain visible so the user can
+  explicitly keep the current capable home or choose another one.
 - A home move is committed locally only after the destination accepts the
   transferred settings and directory. Failed transfers roll back to the former
   home and are reported as failures.

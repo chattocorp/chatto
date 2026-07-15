@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"golang.org/x/net/idna"
@@ -52,6 +54,13 @@ func (s *clientSyncService) UpdatePreferences(ctx context.Context, req *connect.
 		return nil, err
 	}
 	input := req.Msg.GetPreferences()
+	if slices.Contains(paths, "timezone") && input.Timezone != nil {
+		if input.GetTimezone() == "" {
+			input.Timezone = nil
+		} else if _, err := time.LoadLocation(input.GetTimezone()); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("timezone must be a valid IANA time zone"))
+		}
+	}
 	preferences, err := s.api.core.ClientSync.UpdatePreferences(ctx, caller.UserID, func(current *clientsyncv1.Preferences) error {
 		for _, path := range paths {
 			switch path {

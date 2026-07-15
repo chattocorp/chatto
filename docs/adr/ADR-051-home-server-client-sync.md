@@ -31,10 +31,12 @@ capability through `ServerDiscoveryService.GetServer` and permits authenticated
 calls to the service. Disabled servers return `UNIMPLEMENTED` defensively.
 
 The home server exposes an authenticated `ClientSyncService`. It stores two
-no-TTL protobuf documents in the existing backed-up `RUNTIME_STATE` bucket:
+no-TTL protobuf documents and a retained deletion marker in the existing
+backed-up `RUNTIME_STATE` bucket:
 
 - `client_sync.{userId}.preferences`
 - `client_sync.{userId}.servers`
+- `client_sync.{userId}.deleted`
 
 The preferences document contains portable language, timezone, and time-format
 choices. The server-directory document contains public server metadata and the
@@ -107,6 +109,7 @@ added later if real-world conflict behaviour requires them.
 Server URLs can reveal community membership. Operators already control
 `RUNTIME_STATE`, which contains other private authenticated runtime records;
 access to this API is strictly limited to the authenticated owner and code must
-not log directory contents. Account deletion purges both plaintext client-sync
-records and active-user checks prevent an in-flight request from recreating
-them after the durable account tombstone.
+not log directory contents. Account deletion retains a marker before purging
+both plaintext client-sync records. Mutations check that marker before and
+after writing, and every replica repeats marked purges at boot, so deletion
+wins over in-flight requests and transient cleanup failures.

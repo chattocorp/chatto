@@ -191,6 +191,11 @@
             {syncStatusLabel()}
           </span>
         </div>
+        {#if clientSync.hasPendingRemoteHome}
+          <div class="mt-3">
+            <Hint tone="info">{m['client_sync.settings.home.choose_prompt']()}</Hint>
+          </div>
+        {/if}
       {:else if !hasAuthenticatedServers}
         <Hint tone="info">{m['client_sync.settings.home.add_server_first']()}</Hint>
       {:else if eligibleHomeServers.length === 0}
@@ -201,7 +206,8 @@
 
       {#if eligibleHomeServers.length > 1 ||
       (!homeServer && eligibleHomeServers.length > 0) ||
-      (homeServer && !homeSupportsSync && eligibleHomeServers.length > 0)}
+      (homeServer && !homeSupportsSync && eligibleHomeServers.length > 0) ||
+      clientSync.hasPendingRemoteHome}
         <div class="mt-3 flex flex-col gap-2">
           {#each eligibleHomeServers as server (server.id)}
             <ChoiceRow
