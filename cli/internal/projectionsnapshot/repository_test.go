@@ -391,6 +391,69 @@ func TestRepositoryRefreshesSameCutoffWithFutureTimestamp(t *testing.T) {
 	}
 }
 
+func TestRepositoryRepairsFreshPointerWithMissingCurrentGeneration(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	first, err := repository.Save(ctx, testSaveInput(200, []byte("first")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(blobs.objects, repository.generationObjectKey("threads", testCompatibilityID, first.GenerationID))
+
+	refresh := testSaveInput(200, []byte("repaired"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	repaired, err := repository.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("repair missing current generation: %v", err)
+	}
+	if repaired.GenerationID == first.GenerationID || len(blobs.objects) != 1 {
+		t.Fatalf("missing current generation was not repaired: first=%#v repaired=%#v objects=%d", first, repaired, len(blobs.objects))
+	}
+}
+
+func TestRepositoryRepairsFreshCorruptCurrentAfterFallback(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	previous, err := repository.Save(ctx, testSaveInput(10, []byte("previous")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := repository.Save(ctx, testSaveInput(20, []byte("current")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentKey := repository.generationObjectKey("threads", testCompatibilityID, current.GenerationID)
+	blobs.objects[currentKey][0] ^= 0xff
+	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != previous.GenerationID {
+		t.Fatalf("corrupt current did not fall back: loaded=%#v previous=%#v", loaded, previous)
+	}
+
+	refresh := testSaveInput(20, []byte("repaired"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	repaired, err := repository.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("repair corrupt current generation: %v", err)
+	}
+	if repaired.GenerationID == current.GenerationID {
+		t.Fatalf("corrupt current generation was not replaced: current=%#v repaired=%#v", current, repaired)
+	}
+	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != repaired.GenerationID || string(loaded.Payload) != "repaired" {
+		t.Fatalf("repaired current did not load: %#v", loaded)
+	}
+}
+
 func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()

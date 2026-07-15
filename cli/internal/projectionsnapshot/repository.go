@@ -216,10 +216,13 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		createdAt := pointer.GetCurrentCreatedAt().AsTime()
 		now := r.now().UTC()
 		if createdAt.After(now.Add(-input.RefreshAge)) && !createdAt.After(now.Add(input.ClockSkew)) {
-			return LoadedSnapshot{
-				GenerationID: pointer.GetCurrentGenerationId(), CutoffSequence: pointer.GetCurrentCutoffSequence(),
-				StreamIdentity: pointer.GetCurrentStreamIdentity(), CreatedAt: createdAt,
-			}, ErrSnapshotFresh
+			loaded, loadErr := r.loadGeneration(ctx,
+				pointer.GetCurrentGenerationId(), input.ProjectionKey, pointer.GetCurrentCompatibilityId(),
+				input.CompatibilityID, input.StreamName, input.StreamIdentity, input.CutoffSequence)
+			if loadErr == nil && loaded.CreatedAt.After(now.Add(-input.RefreshAge)) && !loaded.CreatedAt.After(now.Add(input.ClockSkew)) {
+				loaded.Payload = nil
+				return loaded, ErrSnapshotFresh
+			}
 		}
 	}
 

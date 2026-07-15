@@ -95,9 +95,10 @@ unpublished upload and leaves the newer history intact.
 The pointer also carries each generation's cutoff sequence, creation time, EVT
 incarnation, and projection compatibility ID. A writer may refresh the same
 cutoff once it is old, but the repository rejects a redundant refresh when a
-previous lease holder already published a fresh generation. It rejects a lower
-cutoff for the same EVT incarnation and compatibility contract. Revision OCC
-prevents a concurrent writer from replacing newer history.
+previous lease holder already published a fresh, authenticated, usable
+generation. Missing or corrupt current objects are repaired instead. It rejects
+a lower cutoff for the same EVT incarnation and compatibility contract.
+Revision OCC prevents a concurrent writer from replacing newer history.
 
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
