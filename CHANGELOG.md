@@ -3,6 +3,16 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.12](https://github.com/chattocorp/chatto/compare/v0.4.11...v0.4.12) (2026-07-15)
+
+
+### Bug Fixes
+
+* **core:** preserve cleared RBAC defaults ([#1543](https://github.com/chattocorp/chatto/issues/1543)) ([5108444](https://github.com/chattocorp/chatto/commit/51084442f236aa7c317c176d02aa8b5f1c91015a))
+* **frontend:** allow app-wide mobile sidebar swipes ([#1534](https://github.com/chattocorp/chatto/issues/1534)) ([404e1bf](https://github.com/chattocorp/chatto/commit/404e1bfcf83c09105e2e0fc2be582f1d59008cea))
+* **frontend:** collapse invisible markdown spacing ([#1539](https://github.com/chattocorp/chatto/issues/1539)) ([5933a9b](https://github.com/chattocorp/chatto/commit/5933a9b1eed71f0799817b221581c609be270098))
+* **pwa:** use server name for installed app ([#1542](https://github.com/chattocorp/chatto/issues/1542)) ([b6c8d50](https://github.com/chattocorp/chatto/commit/b6c8d5082fb483eeb022b0734dae81e80ee0d390))
+
 ## [0.4.11](https://github.com/chattocorp/chatto/compare/v0.4.10...v0.4.11) (2026-07-14)
 
 
