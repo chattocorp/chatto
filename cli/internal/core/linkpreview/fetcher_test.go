@@ -117,10 +117,18 @@ func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
 		URI:    "at://did:plc:quoted/app.bsky.feed.post/quote123",
 		Author: blueskyAuthor{DisplayName: "Quoted author", Handle: "quoted.example"},
 		Value:  blueskyRecord{Text: "Quoted words", CreatedAt: "2026-07-15T14:50:19.560Z"},
-		Embeds: []blueskyEmbed{{Images: []blueskyImage{{
-			Fullsize: "https://cdn.example/quote.png",
-			Alt:      "A quoted attachment",
-		}}}},
+		Embeds: []blueskyEmbed{{
+			// Bluesky returns this shape when the quoted post combines its own
+			// quoted record with attached media.
+			Media: &blueskyEmbed{Images: []blueskyImage{{
+				Fullsize: "https://cdn.example/quote.png",
+				Alt:      "A quoted attachment",
+			}}},
+			Record: &blueskyRecordView{Record: &blueskyRecordView{
+				URI:    "at://did:plc:nested/app.bsky.feed.post/nested123",
+				Author: blueskyAuthor{Handle: "nested.example"},
+			}},
+		}},
 	}}
 	budget := socialPostImageBudget{bytesRemaining: MaxSocialPostImageBytes, fetchesRemaining: MaxSocialPostImageFetches}
 

@@ -61,6 +61,43 @@ func TestCacheReplacesExistingPreviewInRuntimeStateWithTTL(t *testing.T) {
 	assertRuntimeStateCacheTTL(t, ctx, js, kv, cacheKey(url))
 }
 
+func TestCacheRefreshesBlueskySnapshotsFromBeforeQuoteSupport(t *testing.T) {
+	ctx, _, kv := setupRuntimeStateKV(t)
+	cache := NewCache(kv)
+	url := "https://bsky.app/profile/example.test/post/example"
+
+	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{
+		Url: url,
+		SocialPost: &corev1.SocialPostPreview{
+			Provider: "bluesky",
+			Author:   &corev1.SocialPostAuthor{Handle: "example.test"},
+		},
+	}))
+
+	got, err := cache.Get(ctx, url)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestCacheKeepsCurrentBlueskySnapshots(t *testing.T) {
+	ctx, _, kv := setupRuntimeStateKV(t)
+	cache := NewCache(kv)
+	url := "https://bsky.app/profile/example.test/post/example"
+
+	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{
+		Url: url,
+		SocialPost: &corev1.SocialPostPreview{
+			Provider: "bluesky",
+			Url:      url,
+			Author:   &corev1.SocialPostAuthor{Handle: "example.test"},
+		},
+	}))
+
+	got, err := cache.Get(ctx, url)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+}
+
 func TestCacheKeyUsesRuntimeStatePrefix(t *testing.T) {
 	key := cacheKey("https://example.com/article")
 	require.True(t, strings.HasPrefix(key, RuntimeStateKeyPrefix), "key %q should use runtime-state prefix", key)
