@@ -711,7 +711,17 @@ func (p *Projector) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read projection startup target: %w", err)
 	}
-	if err := p.restoreForRun(ctx, target.seq); err != nil {
+	restoreTarget := target
+	p.mu.Lock()
+	snapshotsEnabled := p.snapshotSource != nil
+	p.mu.Unlock()
+	if snapshotsEnabled {
+		restoreTarget, err = p.targetForSubjects(ctx, []string{EventSubjectFilter()})
+		if err != nil {
+			return fmt.Errorf("read projection snapshot target: %w", err)
+		}
+	}
+	if err := p.restoreForRun(ctx, restoreTarget.seq); err != nil {
 		return err
 	}
 	p.setStartupTarget(target.seq)
