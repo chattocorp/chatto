@@ -246,16 +246,17 @@ func (p *RBACProjection) applyRoleRevoked(event *corev1.RbacRoleRevokedEvent) {
 	if roles == nil {
 		return
 	}
-	if event.GetSource() == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED {
-		// Historical revocations predate source-aware assignments and retain their
-		// original meaning: remove the complete assignment.
+	// Historical revocations had no source and therefore revoke the manual
+	// source. Before source-aware assignments this was the entire assignment;
+	// during a mixed-version rollout it must not erase a newer OIDC source.
+	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer())
+	if !ok {
+		return
+	}
+	sources := roles[event.GetRoleName()]
+	delete(sources, source)
+	if len(sources) == 0 {
 		delete(roles, event.GetRoleName())
-	} else if source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer()); ok {
-		sources := roles[event.GetRoleName()]
-		delete(sources, source)
-		if len(sources) == 0 {
-			delete(roles, event.GetRoleName())
-		}
 	}
 	if len(roles) == 0 {
 		delete(p.assignments, event.GetUserId())

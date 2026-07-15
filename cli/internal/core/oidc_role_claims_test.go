@@ -139,20 +139,26 @@ func TestChattoCore_SyncOIDCRoleClaimsEmitsSourceTaggedAssignmentEvents(t *testi
 	}
 
 	projection := NewRBACProjection()
+	manualEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: user.Id, RoleName: RoleModerator, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
+	}})
+	if err := projection.Apply(manualEvent, 1); err != nil {
+		t.Fatalf("apply manual grant: %v", err)
+	}
 	grantEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: user.Id, RoleName: RoleModerator, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, SourceProviderId: provider.ID, SourceIssuer: oidcTestIssuer(provider.ID)},
 	}})
-	if err := projection.Apply(grantEvent, 1); err != nil {
+	if err := projection.Apply(grantEvent, 2); err != nil {
 		t.Fatalf("apply OIDC grant: %v", err)
 	}
 	legacyRevoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: user.Id, RoleName: RoleModerator},
 	}})
-	if err := projection.Apply(legacyRevoke, 2); err != nil {
+	if err := projection.Apply(legacyRevoke, 3); err != nil {
 		t.Fatalf("apply legacy revoke: %v", err)
 	}
-	if projection.HasRole(user.Id, RoleModerator) || len(projection.OIDCRolesForProvider(user.Id, provider.ID)) != 0 {
-		t.Fatal("a legacy writer's normal revoke must clear source-aware assignments")
+	if projection.HasManualRole(user.Id, RoleModerator) || !projection.HasRole(user.Id, RoleModerator) || len(projection.OIDCRolesForProvider(user.Id, provider.ID)) != 1 {
+		t.Fatal("a legacy writer's manual revoke must preserve an OIDC-managed assignment")
 	}
 }
 
