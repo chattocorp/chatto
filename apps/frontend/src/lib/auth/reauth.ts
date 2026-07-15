@@ -22,7 +22,7 @@ import { serverIdToSegment } from '$lib/navigation';
 import { clearCachedUser } from './loadAuth';
 
 const POPUP_WIDTH = 520;
-const POPUP_HEIGHT = 720;
+const POPUP_HEIGHT = 600;
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 

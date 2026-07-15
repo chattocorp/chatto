@@ -142,6 +142,11 @@ describe('remote server OAuth popup', () => {
     // window.open happens before the first asynchronous PKCE operation, so it
     // remains associated with the user's click and avoids popup blocking.
     expect(open).toHaveBeenCalledOnce();
+    expect(open).toHaveBeenCalledWith(
+      'about:blank',
+      expect.stringMatching(/^chatto-oauth-/),
+      expect.stringContaining('width=520,height=600')
+    );
     await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
     expect(popup.opener).toBeNull();
 
