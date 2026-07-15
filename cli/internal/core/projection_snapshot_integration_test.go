@@ -287,8 +287,14 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := first.projectionSnapshotWorker.generate(ctx, true); err != nil {
+	acquired, err := first.projectionSnapshotWorker.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+		return first.projectionSnapshotWorker.generate(leaderCtx, true)
+	})
+	if err != nil {
 		t.Fatalf("generate updated user snapshot: %v", err)
+	}
+	if !acquired {
+		t.Fatal("updated user snapshot pass did not acquire the lease")
 	}
 	stopFirst()
 	stopPersistentSnapshotNATS(ns, nc)

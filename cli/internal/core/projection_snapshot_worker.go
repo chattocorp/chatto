@@ -49,7 +49,7 @@ type projectionSnapshotWorker struct {
 }
 
 type projectionSnapshotLease interface {
-	Run(context.Context, func(context.Context) error) error
+	TryRun(context.Context, func(context.Context) error) (bool, error)
 	CheckOwnership(context.Context) error
 }
 
@@ -65,20 +65,6 @@ func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan stru
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	w.logger.Debug("Projection snapshot worker waiting for lease",
-		"projections", len(w.jobs),
-		"stage", "lease_acquire")
-	err := w.lease.Run(ctx, w.runLeader)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		w.logger.Warn("Projection snapshot worker stopped without publishing all projections",
-			"projections", len(w.jobs),
-			"stage", "worker",
-			"error", err)
-	}
-	return err
-}
-
-func (w *projectionSnapshotWorker) runLeader(ctx context.Context) error {
 	wait := w.wait
 	if wait == nil {
 		wait = waitForProjectionSnapshotPass
@@ -99,13 +85,33 @@ func (w *projectionSnapshotWorker) runLeader(ctx context.Context) error {
 	bootPass := true
 	for {
 		started := now()
-		if err := w.generate(ctx, bootPass); err != nil {
-			return err
+		expiryDue := nextExpiry.IsZero() || !started.Before(nextExpiry)
+		acquired, err := w.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+			if err := w.generate(leaderCtx, bootPass); err != nil {
+				return err
+			}
+			if expiryDue {
+				w.expire(leaderCtx)
+			}
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			w.logger.Warn("Projection snapshot pass failed",
+				"projections", len(w.jobs),
+				"stage", "worker",
+				"error", err)
 		}
-		bootPass = false
-		if nextExpiry.IsZero() || !now().Before(nextExpiry) {
-			w.expire(ctx)
-			nextExpiry = now().Add(expiryInterval)
+		if acquired && err == nil {
+			bootPass = false
+		}
+		if expiryDue {
+			// Every replica advances the same local expiry window after attempting
+			// the pass. This prevents a non-winner from running duplicate expiry
+			// immediately after it wins a later hourly snapshot pass.
+			nextExpiry = started.Add(expiryInterval)
 		}
 		w.signalFirstPass()
 		delay := max(started.Add(nextInterval()).Sub(now()), 0)

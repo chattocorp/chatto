@@ -285,6 +285,25 @@ func (l *Lease) Run(ctx context.Context, work func(context.Context) error) error
 	}
 }
 
+// TryRun attempts to acquire the lease once. When another owner holds the
+// lease, it returns false without running work or waiting for ownership. When
+// acquired, it renews and releases the lease with the same semantics as Run.
+// This is useful for periodic work where every replica may wake for the same
+// scheduled pass, but only one should perform it at a time.
+func (l *Lease) TryRun(ctx context.Context, work func(context.Context) error) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	acquired, err := l.TryAcquire(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !acquired {
+		return false, nil
+	}
+	return true, l.runAsLeader(ctx, work)
+}
+
 func (l *Lease) runAsLeader(ctx context.Context, work func(context.Context) error) error {
 	leaderCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -341,7 +360,6 @@ func (l *Lease) renewAtRevision(ctx context.Context, revision uint64, acquiredAt
 		}
 		return fmt.Errorf("renew lease %s: %w", l.name, err)
 	}
-	l.logDebug("lease renewed")
 	return nil
 }
 

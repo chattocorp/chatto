@@ -52,10 +52,12 @@ display-name, and verified-email values, lookup digests, wrapped DEK records,
 and non-secret profile metadata. Its schema has no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
-One replica is elected through a `MEMORY_CACHE` lease after boot. It checks
-snapshot eligibility immediately and hourly, publishes after cold or delta
-replay, and refreshes unchanged generations once they reach 23 hours old. Jobs
-run sequentially.
+Every replica checks snapshot eligibility immediately after boot and hourly.
+Each scheduled pass attempts the `MEMORY_CACHE` lease once; a winner runs jobs
+sequentially and releases the lease before the hourly wait. The worker publishes
+after cold or delta replay and refreshes unchanged generations once they reach
+23 hours old. Repository OCC remains the correctness boundary for staggered or
+stale writers.
 
 Generations are compressed and authenticated with XChaCha20-Poly1305 under an
 HKDF key derived from `core.secret_key`, then stored under
