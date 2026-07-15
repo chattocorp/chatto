@@ -30,9 +30,10 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 ## Snapshot support
 
 `core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
-Every eligible projection owns a per-projection compatibility version and
-generation prefix. Most codecs currently use `v1`; the user profile codec uses
-`v2`.
+Every eligible projection owns one opaque, projection-scoped contract ID and
+generation prefix. The contract covers serialized state, replay semantics,
+consumed event families, and cutoff meaning. Most contracts currently use
+`v1`; the user profile contract uses `v2`.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
@@ -54,17 +55,19 @@ authentication generations, external identity subjects, or OAuth consent.
 One replica is elected through a `MEMORY_CACHE` lease after boot. It checks
 snapshot eligibility immediately and hourly, publishes after cold or delta
 replay, and refreshes unchanged generations once they reach 23 hours old. Jobs
-run sequentially. Generations are compressed and authenticated with
-XChaCha20-Poly1305 under an HKDF key derived from `core.secret_key`, then stored under
-`internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueEpoch}/{generationId}`
+run sequentially.
+
+Generations are compressed and authenticated with XChaCha20-Poly1305 under an
+HKDF key derived from `core.secret_key`, then stored under
+`internal/projection-snapshots/{projection}/{contract}/objects/{opaqueEpoch}/{generationId}`
 in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3
 bucket. Their encrypted current/previous pointers live in `RUNTIME_STATE` and
 use KV revision OCC regardless of payload backend. The opaque pointer locator
-includes a projection-local cursor-lineage version; changing cutoff semantics
-starts a fresh lineage instead of comparing incompatible sequence frontiers.
+is scoped by projection and contract, so deployments using different contracts
+cannot read, rotate, or compare each other's generations.
 
 A new secret uses a different generation epoch and pointer locator. EVT carries
-a versioned opaque incarnation ID so snapshot compatibility survives process
+a versioned opaque incarnation ID so snapshot validation survives process
 reconstruction and backup restore but changes when EVT is recreated.
 
 `core.projection_snapshot_retention` defaults to seven days. NATS applies it as
@@ -75,8 +78,8 @@ expected snapshot content type, and private object-purpose marker. Snapshot and
 expiry failures are logged and never affect core readiness or EVT-backed
 reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
-| Projection | Compatibility | Payload store | Pointer store | Publication |
-| ---------- | ------------- | ------------- | ------------- | ----------- |
+| Projection | Contract | Payload store | Pointer store | Publication |
+| ---------- | -------- | ------------- | ------------- | ----------- |
 | Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 

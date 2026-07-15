@@ -9,10 +9,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const contentKeySnapshotCompatibilityID = "v1"
+const contentKeySnapshotContractID = "v1"
 
-func (*ContentKeyProjection) SnapshotCompatibilityID() string {
-	return contentKeySnapshotCompatibilityID
+func (*ContentKeyProjection) SnapshotContractID() string {
+	return contentKeySnapshotContractID
 }
 
 func (p *ContentKeyProjection) Snapshot() ([]byte, error) {

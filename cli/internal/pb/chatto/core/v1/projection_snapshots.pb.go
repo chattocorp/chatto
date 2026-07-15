@@ -26,11 +26,12 @@ const (
 // the projection snapshot repository. It is derived cache data,
 // not an authoritative domain record.
 type ProjectionSnapshotGeneration struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	GenerationId    string                 `protobuf:"bytes,1,opt,name=generation_id,json=generationId,proto3" json:"generation_id,omitempty"`
-	StreamName      string                 `protobuf:"bytes,2,opt,name=stream_name,json=streamName,proto3" json:"stream_name,omitempty"`
-	CutoffSequence  uint64                 `protobuf:"varint,3,opt,name=cutoff_sequence,json=cutoffSequence,proto3" json:"cutoff_sequence,omitempty"`
-	ProjectionKey   string                 `protobuf:"bytes,4,opt,name=projection_key,json=projectionKey,proto3" json:"projection_key,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	GenerationId   string                 `protobuf:"bytes,1,opt,name=generation_id,json=generationId,proto3" json:"generation_id,omitempty"`
+	StreamName     string                 `protobuf:"bytes,2,opt,name=stream_name,json=streamName,proto3" json:"stream_name,omitempty"`
+	CutoffSequence uint64                 `protobuf:"varint,3,opt,name=cutoff_sequence,json=cutoffSequence,proto3" json:"cutoff_sequence,omitempty"`
+	ProjectionKey  string                 `protobuf:"bytes,4,opt,name=projection_key,json=projectionKey,proto3" json:"projection_key,omitempty"`
+	// Snapshot contract ID. The field name is retained for wire compatibility.
 	CompatibilityId string                 `protobuf:"bytes,5,opt,name=compatibility_id,json=compatibilityId,proto3" json:"compatibility_id,omitempty"`
 	ProducerVersion string                 `protobuf:"bytes,6,opt,name=producer_version,json=producerVersion,proto3" json:"producer_version,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -153,15 +154,17 @@ func (x *ProjectionSnapshotGeneration) GetStreamIdentity() string {
 // ProjectionSnapshotPointer names the two most recently published immutable
 // generations for one projection. It is encrypted and may safely be stale.
 type ProjectionSnapshotPointer struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	CurrentGenerationId     string                 `protobuf:"bytes,1,opt,name=current_generation_id,json=currentGenerationId,proto3" json:"current_generation_id,omitempty"`
-	PreviousGenerationId    string                 `protobuf:"bytes,2,opt,name=previous_generation_id,json=previousGenerationId,proto3" json:"previous_generation_id,omitempty"`
-	CurrentCutoffSequence   uint64                 `protobuf:"varint,3,opt,name=current_cutoff_sequence,json=currentCutoffSequence,proto3" json:"current_cutoff_sequence,omitempty"`
-	CurrentStreamIdentity   string                 `protobuf:"bytes,4,opt,name=current_stream_identity,json=currentStreamIdentity,proto3" json:"current_stream_identity,omitempty"`
-	CurrentCompatibilityId  string                 `protobuf:"bytes,5,opt,name=current_compatibility_id,json=currentCompatibilityId,proto3" json:"current_compatibility_id,omitempty"`
-	PreviousCutoffSequence  uint64                 `protobuf:"varint,6,opt,name=previous_cutoff_sequence,json=previousCutoffSequence,proto3" json:"previous_cutoff_sequence,omitempty"`
-	PreviousStreamIdentity  string                 `protobuf:"bytes,7,opt,name=previous_stream_identity,json=previousStreamIdentity,proto3" json:"previous_stream_identity,omitempty"`
-	PreviousCompatibilityId string                 `protobuf:"bytes,8,opt,name=previous_compatibility_id,json=previousCompatibilityId,proto3" json:"previous_compatibility_id,omitempty"`
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CurrentGenerationId   string                 `protobuf:"bytes,1,opt,name=current_generation_id,json=currentGenerationId,proto3" json:"current_generation_id,omitempty"`
+	PreviousGenerationId  string                 `protobuf:"bytes,2,opt,name=previous_generation_id,json=previousGenerationId,proto3" json:"previous_generation_id,omitempty"`
+	CurrentCutoffSequence uint64                 `protobuf:"varint,3,opt,name=current_cutoff_sequence,json=currentCutoffSequence,proto3" json:"current_cutoff_sequence,omitempty"`
+	CurrentStreamIdentity string                 `protobuf:"bytes,4,opt,name=current_stream_identity,json=currentStreamIdentity,proto3" json:"current_stream_identity,omitempty"`
+	// Current generation's snapshot contract ID.
+	CurrentCompatibilityId string `protobuf:"bytes,5,opt,name=current_compatibility_id,json=currentCompatibilityId,proto3" json:"current_compatibility_id,omitempty"`
+	PreviousCutoffSequence uint64 `protobuf:"varint,6,opt,name=previous_cutoff_sequence,json=previousCutoffSequence,proto3" json:"previous_cutoff_sequence,omitempty"`
+	PreviousStreamIdentity string `protobuf:"bytes,7,opt,name=previous_stream_identity,json=previousStreamIdentity,proto3" json:"previous_stream_identity,omitempty"`
+	// Previous generation's snapshot contract ID.
+	PreviousCompatibilityId string `protobuf:"bytes,8,opt,name=previous_compatibility_id,json=previousCompatibilityId,proto3" json:"previous_compatibility_id,omitempty"`
 	// Authenticated publication times used to coordinate refreshes across replicas.
 	CurrentCreatedAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=current_created_at,json=currentCreatedAt,proto3" json:"current_created_at,omitempty"`
 	PreviousCreatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=previous_created_at,json=previousCreatedAt,proto3" json:"previous_created_at,omitempty"`
@@ -270,7 +273,7 @@ func (x *ProjectionSnapshotPointer) GetPreviousCreatedAt() *timestamppb.Timestam
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// Threads v1 projection compatibility contract. Repeated fields are emitted in
+// Threads v1 projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 type ThreadProjectionSnapshot struct {
 	state           protoimpl.MessageState         `protogen:"open.v1"`

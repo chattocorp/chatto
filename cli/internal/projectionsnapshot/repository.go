@@ -27,8 +27,6 @@ const (
 	contentType          = "application/vnd.chatto.projection-snapshot"
 	streamIdentityPrefix = "evt-incarnation-v1:"
 	objectPurpose        = "projection-snapshot"
-	// Change the pointer lineage whenever the meaning of CutoffSequence changes.
-	pointerLineage = "projection-local-v1:"
 )
 
 // ObjectContentType and object-purpose metadata identify encrypted snapshot
@@ -125,14 +123,14 @@ type Repository struct {
 }
 
 type SaveInput struct {
-	ProjectionKey   string
-	CompatibilityID string
-	StreamName      string
-	StreamIdentity  string
-	CutoffSequence  uint64
-	Payload         []byte
-	RefreshAge      time.Duration
-	ClockSkew       time.Duration
+	ProjectionKey  string
+	ContractID     string
+	StreamName     string
+	StreamIdentity string
+	CutoffSequence uint64
+	Payload        []byte
+	RefreshAge     time.Duration
+	ClockSkew      time.Duration
 }
 
 type LoadedSnapshot struct {
@@ -180,8 +178,8 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 func (r *Repository) Backend() string { return r.blobs.Backend() }
 
 func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot, error) {
-	if !validProjectionKey(input.ProjectionKey) || !validCompatibilityID(input.CompatibilityID) || input.StreamName == "" {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
+	if !validProjectionKey(input.ProjectionKey) || !validContractID(input.ContractID) || input.StreamName == "" {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, contract id, and stream name are required")
 	}
 	if !validStreamIdentity(input.StreamIdentity) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
@@ -189,7 +187,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if len(input.Payload) > r.maxPayloadSize {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot payload exceeds %d bytes", r.maxPayloadSize)
 	}
-	pointer, pointerRevision, err := r.loadPointerAtRevision(ctx, input.ProjectionKey)
+	pointer, pointerRevision, err := r.loadPointerAtRevision(ctx, input.ProjectionKey, input.ContractID)
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrSnapshotNotFound):
@@ -205,22 +203,19 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	}
 	if pointer.GetCurrentGenerationId() != "" &&
 		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
-		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
 		input.CutoffSequence < pointer.GetCurrentCutoffSequence() {
 		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d is older than current cutoff %d", ErrSnapshotRegressed, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
 	}
 	if input.RefreshAge > 0 &&
 		pointer.GetCurrentGenerationId() != "" &&
 		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
-		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
 		input.CutoffSequence == pointer.GetCurrentCutoffSequence() &&
 		pointer.GetCurrentCreatedAt() != nil {
 		createdAt := pointer.GetCurrentCreatedAt().AsTime()
 		now := r.now().UTC()
 		if createdAt.After(now.Add(-input.RefreshAge)) && !createdAt.After(now.Add(input.ClockSkew)) {
-			loaded, loadErr := r.loadGeneration(ctx,
-				pointer.GetCurrentGenerationId(), input.ProjectionKey, pointer.GetCurrentCompatibilityId(),
-				input.CompatibilityID, input.StreamName, input.StreamIdentity, input.CutoffSequence)
+			loaded, loadErr := r.loadGeneration(ctx, pointer.GetCurrentGenerationId(), input.ProjectionKey,
+				input.ContractID, input.StreamName, input.StreamIdentity, input.CutoffSequence)
 			if loadErr == nil && loaded.CreatedAt.After(now.Add(-input.RefreshAge)) && !loaded.CreatedAt.After(now.Add(input.ClockSkew)) {
 				loaded.Payload = nil
 				return loaded, ErrSnapshotFresh
@@ -241,7 +236,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		StreamName:      input.StreamName,
 		CutoffSequence:  input.CutoffSequence,
 		ProjectionKey:   input.ProjectionKey,
-		CompatibilityId: input.CompatibilityID,
+		CompatibilityId: input.ContractID,
 		ProducerVersion: r.producerVersion,
 		CreatedAt:       timestamppb.New(createdAt),
 		Payload:         input.Payload,
@@ -264,13 +259,13 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if len(sealed) > maxEncryptedSize {
 		return LoadedSnapshot{}, fmt.Errorf("encrypted snapshot exceeds %d bytes", maxEncryptedSize)
 	}
-	objectKey := r.generationObjectKey(input.ProjectionKey, input.CompatibilityID, generationIDText)
+	objectKey := r.generationObjectKey(input.ProjectionKey, input.ContractID, generationIDText)
 	if err := r.blobs.Put(ctx, objectKey, sealed, contentType); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("write snapshot generation: %w", err)
 	}
 
 	dropped := pointer.GetPreviousGenerationId()
-	droppedCompatibility := pointer.GetPreviousCompatibilityId()
+	droppedContract := pointer.GetPreviousCompatibilityId()
 	pointer.PreviousGenerationId = pointer.GetCurrentGenerationId()
 	pointer.PreviousCutoffSequence = pointer.GetCurrentCutoffSequence()
 	pointer.PreviousStreamIdentity = pointer.GetCurrentStreamIdentity()
@@ -279,16 +274,16 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	pointer.CurrentGenerationId = generationIDText
 	pointer.CurrentCutoffSequence = input.CutoffSequence
 	pointer.CurrentStreamIdentity = input.StreamIdentity
-	pointer.CurrentCompatibilityId = input.CompatibilityID
+	pointer.CurrentCompatibilityId = input.ContractID
 	pointer.CurrentCreatedAt = timestamppb.New(createdAt)
-	if err := r.savePointer(ctx, input.ProjectionKey, pointer, pointerRevision); err != nil {
+	if err := r.savePointer(ctx, input.ProjectionKey, input.ContractID, pointer, pointerRevision); err != nil {
 		if cleanupErr := r.blobs.Delete(ctx, objectKey); cleanupErr != nil && !errors.Is(cleanupErr, ErrBlobNotFound) {
 			r.logWarn("Unpublished projection snapshot cleanup failed", input.ProjectionKey, "publish_rollback", cleanupErr, "generation_id", generationIDText)
 		}
 		return LoadedSnapshot{}, fmt.Errorf("publish snapshot pointer: %w", err)
 	}
-	if dropped != "" && dropped != pointer.GetPreviousGenerationId() && validCompatibilityID(droppedCompatibility) {
-		if err := r.blobs.Delete(ctx, r.generationObjectKey(input.ProjectionKey, droppedCompatibility, dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
+	if dropped != "" && dropped != pointer.GetPreviousGenerationId() && droppedContract == input.ContractID {
+		if err := r.blobs.Delete(ctx, r.generationObjectKey(input.ProjectionKey, input.ContractID, dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
 			r.logWarn("Projection snapshot cleanup failed", input.ProjectionKey, "cleanup", err)
 		}
 	}
@@ -303,35 +298,29 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: createdAt, ProducerVersion: r.producerVersion}, nil
 }
 
-func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
-	if !validProjectionKey(projectionKey) || !validCompatibilityID(compatibilityID) {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key or compatibility id is invalid")
+func (r *Repository) Load(ctx context.Context, projectionKey, contractID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+	if !validProjectionKey(projectionKey) || !validContractID(contractID) {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key or contract id is invalid")
 	}
 	started := time.Now()
-	pointer, err := r.loadPointer(ctx, projectionKey)
+	pointer, err := r.loadPointer(ctx, projectionKey, contractID)
 	if err != nil {
 		if errors.Is(err, ErrSnapshotNotFound) {
 			r.logDebug("Projection snapshot not found", projectionKey, "pointer_read", nil)
 		}
 		return LoadedSnapshot{}, err
 	}
-	positions := []struct {
-		id              string
-		compatibilityID string
-	}{
-		{pointer.GetCurrentGenerationId(), pointer.GetCurrentCompatibilityId()},
-		{pointer.GetPreviousGenerationId(), pointer.GetPreviousCompatibilityId()},
-	}
+	positions := []string{pointer.GetCurrentGenerationId(), pointer.GetPreviousGenerationId()}
 	var failures []error
-	for index, position := range positions {
-		if position.id == "" {
+	for index, generationID := range positions {
+		if generationID == "" {
 			continue
 		}
-		loaded, err := r.loadGeneration(ctx, position.id, projectionKey, position.compatibilityID, compatibilityID, streamName, streamIdentity, maxCutoff)
+		loaded, err := r.loadGeneration(ctx, generationID, projectionKey, contractID, streamName, streamIdentity, maxCutoff)
 		if err == nil {
 			r.logInfo("Projection snapshot loaded", projectionKey,
 				"restore", nil,
-				"generation_id", position.id,
+				"generation_id", generationID,
 				"cutoff_seq", loaded.CutoffSequence,
 				"pointer_slot", index,
 				"payload_bytes", len(loaded.Payload),
@@ -339,8 +328,8 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 				"duration", time.Since(started))
 			return loaded, nil
 		}
-		failures = append(failures, fmt.Errorf("generation %s: %w", position.id, err))
-		r.logWarn("Projection snapshot generation rejected", projectionKey, "generation_read", err, "generation_id", position.id, "pointer_slot", index)
+		failures = append(failures, fmt.Errorf("generation %s: %w", generationID, err))
+		r.logWarn("Projection snapshot generation rejected", projectionKey, "generation_read", err, "generation_id", generationID, "pointer_slot", index)
 	}
 	if len(failures) == 0 {
 		return LoadedSnapshot{}, ErrSnapshotNotFound
@@ -348,15 +337,12 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 	return LoadedSnapshot{}, errors.Join(failures...)
 }
 
-func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, storedCompatibilityID, expectedCompatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, contractID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
 	expectedID, err := parseGenerationID(id)
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
-	if !validCompatibilityID(storedCompatibilityID) {
-		return LoadedSnapshot{}, fmt.Errorf("%w: stored compatibility id is invalid", ErrIncompatible)
-	}
-	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(projectionKey, storedCompatibilityID, id), maxEncryptedSize)
+	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(projectionKey, contractID, id), maxEncryptedSize)
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
@@ -381,11 +367,8 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, stor
 	if generation.GetProjectionKey() != projectionKey {
 		return LoadedSnapshot{}, fmt.Errorf("%w: projection key mismatch", ErrIncompatible)
 	}
-	if generation.GetCompatibilityId() != storedCompatibilityID {
-		return LoadedSnapshot{}, fmt.Errorf("%w: stored compatibility id mismatch", ErrIncompatible)
-	}
-	if generation.GetCompatibilityId() != expectedCompatibilityID {
-		return LoadedSnapshot{}, fmt.Errorf("%w: compatibility id %q does not match %q", ErrIncompatible, generation.GetCompatibilityId(), expectedCompatibilityID)
+	if generation.GetCompatibilityId() != contractID {
+		return LoadedSnapshot{}, fmt.Errorf("%w: contract id %q does not match %q", ErrIncompatible, generation.GetCompatibilityId(), contractID)
 	}
 	if generation.GetStreamName() != streamName {
 		return LoadedSnapshot{}, fmt.Errorf("%w: stream name %q does not match %q", ErrIncompatible, generation.GetStreamName(), streamName)
@@ -423,13 +406,13 @@ func validStreamIdentity(identity string) bool {
 	return err == nil
 }
 
-func (r *Repository) loadPointer(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, error) {
-	pointer, _, err := r.loadPointerAtRevision(ctx, projectionKey)
+func (r *Repository) loadPointer(ctx context.Context, projectionKey, contractID string) (*corev1.ProjectionSnapshotPointer, error) {
+	pointer, _, err := r.loadPointerAtRevision(ctx, projectionKey, contractID)
 	return pointer, err
 }
 
-func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey string) (*corev1.ProjectionSnapshotPointer, uint64, error) {
-	sealed, revision, err := r.pointers.GetPointer(ctx, r.pointerKey(projectionKey))
+func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, contractID string) (*corev1.ProjectionSnapshotPointer, uint64, error) {
+	sealed, revision, err := r.pointers.GetPointer(ctx, r.pointerKey(projectionKey, contractID))
 	if err != nil {
 		if errors.Is(err, ErrPointerNotFound) {
 			return nil, 0, ErrSnapshotNotFound
@@ -462,23 +445,23 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey st
 		}
 	}
 	positions := []struct {
-		name            string
-		id              string
-		streamIdentity  string
-		compatibilityID string
-		createdAt       *timestamppb.Timestamp
+		name           string
+		id             string
+		streamIdentity string
+		contractID     string
+		createdAt      *timestamppb.Timestamp
 	}{
 		{"current", pointer.GetCurrentGenerationId(), pointer.GetCurrentStreamIdentity(), pointer.GetCurrentCompatibilityId(), pointer.GetCurrentCreatedAt()},
 		{"previous", pointer.GetPreviousGenerationId(), pointer.GetPreviousStreamIdentity(), pointer.GetPreviousCompatibilityId(), pointer.GetPreviousCreatedAt()},
 	}
 	for _, position := range positions {
 		if position.id == "" {
-			if position.streamIdentity != "" || position.compatibilityID != "" || position.createdAt != nil {
+			if position.streamIdentity != "" || position.contractID != "" || position.createdAt != nil {
 				return nil, revision, fmt.Errorf("%w: %s metadata exists without a generation", errInvalidPointer, position.name)
 			}
 			continue
 		}
-		if !validStreamIdentity(position.streamIdentity) || !validCompatibilityID(position.compatibilityID) {
+		if !validStreamIdentity(position.streamIdentity) || position.contractID != contractID {
 			return nil, revision, fmt.Errorf("%w: %s generation metadata is incomplete", errInvalidPointer, position.name)
 		}
 		if position.createdAt != nil {
@@ -490,7 +473,7 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey st
 	return &pointer, revision, nil
 }
 
-func (r *Repository) savePointer(ctx context.Context, projectionKey string, pointer *corev1.ProjectionSnapshotPointer, revision uint64) error {
+func (r *Repository) savePointer(ctx context.Context, projectionKey, contractID string, pointer *corev1.ProjectionSnapshotPointer, revision uint64) error {
 	plain, err := proto.MarshalOptions{Deterministic: true}.Marshal(pointer)
 	if err != nil {
 		return err
@@ -500,24 +483,24 @@ func (r *Repository) savePointer(ctx context.Context, projectionKey string, poin
 		return err
 	}
 	if revision == 0 {
-		_, err = r.pointers.CreatePointer(ctx, r.pointerKey(projectionKey), sealed)
+		_, err = r.pointers.CreatePointer(ctx, r.pointerKey(projectionKey, contractID), sealed)
 	} else {
-		_, err = r.pointers.UpdatePointer(ctx, r.pointerKey(projectionKey), sealed, revision)
+		_, err = r.pointers.UpdatePointer(ctx, r.pointerKey(projectionKey, contractID), sealed, revision)
 	}
 	return err
 }
 
-func (r *Repository) pointerKey(projectionKey string) string {
-	return "projection_snapshot_pointer." + opaqueLocator(r.secret, pointerLineage+projectionKey)
+func (r *Repository) pointerKey(projectionKey, contractID string) string {
+	return "projection_snapshot_pointer." + opaqueLocator(r.secret, "snapshot-contract:"+projectionKey+":"+contractID)
 }
 
-func (r *Repository) generationObjectPrefix(projectionKey, compatibilityID string) string {
-	epoch := opaqueLocator(r.secret, "generation-key-epoch:"+projectionKey+":"+compatibilityID)
-	return objectRootPrefix + projectionKey + "/" + compatibilityID + "/objects/" + epoch + "/"
+func (r *Repository) generationObjectPrefix(projectionKey, contractID string) string {
+	epoch := opaqueLocator(r.secret, "generation-key-epoch:"+projectionKey+":"+contractID)
+	return objectRootPrefix + projectionKey + "/" + contractID + "/objects/" + epoch + "/"
 }
 
-func (r *Repository) generationObjectKey(projectionKey, compatibilityID, generationID string) string {
-	return r.generationObjectPrefix(projectionKey, compatibilityID) + generationID
+func (r *Repository) generationObjectKey(projectionKey, contractID, generationID string) string {
+	return r.generationObjectPrefix(projectionKey, contractID) + generationID
 }
 
 func validProjectionKey(key string) bool {
@@ -532,12 +515,12 @@ func validProjectionKey(key string) bool {
 	return true
 }
 
-func validCompatibilityID(id string) bool {
-	if len(id) < 2 || id[0] != 'v' || id[1] == '0' {
+func validContractID(id string) bool {
+	if id == "" || len(id) > 64 {
 		return false
 	}
-	for _, ch := range id[1:] {
-		if ch < '0' || ch > '9' {
+	for _, ch := range id {
+		if (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && ch != '-' {
 			return false
 		}
 	}

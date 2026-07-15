@@ -228,7 +228,7 @@ func TestS3ProjectionSnapshotExpiryDeletesOnlyMarkedGenerationObjects(t *testing
 		t.Fatal(err)
 	}
 	if _, err := repository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey: "threads", CompatibilityID: "v1", StreamName: "EVT",
+		ProjectionKey: "threads", ContractID: "v1", StreamName: "EVT",
 		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 1, Payload: []byte("current"),
 	}); err != nil {
 		t.Fatal(err)
