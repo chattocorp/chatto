@@ -4,6 +4,7 @@
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
   import type { ServerIndicator } from './state/server/store.svelte';
+  import type { Attachment } from 'svelte/attachments';
 
   let {
     server,
@@ -13,6 +14,7 @@
     indicator = null,
     notificationCount = 0,
     onIndicatorClick,
+    contextMenuTrigger,
     title,
     dimmed = false
   }: {
@@ -28,6 +30,8 @@
     notificationCount?: number;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
+    /** Optional right-click/long-press behavior for the server link. */
+    contextMenuTrigger?: Attachment<HTMLAnchorElement>;
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
@@ -45,6 +49,7 @@
       dimmed && 'opacity-40 grayscale'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
+    {@attach contextMenuTrigger}
   >
     {#if server}
       <ServerLogo {server} />

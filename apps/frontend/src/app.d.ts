@@ -19,6 +19,7 @@ declare global {
           | 'deleteLinkPreview'
           | 'imageViewer';
         spaceId?: string;
+        serverId?: string;
         roomId?: string;
         roomName?: string;
         spaceName?: string;

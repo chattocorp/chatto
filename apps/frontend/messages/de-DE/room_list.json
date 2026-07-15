@@ -12,6 +12,11 @@
     "empty_title": "Noch keine Räume",
     "empty_prefix": "Du bist auf diesem Server noch keinen Räumen beigetreten. Öffne die",
     "empty_overview": "Übersicht",
-    "empty_suffix": "um das Verzeichnis zu durchsuchen und interessanten Räumen beizutreten."
+    "empty_suffix": "um das Verzeichnis zu durchsuchen und interessanten Räumen beizutreten.",
+    "mark_as_read": "Als gelesen markieren",
+    "leave_server": "Server verlassen",
+    "leave_room": "Raum verlassen",
+    "server_actions": "Aktionen für {server}",
+    "room_actions": "Aktionen für #{room}"
   }
 }

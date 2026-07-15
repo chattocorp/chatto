@@ -425,6 +425,29 @@ describe('ModalContainer sign out modal', () => {
   });
 });
 
+describe('ModalContainer leave server modal', () => {
+  it('removes an inactive selected server without navigating away from the active server', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'token'
+    };
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.modal = { type: 'leaveServer', serverId: 'remote', spaceName: 'Remote' };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Leave Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
+      expect(mocks.removeServer).toHaveBeenCalledWith('remote');
+      expect(window.history.back).toHaveBeenCalledOnce();
+    });
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+});
+
 describe('ModalContainer message mutation modals', () => {
   it('notifies the visible room after link preview deletion succeeds', async () => {
     mocks.modal = {

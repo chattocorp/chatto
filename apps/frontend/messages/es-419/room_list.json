@@ -12,6 +12,11 @@
     "empty_title": "Aún no hay habitaciones",
     "empty_prefix": "No te has unido a ninguna sala en este servidor. Dirígete al",
     "empty_overview": "Descripción general",
-    "empty_suffix": "para navegar por el directorio y unirte a los que te interesan."
+    "empty_suffix": "para navegar por el directorio y unirte a los que te interesan.",
+    "mark_as_read": "Marcar como leído",
+    "leave_server": "Abandonar servidor",
+    "leave_room": "Salir de la sala",
+    "server_actions": "Acciones para {server}",
+    "room_actions": "Acciones para #{room}"
   }
 }

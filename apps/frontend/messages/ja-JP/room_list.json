@@ -12,6 +12,11 @@
     "empty_title": "まだ部屋がありません",
     "empty_prefix": "このサーバー上のどのルームにも参加していません。に向かう",
     "empty_overview": "概要",
-    "empty_suffix": "ディレクトリを参照し、興味のあるディレクトリに参加します。"
+    "empty_suffix": "ディレクトリを参照し、興味のあるディレクトリに参加します。",
+    "mark_as_read": "既読にする",
+    "leave_server": "サーバーから退出",
+    "leave_room": "ルームから退出",
+    "server_actions": "{server}のアクション",
+    "room_actions": "#{room}のアクション"
   }
 }

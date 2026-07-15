@@ -92,10 +92,17 @@
     // is implicit on signup, so the action is purely a client-side disconnect:
     // forget the instance from the registry and route somewhere safe.
     leavingServer = true;
-    clearLastRoom(activeInstanceId);
+    const targetServerId = page.state.modal?.serverId ?? activeInstanceId;
+    clearLastRoom(targetServerId);
 
-    const leftInstanceId = activeInstanceId;
+    const leftInstanceId = targetServerId;
     serverRegistry.removeServer(leftInstanceId);
+
+    if (leftInstanceId !== activeInstanceId) {
+      leavingServer = false;
+      closeModal();
+      return;
+    }
 
     // Land on the origin instance if it exists, otherwise root.
     const originId = serverRegistry.originServer?.id;

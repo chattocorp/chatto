@@ -12,6 +12,11 @@
     "empty_title": "Nog geen kamers",
     "empty_prefix": "Je bent nog niet lid geweest van kamers op deze server. Ga naar de",
     "empty_overview": "Overzicht",
-    "empty_suffix": "om door de directory te bladeren en lid te worden van de directory waarin u geïnteresseerd bent."
+    "empty_suffix": "om door de directory te bladeren en lid te worden van de directory waarin u geïnteresseerd bent.",
+    "mark_as_read": "Markeren als gelezen",
+    "leave_server": "Server verlaten",
+    "leave_room": "Ruimte verlaten",
+    "server_actions": "Acties voor {server}",
+    "room_actions": "Acties voor #{room}"
   }
 }

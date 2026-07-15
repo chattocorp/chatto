@@ -15,6 +15,8 @@ const { mocks } = vi.hoisted(() => {
       createRoomDirectoryAPI: vi.fn(),
       listRooms: vi.fn(),
       goto: vi.fn(),
+      pushState: vi.fn(),
+      markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
       appUi: {
         disableRoomCallWideFor: vi.fn()
       },
@@ -56,6 +58,7 @@ const { mocks } = vi.hoisted(() => {
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
+          hasAnyUnread: true,
           captureSnapshotRevision: vi.fn().mockReturnValue(0),
           clear: vi.fn(),
           initRooms: vi.fn(),
@@ -93,7 +96,8 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto
+  goto: mocks.goto,
+  pushState: mocks.pushState
 }));
 
 vi.mock('$app/paths', () => ({
@@ -154,6 +158,10 @@ vi.mock('$lib/api-client/roomDirectory', () => ({
     DM: 2
   },
   createRoomDirectoryAPI: mocks.createRoomDirectoryAPI
+}));
+
+vi.mock('$lib/navigation/readActions', () => ({
+  markNavigationServerAsRead: mocks.markNavigationServerAsRead
 }));
 
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
@@ -221,6 +229,9 @@ describe('ServerSidebarEntry', () => {
     mocks.createRoomDirectoryAPI.mockReset();
     mocks.listRooms.mockReset();
     mocks.goto.mockClear();
+    mocks.pushState.mockClear();
+    mocks.markNavigationServerAsRead.mockClear();
+    mocks.markNavigationServerAsRead.mockResolvedValue(true);
     mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.eventHandlers.length = 0;
     mocks.registrar.onEvent.mockClear();
@@ -258,6 +269,46 @@ describe('ServerSidebarEntry', () => {
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  it('opens server actions on right-click and marks the server as read', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
+    );
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    const markRead = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Mark as read'
+    );
+    await expect.element(markRead ?? null).toBeInTheDocument();
+    await expect.element(markRead ?? null).toBeEnabled();
+    markRead!.click();
+
+    expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
+  });
+
+  it('opens the leave-server confirmation for the selected server', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave server'));
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave server'
+    );
+    await expect.element(leave ?? null).toBeInTheDocument();
+    leave!.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'leaveServer', serverId: 'remote', spaceName: 'Loaded Remote' }
+    });
   });
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {

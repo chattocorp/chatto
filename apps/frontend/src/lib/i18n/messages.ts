@@ -922,6 +922,15 @@ const msg_room_list_empty_title = (): LocalizedString => messages().room_list_em
 const msg_room_list_empty_prefix = (): LocalizedString => messages().room_list_empty_prefix(empty());
 const msg_room_list_empty_overview = (): LocalizedString => messages().room_list_empty_overview(empty());
 const msg_room_list_empty_suffix = (): LocalizedString => messages().room_list_empty_suffix(empty());
+const msg_room_list_mark_as_read = (): LocalizedString => messages().room_list_mark_as_read(empty());
+const msg_room_list_leave_server = (): LocalizedString => messages().room_list_leave_server(empty());
+const msg_room_list_leave_room = (): LocalizedString => messages().room_list_leave_room(empty());
+const msg_room_list_server_actions = (
+  inputs: Parameters<LocaleMessages['room_list_server_actions']>[0]
+): LocalizedString => messages().room_list_server_actions(inputs);
+const msg_room_list_room_actions = (
+  inputs: Parameters<LocaleMessages['room_list_room_actions']>[0]
+): LocalizedString => messages().room_list_room_actions(inputs);
 const msg_voice_connecting = (): LocalizedString => messages().voice_connecting(empty());
 const msg_voice_joining = (): LocalizedString => messages().voice_joining(empty());
 const msg_voice_starting = (): LocalizedString => messages().voice_starting(empty());
@@ -2297,6 +2306,11 @@ export { msg_room_list_empty_title as 'room_list.empty_title' };
 export { msg_room_list_empty_prefix as 'room_list.empty_prefix' };
 export { msg_room_list_empty_overview as 'room_list.empty_overview' };
 export { msg_room_list_empty_suffix as 'room_list.empty_suffix' };
+export { msg_room_list_mark_as_read as 'room_list.mark_as_read' };
+export { msg_room_list_leave_server as 'room_list.leave_server' };
+export { msg_room_list_leave_room as 'room_list.leave_room' };
+export { msg_room_list_server_actions as 'room_list.server_actions' };
+export { msg_room_list_room_actions as 'room_list.room_actions' };
 export { msg_voice_connecting as 'voice.connecting' };
 export { msg_voice_joining as 'voice.joining' };
 export { msg_voice_starting as 'voice.starting' };
