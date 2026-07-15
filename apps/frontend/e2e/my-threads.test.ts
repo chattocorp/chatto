@@ -165,7 +165,7 @@ test.describe('My Threads', () => {
     // Initially no unread dot (we just replied so it's "read")
     // Use toPass() to allow subscriptions to settle before asserting absence
     const threadItem = myThreads.threadItems;
-    const unreadDot = threadItem.locator('.bg-warning');
+    const unreadDot = threadItem.getByTestId('thread-notification-dot');
     await expect(async () => {
       await expect(unreadDot).not.toBeVisible();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000, 2000] });
