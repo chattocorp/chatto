@@ -25,7 +25,19 @@ Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 
 Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process [`internal/kms`](../../cli/internal/kms/) boundary for KEK creation, DEK wrap/unwrap, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{id}`; that complete key is the content-key ref.
 
-The backup CLI stages JetStream snapshots in an owner-only random directory beside the destination, always removes plaintext staging, and publishes owner-only archives through a same-directory temporary file and atomic rename. Backup, restore, and key export/import accept passphrases through hidden terminal prompts or explicit `--passphrase-file` / `--passphrase-stdin` automation sources; the process-argument `--passphrase` compatibility path is deprecated for removal in 0.5. Restore extracts into an owner-only temporary directory, rejects non-local manifest stream names and unsupported tar entry types, and bounds archive entry count, individual file size, and total expanded bytes before connecting restored paths to JetStream.
+The backup CLI stages JetStream snapshots in an owner-only random directory
+beside the destination and always removes plaintext staging. It publishes
+owner-only archives through a same-directory temporary file and atomic rename.
+
+Backup, restore, and key export/import accept passphrases through hidden
+terminal prompts or explicit `--passphrase-file` and `--passphrase-stdin`
+automation sources. The process-argument `--passphrase` compatibility path is
+deprecated for removal in 0.5.
+
+Restore extracts into an owner-only temporary directory. Before connecting
+restored paths to JetStream, it rejects non-local manifest stream names and
+unsupported tar entry types, and bounds archive entry count, individual file
+size, and total expanded bytes.
 
 **RUNTIME\_STATE keys:**
 
@@ -69,7 +81,20 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
-Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. Clients refresh live status through ConnectRPC `MyAccountService.UpdatePresence`. On disconnect or "look offline", clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Short-lived `lease.{name}` records coordinate singleton background work across replicas without adding durable state. Active voice call participants are served from the call-state projection over durable room EVT facts and reconciled against LiveKit by the elected reconciler; per-call LiveKit E2EE keys live behind the KMS boundary in `ENCRYPTION_KEYS`, and the retired `CALL_STATE` bucket is no longer imported.
+`MEMORY_CACHE` uses memory storage and is neither persisted nor backed up.
+
+Presence uses per-key TTL with a 30-second client refresh and `LimitMarkerTTL`,
+so NATS emits delete markers on expiry. A single per-process **PresenceHub**
+watches `presence.>` and emits `PresenceChanged` only when a user's status
+changes. Clients refresh through `MyAccountService.UpdatePresence`; disconnect
+and "look offline" stop refreshing instead of writing `OFFLINE`.
+
+Short-lived `lease.{name}` records coordinate singleton background work across
+replicas without adding durable state. Active voice call participants come from
+the call-state projection over durable room EVT facts and are reconciled
+against LiveKit by the elected reconciler. Per-call LiveKit E2EE keys remain
+behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
+no longer imported.
 
 ## Object Store buckets
 
@@ -111,18 +136,68 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 Attachment upload storage: chunked uploads first store temporary `asset-upload.*` chunks in `SERVER_ASSETS`. Completion verifies the full SHA-256, stores the final attachment in NATS or S3, records SHA-256/uploader/pending-expiry/video hints in `AssetCreatedEvent`, and deletes temporary chunks. Completed but unclaimed pending attachment assets expire after 24 hours unless a message body claims them.
 
-Notes: Asset IDs are globally unique NanoIDs. New public NATS objects add the `public/` kind segment so their storage class is explicit; private attachments retain flat keys for compatibility. S3 stores logical, prefix-free keys; any configured `path_prefix` is applied only when talking to the S3 backend. Content-Type and original filename are stored in object headers where available. S2 compression is enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage and serving helpers; `AssetModel` owns durable lifecycle facts and elected message-asset deletion recovery. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. The `asset_cleanup` lease holder incrementally replays canonical `AssetDeletedEvent` facts, locates the matching creation fact through the asset ID, and idempotently deletes source/derivative bytes and transform-cache entries. Beta room-scoped histories without a canonical asset aggregate remain readable by projections but are not guessed at by the cleanup worker. New message bodies reference message-owned assets by ID. Link preview images are server-scoped persisted assets and are embedded in message bodies as `LinkPreview.image_asset` (`AssetRecord`) so the body records whether the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for compatibility with clients and older stored previews. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes.
+### Asset storage and ownership
+
+Asset IDs are globally unique NanoIDs. New public NATS objects use the
+`public/` kind segment to make their storage class explicit; private attachments
+retain flat keys for compatibility. S3 stores logical, prefix-free keys, with
+any configured `path_prefix` applied only at the S3 boundary. Object headers
+hold Content-Type and the original filename where available.
+
+S2 compression is enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage
+and serving helpers. `AssetModel` owns durable lifecycle facts and elected
+message-asset deletion recovery.
+
+Asset metadata is created in `AssetCreatedEvent` on
+`evt.asset.{assetId}.asset_created`. Room scope and ownership context live on
+the event as `message`, `derivative`, `user_avatar`, or `server_branding`, not
+inside `Asset`. New message bodies reference message-owned assets by ID.
+
+Link preview images are server-scoped persisted assets embedded in message
+bodies as `LinkPreview.image_asset` (`AssetRecord`). The body records whether
+the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for older
+clients and stored previews.
+
+### Asset lifecycle and compatibility
+
+The `asset_cleanup` lease holder incrementally replays canonical
+`AssetDeletedEvent` facts. It locates creation metadata by asset ID and
+idempotently deletes source and derivative bytes plus transform-cache entries.
+Beta room-scoped histories without a canonical asset aggregate remain readable
+by projections but are not guessed at by the cleanup worker.
+
+Processing events use the same `evt.asset.{assetId}.*` aggregate. The asset
+projection also reads beta-era `evt.room.{roomId}.asset_*` facts, allowing 0.1.0
+histories to replay without a stream rewrite.
+
+After appending creation and processing-started events, message posting asks
+the process-local video service to start video or animated-GIF processing.
+There is no transient NATS Core worker subject or `video_processed` live
+signal. Boot recovery derives missed work from EVT projections and calls the
+same local path.
+
+Successful processing records thumbnail and variant asset IDs. Each derivative
+binary is separately declared with `AssetCreatedEvent` and an owner pointing to
+the original asset. `AssetProcessingFailedEvent.failure_code` records failed or
+unavailable outcomes.
+
+Account deletion follows the projected message asset graph. It appends
+`AssetDeletedEvent` for source assets and derivative children before deleting
+their backing bytes.
 
 `/assets/server/*` is an unauthenticated route limited to positively classified
 public server assets. New NATS-backed URLs use
 `/assets/server/public/{assetId}` and map directly to the explicit
 `public/{assetId}` object namespace. Canonical `/assets/server/{assetId}` URLs
-remain aliases for those objects and preserve historical flat-key URLs. Before
-transform signature parsing, resize-cache access, object reads, or image
+remain aliases and preserve historical flat-key URLs.
+
+Before transform signature parsing, resize-cache access, object reads, or image
 transformation, the handler rejects unknown namespaces, every live or deleted
 `AssetProjection` declaration, and private NATS metadata (`Room-Id` or
-`Upload-Id`). Historical avatars and branding are recognized through their
-current durable pointers, while historical link-preview images are recognized
-through durable message-body references. S3 public delivery probes only
-`instance/{assetId}`; private current and historical attachment prefixes are
-never probed by this route. Disallowed classes return 404.
+`Upload-Id`). Historical avatars and branding are recognized through current
+durable pointers. Historical link-preview images are recognized through
+durable message-body references.
+
+S3 public delivery probes only `instance/{assetId}`. This route never probes
+private current or historical attachment prefixes. Disallowed classes return
+404.
