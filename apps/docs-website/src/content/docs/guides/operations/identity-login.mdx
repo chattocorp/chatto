@@ -5,7 +5,7 @@ description: Configure local accounts, SMTP email flows, external login provider
 
 import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto supports local password accounts, email verification and reset flows, external OAuth/OIDC providers, explicit account linking, and owner recovery through verified email addresses.
+Chatto supports local password accounts, opt-in passkeys, email verification and reset flows, external OAuth/OIDC providers, explicit account linking, and owner recovery through verified email addresses.
 
 ## Choose Your Account Model
 
@@ -16,6 +16,21 @@ Chatto supports local password accounts, email verification and reset flows, ext
 | Organization SSO | Configure one or more `[[auth.providers]]` entries. |
 | Mixed community | Allow local accounts and selected external providers. |
 | Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
+| Passkey-first daily login | Enable passkeys and SMTP. Email remains the recovery path while users can omit a password. |
+
+## Passkeys
+
+Passkeys are disabled by default. Enable them only after `webserver.url` is the stable public HTTPS URL people use to open Chatto: WebAuthn credentials are scoped to that hostname. `localhost` is accepted for development.
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+
+[auth.passkeys]
+enabled = true
+```
+
+Passkeys accept platform, synced, cross-device, and hardware-key authenticators. Chatto requires a device PIN or biometric verification and does not request device attestation. Users can use a passkey for daily sign-in while retaining a verified email address for password recovery.
 
 ## SMTP Email
 

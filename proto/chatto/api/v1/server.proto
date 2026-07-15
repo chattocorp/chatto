@@ -28,4 +28,7 @@ message ServerLogin {
   repeated ProviderMetadata providers = 2;
   // URL for the legacy authorization flow, when enabled.
   string authorize_url = 3;
+  // Whether this server has enabled WebAuthn passkey login. Older servers omit
+  // this field and clients must treat that as unavailable.
+  bool passkeys_enabled = 4;
 }

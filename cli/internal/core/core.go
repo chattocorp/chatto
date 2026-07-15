@@ -200,6 +200,12 @@ type ChattoCore struct {
 	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
+	// Passkeys owns credential-hash lookup and mutable authenticator state.
+	Passkeys *PasskeyProjection
+
+	// PasskeysProjector runs credential-specific passkey facts.
+	PasskeysProjector *events.Projector
+
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
 	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
@@ -1293,6 +1299,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	users := newUserProjectionWithDEKResolver(dekResolver)
 	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
 
+	passkeys := NewPasskeyProjection()
+	passkeysProjector := newProjector(passkeys, "passkeys", "Passkeys", func() (int64, int64, []ProjectionAdminMetric) { return 0, 0, nil })
+
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
 
@@ -1358,6 +1367,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:       reactionsProjector,
 		Users:                    users,
 		UsersProjector:           usersProjector,
+		Passkeys:                 passkeys,
+		PasskeysProjector:        passkeysProjector,
 		ContentKeys:              contentKeys,
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,

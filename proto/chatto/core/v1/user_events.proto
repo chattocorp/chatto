@@ -142,6 +142,44 @@ message UserExternalIdentityUnlinkedEvent {
   string subject_hash = 2;
 }
 
+// UserPasskeyLinkedEvent records a WebAuthn credential linked to an account.
+// Credential IDs and public keys are opaque binary values; labels are chosen by
+// the account holder for their settings UI.
+message UserPasskeyLinkedEvent {
+  string user_id = 1;
+  string credential_hash = 2;
+  bytes credential_id = 3;
+  bytes credential = 4;
+  string label = 5;
+}
+
+// UserPasskeyUnlinkedEvent permanently disables one linked WebAuthn credential.
+message UserPasskeyUnlinkedEvent {
+  string user_id = 1;
+  string credential_hash = 2;
+}
+
+// PasskeyCredentialRegisteredEvent owns durable WebAuthn credential material
+// on its credential-hash aggregate. It is paired atomically with a user link.
+message PasskeyCredentialRegisteredEvent {
+  string user_id = 1;
+  string credential_hash = 2;
+  bytes credential_id = 3;
+  bytes credential = 4;
+}
+
+// PasskeyCredentialUpdatedEvent replaces mutable authenticator state after a
+// successful assertion, such as its signature counter or backup state.
+message PasskeyCredentialUpdatedEvent {
+  string credential_hash = 1;
+  bytes credential = 2;
+}
+
+// PasskeyCredentialRemovedEvent permanently releases a credential hash.
+message PasskeyCredentialRemovedEvent {
+  string credential_hash = 1;
+}
+
 message UserServerPreferencesChangedEvent {
   string user_id = 1;
   ServerUserPreferences preferences = 2;

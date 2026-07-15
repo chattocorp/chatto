@@ -104,6 +104,7 @@ func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userI
 	if err := c.userModel.waitForUsersCurrent(ctx, "user auth generation",
 		agg.Subject(events.EventUserPasswordHashChanged),
 		agg.Subject(events.EventUserExternalIdentityUnlinked),
+		agg.Subject(events.EventUserPasskeyUnlinked),
 		agg.Subject(events.EventUserAccountDeleted),
 	); err != nil {
 		return fmt.Errorf("wait for user auth generation: %w", err)

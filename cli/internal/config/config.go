@@ -527,9 +527,37 @@ func IsAllowedAuthProviderType(providerType string) bool {
 
 type AuthConfig struct {
 	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	Passkeys           PasskeysConfig       `toml:"passkeys,commented" comment:"WebAuthn passkey login. Passkeys require a secure webserver.url; enable explicitly after confirming the public URL is stable."`
 	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
 	EmailOTP           EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
 	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
+}
+
+// PasskeysConfig controls the WebAuthn passkey feature. The relying-party ID
+// is deliberately derived from webserver.url rather than configured separately
+// so credentials cannot accidentally be scoped more broadly than the public
+// Chatto origin.
+type PasskeysConfig struct {
+	Enabled *bool `toml:"enabled,commented" env:"CHATTO_AUTH_PASSKEYS_ENABLED" comment:"Enable passkey sign-in and account management. Default: false. Requires an HTTPS webserver.url, except localhost development URLs."`
+}
+
+// EnabledOrDefault reports whether passkeys are explicitly enabled.
+func (c *PasskeysConfig) EnabledOrDefault() bool {
+	return c.Enabled != nil && *c.Enabled
+}
+
+// PasskeyRelyingParty returns the exact WebAuthn relying-party ID and origin
+// derived from the configured public URL. Callers should use it only after
+// Validate has accepted an enabled passkey configuration.
+func (c *ChattoConfig) PasskeyRelyingParty() (id string, origin string, ok bool) {
+	if !c.Auth.Passkeys.EnabledOrDefault() {
+		return "", "", false
+	}
+	u, err := url.Parse(c.Webserver.URL)
+	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && !isLoopbackHost(u.Hostname())) {
+		return "", "", false
+	}
+	return u.Hostname(), u.Scheme + "://" + u.Host, true
 }
 
 // EmailOTPConfig controls registration and email-verification one-time-password guardrails.
@@ -1044,6 +1072,13 @@ func (c *ChattoConfig) Validate() error {
 	if c.Webserver.URL != "" {
 		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
 			errs = append(errs, err.Error())
+		}
+	}
+	if c.Auth.Passkeys.EnabledOrDefault() {
+		if c.Webserver.URL == "" {
+			errs = append(errs, "webserver.url is required when passkeys are enabled")
+		} else if parsed, err := url.Parse(c.Webserver.URL); err != nil || parsed.Hostname() == "" || (parsed.Scheme != "https" && !isLoopbackHost(parsed.Hostname())) {
+			errs = append(errs, "passkeys require an HTTPS webserver.url (except localhost development URLs)")
 		}
 	}
 	if c.NATS.Client.URL != "" {

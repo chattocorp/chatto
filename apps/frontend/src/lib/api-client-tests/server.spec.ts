@@ -64,6 +64,7 @@ describe('getPublicServerInfo', () => {
       version: '9.8.7',
       authorizeUrl: '/oauth/authorize',
       directRegistrationEnabled: true,
+      passkeysEnabled: false,
       welcomeMessage: 'welcome',
       description: 'description',
       iconUrl: 'https://cdn/logo.webp',
