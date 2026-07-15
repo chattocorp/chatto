@@ -107,6 +107,11 @@
         "in_reply_to": "als antwoord op",
         "reply_preview_fallback": "Bericht",
         "deleted": "Dit bericht is verwijderd."
+      },
+      "timestamp": {
+        "details_title": "Datum en tijd",
+        "local_time": "Lokaal",
+        "relative_time": "Relatief"
       }
     },
     "system_events": {

@@ -107,6 +107,11 @@
         "in_reply_to": "som svar på",
         "reply_preview_fallback": "Meddelande",
         "deleted": "Det här meddelandet har tagits bort."
+      },
+      "timestamp": {
+        "details_title": "Datum och tid",
+        "local_time": "Lokalt",
+        "relative_time": "Relativt"
       }
     },
     "system_events": {

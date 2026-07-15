@@ -110,6 +110,11 @@
         "in_reply_to": "als Antwort auf",
         "reply_preview_fallback": "Nachricht",
         "deleted": "Diese Nachricht wurde gelöscht."
+      },
+        "timestamp": {
+          "details_title": "Datum und Uhrzeit",
+          "local_time": "Lokal",
+          "relative_time": "Relativ"
       }
     },
     "system_events": {

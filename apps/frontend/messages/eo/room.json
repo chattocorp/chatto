@@ -107,6 +107,11 @@
         "in_reply_to": "en respondo al",
         "reply_preview_fallback": "Mesaĝo",
         "deleted": "Ĉi tiu mesaĝo estis forigita."
+      },
+      "timestamp": {
+        "details_title": "Dato kaj horo",
+        "local_time": "Loka",
+        "relative_time": "Relativa"
       }
     },
     "system_events": {

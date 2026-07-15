@@ -107,6 +107,11 @@
         "in_reply_to": "som svar på",
         "reply_preview_fallback": "Melding",
         "deleted": "Denne meldingen er slettet."
+      },
+      "timestamp": {
+        "details_title": "Dato og klokkeslett",
+        "local_time": "Lokal",
+        "relative_time": "Relativ"
       }
     },
     "system_events": {

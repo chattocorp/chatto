@@ -39,3 +39,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-027](FDR-027-pwa-shell-and-service-worker.md) | PWA Shell & Service Worker | Active | 2026-07-14 |
 | [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-06-29 |
 | [FDR-029](FDR-029-chatto-shields.md) | Chatto Shields | Active | 2026-07-12 |
+| [FDR-030](FDR-030-inline-message-timestamps.md) | Inline Message Timestamps | Active | 2026-07-12 |

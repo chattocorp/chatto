@@ -107,6 +107,11 @@
         "in_reply_to": "w odpowiedzi na",
         "reply_preview_fallback": "Wiadomość",
         "deleted": "Ta wiadomość została usunięta."
+      },
+      "timestamp": {
+        "details_title": "Data i godzina",
+        "local_time": "Lokalnie",
+        "relative_time": "Względnie"
       }
     },
     "system_events": {

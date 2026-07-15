@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Zdjęcia i filmy zostaną dodane do Twojej wiadomości",
     "send_failed": "Nie udało się wysłać wiadomości",
     "edit_failed": "Nie udało się edytować wiadomości",
+    "format": {
+      "bold": "Pogrubienie",
+      "italic": "Kursywa",
+      "inline_code": "Kod w wierszu",
+      "heading": "Nagłówek",
+      "bullet_list": "Lista punktowana",
+      "ordered_list": "Lista numerowana",
+      "blockquote": "Cytat",
+      "code_block": "Blok kodu"
+    },
+    "timestamp": {
+      "title": "Wstaw znacznik czasu",
+      "insert_label": "Wstaw znacznik czasu",
+      "date_time": "Data i godzina",
+      "timezone": "Strefa czasowa",
+      "insert": "Wstaw",
+      "error_required": "Wybierz datę i godzinę.",
+      "error_timezone": "Wybierz prawidłową strefę czasową IANA.",
+      "error_invalid": "Wybierz prawidłową datę i godzinę dla tej strefy czasowej."
+    },
     "mention": {
       "all_room_members": "Wszyscy członkowie pokoju",
       "members_here": "Członkowie obecnie tutaj",

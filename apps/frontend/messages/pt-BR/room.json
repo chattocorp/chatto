@@ -107,6 +107,11 @@
         "in_reply_to": "em resposta a",
         "reply_preview_fallback": "Mensagem",
         "deleted": "Esta mensagem foi excluída."
+      },
+      "timestamp": {
+        "details_title": "Data e hora",
+        "local_time": "Local",
+        "relative_time": "Relativo"
       }
     },
     "system_events": {

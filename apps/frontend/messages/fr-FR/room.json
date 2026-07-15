@@ -107,6 +107,11 @@
         "in_reply_to": "en réponse à",
         "reply_preview_fallback": "Message",
         "deleted": "Ce message a été supprimé."
+      },
+      "timestamp": {
+        "details_title": "Date et heure",
+        "local_time": "Locale",
+        "relative_time": "Relative"
       }
     },
     "system_events": {

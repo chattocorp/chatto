@@ -419,6 +419,14 @@
   @apply bg-attention/20 text-text;
 }
 
+.message-timestamp {
+  @apply inline-flex cursor-pointer items-baseline gap-1 rounded-sm bg-surface-emphasized px-1 font-medium whitespace-nowrap text-text transition-[background-color,color,scale] hover:bg-surface-selected active:scale-[0.98];
+}
+
+.message-timestamp-icon {
+  @apply text-[0.78em] text-muted;
+}
+
 /* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
 @utility embed-frame {
   @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface shadow-sm outline-[3px] outline-offset-0 outline-surface-strong transition-shadow hover:shadow-md focus-visible:shadow-md;

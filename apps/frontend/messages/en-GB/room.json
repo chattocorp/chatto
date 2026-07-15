@@ -110,6 +110,11 @@
         "in_reply_to": "in reply to",
         "reply_preview_fallback": "Message",
         "deleted": "This message has been deleted."
+      },
+        "timestamp": {
+          "details_title": "Date and time",
+          "local_time": "Local",
+          "relative_time": "Relative"
       }
     },
     "system_events": {

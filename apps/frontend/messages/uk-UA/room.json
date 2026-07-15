@@ -110,6 +110,11 @@
         "in_reply_to": "у відповідь на",
         "reply_preview_fallback": "Повідомлення",
         "deleted": "Це повідомлення видалено."
+      },
+      "timestamp": {
+        "details_title": "Дата й час",
+        "local_time": "Локальний час",
+        "relative_time": "Відносний час"
       }
     },
     "system_events": {

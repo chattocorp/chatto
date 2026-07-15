@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Images and videos will be added to your message",
     "send_failed": "Failed to send message",
     "edit_failed": "Failed to edit message",
+    "format": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "inline_code": "Inline code",
+      "heading": "Heading",
+      "bullet_list": "Bullet list",
+      "ordered_list": "Numbered list",
+      "blockquote": "Quote",
+      "code_block": "Code block"
+    },
+    "timestamp": {
+      "title": "Insert timestamp",
+      "insert_label": "Insert timestamp",
+      "date_time": "Date and time",
+      "timezone": "Timezone",
+      "insert": "Insert",
+      "error_required": "Choose a date and time.",
+      "error_timezone": "Choose a valid IANA timezone.",
+      "error_invalid": "Choose a valid date and time for this timezone."
+    },
     "mention": {
       "all_room_members": "All room members",
       "members_here": "Members currently here",

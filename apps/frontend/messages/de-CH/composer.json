@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
     "send_failed": "Nachricht konnte nicht gesendet werden",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
+    "format": {
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "inline_code": "Inline-Code",
+      "heading": "Überschrift",
+      "bullet_list": "Aufzählung",
+      "ordered_list": "Nummerierte Liste",
+      "blockquote": "Zitat",
+      "code_block": "Codeblock"
+    },
+    "timestamp": {
+      "title": "Zeitstempel einfügen",
+      "insert_label": "Zeitstempel einfügen",
+      "date_time": "Datum und Uhrzeit",
+      "timezone": "Zeitzone",
+      "insert": "Einfügen",
+      "error_required": "Wähle ein Datum und eine Uhrzeit.",
+      "error_timezone": "Wähle eine gültige IANA-Zeitzone.",
+      "error_invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit für diese Zeitzone."
+    },
     "mention": {
       "all_room_members": "Alle Raummitglieder",
       "members_here": "Gerade anwesende Mitglieder",

@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Afbeeldingen en video's worden aan je bericht toegevoegd",
     "send_failed": "Kan bericht niet verzenden",
     "edit_failed": "Kan bericht niet bewerken",
+    "format": {
+      "bold": "Vet",
+      "italic": "Cursief",
+      "inline_code": "Inline-code",
+      "heading": "Kop",
+      "bullet_list": "Opsomming",
+      "ordered_list": "Genummerde lijst",
+      "blockquote": "Citaat",
+      "code_block": "Codeblok"
+    },
+    "timestamp": {
+      "title": "Tijdstempel invoegen",
+      "insert_label": "Tijdstempel invoegen",
+      "date_time": "Datum en tijd",
+      "timezone": "Tijdzone",
+      "insert": "Invoegen",
+      "error_required": "Kies een datum en tijd.",
+      "error_timezone": "Kies een geldige IANA-tijdzone.",
+      "error_invalid": "Kies een geldige datum en tijd voor deze tijdzone."
+    },
     "mention": {
       "all_room_members": "Alle kamerleden",
       "members_here": "Leden zijn momenteel hier",

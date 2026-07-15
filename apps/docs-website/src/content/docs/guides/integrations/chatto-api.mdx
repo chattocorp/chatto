@@ -59,6 +59,13 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 | Manage roles or permissions | `chatto.admin.v1` role and permission services |
 | Inspect operational health | `AdminDiagnosticsService`, metrics, and exporter |
 
+## Message Body Tokens
+
+Message bodies are plain text with Chatto's supported markdown subset. They may
+also contain inline timestamp tokens in the form `<t:UNIX_SECONDS:F>`. Render
+valid tokens as the referenced UTC instant in the viewer's locale and timezone,
+or leave the token literal if your client does not support inline timestamps.
+
 ## Programmatic Safety
 
 1. Prefer generated protobuf clients over hand-built JSON or path calls.

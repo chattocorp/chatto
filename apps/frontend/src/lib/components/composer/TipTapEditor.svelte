@@ -721,6 +721,29 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return content;
   }
 
+  export type ComposerFormattingCommand =
+    | 'bold'
+    | 'italic'
+    | 'inlineCode'
+    | 'heading'
+    | 'bulletList'
+    | 'orderedList'
+    | 'blockquote'
+    | 'codeBlock';
+
+  export type ComposerFormattingState = Record<ComposerFormattingCommand, boolean>;
+
+  const emptyFormattingState: ComposerFormattingState = {
+    bold: false,
+    italic: false,
+    inlineCode: false,
+    heading: false,
+    bulletList: false,
+    orderedList: false,
+    blockquote: false,
+    codeBlock: false
+  };
+
   export type TipTapEditorApi = {
     /** Get the editor's plain text content */
     getText: () => string;
@@ -738,6 +761,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
      * length relative to the cursor.
      */
     replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
+    /** Insert plain text at the current cursor position. */
+    insertText: (text: string) => void;
+    /** Toggle a Markdown formatting command at the current selection. */
+    toggleFormatting: (command: ComposerFormattingCommand) => void;
     /** Insert selected reply text as a blockquote at the current cursor. */
     insertQuote: (text: QuoteInsertionContent) => void;
     /** Insert the same block break the editor would create for a plain Enter key. */
@@ -754,6 +781,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onPaste,
     onNextEnterWillSendChange,
     onRichStructureChange,
+    onFormattingStateChange,
     onReady
   }: {
     placeholder?: string;
@@ -765,6 +793,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onPaste?: (event: ClipboardEvent) => boolean;
     onNextEnterWillSendChange?: (value: boolean) => void;
     onRichStructureChange?: (value: boolean) => void;
+    onFormattingStateChange?: (state: ComposerFormattingState) => void;
     onReady?: (api: TipTapEditorApi) => void;
   } = $props();
 
@@ -869,7 +898,23 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onRichStructureChange?.(value);
   }
 
+  function getFormattingState(e: Editor): ComposerFormattingState {
+    if (e.isDestroyed) return emptyFormattingState;
+    return {
+      bold: e.isActive('bold'),
+      italic: e.isActive('italic'),
+      inlineCode: e.isActive('code'),
+      heading: e.isActive('heading', { level: 2 }),
+      bulletList: e.isActive('bulletList'),
+      orderedList: e.isActive('orderedList'),
+      blockquote: e.isActive('blockquote'),
+      codeBlock: e.isActive('codeBlock')
+    };
+  }
+
   function updateActiveControls(e: Editor) {
+    onFormattingStateChange?.(getFormattingState(e));
+
     if (e.isActive('codeBlock')) {
       activeCodeBlockLanguage = e.getAttributes('codeBlock').language || 'text';
     } else {
@@ -1056,6 +1101,46 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
+      insertText: (text: string) => {
+        if (e.isDestroyed || !text) return;
+        e.chain().focus().insertContent(text).run();
+        tick().then(syncControls);
+      },
+
+      toggleFormatting: (command: ComposerFormattingCommand) => {
+        if (e.isDestroyed) return;
+
+        const chain = e.chain().focus();
+        switch (command) {
+          case 'bold':
+            chain.toggleBold().run();
+            break;
+          case 'italic':
+            chain.toggleItalic().run();
+            break;
+          case 'inlineCode':
+            chain.toggleCode().run();
+            break;
+          case 'heading':
+            chain.toggleHeading({ level: 2 }).run();
+            break;
+          case 'bulletList':
+            chain.toggleBulletList().run();
+            break;
+          case 'orderedList':
+            chain.toggleOrderedList().run();
+            break;
+          case 'blockquote':
+            chain.toggleBlockquote().run();
+            break;
+          case 'codeBlock':
+            chain.toggleCodeBlock().run();
+            ensureEditorCodeLanguages(e);
+            break;
+        }
+        tick().then(syncControls);
+      },
+
       insertQuote: (text: QuoteInsertionContent) => {
         if (e.isDestroyed) return;
         const quoteBlocks = normalizeQuoteInsertionContent(text);
@@ -1159,6 +1244,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     // Notify parent that editor is ready with API
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
+      updateActiveControls(e);
       updateNextEnterWillSend(e);
       updateRichStructure(e);
       onReady?.(buildApi(e));
@@ -1169,6 +1255,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       onNextEnterWillSendChange?.(false);
       lastRichStructure = false;
       onRichStructureChange?.(false);
+      onFormattingStateChange?.(emptyFormattingState);
       editor?.destroy();
       editor = null;
     };

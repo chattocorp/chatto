@@ -110,6 +110,11 @@
         "in_reply_to": "への返信",
         "reply_preview_fallback": "メッセージ",
         "deleted": "このメッセージは削除されました。"
+      },
+      "timestamp": {
+        "details_title": "日付と時刻",
+        "local_time": "ローカル",
+        "relative_time": "相対"
       }
     },
     "system_events": {
