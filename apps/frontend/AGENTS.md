@@ -158,6 +158,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Testing
 
 - `mise test-frontend` runs the frontend suite.
+- Do not run frontend checks, builds, or tests concurrently with one another.
+  Paraglide compilation and protobuf package builds replace shared generated
+  output, so parallel commands can produce misleading missing-file failures.
 - Unit and component specs live next to source. Route specs should not start
   with `+`; use descriptive names such as `members.page.svelte.spec.ts`.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,

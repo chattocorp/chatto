@@ -5,6 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { personalData } from '$lib/state/personalData.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import {
@@ -85,6 +86,11 @@
       serverRegistry.clearServerAuthentication(signedOutServerId);
       notifyLogout();
       hardNavigateToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
+    } else if (signedOutServerId === serverRegistry.homeServerId) {
+      // Keep the home server visible: its personal-data role survives signing
+      // out, but using it again requires fresh authentication on this device.
+      serverRegistry.clearServerAuthentication(signedOutServerId, true);
+      routeToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
     } else {
       serverRegistry.removeServer(signedOutServerId);
       routeToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
@@ -97,6 +103,7 @@
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
     );
+    personalData.forgetDeviceAccounts();
     serverRegistry.removeAll();
     notifyLogout();
     hardRedirectAfterSignOut('/');

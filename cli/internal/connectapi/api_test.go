@@ -27,6 +27,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
@@ -45,6 +46,8 @@ import (
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	personaldataapiv1 "hmans.de/chatto/internal/pb/chatto/personaldata/api/v1"
+	personaldataapiv1connect "hmans.de/chatto/internal/pb/chatto/personaldata/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -88,6 +91,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.UserServiceName + "/",
 		"/" + apiv1connect.ViewerServiceName + "/",
 		"/" + apiv1connect.VoiceCallServiceName + "/",
+		"/" + personaldataapiv1connect.PersonalDataServiceName + "/",
 	}
 	sort.Strings(want)
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
@@ -106,32 +110,33 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
-		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.AssetServiceName + "/":                   AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
-		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminEventLogServiceName + "/":         AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":       AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminUserServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
-		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
-		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationServiceName + "/":            AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminPermissionServiceName + "/":       AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.PushNotificationServiceName + "/":        AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoleServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoleServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
-		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.UserServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ViewerServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.VoiceCallServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MyAccountServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetServiceName + "/":                    AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetUploadServiceName + "/":              AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminServerServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":    AuthPolicyPublic,
+		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":       AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminEventLogServiceName + "/":          AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":        AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminUserServiceName + "/":              AuthPolicyAuthenticatedUser,
+		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":            AuthPolicyPublic,
+		"/" + grpcreflect.ReflectV1ServiceName + "/":                 AuthPolicyPublic,
+		"/" + apiv1connect.MessageServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationPreferencesServiceName + "/":  AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminPermissionServiceName + "/":        AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.PushNotificationServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoleServiceName + "/":              AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoleServiceName + "/":                     AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomDirectoryServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomServiceName + "/":                     AuthPolicyAuthenticatedUser,
+		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":    AuthPolicyPublic,
+		"/" + apiv1connect.ServerServiceName + "/":                   AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ThreadServiceName + "/":                   AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.UserServiceName + "/":                     AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ViewerServiceName + "/":                   AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.VoiceCallServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + personaldataapiv1connect.PersonalDataServiceName + "/": AuthPolicyAuthenticatedUser,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("auth policy count = %d, want %d (%v)", len(got), len(want), got)
@@ -197,6 +202,66 @@ func TestRequireCaller(t *testing.T) {
 			t.Fatalf("UserID = %q, want user-123", caller.UserID)
 		}
 	})
+}
+
+func TestPersonalDataServiceManagesCallerScopedData(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+
+	if _, err := env.personalData.GetPreferences(env.ctx, connect.NewRequest(&personaldataapiv1.GetPreferencesRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetPreferences code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+
+	locale := "de-DE"
+	format := personaldataapiv1.TimeFormat_TIME_FORMAT_24_HOUR
+	updated, err := env.personalData.UpdatePreferences(ctx, connect.NewRequest(&personaldataapiv1.UpdatePreferencesRequest{
+		Preferences: &personaldataapiv1.Preferences{Locale: &locale, TimeFormat: &format},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"locale", "time_format"}},
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePreferences: %v", err)
+	}
+	if updated.Msg.GetPreferences().GetLocale() != locale || updated.Msg.GetPreferences().GetTimeFormat() != format {
+		t.Fatalf("updated preferences = %+v", updated.Msg.GetPreferences())
+	}
+	if _, err := env.personalData.UpdatePreferences(ctx, connect.NewRequest(&personaldataapiv1.UpdatePreferencesRequest{
+		Preferences: &personaldataapiv1.Preferences{},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"unknown"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unsupported preference mask code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	created, err := env.personalData.CreateKnownServer(ctx, connect.NewRequest(&personaldataapiv1.CreateKnownServerRequest{
+		Server: &personaldataapiv1.KnownServer{Id: "one", Url: "https://one.example/path?ignored=yes", Name: "One"},
+	}))
+	if err != nil {
+		t.Fatalf("CreateKnownServer one: %v", err)
+	}
+	if created.Msg.GetServer().GetUrl() != "https://one.example" {
+		t.Fatalf("canonical server URL = %q, want origin", created.Msg.GetServer().GetUrl())
+	}
+	list, err := env.personalData.ListKnownServers(ctx, connect.NewRequest(&personaldataapiv1.ListKnownServersRequest{}))
+	if err != nil {
+		t.Fatalf("ListKnownServers: %v", err)
+	}
+	if list.Msg.GetHomeServerId() != "one" || len(list.Msg.GetServers()) != 1 {
+		t.Fatalf("initial directory = %+v", list.Msg)
+	}
+	if _, err := env.personalData.DeleteKnownServer(ctx, connect.NewRequest(&personaldataapiv1.DeleteKnownServerRequest{Id: "one"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("delete home code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+
+	if _, err := env.personalData.CreateKnownServer(ctx, connect.NewRequest(&personaldataapiv1.CreateKnownServerRequest{
+		Server: &personaldataapiv1.KnownServer{Id: "two", Url: "https://two.example", Name: "Two"},
+	})); err != nil {
+		t.Fatalf("CreateKnownServer two: %v", err)
+	}
+	if _, err := env.personalData.SetHomeServer(ctx, connect.NewRequest(&personaldataapiv1.SetHomeServerRequest{Id: "two"})); err != nil {
+		t.Fatalf("SetHomeServer two: %v", err)
+	}
+	if _, err := env.personalData.DeleteKnownServer(ctx, connect.NewRequest(&personaldataapiv1.DeleteKnownServerRequest{Id: "one"})); err != nil {
+		t.Fatalf("DeleteKnownServer one after move: %v", err)
+	}
 }
 
 func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
@@ -7687,6 +7752,7 @@ type connectAPITestEnv struct {
 	messages         *messageService
 	notifications    *notificationService
 	permissions      *permissionService
+	personalData     *personalDataService
 	prefs            *notificationPreferencesService
 	push             *pushNotificationService
 	publicRoles      *publicRoleService
@@ -7740,6 +7806,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		messages:         &messageService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},
+		personalData:     &personalDataService{api: api},
 		prefs:            &notificationPreferencesService{api: api},
 		push:             &pushNotificationService{api: api},
 		publicRoles:      &publicRoleService{api: api},

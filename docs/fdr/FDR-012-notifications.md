@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-04
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -92,9 +92,9 @@ from API callers.
 
 ### 9. Notification sound choice and shaping are local
 
-**Decision:** Notification sound selection and sound-shaping controls are stored in browser-local preferences.
+**Decision:** Notification sound selection and sound-shaping controls live in the server-independent personal settings screen but are stored in browser-local preferences.
 **Why:** They are playback-device preferences, not server behavior. Keeping them local matches the existing sound picker and avoids adding durable compatibility surface for an annoyance/subtlety control.
-**Tradeoff:** A user who signs in on a new browser reconfigures sound taste there. Server-synced display settings remain separate.
+**Tradeoff:** A user who signs in on a new browser reconfigures sound taste there. Portable language and time settings sync separately through the home server.
 
 ### 10. Do Not Disturb silences alert delivery
 

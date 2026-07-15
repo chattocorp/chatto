@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { generateServerId, type RegisteredServer } from './registry.svelte';
 
 const STORAGE_KEY = 'chatto:instances';
+const HOME_STORAGE_KEY = 'chatto:home-server-id';
 
 function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
 	return {
@@ -53,10 +54,7 @@ describe('generateServerId', () => {
 
 	it('increments suffix for multiple collisions', () => {
 		expect(
-			generateServerId('https://chat.example.com', [
-				'chat-example-com',
-				'chat-example-com-2'
-			])
+			generateServerId('https://chat.example.com', ['chat-example-com', 'chat-example-com-2'])
 		).toBe('chat-example-com-3');
 	});
 
@@ -68,8 +66,11 @@ describe('generateServerId', () => {
 });
 
 describe('ServerRegistry', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
 		localStorage.removeItem(STORAGE_KEY);
+		localStorage.removeItem(HOME_STORAGE_KEY);
 	});
 
 	it('exports the singleton', async () => {
@@ -95,7 +96,9 @@ describe('ServerRegistry', () => {
 			registry.servers = [];
 
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin, name: 'Origin' }));
-			registry.addServer(makeServer({ id: 'remote', url: 'https://remote.example.com', name: 'Remote' }));
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', name: 'Remote' })
+			);
 
 			expect(registry.originServer?.name).toBe('Origin');
 		});
@@ -194,6 +197,55 @@ describe('ServerRegistry', () => {
 
 			const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 			expect(stored).toHaveLength(0);
+		});
+	});
+
+	describe('home server', () => {
+		it('lets the user choose and persists a registered home server', async () => {
+			const registry = await createRegistry();
+			registry.addServer(makeServer({ id: 'a' }));
+
+			expect(registry.setHomeServer('a')).toBe(true);
+			expect(registry.homeServer?.id).toBe('a');
+			expect(JSON.parse(localStorage.getItem(HOME_STORAGE_KEY)!)).toBe('a');
+		});
+
+		it('protects the home server from ordinary removal', async () => {
+			const registry = await createRegistry();
+			registry.addServer(makeServer({ id: 'a' }));
+			registry.setHomeServer('a');
+
+			expect(registry.removeServer('a')).toBe(false);
+			expect(registry.getServer('a')).toBeDefined();
+		});
+
+		it('chooses the first authenticated server on a fresh client', async () => {
+			const registry = await createRegistry();
+			registry.addServer(makeServer({ id: 'a', token: 'token' }));
+
+			registry.serverAuthenticated('a');
+
+			expect(registry.homeServerId).toBe('a');
+		});
+
+		it('can require reauthentication when clearing remote credentials', async () => {
+			const registry = await createRegistry();
+			registry.addServer(
+				makeServer({
+					id: 'a',
+					token: 'token',
+					userId: 'U1',
+					userLogin: 'alice'
+				})
+			);
+
+			registry.clearServerAuthentication('a', true);
+
+			expect(registry.getServer('a')).toMatchObject({
+				token: null,
+				userId: null,
+				reauthRequiredAt: expect.any(Number)
+			});
 		});
 	});
 

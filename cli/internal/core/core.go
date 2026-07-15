@@ -70,6 +70,10 @@ type ChattoCore struct {
 	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker *projectionSnapshotWorker
 
+	// PersonalData owns portable per-user preferences and server directories in
+	// RUNTIME_STATE. These are latest-value records, not domain events.
+	PersonalData *PersonalDataService
+
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
 	// Set this after ChattoCore is created, from VideoConfig.
@@ -1509,6 +1513,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.readStateModel = &ReadStateModel{core: core}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
+	core.PersonalData = NewPersonalDataService(storage.runtimeStateKV)
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)

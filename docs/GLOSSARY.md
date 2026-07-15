@@ -110,6 +110,8 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).
 
+**Home Server** — A normal registered Chatto server that a user designates to store portable personal preferences and their known-server directory. It is marked in the server gutter; credentials for other servers remain device-local. See [ADR-051](adr/ADR-051-home-server-personal-data.md) and [FDR-031](fdr/FDR-031-personal-settings.md).
+
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 
 **Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. It is separate from the local Operator API. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).

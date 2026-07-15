@@ -39,6 +39,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
 	if errors.Is(err, core.ErrLoginAlreadyTaken) ||
+		errors.Is(err, core.ErrPersonalServerAlreadyExists) ||
 		errors.Is(err, core.ErrEmailAlreadyVerified) ||
 		errors.Is(err, core.ErrExternalIdentityAlreadyClaimed) ||
 		errors.Is(err, core.ErrRoleAlreadyExists) {
@@ -107,6 +108,9 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoomGroupOrderMismatch) ||
 		errors.Is(err, core.ErrRoomMoveSourceChanged) ||
 		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if errors.Is(err, core.ErrCannotDeleteHomeServer) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connectInternalError(err)

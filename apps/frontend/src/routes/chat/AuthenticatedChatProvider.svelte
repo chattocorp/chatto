@@ -67,6 +67,7 @@
   // svelte-ignore state_referenced_locally
   currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
   currentUserState.loading = false;
+  serverRegistry.serverAuthenticated(originServer.id);
   onDestroy(() => {
     if (currentUserState.user?.id === user.id) {
       currentUserState.user = undefined;
@@ -121,12 +122,7 @@
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {
-      profileCache.update(
-        update.userId,
-        update.displayName,
-        update.avatarUrl,
-        update.login
-      );
+      profileCache.update(update.userId, update.displayName, update.avatarUrl, update.login);
       if (currentUserState.user?.id === update.userId) {
         currentUserState.user = {
           ...currentUserState.user,
@@ -167,7 +163,6 @@
         clearTerminatedOriginSession();
       })
     );
-
   }
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).

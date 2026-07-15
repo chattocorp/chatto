@@ -13,7 +13,8 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({ assets: '', base: '', resolve: (path: string) => path }));
+vi.mock('$app/state', () => ({ page: { url: new URL('https://chatto.test/') } }));
 vi.mock('$app/environment', () => ({ version: '' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -56,6 +57,7 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(container.querySelector('a[href="/chat/notifications"]')).toBeNull();
+    expect(container.querySelector('a[href="/settings?returnTo=%2F"]')).not.toBeNull();
   });
 
   it('shows notifications when a server is registered', () => {

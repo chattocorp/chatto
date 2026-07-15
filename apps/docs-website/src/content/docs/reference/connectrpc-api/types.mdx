@@ -4,7 +4,7 @@ description: Generated shared message and enum reference for Chatto ConnectRPC s
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from Chatto public protobuf packages. Do not edit directly. */}
 
 Shared message and enum definitions used by the ConnectRPC service pages.
 
@@ -1299,6 +1299,34 @@ Runtime-editable server profile settings.
 | `motd` | `string` | Message of the day for the authenticated header. |
 | `welcome_message` | `string` | Welcome message shown on the login page. |
 
+<a id="chatto-personaldata-api-v1-KnownServer"></a>
+
+### KnownServer
+
+KnownServer describes one server in the user's portable server directory.
+Authentication credentials are device-local and are never included.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Opaque identifier within this portable directory. Clients must match servers by canonical URL origin rather than treating this as global identity. |
+| `url` | `string` | Canonical HTTP or HTTPS origin for the server. |
+| `name` | `string` | Last discovered display name. |
+| `icon_url` | `optional string` | Last discovered server icon URL. |
+| `added_at` | `google.protobuf.Timestamp` | Time this entry was first added to the portable directory. |
+
+<a id="chatto-personaldata-api-v1-Preferences"></a>
+
+### Preferences
+
+Preferences contains personal settings which should follow the authenticated
+user between Chatto clients.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `locale` | `optional string` | BCP 47 locale tag, such as en-GB or de. |
+| `timezone` | `optional string` | IANA timezone name. Empty means to use the client timezone. |
+| `time_format` | optional [`TimeFormat`](#chatto-personaldata-api-v1-TimeFormat) | Preferred time display format. |
+
 
 
 ## Enums
@@ -1491,3 +1519,15 @@ Sidebar item kind used in reorder requests.
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED` | `0` | The item kind was not specified. |
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |
+
+<a id="chatto-personaldata-api-v1-TimeFormat"></a>
+
+### TimeFormat
+
+TimeFormat controls how times are displayed across the user's Chatto clients.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `TIME_FORMAT_UNSPECIFIED` | `0` | No value description provided. |
+| `TIME_FORMAT_12_HOUR` | `1` | No value description provided. |
+| `TIME_FORMAT_24_HOUR` | `2` | No value description provided. |

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "personal_data": {
+    "settings": {
+      "title": "Personaj agordoj",
+      "subtitle": "Preferoj kiuj apartenas al vi, ne al unu servilo",
+      "save_failed": "Ne eblis konservi viajn personajn agordojn",
+      "home": {
+        "title": "Hejma servilo",
+        "description": "Via hejma servilo konservas la preferojn kaj servilliston, kiuj sekvas vin inter Chatto-klientoj. Pasvortoj kaj ensalutaj ĵetonoj restas sur ĉi tiu aparato.",
+        "add_server_first": "Aldonu servilon kaj ensalutu antaŭ ol elekti hejman servilon.",
+        "choose_prompt": "Elektu, kiu el viaj serviloj konservu viajn personajn datumojn."
+      },
+      "sync": {
+        "local": "Sur ĉi tiu aparato",
+        "loading": "Sinkronigante…",
+        "synced": "Sinkronigita",
+        "unavailable": "Sinkronigo ne disponeblas",
+        "error": "Bezonas atenton"
+      }
+    }
+  }
+}

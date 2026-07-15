@@ -77,6 +77,7 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const isHomeServer = $derived(serverRegistry.homeServerId === serverId);
   const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
   const iconTitle = $derived(
     needsReauth
@@ -236,7 +237,7 @@
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath returns an already-resolved app route
     await goto(path);
   }
 
@@ -271,4 +272,5 @@
   onIndicatorClick={handleServerIndicatorClick}
   title={iconTitle}
   dimmed={iconDimmed}
+  home={isHomeServer}
 />

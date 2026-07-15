@@ -118,6 +118,10 @@ export default defineConfig({
               items: ["reference/connectrpc-api/server-discovery"],
             },
             {
+              label: "chatto.personaldata.api.v1",
+              items: ["reference/connectrpc-api/personal-data"],
+            },
+            {
               label: "chatto.api.v1",
               items: [
                 "reference/connectrpc-api/assets",
