@@ -31,6 +31,7 @@ const { mocks } = vi.hoisted(() => {
         onNotificationLevelChanged: vi.fn(() => vi.fn())
       },
       showConnectionLostIcon: false,
+      homeServerId: null as string | null,
       server: {
         id: 'remote',
         url: 'https://remote.example.com',
@@ -129,6 +130,9 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
+    get homeServerId() {
+      return mocks.homeServerId;
+    },
     isOriginServer: vi.fn(() => false),
     getServer: vi.fn(() => mocks.server),
     getStore: vi.fn(() => mocks.store)
@@ -216,6 +220,7 @@ describe('ServerSidebarEntry', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.showConnectionLostIcon = false;
+    mocks.homeServerId = null;
     mocks.getAuthenticatedServerState.mockReset();
     mocks.getViewerStateViaConnect.mockReset();
     mocks.createRoomDirectoryAPI.mockReset();
@@ -301,6 +306,23 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Remote Chatto (connection unavailable)');
     expect(container.textContent).toContain('R');
+  });
+
+  it('marks the home server with an accessible medallion', async () => {
+    mocks.homeServerId = 'remote';
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    const marker = q(container, '[data-testid="home-server-indicator"]');
+    await expect.element(marker).toBeInTheDocument();
+    await expect.element(marker).toHaveAttribute('role', 'img');
+    await expect.element(marker).toHaveAttribute('aria-label', 'Home server');
+    expect(marker.querySelector('svg path')).not.toBeNull();
   });
 
   it('removes the dimmed state after sidebar init succeeds', async () => {
