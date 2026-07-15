@@ -2355,6 +2355,8 @@ type UserProfileProjectionSnapshot struct {
 	Users         []*ProjectedUserProfileSnapshot `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
 	Keys          []*UserDEKGeneratedEvent        `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
 	ReplayGuard   *ProjectionReplayGuardSnapshot  `protobuf:"bytes,3,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	LoginIndex    []*StringStringSnapshot         `protobuf:"bytes,4,rep,name=login_index,json=loginIndex,proto3" json:"login_index,omitempty"`
+	EmailIndex    []*StringStringSnapshot         `protobuf:"bytes,5,rep,name=email_index,json=emailIndex,proto3" json:"email_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2406,6 +2408,20 @@ func (x *UserProfileProjectionSnapshot) GetKeys() []*UserDEKGeneratedEvent {
 func (x *UserProfileProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
 	if x != nil {
 		return x.ReplayGuard
+	}
+	return nil
+}
+
+func (x *UserProfileProjectionSnapshot) GetLoginIndex() []*StringStringSnapshot {
+	if x != nil {
+		return x.LoginIndex
+	}
+	return nil
+}
+
+func (x *UserProfileProjectionSnapshot) GetEmailIndex() []*StringStringSnapshot {
+	if x != nil {
+		return x.EmailIndex
 	}
 	return nil
 }
@@ -3208,11 +3224,15 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x12user_login_sources\x18\x01 \x03(\v2\x15.chatto.core.v1.EventR\x10userLoginSources\x129\n" +
 	"\x04keys\x18\x02 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x03 \x03(\tR\troleNames\"\xf0\x01\n" +
+	"role_names\x18\x03 \x03(\tR\troleNames\"\xfe\x02\n" +
 	"\x1dUserProfileProjectionSnapshot\x12B\n" +
 	"\x05users\x18\x01 \x03(\v2,.chatto.core.v1.ProjectedUserProfileSnapshotR\x05users\x129\n" +
 	"\x04keys\x18\x02 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12P\n" +
-	"\freplay_guard\x18\x03 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"\xf8\x04\n" +
+	"\freplay_guard\x18\x03 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12E\n" +
+	"\vlogin_index\x18\x04 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\n" +
+	"loginIndex\x12E\n" +
+	"\vemail_index\x18\x05 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\n" +
+	"emailIndex\"\xf8\x04\n" +
 	"\x1cProjectedUserProfileSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12(\n" +
 	"\x04user\x18\x02 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12J\n" +
@@ -3402,31 +3422,33 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	36, // 51: chatto.core.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.v1.ProjectedUserProfileSnapshot
 	48, // 52: chatto.core.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
 	7,  // 53: chatto.core.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	59, // 54: chatto.core.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.v1.User
-	37, // 55: chatto.core.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	37, // 56: chatto.core.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	51, // 57: chatto.core.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.v1.AssetRecord
-	38, // 58: chatto.core.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.v1.ProjectedVerifiedEmailSnapshot
-	60, // 59: chatto.core.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.v1.ServerUserPreferences
-	44, // 60: chatto.core.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
-	61, // 61: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
-	37, // 62: chatto.core.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	44, // 63: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
-	40, // 64: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
-	41, // 65: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
-	42, // 66: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	42, // 67: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	24, // 68: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
-	43, // 69: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
-	7,  // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	58, // 71: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
-	62, // 72: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
-	44, // 73: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	74, // [74:74] is the sub-list for method output_type
-	74, // [74:74] is the sub-list for method input_type
-	74, // [74:74] is the sub-list for extension type_name
-	74, // [74:74] is the sub-list for extension extendee
-	0,  // [0:74] is the sub-list for field type_name
+	33, // 54: chatto.core.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.v1.StringStringSnapshot
+	33, // 55: chatto.core.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.v1.StringStringSnapshot
+	59, // 56: chatto.core.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.v1.User
+	37, // 57: chatto.core.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	37, // 58: chatto.core.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	51, // 59: chatto.core.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.v1.AssetRecord
+	38, // 60: chatto.core.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.v1.ProjectedVerifiedEmailSnapshot
+	60, // 61: chatto.core.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	44, // 62: chatto.core.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
+	61, // 63: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
+	37, // 64: chatto.core.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	44, // 65: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
+	40, // 66: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
+	41, // 67: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
+	42, // 68: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	42, // 69: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	24, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
+	43, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
+	7,  // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	58, // 73: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	62, // 74: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	44, // 75: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	76, // [76:76] is the sub-list for method output_type
+	76, // [76:76] is the sub-list for method input_type
+	76, // [76:76] is the sub-list for extension type_name
+	76, // [76:76] is the sub-list for extension extendee
+	0,  // [0:76] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }

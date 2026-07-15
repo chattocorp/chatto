@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const userSnapshotCompatibilityID = "users-profile-v1"
+const userSnapshotCompatibilityID = "users-profile-v2"
 
 func (*UserProjection) SnapshotCompatibilityID() string { return userSnapshotCompatibilityID }
 
@@ -73,6 +73,12 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.dekEvents[userID][purpose][int32(epoch)]).(*corev1.UserDEKGeneratedEvent))
 			}
 		}
+	}
+	for _, digest := range sortedMapKeys(p.loginIndex) {
+		snapshot.LoginIndex = append(snapshot.LoginIndex, &corev1.StringStringSnapshot{Key: digest, Value: p.loginIndex[digest]})
+	}
+	for _, digest := range sortedMapKeys(p.emailIndex) {
+		snapshot.EmailIndex = append(snapshot.EmailIndex, &corev1.StringStringSnapshot{Key: digest, Value: p.emailIndex[digest]})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -198,20 +204,20 @@ func (p *UserProjection) Restore(data []byte) error {
 		if entry.GetAvatar() != nil {
 			restored.replaceAvatarLocked(u, proto.Clone(entry.GetAvatar()).(*corev1.AssetRecord))
 		}
-		if !u.deleted && !u.shredded {
-			if u.loginHash != "" {
-				if owner := restored.loginIndex[u.loginHash]; owner != "" {
-					return fmt.Errorf("user profile snapshot repeats login digest")
-				}
-				restored.loginIndex[u.loginHash] = userID
-			}
-			for digest := range u.verifiedEmail {
-				if owner := restored.emailIndex[digest]; owner != "" {
-					return fmt.Errorf("user profile snapshot repeats email digest")
-				}
-				restored.emailIndex[digest] = userID
-			}
-		}
+	}
+
+	restored.loginIndex, err = restoreUserProfileIndex(snapshot.GetLoginIndex(), restored.users, func(u *projectedUser, digest string) bool {
+		return u.loginHash == digest
+	})
+	if err != nil {
+		return fmt.Errorf("user profile snapshot login index: %w", err)
+	}
+	restored.emailIndex, err = restoreUserProfileIndex(snapshot.GetEmailIndex(), restored.users, func(u *projectedUser, digest string) bool {
+		_, ok := u.verifiedEmail[digest]
+		return ok
+	})
+	if err != nil {
+		return fmt.Errorf("user profile snapshot email index: %w", err)
 	}
 
 	p.Lock()
@@ -219,6 +225,25 @@ func (p *UserProjection) Restore(data []byte) error {
 	p.replayGuard, p.dekEvents = restored.replayGuard, restored.dekEvents
 	p.Unlock()
 	return nil
+}
+
+func restoreUserProfileIndex(rows []*corev1.StringStringSnapshot, users map[string]*projectedUser, ownerMatches func(*projectedUser, string) bool) (map[string]string, error) {
+	index := make(map[string]string, len(rows))
+	for _, row := range rows {
+		digest, userID := row.GetKey(), row.GetValue()
+		if digest == "" || userID == "" {
+			return nil, fmt.Errorf("has invalid entry")
+		}
+		if _, duplicate := index[digest]; duplicate {
+			return nil, fmt.Errorf("repeats digest")
+		}
+		u := users[userID]
+		if u == nil || u.deleted || u.shredded || !ownerMatches(u, digest) {
+			return nil, fmt.Errorf("has invalid owner")
+		}
+		index[digest] = userID
+	}
+	return index, nil
 }
 
 func (p *UserProjection) hasUserPIIKeyLocked(userID string, epoch int32) bool {

@@ -274,7 +274,7 @@ Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
 
 `UserProjection` retains encrypted PII source fields and materializes them only
-at read boundaries. Its explicit `users-profile-v1` codec stores those encrypted
+at read boundaries. Its explicit `users-profile-v2` codec stores those encrypted
 values, lookup digests, wrapped DEK records, and non-secret profile metadata.
 Credential-bearing state is owned by the separate `UserAuthProjection`; its
 schema has no snapshot representation and its focused account, password,

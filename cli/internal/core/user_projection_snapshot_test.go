@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -83,6 +84,85 @@ func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *
 	require.Equal(t, cold.Users(), restored.Users())
 }
 
+func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "U1")
+	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
+	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice One")), 2))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "K2",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "U2", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test",
+		}},
+	}, 3))
+	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
+	for seq, userID := range []string{"U1", "U2"} {
+		eventID := fmt.Sprintf("M%d", seq+1)
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		require.NoError(t, err)
+		require.NoError(t, original.Apply(&corev1.Event{
+			Id: eventID,
+			Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+				UserId: userID, EncryptedEmail: encryptedEmail,
+			}},
+		}, uint64(seq+5)))
+	}
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+
+	byLogin, ok := restored.GetByLogin("alice")
+	require.True(t, ok)
+	require.Equal(t, "U2", byLogin.GetId(), "the last login event remains the canonical owner")
+	byEmail, ok := restored.GetByEmail("Alice@Example.com")
+	require.True(t, ok)
+	require.Equal(t, "U2", byEmail.GetId(), "the last verified-email event remains the canonical owner")
+	require.Len(t, restored.Users(), 2, "both historical profile rows remain available")
+}
+
+func TestUserProjectionSnapshotPreservesUnclaimedDuplicateDigests(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "U1")
+	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
+	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice One")), 2))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "K2",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "U2", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test",
+		}},
+	}, 3))
+	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
+	for seq, userID := range []string{"U1", "U2"} {
+		eventID := fmt.Sprintf("M%d", seq+1)
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		require.NoError(t, err)
+		require.NoError(t, original.Apply(&corev1.Event{
+			Id: eventID,
+			Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+				UserId: userID, EncryptedEmail: encryptedEmail,
+			}},
+		}, uint64(seq+5)))
+	}
+	require.NoError(t, original.Apply(userEvent("E3", createdAt.Add(2*time.Minute), loginChanged(t, contentKey, "E3", "U2", "Bob")), 7))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "E4", Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: "U2"}},
+	}, 8))
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+
+	_, ok := restored.GetByLogin("Alice")
+	require.False(t, ok, "an older duplicate login must not regain ownership")
+	_, ok = restored.GetByLogin("Bob")
+	require.False(t, ok, "a deleted owner's login must remain unclaimed")
+	_, ok = restored.GetByEmail("alice@example.com")
+	require.False(t, ok, "an older duplicate email must not regain ownership")
+	_, ok = restored.Get("U1")
+	require.True(t, ok, "the older active profile remains available by ID")
+}
+
 func TestUserProjectionRestoreIsTransactionalAndDoesNotTouchAuthState(t *testing.T) {
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice")), 2))
@@ -124,6 +204,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 		Users: []*corev1.ProjectedUserProfileSnapshot{{
 			UserId: "U1", User: &corev1.User{Id: "U1"}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
 		}},
+		LoginIndex: []*corev1.StringStringSnapshot{{Key: "digest", Value: "U1"}},
 	}
 	tests := []struct {
 		name   string
@@ -133,6 +214,11 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 		{"missing display name", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Users[0].DisplayName = nil }},
 		{"missing profile DEK", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Keys = nil }},
 		{"inactive user retains profile", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Users[0].Deleted = true }},
+		{"unknown login owner", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.LoginIndex[0].Value = "U2" }},
+		{"mismatched login digest", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.LoginIndex[0].Key = "other" }},
+		{"duplicate login digest", func(snapshot *corev1.UserProfileProjectionSnapshot) {
+			snapshot.LoginIndex = append(snapshot.LoginIndex, proto.Clone(snapshot.LoginIndex[0]).(*corev1.StringStringSnapshot))
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

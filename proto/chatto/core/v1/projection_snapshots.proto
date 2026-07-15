@@ -257,6 +257,8 @@ message UserProfileProjectionSnapshot {
   repeated ProjectedUserProfileSnapshot users = 1;
   repeated UserDEKGeneratedEvent keys = 2;
   ProjectionReplayGuardSnapshot replay_guard = 3;
+  repeated StringStringSnapshot login_index = 4;
+  repeated StringStringSnapshot email_index = 5;
 }
 
 message ProjectedUserProfileSnapshot {
