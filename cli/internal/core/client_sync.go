@@ -51,6 +51,10 @@ func clientSyncDeletionMarkerKey(userID string) string {
 	return fmt.Sprintf("client_sync.%s.deleted", userID)
 }
 
+func clientSyncDeletionPendingKey(userID string) string {
+	return fmt.Sprintf("client_sync.%s.deletion_pending", userID)
+}
+
 func (s *ClientSyncService) GetPreferences(ctx context.Context, userID string) (*clientsyncv1.Preferences, error) {
 	if err := s.requireActiveUser(ctx, userID); err != nil {
 		return nil, err
@@ -195,23 +199,40 @@ func (s *ClientSyncService) BeginDeleteUser(ctx context.Context, userID string) 
 	if _, err := s.kv.Create(ctx, clientSyncDeletionMarkerKey(userID), []byte{1}); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
 		return fmt.Errorf("mark client sync deleted: %w", err)
 	}
+	if _, err := s.kv.Create(ctx, clientSyncDeletionPendingKey(userID), []byte{1}); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
+		cancelErr := s.CancelDeleteUser(ctx, userID)
+		return errors.Join(fmt.Errorf("mark client-sync deletion pending: %w", err), cancelErr)
+	}
 	return nil
 }
 
 // CancelDeleteUser removes a pre-commit fence after the account deletion event
 // failed, allowing the still-active account to continue syncing.
 func (s *ClientSyncService) CancelDeleteUser(ctx context.Context, userID string) error {
-	if err := s.kv.Purge(ctx, clientSyncDeletionMarkerKey(userID)); err != nil && !isClientSyncKeyAbsent(err) {
-		return fmt.Errorf("remove client-sync deletion marker: %w", err)
+	var errs []error
+	for _, key := range []string{clientSyncDeletionMarkerKey(userID), clientSyncDeletionPendingKey(userID)} {
+		if err := s.kv.Purge(ctx, key); err != nil && !isClientSyncKeyAbsent(err) {
+			errs = append(errs, fmt.Errorf("remove %s: %w", key, err))
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (s *ClientSyncService) DeleteUser(ctx context.Context, userID string) error {
 	if err := s.BeginDeleteUser(ctx, userID); err != nil {
 		return err
 	}
-	return s.purgeUserRecords(ctx, userID)
+	return s.completeUserDeletion(ctx, userID)
+}
+
+func (s *ClientSyncService) completeUserDeletion(ctx context.Context, userID string) error {
+	if err := s.purgeUserRecords(ctx, userID); err != nil {
+		return err
+	}
+	if err := s.kv.Purge(ctx, clientSyncDeletionPendingKey(userID)); err != nil && !isClientSyncKeyAbsent(err) {
+		return fmt.Errorf("complete client-sync deletion: %w", err)
+	}
+	return nil
 }
 
 func (s *ClientSyncService) purgeUserRecords(ctx context.Context, userID string) error {
@@ -228,7 +249,7 @@ func (s *ClientSyncService) purgeUserRecords(ctx context.Context, userID string)
 // marker. It is safe for every replica to run at boot because Purge is
 // idempotent and the marker prevents later client-sync mutations.
 func (s *ClientSyncService) RecoverPendingDeletions(ctx context.Context) error {
-	lister, err := s.kv.ListKeysFiltered(ctx, "client_sync.*.deleted")
+	lister, err := s.kv.ListKeysFiltered(ctx, "client_sync.*.deletion_pending")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return nil
@@ -237,11 +258,11 @@ func (s *ClientSyncService) RecoverPendingDeletions(ctx context.Context) error {
 	}
 	var errs []error
 	for key := range lister.Keys() {
-		userID := strings.TrimSuffix(strings.TrimPrefix(key, "client_sync."), ".deleted")
-		if userID == "" || clientSyncDeletionMarkerKey(userID) != key {
+		userID := strings.TrimSuffix(strings.TrimPrefix(key, "client_sync."), ".deletion_pending")
+		if userID == "" || clientSyncDeletionPendingKey(userID) != key {
 			continue
 		}
-		if err := s.purgeUserRecords(ctx, userID); err != nil {
+		if err := s.completeUserDeletion(ctx, userID); err != nil {
 			errs = append(errs, fmt.Errorf("recover %s: %w", key, err))
 		}
 	}

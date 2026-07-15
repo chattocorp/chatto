@@ -71,7 +71,8 @@ survives restart but is not content/domain history. See
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 | `client_sync.{userId}.preferences` | No-TTL `chatto.clientsync.v1.Preferences` document containing portable locale, timezone, and time-format choices. Mutations use KV revision OCC; account deletion purges the record. |
 | `client_sync.{userId}.servers` | No-TTL `chatto.clientsync.v1.ServerDirectory` document containing at most 100 known public server metadata entries and the home-server ID, never credentials. Mutations use KV revision OCC. Account deletion purges the record. |
-| `client_sync.{userId}.deleted` | Retained no-TTL deletion marker created before client-sync privacy cleanup. Mutations check it before and after their OCC write; every replica repeats the associated preference and directory purge at boot. |
+| `client_sync.{userId}.deleted` | Retained no-TTL deletion fence created before client-sync privacy cleanup. Mutations check it before and after their OCC write so an authenticated request racing account deletion cannot recreate either user record. |
+| `client_sync.{userId}.deletion_pending` | No-TTL retry marker created alongside the retained deletion fence and purged only after both client-sync user records have been purged. Every replica periodically scans this filtered key family. |
 
 Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 

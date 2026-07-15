@@ -37,6 +37,7 @@ backed-up `RUNTIME_STATE` bucket:
 - `client_sync.{userId}.preferences`
 - `client_sync.{userId}.servers`
 - `client_sync.{userId}.deleted`
+- `client_sync.{userId}.deletion_pending`
 
 The preferences document contains portable language, timezone, and time-format
 choices. The server-directory document contains public server metadata and the
@@ -110,6 +111,8 @@ Server URLs can reveal community membership. Operators already control
 `RUNTIME_STATE`, which contains other private authenticated runtime records;
 access to this API is strictly limited to the authenticated owner and code must
 not log directory contents. Account deletion retains a marker before purging
-both plaintext client-sync records. Mutations check that marker before and
-after writing, and every replica repeats marked purges at boot, so deletion
-wins over in-flight requests and transient cleanup failures.
+both plaintext client-sync records. Mutations check the retained fence before
+and after writing. A separate pending marker is removed only after successful
+cleanup, and every replica periodically scans that bounded work set, so
+deletion wins over in-flight requests and transient failures without requiring
+a restart or repeatedly traversing every historical deletion fence.

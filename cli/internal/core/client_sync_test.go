@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -239,8 +240,8 @@ func TestClientSyncDeleteUserAttemptsEveryRecord(t *testing.T) {
 	if err == nil || !stringsContainAll(err.Error(), "preferences unavailable", "directory unavailable") {
 		t.Fatalf("DeleteUser error = %v, want both purge failures", err)
 	}
-	if len(kv.purged) != 2 {
-		t.Fatalf("purged keys = %v, want both records attempted", kv.purged)
+	if !slices.Contains(kv.purged, clientSyncPreferencesKey("user")) || !slices.Contains(kv.purged, clientSyncServerDirectoryKey("user")) {
+		t.Fatalf("purged keys = %v, want both user records attempted", kv.purged)
 	}
 }
 
@@ -370,7 +371,7 @@ func (*failingClientSyncKV) Get(context.Context, string) (jetstream.KeyValueEntr
 }
 
 func (kv *failingClientSyncKV) Create(_ context.Context, key string, _ []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
-	if strings.HasSuffix(key, ".deleted") {
+	if strings.HasSuffix(key, ".deleted") || strings.HasSuffix(key, ".deletion_pending") {
 		return 1, nil
 	}
 	kv.creates++

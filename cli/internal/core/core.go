@@ -262,6 +262,22 @@ type ChattoCore struct {
 // started automatically here without any additional wiring.
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
+	if c.ClientSync != nil {
+		g.Go(func() error {
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for {
+				if err := c.ClientSync.RecoverPendingDeletions(gctx); err != nil {
+					c.logger.Warn("Failed to recover pending client-sync deletion", "error", err)
+				}
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				case <-ticker.C:
+				}
+			}
+		})
+	}
 
 	for _, projection := range c.projections {
 		projection := projection
@@ -291,11 +307,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// append duplicate seed facts on every process restart.
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
-		}
-		if c.ClientSync != nil {
-			if err := c.ClientSync.RecoverPendingDeletions(gctx); err != nil {
-				c.logger.Warn("Failed to recover pending client-sync deletion", "error", err)
-			}
 		}
 		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
 		// Apply config-designated owners to already-verified users on every
