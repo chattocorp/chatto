@@ -117,8 +117,9 @@ marker blocks mutations before the account event. After commit, the command
 creates a separate `pending` cleanup marker and the retained deletion fence,
 then removes only its own preparation revision. Recovery starts only after
 projections catch up, scans committed pending work for cleanup, and separately
-revision-purges preparations for deleted accounts or active-account
-preparations stale for one hour. Failed commands roll back only their own
+promotes preparations whose account event committed before their retry marker
+could be created; only active-account preparations stale for one hour are
+revision-purged. Failed commands roll back only their own
 revision with a bounded, non-cancelled context. Preparation expiry therefore
 cannot discard committed cleanup work, and cold recovery cannot erase active
 data.

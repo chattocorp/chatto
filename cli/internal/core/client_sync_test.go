@@ -406,6 +406,36 @@ func TestClientSyncCommittedCleanupDoesNotDependOnPreparation(t *testing.T) {
 	}
 }
 
+func TestClientSyncRecoveryPromotesPreparationAfterAccountCommit(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "commit-crash")
+	if _, err := chatto.ClientSync.UpdatePreferences(ctx, userID, func(preferences *clientsyncv1.Preferences) error {
+		locale := "en-GB"
+		preferences.Locale = &locale
+		return nil
+	}); err != nil {
+		t.Fatalf("UpdatePreferences: %v", err)
+	}
+	service := NewClientSyncService(chatto.storage.runtimeStateKV, func(context.Context, string) error {
+		return ErrNotFound
+	})
+	if _, err := service.BeginDeleteUser(ctx, userID); err != nil {
+		t.Fatalf("BeginDeleteUser: %v", err)
+	}
+	if err := service.RecoverPendingDeletions(ctx); err != nil {
+		t.Fatalf("RecoverPendingDeletions: %v", err)
+	}
+	for _, key := range []string{clientSyncPreferencesKey(userID), clientSyncDeletionPreparingKey(userID), clientSyncDeletionPendingKey(userID)} {
+		if _, err := chatto.storage.runtimeStateKV.Get(ctx, key); !isClientSyncKeyAbsent(err) {
+			t.Fatalf("Get(%q) after promoted cleanup error = %v, want absent", key, err)
+		}
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionMarkerKey(userID)); err != nil {
+		t.Fatalf("retained deletion fence missing: %v", err)
+	}
+}
+
 func TestClientSyncMutationRechecksAccountBeforeWrite(t *testing.T) {
 	kv := &failingClientSyncKV{}
 	validations := 0

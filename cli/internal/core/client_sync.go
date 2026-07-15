@@ -360,6 +360,14 @@ func (s *ClientSyncService) recoverDeletionPreparations(ctx context.Context) err
 			if time.Since(createdAt.AsTime()) < clientSyncDeletionPreparationTTL {
 				continue
 			}
+		} else {
+			// The account event committed before the request could create its
+			// post-commit retry marker. Promote the preparation into the normal
+			// recoverable cleanup protocol before removing it.
+			if completeErr := s.completeUserDeletion(ctx, userID, nil); completeErr != nil {
+				errs = append(errs, fmt.Errorf("promote committed %s: %w", key, completeErr))
+				continue
+			}
 		}
 		if purgeErr := s.kv.Purge(ctx, key, jetstream.LastRevision(entry.Revision())); purgeErr != nil && !isClientSyncKeyAbsent(purgeErr) && !jetstreamutil.IsSequenceConflict(purgeErr) {
 			errs = append(errs, fmt.Errorf("remove abandoned %s: %w", key, purgeErr))
