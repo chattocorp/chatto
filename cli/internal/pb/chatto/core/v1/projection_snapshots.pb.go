@@ -1266,8 +1266,8 @@ func (x *ContentKeyProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSn
 type RBACProjectionSnapshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Roles []*Role                `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
-	// Legacy effective assignments used by rbac-v1 snapshots. rbac-v2 snapshots
-	// preserve source-aware assignments in assignment_sources instead.
+	// Legacy effective assignments used by rbac-v1 snapshots. Source-aware
+	// snapshots preserve assignment sources in assignment_sources instead.
 	Assignments       []*RBACAssignmentSnapshot       `protobuf:"bytes,2,rep,name=assignments,proto3" json:"assignments,omitempty"`
 	Decisions         []*RBACDecisionSnapshot         `protobuf:"bytes,3,rep,name=decisions,proto3" json:"decisions,omitempty"`
 	ReplayGuard       *ProjectionReplayGuardSnapshot  `protobuf:"bytes,4,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`

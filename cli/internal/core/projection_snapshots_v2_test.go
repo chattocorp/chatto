@@ -143,7 +143,7 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedCompatibility := map[string]string{
 		"room_directory": "v1", "server_config": "v1", "room_group_layout": "v1",
 		"room_timeline": "v1", "call_state": "v1", "assets": "v1", "reactions": "v1",
-		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v2",
+		"content_keys": "v1", "rbac": "v3", "mentionables": "v1", "users": "v2",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
