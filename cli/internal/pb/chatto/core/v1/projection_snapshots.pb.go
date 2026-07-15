@@ -1401,6 +1401,7 @@ type RBACAssignmentSourceSnapshot struct {
 	RoleName         string                   `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	Source           RbacRoleAssignmentSource `protobuf:"varint,3,opt,name=source,proto3,enum=chatto.core.v1.RbacRoleAssignmentSource" json:"source,omitempty"`
 	SourceProviderId string                   `protobuf:"bytes,4,opt,name=source_provider_id,json=sourceProviderId,proto3" json:"source_provider_id,omitempty"`
+	SourceIssuer     string                   `protobuf:"bytes,5,opt,name=source_issuer,json=sourceIssuer,proto3" json:"source_issuer,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1459,6 +1460,13 @@ func (x *RBACAssignmentSourceSnapshot) GetSource() RbacRoleAssignmentSource {
 func (x *RBACAssignmentSourceSnapshot) GetSourceProviderId() string {
 	if x != nil {
 		return x.SourceProviderId
+	}
+	return ""
+}
+
+func (x *RBACAssignmentSourceSnapshot) GetSourceIssuer() string {
+	if x != nil {
+		return x.SourceIssuer
 	}
 	return ""
 }
@@ -3227,12 +3235,13 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x16RBACAssignmentSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x02 \x03(\tR\troleNames\"\xc4\x01\n" +
+	"role_names\x18\x02 \x03(\tR\troleNames\"\xe9\x01\n" +
 	"\x1cRBACAssignmentSourceSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12@\n" +
 	"\x06source\x18\x03 \x01(\x0e2(.chatto.core.v1.RbacRoleAssignmentSourceR\x06source\x12,\n" +
-	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\"\xeb\x01\n" +
+	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\x12#\n" +
+	"\rsource_issuer\x18\x05 \x01(\tR\fsourceIssuer\"\xeb\x01\n" +
 	"\x14RBACDecisionSnapshot\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x19\n" +
 	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12L\n" +

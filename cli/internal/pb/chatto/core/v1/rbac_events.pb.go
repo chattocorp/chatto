@@ -501,8 +501,11 @@ type RbacRoleAssignedEvent struct {
 	// Required when source is OIDC. This is a configured provider ID, not a
 	// claim value or external subject.
 	SourceProviderId string `protobuf:"bytes,4,opt,name=source_provider_id,json=sourceProviderId,proto3" json:"source_provider_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The canonical verified OIDC issuer. Required for new OIDC sources so a
+	// reused provider ID cannot carry authorization across issuer boundaries.
+	SourceIssuer  string `protobuf:"bytes,5,opt,name=source_issuer,json=sourceIssuer,proto3" json:"source_issuer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RbacRoleAssignedEvent) Reset() {
@@ -563,6 +566,13 @@ func (x *RbacRoleAssignedEvent) GetSourceProviderId() string {
 	return ""
 }
 
+func (x *RbacRoleAssignedEvent) GetSourceIssuer() string {
+	if x != nil {
+		return x.SourceIssuer
+	}
+	return ""
+}
+
 type RbacRoleRevokedEvent struct {
 	state    protoimpl.MessageState   `protogen:"open.v1"`
 	UserId   string                   `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -571,8 +581,11 @@ type RbacRoleRevokedEvent struct {
 	// Required when source is OIDC. This is a configured provider ID, not a
 	// claim value or external subject.
 	SourceProviderId string `protobuf:"bytes,4,opt,name=source_provider_id,json=sourceProviderId,proto3" json:"source_provider_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The canonical verified OIDC issuer. Required for new OIDC sources so a
+	// reused provider ID cannot carry authorization across issuer boundaries.
+	SourceIssuer  string `protobuf:"bytes,5,opt,name=source_issuer,json=sourceIssuer,proto3" json:"source_issuer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RbacRoleRevokedEvent) Reset() {
@@ -629,6 +642,13 @@ func (x *RbacRoleRevokedEvent) GetSource() RbacRoleAssignmentSource {
 func (x *RbacRoleRevokedEvent) GetSourceProviderId() string {
 	if x != nil {
 		return x.SourceProviderId
+	}
+	return ""
+}
+
+func (x *RbacRoleRevokedEvent) GetSourceIssuer() string {
+	if x != nil {
+		return x.SourceIssuer
 	}
 	return ""
 }
@@ -945,17 +965,19 @@ const file_chatto_core_v1_rbac_events_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"8\n" +
 	"\x17RbacRolesReorderedEvent\x12\x1d\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tR\troleNames\"\xbd\x01\n" +
+	"role_names\x18\x01 \x03(\tR\troleNames\"\xe2\x01\n" +
 	"\x15RbacRoleAssignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12@\n" +
 	"\x06source\x18\x03 \x01(\x0e2(.chatto.core.v1.RbacRoleAssignmentSourceR\x06source\x12,\n" +
-	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\"\xbc\x01\n" +
+	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\x12#\n" +
+	"\rsource_issuer\x18\x05 \x01(\tR\fsourceIssuer\"\xe1\x01\n" +
 	"\x14RbacRoleRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12@\n" +
 	"\x06source\x18\x03 \x01(\x0e2(.chatto.core.v1.RbacRoleAssignmentSourceR\x06source\x12,\n" +
-	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\"b\n" +
+	"\x12source_provider_id\x18\x04 \x01(\tR\x10sourceProviderId\x12#\n" +
+	"\rsource_issuer\x18\x05 \x01(\tR\fsourceIssuer\"b\n" +
 	"\x13RbacPermissionScope\x12;\n" +
 	"\x04kind\x18\x01 \x01(\x0e2'.chatto.core.v1.RbacPermissionScopeKindR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"f\n" +

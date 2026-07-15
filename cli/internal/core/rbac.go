@@ -865,19 +865,23 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID str
 }
 
 func (c *ChattoCore) allRoleSourceRevocationEntries(actorID, userID, roleName string) []events.BatchEntry {
-	entries := make([]events.BatchEntry, 0, 1+len(c.RBAC.OIDCProvidersForRole(userID, roleName)))
+	entries := make([]events.BatchEntry, 0, 1+len(c.RBAC.OIDCRoleAssignmentsForUser(userID)))
 	if c.RBAC.HasManualRole(userID, roleName) {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
-	for _, providerID := range c.RBAC.OIDCProvidersForRole(userID, roleName) {
+	for _, assignment := range c.RBAC.OIDCRoleAssignmentsForUser(userID) {
+		if assignment.roleName != roleName {
+			continue
+		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
 				UserId: userID, RoleName: roleName,
 				Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
-				SourceProviderId: providerID,
+				SourceProviderId: assignment.providerID,
+				SourceIssuer:     assignment.issuer,
 			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

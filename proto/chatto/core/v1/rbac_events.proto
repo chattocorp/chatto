@@ -61,6 +61,10 @@ message RbacRoleAssignedEvent {
   // Required when source is OIDC. This is a configured provider ID, not a
   // claim value or external subject.
   string source_provider_id = 4;
+
+  // The canonical verified OIDC issuer. Required for new OIDC sources so a
+  // reused provider ID cannot carry authorization across issuer boundaries.
+  string source_issuer = 5;
 }
 
 message RbacRoleRevokedEvent {
@@ -71,6 +75,10 @@ message RbacRoleRevokedEvent {
   // Required when source is OIDC. This is a configured provider ID, not a
   // claim value or external subject.
   string source_provider_id = 4;
+
+  // The canonical verified OIDC issuer. Required for new OIDC sources so a
+  // reused provider ID cannot carry authorization across issuer boundaries.
+  string source_issuer = 5;
 }
 
 enum RbacPermissionScopeKind {

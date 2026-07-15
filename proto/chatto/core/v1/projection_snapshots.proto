@@ -169,6 +169,7 @@ message RBACAssignmentSourceSnapshot {
   string role_name = 2;
   RbacRoleAssignmentSource source = 3;
   string source_provider_id = 4;
+  string source_issuer = 5;
 }
 
 message RBACDecisionSnapshot {

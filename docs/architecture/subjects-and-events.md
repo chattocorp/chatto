@@ -236,7 +236,7 @@ Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/e
 
 `RbacRoleAssignedEvent` and `RbacRoleRevokedEvent` carry a source. Historical
 events without one are manual; an OIDC source also carries the configured
-provider ID. The RBAC projection derives effective membership from the union
+provider ID and canonical verified issuer. The RBAC projection derives effective membership from the union
 of those sources.
 
 ## Transient live subjects

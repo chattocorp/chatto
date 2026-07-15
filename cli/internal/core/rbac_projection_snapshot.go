@@ -9,9 +9,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// v2 adds source-aware role assignments. Older snapshots cold-replay because
-// their effective assignments cannot reconstruct those sources.
-const rbacSnapshotCompatibilityID = "v2"
+// v3 adds issuer provenance to source-aware role assignments. Older snapshots
+// cold-replay because their effective assignments cannot reconstruct sources.
+const rbacSnapshotCompatibilityID = "v3"
 
 func (*RBACProjection) SnapshotCompatibilityID() string { return rbacSnapshotCompatibilityID }
 
@@ -32,11 +32,14 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 				if sources[i].source != sources[j].source {
 					return sources[i].source < sources[j].source
 				}
-				return sources[i].providerID < sources[j].providerID
+				if sources[i].providerID != sources[j].providerID {
+					return sources[i].providerID < sources[j].providerID
+				}
+				return sources[i].issuer < sources[j].issuer
 			})
 			for _, source := range sources {
 				snapshot.AssignmentSources = append(snapshot.AssignmentSources, &corev1.RBACAssignmentSourceSnapshot{
-					UserId: userID, RoleName: roleName, Source: source.source, SourceProviderId: source.providerID,
+					UserId: userID, RoleName: roleName, Source: source.source, SourceProviderId: source.providerID, SourceIssuer: source.issuer,
 				})
 			}
 		}
@@ -93,7 +96,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		if assignment.GetUserId() == "" || assignment.GetRoleName() == "" {
 			return fmt.Errorf("RBAC snapshot has empty assignment user ID or role")
 		}
-		source, ok := roleAssignmentSourceFromFields(assignment.GetSource(), assignment.GetSourceProviderId())
+		source, ok := roleAssignmentSourceFromFields(assignment.GetSource(), assignment.GetSourceProviderId(), assignment.GetSourceIssuer())
 		if !ok {
 			return fmt.Errorf("RBAC snapshot has invalid assignment source")
 		}

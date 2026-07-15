@@ -134,6 +134,7 @@ func TestRBACProjection_SnapshotRoundTripPreservesAssignmentSources(t *testing.T
 			UserId: "U1", RoleName: "moderator",
 			Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 			SourceProviderId: "oidc-a",
+			SourceIssuer:     "https://issuer-a.example",
 		},
 	}})
 
@@ -151,12 +152,16 @@ func TestRBACProjection_SnapshotRoundTripPreservesAssignmentSources(t *testing.T
 	if got := restored.OIDCRolesForProvider("U1", "oidc-a"); len(got) != 1 || got[0] != "moderator" {
 		t.Fatalf("OIDC assignment sources after restore = %v, want moderator", got)
 	}
+	if got := restored.OIDCRolesForProviderIssuer("U1", "oidc-a", "https://issuer-a.example"); len(got) != 1 || got[0] != "moderator" {
+		t.Fatalf("OIDC issuer assignment sources after restore = %v, want moderator", got)
+	}
 
 	applyRBACProjectionEvent(t, restored, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
 			UserId: "U1", RoleName: "moderator",
 			Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 			SourceProviderId: "oidc-a",
+			SourceIssuer:     "https://issuer-a.example",
 		},
 	}})
 	if !restored.HasRole("U1", "moderator") {

@@ -22,7 +22,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
-- OIDC providers can manage configured direct role claims. An OIDC-managed role is effective alongside manual and other-provider grants; reconciling one provider never revokes another source. Administrator role changes affect manual grants only; attempting to revoke a solely IdP-managed role reports that it is managed by the identity provider. Disconnecting the linked identity removes that provider's managed source.
+- OIDC providers can manage configured direct role claims. An OIDC-managed role is effective alongside manual and other-provider grants; reconciling one provider never revokes another source. Its source is bound to both provider ID and verified issuer, so replacing an issuer under the same ID removes the old issuer's grants at startup. Administrator role changes affect manual grants only; attempting to revoke a solely IdP-managed role reports that it is managed by the identity provider. Disconnecting the linked identity removes that provider's managed source.
 
 ## Design Decisions
 

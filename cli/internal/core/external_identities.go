@@ -30,8 +30,12 @@ var (
 	ErrExternalIdentityFlowExpired   = errors.New("external identity flow expired")
 	ErrExternalIdentityFlowWrongKind = errors.New("external identity flow has the wrong kind")
 	ErrExternalIdentityFlowUserBound = errors.New("external identity flow is bound to a different user")
-	ErrExternalIdentityNotFound      = errors.New("external identity is not linked to this account")
-	ErrExternalIdentityLastMethod    = errors.New("cannot disconnect the last sign-in method")
+	// ErrExternalIdentityProviderChanged is returned when a pending flow was
+	// verified for a provider configuration that no longer represents the same
+	// identity-provider boundary.
+	ErrExternalIdentityProviderChanged = errors.New("external identity provider changed while confirmation was pending")
+	ErrExternalIdentityNotFound        = errors.New("external identity is not linked to this account")
+	ErrExternalIdentityLastMethod      = errors.New("cannot disconnect the last sign-in method")
 )
 
 type ExternalIdentity struct {
@@ -412,7 +416,8 @@ func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userI
 		}
 		providerStillLinked := false
 		for _, identity := range identities {
-			if identity.SubjectHash != subjectHash && identity.ProviderID == disconnected.ProviderID {
+			if identity.SubjectHash != subjectHash && identity.ProviderID == disconnected.ProviderID &&
+				config.CanonicalOIDCIssuer(identity.Issuer) == config.CanonicalOIDCIssuer(disconnected.Issuer) {
 				providerStillLinked = true
 				break
 			}
@@ -427,12 +432,13 @@ func (c *ChattoCore) appendExternalIdentityDisconnect(ctx context.Context, userI
 		userSubject := events.UserAggregate(userID).SubjectFor(unlink)
 		entries := []events.BatchEntry{{Subject: userSubject, Event: unlink}}
 		if !providerStillLinked {
-			for _, roleName := range c.RBAC.OIDCRolesForProvider(userID, disconnected.ProviderID) {
+			for _, roleName := range c.RBAC.OIDCRolesForProviderIssuer(userID, disconnected.ProviderID, config.CanonicalOIDCIssuer(disconnected.Issuer)) {
 				revoke := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 					RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{
 						UserId: userID, RoleName: roleName,
 						Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 						SourceProviderId: disconnected.ProviderID,
+						SourceIssuer:     config.CanonicalOIDCIssuer(disconnected.Issuer),
 					},
 				}})
 				entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(revoke), Event: revoke})

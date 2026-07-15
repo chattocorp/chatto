@@ -104,6 +104,7 @@ func (c *ChattoCore) rbacResetEntries(promotions []rbacSeedAssignment) []events.
 				UserId: assignment.userID, RoleName: assignment.roleName,
 				Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 				SourceProviderId: assignment.providerID,
+				SourceIssuer:     assignment.issuer,
 			},
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

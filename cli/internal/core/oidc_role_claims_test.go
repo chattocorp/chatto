@@ -15,6 +15,8 @@ func linkOIDCTestIdentity(t *testing.T, chatto *ChattoCore, userID, providerID s
 	}
 }
 
+func oidcTestIssuer(providerID string) string { return "https://" + providerID + ".example" }
+
 func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -25,10 +27,12 @@ func TestChattoCore_SyncOIDCRoleClaimsPreservesIndependentSources(t *testing.T) 
 
 	providerA := config.AuthProviderConfig{
 		ID: "oidc-a", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: oidcTestIssuer("oidc-a"),
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleAdmin, RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
 	}
 	providerB := config.AuthProviderConfig{
 		ID: "oidc-b", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: oidcTestIssuer("oidc-b"),
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleModerator},
 	}
 	linkOIDCTestIdentity(t, chatto, user.Id, providerA.ID)
@@ -102,10 +106,11 @@ func TestChattoCore_SyncOIDCRoleClaimsEmitsSourceTaggedAssignmentEvents(t *testi
 	}
 	provider := config.AuthProviderConfig{
 		ID: "oidc-shadow", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: oidcTestIssuer("oidc-shadow"),
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleModerator}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
 	}
 	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
-	grantEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
+	grantEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, oidcTestIssuer(provider.ID), config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
 	if len(grantEntries) != 1 {
 		t.Fatalf("grant entries = %d, want one assignment event", len(grantEntries))
 	}
@@ -119,12 +124,12 @@ func TestChattoCore_SyncOIDCRoleClaimsEmitsSourceTaggedAssignmentEvents(t *testi
 	if !chatto.RBAC.HasRole(user.Id, RoleModerator) || chatto.RBAC.HasManualRole(user.Id, RoleModerator) {
 		t.Fatal("OIDC assignment must not become a manual assignment")
 	}
-	grantEntries = chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
+	grantEntries = chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, oidcTestIssuer(provider.ID), config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{RoleModerator: {}})
 	if len(grantEntries) != 0 {
 		t.Fatalf("idempotent grant entries = %d, want 0", len(grantEntries))
 	}
 
-	revokeEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{})
+	revokeEntries := chatto.oidcRoleClaimSyncEntries(user.Id, provider.ID, oidcTestIssuer(provider.ID), config.OIDCRoleClaimModeReconcile, true, map[string]struct{}{})
 	if len(revokeEntries) != 1 {
 		t.Fatalf("revoke entries = %d, want one assignment event", len(revokeEntries))
 	}
@@ -135,7 +140,7 @@ func TestChattoCore_SyncOIDCRoleClaimsEmitsSourceTaggedAssignmentEvents(t *testi
 
 	projection := NewRBACProjection()
 	grantEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: user.Id, RoleName: RoleModerator, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, SourceProviderId: provider.ID},
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: user.Id, RoleName: RoleModerator, Source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, SourceProviderId: provider.ID, SourceIssuer: oidcTestIssuer(provider.ID)},
 	}})
 	if err := projection.Apply(grantEvent, 1); err != nil {
 		t.Fatalf("apply OIDC grant: %v", err)
@@ -160,6 +165,7 @@ func TestChattoCore_SyncOIDCRoleClaimsWildcardIncludesOwner(t *testing.T) {
 	}
 	provider := config.AuthProviderConfig{
 		ID: "oidc-owner", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: oidcTestIssuer("oidc-owner"),
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{"*"},
 	}
 	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
@@ -186,6 +192,7 @@ func TestChattoCore_SyncOIDCRoleClaimsDoesNotRestoreDeletedRole(t *testing.T) {
 	}
 	provider := config.AuthProviderConfig{
 		ID: "oidc", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: oidcTestIssuer("oidc"),
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{"idp-editor"}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
 	}
 	linkOIDCTestIdentity(t, chatto, user.Id, provider.ID)
@@ -209,6 +216,44 @@ func TestChattoCore_SyncOIDCRoleClaimsDoesNotRestoreDeletedRole(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ReconcileOIDCRoleSourcesRevokesReplacedIssuer(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "issuer-replacement", "Issuer Replacement", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	oldProvider := config.AuthProviderConfig{
+		ID: "company-sso", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://login.old.example/",
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleOwner},
+	}
+	if err := chatto.LinkExternalIdentity(ctx, oldProvider.ID, oldProvider.Type, "https://login.old.example", "subject", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, oldProvider, true, []string{RoleOwner}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims old issuer: %v", err)
+	}
+	if !chatto.RBAC.HasRole(user.Id, RoleOwner) {
+		t.Fatal("old issuer should initially grant owner")
+	}
+
+	newProvider := oldProvider
+	newProvider.IssuerURL = "https://login.new.example"
+	chatto.config.AuthProviders = []config.AuthProviderConfig{newProvider}
+	if err := chatto.reconcileOIDCRoleSources(ctx); err != nil {
+		t.Fatalf("reconcileOIDCRoleSources: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, RoleOwner) {
+		t.Fatal("a reused provider ID must not retain roles from its previous issuer")
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, newProvider, true, []string{RoleOwner}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims new issuer: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, RoleOwner) {
+		t.Fatal("an old issuer identity must not synchronize roles for the replacement issuer")
+	}
+}
+
 func TestChattoCore_DisconnectExternalIdentityRevokesOIDCRoleSources(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -221,6 +266,7 @@ func TestChattoCore_DisconnectExternalIdentityRevokesOIDCRoleSources(t *testing.
 	}
 	provider := config.AuthProviderConfig{
 		ID: "oidc", Type: config.AuthProviderTypeOpenIDConnect,
+		IssuerURL: "https://issuer.example",
 		RoleClaim: "roles", RoleClaimAllowedRoles: []string{RoleAdmin}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
 	}
 	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{RoleAdmin}); err != nil {

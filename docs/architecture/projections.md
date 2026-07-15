@@ -47,7 +47,8 @@ event families.
 
 The projector framework atomically captures each projection's explicit
 protobuf state with its physical EVT watermark. RBAC snapshots retain each
-manual and OIDC assignment source, from which effective role membership is
+manual and OIDC assignment source, including each OIDC source's provider ID and
+issuer, from which effective role membership is
 derived on restore. Room Timeline retains encrypted
 body envelopes and rebuilds derived indexes. Mentionables retains encrypted
 login source events and wrapped DEK records rather than plaintext handles or

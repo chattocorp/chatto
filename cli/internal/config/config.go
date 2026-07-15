@@ -531,6 +531,14 @@ func (c AuthProviderConfig) LabelOrDefault() string {
 	return c.ID
 }
 
+// CanonicalOIDCIssuer returns the issuer representation used when comparing
+// verified identities, pending flows, and OIDC-managed RBAC sources. OIDC
+// discovery normalizes trailing slashes, while configuration often preserves
+// an operator's spelling.
+func CanonicalOIDCIssuer(issuer string) string {
+	return strings.TrimRight(strings.TrimSpace(issuer), "/")
+}
+
 func (c AuthProviderConfig) RequestEmailOrDefault() bool {
 	if c.RequestEmail == nil {
 		return false
@@ -1147,7 +1155,7 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL != "" {
-			issuerKey := strings.TrimRight(strings.TrimSpace(provider.IssuerURL), "/")
+			issuerKey := CanonicalOIDCIssuer(provider.IssuerURL)
 			if existingID, exists := seenOIDCIssuers[issuerKey]; exists {
 				errs = append(errs, fmt.Sprintf("OIDC issuer %q is configured by both provider %q and %q; configure each issuer only once", issuerKey, existingID, provider.ID))
 			} else {

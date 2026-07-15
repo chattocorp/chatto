@@ -12,13 +12,14 @@ import (
 
 // SyncOIDCRoleClaims synchronizes durable role sources for one verified OIDC
 // identity. Claim values are never persisted; only accepted role names and the
-// configured provider ID become RBAC facts.
+// configured provider ID and verified issuer become RBAC facts.
 //
 // A disabled role claim removes this provider's sources on the next successful
 // login. A missing or malformed enabled claim leaves sources intact.
 func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, provider config.AuthProviderConfig, claimPresent bool, claimRoles []string) error {
 	providerID := strings.TrimSpace(provider.ID)
-	if providerID == "" || provider.Type != config.AuthProviderTypeOpenIDConnect {
+	issuer := config.CanonicalOIDCIssuer(provider.IssuerURL)
+	if providerID == "" || issuer == "" || provider.Type != config.AuthProviderTypeOpenIDConnect {
 		return nil
 	}
 	enabled := strings.TrimSpace(provider.RoleClaim) != ""
@@ -59,18 +60,18 @@ func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, prov
 		// it must not recreate that provider's source after the unlink batch.
 		providerLinked := false
 		for _, identity := range c.Users.ExternalIdentities(userID) {
-			if identity.ProviderID == providerID {
+			if identity.ProviderID == providerID && config.CanonicalOIDCIssuer(identity.Issuer) == issuer {
 				providerLinked = true
 				break
 			}
 		}
-		return c.oidcRoleClaimSyncEntries(userID, providerID, provider.OIDCRoleClaimModeOrDefault(), enabled && providerLinked, desired), nil
+		return c.oidcRoleClaimSyncEntries(userID, providerID, issuer, provider.OIDCRoleClaimModeOrDefault(), enabled && providerLinked, desired), nil
 	})
 	return err
 }
 
-func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, mode string, enabled bool, desired map[string]struct{}) []events.BatchEntry {
-	current := c.RBAC.OIDCRolesForProvider(userID, providerID)
+func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, issuer, mode string, enabled bool, desired map[string]struct{}) []events.BatchEntry {
+	current := c.RBAC.OIDCRolesForProviderIssuer(userID, providerID, issuer)
 	entries := make([]events.BatchEntry, 0, len(desired)+len(current))
 	desiredRoles := make([]string, 0, len(desired))
 	for roleName := range desired {
@@ -97,6 +98,7 @@ func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, mode string, e
 					UserId: userID, RoleName: roleName,
 					Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 					SourceProviderId: providerID,
+					SourceIssuer:     issuer,
 				},
 			}})
 			entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
@@ -114,6 +116,7 @@ func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, mode string, e
 					UserId: userID, RoleName: roleName,
 					Source:           corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC,
 					SourceProviderId: providerID,
+					SourceIssuer:     issuer,
 				},
 			}})
 			entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

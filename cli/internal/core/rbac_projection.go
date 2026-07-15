@@ -199,9 +199,10 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 type roleAssignmentSource struct {
 	source     corev1.RbacRoleAssignmentSource
 	providerID string
+	issuer     string
 }
 
-func roleAssignmentSourceFromFields(source corev1.RbacRoleAssignmentSource, providerID string) (roleAssignmentSource, bool) {
+func roleAssignmentSourceFromFields(source corev1.RbacRoleAssignmentSource, providerID, issuer string) (roleAssignmentSource, bool) {
 	switch source {
 	case corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_UNSPECIFIED,
 		corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_MANUAL:
@@ -210,7 +211,11 @@ func roleAssignmentSourceFromFields(source corev1.RbacRoleAssignmentSource, prov
 		if providerID == "" {
 			return roleAssignmentSource{}, false
 		}
-		return roleAssignmentSource{source: source, providerID: providerID}, true
+		// A missing issuer is a legacy source emitted before issuer provenance
+		// was added. It remains replayable, but boot reconciliation removes it
+		// once the provider is configured because it cannot safely cross an
+		// issuer boundary.
+		return roleAssignmentSource{source: source, providerID: providerID, issuer: issuer}, true
 	default:
 		return roleAssignmentSource{}, false
 	}
@@ -220,7 +225,7 @@ func (p *RBACProjection) applyRoleAssigned(event *corev1.RbacRoleAssignedEvent) 
 	if event.GetUserId() == "" || event.GetRoleName() == "" {
 		return
 	}
-	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId())
+	source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer())
 	if !ok {
 		return
 	}
@@ -245,7 +250,7 @@ func (p *RBACProjection) applyRoleRevoked(event *corev1.RbacRoleRevokedEvent) {
 		// Historical revocations predate source-aware assignments and retain their
 		// original meaning: remove the complete assignment.
 		delete(roles, event.GetRoleName())
-	} else if source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId()); ok {
+	} else if source, ok := roleAssignmentSourceFromFields(event.GetSource(), event.GetSourceProviderId(), event.GetSourceIssuer()); ok {
 		sources := roles[event.GetRoleName()]
 		delete(sources, source)
 		if len(sources) == 0 {
@@ -473,7 +478,26 @@ func (p *RBACProjection) OIDCRolesForProvider(userID, providerID string) []strin
 	defer p.RUnlock()
 	roles := make([]string, 0)
 	for roleName, sources := range p.assignments[userID] {
-		if _, ok := sources[roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, providerID: providerID}]; ok {
+		for source := range sources {
+			if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC && source.providerID == providerID {
+				roles = append(roles, roleName)
+				break
+			}
+		}
+	}
+	sort.Strings(roles)
+	return roles
+}
+
+// OIDCRolesForProviderIssuer returns roles currently managed by one exact OIDC
+// provider and issuer source. The returned values are sorted and safe for
+// callers to retain.
+func (p *RBACProjection) OIDCRolesForProviderIssuer(userID, providerID, issuer string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	roles := make([]string, 0)
+	for roleName, sources := range p.assignments[userID] {
+		if _, ok := sources[roleAssignmentSource{source: corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC, providerID: providerID, issuer: issuer}]; ok {
 			roles = append(roles, roleName)
 		}
 	}
@@ -504,7 +528,7 @@ func (p *RBACProjection) OIDCRoleAssignmentsForUser(userID string) []oidcRoleAss
 	for roleName, sources := range p.assignments[userID] {
 		for source := range sources {
 			if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
-				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID})
+				assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID, issuer: source.issuer})
 			}
 		}
 	}
@@ -521,6 +545,7 @@ type oidcRoleAssignment struct {
 	userID     string
 	roleName   string
 	providerID string
+	issuer     string
 }
 
 // OIDCRoleAssignments returns every OIDC-managed assignment. It is used by
@@ -533,7 +558,7 @@ func (p *RBACProjection) OIDCRoleAssignments() []oidcRoleAssignment {
 		for roleName, sources := range roles {
 			for source := range sources {
 				if source.source == corev1.RbacRoleAssignmentSource_RBAC_ROLE_ASSIGNMENT_SOURCE_OIDC {
-					assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID})
+					assignments = append(assignments, oidcRoleAssignment{userID: userID, roleName: roleName, providerID: source.providerID, issuer: source.issuer})
 				}
 			}
 		}
@@ -545,7 +570,10 @@ func (p *RBACProjection) OIDCRoleAssignments() []oidcRoleAssignment {
 		if assignments[i].roleName != assignments[j].roleName {
 			return assignments[i].roleName < assignments[j].roleName
 		}
-		return assignments[i].providerID < assignments[j].providerID
+		if assignments[i].providerID != assignments[j].providerID {
+			return assignments[i].providerID < assignments[j].providerID
+		}
+		return assignments[i].issuer < assignments[j].issuer
 	})
 	return assignments
 }
