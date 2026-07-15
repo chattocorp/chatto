@@ -44,6 +44,7 @@ const (
 	ProjectionContentKeysKey     = "content_keys"
 	ProjectionRBACKey            = "rbac"
 	ProjectionMentionablesKey    = "mentionables"
+	ProjectionUsersKey           = "users"
 )
 
 // Namespace fixes the projection membership of one snapshot storage version.
@@ -74,6 +75,10 @@ var NamespaceV2Core = mustNamespace("v2",
 	ProjectionRBACKey,
 	ProjectionMentionablesKey,
 )
+
+// NamespaceV3Users contains only the snapshot-safe user profile projection.
+// Credential-bearing user auth state remains outside every snapshot namespace.
+var NamespaceV3Users = mustNamespace("v3", ProjectionUsersKey)
 
 func mustNamespace(version string, keys ...string) Namespace {
 	if version == "" || len(keys) == 0 {

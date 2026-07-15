@@ -334,10 +334,30 @@ func TestRepositoryV2AcceptsOnlyFrozenCoreMembership(t *testing.T) {
 			t.Fatalf("Save %q: %v", key, err)
 		}
 	}
-	for _, key := range []string{ProjectionV1ThreadsKey, "future_projection"} {
+	for _, key := range []string{ProjectionV1ThreadsKey, ProjectionUsersKey, "future_projection"} {
 		input := testSaveInput(1, []byte(key))
 		input.ProjectionKey = key
 		if _, err := repository.Save(context.Background(), input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v2") {
+			t.Fatalf("Save %q error = %v", key, err)
+		}
+	}
+}
+
+func TestRepositoryV3AcceptsOnlyFrozenUserMembership(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository, err := NewRepository(blobs, RepositoryOptions{Namespace: NamespaceV3Users, Pointers: blobs, SecretHex: testSecret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := testSaveInput(1, []byte("users"))
+	input.ProjectionKey = ProjectionUsersKey
+	if _, err := repository.Save(context.Background(), input); err != nil {
+		t.Fatalf("Save users: %v", err)
+	}
+	for _, key := range []string{ProjectionV1ThreadsKey, ProjectionRoomDirectoryKey, "future_projection"} {
+		input := testSaveInput(1, []byte(key))
+		input.ProjectionKey = key
+		if _, err := repository.Save(context.Background(), input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v3") {
 			t.Fatalf("Save %q error = %v", key, err)
 		}
 	}

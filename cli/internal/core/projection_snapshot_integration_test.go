@@ -118,6 +118,69 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	}
 }
 
+func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T) {
+	storeDir := t.TempDir()
+	ns, nc := startPersistentSnapshotNATS(t, storeDir)
+	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey:           "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets:              config.AssetsConfig{SigningSecret: "test-signing-secret", StorageBackend: config.StorageBackendNATS},
+		ProjectionSnapshots: true,
+		Version:             "user-snapshot-integration-test",
+	}
+
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopFirst := startSnapshotTestCore(t, first)
+	select {
+	case <-first.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("initial snapshot worker did not finish")
+	}
+	user, err := first.CreateUser(ctx, SystemActorID, "snapshot-user", "Snapshot User", "correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.projectionSnapshotWorker.generate(ctx); err != nil {
+		t.Fatalf("generate updated user snapshot: %v", err)
+	}
+	stopFirst()
+	stopPersistentSnapshotNATS(ns, nc)
+
+	ns, nc = startPersistentSnapshotNATS(t, storeDir)
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopSecond := startSnapshotTestCore(t, second)
+	t.Cleanup(stopSecond)
+
+	profileStatus := second.UsersProjector.Status()
+	if !profileStatus.SnapshotRestored || profileStatus.SnapshotCutoffSeq == 0 {
+		t.Fatalf("user profile projector did not restore snapshot: %#v", profileStatus)
+	}
+	authStatus := second.UserAuthProjector.Status()
+	if authStatus.SnapshotRestored {
+		t.Fatalf("user auth projector unexpectedly restored a snapshot: %#v", authStatus)
+	}
+	if authStatus.StartupMessages < 2 {
+		t.Fatalf("user auth projector replayed %d messages, want account and password events", authStatus.StartupMessages)
+	}
+	restored, err := second.GetUser(ctx, user.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.GetLogin() != "snapshot-user" || restored.GetDisplayName() != "Snapshot User" {
+		t.Fatalf("restored user = %#v", restored)
+	}
+	if err := second.VerifyUserPassword(ctx, user.GetId(), "correct horse battery staple"); err != nil {
+		t.Fatalf("cold-replayed password credential did not verify: %v", err)
+	}
+}
+
 func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)

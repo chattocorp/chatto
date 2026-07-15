@@ -204,6 +204,10 @@ type ChattoCore struct {
 	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
+	// UserAuthProjector cold-replays the credential-bearing companion state.
+	// It is intentionally never included in projection snapshots.
+	UserAuthProjector *events.Projector
+
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
 	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
@@ -1234,6 +1238,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	var snapshotRepository *projectionsnapshot.Repository
 	var coreSnapshotRepository *projectionsnapshot.Repository
+	var userSnapshotRepository *projectionsnapshot.Repository
 	var snapshotJobs []projectionSnapshotJob
 	var snapshotStreamIdentity string
 	if cfg.ProjectionSnapshots {
@@ -1281,6 +1286,17 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					logger.Warn("Projection snapshots disabled after v2 repository initialization failure", "stage", "initialize", "error", err)
 					snapshotRepository = nil
 					coreSnapshotRepository = nil
+				} else {
+					userSnapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+						Pointers: natsSnapshotPointerStore{kv: storage.runtimeStateKV}, SecretHex: cfg.SecretKey,
+						ProducerVersion: cfg.Version, Logger: logger.WithPrefix("core.ProjectionSnapshots"), Namespace: projectionsnapshot.NamespaceV3Users,
+					})
+					if err != nil {
+						logger.Warn("Projection snapshots disabled after v3 repository initialization failure", "stage", "initialize", "error", err)
+						snapshotRepository = nil
+						coreSnapshotRepository = nil
+						userSnapshotRepository = nil
+					}
 				}
 			}
 			if snapshotRepository != nil {
@@ -1291,6 +1307,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 						"error", err)
 					snapshotRepository = nil
 					coreSnapshotRepository = nil
+					userSnapshotRepository = nil
 				} else {
 					logger.Info("Projection snapshot storage initialized",
 						"backend", snapshotRepository.Backend())
@@ -1360,6 +1377,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	users := newUserProjectionWithDEKResolver(dekResolver)
 	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
+	userAuth := users.AuthProjection()
+	userAuthProjector := newProjector(userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
@@ -1370,7 +1389,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
-	if snapshotRepository != nil && coreSnapshotRepository != nil {
+	if snapshotRepository != nil && coreSnapshotRepository != nil && userSnapshotRepository != nil {
 		streamName := storage.serverEvtStream.CachedInfo().Config.Name
 		type snapshotSpec struct {
 			key, compatibility string
@@ -1389,6 +1408,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector, coreSnapshotRepository},
 			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector, coreSnapshotRepository},
 			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionUsersKey, userSnapshotCompatibilityID, usersProjector, userSnapshotRepository},
 		}
 		for _, spec := range specs {
 			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: spec.repository}, snapshotStreamIdentity); err != nil {
@@ -1418,7 +1438,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		reactions,
 		reactionsProjector,
 	)
-	userMgr := newUserModel(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	userMgr := newUserModel(eventPublisher, users, usersProjector, userAuthProjector, contentKeys, contentKeysProjector)
 	rbacMgr := newRBACModel(rbac, rbacProjector)
 	mentionablesMgr := newMentionablesModel(mentionables, mentionablesProjector)
 
@@ -1460,6 +1480,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:       reactionsProjector,
 		Users:                    users,
 		UsersProjector:           usersProjector,
+		UserAuthProjector:        userAuthProjector,
 		ContentKeys:              contentKeys,
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,
@@ -1521,7 +1542,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		} else {
 			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
 				repository:   snapshotRepository,
-				repositories: []projectionSnapshotSweeper{snapshotRepository, coreSnapshotRepository},
+				repositories: []projectionSnapshotSweeper{snapshotRepository, coreSnapshotRepository, userSnapshotRepository},
 				lease:        cleanupLease,
 				logger:       logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
 				done:         make(chan struct{}),

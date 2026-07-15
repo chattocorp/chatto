@@ -132,6 +132,12 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p := raw.(*MentionablesProjection)
 			p.addOwner("moderator", mentionableOwner{kind: mentionableOwnerRole, id: "moderator"})
 		}},
+		{"users", func() snapshotProjection { return NewUserProjection(nil, nil) }, func(raw snapshotProjection) {
+			p := raw.(*UserProjection)
+			p.users["U1"] = &projectedUser{user: &corev1.User{Id: "U1", CreatedAt: timestamppb.New(now)}, verifiedEmail: make(map[string]projectedVerifiedEmail)}
+			p.replayGuard.highestSeq = 41
+			p.replayGuard.completeReplay()
+		}},
 	}
 
 	compatibilityIDs := make(map[string]string, len(tests))

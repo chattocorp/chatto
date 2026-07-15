@@ -93,10 +93,11 @@ authorization, live events, backup/restore, and backend tests.
   secrets during a rolling key change.
 - Snapshot namespace `v1` is permanently Threads-only. Namespace `v2` is
   permanently Room Directory, Server Config, Room Group Layout, Room Timeline,
-  Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Keep
-  `UserProjection` outside snapshots until its remaining authentication state,
-  including password verifiers, has an explicitly reviewed encrypted snapshot
-  representation.
+  Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Namespace
+  `v3` is permanently the user profile projection only. Keep password
+  verifiers, auth generations, external identity subjects, and OAuth consent in
+  the independently cold-replayed `UserAuthProjection`; never add them to a
+  profile snapshot schema or codec.
 - A shared snapshot replay consumer may start only after every projector restore
   attempt finishes, at one greater than the lowest usable cutoff. Any required
   cold projection forces that cohort to sequence 1. Release boot-time sequence

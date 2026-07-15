@@ -12,7 +12,7 @@ import (
 )
 
 // Keep the original lease name so mixed-version replicas coordinate Thread
-// publications while the newer leader also publishes the v2 cohort.
+// publications while newer leaders also publish later frozen cohorts.
 const projectionSnapshotLeaseName = "projection-snapshot-threads"
 
 type projectionSnapshotJob struct {

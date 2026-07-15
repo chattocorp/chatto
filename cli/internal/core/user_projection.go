@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -22,32 +23,28 @@ import (
 // durable evt.user.{userID} events.
 type UserProjection struct {
 	events.MemoryProjection
-	users         map[string]*projectedUser
-	loginIndex    map[string]string
-	emailIndex    map[string]string
-	identityIndex map[string]string
-	avatarIndex   map[string]int
-	replayGuard   projectionReplayGuard
-	dekResolver   *unwrappedDEKResolver
-	dekEvents     map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
+	users        map[string]*projectedUser
+	loginIndex   map[string]string
+	emailIndex   map[string]string
+	avatarIndex  map[string]int
+	replayGuard  projectionReplayGuard
+	dekResolver  *unwrappedDEKResolver
+	dekEvents    map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
+	auth         *UserAuthProjection
+	authExternal atomic.Bool
 }
 
 type projectedUser struct {
-	user               *corev1.User
-	login              *projectedUserPII
-	loginHash          string
-	displayName        *projectedUserPII
-	deleted            bool
-	shredded           bool
-	avatar             *corev1.AssetRecord
-	passwordHash       []byte
-	passwordSetAt      time.Time
-	authGeneration     uint64
-	verifiedEmail      map[string]projectedVerifiedEmail
-	externalIdentities map[string]ExternalIdentity
-	oauthConsent       map[string]struct{}
-	preferences        *corev1.ServerUserPreferences
-	loginChanged       time.Time
+	user          *corev1.User
+	login         *projectedUserPII
+	loginHash     string
+	displayName   *projectedUserPII
+	deleted       bool
+	shredded      bool
+	avatar        *corev1.AssetRecord
+	verifiedEmail map[string]projectedVerifiedEmail
+	preferences   *corev1.ServerUserPreferences
+	loginChanged  time.Time
 }
 
 // projectedUserPII retains only the encrypted field and the event context
@@ -72,16 +69,25 @@ func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *Use
 }
 
 func newUserProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *UserProjection {
-	return &UserProjection{
-		users:         make(map[string]*projectedUser),
-		loginIndex:    make(map[string]string),
-		emailIndex:    make(map[string]string),
-		identityIndex: make(map[string]string),
-		avatarIndex:   make(map[string]int),
-		replayGuard:   newProjectionReplayGuard(),
-		dekResolver:   dekResolver,
-		dekEvents:     make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
+	p := &UserProjection{
+		users:       make(map[string]*projectedUser),
+		loginIndex:  make(map[string]string),
+		emailIndex:  make(map[string]string),
+		avatarIndex: make(map[string]int),
+		replayGuard: newProjectionReplayGuard(),
+		dekResolver: dekResolver,
+		dekEvents:   make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
+	p.auth = newUserAuthProjection()
+	return p
+}
+
+// AuthProjection returns the credential-bearing companion projection. It is
+// deliberately excluded from profile snapshots and rebuilt from focused EVT
+// subjects on every startup.
+func (p *UserProjection) AuthProjection() *UserAuthProjection {
+	p.authExternal.Store(true)
+	return p.auth
 }
 
 func (p *UserProjection) Subjects() []string {
@@ -91,6 +97,14 @@ func (p *UserProjection) Subjects() []string {
 func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
+	}
+	// Standalone projections retain the historical facade behavior used by
+	// tests and embedders. ChattoCore calls AuthProjection during wiring, which
+	// makes the dedicated projector the sole production writer.
+	if !p.authExternal.Load() {
+		if err := p.auth.Apply(event, seq); err != nil {
+			return err
+		}
 	}
 	p.Lock()
 	defer p.Unlock()
@@ -117,14 +131,6 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyAssetDeleted(e.AssetDeleted)
 	case *corev1.Event_UserVerifiedEmailAdded:
 		return p.applyVerifiedEmailAdded(event.GetId(), e.UserVerifiedEmailAdded, event.GetCreatedAt())
-	case *corev1.Event_UserPasswordHashChanged:
-		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
-	case *corev1.Event_UserOidcSubjectLinked:
-		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
-	case *corev1.Event_UserExternalIdentityLinked:
-		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
-	case *corev1.Event_UserExternalIdentityUnlinked:
-		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -136,11 +142,9 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserCustomStatusCleared:
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *corev1.Event_UserAccountDeleted:
-		p.applyAccountDeleted(e.UserAccountDeleted, seq)
+		p.applyAccountDeleted(e.UserAccountDeleted)
 	case *corev1.Event_UserKeyShredded:
 		p.applyKeyShredded(e.UserKeyShredded)
-	case *corev1.Event_OauthConsentGranted:
-		p.applyOAuthConsentGranted(e.OauthConsentGranted)
 	}
 	return nil
 }
@@ -159,12 +163,6 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 	}
 	if u.verifiedEmail == nil {
 		u.verifiedEmail = make(map[string]projectedVerifiedEmail)
-	}
-	if u.externalIdentities == nil {
-		u.externalIdentities = make(map[string]ExternalIdentity)
-	}
-	if u.oauthConsent == nil {
-		u.oauthConsent = make(map[string]struct{})
 	}
 	return u
 }
@@ -312,94 +310,6 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 	return nil
 }
 
-func (p *UserProjection) applyPasswordHashChanged(e *corev1.UserPasswordHashChangedEvent, envelopeCreatedAt *timestamppb.Timestamp, seq uint64) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	u.passwordHash = append(u.passwordHash[:0], e.GetPasswordHash()...)
-	if !e.GetPreserveExistingCredentials() {
-		u.authGeneration = seq
-		if envelopeCreatedAt != nil {
-			u.passwordSetAt = envelopeCreatedAt.AsTime()
-		} else {
-			u.passwordSetAt = time.Time{}
-		}
-	}
-}
-
-func (p *UserProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLinkedEvent) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	hash := e.GetSubjectHash()
-	if hash == "" && e.GetIssuer() != "" && e.GetSubject() != "" {
-		hash = externalIdentityHash(e.GetIssuer(), e.GetSubject())
-	}
-	if hash == "" {
-		return
-	}
-	p.identityIndex[hash] = e.GetUserId()
-	u := p.ensureUserLocked(e.GetUserId())
-	u.externalIdentities[hash] = ExternalIdentity{
-		ProviderID:   "oidc",
-		ProviderType: "oidc",
-		Issuer:       e.GetIssuer(),
-		Subject:      e.GetSubject(),
-		SubjectHash:  hash,
-	}
-}
-
-func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdentityLinkedEvent) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	hash := e.GetSubjectHash()
-	if hash == "" && e.GetIssuer() != "" && e.GetSubject() != "" {
-		hash = externalIdentityHash(e.GetIssuer(), e.GetSubject())
-	}
-	if hash == "" {
-		return
-	}
-	p.identityIndex[hash] = e.GetUserId()
-	u := p.ensureUserLocked(e.GetUserId())
-	providerID := e.GetProviderId()
-	if providerID == "" {
-		providerID = e.GetIssuer()
-	}
-	providerType := e.GetProviderType()
-	if providerType == "" {
-		providerType = providerID
-	}
-	u.externalIdentities[hash] = ExternalIdentity{
-		ProviderID:   providerID,
-		ProviderType: providerType,
-		Issuer:       e.GetIssuer(),
-		Subject:      e.GetSubject(),
-		SubjectHash:  hash,
-	}
-}
-
-func (p *UserProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIdentityUnlinkedEvent, seq uint64) {
-	if e == nil || e.GetUserId() == "" || e.GetSubjectHash() == "" {
-		return
-	}
-	if p.identityIndex[e.GetSubjectHash()] == e.GetUserId() {
-		delete(p.identityIndex, e.GetSubjectHash())
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	delete(u.externalIdentities, e.GetSubjectHash())
-	u.authGeneration = seq
-}
-
-func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetRedirectOrigin() == "" {
-		return
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	u.oauthConsent[e.GetRedirectOrigin()] = struct{}{}
-}
-
 func (p *UserProjection) applyServerPreferencesChanged(e *corev1.UserServerPreferencesChangedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -449,13 +359,12 @@ func (p *UserProjection) applyCustomStatusCleared(e *corev1.UserCustomStatusClea
 	}
 }
 
-func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {
+func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	u.deleted = true
-	u.authGeneration = seq
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
 	}
@@ -464,14 +373,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 			delete(p.emailIndex, hash)
 		}
 	}
-	for hash, userID := range p.identityIndex {
-		if userID == e.GetUserId() {
-			delete(p.identityIndex, hash)
-		}
-	}
 	p.replaceAvatarLocked(u, nil)
-	u.passwordHash = nil
-	u.passwordSetAt = time.Time{}
 	u.preferences = nil
 	if u.user != nil {
 		u.user.CustomStatus = nil
@@ -480,8 +382,6 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 	u.loginHash = ""
 	u.displayName = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
-	u.externalIdentities = make(map[string]ExternalIdentity)
-	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 	delete(p.dekEvents, e.GetUserId())
 }
@@ -501,21 +401,12 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 			delete(p.emailIndex, hash)
 		}
 	}
-	for hash, userID := range p.identityIndex {
-		if userID == e.GetUserId() {
-			delete(p.identityIndex, hash)
-		}
-	}
 	u.user = &corev1.User{Id: e.GetUserId()}
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
-	u.passwordHash = nil
-	u.passwordSetAt = time.Time{}
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
-	u.externalIdentities = make(map[string]ExternalIdentity)
-	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
 }
 
@@ -812,9 +703,7 @@ func (p *UserProjection) GetByOIDCSubject(issuer, subject string) (*corev1.User,
 }
 
 func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issuer, subject string) (*corev1.User, bool, error) {
-	p.RLock()
-	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
-	p.RUnlock()
+	userID, _ := p.auth.ExternalIdentityOwnerID(issuer, subject)
 	if userID == "" {
 		return nil, false, nil
 	}
@@ -827,23 +716,7 @@ func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*corev1.
 }
 
 func (p *UserProjection) ExternalIdentities(userID string) []ExternalIdentity {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted || len(u.externalIdentities) == 0 {
-		return nil
-	}
-	identities := make([]ExternalIdentity, 0, len(u.externalIdentities))
-	for _, identity := range u.externalIdentities {
-		identities = append(identities, identity)
-	}
-	sort.Slice(identities, func(i, j int) bool {
-		if identities[i].ProviderID != identities[j].ProviderID {
-			return identities[i].ProviderID < identities[j].ProviderID
-		}
-		return identities[i].SubjectHash < identities[j].SubjectHash
-	})
-	return identities
+	return p.auth.ExternalIdentities(userID)
 }
 
 func (p *UserProjection) LoginExists(login string) bool {
@@ -871,10 +744,7 @@ func (p *UserProjection) EmailOwnerID(email string) (string, bool) {
 // ExternalIdentityOwnerID returns the projected owner of an identity digest
 // without hydrating the user's encrypted profile.
 func (p *UserProjection) ExternalIdentityOwnerID(issuer, subject string) (string, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
-	return userID, userID != ""
+	return p.auth.ExternalIdentityOwnerID(issuer, subject)
 }
 
 func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
@@ -883,23 +753,11 @@ func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
 }
 
 func (p *UserProjection) PasswordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted || len(u.passwordHash) == 0 {
-		return nil, time.Time{}, false
-	}
-	return append([]byte(nil), u.passwordHash...), u.passwordSetAt, true
+	return p.auth.PasswordHashWithSetAt(userID)
 }
 
 func (p *UserProjection) AuthGeneration(userID string) (uint64, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted {
-		return 0, false
-	}
-	return u.authGeneration, true
+	return p.auth.AuthGeneration(userID)
 }
 
 func (p *UserProjection) Avatar(userID string) (*corev1.AssetRecord, bool) {
@@ -1021,24 +879,11 @@ func (p *UserProjection) HasVerifiedEmail(userID string) bool {
 }
 
 func (p *UserProjection) HasVerifiedFactor(userID string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted {
-		return false
-	}
-	return len(u.verifiedEmail) > 0 || len(u.externalIdentities) > 0
+	return p.HasVerifiedEmail(userID) || p.auth.HasExternalIdentity(userID)
 }
 
 func (p *UserProjection) HasOAuthConsent(userID, redirectOrigin string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted || redirectOrigin == "" {
-		return false
-	}
-	_, ok := u.oauthConsent[redirectOrigin]
-	return ok
+	return p.auth.HasOAuthConsent(userID, redirectOrigin)
 }
 
 func (p *UserProjection) LoginChangedAt(userID string) time.Time {
@@ -1101,17 +946,15 @@ func (p *UserProjection) VerifiedUserIDs() []string {
 
 func (p *UserProjection) VerifiedAccountIDs() []string {
 	p.RLock()
-	defer p.RUnlock()
 	seen := map[string]struct{}{}
 	for _, userID := range p.emailIndex {
 		if u := p.users[userID]; u != nil && !u.deleted {
 			seen[userID] = struct{}{}
 		}
 	}
-	for _, userID := range p.identityIndex {
-		if u := p.users[userID]; u != nil && !u.deleted {
-			seen[userID] = struct{}{}
-		}
+	p.RUnlock()
+	for _, userID := range p.auth.VerifiedAccountIDs() {
+		seen[userID] = struct{}{}
 	}
 	out := make([]string, 0, len(seen))
 	for userID := range seen {
@@ -1135,7 +978,6 @@ func (p *UserProjection) Count() int {
 
 func (p *UserProjection) Stats() (users int, verifiedEmails int, oidcSubjects int) {
 	p.RLock()
-	defer p.RUnlock()
 	for _, u := range p.users {
 		if u == nil || u.deleted || u.user == nil {
 			continue
@@ -1143,6 +985,7 @@ func (p *UserProjection) Stats() (users int, verifiedEmails int, oidcSubjects in
 		users++
 		verifiedEmails += len(u.verifiedEmail)
 	}
-	oidcSubjects = len(p.identityIndex)
+	p.RUnlock()
+	oidcSubjects = p.auth.IdentityCount()
 	return users, verifiedEmails, oidcSubjects
 }

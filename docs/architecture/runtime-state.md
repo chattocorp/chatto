@@ -92,7 +92,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 | Key | Description |
 | --- | --- |
-| `internal/projection-snapshots/v1/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation. The secret-derived epoch isolates generations across secret changes; generation IDs are random and referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by the NATS Object Store and configured S3 backend. |
+| `internal/projection-snapshots/{namespace}/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation in frozen namespace `v1`, `v2`, or `v3`. The secret-derived epoch isolates generations across secret changes; generation IDs are random and referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by the NATS Object Store and configured S3 backend. |
 
 **SERVER\_ASSETS keys:**
 

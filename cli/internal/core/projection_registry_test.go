@@ -11,8 +11,8 @@ var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 12 {
-		t.Fatalf("registered projections = %d, want 12", len(core.projections))
+	if len(core.projections) != 13 {
+		t.Fatalf("registered projections = %d, want 13", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -64,6 +64,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	if _, ok := registryNames["Mentionables"]; !ok {
 		t.Fatal("Mentionables projection is not registered")
 	}
+	if _, ok := registryNames["User Auth"]; !ok {
+		t.Fatal("User Auth projection is not registered")
+	}
 
 	states, err := core.ProjectionAdminStates(testContext(t))
 	if err != nil {
@@ -112,7 +115,7 @@ func TestProjectionRunGroupsUseSingleEVTReplayConsumer(t *testing.T) {
 	for _, name := range group.names {
 		names[name] = true
 	}
-	for _, want := range []string{"Room Timeline", "Threads", "Room Directory", "Reactions", "Call State", "Mentionables"} {
+	for _, want := range []string{"Room Timeline", "Threads", "Room Directory", "Reactions", "Call State", "Mentionables", "Users", "User Auth"} {
 		if !names[want] {
 			t.Fatalf("single replay group missing %q: %v", want, group.names)
 		}

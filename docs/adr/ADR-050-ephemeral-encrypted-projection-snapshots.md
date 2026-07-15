@@ -82,9 +82,9 @@ APIs, or enter asset cleanup decisions.
 
 Namespace membership is immutable once shipped. `v1` contains only Threads.
 `v2` contains Room Directory, Server Config, Room Group Layout, Room Timeline,
-Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Adding a
-projection to either namespace is forbidden; a different cohort requires a new
-namespace version. This
+Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. `v3`
+contains only the user profile projection. Adding a projection to any shipped
+namespace is forbidden; a different cohort requires a new namespace version. This
 prevents an older replica's cleaner from treating a newer projection's
 generations as abandoned during a mixed-version rollout.
 
@@ -254,6 +254,7 @@ readiness, or request handling.
 
 `ThreadProjection` remains in the permanently frozen `v1` namespace. The ten
 additional eligible projections use the permanently frozen `v2` namespace.
+The user profile projection uses the permanently frozen `v3` namespace.
 Each projection retains its own compatibility ID, pointer, current/previous
 generations, cutoff, and fallback behavior; the namespace is a cleanup and
 mixed-version safety boundary, not one atomic multi-projection bundle.
@@ -273,19 +274,22 @@ Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
 
 `UserProjection` retains encrypted PII source fields and materializes them only
-at read boundaries, but it still retains password verifiers and other
-authentication state whose snapshot representation has not been approved. It
-runs in an independent consumer restricted to `evt.user.>`, so a required cold
-user replay cannot pull the room-heavy snapshot cohort back to sequence 1.
-Extending snapshot support to Users requires a codec that preserves per-user
-crypto-shredding and does not persist credential material under the snapshot
-envelope alone.
+at read boundaries. Its explicit `users-profile-v1` codec stores those encrypted
+values, lookup digests, wrapped DEK records, and non-secret profile metadata.
+Credential-bearing state is owned by the separate `UserAuthProjection`; its
+schema has no snapshot representation and its focused account, password,
+external-identity, consent, deletion, and key-shredding facts cold-replay on
+every startup. This structural split prevents profile snapshot code from
+serializing password verifiers, authentication generations, raw provider
+subjects, or OAuth consent.
 
 Every eligible codec uses an explicit protobuf and transactional restore.
 `RoomTimelineProjection` persists immutable event envelopes and encrypted
 `MessageBody` envelopes without decrypting content, then rebuilds indexes.
 `MentionablesProjection` persists wrapped DEK records and the latest encrypted
-login source event rather than its plaintext handle map. Shred markers and the
+login source event rather than its plaintext handle map. `UserProjection`
+persists encrypted profile fields and rebuilds its indexes transactionally.
+Shred markers and the
 existing durable representation of non-secret metadata are preserved.
 
 Snapshot persistence is disabled by default. Operators enable it with
@@ -318,9 +322,9 @@ Snapshot persistence is disabled by default. Operators enable it with
   orchestration contract without requiring every projection to implement them.
 - Snapshot codecs become maintained projection interfaces. Changes to
   projection semantics require an explicit compatibility decision.
-- `UserProjection` still cold-replays its focused subject family. Startup time
-  therefore includes user replay, snapshot loading, index reconstruction, and
-  the eligible cohort's tail replay.
+- `UserAuthProjection` still cold-replays its focused subject families. Startup
+  time therefore includes authentication replay, snapshot loading, index
+  reconstruction, and the eligible cohort's tail replay.
 
 ## Out of Scope
 
