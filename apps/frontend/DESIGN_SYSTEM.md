@@ -69,9 +69,11 @@ recommended path and `neutral-action` for an emphasized control that should not
 compete with it. Retired `accent` and `primary` color utilities are rejected by
 the design-system guardrail.
 
-Filled controls pair each tone with its `on-*` foreground token. Never assume
-white text: dark-theme action and status fills are intentionally bright and use
-a dark semantic foreground to maintain WCAG AA contrast.
+Compact filled controls pair each tone with its `on-*` foreground token.
+Prominent action, success, warning, and danger buttons use dedicated fills with
+white labels. Light-theme action buttons share the friendly action blue; dark
+mode uses deeper button fills so white labels remain clear without darkening
+the brighter semantic tones used for links, focus rings, and status UI.
 
 Surfaces form a small semantic ladder:
 
@@ -164,7 +166,10 @@ matches the action.
 Chatto deliberately uses browser/platform text rendering. Do not add global
 font smoothing. Ordinary controls are solid rather than gradient-filled;
 borders define structure, and shadows are reserved for genuinely floating or
-raised surfaces.
+raised surfaces. Do not use decorative one-sided accent borders or inset edge
+stripes on cards, rows, panels, or selected states. When a boundary is needed,
+keep it uniform around the element; communicate selection with fill and the
+control's indicator.
 
 ## Storybook Contract
 
@@ -190,16 +195,9 @@ differs.
 - Storybook is the component-state catalog. Add stories for reusable public
   components and cover meaningful variants, disabled/loading/error states, and
   narrow layouts where applicable.
-- `DesignSystem.visual.svelte.spec.ts` protects the shared primitive language in
-  light/dark and true desktop/mobile viewports. Its committed baselines are
-  platform-specific because browser font rasterization differs across operating
-  systems. Update them only after visually reviewing the intended change.
 - `e2e/accessibility.test.ts` scans representative public, chat, settings,
   mobile, admin, and dialog states against WCAG A/AA axe rules. Fix violations
   at their source; do not add blanket exclusions.
-- Run `pnpm run test:visual --update` from `apps/frontend` to intentionally
-  refresh visual baselines, then run it again without `--update` to prove the
-  snapshots are stable.
 
 ## Public Surface
 

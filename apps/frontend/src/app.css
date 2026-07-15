@@ -35,7 +35,11 @@
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
   --color-text-top: var(--color-black);
-  --color-muted: var(--color-gray-600);
+  --color-muted: color-mix(
+    in srgb,
+    var(--color-gray-500),
+    var(--color-gray-600) 75%
+  );
 
   --color-border: var(--color-gray-200);
   /* Light mode is deliberately not a luminance mirror of dark mode. The pale
@@ -59,11 +63,19 @@
   --color-action: var(--color-sky-700);
   --color-action-hover: var(--color-sky-800);
   --color-on-action: var(--color-white);
+  --color-button-action: color-mix(
+    in srgb,
+    var(--color-sky-600),
+    var(--color-sky-700) 35%
+  );
+  --color-button-success: var(--color-green-700);
+  --color-button-warning: var(--color-amber-700);
+  --color-button-danger: var(--color-red-600);
   --color-neutral-action: var(--color-slate-600);
   --color-neutral-action-hover: var(--color-slate-700);
   --color-on-neutral-action: var(--color-white);
-  --color-link: var(--color-action);
-  --color-link-hover: color-mix(in srgb, var(--color-action), black 20%);
+  --color-link: var(--color-sky-700);
+  --color-link-hover: var(--color-sky-800);
   --color-success: var(--color-green-800);
   --color-on-success: var(--color-white);
   --color-warning: var(--color-amber-800);
@@ -94,16 +106,16 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --color-background: var(--color-neutral-950);
+  --color-background: var(--color-neutral-900);
   --color-text: var(--color-neutral-300);
   --color-text-top: var(--color-white);
   --color-muted: var(--color-neutral-400);
 
   --color-border: var(--color-neutral-800);
-  --color-surface: var(--color-neutral-900);
-  --color-surface-emphasized: var(--color-neutral-800);
-  --color-surface-strong: var(--color-neutral-700);
-  --color-surface-selected: var(--color-neutral-700);
+  --color-surface: var(--color-neutral-800);
+  --color-surface-emphasized: var(--color-neutral-700);
+  --color-surface-strong: var(--color-neutral-600);
+  --color-surface-selected: var(--color-neutral-600);
 
   /* See light-mode comment — sits below all surfaces for an inset well look. */
   --color-input: var(--color-neutral-950);
@@ -112,6 +124,12 @@
   --color-action: var(--color-sky-400);
   --color-action-hover: var(--color-sky-300);
   --color-on-action: var(--color-neutral-950);
+  /* Prominent buttons use deeper fills with light labels. Keep the brighter
+     semantic tones above for links, focus rings, and compact status UI. */
+  --color-button-action: var(--color-sky-700);
+  --color-button-success: var(--color-green-700);
+  --color-button-warning: var(--color-amber-700);
+  --color-button-danger: var(--color-red-600);
   --color-neutral-action: var(--color-neutral-600);
   --color-neutral-action-hover: var(--color-neutral-500);
   --color-on-neutral-action: var(--color-white);
@@ -262,15 +280,15 @@
 }
 
 @utility btn-action {
-  @apply btn bg-action text-on-action hover:bg-action-hover;
+  @apply btn bg-(--color-button-action) text-white hover:bg-(--color-button-action)/90;
 }
 
 @utility btn-success {
-  @apply btn bg-success text-on-success hover:bg-success/90;
+  @apply btn bg-(--color-button-success) text-white hover:bg-(--color-button-success)/90;
 }
 
 @utility btn-secondary {
-  @apply btn border border-border bg-surface text-text hover:bg-surface-emphasized;
+  @apply btn bg-surface-emphasized/60 text-text hover:bg-surface-emphasized;
 }
 
 @utility btn-ghost {
@@ -278,11 +296,11 @@
 }
 
 @utility btn-warning {
-  @apply btn bg-warning text-on-warning hover:bg-warning/90;
+  @apply btn bg-(--color-button-warning) text-white hover:bg-(--color-button-warning)/90;
 }
 
 @utility btn-danger {
-  @apply btn bg-danger text-on-danger hover:bg-danger/90;
+  @apply btn bg-(--color-button-danger) text-white hover:bg-(--color-button-danger)/90;
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */
@@ -356,13 +374,13 @@
 
 /* Single-choice rows used by settings radio groups. */
 @utility choice-row {
-  @apply flex cursor-pointer items-center gap-3 overflow-hidden rounded-md border border-transparent bg-surface px-3 py-2.5 text-left transition-[background-color,border-color,box-shadow];
-  @apply hover:border-border hover:bg-surface-emphasized;
+  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors;
+  @apply hover:border-input-border hover:bg-surface;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @utility choice-row-selected {
-  @apply border-action/30 bg-action/8 shadow-[inset_3px_0_0_var(--color-action)] hover:border-action/40 hover:bg-action/10;
+  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
 }
 
 @utility choice-indicator {

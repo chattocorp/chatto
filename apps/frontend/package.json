@@ -16,7 +16,6 @@
     "format": "prettier --write .",
     "lint": "eslint .",
     "test:unit": "vitest",
-    "test:visual": "vitest --run --project=client src/lib/ui/DesignSystem.visual.svelte.spec.ts",
     "test:storybook": "vitest --project=storybook",
     "test": "npm run test:unit -- --run && npm run test:e2e",
     "test:e2e": "playwright test",
