@@ -14,7 +14,7 @@
     "empty_overview": "Übersicht",
     "empty_suffix": "um das Verzeichnis zu durchsuchen und interessanten Räumen beizutreten.",
     "mark_as_read": "Als gelesen markieren",
-    "leave_server": "Server verlassen",
+    "remove_server": "Server entfernen",
     "leave_room": "Raum verlassen",
     "server_actions": "Aktionen für {server}",
     "room_actions": "Aktionen für #{room}"

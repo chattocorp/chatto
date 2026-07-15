@@ -14,7 +14,7 @@
     "empty_overview": "Visão geral",
     "empty_suffix": "para navegar no diretório e juntar-se aos que lhe interessam.",
     "mark_as_read": "Marcar como lido",
-    "leave_server": "Sair do servidor",
+    "remove_server": "Remover servidor",
     "leave_room": "Sair da sala",
     "server_actions": "Ações para {server}",
     "room_actions": "Ações para #{room}"

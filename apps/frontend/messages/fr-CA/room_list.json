@@ -14,7 +14,7 @@
     "empty_overview": "Présentation",
     "empty_suffix": "pour parcourir l'annuaire et rejoindre ceux qui vous intéressent.",
     "mark_as_read": "Marquer comme lu",
-    "leave_server": "Quitter le serveur",
+    "remove_server": "Retirer le serveur",
     "leave_room": "Quitter le salon",
     "server_actions": "Actions pour {server}",
     "room_actions": "Actions pour #{room}"

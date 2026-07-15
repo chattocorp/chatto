@@ -106,11 +106,11 @@
     void markNavigationServerAsRead(serverId);
   }
 
-  function handleLeaveServer(): void {
+  function handleRemoveServer(): void {
     closeContextMenu();
     pushState('', {
       modal: {
-        type: 'leaveServer',
+        type: 'removeServer',
         serverId,
         spaceName: iconServer.name
       }
@@ -316,7 +316,7 @@
       kind="server"
       canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
       onMarkRead={handleMarkServerRead}
-      onLeave={handleLeaveServer}
+      onLeave={handleRemoveServer}
     />
   </ContextMenu>
 {/if}

@@ -66,9 +66,12 @@
       "leave_confirm": "Tem a certeza que pretende sair do #{room}?"
     },
     "server": {
-      "leave_title": "Sair do servidor",
-      "leave_action": "Sair do servidor",
-      "leave_prompt": "Tem a certeza que pretende sair do {server}? Perderá o acesso às salas e o seu cliente esquecerá este servidor. Pode adicioná-lo novamente mais tarde na barra lateral."
+      "remove_title": "Remover servidor",
+      "remove_action": "Remover servidor",
+      "remove_prompt": "Remover {server} desta barra lateral? Isto remove o servidor apenas deste dispositivo. A sua conta e os seus dados no servidor não serão eliminados.",
+      "remove_account_prefix": "Para eliminar permanentemente a sua conta, abra as ",
+      "remove_account_link": "Definições da conta",
+      "remove_account_suffix": " deste servidor antes de o remover."
     },
     "timeline": {
       "beginning": "Este é o início desta conversa."

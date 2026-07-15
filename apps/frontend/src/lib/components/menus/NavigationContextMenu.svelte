@@ -42,9 +42,15 @@ The parent owns read and leave behavior so this component stays presentation-onl
 				onclick={onLeave}
 				role="menuitem"
 			>
-				<span class="sidebar-icon iconify uil--sign-out-alt" aria-hidden="true"></span>
+				<span
+					class={[
+						'sidebar-icon iconify',
+						kind === 'server' ? 'uil--minus-circle' : 'uil--sign-out-alt'
+					]}
+					aria-hidden="true"
+				></span>
 				{kind === 'server'
-					? m['room_list.leave_server']()
+					? m['room_list.remove_server']()
 					: m['room_list.leave_room']()}
 			</button>
 		{/if}

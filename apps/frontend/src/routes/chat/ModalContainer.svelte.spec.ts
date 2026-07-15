@@ -425,7 +425,7 @@ describe('ModalContainer sign out modal', () => {
   });
 });
 
-describe('ModalContainer leave server modal', () => {
+describe('ModalContainer remove server modal', () => {
   it('removes an inactive selected server without navigating away from the active server', async () => {
     const remote = {
       id: 'remote',
@@ -434,10 +434,14 @@ describe('ModalContainer leave server modal', () => {
       token: 'token'
     };
     mocks.servers = [mocks.originServer!, remote];
-    mocks.modal = { type: 'leaveServer', serverId: 'remote', spaceName: 'Remote' };
+    mocks.modal = { type: 'removeServer', serverId: 'remote', spaceName: 'Remote' };
 
     const { container } = render(ModalContainer);
-    clickButton(container, 'Leave Server');
+    await expect
+      .element(q(container, '[href="/chat/remote.example.test/settings/account"]'))
+      .toHaveTextContent('Account Settings');
+    expect(container.textContent).toContain('Your account and data on the server will not be deleted.');
+    clickButton(container, 'Remove Server');
 
     await vi.waitFor(() => {
       expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');

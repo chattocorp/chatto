@@ -14,7 +14,7 @@
     "empty_overview": "Огляд",
     "empty_suffix": ", щоб переглянути каталог і приєднатися до тих, хто вас цікавить.",
     "mark_as_read": "Позначити як прочитане",
-    "leave_server": "Залишити сервер",
+    "remove_server": "Видалити сервер",
     "leave_room": "Залишити кімнату",
     "server_actions": "Дії для {server}",
     "room_actions": "Дії для #{room}"

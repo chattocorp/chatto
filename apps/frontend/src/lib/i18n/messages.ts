@@ -641,11 +641,14 @@ const msg_room_directory_left_generic = (): LocalizedString => messages().room_d
 const msg_room_directory_leave_confirm = (
   inputs: Parameters<LocaleMessages['room_directory_leave_confirm']>[0]
 ): LocalizedString => messages().room_directory_leave_confirm(inputs);
-const msg_room_server_leave_title = (): LocalizedString => messages().room_server_leave_title(empty());
-const msg_room_server_leave_action = (): LocalizedString => messages().room_server_leave_action(empty());
-const msg_room_server_leave_prompt = (
-  inputs: Parameters<LocaleMessages['room_server_leave_prompt']>[0]
-): LocalizedString => messages().room_server_leave_prompt(inputs);
+const msg_room_server_remove_title = (): LocalizedString => messages().room_server_remove_title(empty());
+const msg_room_server_remove_action = (): LocalizedString => messages().room_server_remove_action(empty());
+const msg_room_server_remove_prompt = (
+  inputs: Parameters<LocaleMessages['room_server_remove_prompt']>[0]
+): LocalizedString => messages().room_server_remove_prompt(inputs);
+const msg_room_server_remove_account_prefix = (): LocalizedString => messages().room_server_remove_account_prefix(empty());
+const msg_room_server_remove_account_link = (): LocalizedString => messages().room_server_remove_account_link(empty());
+const msg_room_server_remove_account_suffix = (): LocalizedString => messages().room_server_remove_account_suffix(empty());
 const msg_room_timeline_beginning = (): LocalizedString => messages().room_timeline_beginning(empty());
 const msg_room_message_empty = (): LocalizedString => messages().room_message_empty(empty());
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
@@ -923,7 +926,7 @@ const msg_room_list_empty_prefix = (): LocalizedString => messages().room_list_e
 const msg_room_list_empty_overview = (): LocalizedString => messages().room_list_empty_overview(empty());
 const msg_room_list_empty_suffix = (): LocalizedString => messages().room_list_empty_suffix(empty());
 const msg_room_list_mark_as_read = (): LocalizedString => messages().room_list_mark_as_read(empty());
-const msg_room_list_leave_server = (): LocalizedString => messages().room_list_leave_server(empty());
+const msg_room_list_remove_server = (): LocalizedString => messages().room_list_remove_server(empty());
 const msg_room_list_leave_room = (): LocalizedString => messages().room_list_leave_room(empty());
 const msg_room_list_server_actions = (
   inputs: Parameters<LocaleMessages['room_list_server_actions']>[0]
@@ -2083,9 +2086,12 @@ export { msg_room_directory_join_group_failed as 'room.directory.join_group_fail
 export { msg_room_directory_left as 'room.directory.left' };
 export { msg_room_directory_left_generic as 'room.directory.left_generic' };
 export { msg_room_directory_leave_confirm as 'room.directory.leave_confirm' };
-export { msg_room_server_leave_title as 'room.server.leave_title' };
-export { msg_room_server_leave_action as 'room.server.leave_action' };
-export { msg_room_server_leave_prompt as 'room.server.leave_prompt' };
+export { msg_room_server_remove_title as 'room.server.remove_title' };
+export { msg_room_server_remove_action as 'room.server.remove_action' };
+export { msg_room_server_remove_prompt as 'room.server.remove_prompt' };
+export { msg_room_server_remove_account_prefix as 'room.server.remove_account_prefix' };
+export { msg_room_server_remove_account_link as 'room.server.remove_account_link' };
+export { msg_room_server_remove_account_suffix as 'room.server.remove_account_suffix' };
 export { msg_room_timeline_beginning as 'room.timeline.beginning' };
 export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
@@ -2307,7 +2313,7 @@ export { msg_room_list_empty_prefix as 'room_list.empty_prefix' };
 export { msg_room_list_empty_overview as 'room_list.empty_overview' };
 export { msg_room_list_empty_suffix as 'room_list.empty_suffix' };
 export { msg_room_list_mark_as_read as 'room_list.mark_as_read' };
-export { msg_room_list_leave_server as 'room_list.leave_server' };
+export { msg_room_list_remove_server as 'room_list.remove_server' };
 export { msg_room_list_leave_room as 'room_list.leave_room' };
 export { msg_room_list_server_actions as 'room_list.server_actions' };
 export { msg_room_list_room_actions as 'room_list.room_actions' };

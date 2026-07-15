@@ -14,7 +14,7 @@ declare global {
           | 'logout'
           | 'leaveRoom'
           | 'deleteMessage'
-          | 'leaveServer'
+          | 'removeServer'
           | 'deleteAttachment'
           | 'deleteLinkPreview'
           | 'imageViewer';

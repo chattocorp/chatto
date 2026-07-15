@@ -309,22 +309,22 @@ describe('ServerSidebarEntry', () => {
       .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
   });
 
-  it('opens the leave-server confirmation for the selected server', async () => {
+  it('opens the remove-server confirmation for the selected server', async () => {
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote', currentUserId: 'user-1' }
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave server'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Remove server'));
 
     const leave = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Leave server'
+      (button) => button.textContent?.trim() === 'Remove server'
     );
     await expect.element(leave ?? null).toBeInTheDocument();
     leave!.click();
 
     expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'leaveServer', serverId: 'remote', spaceName: 'Loaded Remote' }
+      modal: { type: 'removeServer', serverId: 'remote', spaceName: 'Loaded Remote' }
     });
   });
 

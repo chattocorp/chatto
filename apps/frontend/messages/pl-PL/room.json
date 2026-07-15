@@ -66,9 +66,12 @@
       "leave_confirm": "Czy na pewno chcesz opuścić #{room}?"
     },
     "server": {
-      "leave_title": "Opuść serwer",
-      "leave_action": "Opuść serwer",
-      "leave_prompt": "Czy na pewno chcesz opuścić {server}? Stracisz dostęp do jego pokoi, a Twój klient zapomni o tym serwerze. Możesz dodać go później ponownie z paska bocznego."
+      "remove_title": "Usuń serwer",
+      "remove_action": "Usuń serwer",
+      "remove_prompt": "Usunąć {server} z tego paska bocznego? Spowoduje to jedynie usunięcie serwera z tego urządzenia. Twoje konto i dane na serwerze nie zostaną usunięte.",
+      "remove_account_prefix": "Aby trwale usunąć konto, przed usunięciem serwera otwórz jego ",
+      "remove_account_link": "Ustawienia konta",
+      "remove_account_suffix": "."
     },
     "timeline": {
       "beginning": "To początek tej rozmowy."

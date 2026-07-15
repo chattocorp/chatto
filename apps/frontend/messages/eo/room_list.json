@@ -14,7 +14,7 @@
     "empty_overview": "Superrigardo",
     "empty_suffix": "por foliumi la dosierujon kaj aliĝi al tiuj, pri kiuj vi interesiĝas.",
     "mark_as_read": "Marki kiel legitan",
-    "leave_server": "Forlasi servilon",
+    "remove_server": "Forigi servilon",
     "leave_room": "Forlasi ĉambron",
     "server_actions": "Agoj por {server}",
     "room_actions": "Agoj por #{room}"

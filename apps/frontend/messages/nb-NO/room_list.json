@@ -14,7 +14,7 @@
     "empty_overview": "Oversikt",
     "empty_suffix": "for å bla gjennom katalogen og bli med i de du er interessert i.",
     "mark_as_read": "Merk som lest",
-    "leave_server": "Forlat server",
+    "remove_server": "Fjern server",
     "leave_room": "Forlat rom",
     "server_actions": "Handlinger for {server}",
     "room_actions": "Handlinger for #{room}"

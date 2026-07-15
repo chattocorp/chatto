@@ -66,9 +66,12 @@
       "leave_confirm": "Är du säker på att du vill lämna #{room}?"
     },
     "server": {
-      "leave_title": "Lämna servern",
-      "leave_action": "Lämna servern",
-      "leave_prompt": "Är du säker på att du vill lämna {server}? Du kommer att förlora åtkomst till dess rum och din klient kommer att glömma den här servern. Du kan lägga till det igen senare från sidofältet."
+      "remove_title": "Ta bort server",
+      "remove_action": "Ta bort server",
+      "remove_prompt": "Ta bort {server} från det här sidofältet? Detta tar bara bort servern från den här enheten. Ditt konto och dina data på servern raderas inte.",
+      "remove_account_prefix": "Om du vill radera ditt konto permanent öppnar du ",
+      "remove_account_link": "Kontoinställningar",
+      "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
       "beginning": "Det här är början på den här konversationen."

@@ -66,9 +66,12 @@
       "leave_confirm": "Ĉu vi certas, ke vi volas forlasi #{room}?"
     },
     "server": {
-      "leave_title": "Forlasu Servilon",
-      "leave_action": "Forlasu Servilon",
-      "leave_prompt": "Ĉu vi certas, ke vi volas forlasi {server}? Vi perdos la aliron al ĝiaj ĉambroj, kaj via kliento forgesos pri ĉi tiu servilo. Vi povas re-aldoni ĝin poste de la flanka kolumno."
+      "remove_title": "Forigi servilon",
+      "remove_action": "Forigi servilon",
+      "remove_prompt": "Ĉu forigi {server} de ĉi tiu flanka kolumno? Tio nur forigas la servilon de ĉi tiu aparato. Via konto kaj datumoj sur la servilo ne estos forigitaj.",
+      "remove_account_prefix": "Por definitive forigi vian konton, malfermu la ",
+      "remove_account_link": "Kontajn agordojn",
+      "remove_account_suffix": " de ĉi tiu servilo antaŭ ol forigi ĝin."
     },
     "timeline": {
       "beginning": "Jen la komenco de ĉi tiu konversacio."
