@@ -14,6 +14,10 @@ authorization, live events, backup/restore, and backend tests.
 - Services own their domain state and projections. Do not bypass service
   boundaries to poke JetStream, KV, or projections from unrelated code.
 - Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
+- Projections must not retain decrypted PII when encrypted source fields can be
+  retained and hydrated at read boundaries. Keep derived lookup state
+  non-plaintext, and never turn KMS or decryption failures into apparent
+  absence, deletion, or a free uniqueness claim.
 
 ## Architecture Touchpoints
 
