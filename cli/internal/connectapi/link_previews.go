@@ -77,5 +77,65 @@ func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 	if embedID := preview.GetEmbedId(); embedID != "" {
 		out.EmbedId = stringPtr(embedID)
 	}
+	if socialPost := preview.GetSocialPost(); socialPost != nil {
+		mapped := &apiv1.SocialPostPreview{
+			Provider:       socialPost.GetProvider(),
+			Text:           socialPost.GetText(),
+			PublishedAt:    socialPost.GetPublishedAt(),
+			ContentWarning: optionalString(socialPost.GetContentWarning()),
+		}
+		if author := socialPost.GetAuthor(); author != nil {
+			mapped.Author = &apiv1.SocialPostAuthor{
+				DisplayName: author.GetDisplayName(),
+				Handle:      author.GetHandle(),
+			}
+			mapped.Author.AvatarUrl, mapped.Author.AvatarAssetId = linkPreviewAsset(api, author.GetAvatarAsset(), 96, 96, "cover")
+		}
+		if external := socialPost.GetExternalLink(); external != nil {
+			mapped.ExternalLink = &apiv1.SocialPostExternalLink{
+				Url:         external.GetUrl(),
+				Title:       optionalString(external.GetTitle()),
+				Description: optionalString(external.GetDescription()),
+			}
+			mapped.ExternalLink.ImageUrl, mapped.ExternalLink.ImageAssetId = linkPreviewAsset(api, external.GetImageAsset(), 600, 314, "contain")
+		}
+		for _, image := range socialPost.GetImages() {
+			imageURL, assetID := linkPreviewAsset(api, image.GetAsset(), 600, 600, "contain")
+			if imageURL == nil || assetID == nil {
+				continue
+			}
+			mapped.Images = append(mapped.Images, &apiv1.SocialPostImage{
+				Url: *imageURL, AssetId: *assetID, Alt: optionalString(image.GetAlt()),
+				Width: optionalUint32(image.GetWidth()), Height: optionalUint32(image.GetHeight()),
+			})
+		}
+		out.SocialPost = mapped
+	}
 	return out
+}
+
+func linkPreviewAsset(api *API, asset *corev1.AssetRecord, width, height int, fit string) (*string, *string) {
+	if asset == nil || asset.GetId() == "" {
+		return nil, nil
+	}
+	assetID := asset.GetId()
+	url := api.core.GetTransformedServerAssetURL(core.ServerAssetDeliveryKey(asset), width, height, fit)
+	if url == "" {
+		return nil, &assetID
+	}
+	return &url, &assetID
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func optionalUint32(value uint32) *uint32 {
+	if value == 0 {
+		return nil
+	}
+	return &value
 }

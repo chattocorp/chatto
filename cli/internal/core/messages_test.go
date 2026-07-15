@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -685,6 +686,69 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", tt.preview, false)
 			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
+}
+
+func TestValidateLinkPreviewSocialPost(t *testing.T) {
+	valid := func() *corev1.LinkPreview {
+		return &corev1.LinkPreview{
+			SocialPost: &corev1.SocialPostPreview{
+				Provider: "bluesky",
+				Author: &corev1.SocialPostAuthor{
+					DisplayName: "Bluesky",
+					Handle:      "bsky.app",
+				},
+				Text: "A post rendered by Chatto.",
+			},
+		}
+	}
+
+	require.NoError(t, validateLinkPreview(valid()))
+
+	tests := []struct {
+		name   string
+		mutate func(*corev1.SocialPostPreview)
+		match  string
+	}{
+		{
+			name:   "provider required",
+			mutate: func(post *corev1.SocialPostPreview) { post.Provider = "" },
+			match:  "provider is required",
+		},
+		{
+			name:   "author required",
+			mutate: func(post *corev1.SocialPostPreview) { post.Author = nil },
+			match:  "author is required",
+		},
+		{
+			name: "external URL required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.ExternalLink = &corev1.SocialPostExternalLink{Title: "Missing URL"}
+			},
+			match: "external URL is required",
+		},
+		{
+			name: "image asset required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.Images = []*corev1.SocialPostImage{{Alt: "Missing asset"}}
+			},
+			match: "image asset is required",
+		},
+		{
+			name: "image count bounded",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.Images = make([]*corev1.SocialPostImage, 5)
+			},
+			match: "more than 4 images",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preview := valid()
+			tt.mutate(preview.SocialPost)
+			require.ErrorContains(t, validateLinkPreview(preview), tt.match)
 		})
 	}
 }

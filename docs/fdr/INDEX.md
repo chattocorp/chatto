@@ -18,7 +18,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-06-15 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-05-31 |
 | [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-07-10 |
-| [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-07-04 |
+| [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-07-15 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-07-14 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Active | 2026-07-01 |

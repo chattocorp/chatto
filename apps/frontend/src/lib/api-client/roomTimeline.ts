@@ -444,7 +444,36 @@ function linkPreviewView(preview?: LinkPreview) {
     siteName: preview.siteName || null,
     imageUrl: preview.imageUrl || null,
     embedType: preview.embedType || null,
-    embedId: preview.embedId || null
+    embedId: preview.embedId || null,
+    socialPost: preview.socialPost
+      ? {
+          provider: preview.socialPost.provider,
+          author: preview.socialPost.author
+            ? {
+                displayName: preview.socialPost.author.displayName,
+                handle: preview.socialPost.author.handle,
+                avatarUrl: preview.socialPost.author.avatarUrl || null
+              }
+            : null,
+          text: preview.socialPost.text,
+          publishedAt: timestampToISOOrNull(preview.socialPost.publishedAt),
+          externalLink: preview.socialPost.externalLink
+            ? {
+                url: preview.socialPost.externalLink.url,
+                title: preview.socialPost.externalLink.title || null,
+                description: preview.socialPost.externalLink.description || null,
+                imageUrl: preview.socialPost.externalLink.imageUrl || null
+              }
+            : null,
+          contentWarning: preview.socialPost.contentWarning || null,
+          images: preview.socialPost.images.map((image) => ({
+            url: image.url,
+            alt: image.alt || null,
+            width: image.width || null,
+            height: image.height || null
+          }))
+        }
+      : null
   };
 }
 

@@ -186,6 +186,18 @@ var youtubePathRegex = regexp.MustCompile(
 	`^/(?:watch\?(?:.*&)?v=|embed/|v/|shorts/)([a-zA-Z0-9_-]{11})`,
 )
 
+var blueskyPostPathRegex = regexp.MustCompile(`^/profile/[^/]+/post/[^/]+/?$`)
+
+// IsBlueskyPostURL reports whether rawURL is a public bsky.app post URL.
+func IsBlueskyPostURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+
+	return strings.EqualFold(u.Hostname(), "bsky.app") && blueskyPostPathRegex.MatchString(u.Path)
+}
+
 // ParseYouTubeVideoID extracts the video ID from a YouTube URL.
 // Returns empty string if the URL is not a valid YouTube video URL.
 func ParseYouTubeVideoID(rawURL string) string {

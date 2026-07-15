@@ -329,6 +329,43 @@ message LinkPreview {
 
   // Preview image content metadata and storage pointer.
   AssetRecord image_asset = 8;
+
+  // Structured social-post snapshot for native rendering.
+  SocialPostPreview social_post = 9;
+}
+
+// SocialPostPreview is a bounded, provider-neutral snapshot of a public post.
+message SocialPostPreview {
+  string provider = 1;
+  SocialPostAuthor author = 2;
+  string text = 3;
+  google.protobuf.Timestamp published_at = 4;
+  repeated SocialPostImage images = 5;
+  SocialPostExternalLink external_link = 6;
+  optional string content_warning = 7;
+}
+
+// SocialPostAuthor identifies the author shown on a social-post preview.
+message SocialPostAuthor {
+  string display_name = 1;
+  string handle = 2;
+  AssetRecord avatar_asset = 3;
+}
+
+// SocialPostImage is one locally persisted image attached to a social post.
+message SocialPostImage {
+  AssetRecord asset = 1;
+  string alt = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+// SocialPostExternalLink is a website card attached to a social post.
+message SocialPostExternalLink {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  AssetRecord image_asset = 4;
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.

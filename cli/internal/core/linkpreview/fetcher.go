@@ -3,12 +3,16 @@ package linkpreview
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	// Register image decoders for image.Decode used by assets.ProcessLogoImageWithConfig
 	_ "image/jpeg"
@@ -16,7 +20,9 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/otiai10/opengraph/v2"
+	"golang.org/x/net/html"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/assets"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -35,6 +41,9 @@ const (
 
 	// PageFetchTimeout is the timeout for fetching page metadata.
 	PageFetchTimeout = 10 * time.Second
+
+	// MaxOEmbedSize bounds metadata returned by recognized embed providers.
+	MaxOEmbedSize = 256 * 1024
 )
 
 // ErrUnavailable marks URLs that were fetched or inspected successfully enough
@@ -73,8 +82,9 @@ type FetchResult struct {
 	Description string
 	SiteName    string
 	ImageAsset  *corev1.AssetRecord // Image asset if image was downloaded, nil otherwise
-	EmbedType   string              // "generic", "youtube"
-	EmbedID     string              // For YouTube: video ID
+	EmbedType   string              // "generic", "youtube", "bluesky"
+	EmbedID     string              // Provider-specific canonical ID
+	SocialPost  *corev1.SocialPostPreview
 }
 
 // Fetch fetches link preview metadata for a URL.
@@ -89,6 +99,16 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 			EmbedType: "youtube",
 			EmbedID:   videoID,
 		}, nil
+	}
+
+	// Bluesky's oEmbed response supplies the canonical AT URI used to fetch a
+	// bounded post snapshot. Fall back to OpenGraph if discovery is unavailable.
+	if IsBlueskyPostURL(rawURL) {
+		result, err := f.fetchBluesky(ctx, rawURL)
+		if err == nil {
+			return result, nil
+		}
+		f.logger.Warn("Failed to fetch Bluesky oEmbed metadata", "url", rawURL, "error", err)
 	}
 
 	// Fetch the page with a size limit to prevent memory exhaustion
@@ -172,6 +192,276 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 
 	return result, nil
 }
+
+type blueskyOEmbed struct {
+	HTML string `json:"html"`
+}
+
+type blueskyGetPosts struct {
+	Posts []blueskyPost `json:"posts"`
+}
+
+type blueskyPost struct {
+	URI    string `json:"uri"`
+	Labels []struct {
+		Value string `json:"val"`
+	} `json:"labels"`
+	Author struct {
+		Handle      string `json:"handle"`
+		DisplayName string `json:"displayName"`
+		Avatar      string `json:"avatar"`
+		Labels      []struct {
+			Value string `json:"val"`
+		} `json:"labels"`
+	} `json:"author"`
+	Record struct {
+		Text      string `json:"text"`
+		CreatedAt string `json:"createdAt"`
+	} `json:"record"`
+	Embed struct {
+		External *struct {
+			URI         string `json:"uri"`
+			Title       string `json:"title"`
+			Description string `json:"description"`
+			Thumb       string `json:"thumb"`
+		} `json:"external"`
+		Images []struct {
+			Fullsize    string `json:"fullsize"`
+			Alt         string `json:"alt"`
+			AspectRatio *struct {
+				Width  uint32 `json:"width"`
+				Height uint32 `json:"height"`
+			} `json:"aspectRatio"`
+		} `json:"images"`
+	} `json:"embed"`
+}
+
+func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult, error) {
+	endpoint, err := url.Parse("https://embed.bsky.app/oembed")
+	if err != nil {
+		return nil, fmt.Errorf("parse oEmbed endpoint: %w", err)
+	}
+	query := endpoint.Query()
+	query.Set("url", rawURL)
+	query.Set("format", "json")
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create oEmbed request: %w", err)
+	}
+	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := f.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch oEmbed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("oEmbed returned status %d", resp.StatusCode)
+	}
+
+	var metadata blueskyOEmbed
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, MaxOEmbedSize))
+	if err := decoder.Decode(&metadata); err != nil {
+		return nil, fmt.Errorf("decode oEmbed: %w", err)
+	}
+
+	embedID, _, err := parseBlueskyOEmbedHTML(metadata.HTML)
+	if err != nil {
+		return nil, err
+	}
+	post, err := f.fetchBlueskyPost(ctx, embedID)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot := &corev1.SocialPostPreview{
+		Provider: "bluesky",
+		Author: &corev1.SocialPostAuthor{
+			DisplayName: post.Author.DisplayName,
+			Handle:      post.Author.Handle,
+		},
+		Text: post.Record.Text,
+	}
+	if snapshot.Author.DisplayName == "" {
+		snapshot.Author.DisplayName = post.Author.Handle
+	}
+	if publishedAt, err := time.Parse(time.RFC3339Nano, post.Record.CreatedAt); err == nil {
+		snapshot.PublishedAt = timestamppb.New(publishedAt)
+	}
+	if post.Author.Avatar != "" {
+		snapshot.Author.AvatarAsset = f.downloadBlueskyImage(ctx, post.Author.Avatar)
+	}
+	if external := post.Embed.External; external != nil {
+		snapshot.ExternalLink = &corev1.SocialPostExternalLink{
+			Url:         external.URI,
+			Title:       external.Title,
+			Description: external.Description,
+			ImageAsset:  f.downloadBlueskyImage(ctx, external.Thumb),
+		}
+	}
+	for _, image := range post.Embed.Images[:min(len(post.Embed.Images), 4)] {
+		asset := f.downloadBlueskyImage(ctx, image.Fullsize)
+		if asset == nil {
+			continue
+		}
+		out := &corev1.SocialPostImage{Asset: asset, Alt: image.Alt}
+		if image.AspectRatio != nil {
+			out.Width = image.AspectRatio.Width
+			out.Height = image.AspectRatio.Height
+		}
+		snapshot.Images = append(snapshot.Images, out)
+	}
+
+	title := snapshot.Author.DisplayName
+	if snapshot.Author.Handle != "" {
+		title += " (@" + snapshot.Author.Handle + ")"
+	}
+	return &FetchResult{
+		Title:       title,
+		Description: post.Record.Text,
+		SiteName:    "Bluesky",
+		EmbedType:   "bluesky",
+		EmbedID:     embedID,
+		SocialPost:  snapshot,
+	}, nil
+}
+
+func (f *Fetcher) fetchBlueskyPost(ctx context.Context, atURI string) (*blueskyPost, error) {
+	endpoint, _ := url.Parse("https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts")
+	query := endpoint.Query()
+	query.Set("uris", atURI)
+	endpoint.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create Bluesky post request: %w", err)
+	}
+	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
+	req.Header.Set("Accept", "application/json")
+	resp, err := f.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch Bluesky post: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Bluesky post API returned status %d", resp.StatusCode)
+	}
+	var result blueskyGetPosts
+	if err := json.NewDecoder(io.LimitReader(resp.Body, MaxOEmbedSize)).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode Bluesky post: %w", err)
+	}
+	if len(result.Posts) != 1 || result.Posts[0].URI != atURI {
+		return nil, errors.New("Bluesky post API returned no matching post")
+	}
+	if len(result.Posts[0].Labels) > 0 || len(result.Posts[0].Author.Labels) > 0 {
+		return nil, errors.New("Bluesky post requires provider moderation rendering")
+	}
+	post := &result.Posts[0]
+	post.Author.DisplayName = truncateUTF8Bytes(post.Author.DisplayName, 300)
+	post.Author.Handle = truncateUTF8Bytes(post.Author.Handle, 200)
+	post.Record.Text = truncateUTF8Bytes(post.Record.Text, 1000)
+	if post.Embed.External != nil {
+		post.Embed.External.URI = safeExternalURL(truncateUTF8Bytes(post.Embed.External.URI, 2048))
+		if post.Embed.External.URI == "" {
+			post.Embed.External = nil
+		} else {
+			post.Embed.External.Title = truncateUTF8Bytes(post.Embed.External.Title, 300)
+			post.Embed.External.Description = truncateUTF8Bytes(post.Embed.External.Description, 1000)
+		}
+	}
+	for i := range post.Embed.Images {
+		post.Embed.Images[i].Alt = truncateUTF8Bytes(post.Embed.Images[i].Alt, 1000)
+	}
+	return post, nil
+}
+
+func safeExternalURL(value string) string {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return ""
+	}
+	return parsed.String()
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if len(value) <= maxBytes {
+		return value
+	}
+	value = value[:maxBytes]
+	for !utf8.ValidString(value) {
+		value = value[:len(value)-1]
+	}
+	return value
+}
+
+func (f *Fetcher) downloadBlueskyImage(ctx context.Context, imageURL string) *corev1.AssetRecord {
+	if imageURL == "" || f.imageClient == nil {
+		return nil
+	}
+	asset, err := f.downloadAndStoreImage(ctx, imageURL)
+	if err != nil {
+		f.logger.Warn("Failed to persist Bluesky image", "url", imageURL, "error", err)
+		return nil
+	}
+	return asset
+}
+
+func parseBlueskyOEmbedHTML(source string) (embedID string, description string, err error) {
+	root, err := html.Parse(strings.NewReader(source))
+	if err != nil {
+		return "", "", fmt.Errorf("parse oEmbed HTML: %w", err)
+	}
+
+	var visit func(*html.Node)
+	visit = func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "blockquote" {
+			for _, attr := range node.Attr {
+				if attr.Key == "data-bluesky-uri" && isValidBlueskyATURI(attr.Val) {
+					embedID = attr.Val
+				}
+			}
+		}
+		if node.Type == html.ElementNode && node.Data == "p" && description == "" {
+			description = strings.TrimSpace(nodeText(node))
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+	}
+	visit(root)
+	if embedID == "" {
+		return "", "", errors.New("oEmbed response has no valid Bluesky AT URI")
+	}
+	return embedID, description, nil
+}
+
+func nodeText(node *html.Node) string {
+	if node.Type == html.TextNode {
+		return node.Data
+	}
+	var text strings.Builder
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		text.WriteString(nodeText(child))
+	}
+	return text.String()
+}
+
+func isValidBlueskyATURI(value string) bool {
+	const prefix = "at://did:"
+	if !strings.HasPrefix(value, prefix) || len(value) > 256 {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(value, "at://"), "/")
+	return len(parts) == 3 && validBlueskyDID.MatchString(parts[0]) &&
+		parts[1] == "app.bsky.feed.post" && validBlueskyRecordKey.MatchString(parts[2])
+}
+
+var (
+	validBlueskyDID       = regexp.MustCompile(`^did:[A-Za-z0-9._:%-]+$`)
+	validBlueskyRecordKey = regexp.MustCompile(`^[A-Za-z0-9._:~-]+$`)
+)
 
 // truncate truncates a string to maxLen characters, adding "..." if truncated.
 func truncate(s string, maxLen int) string {
@@ -271,6 +561,9 @@ func (r *FetchResult) ToProto(url string) *corev1.LinkPreview {
 	}
 	if r.EmbedID != "" {
 		lp.EmbedId = &r.EmbedID
+	}
+	if r.SocialPost != nil {
+		lp.SocialPost = proto.Clone(r.SocialPost).(*corev1.SocialPostPreview)
 	}
 	return lp
 }

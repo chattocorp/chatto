@@ -154,9 +154,11 @@ the event as `message`, `derivative`, `user_avatar`, or `server_branding`, not
 inside `Asset`. New message bodies reference message-owned assets by ID.
 
 Link preview images are server-scoped persisted assets embedded in message
-bodies as `LinkPreview.image_asset` (`AssetRecord`). The body records whether
-the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for older
-clients and stored previews.
+bodies as `AssetRecord` values. Generic previews use `LinkPreview.image_asset`;
+structured social-post snapshots can also carry an author avatar, website-card
+image, and up to four post images. Provider adapters populate the same bounded
+snapshot shape. Each record identifies whether its image lives in S3 or
+`SERVER_ASSETS`; `image_asset_id` remains for older generic previews.
 
 ### Asset lifecycle and compatibility
 
