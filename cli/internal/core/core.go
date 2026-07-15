@@ -284,9 +284,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.applyConfigOwners(gctx); err != nil {
 			return fmt.Errorf("apply config owners: %w", err)
 		}
-		if err := c.EnsureDefaultRolePermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default role permissions: %w", err)
-		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
@@ -294,9 +291,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// projection and depends on WaitFor actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
-		}
-		if err := c.EnsureDefaultChannelRoomPermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default channel room permissions: %w", err)
 		}
 		close(c.bootDone)
 		return nil
