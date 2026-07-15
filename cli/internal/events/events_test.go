@@ -770,7 +770,8 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	coldProjection := newTrackingProjection(RoomSubjectFilter())
 	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
 	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
-	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], Payload: []byte("restored")}}
+	createdAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Payload: []byte("restored")}}
 	if err := restoredProjector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
 		t.Fatal(err)
 	}
@@ -791,6 +792,9 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	status := restoredProjector.Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq != seqs[1] || status.StartupMessages != 1 || status.LastSeq != seqs[2] {
 		t.Fatalf("restored status = %#v", status)
+	}
+	if status.LatestSnapshotSeq != seqs[1] || !status.LatestSnapshotAt.Equal(createdAt) {
+		t.Fatalf("latest snapshot status = %#v", status)
 	}
 	if source.request.StreamName != "EVT_TEST" || !ValidStreamIdentity(source.request.StreamIdentity) || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
 		t.Fatalf("snapshot load request = %#v", source.request)

@@ -85,9 +85,10 @@ authorization, live events, backup/restore, and backend tests.
   compatibility version. Keep snapshot pointers on a durable revisioned store
   and publish them with OCC; a process lease is not fencing.
   Carry cutoff, EVT incarnation, and compatibility metadata in the pointer.
-  Allow same-cutoff refreshes for retention, reject regressing captures, and use
-  pointer revision OCC to prevent concurrent writers from replacing newer
-  history.
+  Allow same-cutoff refreshes for retention, but do not republish a fresh,
+  unchanged generation merely because a process restarted. Reject regressing
+  captures, and use pointer revision OCC to prevent concurrent writers from
+  replacing newer history.
   Scope generation object paths by encryption-key epoch. NATS Object Store TTL
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.

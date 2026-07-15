@@ -242,14 +242,16 @@ identity, projector configuration, and lease failures disable the affected
 snapshot workers and log the reason. They do not prevent core startup when EVT
 is available.
 
-The worker publishes one generation per eligible projection immediately after
-boot and starts another sequential pass every 23-24 hours. It refreshes a
-generation even when the projection's EVT cutoff is unchanged, ensuring quiet
-projections receive a new storage timestamp before retention expiry. A lower
-cutoff for the same EVT history and compatibility is rejected. A failure for
-one projection is logged and does not prevent the remaining jobs from running.
-On S3, the same elected worker runs bounded expiry after publication; expiry
-failure does not stop the daily cadence.
+The worker checks every eligible projection immediately after boot and then
+hourly. It publishes immediately after a cold replay or when startup replay
+advanced beyond the restored cutoff. A fresh, unchanged restore is not
+republished. Once the latest generation is 23 hours old, the worker refreshes
+it even when its cutoff is unchanged, ensuring quiet projections receive a new
+storage timestamp before retention expiry without turning restarts into writes.
+A lower cutoff for the same EVT history and compatibility is rejected. A
+failure for one projection is logged and does not prevent the remaining jobs
+from running. On S3, the same elected worker runs bounded expiry at most daily;
+expiry failure does not stop publication checks.
 
 ### Each projection owns its replay frontier
 

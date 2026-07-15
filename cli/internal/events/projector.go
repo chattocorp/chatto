@@ -113,6 +113,7 @@ type SnapshotCompatibleProjection interface {
 type ProjectionSnapshot struct {
 	GenerationID   string
 	CutoffSequence uint64
+	CreatedAt      time.Time
 	Payload        []byte
 }
 
@@ -186,6 +187,8 @@ type Projector struct {
 	snapshotLoadTimeout  time.Duration
 	restoredSeq          uint64
 	restoredGenerationID string
+	latestSnapshotSeq    uint64
+	latestSnapshotAt     time.Time
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -202,6 +205,8 @@ type ProjectorStatus struct {
 	SnapshotRestored     bool
 	SnapshotCutoffSeq    uint64
 	SnapshotGenerationID string
+	LatestSnapshotSeq    uint64
+	LatestSnapshotAt     time.Time
 
 	Failed    bool
 	FailedSeq uint64
@@ -331,6 +336,8 @@ func (p *Projector) Status() ProjectorStatus {
 		SnapshotRestored:     p.restoredSeq > 0 || p.restoredGenerationID != "",
 		SnapshotCutoffSeq:    p.restoredSeq,
 		SnapshotGenerationID: p.restoredGenerationID,
+		LatestSnapshotSeq:    p.latestSnapshotSeq,
+		LatestSnapshotAt:     p.latestSnapshotAt,
 	}
 	if !p.startupStartedAt.IsZero() {
 		startupEndsAt := p.startupEndedAt
@@ -346,6 +353,16 @@ func (p *Projector) Status() ProjectorStatus {
 		status.Err = p.failedErr
 	}
 	return status
+}
+
+// RecordSnapshotPublication updates the latest persisted generation metadata
+// used by the snapshot worker's refresh policy. Publication remains guarded by
+// the repository's cross-replica OCC checks.
+func (p *Projector) RecordSnapshotPublication(cutoff uint64, createdAt time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.latestSnapshotSeq = cutoff
+	p.latestSnapshotAt = createdAt
 }
 
 // Err returns the fatal projection error, if the projector has stopped
@@ -909,6 +926,8 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		p.lastSeq = 0
 		p.restoredSeq = 0
 		p.restoredGenerationID = ""
+		p.latestSnapshotSeq = 0
+		p.latestSnapshotAt = time.Time{}
 		p.mu.Unlock()
 		return nil
 	}
@@ -969,6 +988,8 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.mu.Lock()
 	p.restoredSeq = snapshot.CutoffSequence
 	p.restoredGenerationID = snapshot.GenerationID
+	p.latestSnapshotSeq = snapshot.CutoffSequence
+	p.latestSnapshotAt = snapshot.CreatedAt
 	p.mu.Unlock()
 	// Restore runs after markStarted, so boot-time callers may already be
 	// waiting for this sequence. Advance through the normal waiter path instead

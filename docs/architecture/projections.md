@@ -51,10 +51,10 @@ display-name, and verified-email values, lookup digests, wrapped DEK records,
 and non-secret profile metadata. Its schema has no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
-One replica is elected through a `MEMORY_CACHE` lease after boot to publish
-fresh generations for all eligible projections immediately and then every
-23-24 hours, including when a projection's EVT cutoff is unchanged. Jobs run
-sequentially. Generations are compressed and authenticated with
+One replica is elected through a `MEMORY_CACHE` lease after boot. It checks
+snapshot eligibility immediately and hourly, publishes after cold or delta
+replay, and refreshes unchanged generations once they reach 23 hours old. Jobs
+run sequentially. Generations are compressed and authenticated with
 XChaCha20-Poly1305 under an HKDF key derived from `core.secret_key`, then stored under
 `internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueEpoch}/{generationId}`
 in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3
@@ -75,8 +75,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
 | Projection | Compatibility | Payload store | Pointer store | Publication |
 | ---------- | ------------- | ------------- | ------------- | ----------- |
-| Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher after boot and every 23-24 hours |
-| Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected publisher after boot and every 23-24 hours |
+| Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
 
