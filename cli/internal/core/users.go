@@ -155,7 +155,6 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
-	account.LoginHash = userPIILookupHash(login)
 	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
@@ -262,7 +261,11 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User
 
 // GetUser retrieves a user from the user projection.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, error) {
-	if user, ok := c.Users.GetContext(ctx, userID); ok {
+	user, ok, err := c.Users.GetContext(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, ErrNotFound
@@ -271,7 +274,11 @@ func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
 // users are returned as tombstones; unknown users still return ErrNotFound.
 func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*corev1.User, error) {
-	if user, ok := c.Users.GetReferenceContext(ctx, userID); ok {
+	user, ok, err := c.Users.GetReferenceContext(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, ErrNotFound
@@ -297,7 +304,11 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 
 	userMap := make(map[string]*corev1.User, len(uniqueIDs))
 	for _, id := range uniqueIDs {
-		if user, ok := c.Users.GetContext(ctx, id); ok {
+		user, ok, err := c.Users.GetContext(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			userMap[id] = user
 		}
 	}
@@ -313,7 +324,11 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByLoginContext(ctx, login); ok {
+	user, ok, err := c.Users.GetByLoginContext(ctx, login)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, ErrNotFound
@@ -391,7 +406,11 @@ func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, erro
 	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return false, err
 	}
-	if _, ok := c.Users.GetContext(ctx, userID); !ok {
+	_, ok, err := c.Users.GetContext(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
 		return false, ErrNotFound
 	}
 	_, hasPassword := c.Users.PasswordHash(userID)
@@ -735,7 +754,7 @@ func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
 }
 
 func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
-	return c.Users.UsersContext(ctx), nil
+	return c.Users.UsersContext(ctx)
 }
 
 // GetUserAvatarURL returns the URL for a user's avatar.
@@ -912,7 +931,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	entries := make([]events.BatchEntry, 0, 2)
 	if loginChanged {
 		loginChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
-			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID, LoginHash: userPIILookupHash(nextLogin)},
+			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID},
 		}})
 		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, events.EventUserLoginChanged, "login", nextLogin)
 		if err != nil {
@@ -1087,8 +1106,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 
 	loginChanged := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 		UserLoginChanged: &corev1.UserLoginChangedEvent{
-			UserId:    userID,
-			LoginHash: userPIILookupHash(newLogin),
+			UserId: userID,
 		},
 	}})
 	encryptedLogin, err := c.encryptUserPIIString(ctx, loginChanged.GetId(), userID, events.EventUserLoginChanged, "login", newLogin)

@@ -206,14 +206,12 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	account := accountEvents[0].GetUserAccountCreated()
 	require.NotNil(t, account.GetEncryptedLogin())
 	require.NotNil(t, account.GetEncryptedDisplayName())
-	require.Equal(t, userPIILookupHash("piiuser"), account.GetLoginHash())
 
 	emailEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserVerifiedEmailAdded))
 	require.NoError(t, err)
 	require.Len(t, emailEvents, 1)
 	email := emailEvents[0].GetUserVerifiedEmailAdded()
 	require.NotNil(t, email.GetEncryptedEmail())
-	require.Equal(t, emailHash("pii@example.com"), email.GetEmailHash())
 
 	displayNameEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDisplayNameChanged))
 	require.NoError(t, err)
@@ -226,7 +224,6 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.Len(t, loginEvents, 1)
 	login := loginEvents[0].GetUserLoginChanged()
 	require.NotNil(t, login.GetEncryptedLogin())
-	require.Equal(t, userPIILookupHash("piiuser2"), login.GetLoginHash())
 
 	found, err := core.GetUserByLogin(ctx, "piiuser2")
 	require.NoError(t, err)

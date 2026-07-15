@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ type projectedUser struct {
 	loginHash          string
 	displayName        *projectedUserPII
 	deleted            bool
+	shredded           bool
 	avatar             *corev1.AssetRecord
 	passwordHash       []byte
 	passwordSetAt      time.Time
@@ -100,9 +102,9 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserDekGenerated:
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
-		p.applyAccountCreated(event.GetId(), e.UserAccountCreated, event.GetCreatedAt())
+		return p.applyAccountCreated(event.GetId(), e.UserAccountCreated, event.GetCreatedAt())
 	case *corev1.Event_UserLoginChanged:
-		p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
+		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
 		p.applyDisplayNameChanged(event.GetId(), e.UserDisplayNameChanged)
 	case *corev1.Event_UserAvatarSet:
@@ -114,7 +116,7 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_AssetDeleted:
 		p.applyAssetDeleted(e.AssetDeleted)
 	case *corev1.Event_UserVerifiedEmailAdded:
-		p.applyVerifiedEmailAdded(event.GetId(), e.UserVerifiedEmailAdded, event.GetCreatedAt())
+		return p.applyVerifiedEmailAdded(event.GetId(), e.UserVerifiedEmailAdded, event.GetCreatedAt())
 	case *corev1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
 	case *corev1.Event_UserOidcSubjectLinked:
@@ -185,21 +187,18 @@ func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
 	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
 }
 
-func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
+func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent, envelopeCreatedAt *timestamppb.Timestamp) error {
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil || e.GetEncryptedDisplayName() == nil {
-		return
+		return nil
 	}
-	loginHash := e.GetLoginHash()
-	if loginHash == "" {
-		login, ok := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
-		if !ok || login == "" {
-			return
-		}
-		loginHash = userPIILookupHash(login)
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
 	}
-	if loginHash == "" {
-		return
+	if !ok || login == "" {
+		return nil
 	}
+	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	u.user = &corev1.User{
 		Id:        e.GetUserId(),
@@ -209,24 +208,23 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	u.loginHash = loginHash
 	u.displayName = newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
 	u.deleted = false
+	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
+	return nil
 }
 
-func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
+func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp) error {
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil {
-		return
+		return nil
 	}
-	loginHash := e.GetLoginHash()
-	if loginHash == "" {
-		login, ok := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
-		if !ok || login == "" {
-			return
-		}
-		loginHash = userPIILookupHash(login)
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
 	}
-	if loginHash == "" {
-		return
+	if !ok || login == "" {
+		return nil
 	}
+	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user == nil {
 		u.user = &corev1.User{Id: e.GetUserId(), CreatedAt: envelopeCreatedAt}
@@ -237,6 +235,7 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginCh
 	u.login = newProjectedUserPII(eventID, events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	p.loginIndex[loginHash] = e.GetUserId()
+	return nil
 }
 
 func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserDisplayNameChangedEvent) {
@@ -288,21 +287,18 @@ func (p *UserProjection) applyAvatarCleared(e *corev1.UserAvatarClearedEvent) {
 	p.replaceAvatarLocked(u, nil)
 }
 
-func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserVerifiedEmailAddedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
+func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserVerifiedEmailAddedEvent, envelopeCreatedAt *timestamppb.Timestamp) error {
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedEmail() == nil {
-		return
+		return nil
 	}
-	hash := e.GetEmailHash()
-	if hash == "" {
-		email, ok := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
-		if !ok || email == "" {
-			return
-		}
-		hash = emailHash(email)
+	email, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
+	if err != nil {
+		return err
 	}
-	if hash == "" {
-		return
+	if !ok || email == "" {
+		return nil
 	}
+	hash := emailHash(email)
 	u := p.ensureUserLocked(e.GetUserId())
 	verifiedAt := time.Now()
 	if envelopeCreatedAt != nil {
@@ -313,6 +309,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 		verifiedAt: verifiedAt,
 	}
 	p.emailIndex[hash] = e.GetUserId()
+	return nil
 }
 
 func (p *UserProjection) applyPasswordHashChanged(e *corev1.UserPasswordHashChangedEvent, envelopeCreatedAt *timestamppb.Timestamp, seq uint64) {
@@ -495,6 +492,7 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	}
 	delete(p.dekEvents, e.GetUserId())
 	u := p.ensureUserLocked(e.GetUserId())
+	u.shredded = true
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
 	}
@@ -540,36 +538,39 @@ func newProjectedUserPII(eventID, eventType, purpose string, encrypted *corev1.E
 	}
 }
 
-// userPIIStringLocked is the historical-event compatibility path. Current
-// events carry lookup hashes, so projection apply does not normally decrypt
-// PII. The caller must hold the projection lock.
-func (p *UserProjection) userPIIStringLocked(ctx context.Context, eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool) {
+// userPIIStringLocked decrypts transiently while applying login/email facts so
+// the projection can derive lookup digests without retaining plaintext. The
+// caller must hold the projection lock.
+func (p *UserProjection) userPIIStringLocked(ctx context.Context, eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool, error) {
 	if encrypted == nil {
-		return "", false
+		return "", false, nil
 	}
 	byPurpose := p.dekEvents[userID]
 	if byPurpose == nil {
-		return "", false
+		return "", false, nil
 	}
 	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
 	if event == nil {
 		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
 	if event == nil || p.dekResolver == nil {
-		return "", false
+		return "", false, nil
 	}
 	dek, err := p.dekResolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
-	if err != nil || dek == nil || len(dek.key) == 0 {
-		return "", false
+	if err != nil {
+		if errors.Is(err, encryption.ErrKeyNotFound) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("resolve user PII lookup key: %w", err)
+	}
+	if dek == nil || len(dek.key) == 0 {
+		return "", false, nil
 	}
 	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
 	if err != nil {
-		if errors.Is(err, encryption.ErrDecryptionFailed) || errors.Is(err, encryption.ErrKeyNotFound) {
-			return "", false
-		}
-		return "", false
+		return "", false, fmt.Errorf("decrypt user PII lookup value: %w", err)
 	}
-	return plaintext, true
+	return plaintext, true, nil
 }
 
 type projectedPIISnapshot struct {
@@ -582,6 +583,7 @@ type projectedUserSnapshot struct {
 	login       *projectedPIISnapshot
 	displayName *projectedPIISnapshot
 	deleted     bool
+	shredded    bool
 }
 
 func (p *UserProjection) piiSnapshotLocked(userID string, value *projectedUserPII) *projectedPIISnapshot {
@@ -623,16 +625,20 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 		login:       p.piiSnapshotLocked(userID, u.login),
 		displayName: p.piiSnapshotLocked(userID, u.displayName),
 		deleted:     u.deleted,
+		shredded:    u.shredded,
 	}
 }
 
-func (p *UserProjection) decryptPIISnapshot(ctx context.Context, userID string, snapshot *projectedPIISnapshot) (string, bool) {
+func (p *UserProjection) decryptPIISnapshot(ctx context.Context, userID string, snapshot *projectedPIISnapshot) (string, bool, error) {
 	if snapshot == nil || snapshot.value == nil || snapshot.dekEvent == nil || p.dekResolver == nil {
-		return "", false
+		return "", false, nil
 	}
 	dek, err := p.dekResolver.Resolve(ctx, snapshot.dekEvent, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
-	if err != nil || dek == nil || len(dek.key) == 0 {
-		return "", false
+	if err != nil {
+		return "", false, fmt.Errorf("resolve projected user PII key: %w", err)
+	}
+	if dek == nil || len(dek.key) == 0 {
+		return "", false, nil
 	}
 	plaintext, err := decryptUserPIIString(
 		dek.key,
@@ -643,32 +649,38 @@ func (p *UserProjection) decryptPIISnapshot(ctx context.Context, userID string, 
 		snapshot.value.encrypted,
 	)
 	if err != nil {
-		return "", false
+		return "", false, fmt.Errorf("decrypt projected user PII: %w", err)
 	}
-	return plaintext, true
+	return plaintext, true, nil
 }
 
-func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *projectedUserSnapshot, now time.Time) (*corev1.User, bool) {
-	if snapshot == nil || snapshot.deleted || snapshot.user == nil {
-		return nil, false
+func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *projectedUserSnapshot, now time.Time) (*corev1.User, bool, error) {
+	if snapshot == nil || snapshot.deleted || snapshot.shredded || snapshot.user == nil {
+		return nil, false, nil
 	}
-	login, ok := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.login)
+	login, ok, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.login)
+	if err != nil {
+		return nil, false, err
+	}
 	if !ok || login == "" {
-		return nil, false
+		return nil, false, nil
 	}
-	displayName, ok := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.displayName)
+	displayName, ok, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.displayName)
+	if err != nil {
+		return nil, false, err
+	}
 	if !ok || displayName == "" {
-		return nil, false
+		return nil, false, nil
 	}
 	snapshot.user.Login = login
 	snapshot.user.DisplayName = displayName
 	if statusExpired(snapshot.user.GetCustomStatus(), now) {
 		snapshot.user.CustomStatus = nil
 	}
-	return snapshot.user, true
+	return snapshot.user, true, nil
 }
 
-func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1.User, bool) {
+func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1.User, bool, error) {
 	p.RLock()
 	snapshot := p.userSnapshotLocked(userID, p.users[userID])
 	p.RUnlock()
@@ -676,31 +688,37 @@ func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1
 }
 
 func (p *UserProjection) Get(userID string) (*corev1.User, bool) {
-	return p.GetContext(context.Background(), userID)
+	user, ok, _ := p.GetContext(context.Background(), userID)
+	return user, ok
 }
 
-func (p *UserProjection) GetReferenceContext(ctx context.Context, userID string) (*corev1.User, bool) {
+func (p *UserProjection) GetReferenceContext(ctx context.Context, userID string) (*corev1.User, bool, error) {
 	p.RLock()
 	snapshot := p.userSnapshotLocked(userID, p.users[userID])
 	p.RUnlock()
 	if snapshot == nil {
-		return nil, false
+		return nil, false, nil
 	}
-	if user, ok := p.hydrateUserSnapshot(WithDEKRequestCache(ctx), snapshot, time.Now()); ok {
-		return user, true
+	user, ok, err := p.hydrateUserSnapshot(WithDEKRequestCache(ctx), snapshot, time.Now())
+	if err != nil {
+		return nil, false, err
 	}
-	if snapshot.user != nil {
-		return DeletedUserReference(userID), true
+	if ok {
+		return user, true, nil
 	}
-	return nil, false
+	if snapshot.deleted || snapshot.shredded {
+		return DeletedUserReference(userID), true, nil
+	}
+	return nil, false, nil
 }
 
 func (p *UserProjection) GetReference(userID string) (*corev1.User, bool) {
-	return p.GetReferenceContext(context.Background(), userID)
+	user, ok, _ := p.GetReferenceContext(context.Background(), userID)
+	return user, ok
 }
 
 // GetReferences returns public user references aligned with userIDs. Unknown users are nil.
-func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) []*corev1.User {
+func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []string) ([]*corev1.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, len(userIDs))
 	for i, userID := range userIDs {
@@ -715,79 +733,97 @@ func (p *UserProjection) GetReferencesContext(ctx context.Context, userIDs []str
 		if snapshot == nil {
 			continue
 		}
-		if user, ok := p.hydrateUserSnapshot(ctx, snapshot, now); ok {
+		user, ok, err := p.hydrateUserSnapshot(ctx, snapshot, now)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			users[i] = user
-		} else if snapshot.user != nil {
+		} else if snapshot.deleted || snapshot.shredded {
 			users[i] = DeletedUserReference(userIDs[i])
 		}
 	}
-	return users
+	return users, nil
 }
 
 func (p *UserProjection) GetReferences(userIDs []string) []*corev1.User {
-	return p.GetReferencesContext(context.Background(), userIDs)
+	users, _ := p.GetReferencesContext(context.Background(), userIDs)
+	return users
 }
 
-func (p *UserProjection) GetByLoginContext(ctx context.Context, login string) (*corev1.User, bool) {
+func (p *UserProjection) GetByLoginContext(ctx context.Context, login string) (*corev1.User, bool, error) {
 	lookupHash := userPIILookupHash(login)
 	p.RLock()
 	userID := p.loginIndex[lookupHash]
 	p.RUnlock()
 	if userID == "" {
-		return nil, false
+		return nil, false, nil
 	}
-	user, ok := p.GetContext(ctx, userID)
+	user, ok, err := p.GetContext(ctx, userID)
+	if err != nil {
+		return nil, false, err
+	}
 	if !ok || userPIILookupHash(user.GetLogin()) != lookupHash {
-		return nil, false
+		return nil, false, nil
 	}
-	return user, true
+	return user, true, nil
 }
 
 func (p *UserProjection) GetByLogin(login string) (*corev1.User, bool) {
-	return p.GetByLoginContext(context.Background(), login)
+	user, ok, _ := p.GetByLoginContext(context.Background(), login)
+	return user, ok
 }
 
-func (p *UserProjection) GetByEmailContext(ctx context.Context, email string) (*corev1.User, bool) {
+func (p *UserProjection) GetByEmailContext(ctx context.Context, email string) (*corev1.User, bool, error) {
 	lookupHash := emailHash(email)
 	p.RLock()
 	userID := p.emailIndex[lookupHash]
 	p.RUnlock()
 	if userID == "" {
-		return nil, false
+		return nil, false, nil
 	}
 	ctx = WithDEKRequestCache(ctx)
-	user, ok := p.GetContext(ctx, userID)
-	if !ok {
-		return nil, false
+	user, ok, err := p.GetContext(ctx, userID)
+	if err != nil {
+		return nil, false, err
 	}
-	for _, verified := range p.VerifiedEmailsContext(ctx, userID) {
+	if !ok {
+		return nil, false, nil
+	}
+	verifiedEmails, err := p.VerifiedEmailsContext(ctx, userID)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, verified := range verifiedEmails {
 		if emailHash(verified.Email) == lookupHash {
-			return user, true
+			return user, true, nil
 		}
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 func (p *UserProjection) GetByEmail(email string) (*corev1.User, bool) {
-	return p.GetByEmailContext(context.Background(), email)
+	user, ok, _ := p.GetByEmailContext(context.Background(), email)
+	return user, ok
 }
 
 func (p *UserProjection) GetByOIDCSubject(issuer, subject string) (*corev1.User, bool) {
 	return p.GetByExternalIdentity(issuer, subject)
 }
 
-func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issuer, subject string) (*corev1.User, bool) {
+func (p *UserProjection) GetByExternalIdentityContext(ctx context.Context, issuer, subject string) (*corev1.User, bool, error) {
 	p.RLock()
 	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
 	p.RUnlock()
 	if userID == "" {
-		return nil, false
+		return nil, false, nil
 	}
 	return p.GetContext(ctx, userID)
 }
 
 func (p *UserProjection) GetByExternalIdentity(issuer, subject string) (*corev1.User, bool) {
-	return p.GetByExternalIdentityContext(context.Background(), issuer, subject)
+	user, ok, _ := p.GetByExternalIdentityContext(context.Background(), issuer, subject)
+	return user, ok
 }
 
 func (p *UserProjection) ExternalIdentities(userID string) []ExternalIdentity {
@@ -818,10 +854,27 @@ func (p *UserProjection) LoginExists(login string) bool {
 }
 
 func (p *UserProjection) EmailClaimed(email string) bool {
+	_, ok := p.EmailOwnerID(email)
+	return ok
+}
+
+// EmailOwnerID returns the projected owner of an email digest without
+// decrypting profile data. Mutation invariants use this lookup so KMS
+// availability cannot make an existing claim appear free.
+func (p *UserProjection) EmailOwnerID(email string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	_, ok := p.emailIndex[emailHash(email)]
-	return ok
+	userID := p.emailIndex[emailHash(email)]
+	return userID, userID != ""
+}
+
+// ExternalIdentityOwnerID returns the projected owner of an identity digest
+// without hydrating the user's encrypted profile.
+func (p *UserProjection) ExternalIdentityOwnerID(issuer, subject string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
+	return userID, userID != ""
 }
 
 func (p *UserProjection) PasswordHash(userID string) ([]byte, bool) {
@@ -914,12 +967,12 @@ func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferenc
 	return proto.Clone(u.preferences).(*corev1.ServerUserPreferences), true
 }
 
-func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID string) []VerifiedEmail {
+func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID string) ([]VerifiedEmail, error) {
 	p.RLock()
 	u := p.users[userID]
 	if u == nil || u.deleted || len(u.verifiedEmail) == 0 {
 		p.RUnlock()
-		return nil
+		return nil, nil
 	}
 	type emailSnapshot struct {
 		pii        *projectedPIISnapshot
@@ -937,7 +990,10 @@ func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID strin
 	ctx = WithDEKRequestCache(ctx)
 	out := make([]VerifiedEmail, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		email, ok := p.decryptPIISnapshot(ctx, userID, snapshot.pii)
+		email, ok, err := p.decryptPIISnapshot(ctx, userID, snapshot.pii)
+		if err != nil {
+			return nil, err
+		}
 		if !ok || email == "" {
 			continue
 		}
@@ -949,11 +1005,12 @@ func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID strin
 		}
 		return strings.ToLower(out[i].Email) < strings.ToLower(out[j].Email)
 	})
-	return out
+	return out, nil
 }
 
 func (p *UserProjection) VerifiedEmails(userID string) []VerifiedEmail {
-	return p.VerifiedEmailsContext(context.Background(), userID)
+	emails, _ := p.VerifiedEmailsContext(context.Background(), userID)
+	return emails
 }
 
 func (p *UserProjection) HasVerifiedEmail(userID string) bool {
@@ -994,7 +1051,7 @@ func (p *UserProjection) LoginChangedAt(userID string) time.Time {
 	return u.loginChanged
 }
 
-func (p *UserProjection) UsersContext(ctx context.Context) []*corev1.User {
+func (p *UserProjection) UsersContext(ctx context.Context) ([]*corev1.User, error) {
 	p.RLock()
 	snapshots := make([]*projectedUserSnapshot, 0, len(p.users))
 	for userID, u := range p.users {
@@ -1009,15 +1066,20 @@ func (p *UserProjection) UsersContext(ctx context.Context) []*corev1.User {
 	out := make([]*corev1.User, 0, len(snapshots))
 	now := time.Now()
 	for _, snapshot := range snapshots {
-		if user, ok := p.hydrateUserSnapshot(ctx, snapshot, now); ok {
+		user, ok, err := p.hydrateUserSnapshot(ctx, snapshot, now)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			out = append(out, user)
 		}
 	}
-	return out
+	return out, nil
 }
 
 func (p *UserProjection) Users() []*corev1.User {
-	return p.UsersContext(context.Background())
+	users, _ := p.UsersContext(context.Background())
+	return users
 }
 
 func (p *UserProjection) VerifiedUserIDs() []string {
