@@ -34,12 +34,45 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if _, err := core.ListRoomMemberReferences(ctx, outsider.Id, room.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("ListRoomMemberReferences outsider error = %v, want ErrNotRoomMember", err)
 	}
+	listableMembers, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id)
+	if err != nil {
+		t.Fatalf("ListRoomMemberReferencesForList joinable outsider: %v", err)
+	}
+	if !userRefsContain(listableMembers, member.Id) {
+		t.Fatalf("listable room member references = %+v, want member %s", listableMembers, member.Id)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("join-denied ListRoomMemberReferencesForList error = %v, want ErrPermissionDenied", err)
+	}
 	members, err := core.ListRoomMemberReferences(ctx, member.Id, room.Id)
 	if err != nil {
 		t.Fatalf("ListRoomMemberReferences member: %v", err)
 	}
 	if !userRefsContain(members, member.Id) {
 		t.Fatalf("room member references = %+v, want member %s", members, member.Id)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, member.Id, room.Id); err != nil {
+		t.Fatalf("join-denied member ListRoomMemberReferencesForList: %v", err)
+	}
+	dm, _, err := core.FindOrCreateDM(ctx, member.Id, []string{actor.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("DM outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
+	}
+	archivedRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "room-read-archived", "")
+	if err != nil {
+		t.Fatalf("CreateRoom archived: %v", err)
+	}
+	if _, err := core.ArchiveRoom(ctx, SystemActorID, KindChannel, archivedRoom.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, archivedRoom.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("archived outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
 	}
 
 	if _, err := core.CreateNotification(ctx, member.Id, actor.Id, &corev1.Notification{

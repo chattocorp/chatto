@@ -35,7 +35,9 @@
 </script>
 
 {#if ready && roomId && roomAccess.kind === 'nonmember'}
-  <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+  {#key roomAccess.room.id}
+    <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+  {/key}
 {:else if canRenderRoom && roomId}
   {#if isMessageLinkMode}
     <!-- Message link resolver: renders +page.svelte which fetches + redirects -->

@@ -21,6 +21,18 @@
       "action": "ルームに参加",
       "prompt": "#{room} に参加して、このルームを読んで参加してください。",
       "inline_prompt": "このルームに参加して読んで参加してください。",
+      "group_label": "{group} 内",
+      "member_preview_label": "ルームメンバー",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} 人のメンバー",
+            "countPlural=other": "{count} 人のメンバー"
+          }
+        }
+      ],
       "success": "#{room} に参加しました",
       "success_generic": "ルームに参加しました",
       "failed": "ルームに参加できませんでした",
@@ -103,13 +115,8 @@
     "system_events": {
       "joined": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "がルームに参加しました",
             "countPlural=other": "がルームに参加しました"
@@ -118,13 +125,8 @@
       ],
       "left": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "が部屋を出ました",
             "countPlural=other": "が部屋を出ました"
@@ -136,13 +138,8 @@
       "and": "と",
       "other_people": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "その他",
             "countPlural=other": "他"

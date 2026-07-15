@@ -23,6 +23,7 @@ import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 export type RoomsListItem = {
   id: string;
   name: string;
+  description?: string | null;
   type: RoomType;
   isUniversal: boolean;
   viewerIsMember: boolean;
@@ -72,7 +73,7 @@ function roomType(kind: RoomKind): RoomType {
   return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
 }
 
-function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
+export function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
   return {
     id: member.id,
     login: member.login,
@@ -124,6 +125,7 @@ function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
   return (
     a.id === b.id &&
     a.name === b.name &&
+    a.description === b.description &&
     a.type === b.type &&
     a.isUniversal === b.isUniversal &&
     a.viewerIsMember === b.viewerIsMember &&
@@ -300,6 +302,7 @@ export class RoomsStore {
     return {
       id: room.id,
       name: room.name,
+      description: room.description,
       type: roomType(room.kind),
       isUniversal: room.isUniversal,
       viewerIsMember: room.isMember,

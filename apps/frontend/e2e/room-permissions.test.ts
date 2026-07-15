@@ -68,10 +68,10 @@ async function logoutUser(page: Page): Promise<void> {
   await logoutCurrentUser(page);
 }
 
-async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
+async function createRoomViaAPI(page: Page, name?: string, description = ''): Promise<string> {
   const roomName = name ?? `room${Date.now()}`;
   const groupId = await getDefaultRoomGroupIdViaConnect(page);
-  return createRoomViaConnect(page, roomName, groupId);
+  return createRoomViaConnect(page, roomName, groupId, description);
 }
 
 function shortSuffix(): string {
@@ -538,7 +538,11 @@ test.describe('Permission-only Resolution', () => {
     }) => {
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Inline Join ${Date.now()}`);
-      const roomId = await createRoomViaAPI(page, `inline-join-${Date.now()}`);
+      const description = `Launch coordination ${Date.now()}`;
+      const roomId = await createRoomViaAPI(page, `inline-join-${Date.now()}`, description);
+      await joinRoomViaAPI(page, roomId);
+      const hiddenBody = `Hidden before joining ${Date.now()}`;
+      await postMessageViaAPI(page, roomId, hiddenBody);
 
       const member = await createSecondTestUser(page);
       await logoutUser(page);
@@ -551,6 +555,10 @@ test.describe('Permission-only Resolution', () => {
 
       await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
       await expect(page.getByRole('button', { name: 'Join Room' })).toBeVisible();
+      await expect(page.getByTestId('room-join-preview')).toContainText(description);
+      await expect(page.getByTestId('room-join-preview')).toContainText('In Lobby');
+      await expect(page.getByLabel('Room members')).toContainText('1 member');
+      await expect(page.getByText(hiddenBody)).toHaveCount(0);
       await expect(page.locator('dialog[open]')).toHaveCount(0);
 
       await page.getByRole('button', { name: 'Join Room' }).click();
@@ -860,7 +868,13 @@ test.describe('Permission-only Resolution', () => {
     }) => {
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
-      const roomId = await createRoomViaAPI(page, `restrict-${shortSuffix()}`);
+      const restrictedDescription = `Restricted preview ${Date.now()}`;
+      const roomId = await createRoomViaAPI(
+        page,
+        `restrict-${shortSuffix()}`,
+        restrictedDescription
+      );
+      await joinRoomViaAPI(page, roomId);
       await denyRoomPermission(page, roomId, 'everyone', 'room.join');
 
       const member = await createSecondTestUser(page);
@@ -872,6 +886,9 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByRole('link', { name: 'Return to Server' })).toBeVisible();
       await expect(page.locator('dialog[open]')).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Join Room' })).toHaveCount(0);
+      await expect(page.getByTestId('room-join-preview')).toHaveCount(0);
+      await expect(page.getByText(restrictedDescription)).toHaveCount(0);
+      await expect(page.getByLabel('Room members')).toHaveCount(0);
     });
   });
 });

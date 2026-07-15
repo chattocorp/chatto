@@ -21,6 +21,15 @@
       "action": "Aliĝu al Ĉambro",
       "prompt": "Aliĝu al #{room} por legi kaj partopreni en ĉi tiu ĉambro.",
       "inline_prompt": "Aliĝu al ĉi tiu ĉambro por legi kaj partopreni.",
+      "group_label": "En {group}",
+      "member_preview_label": "Ĉambromembroj",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": { "countPlural=one": "{count} membro", "countPlural=other": "{count} membroj" }
+        }
+      ],
       "success": "Aliĝis al #{room}",
       "success_generic": "Aliĝis al ĉambro",
       "failed": "Malsukcesis aliĝi al ĉambro",
@@ -103,13 +112,8 @@
     "system_events": {
       "joined": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "aliĝis al la ĉambro",
             "countPlural=other": "aliĝis al la ĉambro"
@@ -118,13 +122,8 @@
       ],
       "left": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "forlasis la ĉambron",
             "countPlural=other": "forlasis la ĉambron"
@@ -136,13 +135,8 @@
       "and": "kaj",
       "other_people": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "alia",
             "countPlural=other": "aliaj"

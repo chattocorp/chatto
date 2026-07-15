@@ -587,6 +587,13 @@ const msg_room_join_prompt = (
   inputs: Parameters<LocaleMessages['room_join_prompt']>[0]
 ): LocalizedString => messages().room_join_prompt(inputs);
 const msg_room_join_inline_prompt = (): LocalizedString => messages().room_join_inline_prompt(empty());
+const msg_room_join_group_label = (
+  inputs: Parameters<LocaleMessages['room_join_group_label']>[0]
+): LocalizedString => messages().room_join_group_label(inputs);
+const msg_room_join_member_preview_label = (): LocalizedString => messages().room_join_member_preview_label(empty());
+const msg_room_join_member_count = (
+  inputs: Parameters<LocaleMessages['room_join_member_count']>[0]
+): LocalizedString => messages().room_join_member_count(inputs);
 const msg_room_join_success = (
   inputs: Parameters<LocaleMessages['room_join_success']>[0]
 ): LocalizedString => messages().room_join_success(inputs);
@@ -2013,6 +2020,9 @@ export { msg_room_join_title as 'room.join.title' };
 export { msg_room_join_action as 'room.join.action' };
 export { msg_room_join_prompt as 'room.join.prompt' };
 export { msg_room_join_inline_prompt as 'room.join.inline_prompt' };
+export { msg_room_join_group_label as 'room.join.group_label' };
+export { msg_room_join_member_preview_label as 'room.join.member_preview_label' };
+export { msg_room_join_member_count as 'room.join.member_count' };
 export { msg_room_join_success as 'room.join.success' };
 export { msg_room_join_success_generic as 'room.join.success_generic' };
 export { msg_room_join_failed as 'room.join.failed' };

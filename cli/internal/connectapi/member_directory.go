@@ -121,7 +121,7 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 		return nil, err
 	}
 
-	users, err := s.api.core.ListRoomMemberReferences(ctx, caller.UserID, req.Msg.GetRoomId())
+	users, err := s.api.core.ListRoomMemberReferencesForList(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, connectError(err)
 	}
