@@ -308,6 +308,52 @@ func TestClientSyncRecoversTransientDeletionFailure(t *testing.T) {
 	}
 }
 
+func TestClientSyncRecoveryDoesNotPurgePreparedActiveAccount(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "prepared-recovery")
+	if _, err := chatto.ClientSync.UpdatePreferences(ctx, userID, func(preferences *clientsyncv1.Preferences) error {
+		locale := "en-GB"
+		preferences.Locale = &locale
+		return nil
+	}); err != nil {
+		t.Fatalf("UpdatePreferences: %v", err)
+	}
+	fence, err := chatto.ClientSync.BeginDeleteUser(ctx, userID)
+	if err != nil {
+		t.Fatalf("BeginDeleteUser: %v", err)
+	}
+	if err := chatto.ClientSync.RecoverPendingDeletions(ctx); err != nil {
+		t.Fatalf("RecoverPendingDeletions: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncPreferencesKey(userID)); err != nil {
+		t.Fatalf("prepared active preferences were purged: %v", err)
+	}
+	if err := chatto.ClientSync.CancelDeleteUser(context.WithoutCancel(ctx), fence); err != nil {
+		t.Fatalf("CancelDeleteUser: %v", err)
+	}
+}
+
+func TestClientSyncConcurrentDeletionCannotCancelOwnerFence(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "concurrent-delete")
+	ownerFence, err := chatto.ClientSync.BeginDeleteUser(ctx, userID)
+	if err != nil {
+		t.Fatalf("first BeginDeleteUser: %v", err)
+	}
+	loserFence, err := chatto.ClientSync.BeginDeleteUser(ctx, userID)
+	if !errors.Is(err, errClientSyncDeletionInProgress) || loserFence != nil {
+		t.Fatalf("second BeginDeleteUser = (%v, %v), want owned conflict", loserFence, err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionMarkerKey(userID)); err != nil {
+		t.Fatalf("owner fence missing after concurrent attempt: %v", err)
+	}
+	if err := chatto.ClientSync.CancelDeleteUser(ctx, ownerFence); err != nil {
+		t.Fatalf("owner CancelDeleteUser: %v", err)
+	}
+}
+
 func TestClientSyncMutationRechecksAccountBeforeWrite(t *testing.T) {
 	kv := &failingClientSyncKV{}
 	validations := 0

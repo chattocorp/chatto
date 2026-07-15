@@ -14,6 +14,7 @@
   import { hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import NotificationSoundSettings from '$lib/components/settings/NotificationSoundSettings.svelte';
   import * as m from '$lib/i18n/messages';
+  import { safeSettingsReturnTo } from './returnTo';
 
   const activeLocale = $derived(getLocale());
   const homeServer = $derived(serverRegistry.homeServer);
@@ -27,7 +28,7 @@
   const syncLoading = $derived(clientSync.status === 'loading');
   const returnTo = $derived.by(() => {
     const candidate = page.url.searchParams.get('returnTo');
-    return candidate?.startsWith('/') && !candidate.startsWith('//') ? candidate : resolve('/chat');
+    return safeSettingsReturnTo(candidate, page.url, resolve('/chat'));
   });
 
   const allTimezones = Intl.supportedValuesOf('timeZone');

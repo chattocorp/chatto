@@ -57,6 +57,8 @@ func (s *clientSyncService) UpdatePreferences(ctx context.Context, req *connect.
 	if slices.Contains(paths, "timezone") && input.Timezone != nil {
 		if input.GetTimezone() == "" {
 			input.Timezone = nil
+		} else if input.GetTimezone() == "Local" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("timezone must be a browser-compatible IANA time zone"))
 		} else if _, err := time.LoadLocation(input.GetTimezone()); err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("timezone must be a valid IANA time zone"))
 		}

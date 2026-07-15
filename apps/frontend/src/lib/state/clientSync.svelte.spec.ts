@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import ClientSyncPendingTestHarness from './ClientSyncPendingTestHarness.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -197,6 +199,32 @@ describe('ClientSyncState', () => {
     mocks.capable.add(restoredId);
     state.tryFollowPendingRemoteHome();
     expect(mocks.homeServerId).toBe(restoredId);
+  });
+
+  it('reactively reveals pending-home recovery after an asynchronous load', async () => {
+    const api = installAPI('a');
+    const remoteDirectory = deferred<{
+      servers: Array<{ id: string; url: string; name: string }>;
+      homeServerId: string;
+    }>();
+    api.listKnownServers.mockReturnValue(remoteDirectory.promise);
+    const state = new ClientSyncState();
+    const { container } = render(ClientSyncPendingTestHarness, { state });
+    expect(container.querySelector('[data-testid="pending-home"]')).toBeNull();
+
+    const loading = state.load('a');
+    remoteDirectory.resolve({
+      servers: [
+        { id: 'a', url: 'https://a.example', name: 'A' },
+        { id: 'b', url: 'https://b.example', name: 'B' }
+      ],
+      homeServerId: 'b'
+    });
+    await loading;
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="pending-home"]')).not.toBeNull();
+    });
   });
 
   it('lets the user keep the current capable home when a remote destination is unusable', async () => {

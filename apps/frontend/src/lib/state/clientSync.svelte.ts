@@ -76,9 +76,9 @@ export class ClientSyncState {
   #homeMoveRetryTimer: ReturnType<typeof setTimeout> | null = null;
   #explicitHomeServerId: string | null = null;
   #movingHomeServerId: string | null = null;
-  #pendingRemoteHomeServerId: string | null = null;
-  #pendingRemoteHomeSourceServerId: string | null = null;
-  #pendingRemoteHomeAccountKey: string | null = null;
+  #pendingRemoteHomeServerId = $state<string | null>(null);
+  #pendingRemoteHomeSourceServerId = $state<string | null>(null);
+  #pendingRemoteHomeAccountKey = $state<string | null>(null);
 
   get locale(): Locale {
     return this.#cache.locale;

@@ -238,6 +238,13 @@ func TestClientSyncServiceManagesCallerScopedData(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid timezone code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	localTimezone := "Local"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &localTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("Local timezone code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 	timezone := "Europe/Berlin"
 	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
 		Preferences: &clientsyncapiv1.Preferences{Timezone: &timezone},

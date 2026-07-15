@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -14,6 +15,9 @@ import (
 )
 
 const clientSyncMutationRetries = 5
+const clientSyncDeletionRollbackTimeout = 5 * time.Second
+
+var errClientSyncDeletionInProgress = errors.New("client-sync account deletion already in progress")
 
 // MaxClientSyncKnownServers bounds one user's portable directory so a single
 // latest-value KV record cannot grow without limit.
@@ -192,34 +196,62 @@ func (s *ClientSyncService) SetHomeServer(ctx context.Context, userID, serverID 
 // BeginDeleteUser durably fences client-sync mutations before the account
 // deletion event is committed. Callers must cancel the fence if that commit
 // fails.
-func (s *ClientSyncService) BeginDeleteUser(ctx context.Context, userID string) error {
+type clientSyncDeletionFence struct {
+	userID          string
+	deletedRevision uint64
+	pendingRevision uint64
+}
+
+func (s *ClientSyncService) BeginDeleteUser(ctx context.Context, userID string) (*clientSyncDeletionFence, error) {
 	// The marker is deliberately retained. It closes the race with requests
 	// that authenticated before account deletion and gives restart recovery a
 	// durable list of privacy cleanups to repeat idempotently.
-	if _, err := s.kv.Create(ctx, clientSyncDeletionMarkerKey(userID), []byte{1}); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
-		return fmt.Errorf("mark client sync deleted: %w", err)
+	deletedRevision, err := s.kv.Create(ctx, clientSyncDeletionMarkerKey(userID), []byte{1})
+	if errors.Is(err, jetstream.ErrKeyExists) {
+		return nil, errClientSyncDeletionInProgress
 	}
-	if _, err := s.kv.Create(ctx, clientSyncDeletionPendingKey(userID), []byte{1}); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
-		cancelErr := s.CancelDeleteUser(ctx, userID)
-		return errors.Join(fmt.Errorf("mark client-sync deletion pending: %w", err), cancelErr)
+	if err != nil {
+		return nil, fmt.Errorf("mark client sync deleted: %w", err)
 	}
-	return nil
+	fence := &clientSyncDeletionFence{userID: userID, deletedRevision: deletedRevision}
+	pendingRevision, err := s.kv.Create(ctx, clientSyncDeletionPendingKey(userID), []byte{1})
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), clientSyncDeletionRollbackTimeout)
+		defer cancel()
+		cancelErr := s.CancelDeleteUser(cleanupCtx, fence)
+		return nil, errors.Join(fmt.Errorf("mark client-sync deletion pending: %w", err), cancelErr)
+	}
+	fence.pendingRevision = pendingRevision
+	return fence, nil
 }
 
 // CancelDeleteUser removes a pre-commit fence after the account deletion event
 // failed, allowing the still-active account to continue syncing.
-func (s *ClientSyncService) CancelDeleteUser(ctx context.Context, userID string) error {
+func (s *ClientSyncService) CancelDeleteUser(ctx context.Context, fence *clientSyncDeletionFence) error {
+	if fence == nil {
+		return nil
+	}
 	var errs []error
-	for _, key := range []string{clientSyncDeletionMarkerKey(userID), clientSyncDeletionPendingKey(userID)} {
-		if err := s.kv.Purge(ctx, key); err != nil && !isClientSyncKeyAbsent(err) {
-			errs = append(errs, fmt.Errorf("remove %s: %w", key, err))
+	owned := []struct {
+		key      string
+		revision uint64
+	}{
+		{clientSyncDeletionMarkerKey(fence.userID), fence.deletedRevision},
+		{clientSyncDeletionPendingKey(fence.userID), fence.pendingRevision},
+	}
+	for _, marker := range owned {
+		if marker.revision == 0 {
+			continue
+		}
+		if err := s.kv.Purge(ctx, marker.key, jetstream.LastRevision(marker.revision)); err != nil && !isClientSyncKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+			errs = append(errs, fmt.Errorf("remove %s: %w", marker.key, err))
 		}
 	}
 	return errors.Join(errs...)
 }
 
 func (s *ClientSyncService) DeleteUser(ctx context.Context, userID string) error {
-	if err := s.BeginDeleteUser(ctx, userID); err != nil {
+	if _, err := s.BeginDeleteUser(ctx, userID); err != nil {
 		return err
 	}
 	return s.completeUserDeletion(ctx, userID)
@@ -261,6 +293,15 @@ func (s *ClientSyncService) RecoverPendingDeletions(ctx context.Context) error {
 		userID := strings.TrimSuffix(strings.TrimPrefix(key, "client_sync."), ".deletion_pending")
 		if userID == "" || clientSyncDeletionPendingKey(userID) != key {
 			continue
+		}
+		if s.validateUser != nil {
+			if validateErr := s.validateUser(ctx, userID); validateErr == nil {
+				// Prepared, but the account-deletion event has not committed.
+				continue
+			} else if !errors.Is(validateErr, ErrNotFound) {
+				errs = append(errs, fmt.Errorf("verify %s: %w", key, validateErr))
+				continue
+			}
 		}
 		if err := s.completeUserDeletion(ctx, userID); err != nil {
 			errs = append(errs, fmt.Errorf("recover %s: %w", key, err))

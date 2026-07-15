@@ -113,6 +113,9 @@ access to this API is strictly limited to the authenticated owner and code must
 not log directory contents. Account deletion retains a marker before purging
 both plaintext client-sync records. Mutations check the retained fence before
 and after writing. A separate pending marker is removed only after successful
-cleanup, and every replica periodically scans that bounded work set, so
-deletion wins over in-flight requests and transient failures without requiring
-a restart or repeatedly traversing every historical deletion fence.
+cleanup, and every replica periodically scans that bounded work set after
+confirming the account-deletion projection. Marker creation is exclusive and
+failed commands roll back only their own KV revisions with a bounded,
+non-cancelled context. Deletion therefore wins over in-flight requests and
+transient failures without letting pre-commit recovery erase active data or
+repeatedly traversing every historical deletion fence.
