@@ -371,8 +371,11 @@ type UserAccountCreatedEvent struct {
 	UserId               string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedLogin       *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
 	EncryptedDisplayName *EncryptedUserString   `protobuf:"bytes,11,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Stable digest of the normalised login for projection lookup. The login
+	// itself remains encrypted and is decrypted only when hydrating a user.
+	LoginHash     string `protobuf:"bytes,12,opt,name=login_hash,json=loginHash,proto3" json:"login_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserAccountCreatedEvent) Reset() {
@@ -426,12 +429,21 @@ func (x *UserAccountCreatedEvent) GetEncryptedDisplayName() *EncryptedUserString
 	return nil
 }
 
+func (x *UserAccountCreatedEvent) GetLoginHash() string {
+	if x != nil {
+		return x.LoginHash
+	}
+	return ""
+}
+
 type UserLoginChangedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedLogin *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stable digest of the normalised login for projection lookup.
+	LoginHash     string `protobuf:"bytes,11,opt,name=login_hash,json=loginHash,proto3" json:"login_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserLoginChangedEvent) Reset() {
@@ -476,6 +488,13 @@ func (x *UserLoginChangedEvent) GetEncryptedLogin() *EncryptedUserString {
 		return x.EncryptedLogin
 	}
 	return nil
+}
+
+func (x *UserLoginChangedEvent) GetLoginHash() string {
+	if x != nil {
+		return x.LoginHash
+	}
+	return ""
 }
 
 type UserDisplayNameChangedEvent struct {
@@ -633,8 +652,10 @@ type UserVerifiedEmailAddedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedEmail *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_email,json=encryptedEmail,proto3" json:"encrypted_email,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stable digest of the normalised email for projection lookup.
+	EmailHash     string `protobuf:"bytes,11,opt,name=email_hash,json=emailHash,proto3" json:"email_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserVerifiedEmailAddedEvent) Reset() {
@@ -679,6 +700,13 @@ func (x *UserVerifiedEmailAddedEvent) GetEncryptedEmail() *EncryptedUserString {
 		return x.EncryptedEmail
 	}
 	return nil
+}
+
+func (x *UserVerifiedEmailAddedEvent) GetEmailHash() string {
+	if x != nil {
+		return x.EmailHash
+	}
+	return ""
 }
 
 type UserPasswordHashChangedEvent struct {
@@ -1409,16 +1437,20 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xdb\x01\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xfa\x01\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12Y\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\"~\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x14encryptedDisplayName\x12\x1d\n" +
+	"\n" +
+	"login_hash\x18\f \x01(\tR\tloginHash\"\x9d\x01\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\"\x91\x01\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12\x1d\n" +
+	"\n" +
+	"login_hash\x18\v \x01(\tR\tloginHash\"\x91\x01\n" +
 	"\x1bUserDisplayNameChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12Y\n" +
 	"\x16encrypted_display_name\x18\n" +
@@ -1427,11 +1459,13 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x127\n" +
 	"\x06avatar\x18\x02 \x01(\v2\x1f.chatto.core.v1.DeprecatedAssetR\x06avatar\"1\n" +
 	"\x16UserAvatarClearedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x84\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xa3\x01\n" +
 	"\x1bUserVerifiedEmailAddedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_email\x18\n" +
-	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmail\"\xa0\x01\n" +
+	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedEmail\x12\x1d\n" +
+	"\n" +
+	"email_hash\x18\v \x01(\tR\temailHash\"\xa0\x01\n" +
 	"\x1cUserPasswordHashChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
 	"\rpassword_hash\x18\x02 \x01(\fR\fpasswordHash\x12B\n" +

@@ -17,18 +17,38 @@ import (
 
 func BenchmarkUserProjectionGetReferences(b *testing.B) {
 	const memberCount = 10_000
-	p := &UserProjection{users: make(map[string]*projectedUser, memberCount)}
+	key, err := encryption.GenerateKey()
+	if err != nil {
+		b.Fatal(err)
+	}
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})
 	userIDs := make([]string, memberCount)
 	for i := range memberCount {
 		userID := fmt.Sprintf("user-%05d", i)
+		eventID := fmt.Sprintf("event-%05d", i)
 		userIDs[i] = userID
-		p.users[userID] = &projectedUser{user: &corev1.User{
-			Id:          userID,
-			Login:       userID,
-			DisplayName: userID,
-		}}
+		contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+		encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "login", userID)
+		if err != nil {
+			b.Fatal(err)
+		}
+		encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "display_name", userID)
+		if err != nil {
+			b.Fatal(err)
+		}
+		p.users[userID] = &projectedUser{
+			user:        &corev1.User{Id: userID},
+			login:       newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", encryptedLogin),
+			displayName: newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", encryptedDisplayName),
+		}
+		p.dekEvents[userID] = map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent{
+			corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII: {
+				1: {UserId: userID, Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"},
+			},
+		}
 	}
 
+	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
 		if got := p.GetReferences(userIDs); len(got) != memberCount {
@@ -44,7 +64,8 @@ func userEvent(id string, ts time.Time, event *corev1.Event) *corev1.Event {
 }
 
 type staticProjectionKeyWrapper struct {
-	key []byte
+	key         []byte
+	unwrapCalls *int
 }
 
 type staticProjectionDEKStore struct{}
@@ -62,6 +83,9 @@ func (w staticProjectionKeyWrapper) WrapContentKey(context.Context, string, []by
 }
 
 func (w staticProjectionKeyWrapper) UnwrapContentKey(context.Context, string, kms.WrappedContentKey, []byte) ([]byte, error) {
+	if w.unwrapCalls != nil {
+		(*w.unwrapCalls)++
+	}
 	return append([]byte(nil), w.key...), nil
 }
 
@@ -104,6 +128,7 @@ func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID
 		UserId:               userID,
 		EncryptedLogin:       encryptedLogin,
 		EncryptedDisplayName: encryptedDisplayName,
+		LoginHash:            userPIILookupHash(login),
 	}}}
 }
 
@@ -114,6 +139,7 @@ func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, 
 	return &corev1.Event{Event: &corev1.Event_UserLoginChanged{UserLoginChanged: &corev1.UserLoginChangedEvent{
 		UserId:         userID,
 		EncryptedLogin: encryptedLogin,
+		LoginHash:      userPIILookupHash(login),
 	}}}
 }
 
@@ -150,6 +176,97 @@ func TestUserProjection_AccountProfileAndLogin(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "U1", byLogin.GetId())
 	require.Equal(t, 1, p.Count())
+}
+
+func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	unwrapCalls := 0
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key, unwrapCalls: &unwrapCalls}, staticProjectionDEKStore{})
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "K1",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId:        "U1",
+			Epoch:         1,
+			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			ContentKeyRef: "dek.test",
+		}},
+	}, 1))
+	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
+	require.Zero(t, unwrapCalls, "current events with lookup hashes must not decrypt during projection apply")
+
+	p.RLock()
+	projected := p.users["U1"]
+	require.NotNil(t, projected)
+	require.Empty(t, projected.user.GetLogin())
+	require.Empty(t, projected.user.GetDisplayName())
+	require.NotEmpty(t, projected.login.encrypted.GetEncryptedValue())
+	require.NotEmpty(t, projected.displayName.encrypted.GetEncryptedValue())
+	require.Equal(t, "U1", p.loginIndex[userPIILookupHash("Alice")])
+	_, plaintextIndexed := p.loginIndex["alice"]
+	p.RUnlock()
+	require.False(t, plaintextIndexed)
+
+	got, ok := p.GetContext(context.Background(), "U1")
+	require.True(t, ok)
+	require.Equal(t, "Alice", got.GetLogin())
+	require.Equal(t, "Alice A.", got.GetDisplayName())
+	require.Equal(t, 1, unwrapCalls, "one user hydration should reuse its DEK within the read")
+
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", events.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
+	require.NoError(t, err)
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "E2",
+		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+			UserId:         "U1",
+			EncryptedEmail: encryptedEmail,
+			EmailHash:      emailHash("Alice@Example.com"),
+		}},
+	}, 3))
+	require.Equal(t, 1, unwrapCalls, "current verified-email events must not decrypt during projection apply")
+	p.RLock()
+	projectedEmail := p.users["U1"].verifiedEmail[emailHash("Alice@Example.com")]
+	require.NotEmpty(t, projectedEmail.pii.encrypted.GetEncryptedValue())
+	p.RUnlock()
+
+	byEmail, ok := p.GetByEmailContext(context.Background(), "alice@example.com")
+	require.True(t, ok)
+	require.Equal(t, "U1", byEmail.GetId())
+	require.Equal(t, 2, unwrapCalls, "profile and email hydration should share one DEK unwrap")
+}
+
+func TestUserProjection_LegacyEventsDeriveLookupHashesWithoutRetainingPlaintext(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	unwrapCalls := 0
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key, unwrapCalls: &unwrapCalls}, staticProjectionDEKStore{})
+	require.NoError(t, p.Apply(&corev1.Event{
+		Id: "K1",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId:        "U1",
+			Epoch:         1,
+			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			ContentKeyRef: "dek.test",
+		}},
+	}, 1))
+	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	legacy := accountCreated(t, contentKey, "E1", "U1", "LegacyAlice", "Legacy Alice")
+	legacy.GetUserAccountCreated().LoginHash = ""
+	require.NoError(t, p.Apply(userEvent("E1", time.Now(), legacy), 2))
+	require.Equal(t, 1, unwrapCalls, "legacy apply decrypts only to rebuild the lookup digest")
+
+	p.RLock()
+	require.Empty(t, p.users["U1"].user.GetLogin())
+	require.Empty(t, p.users["U1"].user.GetDisplayName())
+	require.Equal(t, "U1", p.loginIndex[userPIILookupHash("LegacyAlice")])
+	p.RUnlock()
+
+	got, ok := p.Get("U1")
+	require.True(t, ok)
+	require.Equal(t, "LegacyAlice", got.GetLogin())
+	require.Equal(t, "Legacy Alice", got.GetDisplayName())
 }
 
 func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
@@ -249,6 +366,7 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
 			UserId:         "U1",
 			EncryptedEmail: encryptedEmail,
+			EmailHash:      emailHash("Alice@Example.com"),
 		}},
 	}, 3))
 	require.NoError(t, p.Apply(&corev1.Event{

@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -34,7 +34,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, records durable deletion facts for message-owned assets and derivatives, and revokes all their sessions and bearer tokens. An elected cleanup worker retries physical removal for current message-owned asset deletion facts.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
 - Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
-- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
+- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt them only for reads, and remove their lookup digests when the account is crypto-shredded.
 - The login is freed up for re-use.
 
 ## Design Decisions
@@ -77,9 +77,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
 
-**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. Current login and verified-email facts also carry stable normalised lookup digests. The projection retains ciphertext and digest indexes, decrypting PII only while hydrating reads. Historical events without digests decrypt transiently during replay to rebuild the same indexes without retaining plaintext.
 **Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
-**Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
+**Tradeoff:** Reads need access to key-unwrapping and may incur KMS latency, mitigated by request-scoped DEK reuse. Historical events without digests still need key-unwrapping during replay; if a user's key is gone, cold replay intentionally cannot rebuild those legacy uniqueness indexes.
 
 ### 7. KMS service boundary, even though it's in-process
 

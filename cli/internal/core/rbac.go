@@ -107,7 +107,7 @@ func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, er
 	if c.RBAC.HasRole(userID, RoleOwner) {
 		return true, nil
 	}
-	for _, ve := range c.Users.VerifiedEmails(userID) {
+	for _, ve := range c.Users.VerifiedEmailsContext(ctx, userID) {
 		if c.config.Owners.IsServerOwnerEmail(ve.Email) {
 			return true, nil
 		}

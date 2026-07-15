@@ -608,6 +608,11 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		if user.user != nil {
 			userBytes += int64(proto.Size(user.user))
 		}
+		for _, pii := range []*projectedUserPII{user.login, user.displayName} {
+			if pii != nil {
+				userBytes += int64(len(pii.eventID)+len(pii.eventType)+len(pii.purpose)) + int64(proto.Size(pii.encrypted))
+			}
+		}
 		if user.avatar != nil {
 			userBytes += int64(proto.Size(user.avatar))
 		}
@@ -616,7 +621,10 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		}
 		for hash, email := range user.verifiedEmail {
 			verifiedEmails++
-			userBytes += projectionMapEntryOverhead + int64(len(hash)+len(email.Email)) + 8
+			userBytes += projectionMapEntryOverhead + int64(len(hash)) + 8
+			if email.pii != nil {
+				userBytes += int64(len(email.pii.eventID)+len(email.pii.eventType)+len(email.pii.purpose)) + int64(proto.Size(email.pii.encrypted))
+			}
 		}
 		if user.preferences != nil {
 			userBytes += int64(proto.Size(user.preferences))

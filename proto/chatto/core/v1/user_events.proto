@@ -70,11 +70,16 @@ message UserAccountCreatedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
+  // Stable digest of the normalised login for projection lookup. The login
+  // itself remains encrypted and is decrypted only when hydrating a user.
+  string login_hash = 12;
 }
 
 message UserLoginChangedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_login = 10;
+  // Stable digest of the normalised login for projection lookup.
+  string login_hash = 11;
 }
 
 message UserDisplayNameChangedEvent {
@@ -97,6 +102,8 @@ message UserAvatarClearedEvent {
 message UserVerifiedEmailAddedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_email = 10;
+  // Stable digest of the normalised email for projection lookup.
+  string email_hash = 11;
 }
 
 message UserPasswordHashChangedEvent {

@@ -35,7 +35,7 @@ func externalIdentityHash(issuer, subject string) string {
 
 // GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
 func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByExternalIdentity(issuer, subject); ok {
+	if user, ok := c.Users.GetByExternalIdentityContext(ctx, issuer, subject); ok {
 		return user, nil
 	}
 	return nil, nil
@@ -63,10 +63,10 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		if _, ok := c.Users.Get(userID); !ok {
+		if _, ok := c.Users.GetContext(ctx, userID); !ok {
 			return ErrNotFound
 		}
-		existing, ok := c.Users.GetByExternalIdentity(issuer, subject)
+		existing, ok := c.Users.GetByExternalIdentityContext(ctx, issuer, subject)
 		if ok && existing.GetId() != userID {
 			return ErrExternalIdentityAlreadyClaimed
 		}
