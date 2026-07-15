@@ -263,14 +263,14 @@ type ChattoCore struct {
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	for _, group := range projectionRunGroups(c.projections) {
-		group := group
+	for _, projection := range c.projections {
+		projection := projection
 		g.Go(func() error {
-			if err := events.RunProjectorsOnSubjects(gctx, group.replaySubjects, group.projectors...); err != nil {
+			if err := projection.projector.Run(gctx); err != nil {
 				if errors.Is(err, context.Canceled) {
 					return err
 				}
-				return fmt.Errorf("%s projections: %w", strings.Join(group.names, ", "), err)
+				return fmt.Errorf("%s projection: %w", projection.name, err)
 			}
 			return nil
 		})
@@ -329,48 +329,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		})
 	}
 	return g.Wait()
-}
-
-type projectionRunGroup struct {
-	names          []string
-	replaySubjects []string
-	projectors     []*events.Projector
-}
-
-func projectionRunGroups(projections []projectionRegistration) []projectionRunGroup {
-	if len(projections) == 0 {
-		return nil
-	}
-
-	snapshotGroup := projectionRunGroup{
-		names:          make([]string, 0, len(projections)),
-		replaySubjects: []string{events.EventSubjectFilter()},
-		projectors:     make([]*events.Projector, 0, len(projections)),
-	}
-	coldGroup := projectionRunGroup{}
-	coldSubjects := make(map[string]struct{})
-	for _, projection := range projections {
-		if projection.snapshotCohort {
-			snapshotGroup.names = append(snapshotGroup.names, projection.name)
-			snapshotGroup.projectors = append(snapshotGroup.projectors, projection.projector)
-			continue
-		}
-		coldGroup.names = append(coldGroup.names, projection.name)
-		coldGroup.projectors = append(coldGroup.projectors, projection.projector)
-		for _, subject := range projection.subjects {
-			coldSubjects[subject] = struct{}{}
-		}
-	}
-	if len(snapshotGroup.projectors) == 0 {
-		coldGroup.replaySubjects = []string{events.EventSubjectFilter()}
-		return []projectionRunGroup{coldGroup}
-	}
-	groups := []projectionRunGroup{snapshotGroup}
-	if len(coldGroup.projectors) > 0 {
-		coldGroup.replaySubjects = sortedMapKeys(coldSubjects)
-		groups = append(groups, coldGroup)
-	}
-	return groups
 }
 
 // AllProjectorsStarted reports whether every registered projector
@@ -1382,7 +1340,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
 			for i := range projections {
 				if projections[i].key == spec.key {
-					projections[i].snapshotCohort = true
+					projections[i].snapshotEnabled = true
 					break
 				}
 			}

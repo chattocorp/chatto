@@ -65,6 +65,7 @@ func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, re
 	return events.ProjectionSnapshot{
 		GenerationID:   loaded.GenerationID,
 		CutoffSequence: loaded.CutoffSequence,
+		CreatedAt:      loaded.CreatedAt,
 		Payload:        loaded.Payload,
 	}, nil
 }

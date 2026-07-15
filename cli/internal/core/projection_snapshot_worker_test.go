@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
@@ -62,14 +63,14 @@ func (f *fakeSnapshotExpirer) calls() []projectionsnapshot.ExpireOptions {
 	return slices.Clone(f.options)
 }
 
-func TestProjectionSnapshotWorkerRunsImmediatelyThenDailyWithS3Expiry(t *testing.T) {
+func TestProjectionSnapshotWorkerChecksImmediatelyThenHourlyWithDailyS3Expiry(t *testing.T) {
 	lease := &fakeSnapshotWorkerLease{}
 	expirer := &fakeSnapshotExpirer{}
 	var waits []time.Duration
 	worker := &projectionSnapshotWorker{
 		lease: lease, expirer: expirer, retention: 9 * 24 * time.Hour,
 		logger: testCoreLogger(), done: make(chan struct{}),
-		nextInterval: func() time.Duration { return 23 * time.Hour },
+		nextInterval: func() time.Duration { return time.Hour },
 		wait: func(_ context.Context, delay time.Duration) error {
 			waits = append(waits, delay)
 			if len(waits) == 1 {
@@ -86,11 +87,11 @@ func TestProjectionSnapshotWorkerRunsImmediatelyThenDailyWithS3Expiry(t *testing
 	if lease.runs.Load() != 1 {
 		t.Fatalf("lease runs = %d", lease.runs.Load())
 	}
-	if len(waits) != 2 || waits[0] > 23*time.Hour || waits[0] < 22*time.Hour+59*time.Minute {
-		t.Fatalf("daily waits = %v", waits)
+	if len(waits) != 2 || waits[0] > time.Hour || waits[0] < 59*time.Minute {
+		t.Fatalf("refresh checks = %v", waits)
 	}
 	calls := expirer.calls()
-	if len(calls) != 2 {
+	if len(calls) != 1 {
 		t.Fatalf("expiry calls = %d", len(calls))
 	}
 	for _, options := range calls {
@@ -105,14 +106,17 @@ func TestProjectionSnapshotWorkerRunsImmediatelyThenDailyWithS3Expiry(t *testing
 	}
 }
 
-func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopDailyPublication(t *testing.T) {
+func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopLaterExpiry(t *testing.T) {
 	expirer := &fakeSnapshotExpirer{errors: []error{errors.New("S3 unavailable")}}
 	waits := 0
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
 	worker := &projectionSnapshotWorker{
 		lease: &fakeSnapshotWorkerLease{}, expirer: expirer, retention: 7 * 24 * time.Hour,
-		logger: testCoreLogger(), nextInterval: func() time.Duration { return time.Hour },
+		logger: testCoreLogger(), nextInterval: func() time.Duration { return time.Hour }, expiryInterval: time.Hour,
+		now: func() time.Time { return now },
 		wait: func(_ context.Context, _ time.Duration) error {
 			waits++
+			now = now.Add(time.Hour)
 			if waits == 1 {
 				return nil
 			}
@@ -129,12 +133,29 @@ func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopDailyPublication(t *tes
 	}
 }
 
-func TestProjectionSnapshotDailyIntervalNeverExceedsOneDay(t *testing.T) {
-	for range 1000 {
-		interval := projectionSnapshotDailyInterval()
-		if interval < projectionSnapshotDailyIntervalMin || interval > 24*time.Hour {
-			t.Fatalf("daily interval outside window: %s", interval)
-		}
+func TestProjectionSnapshotRefreshDue(t *testing.T) {
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	for _, test := range []struct {
+		name   string
+		status events.ProjectorStatus
+		want   bool
+	}{
+		{name: "cold replay", status: events.ProjectorStatus{LastSeq: 10}, want: true},
+		{name: "fresh unchanged restore", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}},
+		{name: "stale unchanged restore", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-projectionSnapshotRefreshAge)}, want: true},
+		{name: "fresh restore with boot delta", status: events.ProjectorStatus{LastSeq: 11, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}, want: true},
+		{name: "future timestamp beyond tolerance", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(6 * time.Minute)}, want: true},
+		{name: "clock skew within tolerance", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(time.Minute)}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := projectionSnapshotRefreshDue(test.status, now, true); got != test.want {
+				t.Fatalf("refresh due = %t, want %t", got, test.want)
+			}
+		})
+	}
+	status := events.ProjectorStatus{LastSeq: 11, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}
+	if projectionSnapshotRefreshDue(status, now, false) {
+		t.Fatal("fresh live delta triggered maintenance publication")
 	}
 }
 
