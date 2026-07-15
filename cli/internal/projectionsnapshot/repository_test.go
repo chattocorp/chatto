@@ -13,10 +13,10 @@ import (
 const testSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 const testStreamIdentity = "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const otherStreamIdentity = "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-const testCompatibilityID = "v1"
+const testContractID = "v1"
 
 func testSaveInput(seq uint64, payload []byte) SaveInput {
-	return SaveInput{ProjectionKey: "threads", CompatibilityID: testCompatibilityID, StreamName: "EVT", StreamIdentity: testStreamIdentity, CutoffSequence: seq, Payload: payload}
+	return SaveInput{ProjectionKey: "threads", ContractID: testContractID, StreamName: "EVT", StreamIdentity: testStreamIdentity, CutoffSequence: seq, Payload: payload}
 }
 
 type memoryBlobStore struct {
@@ -234,7 +234,7 @@ func TestRepositoryRoundTripKeepsMetadataOpaque(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 42)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 42)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
 			t.Fatal(err)
 		}
 		blobs.failDelete = func(key string) bool {
-			return key == repository.generationObjectKey("threads", testCompatibilityID, first.GenerationID)
+			return key == repository.generationObjectKey("threads", testContractID, first.GenerationID)
 		}
 		newest, err = repository.Save(ctx, testSaveInput(3, []byte("third")))
 		blobs.failDelete = nil
@@ -276,7 +276,7 @@ func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
 	if _, err := repository.Save(ctx, testSaveInput(4, []byte("stale"))); !errors.Is(err, ErrPointerConflict) {
 		t.Fatalf("stale Save error = %v, want pointer conflict", err)
 	}
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 4)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestRepositoryRejectsOlderSnapshotAndAllowsDailySameCutoffRefresh(t *testin
 	if err != nil {
 		t.Fatalf("same-cutoff refresh: %v", err)
 	}
-	loaded, err := repository.Load(ctx, ProjectionThreadsKey, testCompatibilityID, "EVT", testStreamIdentity, 200)
+	loaded, err := repository.Load(ctx, ProjectionThreadsKey, testContractID, "EVT", testStreamIdentity, 200)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +399,7 @@ func TestRepositoryRepairsFreshPointerWithMissingCurrentGeneration(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	delete(blobs.objects, repository.generationObjectKey("threads", testCompatibilityID, first.GenerationID))
+	delete(blobs.objects, repository.generationObjectKey("threads", testContractID, first.GenerationID))
 
 	refresh := testSaveInput(200, []byte("repaired"))
 	refresh.RefreshAge = 23 * time.Hour
@@ -425,9 +425,9 @@ func TestRepositoryRepairsFreshCorruptCurrentAfterFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	currentKey := repository.generationObjectKey("threads", testCompatibilityID, current.GenerationID)
+	currentKey := repository.generationObjectKey("threads", testContractID, current.GenerationID)
 	blobs.objects[currentKey][0] ^= 0xff
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -445,7 +445,7 @@ func TestRepositoryRepairsFreshCorruptCurrentAfterFallback(t *testing.T) {
 	if repaired.GenerationID == current.GenerationID {
 		t.Fatalf("corrupt current generation was not replaced: current=%#v repaired=%#v", current, repaired)
 	}
-	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	loaded, err = repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,20 +454,14 @@ func TestRepositoryRepairsFreshCorruptCurrentAfterFallback(t *testing.T) {
 	}
 }
 
-func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
+func TestRepositoryAllowsNewHistoryWithinContract(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
 	if _, err := repository.Save(ctx, testSaveInput(200, []byte("original"))); err != nil {
 		t.Fatal(err)
 	}
-
-	newCompatibility := testSaveInput(200, []byte("new compatibility"))
-	newCompatibility.CompatibilityID = "v2"
-	if _, err := repository.Save(ctx, newCompatibility); err != nil {
-		t.Fatalf("new compatibility Save: %v", err)
-	}
-	newHistory := newCompatibility
+	newHistory := testSaveInput(1, []byte("new history"))
 	newHistory.CutoffSequence = 1
 	newHistory.StreamIdentity = otherStreamIdentity
 	if _, err := repository.Save(ctx, newHistory); err != nil {
@@ -475,37 +469,54 @@ func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	}
 }
 
-func TestRepositoryLocatesPreviousGenerationAcrossCompatibilityUpgrade(t *testing.T) {
+func TestRepositoryKeepsContractsIsolatedAcrossUpgradeAndRollback(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
 	ctx := context.Background()
-	previous, err := repository.Save(ctx, testSaveInput(10, []byte("v1 state")))
+	v1, err := repository.Save(ctx, testSaveInput(206, []byte("v1 state")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	current := testSaveInput(20, []byte("v2 state"))
-	current.CompatibilityID = "v2"
-	if _, err := repository.Save(ctx, current); err != nil {
-		t.Fatal(err)
-	}
-	loaded, err := repository.Load(ctx, "threads", "v1", "EVT", testStreamIdentity, 20)
+	v2Input := testSaveInput(43, []byte("v2 state"))
+	v2Input.ContractID = "v2"
+	v2, err := repository.Save(ctx, v2Input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.GenerationID != previous.GenerationID || string(loaded.Payload) != "v1 state" {
-		t.Fatalf("cross-version fallback loaded = %#v", loaded)
+	v2Input.CutoffSequence = 44
+	v2Input.Payload = []byte("newer v2 state")
+	if _, err := repository.Save(ctx, v2Input); err != nil {
+		t.Fatal(err)
+	}
+
+	loadedV1, err := repository.Load(ctx, "threads", "v1", "EVT", testStreamIdentity, 206)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedV1.GenerationID != v1.GenerationID || string(loadedV1.Payload) != "v1 state" {
+		t.Fatalf("rollback contract loaded = %#v", loadedV1)
+	}
+	loadedV2, err := repository.Load(ctx, "threads", "v2", "EVT", testStreamIdentity, 44)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedV2.GenerationID == v2.GenerationID || string(loadedV2.Payload) != "newer v2 state" {
+		t.Fatalf("forward contract loaded = %#v", loadedV2)
+	}
+	if repository.pointerKey("threads", "v1") == repository.pointerKey("threads", "v2") {
+		t.Fatal("different contracts share a pointer")
 	}
 }
 
 func TestRepositoryIgnoresLegacyPointerLineages(t *testing.T) {
-	for _, locator := range []string{"v1:threads", "projection:threads"} {
+	for _, locator := range []string{"v1:threads", "projection:threads", "projection-local-v1:threads"} {
 		t.Run(locator, func(t *testing.T) {
 			blobs := newMemoryBlobStore()
 			repository := newTestRepository(t, blobs, testSecret)
 			if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
 				t.Fatal(err)
 			}
-			currentKey := repository.pointerKey("threads")
+			currentKey := repository.pointerKey("threads", testContractID)
 			legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, locator)
 			blobs.pointers[legacyKey] = blobs.pointers[currentKey]
 			blobs.revisions[legacyKey] = blobs.revisions[currentKey]
@@ -518,69 +529,69 @@ func TestRepositoryIgnoresLegacyPointerLineages(t *testing.T) {
 	}
 }
 
-func TestRepositoryProjectionLocalLineageCanStartBelowLegacySharedCutoff(t *testing.T) {
+func TestRepositoryNewContractCanStartBelowOldContractCutoff(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
 	ctx := context.Background()
-	if _, err := repository.Save(ctx, testSaveInput(206, []byte("shared frontier"))); err != nil {
+	old, err := repository.Save(ctx, testSaveInput(206, []byte("old contract")))
+	if err != nil {
 		t.Fatal(err)
 	}
-	currentKey := repository.pointerKey("threads")
-	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "projection:threads")
-	blobs.pointers[legacyKey] = blobs.pointers[currentKey]
-	blobs.revisions[legacyKey] = blobs.revisions[currentKey]
-	delete(blobs.pointers, currentKey)
-	delete(blobs.revisions, currentKey)
-
-	local, err := repository.Save(ctx, testSaveInput(43, []byte("projection-local frontier")))
+	newInput := testSaveInput(43, []byte("new contract"))
+	newInput.ContractID = "v2"
+	local, err := repository.Save(ctx, newInput)
 	if err != nil {
-		t.Fatalf("Save below legacy shared cutoff: %v", err)
+		t.Fatalf("Save below old contract cutoff: %v", err)
 	}
 	if local.CutoffSequence != 43 {
 		t.Fatalf("saved cutoff = %d, want 43", local.CutoffSequence)
 	}
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 43)
+	loaded, err := repository.Load(ctx, "threads", "v2", "EVT", testStreamIdentity, 43)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.GenerationID != local.GenerationID || string(loaded.Payload) != "projection-local frontier" {
-		t.Fatalf("loaded = %#v, want projection-local generation %#v", loaded, local)
+	if loaded.GenerationID != local.GenerationID || string(loaded.Payload) != "new contract" {
+		t.Fatalf("loaded = %#v, want new contract generation %#v", loaded, local)
+	}
+	loadedOld, err := repository.Load(ctx, "threads", "v1", "EVT", testStreamIdentity, 206)
+	if err != nil || loadedOld.GenerationID != old.GenerationID {
+		t.Fatalf("old contract no longer loads: loaded=%#v error=%v", loadedOld, err)
 	}
 }
 
-func TestRepositoryRejectsInvalidProjectionOrCompatibilityPathSegments(t *testing.T) {
+func TestRepositoryRejectsInvalidProjectionOrContractPathSegments(t *testing.T) {
 	ctx := context.Background()
 	repository := newTestRepository(t, newMemoryBlobStore(), testSecret)
-	for _, test := range []struct{ projection, compatibility string }{
-		{"../assets", "v1"}, {"room-directory", "v1"}, {"threads", "threads-v1"}, {"threads", "v0"},
+	for _, test := range []struct{ projection, contract string }{
+		{"../assets", "v1"}, {"room-directory", "v1"}, {"threads", "../v1"}, {"threads", "V1"}, {"threads", ""}, {"threads", strings.Repeat("a", 65)},
 	} {
 		input := testSaveInput(1, []byte("state"))
-		input.ProjectionKey, input.CompatibilityID = test.projection, test.compatibility
+		input.ProjectionKey, input.ContractID = test.projection, test.contract
 		if _, err := repository.Save(ctx, input); err == nil {
-			t.Fatalf("Save accepted projection=%q compatibility=%q", test.projection, test.compatibility)
+			t.Fatalf("Save accepted projection=%q contract=%q", test.projection, test.contract)
 		}
-		if _, err := repository.Load(ctx, test.projection, test.compatibility, "EVT", testStreamIdentity, 1); err == nil {
-			t.Fatalf("Load accepted projection=%q compatibility=%q", test.projection, test.compatibility)
+		if _, err := repository.Load(ctx, test.projection, test.contract, "EVT", testStreamIdentity, 1); err == nil {
+			t.Fatalf("Load accepted projection=%q contract=%q", test.projection, test.contract)
 		}
 	}
 }
 
-func TestRepositoryScopesPointersAndObjectsPerProjectionAndVersion(t *testing.T) {
+func TestRepositoryScopesPointersAndObjectsPerProjectionAndContract(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
-	for _, test := range []struct{ projection, compatibility string }{{"threads", "v1"}, {"users", "v2"}} {
+	for _, test := range []struct{ projection, contract string }{{"threads", "v1"}, {"threads", "tracking-v1"}, {"users", "v2"}} {
 		input := testSaveInput(1, []byte(test.projection))
-		input.ProjectionKey, input.CompatibilityID = test.projection, test.compatibility
+		input.ProjectionKey, input.ContractID = test.projection, test.contract
 		generation, err := repository.Save(context.Background(), input)
 		if err != nil {
 			t.Fatal(err)
 		}
-		key := repository.generationObjectKey(test.projection, test.compatibility, generation.GenerationID)
+		key := repository.generationObjectKey(test.projection, test.contract, generation.GenerationID)
 		if _, ok := blobs.objects[key]; !ok {
 			t.Fatalf("missing scoped generation %q", key)
 		}
 	}
-	if repository.pointerKey("threads") == repository.pointerKey("users") {
+	if repository.pointerKey("threads", "v1") == repository.pointerKey("users", "v2") {
 		t.Fatal("projection pointers share an opaque key")
 	}
 }
@@ -597,9 +608,9 @@ func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, second.GenerationID)][envelopeHeaderSize] ^= 1
+	blobs.objects[repository.generationObjectKey("threads", testContractID, second.GenerationID)][envelopeHeaderSize] ^= 1
 
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -622,7 +633,7 @@ func TestRepositoryFallsBackWhenCurrentGenerationHasDifferentStreamIdentity(t *t
 		t.Fatal(err)
 	}
 
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -643,17 +654,17 @@ func TestRepositoryRetainsCurrentAndPrevious(t *testing.T) {
 		}
 		generations = append(generations, generation)
 	}
-	if _, ok := blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, generations[0].GenerationID)]; ok {
+	if _, ok := blobs.objects[repository.generationObjectKey("threads", testContractID, generations[0].GenerationID)]; ok {
 		t.Fatal("oldest generation was not deleted")
 	}
 	for _, generation := range generations[1:] {
-		if _, ok := blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, generation.GenerationID)]; !ok {
+		if _, ok := blobs.objects[repository.generationObjectKey("threads", testContractID, generation.GenerationID)]; !ok {
 			t.Fatalf("retained generation %s is missing", generation.GenerationID)
 		}
 	}
 }
 
-func TestRepositoryRejectsWrongKeyCompatibilityAndFutureCutoff(t *testing.T) {
+func TestRepositoryRejectsWrongKeyContractAndFutureCutoff(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
@@ -663,19 +674,19 @@ func TestRepositoryRejectsWrongKeyCompatibilityAndFutureCutoff(t *testing.T) {
 	}
 
 	wrongKey := newTestRepository(t, blobs, strings.Repeat("11", 32))
-	if _, err := wrongKey.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 10); err == nil {
+	if _, err := wrongKey.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 10); err == nil {
 		t.Fatal("wrong key loaded snapshot")
 	}
 	for _, test := range []struct {
-		compatibility, stream, identity string
-		max                             uint64
+		contract, stream, identity string
+		max                        uint64
 	}{
 		{"v2", "EVT", testStreamIdentity, 10},
-		{testCompatibilityID, "OTHER", testStreamIdentity, 10},
-		{testCompatibilityID, "EVT", otherStreamIdentity, 10},
-		{testCompatibilityID, "EVT", testStreamIdentity, 9},
+		{testContractID, "OTHER", testStreamIdentity, 10},
+		{testContractID, "EVT", otherStreamIdentity, 10},
+		{testContractID, "EVT", testStreamIdentity, 9},
 	} {
-		if _, err := repository.Load(ctx, "threads", test.compatibility, test.stream, test.identity, test.max); err == nil {
+		if _, err := repository.Load(ctx, "threads", test.contract, test.stream, test.identity, test.max); err == nil {
 			t.Fatalf("invalid constraints loaded snapshot: %#v", test)
 		}
 	}
@@ -710,7 +721,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 		t.Fatal(err)
 	}
 	objectCount := len(blobs.objects)
-	pointerKey := repository.pointerKey("threads")
+	pointerKey := repository.pointerKey("threads", testContractID)
 	blobs.failGet = func(key string) bool { return key == pointerKey }
 
 	_, err = repository.Save(ctx, testSaveInput(3, []byte("third")))
@@ -722,7 +733,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 	}
 
 	blobs.failGet = nil
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -730,8 +741,8 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 		t.Fatalf("pointer changed after read failure: %#v", loaded)
 	}
 
-	blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, second.GenerationID)][envelopeHeaderSize] ^= 1
-	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
+	blobs.objects[repository.generationObjectKey("threads", testContractID, second.GenerationID)][envelopeHeaderSize] ^= 1
+	loaded, err = repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -751,13 +762,13 @@ func TestRepositoryReplacesDefinitivelyInvalidPointer(t *testing.T) {
 	if _, err := repository.Save(ctx, testSaveInput(1, []byte("first"))); err != nil {
 		t.Fatal(err)
 	}
-	blobs.pointers[repository.pointerKey("threads")][envelopeHeaderSize] ^= 1
+	blobs.pointers[repository.pointerKey("threads", testContractID)][envelopeHeaderSize] ^= 1
 
 	second, err := repository.Save(ctx, testSaveInput(2, []byte("second")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 2)
+	loaded, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -796,7 +807,7 @@ func TestRepositoryRejectsOversizedPayloadOnSaveAndLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 		repository.maxPayloadSize = 4
-		if _, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
+		if _, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "payload exceeds") {
 			t.Fatalf("oversized Load error = %v", err)
 		}
 	})
@@ -856,7 +867,7 @@ func TestRepositoryLogsOperationalSnapshotContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 12); err != nil {
+	if _, err := repository.Load(ctx, "threads", testContractID, "EVT", testStreamIdentity, 12); err != nil {
 		t.Fatal(err)
 	}
 

@@ -58,7 +58,7 @@ func (n natsSnapshotPointerStore) UpdatePointer(ctx context.Context, key string,
 }
 
 func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
-	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.CompatibilityID, request.StreamName, request.StreamIdentity, request.MaxCutoff)
+	loaded, err := s.repository.Load(ctx, request.ProjectionKey, request.ContractID, request.StreamName, request.StreamIdentity, request.MaxCutoff)
 	if err != nil {
 		return events.ProjectionSnapshot{}, err
 	}

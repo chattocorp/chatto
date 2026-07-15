@@ -145,7 +145,7 @@ func TestRepositoryExpireCurrentAndPreviousCausesColdReplay(t *testing.T) {
 }
 
 func TestGenerationObjectKeyParserRejectsPrefixConfusion(t *testing.T) {
-	valid := objectRootPrefix + "room_directory/v12/objects/0123456789abcdef/" + strings.Repeat("a", 32)
+	valid := objectRootPrefix + "room_directory/tracking-v1/objects/0123456789abcdef/" + strings.Repeat("a", 32)
 	if !isGenerationObjectKey(valid) {
 		t.Fatal("valid generation key rejected")
 	}

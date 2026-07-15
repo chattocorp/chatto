@@ -632,7 +632,25 @@ export class VoiceCallState {
     const newEnabled = !this.isScreenShareEnabled;
     try {
       await this.runExplicitMediaDeviceOperation(() =>
-        room.localParticipant.setScreenShareEnabled(newEnabled)
+        room.localParticipant.setScreenShareEnabled(
+          newEnabled,
+          newEnabled
+            ? {
+                audio: true,
+                // Tab audio is useful shared media; whole-system audio can feed
+                // remote call playback back into the room.
+                systemAudio: 'exclude'
+              }
+            : undefined,
+          newEnabled
+            ? {
+                audioPreset: AudioPresets.musicStereo,
+                forceStereo: true,
+                dtx: false,
+                red: false
+              }
+            : undefined
+        )
       );
       if (this.room !== room) return;
 
@@ -873,7 +891,9 @@ export class VoiceCallState {
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
-    participant.setVolume(this.isParticipantLocallyMuted(participant.identity) ? 0 : 1);
+    const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
+    participant.setVolume(volume, Track.Source.Microphone);
+    participant.setVolume(volume, Track.Source.ScreenShareAudio);
   }
 
   /**

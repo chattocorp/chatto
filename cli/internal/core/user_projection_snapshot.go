@@ -10,9 +10,9 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const userSnapshotCompatibilityID = "v2"
+const userSnapshotContractID = "v2"
 
-func (*UserProjection) SnapshotCompatibilityID() string { return userSnapshotCompatibilityID }
+func (*UserProjection) SnapshotContractID() string { return userSnapshotContractID }
 
 func (p *UserProjection) Snapshot() ([]byte, error) {
 	p.RLock()

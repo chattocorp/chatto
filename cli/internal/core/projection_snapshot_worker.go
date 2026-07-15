@@ -29,7 +29,6 @@ type projectionSnapshotJob struct {
 	projector      *events.Projector
 	repository     *projectionsnapshot.Repository
 	projectionKey  string
-	compatibility  string
 	streamName     string
 	streamIdentity string
 }
@@ -213,14 +212,14 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
 	}
 	loaded, err := job.repository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey:   job.projectionKey,
-		CompatibilityID: job.compatibility,
-		StreamName:      job.streamName,
-		StreamIdentity:  job.streamIdentity,
-		CutoffSequence:  captured.CutoffSequence,
-		Payload:         captured.Payload,
-		RefreshAge:      projectionSnapshotRefreshAge,
-		ClockSkew:       projectionSnapshotClockSkewTolerance,
+		ProjectionKey:  job.projectionKey,
+		ContractID:     job.projector.SnapshotContractID(),
+		StreamName:     job.streamName,
+		StreamIdentity: job.streamIdentity,
+		CutoffSequence: captured.CutoffSequence,
+		Payload:        captured.Payload,
+		RefreshAge:     projectionSnapshotRefreshAge,
+		ClockSkew:      projectionSnapshotClockSkewTolerance,
 	})
 	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
 		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)

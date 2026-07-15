@@ -106,7 +106,7 @@ func isGenerationObjectKey(key string) bool {
 		return false
 	}
 	parts := strings.Split(relative, "/")
-	if len(parts) != 5 || !validProjectionKey(parts[0]) || !validCompatibilityID(parts[1]) || parts[2] != "objects" {
+	if len(parts) != 5 || !validProjectionKey(parts[0]) || !validContractID(parts[1]) || parts[2] != "objects" {
 		return false
 	}
 	if len(parts[3]) != 16 || !isLowerHex(parts[3]) {

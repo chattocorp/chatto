@@ -81,13 +81,18 @@ authorization, live events, backup/restore, and backend tests.
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
   unwrapped keys, or state that would weaken crypto-shredding.
-- Scope snapshot generation paths by projection key and projection-local
-  compatibility version. Keep snapshot pointers on a durable revisioned store
-  and publish them with OCC; a process lease is not fencing.
-  Carry cutoff, creation time, EVT incarnation, and compatibility metadata in
+- Give every snapshotted projection one opaque, projection-scoped contract ID.
+  The contract covers serialized state, replay semantics, consumed event
+  families, and cutoff meaning. If restoring an existing snapshot would no
+  longer equal replaying EVT through its cutoff, bump the contract ID. Treat
+  IDs only as bounded path-safe equality tokens, never as ordered versions.
+  Scope both generation paths and pointer keys by projection and contract so
+  different contracts never read or overwrite each other. Keep pointers on a
+  durable revisioned store and publish them with OCC; a process lease is not
+  fencing. Capture the contract once during projector configuration and use
+  that same value for restore and publication; do not duplicate it in wiring.
+  Carry cutoff, creation time, EVT incarnation, and contract metadata in
   the pointer.
-  Version the opaque pointer lineage whenever the meaning of the cutoff changes;
-  never compare or apply no-regression rules across incompatible cursor models.
   Allow same-cutoff refreshes for retention, but do not republish a fresh,
   unchanged generation merely because a process restarted. Reject regressing
   captures, and use pointer revision OCC to prevent concurrent writers from
@@ -95,7 +100,7 @@ authorization, live events, backup/restore, and backend tests.
   Scope generation object paths by encryption-key epoch. NATS Object Store TTL
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.
-- Most current snapshot codecs use projection-local compatibility version `v1`;
+- Most current snapshot contracts use projection-local ID `v1`;
   the user profile projection uses `v2`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a

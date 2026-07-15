@@ -46,21 +46,23 @@ Chatto from starting when `EVT` itself is available. Bootstrap snapshot loads
 have a 15-second deadline so a stalled object backend cannot hold core startup
 indefinitely.
 
-### Compatibility is projection-scoped
+### Snapshot contracts are projection-scoped
 
-Each snapshot records three distinct versions:
+Each snapshot records three distinct identifiers:
 
 - an envelope format version for framing, compression, encryption, and
   integrity metadata;
-- a projection-scoped compatibility ID, such as `v1`, for the meaning and
-  serialized shape of one projection; and
+- an opaque, projection-scoped contract ID, such as `v1`, covering serialized
+  state, replay semantics, consumed event families, and cutoff meaning; and
 - the producing Chatto version for diagnostics only.
 
-A projection compatibility ID changes when restored state would no longer be
-equivalent to replay under the current projection logic. Unrelated Chatto
-releases do not invalidate a snapshot. The initial implementation accepts only
-exact compatibility IDs and performs no snapshot migration. Forward upgrades
-and rollbacks ignore unknown IDs and cold-replay instead.
+A projection contract ID changes when restored state would no longer be
+equivalent to replaying EVT through the recorded cutoff. Unrelated Chatto
+releases do not invalidate a snapshot. Contract IDs are bounded path-safe,
+projection-local equality tokens, not ordered schema or Chatto versions, and
+Chatto performs no migration between them. Forward upgrades and rollbacks use
+independent contract-scoped pointers and cold-replay when their own contract
+has no usable generation.
 
 Snapshot codecs use explicit protobuf messages. They do not serialize internal
 Go structs through reflection, `gob`, or generic JSON. A codec may omit derived
@@ -76,15 +78,15 @@ configured asset-storage backend:
 - S3-backed deployments store snapshot objects in the configured S3 bucket.
 
 Snapshot generations use the reserved per-projection prefix
-`internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueKeyEpoch}/{generationId}`.
+`internal/projection-snapshots/{projection}/{contract}/objects/{opaqueKeyEpoch}/{generationId}`.
 They are not assets: they do not produce
 asset lifecycle events, receive signed URLs, participate in user-facing asset
 APIs, or enter asset cleanup decisions.
 
-Compatibility versions are local to one projection. Adding another projection
-does not change any existing path or compatibility contract. During a codec
-upgrade, the encrypted pointer records the version of each current and previous
-generation so both slots remain locatable across forward and rollback deploys.
+Contract IDs are local to one projection. Adding another projection does not
+change an existing contract. Pointer keys and generation paths include the
+projection and contract, so forward and rollback deployments cannot read,
+rotate, delete, or apply no-regression checks across contracts.
 
 The small encrypted current/previous pointer lives in `RUNTIME_STATE`, using KV
 `Create` and revisioned `Update` for optimistic concurrency. This is true for
@@ -93,20 +95,19 @@ but it cannot regress a newer pointer; a failed pointer CAS rolls back the
 unpublished upload and leaves the newer history intact.
 
 The pointer also carries each generation's cutoff sequence, creation time, EVT
-incarnation, and projection compatibility ID. A writer may refresh the same
+incarnation, and projection contract ID. A writer may refresh the same
 cutoff once it is old, but the repository rejects a redundant refresh when a
 previous lease holder already published a fresh, authenticated, usable
 generation. Missing or corrupt current objects are repaired instead. It rejects
-a lower cutoff for the same EVT incarnation and compatibility contract.
+a lower cutoff for the same EVT incarnation and snapshot contract.
 Revision OCC prevents a concurrent writer from replacing newer history.
 
-The opaque pointer locator includes a cursor-lineage version. A change to the
-meaning of cutoff sequences, such as moving from one shared EVT frontier to
-projection-local frontiers, starts a new pointer lineage. This preserves the
-no-regression invariant within each model without allowing a legacy global
-cutoff to block a lower but valid projection-local cutoff. Superseded pointers
-are harmless encrypted runtime records, and their unreferenced generation
-objects expire through the normal snapshot retention policy.
+Changing a contract leaves the prior encrypted pointer untouched. This keeps
+rollback acceleration available until its generation objects expire and lets a
+new contract begin at any valid cutoff without comparing it to the old
+contract's frontier. Superseded pointers are harmless encrypted runtime
+records, and their generation objects expire through the normal retention
+policy.
 
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
@@ -146,10 +147,10 @@ dedicated NATS Object Store TTL applies to both layouts.
 The unencrypted envelope contains only the framing data required to select the
 decryption scheme, derive the key, and authenticate the ciphertext: a magic
 value, envelope version, key-scheme identifier, random salt and nonce, and the
-opaque object generation ID. Projection names, compatibility IDs, EVT stream
+opaque object generation ID. Projection names, contract IDs, EVT stream
 identity and sequence, creation time, checksums, entry counts, and other
 semantic metadata live inside the encrypted authenticated payload. Object paths
-reveal the fixed projection key and compatibility version, but not server data,
+reveal the fixed projection key and contract ID, but not server data,
 EVT positions, or creation metadata.
 
 Ciphertext length and backend write time remain observable; padding policies
@@ -175,20 +176,21 @@ manifest and projection payload. The encrypted manifest records at least:
 
 - generation ID;
 - EVT stream name, cutoff sequence, and its versioned incarnation identity;
-- projection key, compatibility ID, and producer version;
+- projection key, contract ID, and producer version;
 - payload size and checksum; and
 - creation time.
 
 Writers upload the complete immutable bundle before replacing an encrypted
-pointer containing the current and previous opaque generation IDs. The pointer
-is stored in NATS KV independently of the payload backend and uses revision OCC,
+contract-scoped pointer containing the current and previous opaque generation
+IDs. The pointer is stored in NATS KV independently of the payload backend and
+uses revision OCC,
 so concurrent or stale writers cannot regress its history. Loaders validate the
 current generation, then the previous generation, and cold-replay if neither is
-valid. The pointer's KV key is derived from `core.secret_key` and the projection
-key so it does not disclose which projection it addresses.
+valid. The pointer's KV key is derived from `core.secret_key`, the projection
+key, and contract ID so it does not disclose which contract it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
-compatibility, cutoff bounds, and the current EVT incarnation identity before
+contract, cutoff bounds, and the current EVT incarnation identity before
 mutating a live projection. Chatto stores the opaque identity in EVT stream
 metadata so it survives process reconstruction and backup restore but changes
 when EVT is deleted and recreated. Missing metadata is deterministically
@@ -259,7 +261,7 @@ advanced beyond the restored cutoff. A fresh, unchanged restore is not
 republished. Once the latest generation is 23 hours old, the worker refreshes
 it even when its cutoff is unchanged, ensuring quiet projections receive a new
 storage timestamp before retention expiry without turning restarts into writes.
-A lower cutoff for the same EVT history and compatibility is rejected. A
+A lower cutoff for the same EVT history and contract is rejected. A
 failure for one projection is logged and does not prevent the remaining jobs
 from running. On S3, the same elected worker runs bounded expiry when it gains
 leadership and at most daily while that leadership tenure continues. Expiry
@@ -267,11 +269,11 @@ failure does not stop publication checks.
 
 ### Each projection owns its replay frontier
 
-Each projection has its own compatibility version, pointer, current/previous
+Each projection has its own contract ID, pointer, current/previous
 generations, cutoff, and fallback behavior. Most initial codecs use `v1`; the
 privacy-separated user profile codec uses `v2`.
 
-The initial 0.5 Threads implementation uses compatibility ID `v1`. It does not
+The initial 0.5 Threads implementation uses contract ID `v1`. It does not
 import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
 rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
@@ -346,7 +348,7 @@ configure S3 lifecycle expiry disable Chatto's redundant pass with
 
 - Expiring, compacting, truncating, or archiving `EVT`.
 - Depending on snapshots for backup, disaster recovery, or domain correctness.
-- Snapshot migration between projection compatibility IDs.
+- Snapshot migration between projection contract IDs.
 - Incremental or chained snapshots.
 - Persisting decrypted sensitive projection state.
 - A generic snapshot format shared by all projections.

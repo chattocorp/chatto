@@ -14,7 +14,7 @@ import (
 )
 
 type snapshotProjection interface {
-	SnapshotCompatibilityID() string
+	SnapshotContractID() string
 	Snapshot() ([]byte, error)
 	Restore([]byte) error
 }
@@ -140,7 +140,7 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 	}
 
-	expectedCompatibility := map[string]string{
+	expectedContract := map[string]string{
 		"room_directory": "v1", "server_config": "v1", "room_group_layout": "v1",
 		"room_timeline": "v1", "call_state": "v1", "assets": "v1", "reactions": "v1",
 		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v2",
@@ -191,9 +191,9 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			if !bytes.Equal(empty, fresh) {
 				t.Fatal("cold restore did not reset projection")
 			}
-			id := original.SnapshotCompatibilityID()
-			if id != expectedCompatibility[tt.name] {
-				t.Fatalf("compatibility ID = %q, want %q", id, expectedCompatibility[tt.name])
+			id := original.SnapshotContractID()
+			if id != expectedContract[tt.name] {
+				t.Fatalf("contract ID = %q, want %q", id, expectedContract[tt.name])
 			}
 		})
 	}

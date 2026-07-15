@@ -1,11 +1,11 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-07-01
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
-Rooms support real-time voice conversations with optional camera video and video-only screen/window/tab sharing. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
+Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
 
@@ -25,7 +25,7 @@ Rooms support real-time voice conversations with optional camera video and video
 - The first join starts a call session, creates fresh per-call E2EE key material, and records durable call lifecycle facts. The final leave ends the call, records the end fact, and shreds the call key.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
-- Screen sharing is video-only in Chatto's UI. Browser tab audio sharing is not published by Chatto today.
+- Screen sharing requests browser-tab audio when the browser supports it. In Chrome, the presenter must select a browser tab and enable **Share tab audio** in the browser picker. Chatto excludes whole-system audio so remote call playback is not captured and fed back into the room.
 - Screen-share state is LiveKit track state only. Users who have not joined the call still see who is in the active call, but they do not see whether a participant is sharing a screen.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
@@ -63,9 +63,9 @@ Rooms support real-time voice conversations with optional camera video and video
 
 ### 6. Screen sharing is joined-client LiveKit track state
 
-**Decision:** Screen/window/tab sharing uses LiveKit's browser screen-share publishing path and is represented only by `Track.Source.ScreenShare` on joined clients. Chatto does not persist separate screen-share events, add public API fields, or expose screen-share state to call observers before they join.
+**Decision:** Screen/window/tab sharing uses LiveKit's browser screen-share publishing path and is represented by screen-share video plus optional browser-provided tab audio on joined clients. Chatto requests tab audio, publishes it with media-oriented stereo settings, and excludes whole-system audio. Chatto does not persist separate screen-share events, add public API fields, or expose screen-share state to call observers before they join.
 **Why:** Screen sharing is media-session state, and the existing durable room facts already answer the server-owned question of who is in the call. Keeping screen-share state inside LiveKit avoids adding durable state that can become stale when browser capture ends.
-**Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Browser-tab audio sharing is also out of scope for this version.
+**Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Audio capture remains browser- and surface-dependent, and presenters must opt into tab audio in the browser picker.
 
 ### 7. Big-call mode is a desktop pane state, not a separate route
 

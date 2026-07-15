@@ -9,10 +9,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const mentionablesSnapshotCompatibilityID = "v1"
+const mentionablesSnapshotContractID = "v1"
 
-func (*MentionablesProjection) SnapshotCompatibilityID() string {
-	return mentionablesSnapshotCompatibilityID
+func (*MentionablesProjection) SnapshotContractID() string {
+	return mentionablesSnapshotContractID
 }
 
 func (p *MentionablesProjection) Snapshot() ([]byte, error) {
