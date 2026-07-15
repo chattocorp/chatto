@@ -4,7 +4,7 @@
     "title": "Server hinzufügen",
     "sign_in": "Anmelden",
     "connect": "Verbinden",
-    "redirecting": "Weiterleitung...",
+    "redirecting": "Warten auf Anmeldung...",
     "connecting": "Verbindung wird hergestellt...",
     "start_failed": "Anmeldung konnte nicht gestartet werden.",
     "invalid_url": "Bitte gib eine gültige URL ein.",
@@ -16,7 +16,7 @@
     "connect_failed": "Verbindung fehlgeschlagen.",
     "edit_url": "Falscher Server? URL bearbeiten",
     "description_url": "Chatto ist verteilt - dein Client verbindet sich direkt mit jedem Server. Gib eine URL ein, um einen weiteren hinzuzufügen.",
-    "description_preview": "Du meldest dich gleich auf diesem Server an. Du wirst zur Anmeldeseite weitergeleitet, um dich zu authentifizieren.",
+    "description_preview": "Ein separates Fenster wird geöffnet, damit du dich direkt auf diesem Server anmelden kannst.",
     "url_label": "Server-URL",
     "url_placeholder": "chat.example.com"
   }

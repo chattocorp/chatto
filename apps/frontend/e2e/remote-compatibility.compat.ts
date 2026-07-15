@@ -67,18 +67,24 @@ test('current frontend can connect to and use the latest 0.4.x server', async ({
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+    const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const remoteLoginPage = await popupPromise;
 
-    await expect(page).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
+    await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await page.locator('input[autocomplete="username"]').fill(remoteUser.login);
-    await page.locator('input[autocomplete="current-password"]').fill(remoteUser.password);
-    await page.getByRole('button', { name: /Sign In/i }).click();
-    await expect(page).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
+    await remoteLoginPage.locator('input[autocomplete="username"]').fill(remoteUser.login);
+    await remoteLoginPage
+      .locator('input[autocomplete="current-password"]')
+      .fill(remoteUser.password);
+    await remoteLoginPage.getByRole('button', { name: /Sign In/i }).click();
+    await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await page.getByRole('button', { name: 'Allow Access' }).click();
+    const popupClosed = remoteLoginPage.waitForEvent('close');
+    await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
+    await popupClosed;
 
     await expect(page).toHaveURL(/localhost.*\/chat\/127\.0\.0\.1(\/|$)/, {
       timeout: TIMEOUTS.COMPLEX_OPERATION

@@ -114,14 +114,9 @@
 
 <PageTitle title={m['auth.oauth.title']()} />
 
-<AuthLayout>
-  <div class="flex flex-col gap-6">
+<AuthLayout compact>
+  <div class="flex flex-col gap-5">
     <div class="text-center">
-      <div
-        class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-action/10 text-action"
-      >
-        <span class="iconify text-2xl mdi--shield-check"></span>
-      </div>
       <h1 class="text-2xl font-bold">{m['auth.oauth.heading']()}</h1>
     </div>
 
@@ -130,10 +125,10 @@
         <span class="iconify animate-spin text-3xl text-muted mdi--loading"></span>
       </div>
     {:else if request}
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-4">
         <div class="text-center">
-          <p class="text-base leading-relaxed text-muted">{m['auth.oauth.requester_intro']()}</p>
-          <p class="mt-1 text-base font-semibold">{requesterHost}</p>
+          <p class="text-sm leading-relaxed text-muted">{m['auth.oauth.requester_intro']()}</p>
+          <p class="mt-1 break-all font-semibold">{requesterHost}</p>
         </div>
 
         <div class="surface-box p-4">
@@ -156,7 +151,7 @@
 
         <FormError {error} />
 
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-2">
           <Button
             size="lg"
             fullWidth

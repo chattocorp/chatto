@@ -272,7 +272,7 @@ func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
-		"redirect_uri":          {"https://client.example/servers/callback"},
+		"redirect_uri":          {"https://client.example/servers/callback?mode=popup"},
 		"code_challenge":        {"challenge"},
 		"code_challenge_method": {"S256"},
 	}.Encode(), nil)

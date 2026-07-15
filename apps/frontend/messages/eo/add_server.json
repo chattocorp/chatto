@@ -4,7 +4,7 @@
     "title": "Aldonu Servilon",
     "sign_in": "Ensalutu",
     "connect": "Konekti",
-    "redirecting": "Alidirektante...",
+    "redirecting": "Atendante ensaluton...",
     "connecting": "Konektante...",
     "start_failed": "Malsukcesis komenci ensaluti.",
     "invalid_url": "Bonvolu enigi validan URL.",
@@ -16,7 +16,7 @@
     "connect_failed": "Malsukcesis konekti.",
     "edit_url": "Ĉu malĝusta servilo? Redaktu URL",
     "description_url": "Chatto estas distribuita - via kliento konektas rekte al ĉiu servilo. Enigu URL por aldoni alian.",
-    "description_preview": "Vi estas ensalutinta en ĉi tiu servilo. Vi estos sendita al ĝia ensaluta paĝo por aŭtentikigi.",
+    "description_preview": "Aparta fenestro malfermiĝos, por ke vi povu ensaluti rekte en ĉi tiu servilo.",
     "url_label": "Servilo URL",
     "url_placeholder": "babilejo.ekzemplo.com"
   }

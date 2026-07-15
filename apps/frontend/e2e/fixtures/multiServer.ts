@@ -442,10 +442,10 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Drives the real Add-Server dialog → /oauth/authorize → /servers/callback
+ * Drives the real Add-Server dialog → OAuth popup → /servers/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
- * intercepted via Playwright's `page.route`; we POST the PKCE params to the
+ * intercepted via Playwright's browser-context routing; we POST the PKCE params to the
  * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
  * code, then fulfill the navigation with a 302 to the callback URL. From
  * there the origin's callback page runs unchanged: PKCE verifier exchange via
@@ -463,9 +463,10 @@ export async function connectRemoteInstance(
   const remoteOrigin = new URL(remoteBaseURL).origin;
   const hostname = new URL(remoteBaseURL).host;
 
-  // Intercept the navigation to the remote's /oauth/authorize and fulfill
-  // with a 302 to the callback URL carrying a real authorization code.
-  await page.route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
+  // Intercept the popup navigation to the remote's /oauth/authorize and fulfill
+  // it with a 302 to the callback URL carrying a real authorization code. The
+  // route belongs to the browser context because page routes do not cover popups.
+  await page.context().route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
     const requestUrl = new URL(route.request().url());
     const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
     const codeChallengeMethod = requestUrl.searchParams.get('code_challenge_method') ?? '';
@@ -495,19 +496,23 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open dialog from sidebar → URL → preview →
-  // would-redirect to /oauth/authorize (intercepted) → /servers/callback
-  // → token exchange → addServer.
+  // Drive the real UI: open dialog from sidebar → URL → preview → popup
+  // /oauth/authorize (intercepted) → /servers/callback → token exchange →
+  // addServer. Attach the close listener as soon as Playwright observes the
+  // popup so the fast intercepted callback cannot race the test.
   if (!/\/chat\//.test(page.url())) {
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Connect' }).click();
+  const popupPromise = page.waitForEvent('popup');
+  const popupClosedPromise = popupPromise.then((popup) => popup.waitForEvent('close'));
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await popupClosedPromise;
 
-  // Callback page redirects into the newly-added remote instance's chat
-  // tree on success — `/chat/<hostname>/...` (post-PR(a) there is no
+  // The main client redirects into the newly-added remote instance's chat
+  // tree after the popup reports success — `/chat/<hostname>/...` (there is no
   // `/chat/spaces` landing). The hostname is whatever segment was passed
   // in (typically "127.0.0.1").
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
