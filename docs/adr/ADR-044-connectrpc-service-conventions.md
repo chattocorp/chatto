@@ -155,7 +155,7 @@ Adding a new public ConnectRPC service requires the same change set:
 - tests that lock service path and auth policy;
 - transport tests for auth-before-validation and validation behavior where applicable;
 - operation tests for authorization and response semantics at the shared core model boundary;
-- updates to `docs/ARCHITECTURE.md` and relevant FDRs;
+- updates to `docs/architecture/interfaces.md` and relevant FDRs;
 - generated docs grouping in `tools/split-connectrpc-docs.mjs`;
 - docs website sidebar/reference wiring when a new generated reference page is introduced.
 

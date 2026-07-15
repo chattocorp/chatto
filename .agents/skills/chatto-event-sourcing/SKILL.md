@@ -11,7 +11,7 @@ Use this skill whenever touching durable domain state in Chatto. It is a guardra
 
 Read only what is relevant to the task:
 
-- `docs/ARCHITECTURE.md` for the current runtime inventory, registered projections, EVT subject patterns, and live delivery shape.
+- `docs/architecture/INDEX.md` and the relevant category files for the current runtime inventory, registered projections, EVT subject patterns, and live delivery shape.
 - `docs/adr/INDEX.md` to find relevant architecture decisions; read only the ADRs that apply to the current event-sourcing, stream, projection, or runtime-state question.
 - Relevant FDRs in `docs/fdr/` before changing user-visible behavior.
 - `AGENTS.md` and `cli/AGENTS.md` when changing backend writes, auth, or room visibility.
@@ -212,9 +212,12 @@ For event-sourced changes, look for focused tests in addition to end-to-end beha
 
 Update docs in the same change when architecture behavior shifts:
 
-- `docs/ARCHITECTURE.md` for current services, projections, resources, subject patterns, and event inventories.
+- The relevant files in `docs/architecture/` for current components,
+  projections, resources, subject patterns, event inventories, and durable
+  effects.
 - `docs/adr/` for new or changed cross-cutting architectural decisions.
 - `docs/fdr/` for user-facing behavior and rationale.
 - `docs/GLOSSARY.md` when canonical terms change.
 
-Keep docs crisp: current architecture in `ARCHITECTURE.md`, decisions in ADRs/FDRs, and pitfalls/checklists here.
+Keep docs crisp: current facts in `docs/architecture/`, decisions in ADRs/FDRs,
+and event-sourcing pitfalls/checklists here.

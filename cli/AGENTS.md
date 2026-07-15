@@ -21,7 +21,8 @@ authorization, live events, backup/restore, and backend tests.
 - `cli/internal/connectapi` is the protobuf/ConnectRPC API.
 - `proto/chatto/core/v1` holds persisted/internal protobufs.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
-- `docs/ARCHITECTURE.md`, FDRs, and ADRs should move with architectural changes.
+- The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
+  with architectural changes.
 
 ## Public APIs
 

@@ -13,10 +13,10 @@ path-specific guidance.
 - [proto/chatto/admin/v1/AGENTS.md](proto/chatto/admin/v1/AGENTS.md) — administrative ConnectRPC API consistency rules for `chatto.admin.v1`.
 - [proto/chatto/realtime/v1/AGENTS.md](proto/chatto/realtime/v1/AGENTS.md) — realtime WebSocket protobuf protocol rules for `chatto.realtime.v1`.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
-- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
+- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture-inventory`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
 - `docs/adr/INDEX.md` — cross-cutting architecture decisions.
-- `docs/ARCHITECTURE.md` — current inventory of services, streams, buckets, subjects, projections, realtime delivery, and ConnectRPC APIs.
+- `docs/architecture/INDEX.md` — current runtime inventory, split by components, projections, NATS resources, subjects, runtime state, effects, interfaces, and realtime delivery.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
 ## Project Status
@@ -134,8 +134,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 ## Documentation Updates
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
-- Update `docs/ARCHITECTURE.md` when changing core services, projections, EVT
-  events or subjects, NATS resources, realtime delivery, or ConnectRPC APIs.
+- Update the relevant file in `docs/architecture/` when changing runtime
+  components, projections, EVT events or subjects, NATS resources, runtime
+  state, durable effects, realtime delivery, or mounted ConnectRPC services.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
 - Update the docs website when changing user-facing features, config,
