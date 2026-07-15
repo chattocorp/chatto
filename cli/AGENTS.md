@@ -14,6 +14,10 @@ authorization, live events, backup/restore, and backend tests.
 - Services own their domain state and projections. Do not bypass service
   boundaries to poke JetStream, KV, or projections from unrelated code.
 - Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
+- Projections must not retain decrypted PII when encrypted source fields can be
+  retained and hydrated at read boundaries. Keep derived lookup state
+  non-plaintext, and never turn KMS or decryption failures into apparent
+  absence, deletion, or a free uniqueness claim.
 
 ## Architecture Touchpoints
 
@@ -21,7 +25,8 @@ authorization, live events, backup/restore, and backend tests.
 - `cli/internal/connectapi` is the protobuf/ConnectRPC API.
 - `proto/chatto/core/v1` holds persisted/internal protobufs.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
-- `docs/ARCHITECTURE.md`, FDRs, and ADRs should move with architectural changes.
+- The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
+  with architectural changes.
 
 ## Public APIs
 
@@ -89,8 +94,9 @@ authorization, live events, backup/restore, and backend tests.
 - Snapshot namespace `v1` is permanently Threads-only. Namespace `v2` is
   permanently Room Directory, Server Config, Room Group Layout, Room Timeline,
   Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Keep
-  `UserProjection` outside snapshots until its decrypted PII and credential
-  state has a crypto-shreddable representation.
+  `UserProjection` outside snapshots until its remaining authentication state,
+  including password verifiers, has an explicitly reviewed encrypted snapshot
+  representation.
 - A shared snapshot replay consumer may start only after every projector restore
   attempt finishes, at one greater than the lowest usable cutoff. Any required
   cold projection forces that cohort to sequence 1. Release boot-time sequence

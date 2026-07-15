@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-07-12
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -30,7 +30,7 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 2. Login uniqueness is enforced with projection catch-up and OCC
 
-**Decision:** Login changes wait for the user projection to catch up, check the decrypted login index, and append the login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection.
+**Decision:** Login changes wait for the user projection to catch up, check its derived normalised login-digest index, and append the encrypted login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection. Projection apply decrypts the login transiently to update the digest index; user reads decrypt it again only while hydrating the response.
 **Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
 **Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 

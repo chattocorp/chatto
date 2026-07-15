@@ -346,7 +346,11 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		if _, ok := c.Users.Get(userID); !ok {
+		_, ok, err := c.Users.GetContext(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if !ok {
 			return ErrNotFound
 		}
 		identities := c.Users.ExternalIdentities(userID)

@@ -272,12 +272,14 @@ through its own restored cutoff, so different generation cutoffs are safe.
 Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
 
-`UserProjection` is not snapshot-eligible because it retains decrypted identity
-fields, password hashes, and authentication state. It runs in an independent
-consumer restricted to `evt.user.>`, so a required cold user replay cannot pull
-the room-heavy snapshot cohort back to sequence 1. Extending snapshot support
-to Users requires a codec that preserves per-user crypto-shredding and does not
-persist credential material.
+`UserProjection` retains encrypted PII source fields and materializes them only
+at read boundaries, but it still retains password verifiers and other
+authentication state whose snapshot representation has not been approved. It
+runs in an independent consumer restricted to `evt.user.>`, so a required cold
+user replay cannot pull the room-heavy snapshot cohort back to sequence 1.
+Extending snapshot support to Users requires a codec that preserves per-user
+crypto-shredding and does not persist credential material under the snapshot
+envelope alone.
 
 Every eligible codec uses an explicit protobuf and transactional restore.
 `RoomTimelineProjection` persists immutable event envelopes and encrypted

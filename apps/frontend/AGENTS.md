@@ -170,6 +170,17 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   mocks.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state
   mutations when needed.
+- For focused component tests, filter to the relevant test instead of initially
+  running the entire spec. Use a plain substring without regular-expression
+  characters such as `+`:
+
+```sh
+mise x -- pnpm --filter chatto-frontend exec vitest --run \
+  src/path/Component.svelte.spec.ts -t 'plain substring'
+```
+
+- If Vite reloads after first-run dependency optimization and then stops making
+  progress, terminate the test and rerun it once with the warmed cache.
 - E2E runs locally without Docker/Tilt/OrbStack; Playwright starts its own
   embedded-NATS Chatto binary.
 - Prefer targeted e2e runs before the full suite:

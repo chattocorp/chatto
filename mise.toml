@@ -14,7 +14,11 @@ _.file = '.env'
 
 [tasks.setup]
 description = "Set up the development environment"
-run = [{ task = "setup-cli" }, { task = "setup-frontend" }]
+run = [
+    { task = "setup-cli" },
+    { task = "setup-frontend" },
+    { task = "build-api-types" },
+]
 
 # =============================================================================
 # Dependencies

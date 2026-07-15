@@ -744,7 +744,11 @@ func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, ro
 		userIDs[i] = membership.GetUserId()
 	}
 	users := make([]*corev1.User, 0, len(memberships))
-	for i, user := range c.Users.GetReferences(userIDs) {
+	references, err := c.Users.GetReferencesContext(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i, user := range references {
 		if user == nil {
 			user = DeletedUserReference(userIDs[i])
 		}
