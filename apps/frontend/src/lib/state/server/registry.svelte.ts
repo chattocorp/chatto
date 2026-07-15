@@ -86,7 +86,6 @@ class ServerRegistry {
 	servers = $state<RegisteredServer[]>(serversSlot.get().map(normalizeRegisteredServer));
 	homeServerId = $state<string | null>(homeServerSlot.get());
 	#stores = new SvelteMap<string, ServerStateStore>();
-	#startedWithoutServers = this.servers.length === 0;
 
 	/**
 	 * Whether the async origin probe has completed (resolved or rejected).
@@ -112,18 +111,42 @@ class ServerRegistry {
 		});
 	}
 
-	/** The user's explicitly chosen sync and personal-data server. */
+	/** The user's explicitly chosen client-sync server. */
 	get homeServer(): RegisteredServer | undefined {
 		return this.homeServerId ? this.getServer(this.homeServerId) : undefined;
 	}
 
-	/** Choose the normal registered server which stores portable personal data. */
+	/** Choose the normal registered server which stores portable client state. */
 	setHomeServer(id: string): boolean {
 		if (!this.getServer(id)) return false;
 		this.homeServerId = id;
 		homeServerSlot.set(id);
-		this.#startedWithoutServers = false;
 		return true;
+	}
+
+	/** Stop using the current home while keeping every server registration intact. */
+	clearHomeServer(): void {
+		this.homeServerId = null;
+		homeServerSlot.set(null);
+	}
+
+	/** Whether discovery says this server can be selected for client sync. */
+	isClientSyncCapable(id: string): boolean {
+		return this.tryGetStore(id)?.serverInfo.clientSyncEnabled === true;
+	}
+
+	/** Authenticated servers currently eligible to become the user's home. */
+	get clientSyncCandidates(): RegisteredServer[] {
+		return this.servers.filter(
+			(server) => this.isAuthenticated(server.id) && this.isClientSyncCapable(server.id)
+		);
+	}
+
+	/** Select the home automatically only when there is exactly one safe choice. */
+	chooseAutomaticHomeServer(): void {
+		if (this.homeServerId) return;
+		const candidates = this.clientSyncCandidates;
+		if (candidates.length === 1) this.setHomeServer(candidates[0].id);
 	}
 
 	/**
@@ -273,9 +296,9 @@ class ServerRegistry {
 		}
 	}
 
-	/** Consider an asynchronously authenticated cookie session for first-home selection. */
+	/** Reconsider automatic home selection after cookie authentication settles. */
 	serverAuthenticated(id: string): void {
-		if (this.isAuthenticated(id)) this.#chooseFirstHomeServer(id);
+		if (this.isAuthenticated(id)) this.chooseAutomaticHomeServer();
 	}
 
 	clearOriginAuthentication(): void {
@@ -340,7 +363,7 @@ class ServerRegistry {
 		if (store.isAuthenticated) {
 			const serverConnection = serverConnectionManager.getClient(server.id);
 			eventBusManager.startBus(server.id, serverConnection);
-			this.#chooseFirstHomeServer(registered.id);
+			this.chooseAutomaticHomeServer();
 		}
 	}
 
@@ -380,7 +403,6 @@ class ServerRegistry {
 		serversSlot.set(this.servers);
 		this.homeServerId = null;
 		homeServerSlot.set(null);
-		this.#startedWithoutServers = true;
 	}
 
 	/** Update fields on an existing server. */
@@ -425,14 +447,9 @@ class ServerRegistry {
 		const store = this.#createStore(server);
 		if (store.isAuthenticated) {
 			eventBusManager.startBus(id, serverConnectionManager.getClient(id));
-			this.#chooseFirstHomeServer(id);
+			this.chooseAutomaticHomeServer();
 		}
 		return true;
-	}
-
-	#chooseFirstHomeServer(id: string): void {
-		if (this.homeServerId || !this.#startedWithoutServers) return;
-		this.setHomeServer(id);
 	}
 
 	/** Get a server by ID. */

@@ -9,7 +9,7 @@ const rawReferencePaths = [
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
-  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/personaldata.raw.mdx'),
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/clientsync.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx')
 ];
 const legacyRawReferencePath = path.join(
@@ -48,12 +48,12 @@ const categories = [
     ]
   },
   {
-    title: 'chatto.personaldata.api.v1',
+    title: 'chatto.clientsync.api.v1',
     services: [
       {
-        name: 'PersonalDataService',
-        slug: 'personal-data',
-        title: 'Personal Data',
+        name: 'ClientSyncService',
+        slug: 'client-sync',
+        title: 'Client Sync',
         description: 'Authenticated portable preferences and known-server directory RPCs.'
       }
     ]
@@ -230,11 +230,11 @@ function parseAnchoredSections(source, heading) {
 function rewriteServiceTypeLinks(section) {
   return section
     .replace(
-      /\]\(#(chatto-(?:auth|discovery|api|admin|personaldata-api)-v1-[^)]+)\)/g,
+      /\]\(#(chatto-(?:auth|discovery|api|admin|clientsync-api)-v1-[^)]+)\)/g,
       '](/reference/connectrpc-api/types/#$1)'
     )
     .replace(
-      /`chatto\.(auth|discovery|api|admin|personaldata\.api)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
+      /`chatto\.(auth|discovery|api|admin|clientsync\.api)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
       (_match, pkg, typeName) =>
         `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
     );
@@ -478,7 +478,7 @@ function renderLanding() {
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.personaldata.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
+    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.clientsync.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
     '',
     'Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.',
     '',

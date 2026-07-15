@@ -7,7 +7,7 @@
 
 import { createContext } from 'svelte';
 import { TimeFormat } from '$lib/render/types';
-import { personalData } from '$lib/state/personalData.svelte';
+import { clientSync } from '$lib/state/clientSync.svelte';
 
 export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
   if (timeFormat === TimeFormat.TwelveHour) return true;
@@ -27,7 +27,7 @@ export class UserSettingsState {
    * Returns undefined when unset, which tells Intl to use browser default.
    */
   get effectiveTimezone(): string | undefined {
-    if (personalData.isInitialized) return personalData.timezone ?? undefined;
+    if (clientSync.isInitialized) return clientSync.timezone ?? undefined;
     return this.timezone || undefined;
   }
 
@@ -37,7 +37,7 @@ export class UserSettingsState {
    */
   get effectiveHour12(): boolean | undefined {
     return hour12ForTimeFormat(
-      personalData.isInitialized ? personalData.timeFormat : this.timeFormat
+      clientSync.isInitialized ? clientSync.timeFormat : this.timeFormat
     );
   }
 

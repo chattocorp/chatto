@@ -33,6 +33,18 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
+<a id="chatto-discovery-v1-ServerFeatures"></a>
+
+### ServerFeatures
+
+ServerFeatures reports optional server functionality which a client can
+consider before authentication. A false or absent field means the feature
+must not be used.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_sync` | `bool` | Whether this server accepts authenticated client-sync data and can be selected as a home server. |
+
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
@@ -1299,7 +1311,7 @@ Runtime-editable server profile settings.
 | `motd` | `string` | Message of the day for the authenticated header. |
 | `welcome_message` | `string` | Welcome message shown on the login page. |
 
-<a id="chatto-personaldata-api-v1-KnownServer"></a>
+<a id="chatto-clientsync-api-v1-KnownServer"></a>
 
 ### KnownServer
 
@@ -1314,7 +1326,7 @@ Authentication credentials are device-local and are never included.
 | `icon_url` | `optional string` | Last discovered server icon URL. |
 | `added_at` | `google.protobuf.Timestamp` | Time this entry was first added to the portable directory. |
 
-<a id="chatto-personaldata-api-v1-Preferences"></a>
+<a id="chatto-clientsync-api-v1-Preferences"></a>
 
 ### Preferences
 
@@ -1325,7 +1337,7 @@ user between Chatto clients.
 | --- | --- | --- |
 | `locale` | `optional string` | BCP 47 locale tag, such as en-GB or de. |
 | `timezone` | `optional string` | IANA timezone name. Empty means to use the client timezone. |
-| `time_format` | optional [`TimeFormat`](#chatto-personaldata-api-v1-TimeFormat) | Preferred time display format. |
+| `time_format` | optional [`TimeFormat`](#chatto-clientsync-api-v1-TimeFormat) | Preferred time display format. |
 
 
 
@@ -1520,7 +1532,7 @@ Sidebar item kind used in reorder requests.
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |
 
-<a id="chatto-personaldata-api-v1-TimeFormat"></a>
+<a id="chatto-clientsync-api-v1-TimeFormat"></a>
 
 ### TimeFormat
 

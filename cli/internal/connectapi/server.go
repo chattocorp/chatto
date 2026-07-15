@@ -38,6 +38,9 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
 		},
+		Features: &discoveryv1.ServerFeatures{
+			ClientSync: s.api.config.ClientSync.Enabled,
+		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
 		etag, err := discoveryResponseETag(response)

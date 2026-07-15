@@ -69,8 +69,8 @@ survives restart but is not content/domain history. See
 | `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
-| `personal_data.{userId}.preferences` | No-TTL `chatto.personaldata.v1.Preferences` document containing portable locale, timezone, and time-format choices. Mutations use KV revision OCC. |
-| `personal_data.{userId}.servers` | No-TTL `chatto.personaldata.v1.ServerDirectory` document containing known public server metadata and the home-server ID, never credentials. Mutations use KV revision OCC. |
+| `client_sync.{userId}.preferences` | No-TTL `chatto.clientsync.v1.Preferences` document containing portable locale, timezone, and time-format choices. Mutations use KV revision OCC. |
+| `client_sync.{userId}.servers` | No-TTL `chatto.clientsync.v1.ServerDirectory` document containing known public server metadata and the home-server ID, never credentials. Mutations use KV revision OCC. |
 
 Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 

@@ -5,7 +5,7 @@
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Portable language and time-rendering preferences live in personal data on the user's home server; older per-server settings remain as a mixed-version compatibility surface.
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Portable language and time-rendering preferences live in client sync on the user's home server; older per-server settings remain as a mixed-version compatibility surface.
 
 ## Behavior
 
@@ -16,7 +16,7 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Custom status** — users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **Settings compatibility** — timezone and time format remain on the profile for older clients. New clients adopt them when home-server personal data is empty, then use the portable personal settings record. If not set, the frontend uses the browser timezone and locale time-format default.
+- **Settings compatibility** — timezone and time format remain on the profile for older clients. New clients adopt them when home-server client sync is empty, then use the portable personal settings record. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 
@@ -48,9 +48,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 5. Portable personal settings with a legacy server fallback
 
-**Decision:** New clients sync timezone and time format through personal data on the home server. `User.settings` and `MyAccountService.UpdateSettings` retain the older per-server values for mixed-version clients and first-time migration. Display theme is browser-local.
+**Decision:** New clients sync timezone and time format through client sync on the home server. `User.settings` and `MyAccountService.UpdateSettings` retain the older per-server values for mixed-version clients and first-time migration. Display theme is browser-local.
 **Why:** A user signing in from a new browser should not have to re-pick semantic display preferences, and those preferences should not vary merely because they switched servers.
-**Tradeoff:** Compatibility values can temporarily differ from home-server personal data. New clients treat personal data as authoritative once initialized.
+**Tradeoff:** Compatibility values can temporarily differ from home-server client sync. New clients treat client sync as authoritative once initialized.
 
 ### 6. Browser timezone fallback when unset
 

@@ -273,4 +273,5 @@
   title={iconTitle}
   dimmed={iconDimmed}
   home={isHomeServer}
+  homeLabel={m['client_sync.settings.home.title']()}
 />

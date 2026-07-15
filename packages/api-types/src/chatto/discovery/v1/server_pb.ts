@@ -41,6 +41,50 @@ export class GetServerRequest extends Message<GetServerRequest> {
 }
 
 /**
+ * ServerFeatures reports optional server functionality which a client can
+ * consider before authentication. A false or absent field means the feature
+ * must not be used.
+ *
+ * @generated from message chatto.discovery.v1.ServerFeatures
+ */
+export class ServerFeatures extends Message<ServerFeatures> {
+  /**
+   * Whether this server accepts authenticated client-sync data and can be
+   * selected as a home server.
+   *
+   * @generated from field: bool client_sync = 1;
+   */
+  clientSync = false;
+
+  constructor(data?: PartialMessage<ServerFeatures>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ServerFeatures";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "client_sync", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerFeatures {
+    return new ServerFeatures().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerFeatures {
+    return new ServerFeatures().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerFeatures {
+    return new ServerFeatures().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerFeatures | PlainMessage<ServerFeatures> | undefined, b: ServerFeatures | PlainMessage<ServerFeatures> | undefined): boolean {
+    return proto3.util.equals(ServerFeatures, a, b);
+  }
+}
+
+/**
  * Public metadata clients need before they can authenticate or render the
  * initial server view.
  *
@@ -61,6 +105,13 @@ export class GetServerResponse extends Message<GetServerResponse> {
    */
   login?: ServerLogin;
 
+  /**
+   * Optional functionality enabled by this server's operator.
+   *
+   * @generated from field: chatto.discovery.v1.ServerFeatures features = 3;
+   */
+  features?: ServerFeatures;
+
   constructor(data?: PartialMessage<GetServerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -71,6 +122,7 @@ export class GetServerResponse extends Message<GetServerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
     { no: 2, name: "login", kind: "message", T: ServerLogin },
+    { no: 3, name: "features", kind: "message", T: ServerFeatures },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {

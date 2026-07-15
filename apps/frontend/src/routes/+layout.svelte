@@ -17,7 +17,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
-  import { usePersonalDataSync } from '$lib/state/personalData.svelte';
+  import { useClientSync } from '$lib/state/clientSync.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import { AppHeader, Frame } from '$lib/ui';
@@ -34,7 +34,7 @@
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
   useServerRegistry(() => data.user);
-  usePersonalDataSync();
+  useClientSync();
   useVisualViewport();
   usePinchZoomPrevention();
 

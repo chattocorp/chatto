@@ -194,7 +194,7 @@ Generated clients expose those codes through their Connect client error helpers.
 
 ## Versioning And Stability
 
-Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.personaldata.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.
+Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.clientsync.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.
 
 Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.
 
@@ -216,9 +216,9 @@ Use the service pages below for request and response fields. Shared messages and
 
 - [ServerDiscoveryService](/reference/connectrpc-api/server-discovery/) - Unauthenticated server metadata, branding, and login discovery RPCs.
 
-### chatto.personaldata.api.v1
+### chatto.clientsync.api.v1
 
-- [PersonalDataService](/reference/connectrpc-api/personal-data/) - Authenticated portable preferences and known-server directory RPCs.
+- [ClientSyncService](/reference/connectrpc-api/client-sync/) - Authenticated portable preferences and known-server directory RPCs.
 
 ### chatto.api.v1
 

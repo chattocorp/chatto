@@ -143,6 +143,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
+## Client Sync
+
+<EnvVar name="CHATTO_CLIENT_SYNC_ENABLED" toml="client_sync.enabled" default="false">
+  Let authenticated users choose this server as their home server and synchronise portable settings plus their public server list through it. Enabling this stores two caller-scoped records per participating user in `RUNTIME_STATE`; passwords, sessions, and bearer tokens are never included. The public discovery API advertises the capability so clients only offer eligible servers.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

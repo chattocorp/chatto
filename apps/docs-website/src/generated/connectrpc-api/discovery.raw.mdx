@@ -50,3 +50,20 @@ initial server view.
 | --- | --- | --- |
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public server profile and branding. |
 | `login` | `chatto.api.v1.ServerLogin` | Login and registration options. |
+| `features` | [`ServerFeatures`](#chatto-discovery-v1-ServerFeatures) | Optional functionality enabled by this server's operator. |
+
+
+
+## Supporting Types
+
+<a id="chatto-discovery-v1-ServerFeatures"></a>
+
+### ServerFeatures
+
+ServerFeatures reports optional server functionality which a client can
+consider before authentication. A false or absent field means the feature
+must not be used.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_sync` | `bool` | Whether this server accepts authenticated client-sync data and can be selected as a home server. |

@@ -76,9 +76,14 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     servers: [],
+    homeServerId: null,
     originServer: { id: 'origin' },
     getStore: vi.fn(),
-    tryGetStore: vi.fn(() => null)
+    tryGetStore: vi.fn(() => null),
+    isAuthenticated: vi.fn(() => false),
+    isClientSyncCapable: vi.fn(() => false),
+    chooseAutomaticHomeServer: vi.fn(),
+    clearHomeServer: vi.fn()
   }
 }));
 
@@ -123,6 +128,7 @@ function renderLayout() {
     description: null,
     iconUrl: null,
     bannerUrl: null,
+    clientSyncEnabled: false,
     authProviders: []
   };
 

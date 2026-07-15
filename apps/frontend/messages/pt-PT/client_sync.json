@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Definições pessoais",
+      "subtitle": "Preferências que pertencem a si, não a um único servidor",
+      "save_failed": "Não foi possível guardar as suas definições pessoais",
+      "home": {
+        "title": "Servidor principal",
+        "description": "O seu servidor principal guarda as preferências e a lista de servidores que o acompanham entre clientes Chatto. As palavras-passe e os tokens de início de sessão permanecem neste dispositivo.",
+        "add_server_first": "Adicione um servidor e inicie sessão antes de escolher um servidor principal.",
+        "choose_prompt": "Escolha o servidor que irá sincronizar as suas definições e a lista de servidores.",
+        "no_capable_server": "Nenhum dos seus servidores disponibiliza atualmente a sincronização do cliente. As suas definições permanecem neste dispositivo."
+      },
+      "sync": {
+        "local": "Neste dispositivo",
+        "loading": "A sincronizar…",
+        "synced": "Sincronizado",
+        "unavailable": "Sincronização indisponível",
+        "error": "Requer atenção"
+      }
+    }
+  }
+}

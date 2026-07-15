@@ -11,9 +11,9 @@ var (
 	// ErrNotFound is returned when a requested resource does not exist.
 	ErrNotFound = errors.New("not found")
 
-	// ErrPersonalServerAlreadyExists is returned when a personal server
-	// directory already contains the requested stable server ID.
-	ErrPersonalServerAlreadyExists = errors.New("server already exists in personal directory")
+	// ErrKnownServerAlreadyExists is returned when a client-sync server
+	// directory already contains the requested stable server ID or origin.
+	ErrKnownServerAlreadyExists = errors.New("server already exists in client-sync directory")
 
 	// ErrCannotDeleteHomeServer protects the directory's home-server invariant.
 	ErrCannotDeleteHomeServer = errors.New("home server must be moved before it can be removed")

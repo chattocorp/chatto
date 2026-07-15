@@ -14,7 +14,8 @@
     onIndicatorClick,
     title,
     dimmed = false,
-    home = false
+    home = false,
+    homeLabel
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -31,8 +32,10 @@
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
-    /** Mark this server as the user's personal-data home server. */
+    /** Mark this server as the user's client-sync home server. */
     home?: boolean;
+    /** Accessible label for the home-server marker. */
+    homeLabel?: string;
   } = $props();
 </script>
 
@@ -103,9 +106,14 @@
 
   {#if home}
     <span
-      class="absolute -bottom-1 -left-1 z-10 iconify rounded-full bg-background p-0.5 text-sm text-action shadow-sm uil--home"
-      aria-hidden="true"
+      class="absolute bottom-0 left-0 z-10 flex size-5 items-center justify-center rounded-full bg-action text-on-action shadow-sm ring-2 ring-background"
+      role={homeLabel ? 'img' : 'presentation'}
+      aria-label={homeLabel}
       data-testid="home-server-indicator"
-    ></span>
+    >
+      <svg class="size-3" viewBox="0 0 20 20" aria-hidden="true">
+        <path fill="currentColor" d="M10 2.5 2.5 8.7v8.8h5v-5h5v5h5V8.7L10 2.5Z" />
+      </svg>
+    </span>
   {/if}
 </div>

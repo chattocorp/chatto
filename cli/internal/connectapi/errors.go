@@ -39,7 +39,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
 	if errors.Is(err, core.ErrLoginAlreadyTaken) ||
-		errors.Is(err, core.ErrPersonalServerAlreadyExists) ||
+		errors.Is(err, core.ErrKnownServerAlreadyExists) ||
 		errors.Is(err, core.ErrEmailAlreadyVerified) ||
 		errors.Is(err, core.ErrExternalIdentityAlreadyClaimed) ||
 		errors.Is(err, core.ErrRoleAlreadyExists) {

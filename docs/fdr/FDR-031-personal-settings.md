@@ -15,8 +15,10 @@ device from account and notification policy that belongs to one server.
 - Theme, language, timezone, time format, notification sound, and sound shaping
   live on this screen. Per-server notification levels and Web Push registration
   remain in that server's settings.
-- The first authenticated server on a fresh client becomes its home server.
-  Existing multi-server clients choose an authenticated server explicitly.
+- An authenticated server is eligible to become home only when discovery says
+  its operator enabled client sync. The sole eligible server is selected
+  automatically; when several are eligible, the user chooses explicitly. If
+  none are eligible, settings remain on the current device.
 - The server gutter marks the home server. Ordinary leave/remove actions cannot
   remove it until another home is selected.
 - Language, timezone, time format, the known-server directory, and the home
@@ -37,8 +39,8 @@ device from account and notification policy that belongs to one server.
   account on the home origin. Signing into that home as a different account
   does not reuse them; signing out of all servers explicitly clears the local
   account binding.
-- When the home server is offline or does not implement personal data, the
-  settings screen remains usable from its local cache and reports that sync is unavailable.
+- When the home server is offline, the settings screen remains usable from its
+  local cache and reports that sync is unavailable.
 - The former per-server display route redirects to personal settings. The
   legacy server display API remains available for older clients.
 
@@ -46,7 +48,7 @@ device from account and notification policy that belongs to one server.
 
 ### 1. Home is a normal server
 
-**Decision:** Personal data is stored by one visibly designated server the user already joined.
+**Decision:** Client sync is stored by one visibly designated server the user already joined.
 **Why:** It avoids asking ordinary users for a sync-service URL and keeps Chatto
 self-hostable without introducing a mandatory vendor account.
 **Tradeoff:** Sync availability follows the selected server, and moving home is deliberate.
@@ -76,8 +78,10 @@ display/audio behavior and server policy have different owners.
 
 ## Permissions
 
-No dedicated permission. The personal-data API always scopes reads and writes
-to the authenticated user and does not accept a target user ID.
+No dedicated permission. The client-sync API always scopes reads and writes
+to the authenticated user and does not accept a target user ID. Operators opt
+in with `[client_sync].enabled` or `CHATTO_CLIENT_SYNC_ENABLED`; the default is
+off, and public discovery advertises the effective capability.
 
 ## Related
 

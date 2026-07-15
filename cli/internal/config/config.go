@@ -902,6 +902,12 @@ type BootstrapServer struct {
 	Rooms []string `toml:"rooms,commented" comment:"Optional. Auto-join rooms created on the instance; defaults to announcements + general."`
 }
 
+// ClientSyncConfig controls whether this server may store portable client
+// settings and known-server directories for authenticated users.
+type ClientSyncConfig struct {
+	Enabled bool `toml:"enabled" env:"CHATTO_CLIENT_SYNC_ENABLED" comment:"Allow authenticated users to choose this server as their home server and sync portable client settings and their known-server directory. Default: false."`
+}
+
 type ChattoConfig struct {
 	General     GeneralConfig     `toml:"general"`
 	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
@@ -912,6 +918,7 @@ type ChattoConfig struct {
 	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
+	ClientSync  ClientSyncConfig  `toml:"client_sync,commented" comment:"Opt-in portable client settings and known-server directory storage."`
 	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	SMTP        SMTPConfig        `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push        PushConfig        `toml:"push,commented" comment:"Web Push notification configuration."`

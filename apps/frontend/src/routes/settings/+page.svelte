@@ -4,7 +4,7 @@
   import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, type Locale } from '$lib/i18n/runtime';
   import { TimeFormat } from '$lib/render/types';
-  import { personalData } from '$lib/state/personalData.svelte';
+  import { clientSync } from '$lib/state/clientSync.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, FormSection, Hint, PaneHeader } from '$lib/ui';
@@ -17,8 +17,12 @@
 
   const activeLocale = $derived(getLocale());
   const homeServer = $derived(serverRegistry.homeServer);
-  const eligibleHomeServers = $derived(
-    serverRegistry.servers.filter((server) => serverRegistry.isAuthenticated(server.id))
+  const eligibleHomeServers = $derived(serverRegistry.clientSyncCandidates);
+  const hasAuthenticatedServers = $derived(
+    serverRegistry.servers.some((server) => serverRegistry.isAuthenticated(server.id))
+  );
+  const homeSupportsSync = $derived(
+    homeServer ? serverRegistry.isClientSyncCapable(homeServer.id) : false
   );
   const returnTo = $derived.by(() => {
     const candidate = page.url.searchParams.get('returnTo');
@@ -26,9 +30,9 @@
   });
 
   const allTimezones = Intl.supportedValuesOf('timeZone');
-  let timezoneSearch = $state(personalData.timezone ?? '');
-  let selectedTimezone = $state(personalData.timezone ?? '');
-  let selectedTimeFormat = $state(personalData.timeFormat);
+  let timezoneSearch = $state(clientSync.timezone ?? '');
+  let selectedTimezone = $state(clientSync.timezone ?? '');
+  let selectedTimeFormat = $state(clientSync.timeFormat);
   let adoptedPersonalSettingsKey = $state('');
   let isSaving = $state(false);
   let error = $state('');
@@ -36,17 +40,17 @@
   // Adopt portable values when the asynchronous home-server load completes,
   // then leave in-progress form edits alone until the source values change.
   $effect(() => {
-    if (!personalData.isInitialized) return;
+    if (!clientSync.isInitialized) return;
     const key = JSON.stringify([
-      personalData.loadedHomeServerId,
-      personalData.timezone,
-      personalData.timeFormat
+      clientSync.loadedHomeServerId,
+      clientSync.timezone,
+      clientSync.timeFormat
     ]);
     if (key === adoptedPersonalSettingsKey) return;
     adoptedPersonalSettingsKey = key;
-    timezoneSearch = personalData.timezone ?? '';
-    selectedTimezone = personalData.timezone ?? '';
-    selectedTimeFormat = personalData.timeFormat;
+    timezoneSearch = clientSync.timezone ?? '';
+    selectedTimezone = clientSync.timezone ?? '';
+    selectedTimeFormat = clientSync.timeFormat;
   });
 
   const displayedTimezones = $derived(
@@ -75,8 +79,8 @@
       : null
   );
   const displayModified = $derived(
-    (selectedTimezone || null) !== personalData.timezone ||
-      selectedTimeFormat !== personalData.timeFormat
+    (selectedTimezone || null) !== clientSync.timezone ||
+      selectedTimeFormat !== clientSync.timeFormat
   );
 
   const themeOptions = $derived([
@@ -116,15 +120,15 @@
   ]);
 
   async function chooseHomeServer(id: string) {
-    await personalData.selectHomeServer(id);
+    await clientSync.selectHomeServer(id);
   }
 
   async function chooseLocale(locale: Locale) {
     if (locale === activeLocale) return;
     try {
-      await personalData.setLocale(locale);
+      await clientSync.setLocale(locale);
     } catch {
-      toast.error(m['personal_data.settings.save_failed']());
+      toast.error(m['client_sync.settings.save_failed']());
     }
   }
 
@@ -137,41 +141,41 @@
     isSaving = true;
     error = '';
     try {
-      await personalData.setDisplaySettings(selectedTimezone || null, selectedTimeFormat);
+      await clientSync.setDisplaySettings(selectedTimezone || null, selectedTimeFormat);
       toast.success(m['settings.preferences.saved']());
     } catch (caught) {
-      error = caught instanceof Error ? caught.message : m['personal_data.settings.save_failed']();
+      error = caught instanceof Error ? caught.message : m['client_sync.settings.save_failed']();
     } finally {
       isSaving = false;
     }
   }
 
   function syncStatusLabel() {
-    switch (personalData.status) {
+    switch (clientSync.status) {
       case 'loading':
-        return m['personal_data.settings.sync.loading']();
+        return m['client_sync.settings.sync.loading']();
       case 'synced':
-        return m['personal_data.settings.sync.synced']();
+        return m['client_sync.settings.sync.synced']();
       case 'unavailable':
-        return m['personal_data.settings.sync.unavailable']();
+        return m['client_sync.settings.sync.unavailable']();
       case 'error':
-        return m['personal_data.settings.sync.error']();
+        return m['client_sync.settings.sync.error']();
       default:
-        return m['personal_data.settings.sync.local']();
+        return m['client_sync.settings.sync.local']();
     }
   }
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
   <PaneHeader
-    title={m['personal_data.settings.title']()}
-    subtitle={m['personal_data.settings.subtitle']()}
+    title={m['client_sync.settings.title']()}
+    subtitle={m['client_sync.settings.subtitle']()}
     backHref={returnTo}
   />
 
   <div class="flex flex-col gap-7 overflow-y-auto p-6 md:p-8">
-    <FormSection title={m['personal_data.settings.home.title']()} maxWidth="max-w-xl">
-      <p class="mb-3 text-sm text-muted">{m['personal_data.settings.home.description']()}</p>
+    <FormSection title={m['client_sync.settings.home.title']()} maxWidth="max-w-xl">
+      <p class="mb-3 text-sm text-muted">{m['client_sync.settings.home.description']()}</p>
 
       {#if homeServer}
         <div class="flex items-center justify-between gap-4 surface-box px-4 py-3">
@@ -186,13 +190,17 @@
             {syncStatusLabel()}
           </span>
         </div>
+      {:else if !hasAuthenticatedServers}
+        <Hint tone="info">{m['client_sync.settings.home.add_server_first']()}</Hint>
       {:else if eligibleHomeServers.length === 0}
-        <Hint tone="info">{m['personal_data.settings.home.add_server_first']()}</Hint>
+        <Hint tone="info">{m['client_sync.settings.home.no_capable_server']()}</Hint>
       {:else}
-        <Hint tone="info">{m['personal_data.settings.home.choose_prompt']()}</Hint>
+        <Hint tone="info">{m['client_sync.settings.home.choose_prompt']()}</Hint>
       {/if}
 
-      {#if eligibleHomeServers.length > 1 || (!homeServer && eligibleHomeServers.length > 0)}
+      {#if eligibleHomeServers.length > 1 ||
+      (!homeServer && eligibleHomeServers.length > 0) ||
+      (homeServer && !homeSupportsSync && eligibleHomeServers.length > 0)}
         <div class="mt-3 flex flex-col gap-2">
           {#each eligibleHomeServers as server (server.id)}
             <ChoiceRow

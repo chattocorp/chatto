@@ -49,7 +49,8 @@ describe('getPublicServerInfo', () => {
             loginUrl: '/auth/providers/hub'
           }
         ]
-      }
+      },
+      features: { clientSync: true }
     });
 
     const info = await getPublicServerInfo('https://chat.example.test');
@@ -68,6 +69,7 @@ describe('getPublicServerInfo', () => {
       description: 'description',
       iconUrl: 'https://cdn/logo.webp',
       bannerUrl: 'https://cdn/banner.webp',
+      clientSyncEnabled: true,
       authProviders: [
         {
           id: 'hub',
@@ -93,7 +95,8 @@ describe('getPublicServerInfo', () => {
       welcomeMessage: null,
       description: null,
       iconUrl: null,
-      bannerUrl: null
+      bannerUrl: null,
+      clientSyncEnabled: false
     });
   });
 });

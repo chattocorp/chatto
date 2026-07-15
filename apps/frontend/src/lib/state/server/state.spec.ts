@@ -12,6 +12,7 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     description: 'a server for acme',
     iconUrl: 'https://icon',
     bannerUrl: 'https://banner',
+    clientSyncEnabled: false,
     authProviders: [],
     ...overrides
   };

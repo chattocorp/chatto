@@ -38,6 +38,10 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**Home Server** — A registered, authenticated Chatto server whose operator has enabled client sync and which the user designates to store portable preferences and their known-server directory. It is marked in the Server Gutter; credentials for other servers remain device-local. See [ADR-051](adr/ADR-051-home-server-client-sync.md) and [FDR-031](fdr/FDR-031-personal-settings.md).
+
+**Client Sync** — The optional home-server capability that synchronises portable preferences and public server-directory metadata between Chatto clients. Operators must opt in; passwords, sessions, and bearer tokens are never synchronised. See [ADR-051](adr/ADR-051-home-server-client-sync.md).
+
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
@@ -109,8 +113,6 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 Infrastructure jargon. If only contributors say the word, it goes here.
 
 **ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).
-
-**Home Server** — A normal registered Chatto server that a user designates to store portable personal preferences and their known-server directory. It is marked in the server gutter; credentials for other servers remain device-local. See [ADR-051](adr/ADR-051-home-server-personal-data.md) and [FDR-031](fdr/FDR-031-personal-settings.md).
 
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 

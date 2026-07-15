@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package chatto.clientsync.api.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1;clientsyncapiv1";
+
+// TimeFormat controls how times are displayed across the user's Chatto clients.
+enum TimeFormat {
+  TIME_FORMAT_UNSPECIFIED = 0;
+  TIME_FORMAT_12_HOUR = 1;
+  TIME_FORMAT_24_HOUR = 2;
+}
+
+// Preferences contains personal settings which should follow the authenticated
+// user between Chatto clients.
+message Preferences {
+  // BCP 47 locale tag, such as en-GB or de.
+  optional string locale = 1 [(buf.validate.field).string.max_len = 35];
+  // IANA timezone name. Empty means to use the client timezone.
+  optional string timezone = 2 [(buf.validate.field).string.max_len = 255];
+  // Preferred time display format.
+  optional TimeFormat time_format = 3;
+}
+
+// KnownServer describes one server in the user's portable server directory.
+// Authentication credentials are device-local and are never included.
+message KnownServer {
+  // Opaque identifier within this portable directory. Clients must match
+  // servers by canonical URL origin rather than treating this as global identity.
+  string id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+  // Canonical HTTP or HTTPS origin for the server.
+  string url = 2 [(buf.validate.field).string = {
+    uri: true
+    max_len: 2048
+  }];
+  // Last discovered display name.
+  string name = 3 [(buf.validate.field).string.max_len = 128];
+  // Last discovered server icon URL.
+  optional string icon_url = 4 [(buf.validate.field).string.max_len = 2048];
+  // Time this entry was first added to the portable directory.
+  google.protobuf.Timestamp added_at = 5;
+}
+
+// GetPreferencesRequest selects the authenticated user's preferences.
+message GetPreferencesRequest {}
+
+// GetPreferencesResponse returns the authenticated user's portable preferences.
+message GetPreferencesResponse {
+  // Current preferences; present even when no fields have been set.
+  Preferences preferences = 1;
+}
+
+// UpdatePreferencesRequest applies selected portable preference fields.
+message UpdatePreferencesRequest {
+  // Replacement values for fields selected by update_mask.
+  Preferences preferences = 1 [(buf.validate.field).required = true];
+  // Fields to replace. Supported paths are locale, timezone, and time_format.
+  google.protobuf.FieldMask update_mask = 2 [(buf.validate.field).required = true];
+}
+
+// UpdatePreferencesResponse returns the preferences after the update.
+message UpdatePreferencesResponse {
+  // Updated portable preferences.
+  Preferences preferences = 1;
+}
+
+// ListKnownServersRequest selects the authenticated user's server directory.
+message ListKnownServersRequest {}
+
+// ListKnownServersResponse returns the portable server directory and home marker.
+message ListKnownServersResponse {
+  // Servers known to the user, without authentication credentials.
+  repeated KnownServer servers = 1;
+  // ID of the server designated as home, when one has been chosen.
+  optional string home_server_id = 2;
+}
+
+// CreateKnownServerRequest adds one server to the portable directory.
+message CreateKnownServerRequest {
+  // Server metadata to add. added_at is assigned by the server.
+  KnownServer server = 1 [(buf.validate.field).required = true];
+}
+
+// CreateKnownServerResponse returns the created directory entry.
+message CreateKnownServerResponse {
+  // Created server entry with its server-assigned added_at value.
+  KnownServer server = 1;
+}
+
+// UpdateKnownServerRequest updates discovery metadata for one known server.
+message UpdateKnownServerRequest {
+  // Server ID and replacement values for fields selected by update_mask.
+  KnownServer server = 1 [(buf.validate.field).required = true];
+  // Fields to replace. Supported paths are url, name, and icon_url.
+  google.protobuf.FieldMask update_mask = 2 [(buf.validate.field).required = true];
+}
+
+// UpdateKnownServerResponse returns the directory entry after the update.
+message UpdateKnownServerResponse {
+  // Updated known-server entry.
+  KnownServer server = 1;
+}
+
+// DeleteKnownServerRequest removes a non-home server from the directory.
+message DeleteKnownServerRequest {
+  // ID of the server to remove.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// DeleteKnownServerResponse acknowledges an idempotent directory removal.
+message DeleteKnownServerResponse {}
+
+// SetHomeServerRequest chooses an existing directory entry as home.
+message SetHomeServerRequest {
+  // ID of the known server to designate as home.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// SetHomeServerResponse returns the newly designated home server.
+message SetHomeServerResponse {
+  // Known-server entry now designated as home.
+  KnownServer server = 1;
+}
+
+// ClientSyncService stores the authenticated user's portable preferences and
+// server directory on their chosen home server.
+service ClientSyncService {
+  // Gets portable preferences for the authenticated user.
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Updates selected portable preferences for the authenticated user.
+  rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse);
+  // Lists the authenticated user's portable known-server directory.
+  rpc ListKnownServers(ListKnownServersRequest) returns (ListKnownServersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Adds a server to the authenticated user's portable directory.
+  rpc CreateKnownServer(CreateKnownServerRequest) returns (CreateKnownServerResponse);
+  // Updates discovery metadata for one known server.
+  rpc UpdateKnownServer(UpdateKnownServerRequest) returns (UpdateKnownServerResponse);
+  // Removes a non-home server from the portable directory.
+  rpc DeleteKnownServer(DeleteKnownServerRequest) returns (DeleteKnownServerResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Designates an existing known server as the user's home server.
+  rpc SetHomeServer(SetHomeServerRequest) returns (SetHomeServerResponse);
+}
