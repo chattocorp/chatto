@@ -55,7 +55,8 @@ describe('AddServerDialog', () => {
       makeProbeResponse({
         profile: {
           name: 'Remote Chatto',
-          version: '0.0.150'
+          version: '0.0.150',
+          bannerUrl: 'https://chat.example.com/banner.png'
         },
         login: {
           directRegistrationEnabled: true,
@@ -94,6 +95,9 @@ describe('AddServerDialog', () => {
     // card, not in any action button.
     expect(container.textContent).toContain('Remote Chatto');
     expect(container.textContent).toContain('chat.example.com');
+    expect(
+      container.querySelector<HTMLImageElement>('[data-testid="server-preview-banner"]')?.className
+    ).toContain('h-24');
   });
 
   it('handles the real chat.chatto.run response shape', async () => {

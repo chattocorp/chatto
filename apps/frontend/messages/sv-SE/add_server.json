@@ -4,7 +4,7 @@
     "title": "Lägg till server",
     "sign_in": "Logga in",
     "connect": "Anslut",
-    "redirecting": "Omdirigerar...",
+    "redirecting": "Väntar på inloggning...",
     "connecting": "Ansluter...",
     "start_failed": "Det gick inte att starta inloggningen.",
     "invalid_url": "Ange en giltig URL.",
@@ -16,7 +16,7 @@
     "connect_failed": "Det gick inte att ansluta.",
     "edit_url": "Fel server? Redigera URL",
     "description_url": "Chatto är distribuerad - din klient ansluter till varje server direkt. Ange en URL för att lägga till en annan.",
-    "description_preview": "Du håller på att logga in på den här servern. Du kommer att skickas till dess inloggningssida för att autentisera.",
+    "description_preview": "Ett separat fönster öppnas så att du kan logga in direkt på den här servern.",
     "url_label": "Server URL",
     "url_placeholder": "chat.example.com"
   }

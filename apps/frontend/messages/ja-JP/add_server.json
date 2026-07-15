@@ -4,7 +4,7 @@
     "title": "サーバーを追加",
     "sign_in": "サインイン",
     "connect": "接続する",
-    "redirecting": "リダイレクト中...",
+    "redirecting": "サインインを待っています...",
     "connecting": "接続中...",
     "start_failed": "サインインの開始に失敗しました。",
     "invalid_url": "有効な URL を入力してください。",
@@ -16,7 +16,7 @@
     "connect_failed": "接続に失敗しました。",
     "edit_url": "サーバーが間違っていますか? URLを編集",
     "description_url": "Chatto が配布されています - クライアントは各サーバーに直接接続します。別のものを追加するには、「URL」と入力します。",
-    "description_preview": "このサーバーにサインインしようとしています。認証のためにサインイン ページに移動します。",
+    "description_preview": "別のウィンドウが開き、このサーバーに直接サインインできます。",
     "url_label": "サーバー URL",
     "url_placeholder": "chat.example.com"
   }
