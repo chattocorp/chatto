@@ -2,6 +2,7 @@ package linkpreview
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -39,6 +40,10 @@ func init() {
 // built with the test_endpoints build tag.
 var allowLocalhost bool
 
+type ipResolver interface {
+	LookupIP(context.Context, string, string) ([]net.IP, error)
+}
+
 // isPrivateIP checks if an IP address is in a private/reserved range.
 func isPrivateIP(ip net.IP) bool {
 	if ip.IsLoopback() {
@@ -61,6 +66,10 @@ func isPrivateIP(ip net.IP) bool {
 // This prevents DNS rebinding attacks by checking the IP at connection time
 // (not in a separate pre-check that could be subject to TOCTOU races).
 func ssrfSafeDialContext(timeout time.Duration) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return ssrfSafeDialContextWithResolver(timeout, net.DefaultResolver)
+}
+
+func ssrfSafeDialContextWithResolver(timeout time.Duration, resolver ipResolver) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
@@ -75,9 +84,12 @@ func ssrfSafeDialContext(timeout time.Duration) func(ctx context.Context, networ
 		resolveCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
-		ips, err := net.DefaultResolver.LookupIP(resolveCtx, "ip", host)
+		ips, err := resolver.LookupIP(resolveCtx, "ip", host)
 		if err != nil {
 			return nil, fmt.Errorf("ssrf: failed to resolve hostname %s: %w", host, err)
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("ssrf: hostname %s resolved to no addresses", host)
 		}
 
 		// Check all resolved IPs against the blocklist
@@ -87,12 +99,26 @@ func ssrfSafeDialContext(timeout time.Duration) func(ctx context.Context, networ
 			}
 		}
 
-		// Connect to the first validated IP directly, preventing any second DNS lookup
-		dialer := &net.Dialer{
-			Timeout:   timeout,
-			KeepAlive: 30 * time.Second,
+		// Connect to the already-validated addresses directly, preventing a second
+		// DNS lookup while still falling back when the first family is unreachable
+		// (for example, an IPv6-first result on an IPv4-only host).
+		attemptTimeout := timeout
+		if len(ips) > 1 {
+			attemptTimeout = min(timeout/2, 2*time.Second)
 		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))
+		var dialErrors []error
+		for _, ip := range ips {
+			dialer := &net.Dialer{
+				Timeout:   attemptTimeout,
+				KeepAlive: 30 * time.Second,
+			}
+			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+			if err == nil {
+				return conn, nil
+			}
+			dialErrors = append(dialErrors, fmt.Errorf("%s: %w", ip, err))
+		}
+		return nil, fmt.Errorf("ssrf: failed to connect to %s: %w", host, errors.Join(dialErrors...))
 	}
 }
 
