@@ -9,6 +9,7 @@ const generatedFiles = new Set([
   'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/auth.raw.mdx',
+  'apps/docs-website/src/generated/connectrpc-api/clientsync.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx'
 ]);
