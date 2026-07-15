@@ -75,9 +75,9 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_UserDekGenerated:
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
-		p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated)
+		return p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated)
 	case *corev1.Event_UserLoginChanged:
-		p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged)
+		return p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
 	case *corev1.Event_UserKeyShredded:
@@ -108,26 +108,34 @@ func (p *MentionablesProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEve
 	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
 }
 
-func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) {
+func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) error {
 	if e == nil || e.GetUserId() == "" {
-		return
+		return nil
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
+	}
 	if !ok || login == "" {
-		return
+		return nil
 	}
 	p.setUserLogin(e.GetUserId(), login)
+	return nil
 }
 
-func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1.UserLoginChangedEvent) {
+func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1.UserLoginChangedEvent) error {
 	if e == nil || e.GetUserId() == "" {
-		return
+		return nil
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
+	}
 	if !ok || login == "" {
-		return
+		return nil
 	}
 	p.setUserLogin(e.GetUserId(), login)
+	return nil
 }
 
 func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDeletedEvent) {
@@ -142,16 +150,17 @@ func (p *MentionablesProjection) applyUserKeyShredded(e *corev1.UserKeyShreddedE
 		return
 	}
 	delete(p.dekEvents, e.GetUserId())
+	p.removeUserLogin(e.GetUserId())
 }
 
 func (p *MentionablesProjection) setUserLogin(userID, login string) {
 	p.removeUserLogin(userID)
-	normalized := normalizeMentionableHandle(login)
-	if normalized == "" {
+	key := mentionableLookupKey(login)
+	if key == "" {
 		return
 	}
-	p.userLogins[userID] = normalized
-	p.addOwner(normalized, mentionableOwner{kind: mentionableOwnerUser, id: userID})
+	p.userLogins[userID] = key
+	p.addOwnerKey(key, mentionableOwner{kind: mentionableOwnerUser, id: userID})
 }
 
 func (p *MentionablesProjection) removeUserLogin(userID string) {
@@ -160,71 +169,80 @@ func (p *MentionablesProjection) removeUserLogin(userID string) {
 		return
 	}
 	delete(p.userLogins, userID)
-	p.removeOwner(old, mentionableOwner{kind: mentionableOwnerUser, id: userID})
+	p.removeOwnerKey(old, mentionableOwner{kind: mentionableOwnerUser, id: userID})
 }
 
 func (p *MentionablesProjection) addOwner(handle string, owner mentionableOwner) {
-	normalized := normalizeMentionableHandle(handle)
-	if normalized == "" || owner.kind == "" || owner.id == "" {
+	p.addOwnerKey(mentionableLookupKey(handle), owner)
+}
+
+func (p *MentionablesProjection) addOwnerKey(key string, owner mentionableOwner) {
+	if key == "" || owner.kind == "" || owner.id == "" {
 		return
 	}
-	owners := p.owners[normalized]
+	owners := p.owners[key]
 	if owners == nil {
 		owners = make(map[mentionableOwner]struct{})
-		p.owners[normalized] = owners
+		p.owners[key] = owners
 	}
 	owners[owner] = struct{}{}
 }
 
 func (p *MentionablesProjection) removeOwner(handle string, owner mentionableOwner) {
-	normalized := normalizeMentionableHandle(handle)
-	owners := p.owners[normalized]
+	p.removeOwnerKey(mentionableLookupKey(handle), owner)
+}
+
+func (p *MentionablesProjection) removeOwnerKey(key string, owner mentionableOwner) {
+	owners := p.owners[key]
 	if owners == nil {
 		return
 	}
 	delete(owners, owner)
 	if len(owners) == 0 {
-		delete(p.owners, normalized)
+		delete(p.owners, key)
 	}
 }
 
-func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool) {
+func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool, error) {
 	if encrypted == nil {
-		return "", false
+		return "", false, nil
 	}
 	byPurpose := p.dekEvents[userID]
 	if byPurpose == nil {
-		return "", false
+		return "", false, nil
 	}
 	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
 	if event == nil {
 		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
 	if event == nil || p.dekResolver == nil {
-		return "", false
+		return "", false, nil
 	}
 	dek, err := p.dekResolver.Resolve(context.Background(), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
-	if err != nil || dek == nil || len(dek.key) == 0 {
-		return "", false
+	if err != nil {
+		if errors.Is(err, encryption.ErrKeyNotFound) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("resolve mentionable user PII key: %w", err)
+	}
+	if dek == nil || len(dek.key) == 0 {
+		return "", false, nil
 	}
 	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
 	if err != nil {
-		if errors.Is(err, encryption.ErrDecryptionFailed) || errors.Is(err, encryption.ErrKeyNotFound) {
-			return "", false
-		}
-		return "", false
+		return "", false, fmt.Errorf("decrypt mentionable user PII: %w", err)
 	}
-	return plaintext, true
+	return plaintext, true, nil
 }
 
 func (p *MentionablesProjection) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
-	normalized := normalizeMentionableHandle(handle)
-	if normalized == "" {
+	key := mentionableLookupKey(handle)
+	if key == "" {
 		return MentionableAvailability{Available: false}
 	}
 	p.RLock()
 	defer p.RUnlock()
-	owners := p.owners[normalized]
+	owners := p.owners[key]
 	if len(owners) == 0 {
 		return MentionableAvailability{Available: true}
 	}
@@ -286,6 +304,14 @@ func (s *MentionablesModel) Availability(handle string, allowedOwner *mentionabl
 
 func normalizeMentionableHandle(handle string) string {
 	return strings.ToLower(strings.TrimSpace(handle))
+}
+
+func mentionableLookupKey(handle string) string {
+	normalized := normalizeMentionableHandle(handle)
+	if normalized == "" {
+		return ""
+	}
+	return userPIILookupHash(normalized)
 }
 
 func mentionableRetryDelay(attempt int) time.Duration {

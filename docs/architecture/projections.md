@@ -4,8 +4,9 @@ Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli
 
 Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once with a stable machine-readable key such as `content_keys` plus a human display name such as `Content Keys`; `ChattoCore.Run` replays `evt.>` through one process-local ordered consumer, decodes each event once, dispatches it to projections whose logical subject filters match, records each projection's initial replay startup duration, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes. The projector framework owns JetStream message handling and passes stable stream sequence numbers into `Projection.Apply`; projection implementations do not inspect consumer sequence numbers or raw JetStream metadata. Projections that require event-envelope idempotency keep event-ID sets only through the captured startup target. Clean histories then release those sets and use the highest applied stream sequence as a constant-size steady-state guard; if startup replay observes a duplicate ID, only that projection retains its set and first-event-wins compatibility behavior. Projection diagnostics report both retained event-ID memory and whether compatibility mode is active.
 
-Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md)
-and [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md).
+Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
+[ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md), and
+[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md).
 
 ## Snapshot support
 
@@ -33,3 +34,10 @@ and [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md).
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
 
 Notes: registered projector keys are used by metrics and automation; registered projector names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`. The shared replay fanout reduces duplicate replay delivery and protobuf decoding while keeping each projection's status, lag, failure, and read-your-writes waiters independent. `Subjects()` is the logical consumption and readiness contract; optional replay subjects are only the physical consumer filter. Focused logical filters are appropriate for stable derived indexes such as Threads, while broad filters remain intentional for projections whose snapshots expose room-tail OCC positions, such as Reactions and Call State. Threads reports the focused logical subjects above for waits and diagnostics; non-thread room facts are skipped before `Apply`.
+
+`UserProjection` retains encrypted user fields and their AAD metadata. The user
+and mentionable projections decrypt login and email values only transiently
+while applying events to derive in-memory lookup digests; neither plaintext nor
+the digests are persisted in `EVT`. Read hydration decrypts profile PII with
+request-scoped DEK reuse. KMS and decryption failures remain operational errors
+rather than appearing as missing or deleted users.

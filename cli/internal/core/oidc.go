@@ -35,7 +35,11 @@ func externalIdentityHash(issuer, subject string) string {
 
 // GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
 func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByExternalIdentity(issuer, subject); ok {
+	user, ok, err := c.Users.GetByExternalIdentityContext(ctx, issuer, subject)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, nil
@@ -63,14 +67,18 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		if _, ok := c.Users.Get(userID); !ok {
-			return ErrNotFound
-		}
-		existing, ok := c.Users.GetByExternalIdentity(issuer, subject)
-		if ok && existing.GetId() != userID {
-			return ErrExternalIdentityAlreadyClaimed
+		_, ok, err := c.Users.GetContext(ctx, userID)
+		if err != nil {
+			return err
 		}
 		if !ok {
+			return ErrNotFound
+		}
+		existingUserID, claimed := c.Users.ExternalIdentityOwnerID(issuer, subject)
+		if claimed && existingUserID != userID {
+			return ErrExternalIdentityAlreadyClaimed
+		}
+		if !claimed {
 			if err := c.requireVerifiedAccountCapacity(ctx, userID); err != nil {
 				return err
 			}

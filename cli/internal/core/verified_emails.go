@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,10 +57,9 @@ type EmailVerificationCode struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// VerifiedEmail is the in-memory shape returned by GetVerifiedEmails.
-// On disk each entry lives in its own KV key as a proto-encoded
-// corev1.VerifiedEmail; this Go struct exists for back-compat with the
-// callers that already use it.
+// VerifiedEmail is the read-time plaintext shape returned by
+// GetVerifiedEmails. UserProjection retains only its encrypted value and
+// materialises this shape while hydrating a request.
 type VerifiedEmail struct {
 	Email      string    `json:"email"`
 	VerifiedAt time.Time `json:"verified_at"`
@@ -97,8 +94,7 @@ func emailVerificationOTPSubject(userID, email string) string {
 // the per-email key and the user_by_email index. Centralised so the
 // index and the per-email entries can never drift apart.
 func emailHash(email string) string {
-	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
-	return hex.EncodeToString(sum[:])
+	return userPIILookupHash(email)
 }
 
 // verifiedEmailKey returns the KV key for a single verified email.
@@ -262,8 +258,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return fmt.Errorf("user not found: %w", err)
 		}
-		if user, ok := c.Users.GetByEmail(email); ok {
-			if user.GetId() == userID {
+		if ownerID, ok := c.Users.EmailOwnerID(email); ok {
+			if ownerID == userID {
 				return errVerifiedEmailNoop
 			}
 			return ErrEmailAlreadyVerified
@@ -302,7 +298,7 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 
 // GetVerifiedEmails returns all verified emails for a user from the user projection.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
-	return c.Users.VerifiedEmails(userID), nil
+	return c.Users.VerifiedEmailsContext(ctx, userID)
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.
@@ -319,7 +315,11 @@ func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, er
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
 func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByEmail(email); ok {
+	user, ok, err := c.Users.GetByEmailContext(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, fmt.Errorf("%w: verified email", ErrNotFound)
@@ -354,7 +354,10 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 
 	promoted := 0
 	for _, userID := range c.Users.VerifiedUserIDs() {
-		emails := c.Users.VerifiedEmails(userID)
+		emails, err := c.Users.VerifiedEmailsContext(ctx, userID)
+		if err != nil {
+			return err
+		}
 		for _, ve := range emails {
 			if !c.config.Owners.IsServerOwnerEmail(ve.Email) {
 				continue
