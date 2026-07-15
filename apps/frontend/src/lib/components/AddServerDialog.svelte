@@ -158,9 +158,10 @@ ADR-027 — only user-facing copy says "server".
 
     try {
       await startServerOAuthFlow(probedUrl, probedInfo);
-    } catch (err) {
+      handleClose();
+    } catch {
       connecting = false;
-      formError = err instanceof Error ? err.message : m['add_server.start_failed']();
+      formError = m['add_server.start_failed']();
     }
   }
 

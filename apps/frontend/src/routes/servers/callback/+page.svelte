@@ -4,7 +4,12 @@
   import { resolve } from '$app/paths';
   import { onMount } from 'svelte';
   import { loadAndClearFlowState } from '$lib/oauth/pkce';
-  import { serverRegistry, generateServerId } from '$lib/state/server/registry.svelte';
+  import {
+    oauthPopupChannelName,
+    oauthPopupResponseFromURL,
+    type OAuthPopupResponse
+  } from '$lib/oauth/popup';
+  import { completeServerOAuthFlow } from '$lib/auth/reauth';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -13,7 +18,45 @@
   let status = $state<'loading' | 'error'>('loading');
   let errorMessage = $state('');
 
+  function returnToOpeningClient(response: OAuthPopupResponse) {
+    let delivered = false;
+
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel(oauthPopupChannelName(response.state));
+      channel.postMessage(response);
+      window.setTimeout(() => channel.close(), 100);
+      delivered = true;
+    }
+
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage(response, window.location.origin);
+      delivered = true;
+    }
+
+    if (delivered) {
+      // Give BroadcastChannel/postMessage a task boundary before closing the
+      // script-opened popup. Browsers that refuse window.close keep showing
+      // the harmless completion state instead.
+      window.setTimeout(() => window.close(), 100);
+    }
+    return delivered;
+  }
+
   onMount(async () => {
+    if (page.url.searchParams.get('mode') === 'popup') {
+      const popupResponse = oauthPopupResponseFromURL(page.url);
+      if (!popupResponse) {
+        status = 'error';
+        errorMessage = m['auth.callback.no_code']();
+        return;
+      }
+      if (!returnToOpeningClient(popupResponse)) {
+        status = 'error';
+        errorMessage = m['auth.callback.missing_flow']();
+      }
+      return;
+    }
+
     const code = page.url.searchParams.get('code');
     const state = page.url.searchParams.get('state');
     const errorParam = page.url.searchParams.get('error');
@@ -48,88 +91,19 @@
       return;
     }
 
-    // Build the redirect_uri that we used in the authorize request
+    // Build the redirect_uri that legacy full-page flows used in the
+    // authorize request.
     const redirectUri = `${window.location.origin}/servers/callback`;
 
     try {
-      // Exchange the authorization code for a bearer token
-      const response = await fetch(`${flow.remoteUrl}/oauth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'authorization_code',
-          code,
-          code_verifier: flow.verifier,
-          redirect_uri: redirectUri
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        status = 'error';
-        errorMessage =
-          result.error_description || result.error || m['auth.callback.token_exchange_failed']();
-        return;
-      }
-
-      if (!result.access_token) {
-        status = 'error';
-        errorMessage = m['auth.callback.no_access_token']();
-        return;
-      }
-
-      // Register or update the instance
-      const existing = serverRegistry.servers.find(
-        (i) => i.url.toLowerCase() === flow.remoteUrl.toLowerCase()
-      );
-
-      let serverId: string;
-      if (existing) {
-        serverRegistry.updateServer(existing.id, {
-          name: flow.serverName ?? existing.name,
-          iconUrl: flow.serverIconUrl ?? existing.iconUrl
-        });
-        serverRegistry.replaceServerAuthentication(existing.id, {
-          token: result.access_token,
-          userId: result.user?.id ?? null,
-          userLogin: result.user?.login ?? null,
-          userDisplayName: result.user?.displayName ?? null,
-          userAvatarUrl: result.user?.avatarUrl ?? null,
-          reauthRequiredAt: null
-        });
-        serverId = existing.id;
-      } else {
-        const id = generateServerId(
-          flow.remoteUrl,
-          serverRegistry.servers.map((i) => i.id)
-        );
-
-        serverRegistry.addServer({
-          id,
-          url: flow.remoteUrl,
-          name: flow.serverName ?? 'Chatto',
-          iconUrl: flow.serverIconUrl ?? null,
-          token: result.access_token,
-          userId: result.user?.id ?? null,
-          userLogin: result.user?.login ?? null,
-          userDisplayName: result.user?.displayName ?? null,
-          userAvatarUrl: result.user?.avatarUrl ?? null,
-          reauthRequiredAt: null,
-          addedAt: Date.now()
-        });
-        serverId = id;
-      }
-
-      goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+      const serverId = await completeServerOAuthFlow(flow, code, redirectUri);
+      await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
     } catch (err) {
       status = 'error';
       if (err instanceof DOMException && err.name === 'AbortError') {
         errorMessage = m['auth.callback.token_exchange_timeout']();
       } else {
-        errorMessage =
-          err instanceof Error ? err.message : m['auth.callback.token_exchange_failed']();
+        errorMessage = m['auth.callback.token_exchange_failed']();
       }
     }
   });

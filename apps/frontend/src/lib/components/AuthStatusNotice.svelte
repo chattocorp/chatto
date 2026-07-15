@@ -28,9 +28,9 @@
     reconnectingServerId = server.id;
     try {
       await startRemoteReauthentication(server);
-    } catch (err) {
+    } catch {
       reconnectingServerId = null;
-      toast.error(err instanceof Error ? err.message : m['ui.auth_status.remote_failed']());
+      toast.error(m['ui.auth_status.remote_failed']());
     }
   }
 </script>

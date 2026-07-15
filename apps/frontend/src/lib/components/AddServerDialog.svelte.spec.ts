@@ -148,6 +148,7 @@ describe('AddServerDialog', () => {
   });
 
   it('starts the shared OAuth flow from the preview stage', async () => {
+    const onclose = vi.fn();
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({
         profile: {
@@ -162,7 +163,7 @@ describe('AddServerDialog', () => {
     ) as unknown as typeof fetch;
 
     const { container } = render(AddServerDialog, {
-      props: { visible: true, onclose: () => {} }
+      props: { visible: true, onclose }
     });
 
     const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
@@ -189,6 +190,7 @@ describe('AddServerDialog', () => {
         })
       );
     });
+    expect(onclose).toHaveBeenCalledOnce();
   });
 
   it('shows an error when the probe response is not a Chatto server', async () => {
