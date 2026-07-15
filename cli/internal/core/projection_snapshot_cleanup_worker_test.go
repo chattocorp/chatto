@@ -190,6 +190,30 @@ func TestProjectionSnapshotCleanupWorkerUsesCatchUpCadenceWhenLimitIsHit(t *test
 	}
 }
 
+func TestProjectionSnapshotCleanupWorkerSharesDeleteBudgetAcrossNamespaces(t *testing.T) {
+	first := &fakeProjectionSnapshotSweeper{results: []projectionsnapshot.SweepResult{{DeletedObjects: 60, DeletedBytes: 600}}}
+	second := &fakeProjectionSnapshotSweeper{results: []projectionsnapshot.SweepResult{{DeletedObjects: 40, DeletedBytes: 400}}}
+	worker := &projectionSnapshotCleanupWorker{
+		repositories: []projectionSnapshotSweeper{first, second},
+		lease:        &fakeProjectionSnapshotCleanupLease{},
+		sweepTimeout: time.Second,
+	}
+	result, err := worker.sweep(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DeletedObjects != projectionSnapshotCleanupMaxDeletes || result.DeletedBytes != 1000 {
+		t.Fatalf("combined result = %#v", result)
+	}
+	firstOpts, secondOpts := first.options(), second.options()
+	if len(firstOpts) != 1 || firstOpts[0].MaxDeletes != projectionSnapshotCleanupMaxDeletes {
+		t.Fatalf("first options = %#v", firstOpts)
+	}
+	if len(secondOpts) != 1 || secondOpts[0].MaxDeletes != 40 || secondOpts[0].MaxDeleteBytes != projectionSnapshotCleanupMaxDeleteBytes-600 {
+		t.Fatalf("second options = %#v", secondOpts)
+	}
+}
+
 func TestProjectionSnapshotCleanupWorkerDoesNotAcquireBeforeBoot(t *testing.T) {
 	repository := &fakeProjectionSnapshotSweeper{}
 	cleanupLease := &fakeProjectionSnapshotCleanupLease{runEntered: make(chan struct{})}

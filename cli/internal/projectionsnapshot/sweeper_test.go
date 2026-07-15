@@ -410,7 +410,7 @@ func TestRepositorySweepAfterSecretRotationCannotSeeOldGenerationEpoch(t *testin
 func TestRepositorySweepLeavesPreEpochLayoutForProviderLifecycle(t *testing.T) {
 	blobs := newMemoryBlobStore()
 	repository := newSweepRepository(t, blobs, testSecret)
-	legacyKey := objectPrefix + "objects/" + strings.Repeat("a", 32)
+	legacyKey := objectRootPrefix + "v1/objects/" + strings.Repeat("a", 32)
 	blobs.objects[legacyKey] = []byte("legacy encrypted generation")
 	blobs.modified[legacyKey] = sweepNow.Add(-48 * time.Hour)
 

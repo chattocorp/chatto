@@ -34,6 +34,7 @@ type projectionSnapshotCleanupLease interface {
 
 type projectionSnapshotCleanupWorker struct {
 	repository   projectionSnapshotSweeper
+	repositories []projectionSnapshotSweeper
 	lease        projectionSnapshotCleanupLease
 	logger       events.Logger
 	initialDelay func() time.Duration
@@ -123,12 +124,43 @@ func (w *projectionSnapshotCleanupWorker) sweep(ctx context.Context) (projection
 	}
 	sweepCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return w.repository.Sweep(sweepCtx, projectionsnapshot.SweepOptions{
+	options := projectionsnapshot.SweepOptions{
 		GracePeriod:    projectionSnapshotCleanupGracePeriod,
 		MaxDeletes:     projectionSnapshotCleanupMaxDeletes,
 		MaxDeleteBytes: projectionSnapshotCleanupMaxDeleteBytes,
 		BeforeDelete:   w.lease.CheckOwnership,
-	})
+	}
+	repositories := w.repositories
+	if len(repositories) == 0 {
+		repositories = []projectionSnapshotSweeper{w.repository}
+	}
+	var combined projectionsnapshot.SweepResult
+	for _, repository := range repositories {
+		remainingDeletes := projectionSnapshotCleanupMaxDeletes - combined.DeletedObjects
+		remainingBytes := projectionSnapshotCleanupMaxDeleteBytes - combined.DeletedBytes
+		if remainingDeletes <= 0 || remainingBytes <= 0 {
+			combined.DeleteLimitHit = true
+			break
+		}
+		options.MaxDeletes = remainingDeletes
+		options.MaxDeleteBytes = remainingBytes
+		result, err := repository.Sweep(sweepCtx, options)
+		combined.ScannedObjects += result.ScannedObjects
+		combined.ScannedBytes += result.ScannedBytes
+		combined.ReferencedObjects += result.ReferencedObjects
+		combined.ActivePointers += result.ActivePointers
+		combined.RecentObjects += result.RecentObjects
+		combined.EligibleObjects += result.EligibleObjects
+		combined.EligibleBytes += result.EligibleBytes
+		combined.IgnoredObjects += result.IgnoredObjects
+		combined.DeletedObjects += result.DeletedObjects
+		combined.DeletedBytes += result.DeletedBytes
+		combined.DeleteLimitHit = combined.DeleteLimitHit || result.DeleteLimitHit
+		if err != nil {
+			return combined, err
+		}
+	}
+	return combined, nil
 }
 
 func projectionSnapshotCleanupInitialDelay() time.Duration {

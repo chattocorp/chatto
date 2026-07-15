@@ -56,6 +56,6 @@ This ADR supersedes ADR-006.
 - The shape of the event log itself (one stream vs. many) — see [ADR-034](ADR-034-single-event-stream.md).
 - The migration strategy from today's CRUD+log model — see [ADR-035](ADR-035-per-aggregate-phased-migration.md).
 - The runtime-state storage boundary — see [ADR-036](ADR-036-runtime-state-kv-boundary.md).
-- Snapshot persistence and projection bootstrapping from snapshots — the interface is committed here, while [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) defines the later ephemeral snapshot mechanism and canary. The profiling hooks and admin metrics added during replay work remain the way to decide whether broader adoption is justified.
+- Snapshot persistence and projection bootstrapping from snapshots — the interface is committed here, while [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) defines the optional encrypted snapshot mechanism and coordinated replay frontier.
 - Long-term retention, archival, cold storage — also deferred.
 - Multi-process coordination beyond "every process maintains its own projection." If we ever want a single authoritative projection across processes, that is a separate decision.

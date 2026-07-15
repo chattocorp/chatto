@@ -19,7 +19,7 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
-func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
+func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	storeDir := t.TempDir()
 	ns, nc := startPersistentSnapshotNATS(t, storeDir)
 	t.Cleanup(func() { stopPersistentSnapshotNATS(ns, nc) })
@@ -46,8 +46,15 @@ func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
-	waitForSnapshotObjects(t, ctx, first, 1)
+	select {
+	case <-first.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not publish the projection cohort")
+	}
 	firstSnapshotObjects := projectionSnapshotObjectNames(t, ctx, first)
+	if len(firstSnapshotObjects) < 2 {
+		t.Fatalf("snapshot cohort published only %d objects", len(firstSnapshotObjects))
+	}
 	for _, name := range firstSnapshotObjects {
 		if _, err := first.storage.serverAssets.GetInfo(ctx, name); !errors.Is(err, jetstream.ErrObjectNotFound) {
 			t.Fatalf("snapshot object %q leaked into shared SERVER_ASSETS: %v", name, err)
@@ -84,6 +91,18 @@ func TestProjectionSnapshotsPersistAndRestoreThreads(t *testing.T) {
 	}
 	if status.StartupMessages != 0 {
 		t.Fatalf("Thread projector replayed %d messages after current snapshot restore", status.StartupMessages)
+	}
+	for _, registration := range second.projections {
+		if !registration.snapshotCohort {
+			continue
+		}
+		status := registration.projector.Status()
+		if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 {
+			t.Errorf("%s projector did not restore its cohort snapshot: %#v", registration.key, status)
+		}
+		if status.StartupMessages != 0 {
+			t.Errorf("%s projector replayed %d messages after current snapshot restore", registration.key, status.StartupMessages)
+		}
 	}
 	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
@@ -337,7 +356,7 @@ func projectionSnapshotObjectNames(t *testing.T, ctx context.Context, core *Chat
 	}
 	names := make([]string, 0, len(objects))
 	for _, object := range objects {
-		if strings.HasPrefix(object.Name, "internal/projection-snapshots/v1/") {
+		if strings.HasPrefix(object.Name, "internal/projection-snapshots/") {
 			names = append(names, object.Name)
 		}
 	}

@@ -64,10 +64,8 @@ func BenchmarkProjectionReplay(b *testing.B) {
 	}
 }
 
-// BenchmarkThreadProjectionSnapshotCodec measures only the canary's canonical
-// protobuf encode and derived-index rebuild costs. It does not represent total
-// startup wall time because the shared EVT fanout still replays for other
-// projections.
+// BenchmarkThreadProjectionSnapshotCodec measures the Threads codec's
+// canonical protobuf encode and derived-index rebuild costs in isolation.
 func BenchmarkThreadProjectionSnapshotCodec(b *testing.B) {
 	for _, logicalMessages := range []int{1_000, 10_000} {
 		fixture := newProjectionBenchmarkFixture(b, logicalMessages)

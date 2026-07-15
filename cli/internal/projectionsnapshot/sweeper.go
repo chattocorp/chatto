@@ -49,9 +49,9 @@ func (r *Repository) Sweep(ctx context.Context, opts SweepOptions) (SweepResult,
 	if opts.MaxDeleteBytes <= 0 {
 		return SweepResult{}, fmt.Errorf("snapshot cleanup byte limit must be positive")
 	}
-	referenced := make(map[string]struct{}, len(projectionV1Keys)*2)
+	referenced := make(map[string]struct{}, len(r.namespace.projectionKeys)*2)
 	activePointerCount := 0
-	for _, projectionKey := range projectionV1Keys {
+	for _, projectionKey := range r.namespace.projectionKeys {
 		pointer, err := r.loadPointer(ctx, projectionKey)
 		switch {
 		case err == nil:

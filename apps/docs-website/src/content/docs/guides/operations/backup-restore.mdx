@@ -50,7 +50,7 @@ Certain streams are intentionally excluded:
 </Aside>
 
 <Aside type="note">
-  Projection snapshots are never required to restore server state. NATS-backed snapshots and their revisioned pointer remain reusable after restore when the same `core.secret_key` is retained, but the current Thread-only canary is not expected to reduce total boot time because other projections still replay all of `EVT`. Missing S3 snapshots or changing the key only causes a full replay. While snapshots are enabled, Chatto removes unreferenced generations in the current secret-key epoch after a 24-hour grace period; cleanup never crosses key epochs or removes the current or previous referenced generation.
+  Projection snapshots are never required to restore server state. NATS-backed snapshots and their revisioned pointers remain reusable after restore when the same `core.secret_key` is retained. Missing S3 snapshots or changing the key only causes the affected projection cohort to replay `EVT`. While snapshots are enabled, Chatto removes unreferenced generations in the current secret-key epoch after a 24-hour grace period; cleanup never crosses key epochs or removes the current or previous referenced generation.
 </Aside>
 
 ## Creating a backup

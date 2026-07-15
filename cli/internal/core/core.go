@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -346,16 +347,35 @@ func projectionRunGroups(projections []projectionRegistration) []projectionRunGr
 		return nil
 	}
 
-	group := projectionRunGroup{
+	snapshotGroup := projectionRunGroup{
 		names:          make([]string, 0, len(projections)),
 		replaySubjects: []string{events.EventSubjectFilter()},
 		projectors:     make([]*events.Projector, 0, len(projections)),
 	}
+	coldGroup := projectionRunGroup{}
+	coldSubjects := make(map[string]struct{})
 	for _, projection := range projections {
-		group.names = append(group.names, projection.name)
-		group.projectors = append(group.projectors, projection.projector)
+		if projection.snapshotCohort {
+			snapshotGroup.names = append(snapshotGroup.names, projection.name)
+			snapshotGroup.projectors = append(snapshotGroup.projectors, projection.projector)
+			continue
+		}
+		coldGroup.names = append(coldGroup.names, projection.name)
+		coldGroup.projectors = append(coldGroup.projectors, projection.projector)
+		for _, subject := range projection.subjects {
+			coldSubjects[subject] = struct{}{}
+		}
 	}
-	return []projectionRunGroup{group}
+	if len(snapshotGroup.projectors) == 0 {
+		coldGroup.replaySubjects = []string{events.EventSubjectFilter()}
+		return []projectionRunGroup{coldGroup}
+	}
+	groups := []projectionRunGroup{snapshotGroup}
+	if len(coldGroup.projectors) > 0 {
+		coldGroup.replaySubjects = sortedMapKeys(coldSubjects)
+		groups = append(groups, coldGroup)
+	}
+	return groups
 }
 
 // AllProjectorsStarted reports whether every registered projector
@@ -1213,6 +1233,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	var snapshotRepository *projectionsnapshot.Repository
+	var coreSnapshotRepository *projectionsnapshot.Repository
+	var snapshotJobs []projectionSnapshotJob
 	var snapshotStreamIdentity string
 	if cfg.ProjectionSnapshots {
 		var snapshotBlobs projectionsnapshot.BlobStore
@@ -1243,6 +1265,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				SecretHex:       cfg.SecretKey,
 				ProducerVersion: cfg.Version,
 				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
+				Namespace:       projectionsnapshot.NamespaceV1Threads,
 			})
 			if err != nil {
 				logger.Warn("Projection snapshots disabled after initialization failure",
@@ -1250,16 +1273,26 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					"error", err)
 				snapshotRepository = nil
 			} else {
+				coreSnapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+					Pointers: natsSnapshotPointerStore{kv: storage.runtimeStateKV}, SecretHex: cfg.SecretKey,
+					ProducerVersion: cfg.Version, Logger: logger.WithPrefix("core.ProjectionSnapshots"), Namespace: projectionsnapshot.NamespaceV2Core,
+				})
+				if err != nil {
+					logger.Warn("Projection snapshots disabled after v2 repository initialization failure", "stage", "initialize", "error", err)
+					snapshotRepository = nil
+					coreSnapshotRepository = nil
+				}
+			}
+			if snapshotRepository != nil {
 				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
 				if err != nil {
 					logger.Warn("Projection snapshots disabled after EVT identity read failure",
 						"stage", "stream_identity",
 						"error", err)
 					snapshotRepository = nil
+					coreSnapshotRepository = nil
 				} else {
-					logger.Info("Projection snapshots enabled",
-						"projection", projectionsnapshot.ProjectionV1ThreadsKey,
-						"compatibility_id", threadSnapshotCompatibilityID,
+					logger.Info("Projection snapshot storage initialized",
 						"backend", snapshotRepository.Backend())
 				}
 			}
@@ -1283,6 +1316,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			key:       key,
 			name:      name,
 			projector: pr,
+			subjects:  slices.Clone(p.Subjects()),
 			estimate:  estimate,
 		})
 		return pr
@@ -1318,16 +1352,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
-	if snapshotRepository != nil {
-		if err := threadsProjector.ConfigureSnapshots(projectionsnapshot.ProjectionV1ThreadsKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
-			logger.Warn("Projection snapshots disabled after projector configuration failure",
-				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
-				"stage", "projector_configure",
-				"error", err)
-			snapshotRepository = nil
-			snapshotStreamIdentity = ""
-		}
-	}
 
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
@@ -1345,6 +1369,40 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
+
+	if snapshotRepository != nil && coreSnapshotRepository != nil {
+		streamName := storage.serverEvtStream.CachedInfo().Config.Name
+		type snapshotSpec struct {
+			key, compatibility string
+			projector          *events.Projector
+			repository         *projectionsnapshot.Repository
+		}
+		specs := []snapshotSpec{
+			{projectionsnapshot.ProjectionV1ThreadsKey, threadSnapshotCompatibilityID, threadsProjector, snapshotRepository},
+			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotCompatibilityID, roomDirectoryProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotCompatibilityID, serverConfigProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotCompatibilityID, roomGroupLayoutProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotCompatibilityID, roomTimelineProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotCompatibilityID, callStateProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotCompatibilityID, assetProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotCompatibilityID, reactionsProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector, coreSnapshotRepository},
+			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector, coreSnapshotRepository},
+		}
+		for _, spec := range specs {
+			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: spec.repository}, snapshotStreamIdentity); err != nil {
+				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
+			}
+			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: spec.repository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
+			for i := range projections {
+				if projections[i].key == spec.key {
+					projections[i].snapshotCohort = true
+					break
+				}
+			}
+		}
+	}
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configModel, serverConfigProjection)
@@ -1434,7 +1492,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
 	}
-	if snapshotRepository != nil {
+	if len(snapshotJobs) > 0 {
 		snapshotLease, snapshotLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
 			Name:   projectionSnapshotLeaseName,
 			Bucket: "MEMORY_CACHE",
@@ -1447,15 +1505,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", snapshotLeaseErr)
 		} else {
 			core.projectionSnapshotWorker = &projectionSnapshotWorker{
-				projector:      threadsProjector,
-				repository:     snapshotRepository,
-				lease:          snapshotLease,
-				projectionKey:  projectionsnapshot.ProjectionV1ThreadsKey,
-				compatibility:  threadSnapshotCompatibilityID,
-				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
-				streamIdentity: snapshotStreamIdentity,
-				logger:         logger.WithPrefix("core.ProjectionSnapshotWorker"),
-				done:           make(chan struct{}),
+				jobs: snapshotJobs, lease: snapshotLease,
+				logger: logger.WithPrefix("core.ProjectionSnapshotWorker"), done: make(chan struct{}),
 			}
 		}
 		cleanupLease, cleanupLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
@@ -1469,10 +1520,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				"error", cleanupLeaseErr)
 		} else {
 			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
-				repository: snapshotRepository,
-				lease:      cleanupLease,
-				logger:     logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
-				done:       make(chan struct{}),
+				repository:   snapshotRepository,
+				repositories: []projectionSnapshotSweeper{snapshotRepository, coreSnapshotRepository},
+				lease:        cleanupLease,
+				logger:       logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
+				done:         make(chan struct{}),
 			}
 		}
 	}

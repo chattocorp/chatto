@@ -8,10 +8,12 @@ import (
 )
 
 type projectionRegistration struct {
-	key       string
-	name      string
-	projector *events.Projector
-	estimate  func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
+	key            string
+	name           string
+	projector      *events.Projector
+	subjects       []string
+	snapshotCohort bool
+	estimate       func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
 }
 
 type projectionWaitTarget struct {

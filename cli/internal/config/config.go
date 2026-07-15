@@ -453,7 +453,7 @@ type AssetsConfig struct {
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
 	SecretKey           string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
-	ProjectionSnapshots bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted Thread projection snapshots to validate snapshot storage and restoration. Chatto periodically removes old unreferenced snapshot objects. This canary does not reduce total startup time. Default: false."`
+	ProjectionSnapshots bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Chatto periodically removes old unreferenced snapshot objects. Default: false."`
 	Assets              AssetsConfig   `toml:"assets"`
 	AuthTokenTTL        time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
 	EmailOTP            EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP

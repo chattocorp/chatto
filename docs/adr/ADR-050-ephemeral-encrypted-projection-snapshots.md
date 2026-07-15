@@ -27,9 +27,7 @@ concerns. In particular:
 - multiple Chatto replicas can attempt the same background work.
 
 Event expiration, compaction, and archival are separate decisions. Chatto does
-not need them in order to validate snapshot persistence and restoration. Using
-snapshots to reduce total startup time requires a later change to the shared
-replay frontier.
+not need them in order to use snapshots for startup acceleration.
 
 ## Decision
 
@@ -82,8 +80,11 @@ Snapshot generations use a reserved internal prefix such as
 asset lifecycle events, receive signed URLs, participate in user-facing asset
 APIs, or enter asset cleanup decisions.
 
-Namespace membership is immutable once shipped: `v1` contains only the Thread
-projection. Adding another projection requires a new namespace version. This
+Namespace membership is immutable once shipped. `v1` contains only Threads.
+`v2` contains Room Directory, Server Config, Room Group Layout, Room Timeline,
+Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Adding a
+projection to either namespace is forbidden; a different cohort requires a new
+namespace version. This
 prevents an older replica's cleaner from treating a newer projection's
 generations as abandoned during a mixed-version rollout.
 
@@ -104,9 +105,8 @@ S3-backed snapshot generations follow the deployment's S3 backup policy, like
 S3-backed user assets; the Chatto backup command does not copy either kind of
 S3 object into its NATS archive. The encrypted pointer remains in the backed-up
 `RUNTIME_STATE` bucket but is disposable when its S3 generation is absent. A
-carried snapshot can avoid reconstructing the snapshotted projection
-state when the restored deployment retains the same `core.secret_key`, but the
-Thread-only canary does not reduce total startup time. Snapshots remain
+carried snapshot can avoid reconstructing snapshotted projection state when the
+restored deployment retains the same `core.secret_key`. Snapshots remain
 optional: an absent or undecryptable snapshot causes cold replay. Backup
 tooling does not decrypt, interpret, or make snapshots part of backup
 correctness.
@@ -191,7 +191,7 @@ projection state and its applied EVT sequence at one projector-owned barrier;
 reading projection state and a projector cursor in separate unsynchronized
 operations is invalid.
 
-The canary retains the current and previous referenced generations. It deletes
+Each projection retains the current and previous referenced generations. A writer deletes
 the generation that falls out of that window and rolls back a newly uploaded
 generation when pointer publication reports failure. Writers treat a missing
 pointer as an empty history and may replace a cryptographically or structurally
@@ -215,11 +215,11 @@ The sweeper runs only while projection snapshots are enabled. One replica holds
 a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
 and then sweeps every six hours. Failed passes and successful passes that reach
 a deletion limit retry after 30 minutes. Each pass has a five-minute deadline
-and deletes at most 100 objects or 1 GiB. These fixed canary limits bound cleanup
+and deletes at most 100 objects or 1 GiB. These fixed limits bound cleanup
 work and provide catch-up behavior, but they are not a hard namespace storage
 cap. Production evidence still needs to inform a final operator-tunable budget.
 
-The canary rejects projection payloads larger than 64 MiB and bounds encrypted
+The repository rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
 restart-loop memory amplification, not a final production storage budget;
 projections that outgrow it cold-replay and log the failed generation attempt.
@@ -242,58 +242,58 @@ identity, projector configuration, and lease failures disable the affected
 snapshot workers and log the reason. They do not prevent core startup when EVT
 is available.
 
-The initial canary attempts one generation after boot, and only when the Thread
-projection has advanced beyond the currently referenced compatible snapshot.
-It does not add a periodic generation cadence or operator-tunable interval.
+The worker attempts one generation per eligible projection after boot, and only
+when that projection has advanced beyond its currently referenced compatible
+snapshot. A failure for one projection is logged and does not prevent the
+remaining jobs from running. It does not add a periodic generation cadence or
+operator-tunable interval.
 Cleanup uses its own elected periodic worker and does not delay generation,
 readiness, or request handling.
 
-### ThreadProjection is the first canary
+### Eligible projections share a coordinated replay frontier
 
-The first production-shaped vertical slice snapshots `ThreadProjection` only.
-It has meaningful replay cost and existing replay benchmarks, while its
-canonical state can be represented by identifiers, sequences, timestamps,
-counters, follow state, shred markers, and replay-compatibility metadata rather
-than message bodies or decrypted PII.
+`ThreadProjection` remains in the permanently frozen `v1` namespace. The ten
+additional eligible projections use the permanently frozen `v2` namespace.
+Each projection retains its own compatibility ID, pointer, current/previous
+generations, cutoff, and fallback behavior; the namespace is a cleanup and
+mixed-version safety boundary, not one atomic multi-projection bundle.
 
 The initial 0.5 implementation uses compatibility ID `threads-v1`. It does not
 import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
 rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
 
-The canary must prove that restoring at sequence `S` and applying later events
-produces the same observable and canonical state as replaying the complete
-fixture. Other projections continue to cold-replay. The current projector
-architecture fans one ordered `evt.>` replay out to all projections, and core
-startup completes only when every projection reaches its startup target. A
-single restored projection therefore does not advance the shared replay start
-and is not expected to improve total wall-clock startup time. It may not improve
-the Thread projector's reported completion time either, because that projector
-still waits for the shared fanout to reach its tail after skipping old thread
-applications.
+Eligible projection snapshots load concurrently. Once every restore finishes,
+their shared ordered `evt.>` consumer begins at one greater than the lowest
+restored cutoff. Any eligible projection with a non-zero startup target and no
+usable snapshot forces that cohort to sequence 1. Projections with no matching
+EVT history do not constrain the frontier. Every projector still skips events
+through its own restored cutoff, so different generation cutoffs are safe.
+Boot-time waiters are released through the same sequence-advance path used by
+live events even when they begin waiting while restore is in flight.
 
-The canary validates storage, metadata confidentiality, encryption,
-compatibility, publication, restore, tail replay, fallback, and state
-equivalence. Any reduction in thread-application CPU is secondary. Real startup
-acceleration requires enough compatible projection snapshots to advance the
-minimum shared replay frontier, or a later decision to split projections into
-independent replay cohorts. Neither outcome is assumed by this canary.
+`UserProjection` is not snapshot-eligible because it retains decrypted identity
+fields, password hashes, and authentication state. It runs in an independent
+consumer restricted to `evt.user.>`, so a required cold user replay cannot pull
+the room-heavy snapshot cohort back to sequence 1. Extending snapshot support
+to Users requires a codec that preserves per-user crypto-shredding and does not
+persist credential material.
 
-Broader snapshot support requires per-projection privacy review and benchmark
-evidence. `RoomTimelineProjection` is a likely later candidate but is excluded
-from the canary because its retained body and event state requires a more
-careful crypto-shredding analysis.
+Every eligible codec uses an explicit protobuf and transactional restore.
+`RoomTimelineProjection` persists immutable event envelopes and encrypted
+`MessageBody` envelopes without decrypting content, then rebuilds indexes.
+`MentionablesProjection` persists wrapped DEK records and the latest encrypted
+login source event rather than its plaintext handle map. Shred markers and the
+existing durable representation of non-secret metadata are preserved.
 
 Snapshot persistence is disabled by default. Operators enable it with
 `[core].projection_snapshots = true` or
-`CHATTO_CORE_PROJECTION_SNAPSHOTS=true`. The initial implementation snapshots
-only `ThreadProjection`; extending coverage and advancing the shared replay
-frontier remain separate follow-up work.
+`CHATTO_CORE_PROJECTION_SNAPSHOTS=true`.
 
 ## Consequences
 
-- Chatto can validate the storage, encryption, compatibility, and restore
-  mechanics needed for future startup acceleration without weakening the
+- Chatto can start the room-heavy projection cohort from the lowest compatible
+  snapshot cutoff and replay only the later EVT delta without weakening the
   authority or retention of `EVT`.
 - Snapshots naturally use cheaper S3 storage where configured while preserving
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
@@ -316,9 +316,9 @@ frontier remain separate follow-up work.
   orchestration contract without requiring every projection to implement them.
 - Snapshot codecs become maintained projection interfaces. Changes to
   projection semantics require an explicit compatibility decision.
-- The canary intentionally does not test total startup acceleration. It can
-  justify or reject the storage and restore mechanism before the larger step of
-  advancing the shared replay frontier or introducing replay cohorts.
+- `UserProjection` still cold-replays its focused subject family. Startup time
+  therefore includes user replay, snapshot loading, index reconstruction, and
+  the eligible cohort's tail replay.
 
 ## Out of Scope
 
@@ -328,6 +328,5 @@ frontier remain separate follow-up work.
 - Incremental or chained snapshots.
 - Persisting decrypted sensitive projection state.
 - A generic snapshot format shared by all projections.
-- Selecting final cadence, storage-budget, or rollout defaults before the
-  `ThreadProjection` canary is measured.
+- Selecting a final cadence, storage budget, or default-on rollout policy.
 - Extending `chatto backup` to include S3-backed assets or snapshots.

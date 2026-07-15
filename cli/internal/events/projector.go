@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -261,8 +262,8 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 }
 
 // CaptureSnapshot serializes projection state and the corresponding applied
-// EVT sequence at one barrier. It returns nil data when the projection does not
-// support snapshots.
+// EVT sequence at one barrier. An empty protobuf payload is valid canonical
+// state and still carries the physical replay cutoff.
 func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
@@ -270,9 +271,6 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	payload, err := p.proj.Snapshot()
 	if err != nil {
 		return ProjectionSnapshot{}, err
-	}
-	if len(payload) == 0 {
-		return ProjectionSnapshot{}, nil
 	}
 	p.mu.Lock()
 	seq := p.lastSeq
@@ -357,8 +355,9 @@ func (p *Projector) Err() error {
 	return p.Status().Err
 }
 
-// LastSeq returns the highest stream sequence applied to the projection so
-// far. Safe to call from any goroutine.
+// LastSeq returns the highest ordered stream sequence the projector's physical
+// replay group has observed. Matching events through this watermark have been
+// applied. Safe to call from any goroutine.
 func (p *Projector) LastSeq() uint64 {
 	return p.Status().LastSeq
 }
@@ -624,8 +623,12 @@ type projectionTarget struct {
 }
 
 func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error) {
+	return p.targetForSubjects(ctx, p.subjects)
+}
+
+func (p *Projector) targetForSubjects(ctx context.Context, subjects []string) (projectionTarget, error) {
 	var target projectionTarget
-	for _, subject := range p.subjects {
+	for _, subject := range subjects {
 		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -820,6 +823,16 @@ func (p *Projector) apply(event *corev1.Event, seq uint64) error {
 	return nil
 }
 
+// observe advances the projector's physical replay watermark without applying
+// a non-matching event. CaptureSnapshot uses this watermark as its cutoff: once
+// the shared ordered fanout has observed sequence S, the projection state is
+// known to include every matching event through S.
+func (p *Projector) observe(seq uint64) {
+	p.applyMu.Lock()
+	p.advance(seq)
+	p.applyMu.Unlock()
+}
+
 func (p *Projector) shouldSkipRestored(seq uint64) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -938,23 +951,40 @@ func runProjectorsOnSubjects(ctx context.Context, subjects []string, projectors 
 	for _, projector := range projectors {
 		projector.markStarted(startedAt)
 	}
-
-	for _, projector := range projectors {
-		target, err := projector.currentTarget(ctx)
-		if err != nil {
-			return fmt.Errorf("read projection startup target: %w", err)
-		}
-		if err := projector.restoreForRun(ctx, target.seq); err != nil {
-			return err
-		}
-		projector.setStartupTarget(target.seq)
+	replayTarget, err := projectors[0].targetForSubjects(ctx, subjects)
+	if err != nil {
+		return fmt.Errorf("read shared replay startup target: %w", err)
 	}
 
-	cons, err := projectors[0].stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
+	restoreGroup, restoreCtx := errgroup.WithContext(ctx)
+	for _, projector := range projectors {
+		projector := projector
+		restoreGroup.Go(func() error {
+			target, err := projector.currentTarget(restoreCtx)
+			if err != nil {
+				return fmt.Errorf("read projection startup target: %w", err)
+			}
+			if err := projector.restoreForRun(restoreCtx, replayTarget.seq); err != nil {
+				return err
+			}
+			projector.setStartupTarget(target.seq)
+			return nil
+		})
+	}
+	if err := restoreGroup.Wait(); err != nil {
+		return err
+	}
+
+	consumerConfig := jetstream.OrderedConsumerConfig{
 		FilterSubjects:    subjects,
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: 30 * time.Second,
-	})
+	}
+	if startSequence := coordinatedReplayStartSequence(projectors); startSequence > 1 {
+		consumerConfig.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+		consumerConfig.OptStartSeq = startSequence
+	}
+	cons, err := projectors[0].stream.OrderedConsumer(ctx, consumerConfig)
 	if err != nil {
 		return fmt.Errorf("create ordered consumer: %w", err)
 	}
@@ -987,6 +1017,34 @@ func runProjectorsOnSubjects(ctx context.Context, subjects []string, projectors 
 		}
 		return ErrProjectionFailed
 	}
+}
+
+// coordinatedReplayStartSequence returns the first EVT sequence that every
+// projector still needs. A required cold projection forces replay from the
+// beginning; otherwise the shared consumer starts after the lowest restored
+// cutoff. Projections whose logical subject has no startup target do not
+// constrain the shared frontier.
+func coordinatedReplayStartSequence(projectors []*Projector) uint64 {
+	var lowestCutoff uint64
+	for _, projector := range projectors {
+		projector.mu.Lock()
+		target := projector.startupTargetSeq
+		restored := projector.restoredSeq
+		projector.mu.Unlock()
+		if target == 0 {
+			continue
+		}
+		if restored == 0 {
+			return 1
+		}
+		if lowestCutoff == 0 || restored < lowestCutoff {
+			lowestCutoff = restored
+		}
+	}
+	if lowestCutoff == 0 {
+		return 1
+	}
+	return lowestCutoff + 1
 }
 
 func (p *Projector) markStarted(startedAt time.Time) {
@@ -1071,10 +1129,13 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		return nil
 	}
 	p.mu.Lock()
-	p.lastSeq = snapshot.CutoffSequence
 	p.restoredSeq = snapshot.CutoffSequence
 	p.restoredGenerationID = snapshot.GenerationID
 	p.mu.Unlock()
+	// Restore runs after markStarted, so boot-time callers may already be
+	// waiting for this sequence. Advance through the normal waiter path instead
+	// of assigning lastSeq directly.
+	p.advance(snapshot.CutoffSequence)
 	p.logger.Info("Projection snapshot restored",
 		"projection", key,
 		"stage", "restore_apply",
@@ -1118,6 +1179,10 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 		}
 	}
 	if len(consumers) == 0 {
+		for _, projector := range projectors {
+			projector.observe(seq)
+			projector.maybeCompleteStartup(now)
+		}
 		return
 	}
 
@@ -1156,6 +1221,21 @@ func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, fa
 	}
 	if applyErr != nil {
 		notifySharedProjectorFailure(failedCh)
+		return
+	}
+	for _, projector := range projectors {
+		consumed := false
+		for _, consumer := range consumers {
+			if projector == consumer {
+				consumed = true
+				break
+			}
+		}
+		if consumed {
+			continue
+		}
+		projector.observe(seq)
+		projector.maybeCompleteStartup(now)
 	}
 }
 

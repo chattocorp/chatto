@@ -660,6 +660,22 @@ type blockingSnapshotSource struct {
 	canceled chan struct{}
 }
 
+type gatedSnapshotSource struct {
+	started  chan struct{}
+	release  chan struct{}
+	snapshot ProjectionSnapshot
+}
+
+func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	close(s.started)
+	select {
+	case <-s.release:
+		return s.snapshot, nil
+	case <-ctx.Done():
+		return ProjectionSnapshot{}, ctx.Err()
+	}
+}
+
 func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	<-ctx.Done()
 	close(s.canceled)
@@ -771,6 +787,116 @@ func TestRunProjectors_RestoredProjectionSkipsCutoffWhileColdProjectionReplaysAl
 	}
 	if source.request.StreamName != "EVT_TEST" || !ValidStreamIdentity(source.request.StreamIdentity) || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
 		t.Fatalf("snapshot load request = %#v", source.request)
+	}
+}
+
+func TestRunProjectors_AllRestoredStartAtCommonSnapshotFrontier(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	malformedAck, err := js.Publish(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), []byte("not protobuf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	malformedSeq := malformedAck.Sequence
+	pub := NewPublisher(js, stream, testLogger())
+	lastSeq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "tail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	firstProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	secondProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	first := NewProjector(js, stream, firstProjection, testLogger())
+	second := NewProjector(js, stream, secondProjection, testLogger())
+	for _, projector := range []*Projector{first, second} {
+		source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: malformedSeq, Payload: []byte("restored")}}
+		if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	done := make(chan error, 1)
+	go func() { done <- RunProjectors(runCtx, first, second) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return first.Status().StartupComplete && second.Status().StartupComplete
+	})
+	for name, projector := range map[string]*Projector{"first": first, "second": second} {
+		status := projector.Status()
+		if status.Failed || status.LastSeq != lastSeq || status.StartupMessages != 1 {
+			t.Fatalf("%s status = %#v", name, status)
+		}
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("shared replay stopped unexpectedly: %v", err)
+	default:
+	}
+}
+
+func TestRunProjectors_RestoreReleasesWaiterRegisteredInFlight(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := context.Background()
+	pub := NewPublisher(js, stream, testLogger())
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "joined"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &gatedSnapshotSource{started: make(chan struct{}), release: make(chan struct{}), snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq, Payload: []byte("restored")}}
+	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = RunProjectors(runCtx, projector) }()
+	select {
+	case <-source.started:
+	case <-time.After(time.Second):
+		t.Fatal("snapshot load did not start")
+	}
+	waitDone := make(chan error, 1)
+	go func() { waitDone <- projector.WaitForCurrent(ctx) }()
+	close(source.release)
+	select {
+	case err := <-waitDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("restore did not release sequence waiter")
+	}
+}
+
+func TestRunProjectors_QuietProjectionCapturesSharedReplayWatermark(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := context.Background()
+	pub := NewPublisher(js, stream, testLogger())
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "joined"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	broad := newSnapshotTrackingProjection(RoomSubjectFilter())
+	quiet := newSnapshotTrackingProjection(UserSubjectFilter())
+	broadProjector := NewProjector(js, stream, broad, testLogger())
+	quietProjector := NewProjector(js, stream, quiet, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() {
+		_ = RunProjectorsOnSubjects(runCtx, []string{EventSubjectFilter()}, broadProjector, quietProjector)
+	}()
+	waitFor(t, time.Second, func() bool { return broadProjector.Status().StartupComplete })
+	if got := quietProjector.LastSeq(); got != seq {
+		t.Fatalf("quiet replay watermark = %d, want %d", got, seq)
+	}
+	captured, err := quietProjector.CaptureSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.CutoffSequence != seq {
+		t.Fatalf("quiet snapshot cutoff = %d, want %d", captured.CutoffSequence, seq)
 	}
 }
 
@@ -992,8 +1118,8 @@ func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
 	if status.StartupMessages != 1 {
 		t.Fatalf("focused startup messages = %d, want 1", status.StartupMessages)
 	}
-	if status.LastSeq != joinedSeq {
-		t.Fatalf("focused last seq = %d, want applied joined seq %d", status.LastSeq, joinedSeq)
+	if status.LastSeq != postedSeq {
+		t.Fatalf("focused replay watermark = %d, want shared consumer seq %d", status.LastSeq, postedSeq)
 	}
 }
 

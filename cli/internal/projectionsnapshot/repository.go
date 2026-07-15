@@ -24,7 +24,7 @@ const (
 	// v1 namespace contains only the Threads projection. Adding another
 	// projection requires a new namespace version so an older replica cannot
 	// mistake the newer projection's opaque pointer and generations for orphans.
-	objectPrefix         = "internal/projection-snapshots/v1/"
+	objectRootPrefix     = "internal/projection-snapshots/"
 	maxPayloadSize       = 64 << 20
 	maxEncryptedSize     = 80 << 20
 	maxDecompressedSize  = 72 << 20
@@ -32,13 +32,65 @@ const (
 	streamIdentityPrefix = "evt-incarnation-v1:"
 )
 
-// ProjectionV1ThreadsKey is the sole projection key in snapshot namespace v1.
-const ProjectionV1ThreadsKey = "threads"
+const (
+	ProjectionV1ThreadsKey       = "threads"
+	ProjectionRoomDirectoryKey   = "room_directory"
+	ProjectionServerConfigKey    = "server_config"
+	ProjectionRoomGroupLayoutKey = "room_group_layout"
+	ProjectionRoomTimelineKey    = "room_timeline"
+	ProjectionCallStateKey       = "call_state"
+	ProjectionAssetsKey          = "assets"
+	ProjectionReactionsKey       = "reactions"
+	ProjectionContentKeysKey     = "content_keys"
+	ProjectionRBACKey            = "rbac"
+	ProjectionMentionablesKey    = "mentionables"
+)
 
-// projectionV1Keys is the immutable membership of the v1 snapshot namespace.
-// Adding a projection requires a new namespace so mixed-version sweepers cannot
-// mistake its generations for orphans.
-var projectionV1Keys = [...]string{ProjectionV1ThreadsKey}
+// Namespace fixes the projection membership of one snapshot storage version.
+// Membership cannot change after release because older sweepers must know every
+// pointer that can reference generations in the namespace.
+type Namespace struct {
+	version        string
+	projectionKeys []string
+	keySet         map[string]struct{}
+}
+
+// NamespaceV1Threads is the frozen Threads-only namespace from the first
+// snapshot implementation.
+var NamespaceV1Threads = mustNamespace("v1", ProjectionV1ThreadsKey)
+
+// NamespaceV2Core contains the privacy-reviewed snapshot cohort. Threads
+// remains in v1 and Users remains cold so existing generations, cleanup, and
+// credential/PII boundaries stay valid during rollout.
+var NamespaceV2Core = mustNamespace("v2",
+	ProjectionRoomDirectoryKey,
+	ProjectionServerConfigKey,
+	ProjectionRoomGroupLayoutKey,
+	ProjectionRoomTimelineKey,
+	ProjectionCallStateKey,
+	ProjectionAssetsKey,
+	ProjectionReactionsKey,
+	ProjectionContentKeysKey,
+	ProjectionRBACKey,
+	ProjectionMentionablesKey,
+)
+
+func mustNamespace(version string, keys ...string) Namespace {
+	if version == "" || len(keys) == 0 {
+		panic("projection snapshot namespace requires a version and projection keys")
+	}
+	namespace := Namespace{version: version, projectionKeys: append([]string(nil), keys...), keySet: make(map[string]struct{}, len(keys))}
+	for _, key := range keys {
+		if key == "" {
+			panic("projection snapshot namespace contains an empty projection key")
+		}
+		if _, duplicate := namespace.keySet[key]; duplicate {
+			panic("projection snapshot namespace repeats projection key " + key)
+		}
+		namespace.keySet[key] = struct{}{}
+	}
+	return namespace
+}
 
 var (
 	ErrBlobNotFound        = errors.New("projection snapshot blob not found")
@@ -86,6 +138,7 @@ type BlobInfo struct {
 }
 
 type RepositoryOptions struct {
+	Namespace       Namespace
 	Pointers        PointerStore
 	SecretHex       string
 	ProducerVersion string
@@ -104,6 +157,7 @@ type Repository struct {
 	rand            io.Reader
 	now             func() time.Time
 	maxPayloadSize  int
+	namespace       Namespace
 }
 
 type SaveInput struct {
@@ -131,6 +185,13 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	if opts.Pointers == nil {
 		return nil, fmt.Errorf("snapshot pointer store is nil")
 	}
+	namespace := opts.Namespace
+	if namespace.version == "" {
+		namespace = NamespaceV1Threads
+	}
+	if len(namespace.projectionKeys) == 0 || len(namespace.keySet) != len(namespace.projectionKeys) {
+		return nil, fmt.Errorf("snapshot namespace is invalid")
+	}
 	secret, err := hex.DecodeString(opts.SecretHex)
 	if err != nil || len(secret) != 32 {
 		return nil, fmt.Errorf("decode core.secret_key for snapshots: expected 32-byte hex secret")
@@ -153,7 +214,7 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	}
 	return &Repository{
 		blobs: blobs, pointers: opts.Pointers, codec: codec, secret: secret, producerVersion: version,
-		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize,
+		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize, namespace: namespace,
 	}, nil
 }
 
@@ -163,8 +224,8 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
 	}
-	if input.ProjectionKey != ProjectionV1ThreadsKey {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", input.ProjectionKey)
+	if !r.namespace.contains(input.ProjectionKey) {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace %s", input.ProjectionKey, r.namespace.version)
 	}
 	if !validStreamIdentity(input.StreamIdentity) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
@@ -265,8 +326,8 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
-	if projectionKey != ProjectionV1ThreadsKey {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace v1", projectionKey)
+	if !r.namespace.contains(projectionKey) {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace %s", projectionKey, r.namespace.version)
 	}
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
@@ -451,15 +512,20 @@ func (r *Repository) savePointer(ctx context.Context, projectionKey string, poin
 }
 
 func (r *Repository) pointerKey(projectionKey string) string {
-	return "projection_snapshot_pointer." + opaqueLocator(r.secret, "v1:"+projectionKey)
+	return "projection_snapshot_pointer." + opaqueLocator(r.secret, r.namespace.version+":"+projectionKey)
 }
 
 func (r *Repository) generationObjectPrefix() string {
-	return objectPrefix + "objects/" + opaqueLocator(r.secret, "generation-key-epoch-v1") + "/"
+	return objectRootPrefix + r.namespace.version + "/objects/" + opaqueLocator(r.secret, "generation-key-epoch-"+r.namespace.version) + "/"
 }
 
 func (r *Repository) generationObjectKey(generationID string) string {
 	return r.generationObjectPrefix() + generationID
+}
+
+func (n Namespace) contains(key string) bool {
+	_, ok := n.keySet[key]
+	return ok
 }
 
 func compress(plain []byte) ([]byte, error) {

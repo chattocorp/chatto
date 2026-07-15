@@ -647,11 +647,2067 @@ func (x *ProjectionReplayGuardSnapshot) GetReplayComplete() bool {
 	return false
 }
 
+type RoomDirectoryProjectionSnapshot struct {
+	state           protoimpl.MessageState    `protogen:"open.v1"`
+	Rooms           []*Room                   `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	Memberships     []*RoomMembershipSnapshot `protobuf:"bytes,2,rep,name=memberships,proto3" json:"memberships,omitempty"`
+	Bans            []*RoomBanSnapshot        `protobuf:"bytes,3,rep,name=bans,proto3" json:"bans,omitempty"`
+	CatalogSequence uint64                    `protobuf:"varint,4,opt,name=catalog_sequence,json=catalogSequence,proto3" json:"catalog_sequence,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RoomDirectoryProjectionSnapshot) Reset() {
+	*x = RoomDirectoryProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomDirectoryProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomDirectoryProjectionSnapshot) ProtoMessage() {}
+
+func (x *RoomDirectoryProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomDirectoryProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomDirectoryProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RoomDirectoryProjectionSnapshot) GetRooms() []*Room {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+func (x *RoomDirectoryProjectionSnapshot) GetMemberships() []*RoomMembershipSnapshot {
+	if x != nil {
+		return x.Memberships
+	}
+	return nil
+}
+
+func (x *RoomDirectoryProjectionSnapshot) GetBans() []*RoomBanSnapshot {
+	if x != nil {
+		return x.Bans
+	}
+	return nil
+}
+
+func (x *RoomDirectoryProjectionSnapshot) GetCatalogSequence() uint64 {
+	if x != nil {
+		return x.CatalogSequence
+	}
+	return 0
+}
+
+type RoomMembershipSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserIds       []string               `protobuf:"bytes,2,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMembershipSnapshot) Reset() {
+	*x = RoomMembershipSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMembershipSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMembershipSnapshot) ProtoMessage() {}
+
+func (x *RoomMembershipSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMembershipSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomMembershipSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RoomMembershipSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomMembershipSnapshot) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type RoomBanSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ModeratorId   string                 `protobuf:"bytes,4,opt,name=moderator_id,json=moderatorId,proto3" json:"moderator_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomBanSnapshot) Reset() {
+	*x = RoomBanSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomBanSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomBanSnapshot) ProtoMessage() {}
+
+func (x *RoomBanSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomBanSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomBanSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RoomBanSnapshot) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *RoomBanSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomBanSnapshot) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RoomBanSnapshot) GetModeratorId() string {
+	if x != nil {
+		return x.ModeratorId
+	}
+	return ""
+}
+
+func (x *RoomBanSnapshot) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RoomBanSnapshot) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *RoomBanSnapshot) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type RoomGroupLayoutProjectionSnapshot struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Groups        []*RoomGroupStateSnapshot `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	GroupIds      []string                  `protobuf:"bytes,2,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
+	Sequence      uint64                    `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomGroupLayoutProjectionSnapshot) Reset() {
+	*x = RoomGroupLayoutProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomGroupLayoutProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomGroupLayoutProjectionSnapshot) ProtoMessage() {}
+
+func (x *RoomGroupLayoutProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomGroupLayoutProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomGroupLayoutProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RoomGroupLayoutProjectionSnapshot) GetGroups() []*RoomGroupStateSnapshot {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *RoomGroupLayoutProjectionSnapshot) GetGroupIds() []string {
+	if x != nil {
+		return x.GroupIds
+	}
+	return nil
+}
+
+func (x *RoomGroupLayoutProjectionSnapshot) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+type RoomGroupStateSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *RoomGroup             `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomGroupStateSnapshot) Reset() {
+	*x = RoomGroupStateSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomGroupStateSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomGroupStateSnapshot) ProtoMessage() {}
+
+func (x *RoomGroupStateSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomGroupStateSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomGroupStateSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RoomGroupStateSnapshot) GetGroup() *RoomGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type CallStateProjectionSnapshot struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Rooms         []*CallRoomStateSnapshot `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallStateProjectionSnapshot) Reset() {
+	*x = CallStateProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallStateProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallStateProjectionSnapshot) ProtoMessage() {}
+
+func (x *CallStateProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallStateProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*CallStateProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CallStateProjectionSnapshot) GetRooms() []*CallRoomStateSnapshot {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+type CallRoomStateSnapshot struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Sequence      uint64                     `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Call          *CallSessionSnapshot       `protobuf:"bytes,3,opt,name=call,proto3" json:"call,omitempty"`
+	Participants  []*CallParticipantSnapshot `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallRoomStateSnapshot) Reset() {
+	*x = CallRoomStateSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallRoomStateSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallRoomStateSnapshot) ProtoMessage() {}
+
+func (x *CallRoomStateSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallRoomStateSnapshot.ProtoReflect.Descriptor instead.
+func (*CallRoomStateSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CallRoomStateSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CallRoomStateSnapshot) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *CallRoomStateSnapshot) GetCall() *CallSessionSnapshot {
+	if x != nil {
+		return x.Call
+	}
+	return nil
+}
+
+func (x *CallRoomStateSnapshot) GetParticipants() []*CallParticipantSnapshot {
+	if x != nil {
+		return x.Participants
+	}
+	return nil
+}
+
+type CallSessionSnapshot struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	CallId        string                     `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	E2EeKeyRef    string                     `protobuf:"bytes,2,opt,name=e2ee_key_ref,json=e2eeKeyRef,proto3" json:"e2ee_key_ref,omitempty"`
+	StartedAt     int64                      `protobuf:"varint,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallSessionSnapshot) Reset() {
+	*x = CallSessionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallSessionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallSessionSnapshot) ProtoMessage() {}
+
+func (x *CallSessionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallSessionSnapshot.ProtoReflect.Descriptor instead.
+func (*CallSessionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CallSessionSnapshot) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *CallSessionSnapshot) GetE2EeKeyRef() string {
+	if x != nil {
+		return x.E2EeKeyRef
+	}
+	return ""
+}
+
+func (x *CallSessionSnapshot) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *CallSessionSnapshot) GetSource() CallParticipantEventSource {
+	if x != nil {
+		return x.Source
+	}
+	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
+}
+
+type CallParticipantSnapshot struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	UserId        string                     `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	CallId        string                     `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	JoinedAt      int64                      `protobuf:"varint,3,opt,name=joined_at,json=joinedAt,proto3" json:"joined_at,omitempty"`
+	Source        CallParticipantEventSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.v1.CallParticipantEventSource" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallParticipantSnapshot) Reset() {
+	*x = CallParticipantSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallParticipantSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallParticipantSnapshot) ProtoMessage() {}
+
+func (x *CallParticipantSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallParticipantSnapshot.ProtoReflect.Descriptor instead.
+func (*CallParticipantSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CallParticipantSnapshot) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CallParticipantSnapshot) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
+func (x *CallParticipantSnapshot) GetJoinedAt() int64 {
+	if x != nil {
+		return x.JoinedAt
+	}
+	return 0
+}
+
+func (x *CallParticipantSnapshot) GetSource() CallParticipantEventSource {
+	if x != nil {
+		return x.Source
+	}
+	return CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
+}
+
+type ContentKeyProjectionSnapshot struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Keys          []*UserDEKGeneratedEvent       `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,2,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContentKeyProjectionSnapshot) Reset() {
+	*x = ContentKeyProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentKeyProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentKeyProjectionSnapshot) ProtoMessage() {}
+
+func (x *ContentKeyProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentKeyProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*ContentKeyProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ContentKeyProjectionSnapshot) GetKeys() []*UserDEKGeneratedEvent {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
+func (x *ContentKeyProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
+	if x != nil {
+		return x.ReplayGuard
+	}
+	return nil
+}
+
+type RBACProjectionSnapshot struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Roles         []*Role                        `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	Assignments   []*RBACAssignmentSnapshot      `protobuf:"bytes,2,rep,name=assignments,proto3" json:"assignments,omitempty"`
+	Decisions     []*RBACDecisionSnapshot        `protobuf:"bytes,3,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,4,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RBACProjectionSnapshot) Reset() {
+	*x = RBACProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RBACProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RBACProjectionSnapshot) ProtoMessage() {}
+
+func (x *RBACProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RBACProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*RBACProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RBACProjectionSnapshot) GetRoles() []*Role {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *RBACProjectionSnapshot) GetAssignments() []*RBACAssignmentSnapshot {
+	if x != nil {
+		return x.Assignments
+	}
+	return nil
+}
+
+func (x *RBACProjectionSnapshot) GetDecisions() []*RBACDecisionSnapshot {
+	if x != nil {
+		return x.Decisions
+	}
+	return nil
+}
+
+func (x *RBACProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
+	if x != nil {
+		return x.ReplayGuard
+	}
+	return nil
+}
+
+type RBACAssignmentSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoleNames     []string               `protobuf:"bytes,2,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RBACAssignmentSnapshot) Reset() {
+	*x = RBACAssignmentSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RBACAssignmentSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RBACAssignmentSnapshot) ProtoMessage() {}
+
+func (x *RBACAssignmentSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RBACAssignmentSnapshot.ProtoReflect.Descriptor instead.
+func (*RBACAssignmentSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RBACAssignmentSnapshot) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RBACAssignmentSnapshot) GetRoleNames() []string {
+	if x != nil {
+		return x.RoleNames
+	}
+	return nil
+}
+
+type RBACDecisionSnapshot struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Scope         string                    `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	ScopeId       string                    `protobuf:"bytes,2,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	SubjectKind   RbacPermissionSubjectKind `protobuf:"varint,3,opt,name=subject_kind,json=subjectKind,proto3,enum=chatto.core.v1.RbacPermissionSubjectKind" json:"subject_kind,omitempty"`
+	Subject       string                    `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Permission    string                    `protobuf:"bytes,5,opt,name=permission,proto3" json:"permission,omitempty"`
+	Decision      string                    `protobuf:"bytes,6,opt,name=decision,proto3" json:"decision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RBACDecisionSnapshot) Reset() {
+	*x = RBACDecisionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RBACDecisionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RBACDecisionSnapshot) ProtoMessage() {}
+
+func (x *RBACDecisionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RBACDecisionSnapshot.ProtoReflect.Descriptor instead.
+func (*RBACDecisionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *RBACDecisionSnapshot) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *RBACDecisionSnapshot) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *RBACDecisionSnapshot) GetSubjectKind() RbacPermissionSubjectKind {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED
+}
+
+func (x *RBACDecisionSnapshot) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *RBACDecisionSnapshot) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *RBACDecisionSnapshot) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+type ConfigProjectionSnapshot struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ServerName       string                 `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	WelcomeMessage   string                 `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	Motd             string                 `protobuf:"bytes,4,opt,name=motd,proto3" json:"motd,omitempty"`
+	BlockedUsernames *string                `protobuf:"bytes,5,opt,name=blocked_usernames,json=blockedUsernames,proto3,oneof" json:"blocked_usernames,omitempty"`
+	Logo             *AssetRecord           `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
+	Banner           *AssetRecord           `protobuf:"bytes,7,opt,name=banner,proto3" json:"banner,omitempty"`
+	Users            []*UserConfigSnapshot  `protobuf:"bytes,8,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ConfigProjectionSnapshot) Reset() {
+	*x = ConfigProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigProjectionSnapshot) ProtoMessage() {}
+
+func (x *ConfigProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*ConfigProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ConfigProjectionSnapshot) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *ConfigProjectionSnapshot) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ConfigProjectionSnapshot) GetWelcomeMessage() string {
+	if x != nil {
+		return x.WelcomeMessage
+	}
+	return ""
+}
+
+func (x *ConfigProjectionSnapshot) GetMotd() string {
+	if x != nil {
+		return x.Motd
+	}
+	return ""
+}
+
+func (x *ConfigProjectionSnapshot) GetBlockedUsernames() string {
+	if x != nil && x.BlockedUsernames != nil {
+		return *x.BlockedUsernames
+	}
+	return ""
+}
+
+func (x *ConfigProjectionSnapshot) GetLogo() *AssetRecord {
+	if x != nil {
+		return x.Logo
+	}
+	return nil
+}
+
+func (x *ConfigProjectionSnapshot) GetBanner() *AssetRecord {
+	if x != nil {
+		return x.Banner
+	}
+	return nil
+}
+
+func (x *ConfigProjectionSnapshot) GetUsers() []*UserConfigSnapshot {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+type UserConfigSnapshot struct {
+	state                   protoimpl.MessageState           `protogen:"open.v1"`
+	UserId                  string                           `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Timezone                *string                          `protobuf:"bytes,2,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	TimeFormat              *TimeFormat                      `protobuf:"varint,3,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat,oneof" json:"time_format,omitempty"`
+	ServerNotificationLevel *NotificationLevel               `protobuf:"varint,4,opt,name=server_notification_level,json=serverNotificationLevel,proto3,enum=chatto.core.v1.NotificationLevel,oneof" json:"server_notification_level,omitempty"`
+	RoomNotificationLevels  []*RoomNotificationLevelSnapshot `protobuf:"bytes,5,rep,name=room_notification_levels,json=roomNotificationLevels,proto3" json:"room_notification_levels,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *UserConfigSnapshot) Reset() {
+	*x = UserConfigSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserConfigSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserConfigSnapshot) ProtoMessage() {}
+
+func (x *UserConfigSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserConfigSnapshot.ProtoReflect.Descriptor instead.
+func (*UserConfigSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UserConfigSnapshot) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserConfigSnapshot) GetTimezone() string {
+	if x != nil && x.Timezone != nil {
+		return *x.Timezone
+	}
+	return ""
+}
+
+func (x *UserConfigSnapshot) GetTimeFormat() TimeFormat {
+	if x != nil && x.TimeFormat != nil {
+		return *x.TimeFormat
+	}
+	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+func (x *UserConfigSnapshot) GetServerNotificationLevel() NotificationLevel {
+	if x != nil && x.ServerNotificationLevel != nil {
+		return *x.ServerNotificationLevel
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+}
+
+func (x *UserConfigSnapshot) GetRoomNotificationLevels() []*RoomNotificationLevelSnapshot {
+	if x != nil {
+		return x.RoomNotificationLevels
+	}
+	return nil
+}
+
+type RoomNotificationLevelSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Level         NotificationLevel      `protobuf:"varint,2,opt,name=level,proto3,enum=chatto.core.v1.NotificationLevel" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomNotificationLevelSnapshot) Reset() {
+	*x = RoomNotificationLevelSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomNotificationLevelSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomNotificationLevelSnapshot) ProtoMessage() {}
+
+func (x *RoomNotificationLevelSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomNotificationLevelSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomNotificationLevelSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *RoomNotificationLevelSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomNotificationLevelSnapshot) GetLevel() NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+}
+
+type AssetProjectionSnapshot struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Creations     []*AssetCreatedEvent           `protobuf:"bytes,1,rep,name=creations,proto3" json:"creations,omitempty"`
+	Children      []*AssetChildrenSnapshot       `protobuf:"bytes,2,rep,name=children,proto3" json:"children,omitempty"`
+	Manifests     []*AssetManifestSnapshot       `protobuf:"bytes,3,rep,name=manifests,proto3" json:"manifests,omitempty"`
+	DeletedAssets []*DeletedAssetSnapshot        `protobuf:"bytes,4,rep,name=deleted_assets,json=deletedAssets,proto3" json:"deleted_assets,omitempty"`
+	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,5,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetProjectionSnapshot) Reset() {
+	*x = AssetProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetProjectionSnapshot) ProtoMessage() {}
+
+func (x *AssetProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*AssetProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AssetProjectionSnapshot) GetCreations() []*AssetCreatedEvent {
+	if x != nil {
+		return x.Creations
+	}
+	return nil
+}
+
+func (x *AssetProjectionSnapshot) GetChildren() []*AssetChildrenSnapshot {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+func (x *AssetProjectionSnapshot) GetManifests() []*AssetManifestSnapshot {
+	if x != nil {
+		return x.Manifests
+	}
+	return nil
+}
+
+func (x *AssetProjectionSnapshot) GetDeletedAssets() []*DeletedAssetSnapshot {
+	if x != nil {
+		return x.DeletedAssets
+	}
+	return nil
+}
+
+func (x *AssetProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
+	if x != nil {
+		return x.ReplayGuard
+	}
+	return nil
+}
+
+type AssetChildrenSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ParentAssetId string                 `protobuf:"bytes,1,opt,name=parent_asset_id,json=parentAssetId,proto3" json:"parent_asset_id,omitempty"`
+	ChildAssetIds []string               `protobuf:"bytes,2,rep,name=child_asset_ids,json=childAssetIds,proto3" json:"child_asset_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetChildrenSnapshot) Reset() {
+	*x = AssetChildrenSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetChildrenSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetChildrenSnapshot) ProtoMessage() {}
+
+func (x *AssetChildrenSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetChildrenSnapshot.ProtoReflect.Descriptor instead.
+func (*AssetChildrenSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AssetChildrenSnapshot) GetParentAssetId() string {
+	if x != nil {
+		return x.ParentAssetId
+	}
+	return ""
+}
+
+func (x *AssetChildrenSnapshot) GetChildAssetIds() []string {
+	if x != nil {
+		return x.ChildAssetIds
+	}
+	return nil
+}
+
+type AssetManifestSnapshot struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	AssetId       string                         `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Started       *AssetProcessingStartedEvent   `protobuf:"bytes,2,opt,name=started,proto3" json:"started,omitempty"`
+	Succeeded     *AssetProcessingSucceededEvent `protobuf:"bytes,3,opt,name=succeeded,proto3" json:"succeeded,omitempty"`
+	Failed        *AssetProcessingFailedEvent    `protobuf:"bytes,4,opt,name=failed,proto3" json:"failed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetManifestSnapshot) Reset() {
+	*x = AssetManifestSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetManifestSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetManifestSnapshot) ProtoMessage() {}
+
+func (x *AssetManifestSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetManifestSnapshot.ProtoReflect.Descriptor instead.
+func (*AssetManifestSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AssetManifestSnapshot) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetManifestSnapshot) GetStarted() *AssetProcessingStartedEvent {
+	if x != nil {
+		return x.Started
+	}
+	return nil
+}
+
+func (x *AssetManifestSnapshot) GetSucceeded() *AssetProcessingSucceededEvent {
+	if x != nil {
+		return x.Succeeded
+	}
+	return nil
+}
+
+func (x *AssetManifestSnapshot) GetFailed() *AssetProcessingFailedEvent {
+	if x != nil {
+		return x.Failed
+	}
+	return nil
+}
+
+type DeletedAssetSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletedAssetSnapshot) Reset() {
+	*x = DeletedAssetSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletedAssetSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletedAssetSnapshot) ProtoMessage() {}
+
+func (x *DeletedAssetSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletedAssetSnapshot.ProtoReflect.Descriptor instead.
+func (*DeletedAssetSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *DeletedAssetSnapshot) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *DeletedAssetSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+type ReactionProjectionSnapshot struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Messages      []*MessageReactionsSnapshot    `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	RoomSequences []*StringUint64Snapshot        `protobuf:"bytes,2,rep,name=room_sequences,json=roomSequences,proto3" json:"room_sequences,omitempty"`
+	MessageRooms  []*StringStringSnapshot        `protobuf:"bytes,3,rep,name=message_rooms,json=messageRooms,proto3" json:"message_rooms,omitempty"`
+	EchoOriginals []*StringStringSnapshot        `protobuf:"bytes,4,rep,name=echo_originals,json=echoOriginals,proto3" json:"echo_originals,omitempty"`
+	AssetRooms    []*StringStringSnapshot        `protobuf:"bytes,5,rep,name=asset_rooms,json=assetRooms,proto3" json:"asset_rooms,omitempty"`
+	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,6,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactionProjectionSnapshot) Reset() {
+	*x = ReactionProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactionProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactionProjectionSnapshot) ProtoMessage() {}
+
+func (x *ReactionProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactionProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*ReactionProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ReactionProjectionSnapshot) GetMessages() []*MessageReactionsSnapshot {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *ReactionProjectionSnapshot) GetRoomSequences() []*StringUint64Snapshot {
+	if x != nil {
+		return x.RoomSequences
+	}
+	return nil
+}
+
+func (x *ReactionProjectionSnapshot) GetMessageRooms() []*StringStringSnapshot {
+	if x != nil {
+		return x.MessageRooms
+	}
+	return nil
+}
+
+func (x *ReactionProjectionSnapshot) GetEchoOriginals() []*StringStringSnapshot {
+	if x != nil {
+		return x.EchoOriginals
+	}
+	return nil
+}
+
+func (x *ReactionProjectionSnapshot) GetAssetRooms() []*StringStringSnapshot {
+	if x != nil {
+		return x.AssetRooms
+	}
+	return nil
+}
+
+func (x *ReactionProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
+	if x != nil {
+		return x.ReplayGuard
+	}
+	return nil
+}
+
+type MessageReactionsSnapshot struct {
+	state          protoimpl.MessageState    `protogen:"open.v1"`
+	MessageEventId string                    `protobuf:"bytes,1,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Emojis         []*EmojiReactionsSnapshot `protobuf:"bytes,2,rep,name=emojis,proto3" json:"emojis,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessageReactionsSnapshot) Reset() {
+	*x = MessageReactionsSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageReactionsSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageReactionsSnapshot) ProtoMessage() {}
+
+func (x *MessageReactionsSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageReactionsSnapshot.ProtoReflect.Descriptor instead.
+func (*MessageReactionsSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *MessageReactionsSnapshot) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *MessageReactionsSnapshot) GetEmojis() []*EmojiReactionsSnapshot {
+	if x != nil {
+		return x.Emojis
+	}
+	return nil
+}
+
+type EmojiReactionsSnapshot struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Emoji         string                  `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	Users         []*UserReactionSnapshot `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EmojiReactionsSnapshot) Reset() {
+	*x = EmojiReactionsSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmojiReactionsSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmojiReactionsSnapshot) ProtoMessage() {}
+
+func (x *EmojiReactionsSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmojiReactionsSnapshot.ProtoReflect.Descriptor instead.
+func (*EmojiReactionsSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *EmojiReactionsSnapshot) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+func (x *EmojiReactionsSnapshot) GetUsers() []*UserReactionSnapshot {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+type UserReactionSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AddedAtNanos  int64                  `protobuf:"varint,2,opt,name=added_at_nanos,json=addedAtNanos,proto3" json:"added_at_nanos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserReactionSnapshot) Reset() {
+	*x = UserReactionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserReactionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserReactionSnapshot) ProtoMessage() {}
+
+func (x *UserReactionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserReactionSnapshot.ProtoReflect.Descriptor instead.
+func (*UserReactionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *UserReactionSnapshot) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserReactionSnapshot) GetAddedAtNanos() int64 {
+	if x != nil {
+		return x.AddedAtNanos
+	}
+	return 0
+}
+
+type StringUint64Snapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         uint64                 `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StringUint64Snapshot) Reset() {
+	*x = StringUint64Snapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StringUint64Snapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StringUint64Snapshot) ProtoMessage() {}
+
+func (x *StringUint64Snapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StringUint64Snapshot.ProtoReflect.Descriptor instead.
+func (*StringUint64Snapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *StringUint64Snapshot) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *StringUint64Snapshot) GetValue() uint64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+type StringStringSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StringStringSnapshot) Reset() {
+	*x = StringStringSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StringStringSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StringStringSnapshot) ProtoMessage() {}
+
+func (x *StringStringSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StringStringSnapshot.ProtoReflect.Descriptor instead.
+func (*StringStringSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *StringStringSnapshot) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *StringStringSnapshot) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type MentionablesProjectionSnapshot struct {
+	state            protoimpl.MessageState   `protogen:"open.v1"`
+	UserLoginSources []*Event                 `protobuf:"bytes,1,rep,name=user_login_sources,json=userLoginSources,proto3" json:"user_login_sources,omitempty"`
+	Keys             []*UserDEKGeneratedEvent `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
+	RoleNames        []string                 `protobuf:"bytes,3,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *MentionablesProjectionSnapshot) Reset() {
+	*x = MentionablesProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MentionablesProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MentionablesProjectionSnapshot) ProtoMessage() {}
+
+func (x *MentionablesProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MentionablesProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*MentionablesProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *MentionablesProjectionSnapshot) GetUserLoginSources() []*Event {
+	if x != nil {
+		return x.UserLoginSources
+	}
+	return nil
+}
+
+func (x *MentionablesProjectionSnapshot) GetKeys() []*UserDEKGeneratedEvent {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
+func (x *MentionablesProjectionSnapshot) GetRoleNames() []string {
+	if x != nil {
+		return x.RoleNames
+	}
+	return nil
+}
+
+type RoomTimelineProjectionSnapshot struct {
+	state                     protoimpl.MessageState         `protogen:"open.v1"`
+	Entries                   []*TimelineEntrySnapshot       `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Bodies                    []*TimelineBodySnapshot        `protobuf:"bytes,2,rep,name=bodies,proto3" json:"bodies,omitempty"`
+	TombstonedAt              []*StringTimestampSnapshot     `protobuf:"bytes,3,rep,name=tombstoned_at,json=tombstonedAt,proto3" json:"tombstoned_at,omitempty"`
+	ShreddedAt                []*StringTimestampSnapshot     `protobuf:"bytes,4,rep,name=shredded_at,json=shreddedAt,proto3" json:"shredded_at,omitempty"`
+	RetractedEventIds         []string                       `protobuf:"bytes,5,rep,name=retracted_event_ids,json=retractedEventIds,proto3" json:"retracted_event_ids,omitempty"`
+	HiddenEchoEventIds        []string                       `protobuf:"bytes,6,rep,name=hidden_echo_event_ids,json=hiddenEchoEventIds,proto3" json:"hidden_echo_event_ids,omitempty"`
+	ShreddedUserIds           []string                       `protobuf:"bytes,7,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
+	LegacyAssets              *AssetProjectionSnapshot       `protobuf:"bytes,8,opt,name=legacy_assets,json=legacyAssets,proto3" json:"legacy_assets,omitempty"`
+	AssetMessageOwners        []*AssetMessageOwnerSnapshot   `protobuf:"bytes,9,rep,name=asset_message_owners,json=assetMessageOwners,proto3" json:"asset_message_owners,omitempty"`
+	PublicLinkPreviewAssetIds []string                       `protobuf:"bytes,10,rep,name=public_link_preview_asset_ids,json=publicLinkPreviewAssetIds,proto3" json:"public_link_preview_asset_ids,omitempty"`
+	ReplayGuard               *ProjectionReplayGuardSnapshot `protobuf:"bytes,11,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *RoomTimelineProjectionSnapshot) Reset() {
+	*x = RoomTimelineProjectionSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomTimelineProjectionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomTimelineProjectionSnapshot) ProtoMessage() {}
+
+func (x *RoomTimelineProjectionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomTimelineProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*RoomTimelineProjectionSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetEntries() []*TimelineEntrySnapshot {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetBodies() []*TimelineBodySnapshot {
+	if x != nil {
+		return x.Bodies
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetTombstonedAt() []*StringTimestampSnapshot {
+	if x != nil {
+		return x.TombstonedAt
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetShreddedAt() []*StringTimestampSnapshot {
+	if x != nil {
+		return x.ShreddedAt
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetRetractedEventIds() []string {
+	if x != nil {
+		return x.RetractedEventIds
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetHiddenEchoEventIds() []string {
+	if x != nil {
+		return x.HiddenEchoEventIds
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetShreddedUserIds() []string {
+	if x != nil {
+		return x.ShreddedUserIds
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetLegacyAssets() *AssetProjectionSnapshot {
+	if x != nil {
+		return x.LegacyAssets
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetAssetMessageOwners() []*AssetMessageOwnerSnapshot {
+	if x != nil {
+		return x.AssetMessageOwners
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetPublicLinkPreviewAssetIds() []string {
+	if x != nil {
+		return x.PublicLinkPreviewAssetIds
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
+	if x != nil {
+		return x.ReplayGuard
+	}
+	return nil
+}
+
+type TimelineEntrySnapshot struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamSequence uint64                 `protobuf:"varint,1,opt,name=stream_sequence,json=streamSequence,proto3" json:"stream_sequence,omitempty"`
+	Event          *Event                 `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TimelineEntrySnapshot) Reset() {
+	*x = TimelineEntrySnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimelineEntrySnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimelineEntrySnapshot) ProtoMessage() {}
+
+func (x *TimelineEntrySnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimelineEntrySnapshot.ProtoReflect.Descriptor instead.
+func (*TimelineEntrySnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *TimelineEntrySnapshot) GetStreamSequence() uint64 {
+	if x != nil {
+		return x.StreamSequence
+	}
+	return 0
+}
+
+func (x *TimelineEntrySnapshot) GetEvent() *Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type TimelineBodySnapshot struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	MessageEventId      string                 `protobuf:"bytes,1,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	Body                *MessageBody           `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	BodyEventSequences  []uint64               `protobuf:"varint,3,rep,packed,name=body_event_sequences,json=bodyEventSequences,proto3" json:"body_event_sequences,omitempty"`
+	CurrentBodySequence uint64                 `protobuf:"varint,4,opt,name=current_body_sequence,json=currentBodySequence,proto3" json:"current_body_sequence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *TimelineBodySnapshot) Reset() {
+	*x = TimelineBodySnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimelineBodySnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimelineBodySnapshot) ProtoMessage() {}
+
+func (x *TimelineBodySnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimelineBodySnapshot.ProtoReflect.Descriptor instead.
+func (*TimelineBodySnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *TimelineBodySnapshot) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *TimelineBodySnapshot) GetBody() *MessageBody {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *TimelineBodySnapshot) GetBodyEventSequences() []uint64 {
+	if x != nil {
+		return x.BodyEventSequences
+	}
+	return nil
+}
+
+func (x *TimelineBodySnapshot) GetCurrentBodySequence() uint64 {
+	if x != nil {
+		return x.CurrentBodySequence
+	}
+	return 0
+}
+
+type StringTimestampSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StringTimestampSnapshot) Reset() {
+	*x = StringTimestampSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StringTimestampSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StringTimestampSnapshot) ProtoMessage() {}
+
+func (x *StringTimestampSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StringTimestampSnapshot.ProtoReflect.Descriptor instead.
+func (*StringTimestampSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *StringTimestampSnapshot) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *StringTimestampSnapshot) GetValue() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type AssetMessageOwnerSnapshot struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	RoomId         string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AssetMessageOwnerSnapshot) Reset() {
+	*x = AssetMessageOwnerSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetMessageOwnerSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetMessageOwnerSnapshot) ProtoMessage() {}
+
+func (x *AssetMessageOwnerSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetMessageOwnerSnapshot.ProtoReflect.Descriptor instead.
+func (*AssetMessageOwnerSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *AssetMessageOwnerSnapshot) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetMessageOwnerSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AssetMessageOwnerSnapshot) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
 var File_chatto_core_v1_projection_snapshots_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\n" +
-	")chatto/core/v1/projection_snapshots.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd2\x03\n" +
+	")chatto/core/v1/projection_snapshots.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!chatto/core/v1/asset_events.proto\x1a\x1achatto/core/v1/event.proto\x1a\x1bchatto/core/v1/models.proto\x1a chatto/core/v1/rbac_events.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\xd2\x03\n" +
 	"\x1cProjectionSnapshotGeneration\x12#\n" +
 	"\rgeneration_id\x18\x01 \x01(\tR\fgenerationId\x12\x1f\n" +
 	"\vstream_name\x18\x02 \x01(\tR\n" +
@@ -704,7 +2760,169 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x10highest_sequence\x18\x01 \x01(\x04R\x0fhighestSequence\x12-\n" +
 	"\x12compatibility_mode\x18\x02 \x01(\bR\x11compatibilityMode\x12\x1b\n" +
 	"\tevent_ids\x18\x03 \x03(\tR\beventIds\x12'\n" +
-	"\x0freplay_complete\x18\x04 \x01(\bR\x0ereplayCompleteB\xbb\x01\n" +
+	"\x0freplay_complete\x18\x04 \x01(\bR\x0ereplayComplete\"\xf7\x01\n" +
+	"\x1fRoomDirectoryProjectionSnapshot\x12*\n" +
+	"\x05rooms\x18\x01 \x03(\v2\x14.chatto.core.v1.RoomR\x05rooms\x12H\n" +
+	"\vmemberships\x18\x02 \x03(\v2&.chatto.core.v1.RoomMembershipSnapshotR\vmemberships\x123\n" +
+	"\x04bans\x18\x03 \x03(\v2\x1f.chatto.core.v1.RoomBanSnapshotR\x04bans\x12)\n" +
+	"\x10catalog_sequence\x18\x04 \x01(\x04R\x0fcatalogSequence\"L\n" +
+	"\x16RoomMembershipSnapshot\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\buser_ids\x18\x02 \x03(\tR\auserIds\"\x8f\x02\n" +
+	"\x0fRoomBanSnapshot\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12!\n" +
+	"\fmoderator_id\x18\x04 \x01(\tR\vmoderatorId\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9c\x01\n" +
+	"!RoomGroupLayoutProjectionSnapshot\x12>\n" +
+	"\x06groups\x18\x01 \x03(\v2&.chatto.core.v1.RoomGroupStateSnapshotR\x06groups\x12\x1b\n" +
+	"\tgroup_ids\x18\x02 \x03(\tR\bgroupIds\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\x04R\bsequence\"I\n" +
+	"\x16RoomGroupStateSnapshot\x12/\n" +
+	"\x05group\x18\x01 \x01(\v2\x19.chatto.core.v1.RoomGroupR\x05group\"Z\n" +
+	"\x1bCallStateProjectionSnapshot\x12;\n" +
+	"\x05rooms\x18\x01 \x03(\v2%.chatto.core.v1.CallRoomStateSnapshotR\x05rooms\"\xd2\x01\n" +
+	"\x15CallRoomStateSnapshot\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\x04R\bsequence\x127\n" +
+	"\x04call\x18\x03 \x01(\v2#.chatto.core.v1.CallSessionSnapshotR\x04call\x12K\n" +
+	"\fparticipants\x18\x04 \x03(\v2'.chatto.core.v1.CallParticipantSnapshotR\fparticipants\"\xb3\x01\n" +
+	"\x13CallSessionSnapshot\x12\x17\n" +
+	"\acall_id\x18\x01 \x01(\tR\x06callId\x12 \n" +
+	"\fe2ee_key_ref\x18\x02 \x01(\tR\n" +
+	"e2eeKeyRef\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\x03R\tstartedAt\x12B\n" +
+	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xac\x01\n" +
+	"\x17CallParticipantSnapshot\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12\x1b\n" +
+	"\tjoined_at\x18\x03 \x01(\x03R\bjoinedAt\x12B\n" +
+	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xab\x01\n" +
+	"\x1cContentKeyProjectionSnapshot\x129\n" +
+	"\x04keys\x18\x01 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12P\n" +
+	"\freplay_guard\x18\x02 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"\xa4\x02\n" +
+	"\x16RBACProjectionSnapshot\x12*\n" +
+	"\x05roles\x18\x01 \x03(\v2\x14.chatto.core.v1.RoleR\x05roles\x12H\n" +
+	"\vassignments\x18\x02 \x03(\v2&.chatto.core.v1.RBACAssignmentSnapshotR\vassignments\x12B\n" +
+	"\tdecisions\x18\x03 \x03(\v2$.chatto.core.v1.RBACDecisionSnapshotR\tdecisions\x12P\n" +
+	"\freplay_guard\x18\x04 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"P\n" +
+	"\x16RBACAssignmentSnapshot\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"role_names\x18\x02 \x03(\tR\troleNames\"\xeb\x01\n" +
+	"\x14RBACDecisionSnapshot\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x19\n" +
+	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12L\n" +
+	"\fsubject_kind\x18\x03 \x01(\x0e2).chatto.core.v1.RbacPermissionSubjectKindR\vsubjectKind\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x05 \x01(\tR\n" +
+	"permission\x12\x1a\n" +
+	"\bdecision\x18\x06 \x01(\tR\bdecision\"\x82\x03\n" +
+	"\x18ConfigProjectionSnapshot\x12\x1f\n" +
+	"\vserver_name\x18\x01 \x01(\tR\n" +
+	"serverName\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12'\n" +
+	"\x0fwelcome_message\x18\x03 \x01(\tR\x0ewelcomeMessage\x12\x12\n" +
+	"\x04motd\x18\x04 \x01(\tR\x04motd\x120\n" +
+	"\x11blocked_usernames\x18\x05 \x01(\tH\x00R\x10blockedUsernames\x88\x01\x01\x12/\n" +
+	"\x04logo\x18\x06 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x04logo\x123\n" +
+	"\x06banner\x18\a \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x06banner\x128\n" +
+	"\x05users\x18\b \x03(\v2\".chatto.core.v1.UserConfigSnapshotR\x05usersB\x14\n" +
+	"\x12_blocked_usernames\"\x98\x03\n" +
+	"\x12UserConfigSnapshot\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
+	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12@\n" +
+	"\vtime_format\x18\x03 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatH\x01R\n" +
+	"timeFormat\x88\x01\x01\x12b\n" +
+	"\x19server_notification_level\x18\x04 \x01(\x0e2!.chatto.core.v1.NotificationLevelH\x02R\x17serverNotificationLevel\x88\x01\x01\x12g\n" +
+	"\x18room_notification_levels\x18\x05 \x03(\v2-.chatto.core.v1.RoomNotificationLevelSnapshotR\x16roomNotificationLevelsB\v\n" +
+	"\t_timezoneB\x0e\n" +
+	"\f_time_formatB\x1c\n" +
+	"\x1a_server_notification_level\"q\n" +
+	"\x1dRoomNotificationLevelSnapshot\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x127\n" +
+	"\x05level\x18\x02 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"\x81\x03\n" +
+	"\x17AssetProjectionSnapshot\x12?\n" +
+	"\tcreations\x18\x01 \x03(\v2!.chatto.core.v1.AssetCreatedEventR\tcreations\x12A\n" +
+	"\bchildren\x18\x02 \x03(\v2%.chatto.core.v1.AssetChildrenSnapshotR\bchildren\x12C\n" +
+	"\tmanifests\x18\x03 \x03(\v2%.chatto.core.v1.AssetManifestSnapshotR\tmanifests\x12K\n" +
+	"\x0edeleted_assets\x18\x04 \x03(\v2$.chatto.core.v1.DeletedAssetSnapshotR\rdeletedAssets\x12P\n" +
+	"\freplay_guard\x18\x05 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"g\n" +
+	"\x15AssetChildrenSnapshot\x12&\n" +
+	"\x0fparent_asset_id\x18\x01 \x01(\tR\rparentAssetId\x12&\n" +
+	"\x0fchild_asset_ids\x18\x02 \x03(\tR\rchildAssetIds\"\x8a\x02\n" +
+	"\x15AssetManifestSnapshot\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12E\n" +
+	"\astarted\x18\x02 \x01(\v2+.chatto.core.v1.AssetProcessingStartedEventR\astarted\x12K\n" +
+	"\tsucceeded\x18\x03 \x01(\v2-.chatto.core.v1.AssetProcessingSucceededEventR\tsucceeded\x12B\n" +
+	"\x06failed\x18\x04 \x01(\v2*.chatto.core.v1.AssetProcessingFailedEventR\x06failed\"J\n" +
+	"\x14DeletedAssetSnapshot\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xe0\x03\n" +
+	"\x1aReactionProjectionSnapshot\x12D\n" +
+	"\bmessages\x18\x01 \x03(\v2(.chatto.core.v1.MessageReactionsSnapshotR\bmessages\x12K\n" +
+	"\x0eroom_sequences\x18\x02 \x03(\v2$.chatto.core.v1.StringUint64SnapshotR\rroomSequences\x12I\n" +
+	"\rmessage_rooms\x18\x03 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\fmessageRooms\x12K\n" +
+	"\x0eecho_originals\x18\x04 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\rechoOriginals\x12E\n" +
+	"\vasset_rooms\x18\x05 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\n" +
+	"assetRooms\x12P\n" +
+	"\freplay_guard\x18\x06 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"\x84\x01\n" +
+	"\x18MessageReactionsSnapshot\x12(\n" +
+	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x12>\n" +
+	"\x06emojis\x18\x02 \x03(\v2&.chatto.core.v1.EmojiReactionsSnapshotR\x06emojis\"j\n" +
+	"\x16EmojiReactionsSnapshot\x12\x14\n" +
+	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12:\n" +
+	"\x05users\x18\x02 \x03(\v2$.chatto.core.v1.UserReactionSnapshotR\x05users\"U\n" +
+	"\x14UserReactionSnapshot\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12$\n" +
+	"\x0eadded_at_nanos\x18\x02 \x01(\x03R\faddedAtNanos\">\n" +
+	"\x14StringUint64Snapshot\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value\">\n" +
+	"\x14StringStringSnapshot\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xbf\x01\n" +
+	"\x1eMentionablesProjectionSnapshot\x12C\n" +
+	"\x12user_login_sources\x18\x01 \x03(\v2\x15.chatto.core.v1.EventR\x10userLoginSources\x129\n" +
+	"\x04keys\x18\x02 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12\x1d\n" +
+	"\n" +
+	"role_names\x18\x03 \x03(\tR\troleNames\"\x85\x06\n" +
+	"\x1eRoomTimelineProjectionSnapshot\x12?\n" +
+	"\aentries\x18\x01 \x03(\v2%.chatto.core.v1.TimelineEntrySnapshotR\aentries\x12<\n" +
+	"\x06bodies\x18\x02 \x03(\v2$.chatto.core.v1.TimelineBodySnapshotR\x06bodies\x12L\n" +
+	"\rtombstoned_at\x18\x03 \x03(\v2'.chatto.core.v1.StringTimestampSnapshotR\ftombstonedAt\x12H\n" +
+	"\vshredded_at\x18\x04 \x03(\v2'.chatto.core.v1.StringTimestampSnapshotR\n" +
+	"shreddedAt\x12.\n" +
+	"\x13retracted_event_ids\x18\x05 \x03(\tR\x11retractedEventIds\x121\n" +
+	"\x15hidden_echo_event_ids\x18\x06 \x03(\tR\x12hiddenEchoEventIds\x12*\n" +
+	"\x11shredded_user_ids\x18\a \x03(\tR\x0fshreddedUserIds\x12L\n" +
+	"\rlegacy_assets\x18\b \x01(\v2'.chatto.core.v1.AssetProjectionSnapshotR\flegacyAssets\x12[\n" +
+	"\x14asset_message_owners\x18\t \x03(\v2).chatto.core.v1.AssetMessageOwnerSnapshotR\x12assetMessageOwners\x12@\n" +
+	"\x1dpublic_link_preview_asset_ids\x18\n" +
+	" \x03(\tR\x19publicLinkPreviewAssetIds\x12P\n" +
+	"\freplay_guard\x18\v \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"m\n" +
+	"\x15TimelineEntrySnapshot\x12'\n" +
+	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12+\n" +
+	"\x05event\x18\x02 \x01(\v2\x15.chatto.core.v1.EventR\x05event\"\xd7\x01\n" +
+	"\x14TimelineBodySnapshot\x12(\n" +
+	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x12/\n" +
+	"\x04body\x18\x02 \x01(\v2\x1b.chatto.core.v1.MessageBodyR\x04body\x120\n" +
+	"\x14body_event_sequences\x18\x03 \x03(\x04R\x12bodyEventSequences\x122\n" +
+	"\x15current_body_sequence\x18\x04 \x01(\x04R\x13currentBodySequence\"]\n" +
+	"\x17StringTimestampSnapshot\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05value\"y\n" +
+	"\x19AssetMessageOwnerSnapshot\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventIdB\xbb\x01\n" +
 	"\x12com.chatto.core.v1B\x18ProjectionSnapshotsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -719,31 +2937,132 @@ func file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_projection_snapshots_proto_rawDescData
 }
 
-var file_chatto_core_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chatto_core_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_chatto_core_v1_projection_snapshots_proto_goTypes = []any{
-	(*ProjectionSnapshotGeneration)(nil),  // 0: chatto.core.v1.ProjectionSnapshotGeneration
-	(*ProjectionSnapshotPointer)(nil),     // 1: chatto.core.v1.ProjectionSnapshotPointer
-	(*ThreadProjectionSnapshot)(nil),      // 2: chatto.core.v1.ThreadProjectionSnapshot
-	(*ThreadSnapshot)(nil),                // 3: chatto.core.v1.ThreadSnapshot
-	(*ThreadTimelineEntrySnapshot)(nil),   // 4: chatto.core.v1.ThreadTimelineEntrySnapshot
-	(*ThreadReplySnapshot)(nil),           // 5: chatto.core.v1.ThreadReplySnapshot
-	(*ThreadFollowSnapshot)(nil),          // 6: chatto.core.v1.ThreadFollowSnapshot
-	(*ProjectionReplayGuardSnapshot)(nil), // 7: chatto.core.v1.ProjectionReplayGuardSnapshot
-	(*timestamppb.Timestamp)(nil),         // 8: google.protobuf.Timestamp
+	(*ProjectionSnapshotGeneration)(nil),      // 0: chatto.core.v1.ProjectionSnapshotGeneration
+	(*ProjectionSnapshotPointer)(nil),         // 1: chatto.core.v1.ProjectionSnapshotPointer
+	(*ThreadProjectionSnapshot)(nil),          // 2: chatto.core.v1.ThreadProjectionSnapshot
+	(*ThreadSnapshot)(nil),                    // 3: chatto.core.v1.ThreadSnapshot
+	(*ThreadTimelineEntrySnapshot)(nil),       // 4: chatto.core.v1.ThreadTimelineEntrySnapshot
+	(*ThreadReplySnapshot)(nil),               // 5: chatto.core.v1.ThreadReplySnapshot
+	(*ThreadFollowSnapshot)(nil),              // 6: chatto.core.v1.ThreadFollowSnapshot
+	(*ProjectionReplayGuardSnapshot)(nil),     // 7: chatto.core.v1.ProjectionReplayGuardSnapshot
+	(*RoomDirectoryProjectionSnapshot)(nil),   // 8: chatto.core.v1.RoomDirectoryProjectionSnapshot
+	(*RoomMembershipSnapshot)(nil),            // 9: chatto.core.v1.RoomMembershipSnapshot
+	(*RoomBanSnapshot)(nil),                   // 10: chatto.core.v1.RoomBanSnapshot
+	(*RoomGroupLayoutProjectionSnapshot)(nil), // 11: chatto.core.v1.RoomGroupLayoutProjectionSnapshot
+	(*RoomGroupStateSnapshot)(nil),            // 12: chatto.core.v1.RoomGroupStateSnapshot
+	(*CallStateProjectionSnapshot)(nil),       // 13: chatto.core.v1.CallStateProjectionSnapshot
+	(*CallRoomStateSnapshot)(nil),             // 14: chatto.core.v1.CallRoomStateSnapshot
+	(*CallSessionSnapshot)(nil),               // 15: chatto.core.v1.CallSessionSnapshot
+	(*CallParticipantSnapshot)(nil),           // 16: chatto.core.v1.CallParticipantSnapshot
+	(*ContentKeyProjectionSnapshot)(nil),      // 17: chatto.core.v1.ContentKeyProjectionSnapshot
+	(*RBACProjectionSnapshot)(nil),            // 18: chatto.core.v1.RBACProjectionSnapshot
+	(*RBACAssignmentSnapshot)(nil),            // 19: chatto.core.v1.RBACAssignmentSnapshot
+	(*RBACDecisionSnapshot)(nil),              // 20: chatto.core.v1.RBACDecisionSnapshot
+	(*ConfigProjectionSnapshot)(nil),          // 21: chatto.core.v1.ConfigProjectionSnapshot
+	(*UserConfigSnapshot)(nil),                // 22: chatto.core.v1.UserConfigSnapshot
+	(*RoomNotificationLevelSnapshot)(nil),     // 23: chatto.core.v1.RoomNotificationLevelSnapshot
+	(*AssetProjectionSnapshot)(nil),           // 24: chatto.core.v1.AssetProjectionSnapshot
+	(*AssetChildrenSnapshot)(nil),             // 25: chatto.core.v1.AssetChildrenSnapshot
+	(*AssetManifestSnapshot)(nil),             // 26: chatto.core.v1.AssetManifestSnapshot
+	(*DeletedAssetSnapshot)(nil),              // 27: chatto.core.v1.DeletedAssetSnapshot
+	(*ReactionProjectionSnapshot)(nil),        // 28: chatto.core.v1.ReactionProjectionSnapshot
+	(*MessageReactionsSnapshot)(nil),          // 29: chatto.core.v1.MessageReactionsSnapshot
+	(*EmojiReactionsSnapshot)(nil),            // 30: chatto.core.v1.EmojiReactionsSnapshot
+	(*UserReactionSnapshot)(nil),              // 31: chatto.core.v1.UserReactionSnapshot
+	(*StringUint64Snapshot)(nil),              // 32: chatto.core.v1.StringUint64Snapshot
+	(*StringStringSnapshot)(nil),              // 33: chatto.core.v1.StringStringSnapshot
+	(*MentionablesProjectionSnapshot)(nil),    // 34: chatto.core.v1.MentionablesProjectionSnapshot
+	(*RoomTimelineProjectionSnapshot)(nil),    // 35: chatto.core.v1.RoomTimelineProjectionSnapshot
+	(*TimelineEntrySnapshot)(nil),             // 36: chatto.core.v1.TimelineEntrySnapshot
+	(*TimelineBodySnapshot)(nil),              // 37: chatto.core.v1.TimelineBodySnapshot
+	(*StringTimestampSnapshot)(nil),           // 38: chatto.core.v1.StringTimestampSnapshot
+	(*AssetMessageOwnerSnapshot)(nil),         // 39: chatto.core.v1.AssetMessageOwnerSnapshot
+	(*timestamppb.Timestamp)(nil),             // 40: google.protobuf.Timestamp
+	(*Room)(nil),                              // 41: chatto.core.v1.Room
+	(*RoomGroup)(nil),                         // 42: chatto.core.v1.RoomGroup
+	(CallParticipantEventSource)(0),           // 43: chatto.core.v1.CallParticipantEventSource
+	(*UserDEKGeneratedEvent)(nil),             // 44: chatto.core.v1.UserDEKGeneratedEvent
+	(*Role)(nil),                              // 45: chatto.core.v1.Role
+	(RbacPermissionSubjectKind)(0),            // 46: chatto.core.v1.RbacPermissionSubjectKind
+	(*AssetRecord)(nil),                       // 47: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                           // 48: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                    // 49: chatto.core.v1.NotificationLevel
+	(*AssetCreatedEvent)(nil),                 // 50: chatto.core.v1.AssetCreatedEvent
+	(*AssetProcessingStartedEvent)(nil),       // 51: chatto.core.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),     // 52: chatto.core.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),        // 53: chatto.core.v1.AssetProcessingFailedEvent
+	(*Event)(nil),                             // 54: chatto.core.v1.Event
+	(*MessageBody)(nil),                       // 55: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
-	8, // 0: chatto.core.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
-	3, // 1: chatto.core.v1.ThreadProjectionSnapshot.threads:type_name -> chatto.core.v1.ThreadSnapshot
-	5, // 2: chatto.core.v1.ThreadProjectionSnapshot.replies:type_name -> chatto.core.v1.ThreadReplySnapshot
-	6, // 3: chatto.core.v1.ThreadProjectionSnapshot.follows:type_name -> chatto.core.v1.ThreadFollowSnapshot
-	7, // 4: chatto.core.v1.ThreadProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	4, // 5: chatto.core.v1.ThreadSnapshot.entries:type_name -> chatto.core.v1.ThreadTimelineEntrySnapshot
-	8, // 6: chatto.core.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	40, // 0: chatto.core.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
+	3,  // 1: chatto.core.v1.ThreadProjectionSnapshot.threads:type_name -> chatto.core.v1.ThreadSnapshot
+	5,  // 2: chatto.core.v1.ThreadProjectionSnapshot.replies:type_name -> chatto.core.v1.ThreadReplySnapshot
+	6,  // 3: chatto.core.v1.ThreadProjectionSnapshot.follows:type_name -> chatto.core.v1.ThreadFollowSnapshot
+	7,  // 4: chatto.core.v1.ThreadProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	4,  // 5: chatto.core.v1.ThreadSnapshot.entries:type_name -> chatto.core.v1.ThreadTimelineEntrySnapshot
+	40, // 6: chatto.core.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
+	41, // 7: chatto.core.v1.RoomDirectoryProjectionSnapshot.rooms:type_name -> chatto.core.v1.Room
+	9,  // 8: chatto.core.v1.RoomDirectoryProjectionSnapshot.memberships:type_name -> chatto.core.v1.RoomMembershipSnapshot
+	10, // 9: chatto.core.v1.RoomDirectoryProjectionSnapshot.bans:type_name -> chatto.core.v1.RoomBanSnapshot
+	40, // 10: chatto.core.v1.RoomBanSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	40, // 11: chatto.core.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 12: chatto.core.v1.RoomGroupLayoutProjectionSnapshot.groups:type_name -> chatto.core.v1.RoomGroupStateSnapshot
+	42, // 13: chatto.core.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.v1.RoomGroup
+	14, // 14: chatto.core.v1.CallStateProjectionSnapshot.rooms:type_name -> chatto.core.v1.CallRoomStateSnapshot
+	15, // 15: chatto.core.v1.CallRoomStateSnapshot.call:type_name -> chatto.core.v1.CallSessionSnapshot
+	16, // 16: chatto.core.v1.CallRoomStateSnapshot.participants:type_name -> chatto.core.v1.CallParticipantSnapshot
+	43, // 17: chatto.core.v1.CallSessionSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	43, // 18: chatto.core.v1.CallParticipantSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	44, // 19: chatto.core.v1.ContentKeyProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
+	7,  // 20: chatto.core.v1.ContentKeyProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	45, // 21: chatto.core.v1.RBACProjectionSnapshot.roles:type_name -> chatto.core.v1.Role
+	19, // 22: chatto.core.v1.RBACProjectionSnapshot.assignments:type_name -> chatto.core.v1.RBACAssignmentSnapshot
+	20, // 23: chatto.core.v1.RBACProjectionSnapshot.decisions:type_name -> chatto.core.v1.RBACDecisionSnapshot
+	7,  // 24: chatto.core.v1.RBACProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	46, // 25: chatto.core.v1.RBACDecisionSnapshot.subject_kind:type_name -> chatto.core.v1.RbacPermissionSubjectKind
+	47, // 26: chatto.core.v1.ConfigProjectionSnapshot.logo:type_name -> chatto.core.v1.AssetRecord
+	47, // 27: chatto.core.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.v1.AssetRecord
+	22, // 28: chatto.core.v1.ConfigProjectionSnapshot.users:type_name -> chatto.core.v1.UserConfigSnapshot
+	48, // 29: chatto.core.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.v1.TimeFormat
+	49, // 30: chatto.core.v1.UserConfigSnapshot.server_notification_level:type_name -> chatto.core.v1.NotificationLevel
+	23, // 31: chatto.core.v1.UserConfigSnapshot.room_notification_levels:type_name -> chatto.core.v1.RoomNotificationLevelSnapshot
+	49, // 32: chatto.core.v1.RoomNotificationLevelSnapshot.level:type_name -> chatto.core.v1.NotificationLevel
+	50, // 33: chatto.core.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.v1.AssetCreatedEvent
+	25, // 34: chatto.core.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.v1.AssetChildrenSnapshot
+	26, // 35: chatto.core.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.v1.AssetManifestSnapshot
+	27, // 36: chatto.core.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.v1.DeletedAssetSnapshot
+	7,  // 37: chatto.core.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	51, // 38: chatto.core.v1.AssetManifestSnapshot.started:type_name -> chatto.core.v1.AssetProcessingStartedEvent
+	52, // 39: chatto.core.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.v1.AssetProcessingSucceededEvent
+	53, // 40: chatto.core.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.v1.AssetProcessingFailedEvent
+	29, // 41: chatto.core.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.v1.MessageReactionsSnapshot
+	32, // 42: chatto.core.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.v1.StringUint64Snapshot
+	33, // 43: chatto.core.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.v1.StringStringSnapshot
+	33, // 44: chatto.core.v1.ReactionProjectionSnapshot.echo_originals:type_name -> chatto.core.v1.StringStringSnapshot
+	33, // 45: chatto.core.v1.ReactionProjectionSnapshot.asset_rooms:type_name -> chatto.core.v1.StringStringSnapshot
+	7,  // 46: chatto.core.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	30, // 47: chatto.core.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.v1.EmojiReactionsSnapshot
+	31, // 48: chatto.core.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.v1.UserReactionSnapshot
+	54, // 49: chatto.core.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.v1.Event
+	44, // 50: chatto.core.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
+	36, // 51: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
+	37, // 52: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
+	38, // 53: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	38, // 54: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	24, // 55: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
+	39, // 56: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
+	7,  // 57: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	54, // 58: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	55, // 59: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	40, // 60: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	61, // [61:61] is the sub-list for method output_type
+	61, // [61:61] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }
@@ -751,13 +3070,22 @@ func file_chatto_core_v1_projection_snapshots_proto_init() {
 	if File_chatto_core_v1_projection_snapshots_proto != nil {
 		return
 	}
+	file_chatto_core_v1_asset_events_proto_init()
+	file_chatto_core_v1_event_proto_init()
+	file_chatto_core_v1_models_proto_init()
+	file_chatto_core_v1_rbac_events_proto_init()
+	file_chatto_core_v1_room_events_proto_init()
+	file_chatto_core_v1_user_events_proto_init()
+	file_chatto_core_v1_user_preferences_proto_init()
+	file_chatto_core_v1_projection_snapshots_proto_msgTypes[21].OneofWrappers = []any{}
+	file_chatto_core_v1_projection_snapshots_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_projection_snapshots_proto_rawDesc), len(file_chatto_core_v1_projection_snapshots_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

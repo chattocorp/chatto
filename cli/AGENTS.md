@@ -86,6 +86,16 @@ authorization, live events, backup/restore, and backend tests.
   captured before the latest pointer read.
   Scope generation object paths by encryption-key epoch so cleanup cannot cross
   secrets during a rolling key change.
+- Snapshot namespace `v1` is permanently Threads-only. Namespace `v2` is
+  permanently Room Directory, Server Config, Room Group Layout, Room Timeline,
+  Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Keep
+  `UserProjection` outside snapshots until its decrypted PII and credential
+  state has a crypto-shreddable representation.
+- A shared snapshot replay consumer may start only after every projector restore
+  attempt finishes, at one greater than the lowest usable cutoff. Any required
+  cold projection forces that cohort to sequence 1. Release boot-time sequence
+  waiters when installing a restored cutoff, and test all-restored, partial,
+  corrupt, future, tail-replay, and restore-in-flight waiter interleavings.
 
 ## Live Events
 
