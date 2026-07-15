@@ -112,6 +112,39 @@ func TestUserProjectionRestoreRejectsPlaintextUserFields(t *testing.T) {
 	require.ErrorContains(t, p.Restore(payload), "plaintext user")
 }
 
+func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
+	pii := func(purpose string) *corev1.ProjectedEncryptedUserStringSnapshot {
+		return &corev1.ProjectedEncryptedUserStringSnapshot{
+			EventId: "E1", EventType: events.EventUserAccountCreated, Purpose: purpose,
+			Encrypted: &corev1.EncryptedUserString{EncryptedValue: []byte("ciphertext"), Nonce: []byte("nonce"), ContentKeyEpoch: 1},
+		}
+	}
+	valid := &corev1.UserProfileProjectionSnapshot{
+		Keys: []*corev1.UserDEKGeneratedEvent{{UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, Epoch: 1, ContentKeyRef: "dek.test"}},
+		Users: []*corev1.ProjectedUserProfileSnapshot{{
+			UserId: "U1", User: &corev1.User{Id: "U1"}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
+		}},
+	}
+	tests := []struct {
+		name   string
+		mutate func(*corev1.UserProfileProjectionSnapshot)
+	}{
+		{"missing user", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Users[0].User = nil }},
+		{"missing display name", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Users[0].DisplayName = nil }},
+		{"missing profile DEK", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Keys = nil }},
+		{"inactive user retains profile", func(snapshot *corev1.UserProfileProjectionSnapshot) { snapshot.Users[0].Deleted = true }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshot := proto.Clone(valid).(*corev1.UserProfileProjectionSnapshot)
+			tt.mutate(snapshot)
+			payload, err := proto.Marshal(snapshot)
+			require.NoError(t, err)
+			require.Error(t, NewUserProjection(nil, nil).Restore(payload))
+		})
+	}
+}
+
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), events.UserSubjectFilter())

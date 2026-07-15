@@ -147,6 +147,18 @@ func (p *UserProjection) Restore(data []byte) error {
 		if (login == nil) != (entry.GetLoginHash() == "") {
 			return fmt.Errorf("user profile snapshot has inconsistent login for %q", userID)
 		}
+		active := !entry.GetDeleted() && !entry.GetShredded()
+		if active && (entry.GetUser() == nil || login == nil || displayName == nil) {
+			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
+		}
+		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
+			return fmt.Errorf("user profile snapshot has profile state on inactive user %q", userID)
+		}
+		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName} {
+			if pii != nil && !restored.hasUserPIIKeyLocked(userID, pii.encrypted.GetContentKeyEpoch()) {
+				return fmt.Errorf("user profile snapshot %s for %q has no matching DEK", name, userID)
+			}
+		}
 		u := &projectedUser{
 			login: login, loginHash: entry.GetLoginHash(), displayName: displayName,
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
@@ -177,6 +189,9 @@ func (p *UserProjection) Restore(data []byte) error {
 			if err != nil {
 				return fmt.Errorf("user profile snapshot verified email for %q: %w", userID, err)
 			}
+			if !restored.hasUserPIIKeyLocked(userID, pii.encrypted.GetContentKeyEpoch()) {
+				return fmt.Errorf("user profile snapshot verified email for %q has no matching DEK", userID)
+			}
 			u.verifiedEmail[email.GetDigest()] = projectedVerifiedEmail{pii: pii, verifiedAt: email.GetVerifiedAt().AsTime()}
 		}
 		restored.users[userID] = u
@@ -204,4 +219,13 @@ func (p *UserProjection) Restore(data []byte) error {
 	p.replayGuard, p.dekEvents = restored.replayGuard, restored.dekEvents
 	p.Unlock()
 	return nil
+}
+
+func (p *UserProjection) hasUserPIIKeyLocked(userID string, epoch int32) bool {
+	byPurpose := p.dekEvents[userID]
+	if byPurpose == nil {
+		return false
+	}
+	return byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][epoch] != nil ||
+		byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][epoch] != nil
 }
