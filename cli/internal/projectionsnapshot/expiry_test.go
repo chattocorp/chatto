@@ -91,6 +91,59 @@ func TestRepositoryExpireBoundsDeletionBatch(t *testing.T) {
 	}
 }
 
+func TestRepositoryExpireToleratesCandidateRemovedBeforeDelete(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	vanished := putExpiryObject(t, repository, blobs, "threads", "v1", strings.Repeat("6", 32), repository.now().Add(-8*24*time.Hour))
+	remaining := putExpiryObject(t, repository, blobs, "users", "v2", strings.Repeat("7", 32), repository.now().Add(-8*24*time.Hour))
+	blobs.beforeDelete = func(key string) {
+		blobs.beforeDelete = nil
+		if key == vanished {
+			delete(blobs.objects, key)
+		}
+	}
+
+	result, err := repository.Expire(context.Background(), ExpireOptions{
+		Retention: 7 * 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DeletedObjects != 1 {
+		t.Fatalf("expiry result = %#v", result)
+	}
+	if _, ok := blobs.objects[remaining]; ok {
+		t.Fatal("expiry stopped after an idempotent missing-object deletion")
+	}
+}
+
+func TestRepositoryExpireCurrentAndPreviousCausesColdReplay(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("previous"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Save(context.Background(), testSaveInput(2, []byte("current"))); err != nil {
+		t.Fatal(err)
+	}
+	for key := range blobs.objects {
+		blobs.modified[key] = repository.now().Add(-8 * 24 * time.Hour)
+	}
+
+	result, err := repository.Expire(context.Background(), ExpireOptions{
+		Retention: 7 * 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DeletedObjects != 2 {
+		t.Fatalf("expiry result = %#v", result)
+	}
+	if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 2); !errors.Is(err, ErrBlobNotFound) {
+		t.Fatalf("Load after expiry error = %v, want missing generation", err)
+	}
+}
+
 func TestGenerationObjectKeyParserRejectsPrefixConfusion(t *testing.T) {
 	valid := objectRootPrefix + "room_directory/v12/objects/0123456789abcdef/" + strings.Repeat("a", 32)
 	if !isGenerationObjectKey(valid) {

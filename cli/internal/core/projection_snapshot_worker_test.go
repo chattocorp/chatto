@@ -9,7 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/internal/testutil"
 )
 
 type fakeSnapshotWorkerLease struct {
@@ -148,5 +152,62 @@ func TestProjectionSnapshotWorkerDoesNotAcquireLeaseBeforeBoot(t *testing.T) {
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run error = %v", err)
+	}
+}
+
+func TestProjectionSnapshotWorkersUseOneReplicaForDailyPass(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kv, err := js.CreateKeyValue(context.Background(), jetstream.KeyValueConfig{
+		Bucket: "SNAPSHOT_WORKER_LEASE_TEST", Storage: jetstream.MemoryStorage,
+		History: 1, LimitMarkerTTL: 2 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newLease := func(owner string) *lease.Lease {
+		result, err := lease.New(js, kv, lease.Options{
+			Name: "snapshot-worker-test", OwnerID: owner, Bucket: "SNAPSHOT_WORKER_LEASE_TEST",
+			TTL: 2 * time.Second, RenewEvery: 200 * time.Millisecond, RetryEvery: 10 * time.Millisecond,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+
+	firstExpirer := &fakeSnapshotExpirer{}
+	secondExpirer := &fakeSnapshotExpirer{}
+	workers := []*projectionSnapshotWorker{
+		{lease: newLease("owner-one"), expirer: firstExpirer, retention: 7 * 24 * time.Hour, logger: testCoreLogger()},
+		{lease: newLease("owner-two"), expirer: secondExpirer, retention: 7 * 24 * time.Hour, logger: testCoreLogger()},
+	}
+	boot := make(chan struct{})
+	close(boot)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, len(workers))
+	go func() { done <- workers[0].Run(ctx, boot) }()
+	deadline := time.Now().Add(2 * time.Second)
+	for len(firstExpirer.calls()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if len(firstExpirer.calls()) != 1 {
+		cancel()
+		t.Fatal("first replica did not acquire the snapshot lease")
+	}
+	go func() { done <- workers[1].Run(ctx, boot) }()
+	time.Sleep(150 * time.Millisecond)
+	if len(secondExpirer.calls()) != 0 {
+		cancel()
+		t.Fatal("second replica ran a pass while the first held the snapshot lease")
+	}
+	cancel()
+	for range workers {
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Fatalf("worker stopped with %v", err)
+		}
 	}
 }

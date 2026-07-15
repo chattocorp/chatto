@@ -30,6 +30,7 @@ type memoryBlobStore struct {
 	failPut             func(string) bool
 	failGet             func(string) bool
 	failDelete          func(string) bool
+	beforeDelete        func(string)
 	failWalk            func(int) error
 	beforePointerUpdate func(string, uint64)
 	walkHook            func(int, string)
@@ -144,6 +145,9 @@ func (m *memoryBlobStore) Get(_ context.Context, key string, max int64) ([]byte,
 	return append([]byte(nil), data...), nil
 }
 func (m *memoryBlobStore) Delete(_ context.Context, key string) error {
+	if m.beforeDelete != nil {
+		m.beforeDelete(key)
+	}
 	if m.failDelete != nil && m.failDelete(key) {
 		return errors.New("injected delete failure")
 	}
