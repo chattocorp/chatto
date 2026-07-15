@@ -125,6 +125,19 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		f.logger.Warn("Failed to fetch Bluesky oEmbed metadata", "url", rawURL, "error", err)
 	}
 
+	// Mastodon status URLs are instance-local, so discovery and status data are
+	// fetched from the permalink's origin through the same SSRF-safe client.
+	if _, _, ok := ParseMastodonStatusURL(rawURL); ok {
+		result, err := f.fetchMastodon(ctx, rawURL)
+		if err == nil {
+			return result, nil
+		}
+		if errors.Is(err, errProviderModeration) {
+			return nil, fmt.Errorf("%w: provider visibility prevents preview", ErrUnavailable)
+		}
+		f.logger.Warn("Failed to fetch Mastodon status metadata", "url", rawURL, "error", err)
+	}
+
 	// Fetch the page with a size limit to prevent memory exhaustion
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -347,21 +360,11 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 	}
 	title = truncateUTF8Bytes(title, 300)
 
-	var compatibilityImage *corev1.AssetRecord
-	if len(snapshot.Images) > 0 {
-		compatibilityImage = snapshot.Images[0].GetAsset()
-	} else if snapshot.ExternalLink != nil {
-		compatibilityImage = snapshot.ExternalLink.GetImageAsset()
-	} else if snapshot.QuotedPost != nil && len(snapshot.QuotedPost.Images) > 0 {
-		compatibilityImage = snapshot.QuotedPost.Images[0].GetAsset()
-	} else if snapshot.QuotedPost != nil && snapshot.QuotedPost.ExternalLink != nil {
-		compatibilityImage = snapshot.QuotedPost.ExternalLink.GetImageAsset()
-	}
 	return &FetchResult{
 		Title:       title,
 		Description: post.Record.Text,
 		SiteName:    "Bluesky",
-		ImageAsset:  compatibilityImage,
+		ImageAsset:  socialPostCompatibilityImage(snapshot),
 		EmbedType:   "bluesky",
 		EmbedID:     embedID,
 		SocialPost:  snapshot,

@@ -118,3 +118,29 @@ func TestIsBlueskyPostURL(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMastodonStatusURL(t *testing.T) {
+	tests := []struct {
+		url      string
+		origin   string
+		statusID string
+		ok       bool
+	}{
+		{"https://mastodon.social/@Gargron/103270115826048975", "https://mastodon.social", "103270115826048975", true},
+		{"https://social.example/users/alice/statuses/12345?ref=share", "https://social.example", "12345", true},
+		{"https://social.example/@alice/12345/", "https://social.example", "12345", true},
+		{"https://social.example/@alice", "", "", false},
+		{"https://social.example/@alice/not-a-status", "", "", false},
+		{"https://social.example/tags/12345", "", "", false},
+		{"ftp://social.example/@alice/12345", "", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			origin, statusID, ok := ParseMastodonStatusURL(tt.url)
+			assert.Equal(t, tt.origin, origin)
+			assert.Equal(t, tt.statusID, statusID)
+			assert.Equal(t, tt.ok, ok)
+		})
+	}
+}
