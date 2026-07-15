@@ -54,7 +54,46 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
-`MyEventsModel` is owned behind the `ChattoCore.StreamMyEvents` facade. Its process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and `live.evt.>`. It rejects non-deliverable event types from their subjects before protobuf decoding, including private `message_body` facts, then decodes and waits for the required local projections once. RBAC facts wait for the matching RBAC projection position and rebuild each connected user's shared effective-room cache before later events are considered, so role and permission changes revoke implicit universal-room visibility without reconnecting. Deliverable events are authorized per user and fanned as shared immutable pointers to independent session queues. New sessions hydrate visibility outside the dispatcher lock against stable authoritative room-visibility/RBAC EVT tails, then register through a dispatcher-owned channel after ingress already received by the process has been drained. Ordinary room chatter does not participate in the stable-tail check. Visibility changes processed during hydration force a retry, while late cross-publisher facts already covered by the snapshot are suppressed by EVT stream sequence; admission does not assume global NATS publisher ordering. Asset lifecycle events resolve their room authorization through `AssetProjection`, using the room scope on `AssetCreatedEvent` and inherited parent scope for derivatives. Transient `LiveEvent` messages are adapted at this API boundary into public protobuf `/api/realtime` frames. Both surfaces are live-only; missed state is recovered by projected reads. Subscriber overflow closes only that session. Process-wide ingress loss or projection-readiness failure quarantines admission, closes every current session, flushes and drains the old subscriptions, and opens a fresh ingress generation so no session continues or reconnects across an unobservable gap. The bundled web client opens `/api/realtime`, watches server heartbeats for silent stalls, refetches server-scoped projected state after reconnect gaps, and refetches the current room or thread window from projections after browser wake, WebSocket reconnect, socket end, or heartbeat-stall catch-up notifications. There is no per-connection JetStream consumer and no public subscription replay cursor. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
+`MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
+process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
+`live.evt.>`.
+
+Ingress rejects non-deliverable event types from their subjects before protobuf
+decoding, including private `message_body` facts. It then decodes each event and
+waits once for the required local projections. RBAC facts wait for the matching
+RBAC projection and rebuild each connected user's shared effective-room cache
+before later events are considered. Role and permission changes can therefore
+revoke implicit universal-room visibility without reconnecting.
+
+Deliverable events are authorized per user and fanned as shared immutable
+pointers to independent session queues. Asset lifecycle events resolve room
+authorization through `AssetProjection`, using the scope on `AssetCreatedEvent`
+and inherited parent scope for derivatives.
+
+New sessions hydrate visibility outside the dispatcher lock against stable
+authoritative room-visibility and RBAC EVT tails. They register through a
+dispatcher-owned channel after the process drains ingress already received.
+Ordinary room chatter does not participate in the stable-tail check.
+
+Visibility changes processed during hydration force a retry. Late
+cross-publisher facts already covered by the snapshot are suppressed by EVT
+stream sequence; admission does not assume global NATS publisher ordering.
+
+Transient `LiveEvent` messages are adapted at this boundary into public
+protobuf `/api/realtime` frames. Both surfaces are live-only, and missed state
+is recovered by projected reads. Subscriber overflow closes only that session.
+
+Process-wide ingress loss or projection-readiness failure quarantines
+admission, closes every current session, flushes and drains the old
+subscriptions, and opens a fresh ingress generation. No session continues or
+reconnects across an unobservable gap.
+
+The bundled web client watches server heartbeats for silent stalls. It
+refetches server-scoped projected state after reconnect gaps, and refetches the
+current room or thread window after browser wake, WebSocket reconnect, socket
+end, or heartbeat-stall catch-up notifications. There is no per-connection
+JetStream consumer or public subscription replay cursor. See
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
 
 ## EVT subject patterns
 
@@ -226,11 +265,45 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
-Voice call lifecycle and participant transitions are durable room EVT facts under `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`, republished to `live.evt.>` for realtime subscription delivery. They drive active-call state and indicators but are hidden from normal room history timelines. LiveKit room names include the active Chatto call ID suffix so LiveKit participant and room-finished observations are applied only to the matching call session. Only the replica holding the `MEMORY_CACHE` lease `lease.livekit_reconciler` runs the periodic LiveKit reconciliation loop. LiveKit reconciliation appends `RECONCILIATION` facts for participant mismatches in the matching call session. It disconnects participants from LiveKit rooms that no longer match a projected active call, and replays durable `call_ended` facts on startup to retry any per-call E2EE key shredding that did not complete after the original commit. Missing LiveKit rooms and observed empty rooms end projected calls immediately after a successful listing; per-room LiveKit `not_found` responses while listing participants are treated as that room being gone/empty so other rooms can still reconcile. Pre-threshold LiveKit listing failures increment shared `MEMORY_CACHE` key `livekit.reconciliation.list_failures` and are retried on the normal reconciliation ticker, and listing failures only end projected active calls after three consecutive failed elected reconciliation cycles. A successful elected reconcile pass deletes that failure counter. `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and `ListCallParticipants` expose the active call ID so clients can ignore stale leave/end facts from previous calls in the same room; realtime `call_*` events carrying a room/call ID pair can be hydrated through `GetActiveCall` or `BatchGetActiveCalls`. Room membership remains the authorization boundary for live delivery.
+Voice call lifecycle and participant transitions are durable room EVT facts:
+`evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,
+`evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. JetStream
+republishes them to `live.evt.>` for realtime delivery. They drive active-call
+state and indicators but remain hidden from normal room history timelines.
+
+LiveKit room names include the active Chatto call ID suffix. Participant and
+room-finished observations therefore apply only to the matching call session.
+Only the replica holding `lease.livekit_reconciler` in `MEMORY_CACHE` runs the
+periodic reconciliation loop.
+
+Reconciliation appends `RECONCILIATION` facts for participant mismatches in the
+matching call session. It disconnects participants from rooms that no longer
+match a projected active call. At startup, it also replays durable `call_ended`
+facts to retry any per-call E2EE key shredding that did not complete after the
+original commit.
+
+Missing or observed-empty LiveKit rooms end projected calls immediately after
+a successful listing. A per-room `not_found` while listing participants is
+treated as that room being gone or empty, so other rooms can still reconcile.
+
+Listing failures increment the shared
+`livekit.reconciliation.list_failures` key and retry on the normal ticker. They
+end projected calls only after three consecutive failed elected reconciliation
+cycles. A successful elected pass deletes the counter.
+
+`VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
+`ListCallParticipants` expose the active call ID. Clients can ignore stale
+leave or end facts from previous calls in the same room, and hydrate realtime
+`call_*` events through `GetActiveCall` or `BatchGetActiveCalls`. Room
+membership remains the authorization boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-- One process-wide `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages and one process-wide `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Subject classification and decoding happen once; authorization is then applied per connected user using shared room visibility, asset room membership, user/config/member subject gates, and projection readiness before deliverable `live.evt.>` events.
+- One process-wide `ChanSubscribe("live.sync.>")` for transient `LiveEvent`
+  messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
+  Subject classification and decoding happen once. Authorization then applies
+  per connected user using shared room visibility, asset room membership,
+  user/config/member subject gates, and projection readiness.
 - Live-only subscription delivery. Missed state after reconnect is recovered from projected reads: server-scoped stores refetch their current projections after event-bus gaps, and the visible room/thread refetches its current message window. Transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).

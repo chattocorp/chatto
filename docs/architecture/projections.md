@@ -2,7 +2,26 @@
 
 Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
-Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once with a stable machine-readable key such as `content_keys` plus a human display name such as `Content Keys`; `ChattoCore.Run` replays `evt.>` through one process-local ordered consumer, decodes each event once, dispatches it to projections whose logical subject filters match, records each projection's initial replay startup duration, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes. The projector framework owns JetStream message handling and passes stable stream sequence numbers into `Projection.Apply`; projection implementations do not inspect consumer sequence numbers or raw JetStream metadata. Projections that require event-envelope idempotency keep event-ID sets only through the captured startup target. Clean histories then release those sets and use the highest applied stream sequence as a constant-size steady-state guard; if startup replay observes a duplicate ID, only that projection retains its set and first-event-wins compatibility behavior. Projection diagnostics report both retained event-ID memory and whether compatibility mode is active.
+Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore`
+registers each top-level projector once with a stable machine-readable key, such
+as `content_keys`, and a human display name, such as `Content Keys`.
+
+`ChattoCore.Run` replays `evt.>` through one process-local ordered consumer. It
+decodes each event once, dispatches it to projections whose logical subject
+filters match, records initial replay duration, and waits for projections to
+become current at boot. Writers wait for the relevant projector sequence before
+returning read-your-writes.
+
+The projector framework owns JetStream message handling and passes stable
+stream sequence numbers into `Projection.Apply`. Projection implementations do
+not inspect consumer sequence numbers or raw JetStream metadata.
+
+Projections that require event-envelope idempotency keep event-ID sets only
+through the captured startup target. Clean histories then release those sets
+and use the highest applied stream sequence as a constant-size steady-state
+guard. If startup replay observes a duplicate ID, only that projection retains
+its set and first-event-wins compatibility behaviour. Projection diagnostics
+report both retained event-ID memory and whether compatibility mode is active.
 
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md), and
@@ -10,7 +29,51 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 
 ## Snapshot support
 
-`core.projection_snapshots` enables the ADR-050 Thread snapshot canary. The projector framework atomically captures projection state with its applied EVT sequence and can restore one projection while the shared `evt.>` consumer still replays from the beginning for all others. `ThreadProjection` uses the `threads-v1` protobuf codec; its encrypted generation bundle contains no message bodies or decrypted PII and rebuilds derived indexes on restore. One replica is elected through a `MEMORY_CACHE` lease after boot to publish a generation when Threads advanced. Generations are compressed and authenticated with XChaCha20-Poly1305 under an HKDF key derived from `core.secret_key`, then stored under a secret-derived opaque epoch in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3 bucket. Their encrypted current/previous pointer lives in `RUNTIME_STATE` and uses KV revision OCC regardless of payload backend. The pointer carries cutoff, EVT incarnation, and projection compatibility metadata so publication rejects both an obsolete revision and a causally older capture. A new secret uses a different generation epoch, preventing its cleaner from deleting generations still used by old-secret replicas during a rolling change. Namespace `v1` is permanently limited to Threads and the repository rejects other keys, so older cleaners remain safe during mixed-version rollouts; adding another snapshotted projection requires a new namespace version. EVT carries a versioned opaque incarnation ID in stream metadata so snapshot compatibility survives process reconstruction and backup restore but changes when EVT is recreated. Missing IDs are deterministically derived once from the stream creation time so concurrent replicas converge, then persisted; runtime snapshot paths use the captured immutable value rather than concurrently refreshing NATS client metadata. A separately elected cleanup worker starts 5-10 minutes after boot, inventories only its private key epoch every six hours, and deletes at most 100 objects or 1 GiB per pass when unreferenced generations are at least 24 hours old. It collects that bounded batch during one complete read-only inventory, checks lease ownership once before deletion, and retries failed or deletion-limited passes after 30 minutes. Snapshot storage, EVT identity, projector configuration, load, validation, pointer publication, lease, inventory, and cleanup failures are logged, disable only snapshot functionality where necessary, and never affect core readiness or EVT-backed reconstruction. Pre-epoch canary objects are intentionally outside this cleaner and require provider lifecycle or explicit later migration tooling.
+`core.projection_snapshots` enables the ADR-050 Thread snapshot canary. The
+projector framework atomically captures projection state with its applied EVT
+sequence. It can restore one projection while the shared `evt.>` consumer still
+replays from the beginning for all others.
+
+`ThreadProjection` uses the `threads-v1` protobuf codec. Its encrypted
+generation bundle contains no message bodies or decrypted PII, and it rebuilds
+derived indexes on restore. After boot, one replica is elected through a
+`MEMORY_CACHE` lease to publish a generation whenever Threads has advanced.
+
+Generations are compressed and authenticated with XChaCha20-Poly1305 under an
+HKDF key derived from `core.secret_key`. They are stored under a secret-derived
+opaque epoch in either the NATS `PROJECTION_SNAPSHOTS` Object Store or the
+configured S3 bucket.
+
+The encrypted current/previous pointer lives in `RUNTIME_STATE` and uses KV
+revision OCC for either payload backend. It carries cutoff, EVT incarnation,
+and projection compatibility metadata, so publication rejects both an obsolete
+revision and a causally older capture.
+
+A new secret uses a different generation epoch. This prevents its cleaner from
+deleting generations still used by old-secret replicas during a rolling
+change. Namespace `v1` is permanently limited to Threads, and the repository
+rejects other keys. Adding another snapshotted projection requires a new
+namespace version so older cleaners remain safe during mixed-version rollouts.
+
+EVT carries a versioned opaque incarnation ID in stream metadata. Snapshot
+compatibility therefore survives process reconstruction and backup restore but
+changes when EVT is recreated. Missing IDs are deterministically derived once
+from stream creation time so concurrent replicas converge, then persisted.
+Runtime snapshot paths use the captured immutable value rather than refreshing
+NATS client metadata concurrently.
+
+A separately elected cleanup worker starts 5-10 minutes after boot and
+inventories only its private key epoch every six hours. Each pass deletes at
+most 100 objects or 1 GiB, and only when unreferenced generations are at least
+24 hours old. The worker collects the bounded batch during one complete
+read-only inventory, checks lease ownership once before deletion, and retries
+failed or deletion-limited passes after 30 minutes.
+
+Snapshot storage, EVT identity, projector configuration, load, validation,
+pointer publication, lease, inventory, and cleanup failures are logged. They
+disable only snapshot functionality where necessary and never affect core
+readiness or EVT-backed reconstruction. Pre-epoch canary objects are outside
+this cleaner and require provider lifecycle or later migration tooling.
 
 | Projection | Namespace | Codec | Payload store | Pointer store | Publication |
 | ---------- | --------- | ----- | ------------- | ------------- | ----------- |
@@ -33,7 +96,20 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | Roles, role order, assignments, scoped allow/deny decisions                                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
 
-Notes: registered projector keys are used by metrics and automation; registered projector names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`. The shared replay fanout reduces duplicate replay delivery and protobuf decoding while keeping each projection's status, lag, failure, and read-your-writes waiters independent. `Subjects()` is the logical consumption and readiness contract; optional replay subjects are only the physical consumer filter. Focused logical filters are appropriate for stable derived indexes such as Threads, while broad filters remain intentional for projections whose snapshots expose room-tail OCC positions, such as Reactions and Call State. Threads reports the focused logical subjects above for waits and diagnostics; non-thread room facts are skipped before `Apply`.
+Registered projector keys are used by metrics and automation. Registered names
+match the admin projection diagnostics. Composite projections expose nested
+read models, but only their parent projector is started by `ChattoCore.Run`.
+
+The shared replay fanout reduces duplicate delivery and protobuf decoding while
+keeping each projection's status, lag, failure, and read-your-writes waiters
+independent. `Subjects()` is the logical consumption and readiness contract;
+optional replay subjects are only the physical consumer filter.
+
+Focused logical filters suit stable derived indexes such as Threads. Broad
+filters remain intentional for projections whose snapshots expose room-tail
+OCC positions, such as Reactions and Call State. Threads reports the focused
+logical subjects above for waits and diagnostics; non-thread room facts are
+skipped before `Apply`.
 
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable projections decrypt login and email values only transiently

@@ -158,6 +158,12 @@ comments and generated API docs.
 - Keep each file independently understandable but avoid repeating another
   category's tables or prose.
 - Prefer compact tables for repeated facts and short prose for invariants.
+- Keep prose paragraphs focused on one idea and normally below 100 words. Split
+  dense lifecycle or failure descriptions into short paragraphs, bullets, or
+  descriptive subheadings before they become wall-of-text summaries.
+- Treat paragraph length as a review signal, not a reason to fragment related
+  sentences or distort Markdown lists and tables. Rewrite for scanability; do
+  not merely insert arbitrary line breaks inside the same paragraph.
 - Add 2-5 authoritative relative source links near the start of each file.
 - Use repository terminology and update `docs/GLOSSARY.md` if canonical
   vocabulary changes.
@@ -179,6 +185,9 @@ Run checks proportional to the categories touched:
 - Compare mounted service names and auth policies with `API.Handlers()` and
   `API.OperatorHandlers()`; do not reconstruct an endpoint reference.
 - Verify relevant ADR/FDR links and `docs/architecture/INDEX.md` navigation.
+- Scan edited inventory prose for paragraphs over 100 words and shorten or
+  restructure any that do not have a clear reason to remain long. Tables and
+  compact lists are exempt.
 - Run `mise license-check` when files were added or moved across license
   boundaries.
 
