@@ -523,6 +523,41 @@ test.describe('Notification Dismissal', () => {
 });
 
 test.describe('Navigation from Notifications', () => {
+  test('returns to the originating room with browser back and the header arrow', async ({
+    page,
+    chatPage,
+    notificationsPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('announcements');
+    const originatingRoomUrl = page.url();
+
+    await notificationsPage.goto();
+    await page.goBack();
+    await expect(page).toHaveURL(originatingRoomUrl);
+
+    await notificationsPage.goto();
+    await notificationsPage.backButton.click();
+    await expect(page).toHaveURL(originatingRoomUrl);
+  });
+
+  test('returns to the last room from a direct notifications entry', async ({
+    page,
+    chatPage,
+    notificationsPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('announcements');
+    const lastRoomUrl = page.url();
+
+    await notificationsPage.gotoDirectly();
+    await notificationsPage.backButton.click();
+
+    await expect(page).toHaveURL(lastRoomUrl);
+  });
+
   test('clicking mention notification navigates to the room', async ({
     page,
     chatPage,

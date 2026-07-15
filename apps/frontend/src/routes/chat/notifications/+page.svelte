@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import * as m from '$lib/i18n/messages';
@@ -17,6 +18,25 @@
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
+  let canReturnThroughHistory = false;
+
+  afterNavigate(({ from, type }) => {
+    canReturnThroughHistory =
+      type !== 'enter' &&
+      from !== null &&
+      from.url.origin === window.location.origin &&
+      (from.route.id === '/chat' || from.route.id?.startsWith('/chat/') === true) &&
+      from.route.id !== '/chat/notifications';
+  });
+
+  function handleBack() {
+    if (canReturnThroughHistory) {
+      history.back();
+      return;
+    }
+
+    void goto(resolve('/chat'), { replaceState: true });
+  }
 
   // Collect notification stores from all authenticated instances
   type ServerNotification = {
@@ -151,6 +171,8 @@
   <PaneHeader
     title={m['chat.notifications.title']()}
     subtitle={m['chat.notifications.subtitle']()}
+    onBack={handleBack}
+    backLabel={m['chat.notifications.back_to_chat']()}
     showMobileNav
   >
     {#snippet actions()}

@@ -29,6 +29,11 @@ export class NotificationsPage {
     return this.page.getByRole('heading', { name: 'Notifications' });
   }
 
+  /** Return to the chat view that opened the notifications page. */
+  get backButton(): Locator {
+    return this.page.getByRole('button', { name: 'Back to chat' });
+  }
+
   /** The "Clear all" button */
   get clearAllButton(): Locator {
     return this.page.getByRole('button', { name: 'Clear all' });

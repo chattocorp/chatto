@@ -499,6 +499,7 @@ const msg_error_page_missing_media_title = (): LocalizedString => messages().err
 const msg_error_page_missing_media_description = (): LocalizedString => messages().error_page_missing_media_description(empty());
 const msg_chat_notifications_title = (): LocalizedString => messages().chat_notifications_title(empty());
 const msg_chat_notifications_subtitle = (): LocalizedString => messages().chat_notifications_subtitle(empty());
+const msg_chat_notifications_back_to_chat = (): LocalizedString => messages().chat_notifications_back_to_chat(empty());
 const msg_chat_notifications_clear_all = (): LocalizedString => messages().chat_notifications_clear_all(empty());
 const msg_chat_notifications_empty_title = (): LocalizedString => messages().chat_notifications_empty_title(empty());
 const msg_chat_notifications_empty_body = (): LocalizedString => messages().chat_notifications_empty_body(empty());
@@ -1902,6 +1903,7 @@ export { msg_error_page_missing_media_title as 'error_page.missing_media_title' 
 export { msg_error_page_missing_media_description as 'error_page.missing_media_description' };
 export { msg_chat_notifications_title as 'chat.notifications.title' };
 export { msg_chat_notifications_subtitle as 'chat.notifications.subtitle' };
+export { msg_chat_notifications_back_to_chat as 'chat.notifications.back_to_chat' };
 export { msg_chat_notifications_clear_all as 'chat.notifications.clear_all' };
 export { msg_chat_notifications_empty_title as 'chat.notifications.empty_title' };
 export { msg_chat_notifications_empty_body as 'chat.notifications.empty_body' };

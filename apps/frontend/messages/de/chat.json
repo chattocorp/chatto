@@ -4,6 +4,7 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",
+      "back_to_chat": "Zurück zum Chat",
       "clear_all": "Alle löschen",
       "empty_title": "Keine Benachrichtigungen",
       "empty_body": "Du bist auf dem neuesten Stand!",
