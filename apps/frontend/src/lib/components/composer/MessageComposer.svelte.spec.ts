@@ -575,6 +575,8 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => {
         expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
       });
+      expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+      expect(editor.textContent).toBe('');
       expect(mutationMock).not.toHaveBeenCalled();
     });
 
