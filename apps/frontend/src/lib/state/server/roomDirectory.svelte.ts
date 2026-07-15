@@ -1,9 +1,11 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { RoomDirectoryAPI, DirectoryRoomSummary } from '$lib/api-client/roomDirectory';
+import type { DirectoryRoomSummary, RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import { RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import type { UserAvatarUserView } from '$lib/render/types';
 import type { RoomEventKindSource } from '$lib/render/eventKinds';
-import { isRoomStateRefreshEvent } from './rooms.svelte';
+import { avatarUserFromDirectoryMember, isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;
@@ -12,6 +14,11 @@ export type DirectoryRoom = {
   archived: boolean;
   isUniversal: boolean;
   viewerCanJoinRoom: boolean;
+};
+
+export type DirectoryRoomJoinPreview = {
+  memberCount: number;
+  sampleMembers: UserAvatarUserView[];
 };
 
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
@@ -69,6 +76,7 @@ export class RoomDirectoryStore {
 
   constructor(
     private readonly roomDirectoryAPI: Pick<RoomDirectoryAPI, 'listRooms'>,
+    private readonly memberDirectoryAPI: Pick<MemberDirectoryAPI, 'listRoomMembers'>,
     private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>
   ) {}
 
@@ -88,6 +96,23 @@ export class RoomDirectoryStore {
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.isLoading = false;
+  }
+
+  /**
+   * Loads the first five alphabetically sorted room members and the exact
+   * total from the ordinary paginated member listing. Availability remains
+   * best-effort so a failed read never prevents the user from joining.
+   */
+  async loadJoinPreview(roomId: string): Promise<DirectoryRoomJoinPreview | null> {
+    try {
+      const page = await this.memberDirectoryAPI.listRoomMembers(roomId, '', 5, 0);
+      return {
+        memberCount: page.totalCount,
+        sampleMembers: page.members.map(avatarUserFromDirectoryMember)
+      };
+    } catch {
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------------------

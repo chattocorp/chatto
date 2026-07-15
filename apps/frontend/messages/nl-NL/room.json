@@ -21,6 +21,15 @@
       "action": "Sluit je aan bij een ruimte",
       "prompt": "Sluit je aan bij #{room} om deze kamer te lezen en eraan deel te nemen.",
       "inline_prompt": "Sluit je aan bij deze chatruimte om te lezen en deel te nemen.",
+      "group_label": "In {group}",
+      "member_preview_label": "Leden van de ruimte",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": { "countPlural=one": "{count} lid", "countPlural=other": "{count} leden" }
+        }
+      ],
       "success": "Lid geworden van #{room}",
       "success_generic": "Aangesloten ruimte",
       "failed": "Kan niet deelnemen aan de chatruimte",
@@ -103,13 +112,8 @@
     "system_events": {
       "joined": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "kwam naar de kamer",
             "countPlural=other": "kwam naar de kamer"
@@ -118,13 +122,8 @@
       ],
       "left": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "verliet de kamer",
             "countPlural=other": "verliet de kamer"
@@ -136,13 +135,8 @@
       "and": "en",
       "other_people": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "anders",
             "countPlural=other": "anderen"

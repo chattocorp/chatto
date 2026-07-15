@@ -21,6 +21,18 @@
       "action": "Приєднатися до кімнати",
       "prompt": "Приєднуйтесь до #{room}, щоб читати та брати участь у цій кімнаті.",
       "inline_prompt": "Приєднуйтеся до цієї кімнати, щоб читати та брати участь.",
+      "group_label": "У групі {group}",
+      "member_preview_label": "Учасники кімнати",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} учасник",
+            "countPlural=other": "{count} учасників"
+          }
+        }
+      ],
       "success": "Приєднався до #{room}",
       "success_generic": "Приєднався до кімнати",
       "failed": "Не вдалося приєднатися до кімнати",
@@ -103,13 +115,8 @@
     "system_events": {
       "joined": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "приєднався до кімнати",
             "countPlural=few": "приєдналися до кімнати",
@@ -120,13 +127,8 @@
       ],
       "left": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "залишив кімнату",
             "countPlural=few": "залишили кімнату",
@@ -140,13 +142,8 @@
       "and": "і",
       "other_people": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "інша людина",
             "countPlural=few": "інші людини",

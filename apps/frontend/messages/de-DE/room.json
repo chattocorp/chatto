@@ -21,6 +21,18 @@
       "action": "Raum beitreten",
       "prompt": "Tritt #{room} bei, um diesen Raum zu lesen und daran teilzunehmen.",
       "inline_prompt": "Tritt diesem Raum bei, um ihn zu lesen und daran teilzunehmen.",
+      "group_label": "In {group}",
+      "member_preview_label": "Raummitglieder",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} Mitglied",
+            "countPlural=other": "{count} Mitglieder"
+          }
+        }
+      ],
       "success": "#{room} beigetreten",
       "success_generic": "Raum beigetreten",
       "failed": "Raum konnte nicht beigetreten werden",

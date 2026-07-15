@@ -3983,7 +3983,7 @@ func TestUserServiceListUsers(t *testing.T) {
 	}
 }
 
-func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
+func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("room-members-room")
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-alice", "Room Alice", "password")
@@ -4011,14 +4011,29 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); err != nil {
+		t.Fatalf("joinable outsider ListMembers: %v", err)
 	}
 	if _, err := env.rooms.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider GetMember code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	}
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("join-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.ClearRoomPermissionState(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("ClearRoomPermissionState room.join: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission room.list: %v", err)
+	}
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("list-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), req)
@@ -4054,6 +4069,56 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	gotBatch := batchResp.Msg.GetMembers()
 	if len(gotBatch) != 2 || gotBatch[0].GetUser().GetId() != member.Id || gotBatch[1].GetUser().GetId() != env.viewer.Id {
 		t.Fatalf("BatchGetMembers members = %+v, want member,viewer", gotBatch)
+	}
+}
+
+func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "member-preview-page", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "member-preview-caller", "Preview Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	members := []struct {
+		login       string
+		displayName string
+	}{
+		{login: "preview-zulu", displayName: "Zulu"},
+		{login: "preview-alice", displayName: "alice"},
+		{login: "preview-bob", displayName: "Bob"},
+		{login: "preview-charlie", displayName: "charlie"},
+		{login: "preview-delta", displayName: "Delta"},
+		{login: "preview-echo", displayName: "echo"},
+	}
+	for _, input := range members {
+		member, err := env.core.CreateUser(env.ctx, core.SystemActorID, input.login, input.displayName, "password")
+		if err != nil {
+			t.Fatalf("CreateUser %s: %v", input.login, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", input.login, err)
+		}
+	}
+
+	resp, err := env.rooms.ListMembers(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomMembersRequest{
+		RoomId: room.Id,
+		Page:   &apiv1.PageRequest{Limit: 5},
+	}))
+	if err != nil {
+		t.Fatalf("ListMembers: %v", err)
+	}
+	if page := resp.Msg.GetPage(); page.GetTotalCount() != 6 || !page.GetHasMore() {
+		t.Fatalf("ListMembers page = %+v, want total 6 and has_more", page)
+	}
+	gotNames := make([]string, len(resp.Msg.GetMembers()))
+	for i, member := range resp.Msg.GetMembers() {
+		gotNames[i] = member.GetUser().GetDisplayName()
+	}
+	if got, want := strings.Join(gotNames, ","), "alice,Bob,charlie,Delta,echo"; got != want {
+		t.Fatalf("ListMembers names = %q, want %q", got, want)
 	}
 }
 

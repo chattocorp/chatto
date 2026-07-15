@@ -426,7 +426,9 @@ func (x *BatchGetUsersResponse) GetUsers() []*DirectoryMember {
 // Request for members of one room.
 type ListRoomMembersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room whose explicit members should be listed.
+	// Required. Room whose effective members should be listed. Existing members
+	// may list their room; nonmembers of a channel room need both room.list and
+	// room.join.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,2,opt,name=search,proto3" json:"search,omitempty"`

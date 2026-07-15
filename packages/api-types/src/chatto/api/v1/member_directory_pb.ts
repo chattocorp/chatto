@@ -352,7 +352,9 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
  */
 export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
   /**
-   * Required. Room whose explicit members should be listed.
+   * Required. Room whose effective members should be listed. Existing members
+   * may list their room; nonmembers of a channel room need both room.list and
+   * room.join.
    *
    * @generated from field: string room_id = 1;
    */

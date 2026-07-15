@@ -21,6 +21,15 @@
       "action": "Dołącz do pokoju",
       "prompt": "Dołącz do #{room}, aby czytać i uczestniczyć w tym pokoju.",
       "inline_prompt": "Dołącz do tego pokoju, aby czytać i brać udział.",
+      "group_label": "W {group}",
+      "member_preview_label": "Członkowie pokoju",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": { "countPlural=one": "{count} członek", "countPlural=other": "{count} członków" }
+        }
+      ],
       "success": "Dołączył do #{room}",
       "success_generic": "Dołączył do pokoju",
       "failed": "Nie udało się dołączyć do pokoju",
@@ -103,13 +112,8 @@
     "system_events": {
       "joined": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "dołączył do pokoju",
             "countPlural=few": "dołączyli do pokoju",
@@ -120,13 +124,8 @@
       ],
       "left": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "opuścił pokój",
             "countPlural=few": "opuścili pokój",
@@ -140,13 +139,8 @@
       "and": "i",
       "other_people": [
         {
-          "declarations": [
-            "input count",
-            "local countPlural = count: plural"
-          ],
-          "selectors": [
-            "countPlural"
-          ],
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
           "match": {
             "countPlural=one": "inna osoba",
             "countPlural=few": "inne osoby",

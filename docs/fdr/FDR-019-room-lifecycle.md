@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-04
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -12,6 +12,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
+- **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal and `#general` as a normal channel room in the default Lobby group.
 - **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
@@ -85,12 +86,19 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Why:** Operators often need "everyone can see this channel" behavior without writing per-user membership events for every current and future server member. Deriving membership keeps the event log compact and makes disabling Universal restore the previous explicit membership state.
 **Tradeoff:** Member-derived surfaces such as member lists, mentions, unread state, attachment access, voice calls, and live event delivery must use effective membership rather than the explicit membership projection alone.
 
+### 11. Member listing follows membership or discovery-and-join eligibility
+
+**Decision:** Existing room members may list the room's effective members. A channel-room non-member may list them only when both `room.list` and `room.join` allow it at that room. DMs remain membership-only. The pre-join screen requests the first five alphabetically sorted members and uses the list's total count for its compact preview.
+**Why:** Room membership is an existing paginated resource and should use its own authorization contract instead of adding a preview-specific shape to room-directory reads. Requiring both discovery and join eligibility limits nonmember access to rooms they can knowingly enter.
+**Tradeoff:** An eligible nonmember can paginate the full member directory even though the join screen displays only five samples. Messages, files, activity, and other membership-gated room content remain inaccessible until joining.
+
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
 - `room.manage` — edit, archive, unarchive, delete, change Universal state, and add/remove explicit members for a channel room. Configurable per group and per room.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
+- `room.list` + `room.join` — together allow a channel-room nonmember to list its effective members. Existing members do not need these grants for member listing.
 
 ## Related
 

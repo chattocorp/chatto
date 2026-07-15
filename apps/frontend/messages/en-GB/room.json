@@ -21,6 +21,18 @@
       "action": "Join Room",
       "prompt": "Join #{room} to read and participate in this room.",
       "inline_prompt": "Join this room to read and participate.",
+      "group_label": "In {group}",
+      "member_preview_label": "Room members",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} member",
+            "countPlural=other": "{count} members"
+          }
+        }
+      ],
       "success": "Joined #{room}",
       "success_generic": "Joined room",
       "failed": "Failed to join room",

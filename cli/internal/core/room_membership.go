@@ -695,7 +695,46 @@ func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, room
 	if err != nil {
 		return nil, err
 	}
-	memberships, err := c.GetRoomMembersList(ctx, kind, room.GetId())
+	return c.roomMemberReferences(ctx, kind, room.GetId())
+}
+
+// ListRoomMemberReferencesForList authorizes the public room-member listing.
+// Existing members may list their room. A channel-room nonmember may list only
+// when both room.list and room.join resolve to allow at that room; DMs retain
+// their membership-only privacy boundary.
+func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err == nil {
+		return c.roomMemberReferences(ctx, kind, room.GetId())
+	}
+	if !errors.Is(err, ErrNotRoomMember) {
+		return nil, err
+	}
+
+	room, err = c.FindRoomByID(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	kind = KindOfRoom(room)
+	if kind == KindDM || room.GetArchived() {
+		return nil, ErrNotRoomMember
+	}
+	canList, err := c.hasRoomPermission(ctx, kind, room.GetId(), actorID, PermRoomList)
+	if err != nil {
+		return nil, err
+	}
+	canJoin, err := c.CanJoinRoomAt(ctx, actorID, kind, room.GetId())
+	if err != nil {
+		return nil, err
+	}
+	if !canList || !canJoin {
+		return nil, ErrPermissionDenied
+	}
+	return c.roomMemberReferences(ctx, kind, room.GetId())
+}
+
+func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, roomID string) ([]*corev1.User, error) {
+	memberships, err := c.GetRoomMembersList(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
 	}
