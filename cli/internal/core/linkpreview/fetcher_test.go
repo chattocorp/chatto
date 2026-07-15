@@ -1,7 +1,11 @@
 package linkpreview
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"strings"
@@ -50,7 +54,13 @@ func TestFetchBlueskyPost(t *testing.T) {
 					"uri":"`+atURI+`",
 					"author":{"displayName":"Bluesky","handle":"bsky.app"},
 					"record":{"text":"A post with & character.","createdAt":"2024-04-15T21:48:40.709Z"},
-					"embed":{}
+					"embed":{"$type":"app.bsky.embed.record#view","record":{
+						"$type":"app.bsky.embed.record#viewRecord",
+						"uri":"at://did:plc:quoted/app.bsky.feed.post/quote123",
+						"author":{"displayName":"Quoted author","handle":"quoted.example"},
+						"value":{"text":"Quoted words","createdAt":"2024-04-15T20:00:00.000Z"},
+						"embeds":[]
+					}}
 				}]}`), nil
 			default:
 				t.Fatalf("unexpected request host %q", req.URL.Host)
@@ -68,12 +78,94 @@ func TestFetchBlueskyPost(t *testing.T) {
 	assert.Equal(t, atURI, result.EmbedID)
 	require.NotNil(t, result.SocialPost)
 	assert.Equal(t, "bluesky", result.SocialPost.Provider)
+	assert.Equal(t, postURL, result.SocialPost.Url)
 	assert.Equal(t, "A post with & character.", result.SocialPost.Text)
 	require.NotNil(t, result.SocialPost.Author)
 	assert.Equal(t, "Bluesky", result.SocialPost.Author.DisplayName)
 	assert.Equal(t, "bsky.app", result.SocialPost.Author.Handle)
 	require.NotNil(t, result.SocialPost.PublishedAt)
+	require.NotNil(t, result.SocialPost.QuotedPost)
+	assert.Equal(t, "Quoted words", result.SocialPost.QuotedPost.Text)
+	assert.Equal(t, "https://bsky.app/profile/quoted.example/post/quote123", result.SocialPost.QuotedPost.Url)
 	assert.Equal(t, result.SocialPost, result.ToProto(postURL).GetSocialPost())
+}
+
+func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
+	var pngData bytes.Buffer
+	require.NoError(t, png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 1, 1))))
+	assetNumber := 0
+	assetsConfig := assets.DefaultConfig()
+	fetcher := &Fetcher{
+		logger:       log.New(io.Discard),
+		assetsConfig: &assetsConfig,
+		newAssetID: func() string {
+			assetNumber++
+			return fmt.Sprintf("asset-%d", assetNumber)
+		},
+		imageClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			return response(http.StatusOK, "image/png", pngData.String()), nil
+		})},
+		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*corev1.AssetRecord, error) {
+			return &corev1.AssetRecord{
+				Id:      assetID,
+				Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			}, nil
+		},
+	}
+	snapshot := &corev1.SocialPostPreview{Provider: "bluesky"}
+	embed := &blueskyEmbed{Record: &blueskyRecordView{
+		URI:    "at://did:plc:quoted/app.bsky.feed.post/quote123",
+		Author: blueskyAuthor{DisplayName: "Quoted author", Handle: "quoted.example"},
+		Value:  blueskyRecord{Text: "Quoted words", CreatedAt: "2026-07-15T14:50:19.560Z"},
+		Embeds: []blueskyEmbed{{Images: []blueskyImage{{
+			Fullsize: "https://cdn.example/quote.png",
+			Alt:      "A quoted attachment",
+		}}}},
+	}}
+	budget := socialPostImageBudget{bytesRemaining: MaxSocialPostImageBytes, fetchesRemaining: MaxSocialPostImageFetches}
+
+	fetcher.applyBlueskyEmbed(context.Background(), snapshot, embed, &budget, true)
+
+	require.NotNil(t, snapshot.QuotedPost)
+	assert.Equal(t, "https://bsky.app/profile/quoted.example/post/quote123", snapshot.QuotedPost.Url)
+	assert.Equal(t, "Quoted words", snapshot.QuotedPost.Text)
+	require.Len(t, snapshot.QuotedPost.Images, 1)
+	assert.Equal(t, "A quoted attachment", snapshot.QuotedPost.Images[0].Alt)
+	assert.Equal(t, "asset-1", snapshot.QuotedPost.Images[0].GetAsset().GetId())
+}
+
+func TestApplyBlueskyRecordWithMediaIncludesDirectMediaAndQuote(t *testing.T) {
+	snapshot := &corev1.SocialPostPreview{Provider: "bluesky"}
+	embed := &blueskyEmbed{
+		Media: &blueskyEmbed{External: &blueskyExternal{URI: "https://example.com/story", Title: "Story"}},
+		Record: &blueskyRecordView{Record: &blueskyRecordView{
+			URI:    "at://did:plc:quoted/app.bsky.feed.post/quote123",
+			Author: blueskyAuthor{Handle: "quoted.example"},
+			Value:  blueskyRecord{Text: "Quoted words"},
+		}},
+	}
+	fetcher := &Fetcher{logger: log.New(io.Discard)}
+	budget := socialPostImageBudget{}
+
+	fetcher.applyBlueskyEmbed(context.Background(), snapshot, embed, &budget, true)
+
+	require.NotNil(t, snapshot.ExternalLink)
+	assert.Equal(t, "https://example.com/story", snapshot.ExternalLink.Url)
+	require.NotNil(t, snapshot.QuotedPost)
+	assert.Equal(t, "Quoted words", snapshot.QuotedPost.Text)
+}
+
+func TestBlueskyRecordSnapshotBuildsURLBeforeTruncatingHandle(t *testing.T) {
+	handle := strings.Repeat("a", 210) + ".example"
+	snapshot := blueskyRecordSnapshot(&blueskyRecordView{
+		URI:    "at://did:plc:quoted/app.bsky.feed.post/quote123",
+		Author: blueskyAuthor{Handle: handle},
+		Value:  blueskyRecord{Text: "Quoted words"},
+	})
+
+	require.NotNil(t, snapshot)
+	assert.Len(t, snapshot.Author.Handle, 200)
+	assert.Equal(t, "https://bsky.app/profile/"+handle+"/post/quote123", snapshot.Url)
 }
 
 func TestFetchBlueskyPostFallsBackToOpenGraph(t *testing.T) {

@@ -57,6 +57,12 @@ message SocialPostPreview {
   SocialPostExternalLink external_link = 6;
   // Provider-supplied content warning, when present.
   optional string content_warning = 7;
+  // Canonical URL for this post. Always set for quoted posts; the outer post
+  // may also use LinkPreview.url.
+  string url = 8;
+  // Post quoted by this post, when present. Quotes inside this snapshot are
+  // omitted so preview size and rendering depth remain bounded.
+  SocialPostPreview quoted_post = 9;
 }
 
 // Author shown on a social-post preview.

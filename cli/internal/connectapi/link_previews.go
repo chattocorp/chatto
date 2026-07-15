@@ -78,40 +78,51 @@ func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 		out.EmbedId = stringPtr(embedID)
 	}
 	if socialPost := socialPostPreview(preview); socialPost != nil {
-		mapped := &apiv1.SocialPostPreview{
-			Provider:       socialPost.GetProvider(),
-			Text:           socialPost.GetText(),
-			PublishedAt:    socialPost.GetPublishedAt(),
-			ContentWarning: optionalString(socialPost.GetContentWarning()),
-		}
-		if author := socialPost.GetAuthor(); author != nil {
-			mapped.Author = &apiv1.SocialPostAuthor{
-				DisplayName: author.GetDisplayName(),
-				Handle:      author.GetHandle(),
-			}
-			mapped.Author.AvatarUrl, mapped.Author.AvatarAssetId = linkPreviewAsset(api, author.GetAvatarAsset(), 96, 96, "cover")
-		}
-		if external := socialPost.GetExternalLink(); external != nil {
-			mapped.ExternalLink = &apiv1.SocialPostExternalLink{
-				Url:         external.GetUrl(),
-				Title:       optionalString(external.GetTitle()),
-				Description: optionalString(external.GetDescription()),
-			}
-			mapped.ExternalLink.ImageUrl, mapped.ExternalLink.ImageAssetId = linkPreviewAsset(api, external.GetImageAsset(), 600, 314, "contain")
-		}
-		for _, image := range socialPost.GetImages() {
-			imageURL, assetID := linkPreviewAsset(api, image.GetAsset(), 600, 600, "contain")
-			if imageURL == nil || assetID == nil {
-				continue
-			}
-			mapped.Images = append(mapped.Images, &apiv1.SocialPostImage{
-				Url: *imageURL, AssetId: *assetID, Alt: optionalString(image.GetAlt()),
-				Width: optionalUint32(image.GetWidth()), Height: optionalUint32(image.GetHeight()),
-			})
-		}
-		out.SocialPost = mapped
+		out.SocialPost = apiSocialPostPreview(api, socialPost, 0)
 	}
 	return out
+}
+
+func apiSocialPostPreview(api *API, socialPost *corev1.SocialPostPreview, quoteDepth int) *apiv1.SocialPostPreview {
+	if socialPost == nil {
+		return nil
+	}
+	mapped := &apiv1.SocialPostPreview{
+		Provider:       socialPost.GetProvider(),
+		Text:           socialPost.GetText(),
+		PublishedAt:    socialPost.GetPublishedAt(),
+		ContentWarning: optionalString(socialPost.GetContentWarning()),
+		Url:            socialPost.GetUrl(),
+	}
+	if author := socialPost.GetAuthor(); author != nil {
+		mapped.Author = &apiv1.SocialPostAuthor{
+			DisplayName: author.GetDisplayName(),
+			Handle:      author.GetHandle(),
+		}
+		mapped.Author.AvatarUrl, mapped.Author.AvatarAssetId = linkPreviewAsset(api, author.GetAvatarAsset(), 96, 96, "cover")
+	}
+	if external := socialPost.GetExternalLink(); external != nil {
+		mapped.ExternalLink = &apiv1.SocialPostExternalLink{
+			Url:         external.GetUrl(),
+			Title:       optionalString(external.GetTitle()),
+			Description: optionalString(external.GetDescription()),
+		}
+		mapped.ExternalLink.ImageUrl, mapped.ExternalLink.ImageAssetId = linkPreviewAsset(api, external.GetImageAsset(), 600, 314, "contain")
+	}
+	for _, image := range socialPost.GetImages() {
+		imageURL, assetID := linkPreviewAsset(api, image.GetAsset(), 600, 600, "contain")
+		if imageURL == nil || assetID == nil {
+			continue
+		}
+		mapped.Images = append(mapped.Images, &apiv1.SocialPostImage{
+			Url: *imageURL, AssetId: *assetID, Alt: optionalString(image.GetAlt()),
+			Width: optionalUint32(image.GetWidth()), Height: optionalUint32(image.GetHeight()),
+		})
+	}
+	if quoteDepth == 0 {
+		mapped.QuotedPost = apiSocialPostPreview(api, socialPost.GetQuotedPost(), quoteDepth+1)
+	}
+	return mapped
 }
 
 func socialPostPreview(preview *corev1.LinkPreview) *corev1.SocialPostPreview {

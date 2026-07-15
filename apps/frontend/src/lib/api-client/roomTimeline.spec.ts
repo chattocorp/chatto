@@ -1,5 +1,10 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  LinkPreview,
+  SocialPostAuthor,
+  SocialPostPreview
+} from '@chatto/api-types/api/v1/link_previews_pb';
 import { describe, expect, it } from 'vitest';
 import { messagePostedPayload } from './roomTimeline';
 
@@ -14,5 +19,30 @@ describe('messagePostedPayload', () => {
 
   it('keeps deletedAt null when the server omits the metadata', () => {
     expect(messagePostedPayload(new Message(), {}).deletedAt).toBeNull();
+  });
+
+  it('maps one quoted social post', () => {
+    const message = new Message({
+      linkPreview: new LinkPreview({
+        url: 'https://bsky.app/profile/outer.example/post/outer',
+        socialPost: new SocialPostPreview({
+          provider: 'bluesky',
+          author: new SocialPostAuthor({ handle: 'outer.example' }),
+          text: 'Outer words.',
+          quotedPost: new SocialPostPreview({
+            provider: 'bluesky',
+            url: 'https://bsky.app/profile/quoted.example/post/quoted',
+            author: new SocialPostAuthor({ handle: 'quoted.example' }),
+            text: 'Quoted words.'
+          })
+        })
+      })
+    });
+
+    expect(messagePostedPayload(message, {}).linkPreview?.socialPost?.quotedPost).toMatchObject({
+      provider: 'bluesky',
+      url: 'https://bsky.app/profile/quoted.example/post/quoted',
+      text: 'Quoted words.'
+    });
   });
 });

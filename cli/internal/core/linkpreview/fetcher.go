@@ -215,39 +215,62 @@ type blueskyGetPosts struct {
 	Posts []blueskyPost `json:"posts"`
 }
 
+type blueskyLabel struct {
+	Value string `json:"val"`
+}
+
+type blueskyAuthor struct {
+	Handle      string         `json:"handle"`
+	DisplayName string         `json:"displayName"`
+	Avatar      string         `json:"avatar"`
+	Labels      []blueskyLabel `json:"labels"`
+}
+
+type blueskyRecord struct {
+	Text      string `json:"text"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type blueskyExternal struct {
+	URI         string `json:"uri"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Thumb       string `json:"thumb"`
+}
+
+type blueskyImage struct {
+	Fullsize    string `json:"fullsize"`
+	Alt         string `json:"alt"`
+	AspectRatio *struct {
+		Width  uint32 `json:"width"`
+		Height uint32 `json:"height"`
+	} `json:"aspectRatio"`
+}
+
+// blueskyEmbed covers the view unions returned for images, external cards,
+// quoted records, and record-with-media combinations.
+type blueskyEmbed struct {
+	External *blueskyExternal   `json:"external"`
+	Images   []blueskyImage     `json:"images"`
+	Record   *blueskyRecordView `json:"record"`
+	Media    *blueskyEmbed      `json:"media"`
+}
+
+type blueskyRecordView struct {
+	URI    string             `json:"uri"`
+	Author blueskyAuthor      `json:"author"`
+	Value  blueskyRecord      `json:"value"`
+	Labels []blueskyLabel     `json:"labels"`
+	Embeds []blueskyEmbed     `json:"embeds"`
+	Record *blueskyRecordView `json:"record"`
+}
+
 type blueskyPost struct {
-	URI    string `json:"uri"`
-	Labels []struct {
-		Value string `json:"val"`
-	} `json:"labels"`
-	Author struct {
-		Handle      string `json:"handle"`
-		DisplayName string `json:"displayName"`
-		Avatar      string `json:"avatar"`
-		Labels      []struct {
-			Value string `json:"val"`
-		} `json:"labels"`
-	} `json:"author"`
-	Record struct {
-		Text      string `json:"text"`
-		CreatedAt string `json:"createdAt"`
-	} `json:"record"`
-	Embed struct {
-		External *struct {
-			URI         string `json:"uri"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Thumb       string `json:"thumb"`
-		} `json:"external"`
-		Images []struct {
-			Fullsize    string `json:"fullsize"`
-			Alt         string `json:"alt"`
-			AspectRatio *struct {
-				Width  uint32 `json:"width"`
-				Height uint32 `json:"height"`
-			} `json:"aspectRatio"`
-		} `json:"images"`
-	} `json:"embed"`
+	URI    string         `json:"uri"`
+	Labels []blueskyLabel `json:"labels"`
+	Author blueskyAuthor  `json:"author"`
+	Record blueskyRecord  `json:"record"`
+	Embed  blueskyEmbed   `json:"embed"`
 }
 
 func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult, error) {
@@ -296,6 +319,7 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 
 	snapshot := &corev1.SocialPostPreview{
 		Provider: "bluesky",
+		Url:      rawURL,
 		Author: &corev1.SocialPostAuthor{
 			DisplayName: post.Author.DisplayName,
 			Handle:      post.Author.Handle,
@@ -312,28 +336,7 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 		bytesRemaining:   MaxSocialPostImageBytes,
 		fetchesRemaining: MaxSocialPostImageFetches,
 	}
-	if external := post.Embed.External; external != nil {
-		snapshot.ExternalLink = &corev1.SocialPostExternalLink{
-			Url:         external.URI,
-			Title:       external.Title,
-			Description: external.Description,
-		}
-	}
-	for _, image := range post.Embed.Images[:min(len(post.Embed.Images), 4)] {
-		asset := f.downloadSocialPostImage(ctx, image.Fullsize, &imageBudget)
-		if asset == nil {
-			continue
-		}
-		out := &corev1.SocialPostImage{Asset: asset, Alt: image.Alt}
-		if image.AspectRatio != nil {
-			out.Width = image.AspectRatio.Width
-			out.Height = image.AspectRatio.Height
-		}
-		snapshot.Images = append(snapshot.Images, out)
-	}
-	if external := post.Embed.External; external != nil {
-		snapshot.ExternalLink.ImageAsset = f.downloadSocialPostImage(ctx, external.Thumb, &imageBudget)
-	}
+	f.applyBlueskyEmbed(ctx, snapshot, &post.Embed, &imageBudget, true)
 	if post.Author.Avatar != "" {
 		snapshot.Author.AvatarAsset = f.downloadSocialPostImage(ctx, post.Author.Avatar, &imageBudget)
 	}
@@ -349,6 +352,10 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 		compatibilityImage = snapshot.Images[0].GetAsset()
 	} else if snapshot.ExternalLink != nil {
 		compatibilityImage = snapshot.ExternalLink.GetImageAsset()
+	} else if snapshot.QuotedPost != nil && len(snapshot.QuotedPost.Images) > 0 {
+		compatibilityImage = snapshot.QuotedPost.Images[0].GetAsset()
+	} else if snapshot.QuotedPost != nil && snapshot.QuotedPost.ExternalLink != nil {
+		compatibilityImage = snapshot.QuotedPost.ExternalLink.GetImageAsset()
 	}
 	return &FetchResult{
 		Title:       title,
@@ -359,6 +366,101 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 		EmbedID:     embedID,
 		SocialPost:  snapshot,
 	}, nil
+}
+
+func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *corev1.SocialPostPreview, embed *blueskyEmbed, budget *socialPostImageBudget, allowQuote bool) {
+	if snapshot == nil || embed == nil {
+		return
+	}
+	if embed.Media != nil {
+		f.applyBlueskyEmbed(ctx, snapshot, embed.Media, budget, false)
+	}
+	remainingImages := max(0, 4-len(snapshot.Images))
+	for _, image := range embed.Images[:min(len(embed.Images), remainingImages)] {
+		asset := f.downloadSocialPostImage(ctx, image.Fullsize, budget)
+		if asset == nil {
+			continue
+		}
+		out := &corev1.SocialPostImage{Asset: asset, Alt: truncateUTF8Bytes(image.Alt, 1000)}
+		if image.AspectRatio != nil {
+			out.Width = image.AspectRatio.Width
+			out.Height = image.AspectRatio.Height
+		}
+		snapshot.Images = append(snapshot.Images, out)
+	}
+	if external := embed.External; external != nil {
+		externalURL := safeExternalURL(truncateUTF8Bytes(external.URI, 2048))
+		if externalURL != "" {
+			snapshot.ExternalLink = &corev1.SocialPostExternalLink{
+				Url:         externalURL,
+				Title:       truncateUTF8Bytes(external.Title, 300),
+				Description: truncateUTF8Bytes(external.Description, 1000),
+				ImageAsset:  f.downloadSocialPostImage(ctx, external.Thumb, budget),
+			}
+		}
+	}
+	if !allowQuote || embed.Record == nil {
+		return
+	}
+	record := unwrapBlueskyRecordView(embed.Record)
+	if record == nil || len(record.Labels) > 0 || len(record.Author.Labels) > 0 {
+		return
+	}
+	quote := blueskyRecordSnapshot(record)
+	if quote == nil {
+		return
+	}
+	for i := range record.Embeds {
+		f.applyBlueskyEmbed(ctx, quote, &record.Embeds[i], budget, false)
+	}
+	if record.Author.Avatar != "" {
+		quote.Author.AvatarAsset = f.downloadSocialPostImage(ctx, record.Author.Avatar, budget)
+	}
+	snapshot.QuotedPost = quote
+}
+
+func unwrapBlueskyRecordView(record *blueskyRecordView) *blueskyRecordView {
+	for record != nil && record.URI == "" {
+		record = record.Record
+	}
+	return record
+}
+
+func blueskyRecordSnapshot(record *blueskyRecordView) *corev1.SocialPostPreview {
+	if record == nil || record.URI == "" || (record.Author.DisplayName == "" && record.Author.Handle == "") {
+		return nil
+	}
+	displayName := truncateUTF8Bytes(record.Author.DisplayName, 300)
+	postURL := blueskyPostURL(record.URI, record.Author.Handle)
+	handle := truncateUTF8Bytes(record.Author.Handle, 200)
+	if displayName == "" {
+		displayName = handle
+	}
+	out := &corev1.SocialPostPreview{
+		Provider: "bluesky",
+		Url:      postURL,
+		Author:   &corev1.SocialPostAuthor{DisplayName: displayName, Handle: handle},
+		Text:     truncateUTF8Bytes(record.Value.Text, 1000),
+	}
+	if out.Url == "" {
+		return nil
+	}
+	if publishedAt, err := time.Parse(time.RFC3339Nano, record.Value.CreatedAt); err == nil {
+		out.PublishedAt = timestamppb.New(publishedAt)
+	}
+	return out
+}
+
+func blueskyPostURL(atURI, handle string) string {
+	parts := strings.Split(strings.TrimPrefix(atURI, "at://"), "/")
+	if len(parts) != 3 || parts[1] != "app.bsky.feed.post" || !validBlueskyRecordKey.MatchString(parts[2]) {
+		return ""
+	}
+	profile := handle
+	if profile == "" {
+		profile = parts[0]
+	}
+	return "https://bsky.app/profile/" + url.PathEscape(profile) + "/post/" + url.PathEscape(parts[2])
 }
 
 func (f *Fetcher) fetchBlueskyPost(ctx context.Context, atURI string) (*blueskyPost, error) {

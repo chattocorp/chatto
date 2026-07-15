@@ -1884,8 +1884,11 @@ type SocialPostPreview struct {
 	Images         []*SocialPostImage      `protobuf:"bytes,5,rep,name=images,proto3" json:"images,omitempty"`
 	ExternalLink   *SocialPostExternalLink `protobuf:"bytes,6,opt,name=external_link,json=externalLink,proto3" json:"external_link,omitempty"`
 	ContentWarning *string                 `protobuf:"bytes,7,opt,name=content_warning,json=contentWarning,proto3,oneof" json:"content_warning,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Url            string                  `protobuf:"bytes,8,opt,name=url,proto3" json:"url,omitempty"`
+	// One quoted post. Nested quotes inside this snapshot are omitted.
+	QuotedPost    *SocialPostPreview `protobuf:"bytes,9,opt,name=quoted_post,json=quotedPost,proto3" json:"quoted_post,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SocialPostPreview) Reset() {
@@ -1965,6 +1968,20 @@ func (x *SocialPostPreview) GetContentWarning() string {
 		return *x.ContentWarning
 	}
 	return ""
+}
+
+func (x *SocialPostPreview) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetQuotedPost() *SocialPostPreview {
+	if x != nil {
+		return x.QuotedPost
+	}
+	return nil
 }
 
 // SocialPostAuthor identifies the author shown on a social-post preview.
@@ -2894,7 +2911,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\fexternal_url\x18\x05 \x01(\tR\vexternalUrl\x12%\n" +
 	"\x0eexternal_title\x18\x06 \x01(\tR\rexternalTitle\x121\n" +
 	"\x14external_description\x18\a \x01(\tR\x13externalDescription\x12M\n" +
-	"\x14external_image_asset\x18\b \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x12externalImageAsset\"\x84\x03\n" +
+	"\x14external_image_asset\x18\b \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x12externalImageAsset\"\xda\x03\n" +
 	"\x11SocialPostPreview\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x128\n" +
 	"\x06author\x18\x02 \x01(\v2 .chatto.core.v1.SocialPostAuthorR\x06author\x12\x12\n" +
@@ -2902,7 +2919,10 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x127\n" +
 	"\x06images\x18\x05 \x03(\v2\x1f.chatto.core.v1.SocialPostImageR\x06images\x12K\n" +
 	"\rexternal_link\x18\x06 \x01(\v2&.chatto.core.v1.SocialPostExternalLinkR\fexternalLink\x12,\n" +
-	"\x0fcontent_warning\x18\a \x01(\tH\x00R\x0econtentWarning\x88\x01\x01B\x12\n" +
+	"\x0fcontent_warning\x18\a \x01(\tH\x00R\x0econtentWarning\x88\x01\x01\x12\x10\n" +
+	"\x03url\x18\b \x01(\tR\x03url\x12B\n" +
+	"\vquoted_post\x18\t \x01(\v2!.chatto.core.v1.SocialPostPreviewR\n" +
+	"quotedPostB\x12\n" +
 	"\x10_content_warning\"\x8d\x01\n" +
 	"\x10SocialPostAuthor\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x16\n" +
@@ -3065,23 +3085,24 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	34, // 27: chatto.core.v1.SocialPostPreview.published_at:type_name -> google.protobuf.Timestamp
 	25, // 28: chatto.core.v1.SocialPostPreview.images:type_name -> chatto.core.v1.SocialPostImage
 	26, // 29: chatto.core.v1.SocialPostPreview.external_link:type_name -> chatto.core.v1.SocialPostExternalLink
-	13, // 30: chatto.core.v1.SocialPostAuthor.avatar_asset:type_name -> chatto.core.v1.AssetRecord
-	13, // 31: chatto.core.v1.SocialPostImage.asset:type_name -> chatto.core.v1.AssetRecord
-	13, // 32: chatto.core.v1.SocialPostExternalLink.image_asset:type_name -> chatto.core.v1.AssetRecord
-	21, // 33: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
-	31, // 34: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
-	3,  // 35: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
-	30, // 36: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
-	29, // 37: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
-	2,  // 38: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
-	33, // 39: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
-	19, // 40: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
-	19, // 41: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
-	42, // [42:42] is the sub-list for method output_type
-	42, // [42:42] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	23, // 30: chatto.core.v1.SocialPostPreview.quoted_post:type_name -> chatto.core.v1.SocialPostPreview
+	13, // 31: chatto.core.v1.SocialPostAuthor.avatar_asset:type_name -> chatto.core.v1.AssetRecord
+	13, // 32: chatto.core.v1.SocialPostImage.asset:type_name -> chatto.core.v1.AssetRecord
+	13, // 33: chatto.core.v1.SocialPostExternalLink.image_asset:type_name -> chatto.core.v1.AssetRecord
+	21, // 34: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
+	31, // 35: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
+	3,  // 36: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
+	30, // 37: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
+	29, // 38: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
+	2,  // 39: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
+	33, // 40: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
+	19, // 41: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
+	19, // 42: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_models_proto_init() }

@@ -48,7 +48,7 @@ Chatto fetches link-preview metadata when a user composes a message with a URL. 
 
 The fetcher is designed to be SSRF-safe and caches successful and failed lookups for bounded periods. Operators do not need a separate preview worker.
 
-Supported public social-post URLs render as native Chatto cards. Provider adapters capture a bounded, common snapshot containing the provider, author, post text, attached images, and any embedded website card. Bluesky is the first supported provider and is resolved through its oEmbed and public post APIs. Images are persisted through the configured asset backend, and clients render the stored snapshot without contacting the provider. If structured discovery fails while composing the message, Chatto falls back to the ordinary link-preview card when OpenGraph metadata is available.
+Supported public social-post URLs render as native Chatto cards. Provider adapters capture a bounded, common snapshot containing the provider, author, post text, attached images, any embedded website card, and at most one quoted post with its media. Bluesky is the first supported provider and is resolved through its oEmbed and public post APIs. Images are persisted through the configured asset backend, and clients render the stored snapshot without contacting the provider. If structured discovery fails while composing the message, Chatto falls back to the ordinary link-preview card when OpenGraph metadata is available.
 
 ## Storage Backend Choice
 

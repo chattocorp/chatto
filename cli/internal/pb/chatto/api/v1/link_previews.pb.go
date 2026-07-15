@@ -209,8 +209,14 @@ type SocialPostPreview struct {
 	ExternalLink *SocialPostExternalLink `protobuf:"bytes,6,opt,name=external_link,json=externalLink,proto3" json:"external_link,omitempty"`
 	// Provider-supplied content warning, when present.
 	ContentWarning *string `protobuf:"bytes,7,opt,name=content_warning,json=contentWarning,proto3,oneof" json:"content_warning,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Canonical URL for this post. Always set for quoted posts; the outer post
+	// may also use LinkPreview.url.
+	Url string `protobuf:"bytes,8,opt,name=url,proto3" json:"url,omitempty"`
+	// Post quoted by this post, when present. Quotes inside this snapshot are
+	// omitted so preview size and rendering depth remain bounded.
+	QuotedPost    *SocialPostPreview `protobuf:"bytes,9,opt,name=quoted_post,json=quotedPost,proto3" json:"quoted_post,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SocialPostPreview) Reset() {
@@ -290,6 +296,20 @@ func (x *SocialPostPreview) GetContentWarning() string {
 		return *x.ContentWarning
 	}
 	return ""
+}
+
+func (x *SocialPostPreview) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetQuotedPost() *SocialPostPreview {
+	if x != nil {
+		return x.QuotedPost
+	}
+	return nil
 }
 
 // Author shown on a social-post preview.
@@ -613,7 +633,7 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
 	"_site_nameB\r\n" +
 	"\v_embed_typeB\v\n" +
-	"\t_embed_id\"\x81\x03\n" +
+	"\t_embed_id\"\xd6\x03\n" +
 	"\x11SocialPostPreview\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x127\n" +
 	"\x06author\x18\x02 \x01(\v2\x1f.chatto.api.v1.SocialPostAuthorR\x06author\x12\x12\n" +
@@ -621,7 +641,10 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x126\n" +
 	"\x06images\x18\x05 \x03(\v2\x1e.chatto.api.v1.SocialPostImageR\x06images\x12J\n" +
 	"\rexternal_link\x18\x06 \x01(\v2%.chatto.api.v1.SocialPostExternalLinkR\fexternalLink\x12,\n" +
-	"\x0fcontent_warning\x18\a \x01(\tH\x00R\x0econtentWarning\x88\x01\x01B\x12\n" +
+	"\x0fcontent_warning\x18\a \x01(\tH\x00R\x0econtentWarning\x88\x01\x01\x12\x10\n" +
+	"\x03url\x18\b \x01(\tR\x03url\x12A\n" +
+	"\vquoted_post\x18\t \x01(\v2 .chatto.api.v1.SocialPostPreviewR\n" +
+	"quotedPostB\x12\n" +
 	"\x10_content_warning\"\xc1\x01\n" +
 	"\x10SocialPostAuthor\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x16\n" +
@@ -685,12 +708,13 @@ var file_chatto_api_v1_link_previews_proto_depIdxs = []int32{
 	7, // 2: chatto.api.v1.SocialPostPreview.published_at:type_name -> google.protobuf.Timestamp
 	4, // 3: chatto.api.v1.SocialPostPreview.images:type_name -> chatto.api.v1.SocialPostImage
 	5, // 4: chatto.api.v1.SocialPostPreview.external_link:type_name -> chatto.api.v1.SocialPostExternalLink
-	1, // 5: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2, // 5: chatto.api.v1.SocialPostPreview.quoted_post:type_name -> chatto.api.v1.SocialPostPreview
+	1, // 6: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_link_previews_proto_init() }

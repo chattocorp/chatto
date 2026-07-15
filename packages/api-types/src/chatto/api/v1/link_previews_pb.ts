@@ -212,6 +212,22 @@ export class SocialPostPreview extends Message<SocialPostPreview> {
    */
   contentWarning?: string;
 
+  /**
+   * Canonical URL for this post. Always set for quoted posts; the outer post
+   * may also use LinkPreview.url.
+   *
+   * @generated from field: string url = 8;
+   */
+  url = "";
+
+  /**
+   * Post quoted by this post, when present. Quotes inside this snapshot are
+   * omitted so preview size and rendering depth remain bounded.
+   *
+   * @generated from field: chatto.api.v1.SocialPostPreview quoted_post = 9;
+   */
+  quotedPost?: SocialPostPreview;
+
   constructor(data?: PartialMessage<SocialPostPreview>) {
     super();
     proto3.util.initPartial(data, this);
@@ -227,6 +243,8 @@ export class SocialPostPreview extends Message<SocialPostPreview> {
     { no: 5, name: "images", kind: "message", T: SocialPostImage, repeated: true },
     { no: 6, name: "external_link", kind: "message", T: SocialPostExternalLink },
     { no: 7, name: "content_warning", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "quoted_post", kind: "message", T: SocialPostPreview },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SocialPostPreview {

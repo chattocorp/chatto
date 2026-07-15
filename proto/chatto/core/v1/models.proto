@@ -361,6 +361,9 @@ message SocialPostPreview {
   repeated SocialPostImage images = 5;
   SocialPostExternalLink external_link = 6;
   optional string content_warning = 7;
+  string url = 8;
+  // One quoted post. Nested quotes inside this snapshot are omitted.
+  SocialPostPreview quoted_post = 9;
 }
 
 // SocialPostAuthor identifies the author shown on a social-post preview.

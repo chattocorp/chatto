@@ -2,7 +2,11 @@ import { notifyUserSummaries } from './hooks.js';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { RawEvent, EventConnectionPage, UserSummaryForCache } from './events.js';
 import { RoomEventKind } from './eventKinds.js';
-import { PresenceStatus, type RoomEventView } from './renderTypes.js';
+import {
+  PresenceStatus,
+  type RoomEventView,
+  type SocialPostPreviewView
+} from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
@@ -445,35 +449,44 @@ function linkPreviewView(preview?: LinkPreview) {
     imageUrl: preview.imageUrl || null,
     embedType: preview.embedType || null,
     embedId: preview.embedId || null,
-    socialPost: preview.socialPost
+    socialPost: socialPostPreviewView(preview.socialPost)
+  };
+}
+
+function socialPostPreviewView(
+  post?: LinkPreview['socialPost'],
+  quoteDepth = 0
+): SocialPostPreviewView | null {
+  if (!post) return null;
+  return {
+    provider: post.provider,
+    url: post.url || null,
+    author: post.author
       ? {
-          provider: preview.socialPost.provider,
-          author: preview.socialPost.author
-            ? {
-                displayName: preview.socialPost.author.displayName,
-                handle: preview.socialPost.author.handle,
-                avatarUrl: preview.socialPost.author.avatarUrl || null
-              }
-            : null,
-          text: preview.socialPost.text,
-          publishedAt: timestampToISOOrNull(preview.socialPost.publishedAt),
-          externalLink: preview.socialPost.externalLink
-            ? {
-                url: preview.socialPost.externalLink.url,
-                title: preview.socialPost.externalLink.title || null,
-                description: preview.socialPost.externalLink.description || null,
-                imageUrl: preview.socialPost.externalLink.imageUrl || null
-              }
-            : null,
-          contentWarning: preview.socialPost.contentWarning || null,
-          images: preview.socialPost.images.map((image) => ({
-            url: image.url,
-            alt: image.alt || null,
-            width: image.width || null,
-            height: image.height || null
-          }))
+          displayName: post.author.displayName,
+          handle: post.author.handle,
+          avatarUrl: post.author.avatarUrl || null
         }
-      : null
+      : null,
+    text: post.text,
+    publishedAt: timestampToISOOrNull(post.publishedAt),
+    externalLink: post.externalLink
+      ? {
+          url: post.externalLink.url,
+          title: post.externalLink.title || null,
+          description: post.externalLink.description || null,
+          imageUrl: post.externalLink.imageUrl || null
+        }
+      : null,
+    contentWarning: post.contentWarning || null,
+    images: post.images.map((image) => ({
+      url: image.url,
+      alt: image.alt || null,
+      width: image.width || null,
+      height: image.height || null
+    })),
+    quotedPost:
+      quoteDepth === 0 ? socialPostPreviewView(post.quotedPost, quoteDepth + 1) : null
   };
 }
 

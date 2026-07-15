@@ -13,6 +13,7 @@ type PreviewData = {
   embedId?: string | null;
   socialPost?: {
     provider: string;
+    url?: string | null;
     author?: {
       displayName: string;
       handle: string;
@@ -33,6 +34,7 @@ type PreviewData = {
       width?: number | null;
       height?: number | null;
     }>;
+    quotedPost?: PreviewData['socialPost'];
   } | null;
 };
 
@@ -119,7 +121,23 @@ describe('LinkPreviewCard', () => {
               handle: 'bsky.app'
             },
             text: 'A post rendered by Chatto.',
-            images: []
+            images: [],
+            quotedPost: {
+              provider: 'bluesky',
+              url: 'https://bsky.app/profile/quoted.example/post/quoted',
+              author: {
+                displayName: 'Quoted Author',
+                handle: 'quoted.example'
+              },
+              text: 'A quoted post with an attached image.',
+              contentWarning: 'Spoilers',
+              images: [
+                {
+                  url: 'https://example.com/quoted.jpg',
+                  alt: 'Quoted image'
+                }
+              ]
+            }
           }
         })
       }
@@ -134,6 +152,10 @@ describe('LinkPreviewCard', () => {
     expect(card?.textContent).toContain('Bluesky');
     expect(card?.textContent).toContain('@bsky.app');
     expect(card?.textContent).toContain('A post rendered by Chatto.');
+		expect(card?.querySelector('[data-testid="quoted-social-post"]')).not.toBeNull();
+		expect(card?.textContent).toContain('A quoted post with an attached image.');
+		expect(card?.textContent).toContain('Spoilers');
+		expect(card?.querySelector<HTMLImageElement>('img[alt="Quoted image"]')).not.toBeNull();
     expect(card?.querySelector('iframe')).toBeNull();
   });
 });

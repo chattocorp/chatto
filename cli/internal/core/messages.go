@@ -1215,64 +1215,86 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 		return err
 	}
 	if socialPost := linkPreview.GetSocialPost(); socialPost != nil {
-		if socialPost.GetProvider() == "" {
-			return invalidArgument("social post provider is required")
-		}
-		if err := validateStringMaxLength("social post provider", socialPost.GetProvider(), MaxLinkPreviewEmbedTypeLength); err != nil {
+		if err := validateSocialPostPreview(socialPost, 0); err != nil {
 			return err
 		}
-		if err := validateStringMaxLength("social post text", socialPost.GetText(), MaxLinkPreviewDescriptionLength); err != nil {
+	}
+	return nil
+}
+
+func validateSocialPostPreview(socialPost *corev1.SocialPostPreview, quoteDepth int) error {
+	if socialPost == nil {
+		return nil
+	}
+	if socialPost.GetProvider() == "" {
+		return invalidArgument("social post provider is required")
+	}
+	if err := validateStringMaxLength("social post provider", socialPost.GetProvider(), MaxLinkPreviewEmbedTypeLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("social post URL", socialPost.GetUrl(), MaxLinkPreviewURLLength); err != nil {
+		return err
+	}
+	if quoteDepth > 0 && socialPost.GetUrl() == "" {
+		return invalidArgument("quoted social post URL is required")
+	}
+	if err := validateStringMaxLength("social post text", socialPost.GetText(), MaxLinkPreviewDescriptionLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("social post content warning", socialPost.GetContentWarning(), MaxLinkPreviewTitleLength); err != nil {
+		return err
+	}
+	author := socialPost.GetAuthor()
+	if author == nil || (author.GetDisplayName() == "" && author.GetHandle() == "") {
+		return invalidArgument("social post author is required")
+	}
+	if author != nil {
+		if err := validateStringMaxLength("social post author display name", author.GetDisplayName(), MaxLinkPreviewTitleLength); err != nil {
 			return err
 		}
-		if err := validateStringMaxLength("social post content warning", socialPost.GetContentWarning(), MaxLinkPreviewTitleLength); err != nil {
+		if err := validateStringMaxLength("social post author handle", author.GetHandle(), MaxLinkPreviewSiteNameLength); err != nil {
 			return err
 		}
-		author := socialPost.GetAuthor()
-		if author == nil || (author.GetDisplayName() == "" && author.GetHandle() == "") {
-			return invalidArgument("social post author is required")
+		if err := validateLinkPreviewAsset("social post author avatar", author.GetAvatarAsset()); err != nil {
+			return err
 		}
-		if author != nil {
-			if err := validateStringMaxLength("social post author display name", author.GetDisplayName(), MaxLinkPreviewTitleLength); err != nil {
-				return err
-			}
-			if err := validateStringMaxLength("social post author handle", author.GetHandle(), MaxLinkPreviewSiteNameLength); err != nil {
-				return err
-			}
-			if err := validateLinkPreviewAsset("social post author avatar", author.GetAvatarAsset()); err != nil {
-				return err
-			}
+	}
+	if external := socialPost.GetExternalLink(); external != nil {
+		if external.GetUrl() == "" {
+			return invalidArgument("social post external URL is required")
 		}
-		if external := socialPost.GetExternalLink(); external != nil {
-			if external.GetUrl() == "" {
-				return invalidArgument("social post external URL is required")
-			}
-			if err := validateStringMaxLength("social post external URL", external.GetUrl(), MaxLinkPreviewURLLength); err != nil {
-				return err
-			}
-			if err := validateStringMaxLength("social post external title", external.GetTitle(), MaxLinkPreviewTitleLength); err != nil {
-				return err
-			}
-			if err := validateStringMaxLength("social post external description", external.GetDescription(), MaxLinkPreviewDescriptionLength); err != nil {
-				return err
-			}
-			if err := validateLinkPreviewAsset("social post external image", external.GetImageAsset()); err != nil {
-				return err
-			}
+		if err := validateStringMaxLength("social post external URL", external.GetUrl(), MaxLinkPreviewURLLength); err != nil {
+			return err
 		}
-		if len(socialPost.GetImages()) > 4 {
-			return invalidArgument("social post has more than 4 images")
+		if err := validateStringMaxLength("social post external title", external.GetTitle(), MaxLinkPreviewTitleLength); err != nil {
+			return err
 		}
-		for _, image := range socialPost.GetImages() {
-			if image == nil || image.GetAsset() == nil {
-				return invalidArgument("social post image asset is required")
-			}
-			if err := validateStringMaxLength("social post image alt text", image.GetAlt(), MaxLinkPreviewDescriptionLength); err != nil {
-				return err
-			}
-			if err := validateLinkPreviewAsset("social post image", image.GetAsset()); err != nil {
-				return err
-			}
+		if err := validateStringMaxLength("social post external description", external.GetDescription(), MaxLinkPreviewDescriptionLength); err != nil {
+			return err
 		}
+		if err := validateLinkPreviewAsset("social post external image", external.GetImageAsset()); err != nil {
+			return err
+		}
+	}
+	if len(socialPost.GetImages()) > 4 {
+		return invalidArgument("social post has more than 4 images")
+	}
+	for _, image := range socialPost.GetImages() {
+		if image == nil || image.GetAsset() == nil {
+			return invalidArgument("social post image asset is required")
+		}
+		if err := validateStringMaxLength("social post image alt text", image.GetAlt(), MaxLinkPreviewDescriptionLength); err != nil {
+			return err
+		}
+		if err := validateLinkPreviewAsset("social post image", image.GetAsset()); err != nil {
+			return err
+		}
+	}
+	if quotedPost := socialPost.GetQuotedPost(); quotedPost != nil {
+		if quoteDepth >= 1 {
+			return invalidArgument("social post quote nesting exceeds 1")
+		}
+		return validateSocialPostPreview(quotedPost, quoteDepth+1)
 	}
 	return nil
 }

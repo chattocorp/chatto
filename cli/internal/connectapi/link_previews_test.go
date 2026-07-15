@@ -20,6 +20,7 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 		EmbedType:   "bluesky",
 		SocialPost: &corev1.SocialPostPreview{
 			Provider: "bluesky",
+			Url:      "https://bsky.app/profile/bsky.app/post/example",
 			Author: &corev1.SocialPostAuthor{
 				DisplayName: "Bluesky",
 				Handle:      "bsky.app",
@@ -32,6 +33,12 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 				Description: "Description",
 			},
 			ContentWarning: stringPtr("Spoilers"),
+			QuotedPost: &corev1.SocialPostPreview{
+				Provider: "bluesky",
+				Url:      "https://bsky.app/profile/quoted.example/post/quoted",
+				Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+				Text:     "Quoted words.",
+			},
 		},
 	})
 
@@ -43,6 +50,10 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 	assert.Equal(t, publishedAt, preview.GetSocialPost().GetPublishedAt())
 	assert.Equal(t, "https://example.com/story", preview.GetSocialPost().GetExternalLink().GetUrl())
 	assert.Equal(t, "Spoilers", preview.GetSocialPost().GetContentWarning())
+	assert.Equal(t, "https://bsky.app/profile/bsky.app/post/example", preview.GetSocialPost().GetUrl())
+	require.NotNil(t, preview.GetSocialPost().GetQuotedPost())
+	assert.Equal(t, "Quoted words.", preview.GetSocialPost().GetQuotedPost().GetText())
+	assert.Equal(t, "https://bsky.app/profile/quoted.example/post/quoted", preview.GetSocialPost().GetQuotedPost().GetUrl())
 }
 
 func TestAPILinkPreviewMapsLegacyBlueskyPost(t *testing.T) {

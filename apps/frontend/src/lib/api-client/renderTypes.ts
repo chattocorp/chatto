@@ -75,6 +75,7 @@ export type LinkPreviewView = {
 
 export type SocialPostPreviewView = {
   provider: string;
+  url?: string | null;
   author?: {
     displayName: string;
     handle: string;
@@ -95,6 +96,7 @@ export type SocialPostPreviewView = {
     width?: number | null;
     height?: number | null;
   }>;
+  quotedPost?: SocialPostPreviewView | null;
 };
 
 export type CustomUserStatusView = {

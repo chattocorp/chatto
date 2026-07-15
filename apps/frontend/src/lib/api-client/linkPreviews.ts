@@ -1,6 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
+import type { SocialPostPreviewView } from './renderTypes.js';
 
 export type LinkPreviewAPIConfig = {
   serverId?: string;
@@ -19,7 +20,7 @@ export type ComposerLinkPreview = {
   siteName: string | null;
   embedType: string | null;
   embedId: string | null;
-  socialPost?: ReturnType<typeof socialPostView>;
+  socialPost?: SocialPostPreviewView | null;
 };
 
 export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
@@ -56,10 +57,14 @@ function composerLinkPreview(
   };
 }
 
-function socialPostView(post: LinkPreview['socialPost']) {
+function socialPostView(
+  post: LinkPreview['socialPost'],
+  quoteDepth = 0
+): SocialPostPreviewView | null {
   if (!post) return null;
   return {
     provider: post.provider,
+    url: post.url || null,
     author: post.author
       ? {
           displayName: post.author.displayName,
@@ -83,6 +88,7 @@ function socialPostView(post: LinkPreview['socialPost']) {
       alt: image.alt || null,
       width: image.width || null,
       height: image.height || null
-    }))
+    })),
+    quotedPost: quoteDepth === 0 ? socialPostView(post.quotedPost, quoteDepth + 1) : null
   };
 }

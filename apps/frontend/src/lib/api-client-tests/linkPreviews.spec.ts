@@ -106,6 +106,7 @@ describe('createLinkPreviewAPI', () => {
           embedId: 'at://did:plc:example/app.bsky.feed.post/example',
           socialPost: new SocialPostPreview({
             provider: 'bluesky',
+            url: 'https://bsky.app/profile/bsky.app/post/example',
             author: new SocialPostAuthor({
               displayName: 'Bluesky',
               handle: 'bsky.app',
@@ -124,7 +125,22 @@ describe('createLinkPreviewAPI', () => {
                 width: 1200,
                 height: 800
               })
-            ]
+            ],
+            quotedPost: new SocialPostPreview({
+              provider: 'bluesky',
+              url: 'https://bsky.app/profile/quoted.example/post/quoted',
+              author: new SocialPostAuthor({
+                displayName: 'Quoted Author',
+                handle: 'quoted.example'
+              }),
+              text: 'Quoted words.',
+              images: [
+                new SocialPostImage({
+                  url: '/assets/quoted.webp',
+                  alt: 'Quoted attachment'
+                })
+              ]
+            })
           })
         }),
         previewToken: 'cht_LPpreviewtoken'
@@ -142,6 +158,7 @@ describe('createLinkPreviewAPI', () => {
       embedType: 'bluesky',
       socialPost: {
         provider: 'bluesky',
+        url: 'https://bsky.app/profile/bsky.app/post/example',
         author: {
           displayName: 'Bluesky',
           handle: 'bsky.app',
@@ -150,7 +167,14 @@ describe('createLinkPreviewAPI', () => {
         text: 'A post rendered by Chatto.',
         publishedAt: '2026-07-15T12:00:00.000Z',
         externalLink: { url: 'https://example.com/story', title: 'Story' },
-        images: [{ url: '/assets/post.webp', alt: 'A blue sky', width: 1200, height: 800 }]
+        images: [{ url: '/assets/post.webp', alt: 'A blue sky', width: 1200, height: 800 }],
+        quotedPost: {
+          provider: 'bluesky',
+          url: 'https://bsky.app/profile/quoted.example/post/quoted',
+          author: { displayName: 'Quoted Author', handle: 'quoted.example' },
+          text: 'Quoted words.',
+          images: [{ url: '/assets/quoted.webp', alt: 'Quoted attachment' }]
+        }
       }
     });
   });

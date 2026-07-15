@@ -28,6 +28,7 @@
       embedId: 'at://did:plc:bmkptaqvfcwmgom75fmo5oo6/app.bsky.feed.post/3mqoxsnse4s2o',
       socialPost: {
         provider: 'bluesky',
+        url: 'https://bsky.app/profile/bdbch.com/post/3mqoxsnse4s2o',
         author: {
           displayName: 'Dominik Biedebach',
           handle: 'bdbch.com',
@@ -43,7 +44,22 @@
           imageUrl:
             'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:bmkptaqvfcwmgom75fmo5oo6/bafkreibnkmz4qnyxa3tg5hvjanbormm72uotpsdifmyuq4gumtycr3qwje'
         },
-        images: []
+        images: [],
+        quotedPost: {
+          provider: 'bluesky',
+          url: 'https://bsky.app/profile/tiptap.dev/post/3mqotoolkit',
+          author: {
+            displayName: 'Tiptap',
+            handle: 'tiptap.dev'
+          },
+          text: 'The Server AI Toolkit is now in beta.',
+          images: [
+            {
+              url: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:bmkptaqvfcwmgom75fmo5oo6/bafkreibnkmz4qnyxa3tg5hvjanbormm72uotpsdifmyuq4gumtycr3qwje',
+              alt: 'Tiptap AI Toolkit announcement'
+            }
+          ]
+        }
       }
     },
     LinkPreviewViewData

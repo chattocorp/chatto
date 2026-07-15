@@ -13,11 +13,11 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - Only the first URL in a message gets a preview. There is no multi-preview layout.
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
-- Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, and an embedded website card. Bluesky is the first supported provider. If structured post data is unavailable, the post falls back to a normal link preview.
+- Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky is the first supported provider. If structured post data is unavailable, the post falls back to a normal link preview.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
 - When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
 - When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
-- Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits and carry at most four post images.
+- Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits, carry at most four images per post, and allow only one quoted-post level.
 - After posting, the message author can delete the preview from the message without deleting the message.
 
 ## Design Decisions
@@ -66,7 +66,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 8. Social posts use bounded, provider-neutral snapshots
 
-**Decision:** Provider adapters resolve recognized public social posts into one bounded snapshot containing common presentation data. Chatto persists the snapshot and its images, then renders it with native card components. Bluesky is the first adapter; the existing OpenGraph card remains the fallback.
+**Decision:** Provider adapters resolve recognized public social posts into one bounded snapshot containing common presentation data. A snapshot may include one quoted post, but quotes within that post are omitted. Chatto persists the snapshot and its images, then renders it with native card components. Bluesky is the first adapter; the existing OpenGraph card remains the fallback.
 **Why:** A provider-neutral snapshot keeps durable message data and the public API independent from any one social network. Native cards stay visually consistent with the timeline, avoid loading a full third-party website inside a message, and prevent client-side provider requests when reading history.
 **Tradeoff:** Chatto deliberately implements only a common subset of social-post presentation. Provider-specific features require explicit additive support, and changes made to the original post are not reflected after the snapshot is stored.
 **Compatibility:** Persisted core tag 9 retains the deprecated Bluesky-specific prototype shape for replay compatibility; new provider-neutral snapshots use tag 10. The public API exposes only the provider-neutral shape.

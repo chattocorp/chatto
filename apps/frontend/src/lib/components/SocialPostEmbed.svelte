@@ -36,6 +36,14 @@ preview-card styling and the same actions as other link previews.
     post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : ''
   );
 
+  function displayAuthor(post: SocialPostPreviewView) {
+    return post.author?.displayName || post.author?.handle || post.provider;
+  }
+
+  function displayHandle(post: SocialPostPreviewView) {
+    return post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : '';
+  }
+
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
 
   function openDeleteConfirmation() {
@@ -164,6 +172,91 @@ preview-card styling and the same actions as other link previews.
       </div>
     </a>
     <!-- eslint-enable svelte/no-navigation-without-resolve -->
+  {/if}
+
+  {#if post.quotedPost && post.quotedPost.url}
+    <div class="surface-box flex min-w-0 flex-col gap-2 overflow-hidden p-2.5" data-testid="quoted-social-post">
+      <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party social-post URL -->
+      <a
+        href={post.quotedPost.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex min-w-0 items-center gap-2"
+      >
+        {#if post.quotedPost.author?.avatarUrl}
+          <SkeletonImg
+            src={post.quotedPost.author.avatarUrl}
+            alt=""
+            class="h-7 w-7 shrink-0 rounded-full object-cover"
+          />
+        {:else}
+          <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
+        {/if}
+        <div class="flex min-w-0 items-baseline gap-1.5 text-xs">
+          <span class="truncate font-medium text-text-top">{displayAuthor(post.quotedPost)}</span>
+          {#if displayHandle(post.quotedPost)}
+            <span class="truncate text-muted">{displayHandle(post.quotedPost)}</span>
+          {/if}
+        </div>
+      </a>
+      {#if post.quotedPost.contentWarning}
+        <p class="rounded-sm bg-surface-strong px-2 py-1 text-xs font-medium text-text">
+          {post.quotedPost.contentWarning}
+        </p>
+      {/if}
+      {#if post.quotedPost.text}
+        <p class="line-clamp-5 text-sm leading-relaxed whitespace-pre-wrap text-text">
+          {post.quotedPost.text}
+        </p>
+      {/if}
+      {#if post.quotedPost.images.length}
+        <div
+          class={[
+            'grid gap-1 overflow-hidden rounded-sm',
+            post.quotedPost.images.length > 1 ? 'grid-cols-2' : ''
+          ]}
+        >
+          {#each post.quotedPost.images as image (image.url)}
+            <a href={post.quotedPost.url} target="_blank" rel="noopener noreferrer">
+              <SkeletonImg
+                src={image.url}
+                alt={image.alt || ''}
+                class="max-h-60 w-full object-cover"
+              />
+            </a>
+          {/each}
+        </div>
+      {/if}
+      {#if post.quotedPost.externalLink && (post.quotedPost.externalLink.title || post.quotedPost.externalLink.description || post.quotedPost.externalLink.imageUrl)}
+        <a
+          href={post.quotedPost.externalLink.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex min-w-0 gap-2 overflow-hidden rounded-sm bg-surface-strong p-2"
+        >
+          {#if post.quotedPost.externalLink.imageUrl}
+            <SkeletonImg
+              src={post.quotedPost.externalLink.imageUrl}
+              alt=""
+              class="h-14 w-20 shrink-0 rounded-sm object-cover"
+            />
+          {/if}
+          <div class="min-w-0 self-center">
+            {#if post.quotedPost.externalLink.title}
+              <div class="line-clamp-1 text-xs font-medium text-text-top">
+                {post.quotedPost.externalLink.title}
+              </div>
+            {/if}
+            {#if post.quotedPost.externalLink.description}
+              <div class="line-clamp-2 text-xs text-muted">
+                {post.quotedPost.externalLink.description}
+              </div>
+            {/if}
+          </div>
+        </a>
+      {/if}
+      <!-- eslint-enable svelte/no-navigation-without-resolve -->
+    </div>
   {/if}
 
   {#if showDismiss && onDismiss}

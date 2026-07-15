@@ -742,6 +742,32 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 			},
 			match: "more than 4 images",
 		},
+		{
+			name: "quoted post URL required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.QuotedPost = &corev1.SocialPostPreview{
+					Provider: "bluesky",
+					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+				}
+			},
+			match: "quoted social post URL is required",
+		},
+		{
+			name: "quote nesting bounded",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.QuotedPost = &corev1.SocialPostPreview{
+					Provider: "bluesky",
+					Url:      "https://bsky.app/profile/quoted.example/post/one",
+					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+					QuotedPost: &corev1.SocialPostPreview{
+						Provider: "bluesky",
+						Url:      "https://bsky.app/profile/nested.example/post/two",
+						Author:   &corev1.SocialPostAuthor{Handle: "nested.example"},
+					},
+				}
+			},
+			match: "quote nesting exceeds 1",
+		},
 	}
 
 	for _, tt := range tests {
@@ -766,6 +792,9 @@ func TestLinkPreviewSocialPostFieldNumbersPreserveLegacyReplay(t *testing.T) {
 	fields := (&corev1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
 	require.EqualValues(t, 9, fields.ByName("legacy_bluesky_post").Number())
 	require.EqualValues(t, 10, fields.ByName("social_post").Number())
+	socialFields := (&corev1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
+	require.EqualValues(t, 8, socialFields.ByName("url").Number())
+	require.EqualValues(t, 9, socialFields.ByName("quoted_post").Number())
 }
 
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode
