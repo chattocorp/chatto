@@ -473,6 +473,14 @@ func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing.T) {
 	s := setupOAuthServer(t)
 	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
+	// Pending identity confirmation validates that its provider still matches the
+	// active configuration. This fixture creates a GitHub identity directly, so
+	// configure the matching provider before mounting the Connect API.
+	s.config.Auth.Providers = []config.AuthProviderConfig{{
+		ID:    "github-main",
+		Type:  config.AuthProviderTypeGitHub,
+		Label: "GitHub",
+	}}
 	s.setupConnectAPI()
 	ts := httptest.NewServer(s.router)
 	t.Cleanup(ts.Close)
