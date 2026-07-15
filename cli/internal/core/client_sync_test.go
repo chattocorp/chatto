@@ -347,7 +347,7 @@ func TestClientSyncConcurrentDeletionCannotCancelOwnerFence(t *testing.T) {
 	if !errors.Is(err, errClientSyncDeletionInProgress) || loserFence != nil {
 		t.Fatalf("second BeginDeleteUser = (%v, %v), want owned conflict", loserFence, err)
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionPendingKey(userID)); err != nil {
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionPreparingKey(userID)); err != nil {
 		t.Fatalf("owner fence missing after concurrent attempt: %v", err)
 	}
 	if err := chatto.ClientSync.CancelDeleteUser(ctx, ownerFence); err != nil {
@@ -362,7 +362,7 @@ func TestClientSyncRecoveryRollsBackStalePreparationForActiveAccount(t *testing.
 	if _, err := chatto.ClientSync.BeginDeleteUser(ctx, userID); err != nil {
 		t.Fatalf("BeginDeleteUser: %v", err)
 	}
-	key := clientSyncDeletionPendingKey(userID)
+	key := clientSyncDeletionPreparingKey(userID)
 	entry, err := chatto.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		t.Fatalf("Get pending marker: %v", err)
@@ -379,6 +379,30 @@ func TestClientSyncRecoveryRollsBackStalePreparationForActiveAccount(t *testing.
 	}
 	if _, err := chatto.storage.runtimeStateKV.Get(ctx, key); !isClientSyncKeyAbsent(err) {
 		t.Fatalf("stale preparation error = %v, want absent", err)
+	}
+}
+
+func TestClientSyncCommittedCleanupDoesNotDependOnPreparation(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := createClientSyncTestUser(t, chatto, ctx, "expired-commit")
+	kv := &transientPurgeClientSyncKV{
+		KeyValue: chatto.storage.runtimeStateKV,
+		failKey:  clientSyncPreferencesKey(userID),
+	}
+	service := NewClientSyncService(kv, nil)
+	fence, err := service.BeginDeleteUser(ctx, userID)
+	if err != nil {
+		t.Fatalf("BeginDeleteUser: %v", err)
+	}
+	if err := kv.Purge(ctx, clientSyncDeletionPreparingKey(userID)); err != nil {
+		t.Fatalf("expire preparation: %v", err)
+	}
+	if err := service.completeUserDeletion(ctx, userID, fence); err == nil {
+		t.Fatal("completeUserDeletion succeeded, want transient cleanup failure")
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, clientSyncDeletionPendingKey(userID)); err != nil {
+		t.Fatalf("post-commit cleanup marker missing after preparation expiry: %v", err)
 	}
 }
 
@@ -445,7 +469,7 @@ func (*failingClientSyncKV) Get(context.Context, string) (jetstream.KeyValueEntr
 }
 
 func (kv *failingClientSyncKV) Create(_ context.Context, key string, _ []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
-	if strings.HasSuffix(key, ".deleted") || strings.HasSuffix(key, ".deletion_pending") {
+	if strings.HasSuffix(key, ".deleted") || strings.HasSuffix(key, ".deletion_pending") || strings.HasSuffix(key, ".deletion_preparing") {
 		return 1, nil
 	}
 	kv.creates++

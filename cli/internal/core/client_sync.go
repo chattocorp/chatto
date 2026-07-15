@@ -61,6 +61,10 @@ func clientSyncDeletionPendingKey(userID string) string {
 	return fmt.Sprintf("client_sync.%s.deletion_pending", userID)
 }
 
+func clientSyncDeletionPreparingKey(userID string) string {
+	return fmt.Sprintf("client_sync.%s.deletion_preparing", userID)
+}
+
 func (s *ClientSyncService) GetPreferences(ctx context.Context, userID string) (*clientsyncv1.Preferences, error) {
 	if err := s.requireActiveUser(ctx, userID); err != nil {
 		return nil, err
@@ -208,7 +212,7 @@ func (s *ClientSyncService) BeginDeleteUser(ctx context.Context, userID string) 
 	if err != nil {
 		return nil, fmt.Errorf("encode client-sync deletion preparation: %w", err)
 	}
-	pendingRevision, err := s.kv.Create(ctx, clientSyncDeletionPendingKey(userID), pendingData)
+	pendingRevision, err := s.kv.Create(ctx, clientSyncDeletionPreparingKey(userID), pendingData)
 	if errors.Is(err, jetstream.ErrKeyExists) {
 		return nil, errClientSyncDeletionInProgress
 	}
@@ -228,7 +232,7 @@ func (s *ClientSyncService) CancelDeleteUser(ctx context.Context, fence *clientS
 	owned := []struct {
 		key      string
 		revision uint64
-	}{{clientSyncDeletionPendingKey(fence.userID), fence.pendingRevision}}
+	}{{clientSyncDeletionPreparingKey(fence.userID), fence.pendingRevision}}
 	for _, marker := range owned {
 		if marker.revision == 0 {
 			continue
@@ -241,16 +245,20 @@ func (s *ClientSyncService) CancelDeleteUser(ctx context.Context, fence *clientS
 }
 
 func (s *ClientSyncService) DeleteUser(ctx context.Context, userID string) error {
-	if _, err := s.BeginDeleteUser(ctx, userID); err != nil {
+	fence, err := s.BeginDeleteUser(ctx, userID)
+	if err != nil {
 		return err
 	}
-	return s.completeUserDeletion(ctx, userID)
+	return s.completeUserDeletion(ctx, userID, fence)
 }
 
-func (s *ClientSyncService) completeUserDeletion(ctx context.Context, userID string) error {
+func (s *ClientSyncService) completeUserDeletion(ctx context.Context, userID string, fence *clientSyncDeletionFence) error {
 	markerData, err := proto.Marshal(timestamppb.Now())
 	if err != nil {
 		return fmt.Errorf("encode client-sync deletion fence: %w", err)
+	}
+	if _, err := s.kv.Create(ctx, clientSyncDeletionPendingKey(userID), markerData); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
+		return fmt.Errorf("commit client-sync cleanup retry: %w", err)
 	}
 	if _, err := s.kv.Create(ctx, clientSyncDeletionMarkerKey(userID), markerData); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
 		return fmt.Errorf("commit client-sync deletion fence: %w", err)
@@ -260,6 +268,9 @@ func (s *ClientSyncService) completeUserDeletion(ctx context.Context, userID str
 	}
 	if err := s.kv.Purge(ctx, clientSyncDeletionPendingKey(userID)); err != nil && !isClientSyncKeyAbsent(err) {
 		return fmt.Errorf("complete client-sync deletion: %w", err)
+	}
+	if err := s.CancelDeleteUser(ctx, fence); err != nil {
+		return fmt.Errorf("remove client-sync deletion preparation: %w", err)
 	}
 	return nil
 }
@@ -278,14 +289,17 @@ func (s *ClientSyncService) purgeUserRecords(ctx context.Context, userID string)
 // abandoned preparations. Call it only after the user projection is current;
 // every action is revision-safe and idempotent across replicas.
 func (s *ClientSyncService) RecoverPendingDeletions(ctx context.Context) error {
+	var errs []error
+	if err := s.recoverDeletionPreparations(ctx); err != nil {
+		errs = append(errs, err)
+	}
 	lister, err := s.kv.ListKeysFiltered(ctx, "client_sync.*.deletion_pending")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil
+			return errors.Join(errs...)
 		}
 		return fmt.Errorf("list client-sync deletion markers: %w", err)
 	}
-	var errs []error
 	for key := range lister.Keys() {
 		userID := strings.TrimSuffix(strings.TrimPrefix(key, "client_sync."), ".deletion_pending")
 		if userID == "" || clientSyncDeletionPendingKey(userID) != key {
@@ -293,31 +307,62 @@ func (s *ClientSyncService) RecoverPendingDeletions(ctx context.Context) error {
 		}
 		if s.validateUser != nil {
 			if validateErr := s.validateUser(ctx, userID); validateErr == nil {
-				entry, getErr := s.kv.Get(ctx, key)
-				if getErr != nil {
-					if !isClientSyncKeyAbsent(getErr) {
-						errs = append(errs, fmt.Errorf("read %s: %w", key, getErr))
-					}
-					continue
-				}
-				createdAt := &timestamppb.Timestamp{}
-				if unmarshalErr := proto.Unmarshal(entry.Value(), createdAt); unmarshalErr != nil || !createdAt.IsValid() {
-					errs = append(errs, fmt.Errorf("decode %s creation time", key))
-					continue
-				}
-				if time.Since(createdAt.AsTime()) >= clientSyncDeletionPreparationTTL {
-					if purgeErr := s.kv.Purge(ctx, key, jetstream.LastRevision(entry.Revision())); purgeErr != nil && !isClientSyncKeyAbsent(purgeErr) && !jetstreamutil.IsSequenceConflict(purgeErr) {
-						errs = append(errs, fmt.Errorf("remove stale %s: %w", key, purgeErr))
-					}
-				}
+				errs = append(errs, fmt.Errorf("committed cleanup %s belongs to an active account", key))
 				continue
 			} else if !errors.Is(validateErr, ErrNotFound) {
 				errs = append(errs, fmt.Errorf("verify %s: %w", key, validateErr))
 				continue
 			}
 		}
-		if err := s.completeUserDeletion(ctx, userID); err != nil {
+		if err := s.completeUserDeletion(ctx, userID, nil); err != nil {
 			errs = append(errs, fmt.Errorf("recover %s: %w", key, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (s *ClientSyncService) recoverDeletionPreparations(ctx context.Context) error {
+	lister, err := s.kv.ListKeysFiltered(ctx, "client_sync.*.deletion_preparing")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return nil
+		}
+		return fmt.Errorf("list client-sync deletion preparations: %w", err)
+	}
+	var errs []error
+	for key := range lister.Keys() {
+		userID := strings.TrimSuffix(strings.TrimPrefix(key, "client_sync."), ".deletion_preparing")
+		if userID == "" || clientSyncDeletionPreparingKey(userID) != key {
+			continue
+		}
+		entry, getErr := s.kv.Get(ctx, key)
+		if getErr != nil {
+			if !isClientSyncKeyAbsent(getErr) {
+				errs = append(errs, fmt.Errorf("read %s: %w", key, getErr))
+			}
+			continue
+		}
+		active := false
+		if s.validateUser != nil {
+			validateErr := s.validateUser(ctx, userID)
+			if validateErr != nil && !errors.Is(validateErr, ErrNotFound) {
+				errs = append(errs, fmt.Errorf("verify %s: %w", key, validateErr))
+				continue
+			}
+			active = validateErr == nil
+		}
+		if active {
+			createdAt := &timestamppb.Timestamp{}
+			if unmarshalErr := proto.Unmarshal(entry.Value(), createdAt); unmarshalErr != nil || !createdAt.IsValid() {
+				errs = append(errs, fmt.Errorf("decode %s creation time", key))
+				continue
+			}
+			if time.Since(createdAt.AsTime()) < clientSyncDeletionPreparationTTL {
+				continue
+			}
+		}
+		if purgeErr := s.kv.Purge(ctx, key, jetstream.LastRevision(entry.Revision())); purgeErr != nil && !isClientSyncKeyAbsent(purgeErr) && !jetstreamutil.IsSequenceConflict(purgeErr) {
+			errs = append(errs, fmt.Errorf("remove abandoned %s: %w", key, purgeErr))
 		}
 	}
 	return errors.Join(errs...)
@@ -424,7 +469,7 @@ func (s *ClientSyncService) requireActiveUser(ctx context.Context, userID string
 }
 
 func (s *ClientSyncService) userDeleted(ctx context.Context, userID string) (bool, error) {
-	for _, key := range []string{clientSyncDeletionPendingKey(userID), clientSyncDeletionMarkerKey(userID)} {
+	for _, key := range []string{clientSyncDeletionPreparingKey(userID), clientSyncDeletionPendingKey(userID), clientSyncDeletionMarkerKey(userID)} {
 		_, err := s.kv.Get(ctx, key)
 		if err == nil {
 			return true, nil

@@ -1420,7 +1420,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 	var clientSyncCleanupErr error
 	if c.ClientSync != nil {
-		if err := c.ClientSync.completeUserDeletion(ctx, userID); err != nil {
+		if err := c.ClientSync.completeUserDeletion(ctx, userID, clientSyncFence); err != nil {
 			c.logger.Warn("Failed to delete client sync during user deletion", "user_id", userID, "error", err)
 			clientSyncCleanupErr = err
 		}

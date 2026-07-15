@@ -38,6 +38,7 @@ backed-up `RUNTIME_STATE` bucket:
 - `client_sync.{userId}.servers`
 - `client_sync.{userId}.deleted`
 - `client_sync.{userId}.deletion_pending`
+- `client_sync.{userId}.deletion_preparing`
 
 The preferences document contains portable language, timezone, and time-format
 choices. The server-directory document contains public server metadata and the
@@ -111,12 +112,13 @@ Server URLs can reveal community membership. Operators already control
 `RUNTIME_STATE`, which contains other private authenticated runtime records;
 access to this API is strictly limited to the authenticated owner and code must
 not log directory contents. Account deletion retains a marker before purging
-both plaintext client-sync records. An exclusive, timestamped preparation
-marker blocks mutations before the account event; after commit, the command
-creates the retained deletion fence and uses the preparation as its retry
-marker. Recovery starts only after projections catch up, completes confirmed
-deletions, and revision-purges active-account preparations stale for one hour.
-Failed commands roll back only their own preparation revision with a bounded,
-non-cancelled context. Deletion therefore wins over in-flight requests and
-transient failures without letting cold or pre-commit recovery erase active
-data or repeatedly traversing every historical committed fence.
+both plaintext client-sync records. An exclusive, timestamped `preparing`
+marker blocks mutations before the account event. After commit, the command
+creates a separate `pending` cleanup marker and the retained deletion fence,
+then removes only its own preparation revision. Recovery starts only after
+projections catch up, scans committed pending work for cleanup, and separately
+revision-purges preparations for deleted accounts or active-account
+preparations stale for one hour. Failed commands roll back only their own
+revision with a bounded, non-cancelled context. Preparation expiry therefore
+cannot discard committed cleanup work, and cold recovery cannot erase active
+data.
