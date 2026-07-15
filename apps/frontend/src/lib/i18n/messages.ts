@@ -887,6 +887,8 @@ const msg_preview_dismiss = (): LocalizedString => messages().preview_dismiss(em
 const msg_preview_delete = (): LocalizedString => messages().preview_delete(empty());
 const msg_preview_open_link = (): LocalizedString => messages().preview_open_link(empty());
 const msg_preview_copy_url = (): LocalizedString => messages().preview_copy_url(empty());
+const msg_preview_show_content = (): LocalizedString => messages().preview_show_content(empty());
+const msg_preview_hide_content = (): LocalizedString => messages().preview_hide_content(empty());
 const msg_preview_youtube_title = (): LocalizedString => messages().preview_youtube_title(empty());
 const msg_preview_youtube_dismiss = (): LocalizedString => messages().preview_youtube_dismiss(empty());
 const msg_preview_youtube_delete = (): LocalizedString => messages().preview_youtube_delete(empty());
@@ -2274,6 +2276,8 @@ export { msg_preview_dismiss as 'preview.dismiss' };
 export { msg_preview_delete as 'preview.delete' };
 export { msg_preview_open_link as 'preview.open_link' };
 export { msg_preview_copy_url as 'preview.copy_url' };
+export { msg_preview_show_content as 'preview.show_content' };
+export { msg_preview_hide_content as 'preview.hide_content' };
 export { msg_preview_youtube_title as 'preview.youtube_title' };
 export { msg_preview_youtube_dismiss as 'preview.youtube_dismiss' };
 export { msg_preview_youtube_delete as 'preview.youtube_delete' };

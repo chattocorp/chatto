@@ -40,7 +40,7 @@ func TestFetchMastodonStatusUsesProviderNeutralSnapshot(t *testing.T) {
 			switch req.URL.Path {
 			case "/api/oembed":
 				assert.Equal(t, postURL, req.URL.Query().Get("url"))
-				return response(http.StatusOK, "application/json", `{"type":"rich"}`), nil
+				return response(http.StatusOK, "application/json", `{"type":"rich","provider_url":"https://social.example/","html":"<iframe class=\"mastodon-embed\" src=\"https://social.example/@alice/123/embed\"></iframe>"}`), nil
 			case "/api/v1/statuses/123":
 				return response(http.StatusOK, "application/json", `{
 					"id":"123",
@@ -119,7 +119,7 @@ func TestFetchMastodonBoostRendersOriginalStatus(t *testing.T) {
 		logger: log.New(io.Discard),
 		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/api/oembed" {
-				return response(http.StatusOK, "application/json", `{"type":"rich"}`), nil
+				return response(http.StatusOK, "application/json", `{"type":"rich","provider_url":"https://social.example/","html":"<iframe class=\"mastodon-embed\" src=\"https://social.example/@alice/123/embed\"></iframe>"}`), nil
 			}
 			return response(http.StatusOK, "application/json", `{
 				"id":"123","url":"`+postURL+`","visibility":"public",
@@ -164,7 +164,7 @@ func TestFetchMastodonDoesNotFallbackForPrivateStatus(t *testing.T) {
 		logger: log.New(io.Discard),
 		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/api/oembed" {
-				return response(http.StatusOK, "application/json", `{"type":"rich"}`), nil
+				return response(http.StatusOK, "application/json", `{"type":"rich","provider_url":"https://social.example/","html":"<iframe class=\"mastodon-embed\" src=\"https://social.example/@alice/123/embed\"></iframe>"}`), nil
 			}
 			if req.URL.Path == "/api/v1/statuses/123" {
 				return response(http.StatusOK, "application/json", `{
@@ -186,4 +186,109 @@ func TestMastodonHTMLTextPreservesBlocksAndOmitsQuoteCompatibilityLink(t *testin
 		"Hello world\nA full URL: https://example.com/path",
 		mastodonHTMLText(`<p class="quote-inline">RE: <a href="https://quoted.example">quoted</a></p><p>Hello <strong>world</strong></p><p>A full URL: <a><span>https://example.com</span><span>/path</span></a></p>`),
 	)
+}
+
+func TestVerifyMastodonOEmbedRejectsCrossOriginMetadata(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"type":"rich",
+			"provider_url":"https://attacker.example/",
+			"html":"<iframe class=\"mastodon-embed\" src=\"https://attacker.example/@alice/123/embed\"></iframe>"
+		}`), nil
+	})}}
+
+	err := fetcher.verifyMastodonOEmbed(context.Background(), "https://social.example", "https://social.example/@alice/123")
+	require.ErrorContains(t, err, "not bound")
+}
+
+func TestVerifyMastodonOEmbedRejectsGenericRichEmbed(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"type":"rich",
+			"provider_url":"https://social.example/",
+			"html":"<iframe src=\"https://social.example/widget/embed\"></iframe>"
+		}`), nil
+	})}}
+
+	err := fetcher.verifyMastodonOEmbed(context.Background(), "https://social.example", "https://social.example/@alice/123")
+	require.ErrorContains(t, err, "not bound")
+}
+
+func TestVerifyMastodonOEmbedAcceptsCurrentBlockquoteMarkup(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"type":"rich",
+			"provider_url":"https://social.example/",
+			"html":"<blockquote class=\"mastodon-embed\" data-embed-url=\"https://social.example/@alice/123/embed\"></blockquote>"
+		}`), nil
+	})}}
+
+	require.NoError(t, fetcher.verifyMastodonOEmbed(
+		context.Background(),
+		"https://social.example",
+		"https://social.example/@alice/123",
+	))
+}
+
+func TestFetchMastodonStatusAcceptsFederatedCanonicalURL(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"id":"123","url":"https://home.example/@alice/123","visibility":"public",
+			"content":"<p>Federated</p>","account":{"display_name":"Alice","acct":"alice@home.example"}
+		}`), nil
+	})}}
+
+	status, err := fetcher.fetchMastodonStatus(context.Background(), "https://social.example", "123")
+	require.NoError(t, err)
+	assert.Equal(t, "https://home.example/@alice/123", status.URL)
+}
+
+func TestFetchMastodonStatusAcceptsBoostActivityCanonicalURL(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"id":"123","url":"https://social.example/users/alice/statuses/123/activity","visibility":"public",
+			"account":{"display_name":"Alice","acct":"alice"},
+			"reblog":{"id":"456","url":"https://home.example/@bob/789","visibility":"public","account":{"display_name":"Bob","acct":"bob@home.example"}}
+		}`), nil
+	})}}
+
+	status, err := fetcher.fetchMastodonStatus(context.Background(), "https://social.example", "123")
+	require.NoError(t, err)
+	require.NotNil(t, status.Reblog)
+	assert.Equal(t, "https://home.example/@bob/789", status.Reblog.URL)
+}
+
+func TestFetchMastodonStatusRejectsInvalidCanonicalURL(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"id":"123","url":"https://attacker.example/not-a-status","visibility":"public",
+			"content":"<p>Mislabelled</p>","account":{"display_name":"Alice","acct":"alice"}
+		}`), nil
+	})}}
+
+	_, err := fetcher.fetchMastodonStatus(context.Background(), "https://social.example", "123")
+	require.ErrorContains(t, err, "invalid canonical URL")
+}
+
+func TestMastodonSensitiveStatusGetsContentWarning(t *testing.T) {
+	fetcher := &Fetcher{}
+	snapshot := fetcher.mastodonStatusSnapshot(context.Background(), &mastodonStatus{
+		ID:         "123",
+		URL:        "https://social.example/@alice/123",
+		Visibility: "public",
+		Sensitive:  true,
+		Content:    "<p>Sensitive words</p>",
+		Account:    mastodonAccount{DisplayName: "Alice", Acct: "alice"},
+	}, "", "https://social.example", &socialPostImageBudget{}, 0)
+
+	require.NotNil(t, snapshot)
+	assert.Equal(t, "Sensitive content", snapshot.GetContentWarning())
+}
+
+func TestMastodonHTTPClientRejectsCrossOriginRedirect(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{}}
+	client := fetcher.mastodonHTTPClient("https://social.example")
+	req, err := http.NewRequest(http.MethodGet, "https://attacker.example/api/oembed", nil)
+	require.NoError(t, err)
+	require.ErrorContains(t, client.CheckRedirect(req, nil), "changed instance origin")
 }

@@ -36,6 +36,13 @@ preview-card styling and the same actions as other link previews.
     post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : ''
   );
 
+  let contentRevealed = $state(false);
+  let quotedContentRevealed = $state(false);
+  const contentConcealed = $derived(Boolean(post.contentWarning) && !contentRevealed);
+  const quotedContentConcealed = $derived(
+    Boolean(post.quotedPost?.contentWarning) && !quotedContentRevealed
+  );
+
   function displayAuthor(post: SocialPostPreviewView) {
     return post.author?.displayName || post.author?.handle || post.provider;
   }
@@ -127,136 +134,172 @@ preview-card styling and the same actions as other link previews.
   <!-- eslint-enable svelte/no-navigation-without-resolve -->
 
   {#if post.contentWarning}
-    <p class="surface-box px-2 py-1 text-xs font-medium text-text">{post.contentWarning}</p>
-  {/if}
-
-  {#if post.text}
-    <p class="line-clamp-6 text-sm leading-relaxed whitespace-pre-wrap text-text">{post.text}</p>
-  {/if}
-
-  {#if post.images.length}
-    <div
-      class={['grid gap-1 overflow-hidden rounded-sm', post.images.length > 1 ? 'grid-cols-2' : '']}
-    >
-      {#each post.images as image (image.url)}
-        <SkeletonImg src={image.url} alt={image.alt || ''} class="max-h-72 w-full object-cover" />
-      {/each}
+    <div class="flex items-center justify-between gap-2 surface-box px-2 py-1 text-xs">
+      <p class="min-w-0 font-medium text-text">{post.contentWarning}</p>
+      <button
+        type="button"
+        class="shrink-0 cursor-pointer font-medium link"
+        onclick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          contentRevealed = !contentRevealed;
+        }}
+      >
+        {contentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+      </button>
     </div>
   {/if}
 
-  {#if post.externalLink && (post.externalLink.title || post.externalLink.description || post.externalLink.imageUrl)}
-    <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party URL embedded in the post -->
-    <a
-      href={post.externalLink.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="flex min-w-0 gap-3 overflow-hidden surface-box p-2 transition-[background-color] hover:bg-surface-emphasized"
-      onclick={(event) => event.stopPropagation()}
-    >
-      {#if post.externalLink.imageUrl}
-        <SkeletonImg
-          src={post.externalLink.imageUrl}
-          alt=""
-          class="h-20 w-28 shrink-0 rounded-sm object-cover"
-        />
-      {/if}
-      <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-        {#if post.externalLink.title}
-          <div class="line-clamp-2 text-sm font-medium text-text-top">
-            {post.externalLink.title}
-          </div>
-        {/if}
-        {#if post.externalLink.description}
-          <div class="line-clamp-2 text-xs text-muted">{post.externalLink.description}</div>
-        {/if}
-      </div>
-    </a>
-    <!-- eslint-enable svelte/no-navigation-without-resolve -->
-  {/if}
+  {#if !contentConcealed}
+    {#if post.text}
+      <p class="line-clamp-6 text-sm leading-relaxed whitespace-pre-wrap text-text">{post.text}</p>
+    {/if}
 
-  {#if post.quotedPost && post.quotedPost.url}
-    <div class="surface-box flex min-w-0 flex-col gap-2 overflow-hidden p-2.5" data-testid="quoted-social-post">
-      <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party social-post URL -->
+    {#if post.images.length}
+      <div
+        class={[
+          'grid gap-1 overflow-hidden rounded-sm',
+          post.images.length > 1 ? 'grid-cols-2' : ''
+        ]}
+      >
+        {#each post.images as image (image.url)}
+          <SkeletonImg src={image.url} alt={image.alt || ''} class="max-h-72 w-full object-cover" />
+        {/each}
+      </div>
+    {/if}
+
+    {#if post.externalLink && (post.externalLink.title || post.externalLink.description || post.externalLink.imageUrl)}
+      <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party URL embedded in the post -->
       <a
-        href={post.quotedPost.url}
+        href={post.externalLink.url}
         target="_blank"
         rel="noopener noreferrer"
-        class="flex min-w-0 items-center gap-2"
+        class="flex min-w-0 gap-3 overflow-hidden surface-box p-2 transition-[background-color] hover:bg-surface-emphasized"
+        onclick={(event) => event.stopPropagation()}
       >
-        {#if post.quotedPost.author?.avatarUrl}
+        {#if post.externalLink.imageUrl}
           <SkeletonImg
-            src={post.quotedPost.author.avatarUrl}
+            src={post.externalLink.imageUrl}
             alt=""
-            class="h-7 w-7 shrink-0 rounded-full object-cover"
+            class="h-20 w-28 shrink-0 rounded-sm object-cover"
           />
-        {:else}
-          <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
         {/if}
-        <div class="flex min-w-0 items-baseline gap-1.5 text-xs">
-          <span class="truncate font-medium text-text-top">{displayAuthor(post.quotedPost)}</span>
-          {#if displayHandle(post.quotedPost)}
-            <span class="truncate text-muted">{displayHandle(post.quotedPost)}</span>
+        <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+          {#if post.externalLink.title}
+            <div class="line-clamp-2 text-sm font-medium text-text-top">
+              {post.externalLink.title}
+            </div>
+          {/if}
+          {#if post.externalLink.description}
+            <div class="line-clamp-2 text-xs text-muted">{post.externalLink.description}</div>
           {/if}
         </div>
       </a>
-      {#if post.quotedPost.contentWarning}
-        <p class="rounded-sm bg-surface-strong px-2 py-1 text-xs font-medium text-text">
-          {post.quotedPost.contentWarning}
-        </p>
-      {/if}
-      {#if post.quotedPost.text}
-        <p class="line-clamp-5 text-sm leading-relaxed whitespace-pre-wrap text-text">
-          {post.quotedPost.text}
-        </p>
-      {/if}
-      {#if post.quotedPost.images.length}
-        <div
-          class={[
-            'grid gap-1 overflow-hidden rounded-sm',
-            post.quotedPost.images.length > 1 ? 'grid-cols-2' : ''
-          ]}
-        >
-          {#each post.quotedPost.images as image (image.url)}
-            <a href={post.quotedPost.url} target="_blank" rel="noopener noreferrer">
-              <SkeletonImg
-                src={image.url}
-                alt={image.alt || ''}
-                class="max-h-60 w-full object-cover"
-              />
-            </a>
-          {/each}
-        </div>
-      {/if}
-      {#if post.quotedPost.externalLink && (post.quotedPost.externalLink.title || post.quotedPost.externalLink.description || post.quotedPost.externalLink.imageUrl)}
+      <!-- eslint-enable svelte/no-navigation-without-resolve -->
+    {/if}
+
+    {#if post.quotedPost && post.quotedPost.url}
+      <div
+        class="flex min-w-0 flex-col gap-2 overflow-hidden surface-box p-2.5"
+        data-testid="quoted-social-post"
+      >
+        <!-- eslint-disable svelte/no-navigation-without-resolve -- destination is a third-party social-post URL -->
         <a
-          href={post.quotedPost.externalLink.url}
+          href={post.quotedPost.url}
           target="_blank"
           rel="noopener noreferrer"
-          class="flex min-w-0 gap-2 overflow-hidden rounded-sm bg-surface-strong p-2"
+          class="flex min-w-0 items-center gap-2"
         >
-          {#if post.quotedPost.externalLink.imageUrl}
+          {#if post.quotedPost.author?.avatarUrl}
             <SkeletonImg
-              src={post.quotedPost.externalLink.imageUrl}
+              src={post.quotedPost.author.avatarUrl}
               alt=""
-              class="h-14 w-20 shrink-0 rounded-sm object-cover"
+              class="h-7 w-7 shrink-0 rounded-full object-cover"
             />
+          {:else}
+            <div class="h-7 w-7 shrink-0 rounded-full bg-surface-strong"></div>
           {/if}
-          <div class="min-w-0 self-center">
-            {#if post.quotedPost.externalLink.title}
-              <div class="line-clamp-1 text-xs font-medium text-text-top">
-                {post.quotedPost.externalLink.title}
-              </div>
-            {/if}
-            {#if post.quotedPost.externalLink.description}
-              <div class="line-clamp-2 text-xs text-muted">
-                {post.quotedPost.externalLink.description}
-              </div>
+          <div class="flex min-w-0 items-baseline gap-1.5 text-xs">
+            <span class="truncate font-medium text-text-top">{displayAuthor(post.quotedPost)}</span>
+            {#if displayHandle(post.quotedPost)}
+              <span class="truncate text-muted">{displayHandle(post.quotedPost)}</span>
             {/if}
           </div>
         </a>
-      {/if}
-      <!-- eslint-enable svelte/no-navigation-without-resolve -->
-    </div>
+        {#if post.quotedPost.contentWarning}
+          <div
+            class="flex items-center justify-between gap-2 rounded-sm bg-surface-strong px-2 py-1 text-xs"
+          >
+            <p class="min-w-0 font-medium text-text">{post.quotedPost.contentWarning}</p>
+            <button
+              type="button"
+              class="shrink-0 cursor-pointer font-medium link"
+              onclick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                quotedContentRevealed = !quotedContentRevealed;
+              }}
+            >
+              {quotedContentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+            </button>
+          </div>
+        {/if}
+        {#if !quotedContentConcealed}
+          {#if post.quotedPost.text}
+            <p class="line-clamp-5 text-sm leading-relaxed whitespace-pre-wrap text-text">
+              {post.quotedPost.text}
+            </p>
+          {/if}
+          {#if post.quotedPost.images.length}
+            <div
+              class={[
+                'grid gap-1 overflow-hidden rounded-sm',
+                post.quotedPost.images.length > 1 ? 'grid-cols-2' : ''
+              ]}
+            >
+              {#each post.quotedPost.images as image (image.url)}
+                <a href={post.quotedPost.url} target="_blank" rel="noopener noreferrer">
+                  <SkeletonImg
+                    src={image.url}
+                    alt={image.alt || ''}
+                    class="max-h-60 w-full object-cover"
+                  />
+                </a>
+              {/each}
+            </div>
+          {/if}
+          {#if post.quotedPost.externalLink && (post.quotedPost.externalLink.title || post.quotedPost.externalLink.description || post.quotedPost.externalLink.imageUrl)}
+            <a
+              href={post.quotedPost.externalLink.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex min-w-0 gap-2 overflow-hidden rounded-sm bg-surface-strong p-2"
+            >
+              {#if post.quotedPost.externalLink.imageUrl}
+                <SkeletonImg
+                  src={post.quotedPost.externalLink.imageUrl}
+                  alt=""
+                  class="h-14 w-20 shrink-0 rounded-sm object-cover"
+                />
+              {/if}
+              <div class="min-w-0 self-center">
+                {#if post.quotedPost.externalLink.title}
+                  <div class="line-clamp-1 text-xs font-medium text-text-top">
+                    {post.quotedPost.externalLink.title}
+                  </div>
+                {/if}
+                {#if post.quotedPost.externalLink.description}
+                  <div class="line-clamp-2 text-xs text-muted">
+                    {post.quotedPost.externalLink.description}
+                  </div>
+                {/if}
+              </div>
+            </a>
+          {/if}
+        {/if}
+        <!-- eslint-enable svelte/no-navigation-without-resolve -->
+      </div>
+    {/if}
   {/if}
 
   {#if showDismiss && onDismiss}

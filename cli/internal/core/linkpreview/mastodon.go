@@ -22,7 +22,9 @@ import (
 )
 
 type mastodonOEmbed struct {
-	Type string `json:"type"`
+	Type        string `json:"type"`
+	ProviderURL string `json:"provider_url"`
+	HTML        string `json:"html"`
 }
 
 type mastodonAccount struct {
@@ -64,6 +66,7 @@ type mastodonStatus struct {
 	Visibility       string                    `json:"visibility"`
 	Content          string                    `json:"content"`
 	SpoilerText      string                    `json:"spoiler_text"`
+	Sensitive        bool                      `json:"sensitive"`
 	Account          mastodonAccount           `json:"account"`
 	MediaAttachments []mastodonMediaAttachment `json:"media_attachments"`
 	Card             *mastodonPreviewCard      `json:"card"`
@@ -137,7 +140,7 @@ func (f *Fetcher) verifyMastodonOEmbed(ctx context.Context, origin, rawURL strin
 	}
 	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
 	req.Header.Set("Accept", "application/json")
-	resp, err := f.httpClient.Do(req)
+	resp, err := f.mastodonHTTPClient(origin).Do(req)
 	if err != nil {
 		return fmt.Errorf("fetch Mastodon oEmbed: %w", err)
 	}
@@ -152,6 +155,9 @@ func (f *Fetcher) verifyMastodonOEmbed(ctx context.Context, origin, rawURL strin
 	if metadata.Type != "rich" {
 		return errors.New("Mastodon oEmbed response is not a rich status preview")
 	}
+	if !sameOrigin(metadata.ProviderURL, origin) || !isMastodonEmbedHTML(metadata.HTML, origin) {
+		return errors.New("Mastodon oEmbed response is not bound to the status instance")
+	}
 	return nil
 }
 
@@ -163,7 +169,7 @@ func (f *Fetcher) fetchMastodonStatus(ctx context.Context, origin, statusID stri
 	}
 	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
 	req.Header.Set("Accept", "application/json")
-	resp, err := f.httpClient.Do(req)
+	resp, err := f.mastodonHTTPClient(origin).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch Mastodon status: %w", err)
 	}
@@ -177,6 +183,13 @@ func (f *Fetcher) fetchMastodonStatus(ctx context.Context, origin, statusID stri
 	}
 	if status.ID != statusID {
 		return nil, errors.New("Mastodon status API returned no matching status")
+	}
+	_, _, canonicalOK := ParseMastodonStatusURL(status.URL)
+	if !canonicalOK && status.Reblog != nil {
+		_, _, canonicalOK = ParseMastodonStatusURL(status.Reblog.URL)
+	}
+	if !canonicalOK {
+		return nil, errors.New("Mastodon status API returned an invalid canonical URL")
 	}
 	return &status, nil
 }
@@ -207,8 +220,11 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 		},
 		Text: truncateUTF8Bytes(mastodonHTMLText(status.Content), 1000),
 	}
-	if status.SpoilerText != "" {
-		warning := truncateUTF8Bytes(mastodonHTMLText(status.SpoilerText), 300)
+	if status.SpoilerText != "" || status.Sensitive {
+		warning := truncateUTF8Bytes(strings.TrimSpace(status.SpoilerText), 300)
+		if warning == "" {
+			warning = "Sensitive content"
+		}
 		snapshot.ContentWarning = &warning
 	}
 	if publishedAt, err := time.Parse(time.RFC3339Nano, status.CreatedAt); err == nil {
@@ -325,6 +341,69 @@ func hasHTMLClass(node *html.Node, className string) bool {
 		}
 	}
 	return false
+}
+
+func (f *Fetcher) mastodonHTTPClient(origin string) *http.Client {
+	client := *f.httpClient
+	parentRedirectPolicy := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if !sameOrigin(req.URL.String(), origin) {
+			return errors.New("Mastodon API redirect changed instance origin")
+		}
+		if parentRedirectPolicy != nil {
+			return parentRedirectPolicy(req, via)
+		}
+		return nil
+	}
+	return &client
+}
+
+func sameOrigin(rawURL, rawOrigin string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	origin, err := url.Parse(rawOrigin)
+	if err != nil || origin.Scheme == "" || origin.Host == "" {
+		return false
+	}
+	return strings.EqualFold(parsed.Scheme, origin.Scheme) && strings.EqualFold(parsed.Host, origin.Host)
+}
+
+func isMastodonEmbedHTML(source, origin string) bool {
+	root, err := html.Parse(strings.NewReader(source))
+	if err != nil {
+		return false
+	}
+	var valid bool
+	var visit func(*html.Node)
+	visit = func(node *html.Node) {
+		if valid {
+			return
+		}
+		if node.Type == html.ElementNode && hasHTMLClass(node, "mastodon-embed") {
+			for _, attr := range node.Attr {
+				if (node.Data != "iframe" || attr.Key != "src") &&
+					(node.Data != "blockquote" || attr.Key != "data-embed-url") {
+					continue
+				}
+				statusURL := strings.TrimSuffix(attr.Val, "/embed")
+				if statusURL != attr.Val && sameOrigin(attr.Val, origin) {
+					_, _, isStatusURL := ParseMastodonStatusURL(statusURL)
+					if !isStatusURL {
+						continue
+					}
+					valid = true
+					return
+				}
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+	}
+	visit(root)
+	return valid
 }
 
 func socialPostCompatibilityImage(snapshot *corev1.SocialPostPreview) *corev1.AssetRecord {
