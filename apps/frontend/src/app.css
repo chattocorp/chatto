@@ -416,7 +416,7 @@
 }
 
 .mention-self {
-  @apply bg-warning/20 text-warning;
+  @apply bg-attention/20 text-text;
 }
 
 /* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
