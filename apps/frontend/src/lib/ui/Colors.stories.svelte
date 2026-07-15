@@ -40,6 +40,7 @@
     { name: 'link', cssVar: '--color-link', bgClass: 'bg-link' },
     { name: 'success', cssVar: '--color-success', bgClass: 'bg-success' },
     { name: 'warning', cssVar: '--color-warning', bgClass: 'bg-warning' },
+    { name: 'attention', cssVar: '--color-attention', bgClass: 'bg-attention' },
     { name: 'danger', cssVar: '--color-danger', bgClass: 'bg-danger' },
     { name: 'server', cssVar: '--color-server', bgClass: 'bg-server' }
   ];

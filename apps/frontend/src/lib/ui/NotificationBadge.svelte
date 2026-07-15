@@ -16,7 +16,7 @@
   } = $props();
 
   const colorClasses = {
-    warning: 'bg-warning text-on-warning',
+    warning: 'bg-attention text-on-attention',
     action: 'bg-action text-on-action',
     muted: 'bg-muted text-background'
   } as const;

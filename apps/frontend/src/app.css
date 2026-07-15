@@ -80,6 +80,9 @@
   --color-on-success: var(--color-white);
   --color-warning: var(--color-amber-800);
   --color-on-warning: var(--color-white);
+  /* Notification attention stays warm and consistent across both themes. */
+  --color-attention: var(--color-amber-500);
+  --color-on-attention: var(--color-neutral-950);
   --color-danger: var(--color-red-700);
   --color-on-danger: var(--color-white);
   --color-error: var(--color-red-700);
@@ -177,6 +180,8 @@
   --color-on-success: var(--color-on-success);
   --color-warning: var(--color-warning);
   --color-on-warning: var(--color-on-warning);
+  --color-attention: var(--color-attention);
+  --color-on-attention: var(--color-on-attention);
   --color-danger: var(--color-danger);
   --color-on-danger: var(--color-on-danger);
   --color-error: var(--color-error);
