@@ -313,6 +313,84 @@ func TestRepositoryRejectsOlderSnapshotAndAllowsDailySameCutoffRefresh(t *testin
 	}
 }
 
+func TestRepositorySkipsFreshSameCutoffAcrossLeaseHandover(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	newRepository := func() *Repository {
+		repository, err := NewRepository(blobs, RepositoryOptions{
+			Pointers: blobs, SecretHex: testSecret, ProducerVersion: "test-version",
+			Now: func() time.Time { return now },
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return repository
+	}
+
+	first := newRepository()
+	published, err := first.Save(ctx, testSaveInput(200, []byte("first leader")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Hour)
+	second := newRepository()
+	refresh := testSaveInput(200, []byte("second leader"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	current, err := second.Save(ctx, refresh)
+	if !errors.Is(err, ErrSnapshotFresh) {
+		t.Fatalf("handover Save error = %v, want snapshot-fresh", err)
+	}
+	if current.GenerationID != published.GenerationID || !current.CreatedAt.Equal(published.CreatedAt) || len(blobs.objects) != 1 {
+		t.Fatalf("handover changed fresh generation: first=%#v current=%#v objects=%d", published, current, len(blobs.objects))
+	}
+
+	now = published.CreatedAt.Add(23 * time.Hour)
+	refreshed, err := second.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("stale same-cutoff refresh: %v", err)
+	}
+	if refreshed.GenerationID == published.GenerationID || len(blobs.objects) != 2 {
+		t.Fatalf("stale generation was not refreshed: first=%#v refreshed=%#v objects=%d", published, refreshed, len(blobs.objects))
+	}
+}
+
+func TestRepositoryRefreshesSameCutoffWithFutureTimestamp(t *testing.T) {
+	ctx := context.Background()
+	blobs := newMemoryBlobStore()
+	actualNow := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	producerNow := actualNow.Add(24 * time.Hour)
+	producer, err := NewRepository(blobs, RepositoryOptions{
+		Pointers: blobs, SecretHex: testSecret, ProducerVersion: "ahead",
+		Now: func() time.Time { return producerNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := producer.Save(ctx, testSaveInput(200, []byte("future")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	correctClock, err := NewRepository(blobs, RepositoryOptions{
+		Pointers: blobs, SecretHex: testSecret, ProducerVersion: "correct",
+		Now: func() time.Time { return actualNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refresh := testSaveInput(200, []byte("corrected"))
+	refresh.RefreshAge = 23 * time.Hour
+	refresh.ClockSkew = 5 * time.Minute
+	corrected, err := correctClock.Save(ctx, refresh)
+	if err != nil {
+		t.Fatalf("future timestamp refresh: %v", err)
+	}
+	if corrected.GenerationID == first.GenerationID || !corrected.CreatedAt.Equal(actualNow) {
+		t.Fatalf("future generation was not corrected: first=%#v corrected=%#v", first, corrected)
+	}
+}
+
 func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()

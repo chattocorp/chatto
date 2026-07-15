@@ -58,6 +58,7 @@ var (
 	ErrPointerConflict   = errors.New("projection snapshot pointer revision conflict")
 	ErrSnapshotNotFound  = errors.New("projection snapshot not found")
 	ErrSnapshotRegressed = errors.New("projection snapshot cutoff regresses the current generation")
+	ErrSnapshotFresh     = errors.New("projection snapshot is already fresh")
 	ErrIncompatible      = errors.New("incompatible projection snapshot")
 	errInvalidPointer    = errors.New("invalid projection snapshot pointer")
 )
@@ -128,6 +129,8 @@ type SaveInput struct {
 	StreamIdentity  string
 	CutoffSequence  uint64
 	Payload         []byte
+	RefreshAge      time.Duration
+	ClockSkew       time.Duration
 }
 
 type LoadedSnapshot struct {
@@ -204,8 +207,24 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		input.CutoffSequence < pointer.GetCurrentCutoffSequence() {
 		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d is older than current cutoff %d", ErrSnapshotRegressed, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
 	}
+	if input.RefreshAge > 0 &&
+		pointer.GetCurrentGenerationId() != "" &&
+		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
+		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
+		input.CutoffSequence == pointer.GetCurrentCutoffSequence() &&
+		pointer.GetCurrentCreatedAt() != nil {
+		createdAt := pointer.GetCurrentCreatedAt().AsTime()
+		now := r.now().UTC()
+		if createdAt.After(now.Add(-input.RefreshAge)) && !createdAt.After(now.Add(input.ClockSkew)) {
+			return LoadedSnapshot{
+				GenerationID: pointer.GetCurrentGenerationId(), CutoffSequence: pointer.GetCurrentCutoffSequence(),
+				StreamIdentity: pointer.GetCurrentStreamIdentity(), CreatedAt: createdAt,
+			}, ErrSnapshotFresh
+		}
+	}
 
 	started := time.Now()
+	createdAt := r.now().UTC()
 	var generationID [generationIDSize]byte
 	if _, err := io.ReadFull(r.rand, generationID[:]); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("generate snapshot id: %w", err)
@@ -219,7 +238,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		ProjectionKey:   input.ProjectionKey,
 		CompatibilityId: input.CompatibilityID,
 		ProducerVersion: r.producerVersion,
-		CreatedAt:       timestamppb.New(r.now().UTC()),
+		CreatedAt:       timestamppb.New(createdAt),
 		Payload:         input.Payload,
 		PayloadSize:     uint64(len(input.Payload)),
 		PayloadSha256:   payloadHash[:],
@@ -251,10 +270,12 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	pointer.PreviousCutoffSequence = pointer.GetCurrentCutoffSequence()
 	pointer.PreviousStreamIdentity = pointer.GetCurrentStreamIdentity()
 	pointer.PreviousCompatibilityId = pointer.GetCurrentCompatibilityId()
+	pointer.PreviousCreatedAt = pointer.GetCurrentCreatedAt()
 	pointer.CurrentGenerationId = generationIDText
 	pointer.CurrentCutoffSequence = input.CutoffSequence
 	pointer.CurrentStreamIdentity = input.StreamIdentity
 	pointer.CurrentCompatibilityId = input.CompatibilityID
+	pointer.CurrentCreatedAt = timestamppb.New(createdAt)
 	if err := r.savePointer(ctx, input.ProjectionKey, pointer, pointerRevision); err != nil {
 		if cleanupErr := r.blobs.Delete(ctx, objectKey); cleanupErr != nil && !errors.Is(cleanupErr, ErrBlobNotFound) {
 			r.logWarn("Unpublished projection snapshot cleanup failed", input.ProjectionKey, "publish_rollback", cleanupErr, "generation_id", generationIDText)
@@ -274,7 +295,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		"stored_bytes", len(sealed),
 		"producer_version", r.producerVersion,
 		"duration", time.Since(started))
-	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: r.producerVersion}, nil
+	return LoadedSnapshot{GenerationID: generationIDText, CutoffSequence: input.CutoffSequence, StreamIdentity: input.StreamIdentity, Payload: input.Payload, CreatedAt: createdAt, ProducerVersion: r.producerVersion}, nil
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
@@ -440,19 +461,25 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey st
 		id              string
 		streamIdentity  string
 		compatibilityID string
+		createdAt       *timestamppb.Timestamp
 	}{
-		{"current", pointer.GetCurrentGenerationId(), pointer.GetCurrentStreamIdentity(), pointer.GetCurrentCompatibilityId()},
-		{"previous", pointer.GetPreviousGenerationId(), pointer.GetPreviousStreamIdentity(), pointer.GetPreviousCompatibilityId()},
+		{"current", pointer.GetCurrentGenerationId(), pointer.GetCurrentStreamIdentity(), pointer.GetCurrentCompatibilityId(), pointer.GetCurrentCreatedAt()},
+		{"previous", pointer.GetPreviousGenerationId(), pointer.GetPreviousStreamIdentity(), pointer.GetPreviousCompatibilityId(), pointer.GetPreviousCreatedAt()},
 	}
 	for _, position := range positions {
 		if position.id == "" {
-			if position.streamIdentity != "" || position.compatibilityID != "" {
+			if position.streamIdentity != "" || position.compatibilityID != "" || position.createdAt != nil {
 				return nil, revision, fmt.Errorf("%w: %s metadata exists without a generation", errInvalidPointer, position.name)
 			}
 			continue
 		}
 		if !validStreamIdentity(position.streamIdentity) || !validCompatibilityID(position.compatibilityID) {
 			return nil, revision, fmt.Errorf("%w: %s generation metadata is incomplete", errInvalidPointer, position.name)
+		}
+		if position.createdAt != nil {
+			if err := position.createdAt.CheckValid(); err != nil {
+				return nil, revision, fmt.Errorf("%w: %s creation time: %v", errInvalidPointer, position.name, err)
+			}
 		}
 	}
 	return &pointer, revision, nil

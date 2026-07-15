@@ -92,10 +92,12 @@ both NATS and S3 payload backends. A stale lease holder can upload a generation,
 but it cannot regress a newer pointer; a failed pointer CAS rolls back the
 unpublished upload and leaves the newer history intact.
 
-The pointer also carries each generation's cutoff sequence, EVT incarnation,
-and projection compatibility ID. A writer may refresh the same cutoff but
-rejects a lower cutoff for the same EVT incarnation and compatibility contract.
-Revision OCC prevents a concurrent writer from replacing newer history.
+The pointer also carries each generation's cutoff sequence, creation time, EVT
+incarnation, and projection compatibility ID. A writer may refresh the same
+cutoff once it is old, but the repository rejects a redundant refresh when a
+previous lease holder already published a fresh generation. It rejects a lower
+cutoff for the same EVT incarnation and compatibility contract. Revision OCC
+prevents a concurrent writer from replacing newer history.
 
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
@@ -250,8 +252,9 @@ it even when its cutoff is unchanged, ensuring quiet projections receive a new
 storage timestamp before retention expiry without turning restarts into writes.
 A lower cutoff for the same EVT history and compatibility is rejected. A
 failure for one projection is logged and does not prevent the remaining jobs
-from running. On S3, the same elected worker runs bounded expiry at most daily;
-expiry failure does not stop publication checks.
+from running. On S3, the same elected worker runs bounded expiry when it gains
+leadership and at most daily while that leadership tenure continues. Expiry
+failure does not stop publication checks.
 
 ### Each projection owns its replay frontier
 

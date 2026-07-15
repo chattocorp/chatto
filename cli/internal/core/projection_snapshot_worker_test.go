@@ -106,7 +106,7 @@ func TestProjectionSnapshotWorkerChecksImmediatelyThenHourlyWithDailyS3Expiry(t 
 	}
 }
 
-func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopDailyPublication(t *testing.T) {
+func TestProjectionSnapshotWorkerExpiryFailureDoesNotStopLaterExpiry(t *testing.T) {
 	expirer := &fakeSnapshotExpirer{errors: []error{errors.New("S3 unavailable")}}
 	waits := 0
 	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
@@ -144,7 +144,8 @@ func TestProjectionSnapshotRefreshDue(t *testing.T) {
 		{name: "fresh unchanged restore", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}},
 		{name: "stale unchanged restore", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-projectionSnapshotRefreshAge)}, want: true},
 		{name: "fresh restore with boot delta", status: events.ProjectorStatus{LastSeq: 11, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}, want: true},
-		{name: "future timestamp", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(time.Minute)}},
+		{name: "future timestamp beyond tolerance", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(6 * time.Minute)}, want: true},
+		{name: "clock skew within tolerance", status: events.ProjectorStatus{LastSeq: 10, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(time.Minute)}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if got := projectionSnapshotRefreshDue(test.status, now, true); got != test.want {

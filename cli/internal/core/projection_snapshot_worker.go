@@ -18,6 +18,7 @@ const projectionSnapshotLeaseName = "projection-snapshot-threads"
 const (
 	projectionSnapshotRefreshAge           = 23 * time.Hour
 	projectionSnapshotRefreshCheckInterval = time.Hour
+	projectionSnapshotClockSkewTolerance   = 5 * time.Minute
 	projectionSnapshotExpiryInterval       = 24 * time.Hour
 	projectionSnapshotExpiryTimeout        = 5 * time.Minute
 	projectionSnapshotExpiryMaxDeletes     = 100
@@ -218,7 +219,18 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		StreamIdentity:  job.streamIdentity,
 		CutoffSequence:  captured.CutoffSequence,
 		Payload:         captured.Payload,
+		RefreshAge:      projectionSnapshotRefreshAge,
+		ClockSkew:       projectionSnapshotClockSkewTolerance,
 	})
+	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
+		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+		w.logger.Debug("Projection snapshot generation skipped after a fresh publication",
+			"projection", job.projectionKey,
+			"backend", job.repository.Backend(),
+			"stage", "generate_skip",
+			"cutoff_seq", loaded.CutoffSequence)
+		return nil
+	}
 	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
 		w.logger.Debug("Projection snapshot generation skipped after a newer publication",
 			"projection", job.projectionKey,
@@ -244,6 +256,9 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 
 func projectionSnapshotRefreshDue(status events.ProjectorStatus, now time.Time, publishReplayDelta bool) bool {
 	if status.LatestSnapshotAt.IsZero() {
+		return true
+	}
+	if status.LatestSnapshotAt.After(now.Add(projectionSnapshotClockSkewTolerance)) {
 		return true
 	}
 	if !status.LatestSnapshotAt.After(now.Add(-projectionSnapshotRefreshAge)) {
