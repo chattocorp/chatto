@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const contentKeySnapshotCompatibilityID = "content-keys-v1"
+const contentKeySnapshotCompatibilityID = "v1"
 
 func (*ContentKeyProjection) SnapshotCompatibilityID() string {
 	return contentKeySnapshotCompatibilityID

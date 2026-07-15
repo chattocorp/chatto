@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const userSnapshotCompatibilityID = "users-profile-v2"
+const userSnapshotCompatibilityID = "v2"
 
 func (*UserProjection) SnapshotCompatibilityID() string { return userSnapshotCompatibilityID }
 

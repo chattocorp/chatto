@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomTimelineSnapshotCompatibilityID = "room-timeline-v1"
+const roomTimelineSnapshotCompatibilityID = "v1"
 
 func (*RoomTimelineProjection) SnapshotCompatibilityID() string {
 	return roomTimelineSnapshotCompatibilityID

@@ -142,6 +142,23 @@ func (n natsSnapshotBlobStore) Walk(ctx context.Context, prefix string, visit fu
 	}
 }
 
+func (n natsSnapshotBlobStore) Stat(ctx context.Context, key string) (projectionsnapshot.BlobInfo, error) {
+	info, err := n.store.GetInfo(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
+			return projectionsnapshot.BlobInfo{}, projectionsnapshot.ErrBlobNotFound
+		}
+		return projectionsnapshot.BlobInfo{}, fmt.Errorf("stat NATS snapshot object: %w", err)
+	}
+	if info.Size > math.MaxInt64 {
+		return projectionsnapshot.BlobInfo{}, fmt.Errorf("NATS snapshot object size exceeds int64")
+	}
+	return projectionsnapshot.BlobInfo{
+		Key: info.Name, Size: int64(info.Size), ModifiedAt: info.ModTime,
+		ContentType: info.Headers.Get("Content-Type"), Purpose: info.Headers.Get("Chatto-Object-Type"),
+	}, nil
+}
+
 type s3SnapshotBlobStore struct {
 	client *S3Client
 }
@@ -149,7 +166,8 @@ type s3SnapshotBlobStore struct {
 func (s s3SnapshotBlobStore) Backend() string { return "s3" }
 
 func (s s3SnapshotBlobStore) Put(ctx context.Context, key string, data []byte, contentType string) error {
-	if _, err := s.client.PutObjectFromBytes(ctx, key, data, contentType); err != nil {
+	metadata := map[string]string{projectionsnapshot.ObjectPurposeMetadataKey: projectionsnapshot.ObjectPurpose}
+	if _, err := s.client.PutObjectWithMetadata(ctx, key, bytes.NewReader(data), int64(len(data)), contentType, metadata); err != nil {
 		return fmt.Errorf("put S3 snapshot object: %w", err)
 	}
 	return nil
@@ -183,6 +201,20 @@ func (s s3SnapshotBlobStore) Walk(ctx context.Context, prefix string, visit func
 	})
 }
 
+func (s s3SnapshotBlobStore) Stat(ctx context.Context, key string) (projectionsnapshot.BlobInfo, error) {
+	info, err := s.client.StatObject(ctx, key)
+	if err != nil {
+		if IsNoSuchKeyError(err) {
+			return projectionsnapshot.BlobInfo{}, projectionsnapshot.ErrBlobNotFound
+		}
+		return projectionsnapshot.BlobInfo{}, fmt.Errorf("stat S3 snapshot object: %w", err)
+	}
+	return projectionsnapshot.BlobInfo{
+		Key: info.Key, Size: info.Size, ModifiedAt: info.ModifiedAt, ContentType: info.ContentType,
+		Purpose: info.Metadata[projectionsnapshot.ObjectPurposeMetadataKey],
+	}, nil
+}
+
 func readSnapshotBlob(reader io.Reader, maxBytes int64) ([]byte, error) {
 	limited := io.LimitReader(reader, maxBytes+1)
 	data, err := io.ReadAll(limited)
@@ -196,8 +228,9 @@ func readSnapshotBlob(reader io.Reader, maxBytes int64) ([]byte, error) {
 }
 
 func natsHeaders(contentType string) map[string][]string {
-	if contentType == "" {
-		return nil
+	headers := map[string][]string{"Chatto-Object-Type": {projectionsnapshot.ObjectPurpose}}
+	if contentType != "" {
+		headers["Content-Type"] = []string{contentType}
 	}
-	return map[string][]string{"Content-Type": {contentType}}
+	return headers
 }

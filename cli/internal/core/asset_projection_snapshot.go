@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const assetSnapshotCompatibilityID = "assets-v1"
+const assetSnapshotCompatibilityID = "v1"
 
 func (*AssetProjection) SnapshotCompatibilityID() string { return assetSnapshotCompatibilityID }
 

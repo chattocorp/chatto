@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"strings"
 	"time"
@@ -132,6 +133,7 @@ type S3ObjectInfo struct {
 	Size        int64
 	ContentType string
 	ModifiedAt  time.Time
+	Metadata    map[string]string
 }
 
 // WalkObjects visits every object under a logical key prefix using bounded S3
@@ -166,6 +168,11 @@ func (s *S3Client) WalkObjects(ctx context.Context, prefix string, visit func(S3
 
 // PutObject uploads an object to S3.
 func (s *S3Client) PutObject(ctx context.Context, key string, reader io.Reader, size int64, contentType string) (*S3ObjectInfo, error) {
+	return s.PutObjectWithMetadata(ctx, key, reader, size, contentType, nil)
+}
+
+// PutObjectWithMetadata uploads an object with private provider metadata.
+func (s *S3Client) PutObjectWithMetadata(ctx context.Context, key string, reader io.Reader, size int64, contentType string, metadata map[string]string) (*S3ObjectInfo, error) {
 	physicalKey := s.physicalKey(key)
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
@@ -173,6 +180,7 @@ func (s *S3Client) PutObject(ctx context.Context, key string, reader io.Reader, 
 		Body:          reader,
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(contentType),
+		Metadata:      metadata,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload object: %w", err)
@@ -182,6 +190,7 @@ func (s *S3Client) PutObject(ctx context.Context, key string, reader io.Reader, 
 		Key:         s.logicalKey(physicalKey),
 		Size:        size,
 		ContentType: contentType,
+		Metadata:    maps.Clone(metadata),
 	}, nil
 }
 
@@ -206,6 +215,7 @@ func (s *S3Client) GetObject(ctx context.Context, key string) (io.ReadCloser, *S
 		Key:         s.logicalKey(physicalKey),
 		Size:        aws.ToInt64(obj.ContentLength),
 		ContentType: aws.ToString(obj.ContentType),
+		Metadata:    maps.Clone(obj.Metadata),
 	}, nil
 }
 
@@ -274,6 +284,8 @@ func (s *S3Client) StatObject(ctx context.Context, key string) (*S3ObjectInfo, e
 		Key:         s.logicalKey(physicalKey),
 		Size:        aws.ToInt64(stat.ContentLength),
 		ContentType: aws.ToString(stat.ContentType),
+		ModifiedAt:  aws.ToTime(stat.LastModified),
+		Metadata:    maps.Clone(stat.Metadata),
 	}, nil
 }
 

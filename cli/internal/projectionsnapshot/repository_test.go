@@ -13,7 +13,7 @@ import (
 const testSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 const testStreamIdentity = "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const otherStreamIdentity = "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-const testCompatibilityID = "test-v1"
+const testCompatibilityID = "v1"
 
 func testSaveInput(seq uint64, payload []byte) SaveInput {
 	return SaveInput{ProjectionKey: "threads", CompatibilityID: testCompatibilityID, StreamName: "EVT", StreamIdentity: testStreamIdentity, CutoffSequence: seq, Payload: payload}
@@ -22,6 +22,8 @@ func testSaveInput(seq uint64, payload []byte) SaveInput {
 type memoryBlobStore struct {
 	objects             map[string][]byte
 	modified            map[string]time.Time
+	contentTypes        map[string]string
+	purposes            map[string]string
 	pointers            map[string][]byte
 	revisions           map[string]uint64
 	nextRev             uint64
@@ -65,12 +67,14 @@ func (l *captureLogger) Error(message interface{}, keyvals ...interface{}) {
 
 func newMemoryBlobStore() *memoryBlobStore {
 	return &memoryBlobStore{
-		objects:   make(map[string][]byte),
-		modified:  make(map[string]time.Time),
-		pointers:  make(map[string][]byte),
-		revisions: make(map[string]uint64),
-		nextRev:   1,
-		now:       func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
+		objects:      make(map[string][]byte),
+		modified:     make(map[string]time.Time),
+		contentTypes: make(map[string]string),
+		purposes:     make(map[string]string),
+		pointers:     make(map[string][]byte),
+		revisions:    make(map[string]uint64),
+		nextRev:      1,
+		now:          func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) },
 	}
 }
 
@@ -116,12 +120,14 @@ func (m *memoryBlobStore) UpdatePointer(_ context.Context, key string, value []b
 	return revision, nil
 }
 func (*memoryBlobStore) Backend() string { return "memory" }
-func (m *memoryBlobStore) Put(_ context.Context, key string, data []byte, _ string) error {
+func (m *memoryBlobStore) Put(_ context.Context, key string, data []byte, contentType string) error {
 	if m.failPut != nil && m.failPut(key) {
 		return errors.New("injected put failure")
 	}
 	m.objects[key] = append([]byte(nil), data...)
 	m.modified[key] = m.now()
+	m.contentTypes[key] = contentType
+	m.purposes[key] = objectPurpose
 	return nil
 }
 func (m *memoryBlobStore) Get(_ context.Context, key string, max int64) ([]byte, error) {
@@ -146,7 +152,23 @@ func (m *memoryBlobStore) Delete(_ context.Context, key string) error {
 	}
 	delete(m.objects, key)
 	delete(m.modified, key)
+	delete(m.contentTypes, key)
+	delete(m.purposes, key)
 	return nil
+}
+
+func (m *memoryBlobStore) Stat(_ context.Context, key string) (BlobInfo, error) {
+	if m.failGet != nil && m.failGet(key) {
+		return BlobInfo{}, errors.New("injected stat failure")
+	}
+	data, ok := m.objects[key]
+	if !ok {
+		return BlobInfo{}, ErrBlobNotFound
+	}
+	return BlobInfo{
+		Key: key, Size: int64(len(data)), ModifiedAt: m.modified[key],
+		ContentType: m.contentTypes[key], Purpose: m.purposes[key],
+	}, nil
 }
 func (m *memoryBlobStore) Walk(ctx context.Context, prefix string, visit func(BlobInfo) error) error {
 	m.walkCalls++
@@ -216,7 +238,7 @@ func TestRepositoryRoundTripKeepsMetadataOpaque(t *testing.T) {
 		t.Fatalf("loaded snapshot = %#v", loaded)
 	}
 	for key, data := range blobs.objects {
-		if strings.Contains(key, "threads") || bytes.Contains(data, []byte("threads")) || bytes.Contains(data, payload) {
+		if !strings.HasPrefix(key, objectRootPrefix+"threads/v1/objects/") || bytes.Contains(data, []byte("threads")) || bytes.Contains(data, payload) {
 			t.Fatalf("snapshot metadata leaked through object %q", key)
 		}
 	}
@@ -237,7 +259,9 @@ func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
 		if _, err := repository.Save(ctx, testSaveInput(2, []byte("second"))); err != nil {
 			t.Fatal(err)
 		}
-		blobs.failDelete = func(key string) bool { return key == repository.generationObjectKey(first.GenerationID) }
+		blobs.failDelete = func(key string) bool {
+			return key == repository.generationObjectKey("threads", testCompatibilityID, first.GenerationID)
+		}
 		newest, err = repository.Save(ctx, testSaveInput(3, []byte("third")))
 		blobs.failDelete = nil
 		if err != nil {
@@ -260,7 +284,7 @@ func TestRepositoryRejectsStalePointerPublication(t *testing.T) {
 	}
 }
 
-func TestRepositoryRejectsSnapshotCapturedBeforeCurrentPublication(t *testing.T) {
+func TestRepositoryRejectsOlderSnapshotAndAllowsDailySameCutoffRefresh(t *testing.T) {
 	ctx := context.Background()
 	blobs := newMemoryBlobStore()
 	repository := newTestRepository(t, blobs, testSecret)
@@ -269,17 +293,19 @@ func TestRepositoryRejectsSnapshotCapturedBeforeCurrentPublication(t *testing.T)
 		t.Fatal(err)
 	}
 
-	for _, cutoff := range []uint64{100, 200} {
-		if _, err := repository.Save(ctx, testSaveInput(cutoff, []byte("captured earlier"))); !errors.Is(err, ErrSnapshotNotAdvanced) {
-			t.Fatalf("Save cutoff %d error = %v, want snapshot-not-advanced", cutoff, err)
-		}
+	if _, err := repository.Save(ctx, testSaveInput(100, []byte("captured earlier"))); !errors.Is(err, ErrSnapshotRegressed) {
+		t.Fatalf("older Save error = %v, want snapshot-regressed", err)
 	}
-	loaded, err := repository.Load(ctx, ProjectionV1ThreadsKey, testCompatibilityID, "EVT", testStreamIdentity, 200)
+	refreshed, err := repository.Save(ctx, testSaveInput(200, []byte("daily refresh")))
+	if err != nil {
+		t.Fatalf("same-cutoff refresh: %v", err)
+	}
+	loaded, err := repository.Load(ctx, ProjectionThreadsKey, testCompatibilityID, "EVT", testStreamIdentity, 200)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.GenerationID != newest.GenerationID || loaded.CutoffSequence != 200 || len(blobs.objects) != 1 {
-		t.Fatalf("non-advancing save changed repository: loaded=%#v objects=%d", loaded, len(blobs.objects))
+	if loaded.GenerationID != refreshed.GenerationID || loaded.GenerationID == newest.GenerationID || loaded.CutoffSequence != 200 || string(loaded.Payload) != "daily refresh" || len(blobs.objects) != 2 {
+		t.Fatalf("same-cutoff refresh was not published: loaded=%#v objects=%d", loaded, len(blobs.objects))
 	}
 }
 
@@ -292,7 +318,7 @@ func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	}
 
 	newCompatibility := testSaveInput(200, []byte("new compatibility"))
-	newCompatibility.CompatibilityID = "test-v2"
+	newCompatibility.CompatibilityID = "v2"
 	if _, err := repository.Save(ctx, newCompatibility); err != nil {
 		t.Fatalf("new compatibility Save: %v", err)
 	}
@@ -304,62 +330,79 @@ func TestRepositoryAllowsNewHistoryOrCompatibilityAtSameCutoff(t *testing.T) {
 	}
 }
 
-func TestRepositoryRejectsProjectionOutsideFrozenV1Namespace(t *testing.T) {
+func TestRepositoryLocatesPreviousGenerationAcrossCompatibilityUpgrade(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	ctx := context.Background()
+	previous, err := repository.Save(ctx, testSaveInput(10, []byte("v1 state")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := testSaveInput(20, []byte("v2 state"))
+	current.CompatibilityID = "v2"
+	if _, err := repository.Save(ctx, current); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repository.Load(ctx, "threads", "v1", "EVT", testStreamIdentity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.GenerationID != previous.GenerationID || string(loaded.Payload) != "v1 state" {
+		t.Fatalf("cross-version fallback loaded = %#v", loaded)
+	}
+}
+
+func TestRepositoryIgnoresLegacyCohortPointerKey(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	if _, err := repository.Save(context.Background(), testSaveInput(1, []byte("state"))); err != nil {
+		t.Fatal(err)
+	}
+	currentKey := repository.pointerKey("threads")
+	legacyKey := "projection_snapshot_pointer." + opaqueLocator(repository.secret, "v1:threads")
+	blobs.pointers[legacyKey] = blobs.pointers[currentKey]
+	blobs.revisions[legacyKey] = blobs.revisions[currentKey]
+	delete(blobs.pointers, currentKey)
+	delete(blobs.revisions, currentKey)
+	if _, err := repository.Load(context.Background(), "threads", "v1", "EVT", testStreamIdentity, 1); !errors.Is(err, ErrSnapshotNotFound) {
+		t.Fatalf("legacy cohort pointer Load error = %v", err)
+	}
+}
+
+func TestRepositoryRejectsInvalidProjectionOrCompatibilityPathSegments(t *testing.T) {
 	ctx := context.Background()
 	repository := newTestRepository(t, newMemoryBlobStore(), testSecret)
-	input := testSaveInput(1, []byte("state"))
-	input.ProjectionKey = "typo"
-	if _, err := repository.Save(ctx, input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v1") {
-		t.Fatalf("Save error = %v", err)
-	}
-	if _, err := repository.Load(ctx, "typo", testCompatibilityID, "EVT", testStreamIdentity, 1); err == nil || !strings.Contains(err.Error(), "not a member of namespace v1") {
-		t.Fatalf("Load error = %v", err)
-	}
-}
-
-func TestRepositoryV2AcceptsOnlyFrozenCoreMembership(t *testing.T) {
-	blobs := newMemoryBlobStore()
-	repository, err := NewRepository(blobs, RepositoryOptions{
-		Namespace: NamespaceV2Core,
-		Pointers:  blobs,
-		SecretHex: testSecret,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, key := range NamespaceV2Core.projectionKeys {
-		input := testSaveInput(1, []byte(key))
-		input.ProjectionKey = key
-		if _, err := repository.Save(context.Background(), input); err != nil {
-			t.Fatalf("Save %q: %v", key, err)
+	for _, test := range []struct{ projection, compatibility string }{
+		{"../assets", "v1"}, {"room-directory", "v1"}, {"threads", "threads-v1"}, {"threads", "v0"},
+	} {
+		input := testSaveInput(1, []byte("state"))
+		input.ProjectionKey, input.CompatibilityID = test.projection, test.compatibility
+		if _, err := repository.Save(ctx, input); err == nil {
+			t.Fatalf("Save accepted projection=%q compatibility=%q", test.projection, test.compatibility)
 		}
-	}
-	for _, key := range []string{ProjectionV1ThreadsKey, ProjectionUsersKey, "future_projection"} {
-		input := testSaveInput(1, []byte(key))
-		input.ProjectionKey = key
-		if _, err := repository.Save(context.Background(), input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v2") {
-			t.Fatalf("Save %q error = %v", key, err)
+		if _, err := repository.Load(ctx, test.projection, test.compatibility, "EVT", testStreamIdentity, 1); err == nil {
+			t.Fatalf("Load accepted projection=%q compatibility=%q", test.projection, test.compatibility)
 		}
 	}
 }
 
-func TestRepositoryV3AcceptsOnlyFrozenUserMembership(t *testing.T) {
+func TestRepositoryScopesPointersAndObjectsPerProjectionAndVersion(t *testing.T) {
 	blobs := newMemoryBlobStore()
-	repository, err := NewRepository(blobs, RepositoryOptions{Namespace: NamespaceV3Users, Pointers: blobs, SecretHex: testSecret})
-	if err != nil {
-		t.Fatal(err)
-	}
-	input := testSaveInput(1, []byte("users"))
-	input.ProjectionKey = ProjectionUsersKey
-	if _, err := repository.Save(context.Background(), input); err != nil {
-		t.Fatalf("Save users: %v", err)
-	}
-	for _, key := range []string{ProjectionV1ThreadsKey, ProjectionRoomDirectoryKey, "future_projection"} {
-		input := testSaveInput(1, []byte(key))
-		input.ProjectionKey = key
-		if _, err := repository.Save(context.Background(), input); err == nil || !strings.Contains(err.Error(), "not a member of namespace v3") {
-			t.Fatalf("Save %q error = %v", key, err)
+	repository := newTestRepository(t, blobs, testSecret)
+	for _, test := range []struct{ projection, compatibility string }{{"threads", "v1"}, {"users", "v2"}} {
+		input := testSaveInput(1, []byte(test.projection))
+		input.ProjectionKey, input.CompatibilityID = test.projection, test.compatibility
+		generation, err := repository.Save(context.Background(), input)
+		if err != nil {
+			t.Fatal(err)
 		}
+		key := repository.generationObjectKey(test.projection, test.compatibility, generation.GenerationID)
+		if _, ok := blobs.objects[key]; !ok {
+			t.Fatalf("missing scoped generation %q", key)
+		}
+	}
+	if repository.pointerKey("threads") == repository.pointerKey("users") {
+		t.Fatal("projection pointers share an opaque key")
 	}
 }
 
@@ -375,7 +418,7 @@ func TestRepositoryFallsBackToPreviousGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blobs.objects[repository.generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
+	blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, second.GenerationID)][envelopeHeaderSize] ^= 1
 
 	loaded, err := repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 20)
 	if err != nil {
@@ -421,11 +464,11 @@ func TestRepositoryRetainsCurrentAndPrevious(t *testing.T) {
 		}
 		generations = append(generations, generation)
 	}
-	if _, ok := blobs.objects[repository.generationObjectKey(generations[0].GenerationID)]; ok {
+	if _, ok := blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, generations[0].GenerationID)]; ok {
 		t.Fatal("oldest generation was not deleted")
 	}
 	for _, generation := range generations[1:] {
-		if _, ok := blobs.objects[repository.generationObjectKey(generation.GenerationID)]; !ok {
+		if _, ok := blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, generation.GenerationID)]; !ok {
 			t.Fatalf("retained generation %s is missing", generation.GenerationID)
 		}
 	}
@@ -448,7 +491,7 @@ func TestRepositoryRejectsWrongKeyCompatibilityAndFutureCutoff(t *testing.T) {
 		compatibility, stream, identity string
 		max                             uint64
 	}{
-		{"test-v2", "EVT", testStreamIdentity, 10},
+		{"v2", "EVT", testStreamIdentity, 10},
 		{testCompatibilityID, "OTHER", testStreamIdentity, 10},
 		{testCompatibilityID, "EVT", otherStreamIdentity, 10},
 		{testCompatibilityID, "EVT", testStreamIdentity, 9},
@@ -508,7 +551,7 @@ func TestRepositoryDoesNotUploadGenerationAfterTransientPointerReadFailure(t *te
 		t.Fatalf("pointer changed after read failure: %#v", loaded)
 	}
 
-	blobs.objects[repository.generationObjectKey(second.GenerationID)][envelopeHeaderSize] ^= 1
+	blobs.objects[repository.generationObjectKey("threads", testCompatibilityID, second.GenerationID)][envelopeHeaderSize] ^= 1
 	loaded, err = repository.Load(ctx, "threads", testCompatibilityID, "EVT", testStreamIdentity, 3)
 	if err != nil {
 		t.Fatal(err)

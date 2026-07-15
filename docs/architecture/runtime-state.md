@@ -77,7 +77,7 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Short-lived leader lease. Current names are `livekit_reconciler`, `asset_cleanup`, `projection-snapshot-threads`, and `projection-snapshot-cleanup`; only the current owner runs the corresponding worker. |
+| `lease.{name}`                             | Short-lived leader lease. Current names are `livekit_reconciler`, `asset_cleanup`, and `projection-snapshot-threads`; only the current owner runs the corresponding worker. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
@@ -101,7 +101,7 @@ no longer imported.
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `PROJECTION_SNAPSHOTS`      | Encrypted projection snapshots (optional)         |
+| `PROJECTION_SNAPSHOTS`      | Encrypted projection snapshots with configurable TTL (optional) |
 | `SERVER_ASSETS`             | NATS-backed persisted asset binaries              |
 
 **ASSET_CACHE keys:**
@@ -117,7 +117,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 | Key | Description |
 | --- | --- |
-| `internal/projection-snapshots/{namespace}/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation in frozen namespace `v1`, `v2`, or `v3`. The secret-derived epoch isolates generations across secret changes; generation IDs are random and referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by the NATS Object Store and configured S3 backend. |
+| `internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation. Compatibility versions are projection-scoped, the secret-derived epoch isolates generations across secret changes, and random generation IDs are referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by NATS and S3. |
 
 **SERVER\_ASSETS keys:**
 

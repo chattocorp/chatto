@@ -12,7 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const threadSnapshotCompatibilityID = "threads-v1"
+const threadSnapshotCompatibilityID = "v1"
 
 func (*ThreadProjection) SnapshotCompatibilityID() string {
 	return threadSnapshotCompatibilityID

@@ -49,6 +49,7 @@ type objectStore struct {
 type object struct {
 	body        []byte
 	contentType string
+	metadata    map[string]string
 	etag        string
 	modified    time.Time
 }
@@ -147,6 +148,7 @@ func (s *objectStore) handleObject(w http.ResponseWriter, r *http.Request, bucke
 		obj := object{
 			body:        body,
 			contentType: r.Header.Get("Content-Type"),
+			metadata:    readObjectMetadata(r.Header),
 			etag:        hex.EncodeToString(sum[:]),
 			modified:    time.Now().UTC(),
 		}
@@ -328,6 +330,21 @@ func setObjectHeaders(w http.ResponseWriter, obj object) {
 	w.Header().Set("Content-Length", intToString(len(obj.body)))
 	w.Header().Set("ETag", `"`+obj.etag+`"`)
 	w.Header().Set("Last-Modified", obj.modified.Format(http.TimeFormat))
+	for key, value := range obj.metadata {
+		w.Header().Set("X-Amz-Meta-"+key, value)
+	}
+}
+
+func readObjectMetadata(headers http.Header) map[string]string {
+	metadata := make(map[string]string)
+	for key, values := range headers {
+		lower := strings.ToLower(key)
+		name, ok := strings.CutPrefix(lower, "x-amz-meta-")
+		if ok && len(values) > 0 {
+			metadata[name] = values[0]
+		}
+	}
+	return metadata
 }
 
 func intToString(n int) string {

@@ -4,16 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"sync"
 	"time"
 
 	"hmans.de/chatto/internal/events"
-	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
-// Keep the original lease name so mixed-version replicas coordinate Thread
-// publications while newer leaders also publish later frozen cohorts.
+// Keep the original lease name so mixed-version replicas coordinate snapshot
+// publication during rollout.
 const projectionSnapshotLeaseName = "projection-snapshot-threads"
+
+const (
+	projectionSnapshotDailyIntervalMin    = 23 * time.Hour
+	projectionSnapshotDailyIntervalJitter = time.Hour
+	projectionSnapshotExpiryTimeout       = 5 * time.Minute
+	projectionSnapshotExpiryMaxDeletes    = 100
+	projectionSnapshotExpiryMaxBytes      = 1 << 30
+)
 
 type projectionSnapshotJob struct {
 	projector      *events.Projector
@@ -25,16 +34,30 @@ type projectionSnapshotJob struct {
 }
 
 type projectionSnapshotWorker struct {
-	jobs   []projectionSnapshotJob
-	lease  *lease.Lease
-	logger events.Logger
-	done   chan struct{}
+	jobs          []projectionSnapshotJob
+	lease         projectionSnapshotLease
+	expirer       projectionSnapshotExpirer
+	retention     time.Duration
+	logger        events.Logger
+	done          chan struct{}
+	doneOnce      sync.Once
+	wait          func(context.Context, time.Duration) error
+	nextInterval  func() time.Duration
+	expiryTimeout time.Duration
+}
+
+type projectionSnapshotLease interface {
+	Run(context.Context, func(context.Context) error) error
+	CheckOwnership(context.Context) error
+}
+
+type projectionSnapshotExpirer interface {
+	Backend() string
+	Expire(context.Context, projectionsnapshot.ExpireOptions) (projectionsnapshot.ExpireResult, error)
 }
 
 func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan struct{}) error {
-	if w.done != nil {
-		defer close(w.done)
-	}
+	defer w.signalFirstPass()
 	select {
 	case <-bootDone:
 	case <-ctx.Done():
@@ -43,7 +66,7 @@ func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan stru
 	w.logger.Debug("Projection snapshot worker waiting for lease",
 		"projections", len(w.jobs),
 		"stage", "lease_acquire")
-	err := w.lease.Run(ctx, w.generate)
+	err := w.lease.Run(ctx, w.runLeader)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		w.logger.Warn("Projection snapshot worker stopped without publishing all projections",
 			"projections", len(w.jobs),
@@ -51,6 +74,35 @@ func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan stru
 			"error", err)
 	}
 	return err
+}
+
+func (w *projectionSnapshotWorker) runLeader(ctx context.Context) error {
+	wait := w.wait
+	if wait == nil {
+		wait = waitForProjectionSnapshotPass
+	}
+	nextInterval := w.nextInterval
+	if nextInterval == nil {
+		nextInterval = projectionSnapshotDailyInterval
+	}
+	for {
+		started := time.Now()
+		if err := w.generate(ctx); err != nil {
+			return err
+		}
+		w.expire(ctx)
+		w.signalFirstPass()
+		delay := max(time.Until(started.Add(nextInterval())), 0)
+		if err := wait(ctx, delay); err != nil {
+			return err
+		}
+	}
+}
+
+func (w *projectionSnapshotWorker) signalFirstPass() {
+	if w.done != nil {
+		w.doneOnce.Do(func() { close(w.done) })
+	}
 }
 
 func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
@@ -69,6 +121,50 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 	return nil
 }
 
+func (w *projectionSnapshotWorker) expire(ctx context.Context) {
+	if w.expirer == nil {
+		return
+	}
+	timeout := w.expiryTimeout
+	if timeout <= 0 {
+		timeout = projectionSnapshotExpiryTimeout
+	}
+	expireCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	result, err := w.expirer.Expire(expireCtx, projectionsnapshot.ExpireOptions{
+		Retention: w.retention, MaxDeletes: projectionSnapshotExpiryMaxDeletes, MaxDeleteBytes: projectionSnapshotExpiryMaxBytes,
+	})
+	if err != nil {
+		w.logger.Warn("Projection snapshot S3 expiry pass failed",
+			"backend", w.expirer.Backend(), "stage", "expire", "error", err,
+			"scanned_objects", result.ScannedObjects, "eligible_objects", result.EligibleObjects,
+			"deleted_objects", result.DeletedObjects, "deleted_bytes", result.DeletedBytes)
+		return
+	}
+	w.logger.Info("Projection snapshot S3 expiry pass complete",
+		"backend", w.expirer.Backend(), "stage", "expire", "error", nil,
+		"retention", w.retention, "scanned_objects", result.ScannedObjects,
+		"scanned_bytes", result.ScannedBytes, "recent_objects", result.RecentObjects,
+		"eligible_objects", result.EligibleObjects, "eligible_bytes", result.EligibleBytes,
+		"ignored_objects", result.IgnoredObjects, "deleted_objects", result.DeletedObjects,
+		"deleted_bytes", result.DeletedBytes, "delete_limit_hit", result.DeleteLimitHit)
+}
+
+func projectionSnapshotDailyInterval() time.Duration {
+	return projectionSnapshotDailyIntervalMin + time.Duration(rand.Int64N(int64(projectionSnapshotDailyIntervalJitter)+1))
+}
+
+func waitForProjectionSnapshotPass(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projectionSnapshotJob) error {
 	started := time.Now()
 	status := job.projector.Status()
@@ -82,24 +178,6 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 			"stage", "generate_skip")
 		return nil
 	}
-	current, err := job.repository.Load(ctx, job.projectionKey, job.compatibility, job.streamName, job.streamIdentity, status.LastSeq)
-	if err == nil && current.CutoffSequence >= status.LastSeq {
-		w.logger.Debug("Projection snapshot already current",
-			"projection", job.projectionKey,
-			"backend", job.repository.Backend(),
-			"stage", "generate_skip",
-			"generation_id", current.GenerationID,
-			"cutoff_seq", current.CutoffSequence)
-		return nil
-	}
-	if err != nil && !errors.Is(err, projectionsnapshot.ErrSnapshotNotFound) {
-		w.logger.Warn("Projection snapshot current generation could not be checked; rebuilding",
-			"projection", job.projectionKey,
-			"backend", job.repository.Backend(),
-			"stage", "generate_check",
-			"error", err)
-	}
-
 	captured, err := job.projector.CaptureSnapshot()
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
@@ -115,7 +193,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		CutoffSequence:  captured.CutoffSequence,
 		Payload:         captured.Payload,
 	})
-	if errors.Is(err, projectionsnapshot.ErrSnapshotNotAdvanced) {
+	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
 		w.logger.Debug("Projection snapshot generation skipped after a newer publication",
 			"projection", job.projectionKey,
 			"backend", job.repository.Backend(),

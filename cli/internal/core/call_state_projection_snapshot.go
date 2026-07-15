@@ -8,7 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const callStateSnapshotCompatibilityID = "call-state-v1"
+const callStateSnapshotCompatibilityID = "v1"
 
 func (*CallStateProjection) SnapshotCompatibilityID() string { return callStateSnapshotCompatibilityID }
 

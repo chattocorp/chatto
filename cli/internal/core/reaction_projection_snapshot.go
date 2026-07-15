@@ -8,7 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const reactionSnapshotCompatibilityID = "reactions-v1"
+const reactionSnapshotCompatibilityID = "v1"
 
 func (*ReactionProjection) SnapshotCompatibilityID() string { return reactionSnapshotCompatibilityID }
 

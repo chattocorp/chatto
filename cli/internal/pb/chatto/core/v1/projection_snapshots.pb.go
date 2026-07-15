@@ -253,7 +253,7 @@ func (x *ProjectionSnapshotPointer) GetPreviousCompatibilityId() string {
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// threads-v1 projection compatibility contract. Repeated fields are emitted in
+// Threads v1 projection compatibility contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 type ThreadProjectionSnapshot struct {
 	state           protoimpl.MessageState         `protogen:"open.v1"`

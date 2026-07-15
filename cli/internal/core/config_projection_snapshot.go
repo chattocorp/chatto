@@ -8,7 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const configSnapshotCompatibilityID = "server-config-v1"
+const configSnapshotCompatibilityID = "v1"
 
 func (*ConfigProjection) SnapshotCompatibilityID() string { return configSnapshotCompatibilityID }
 

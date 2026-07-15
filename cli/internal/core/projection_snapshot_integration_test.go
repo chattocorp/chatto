@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
@@ -110,11 +112,17 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	select {
 	case <-second.projectionSnapshotWorker.done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("snapshot worker did not finish its current-generation check")
+		t.Fatal("snapshot worker did not finish its refresh pass")
 	}
 	stopSecond()
-	if got := projectionSnapshotObjectNames(t, ctx, second); !slices.Equal(got, firstSnapshotObjects) {
-		t.Fatalf("current snapshot check changed stored objects: got %v, want %v", got, firstSnapshotObjects)
+	refreshedObjects := projectionSnapshotObjectNames(t, ctx, second)
+	if len(refreshedObjects) != 2*len(firstSnapshotObjects) {
+		t.Fatalf("daily refresh retained %d objects, want current and previous for %d projections", len(refreshedObjects), len(firstSnapshotObjects))
+	}
+	for _, previous := range firstSnapshotObjects {
+		if !slices.Contains(refreshedObjects, previous) {
+			t.Fatalf("daily refresh discarded previous generation %q", previous)
+		}
 	}
 }
 
@@ -344,8 +352,60 @@ func TestProjectionSnapshotsAreDisabledByDefault(t *testing.T) {
 	if core.projectionSnapshotWorker != nil {
 		t.Fatal("snapshot worker enabled without projection snapshot configuration")
 	}
-	if core.projectionSnapshotCleanupWorker != nil {
-		t.Fatal("snapshot cleanup worker enabled without projection snapshot configuration")
+}
+
+func TestProjectionSnapshotNATSStoreUsesConfiguredRetention(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	retention := config.Duration(9 * 24 * time.Hour)
+	core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
+		SecretKey:           "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets:              config.AssetsConfig{SigningSecret: "test-signing-secret", StorageBackend: config.StorageBackendNATS},
+		ProjectionSnapshots: true, ProjectionSnapshotRetention: retention,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := core.js.ObjectStore(testContext(t), projectionSnapshotObjectStoreName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.Status(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.TTL() != retention.Duration() {
+		t.Fatalf("snapshot Object Store TTL = %s, want %s", status.TTL(), retention.Duration())
+	}
+	if core.projectionSnapshotWorker == nil || core.projectionSnapshotWorker.expirer != nil {
+		t.Fatal("NATS snapshot worker should use Object Store TTL without application expiry")
+	}
+}
+
+func TestProjectionSnapshotS3CleanupCanBeDisabledForExternalLifecycle(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("enabled_%t", enabled), func(t *testing.T) {
+			server := fakes3.NewServer(t)
+			useSSL := false
+			pathStyle := true
+			_, nc := testutil.StartNATS(t)
+			core, err := NewChattoCore(testContext(t), nc, config.CoreConfig{
+				SecretKey:           "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+				ProjectionSnapshots: true, ProjectionSnapshotS3Cleanup: &enabled,
+				Assets: config.AssetsConfig{
+					SigningSecret: "test-signing-secret", StorageBackend: config.StorageBackendS3,
+					S3: config.S3Config{Endpoint: server.EndpointHost(), Bucket: "snapshots", AccessKeyID: "key", SecretAccessKey: "secret", UseSSL: &useSSL, PathStyle: &pathStyle},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if core.projectionSnapshotWorker == nil {
+				t.Fatal("snapshot worker is disabled")
+			}
+			if got := core.projectionSnapshotWorker.expirer != nil; got != enabled {
+				t.Fatalf("application S3 expiry enabled = %t, want %t", got, enabled)
+			}
+		})
 	}
 }
 
@@ -359,8 +419,8 @@ func TestProjectionSnapshotInitializationFailureDoesNotPreventCoreStartup(t *tes
 	if err != nil {
 		t.Fatalf("optional snapshot initialization prevented core construction: %v", err)
 	}
-	if core.projectionSnapshotWorker != nil || core.projectionSnapshotCleanupWorker != nil {
-		t.Fatal("snapshot workers enabled after repository initialization failure")
+	if core.projectionSnapshotWorker != nil {
+		t.Fatal("snapshot worker enabled after repository initialization failure")
 	}
 	stop := startSnapshotTestCore(t, core)
 	stop()
@@ -398,7 +458,7 @@ func waitForSnapshotObjects(t *testing.T, ctx context.Context, core *ChattoCore,
 		if err == nil {
 			count := 0
 			for _, object := range objects {
-				if strings.HasPrefix(object.Name, "internal/projection-snapshots/v1/") {
+				if strings.HasPrefix(object.Name, "internal/projection-snapshots/") {
 					count++
 				}
 			}

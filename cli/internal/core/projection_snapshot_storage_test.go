@@ -37,6 +37,13 @@ func TestS3ProjectionSnapshotBlobStoreRoundTrip(t *testing.T) {
 	if err := store.Put(ctx, key, payload, "application/octet-stream"); err != nil {
 		t.Fatal(err)
 	}
+	stat, err := store.Stat(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stat.ContentType != "application/octet-stream" || stat.Purpose != projectionsnapshot.ObjectPurpose || stat.ModifiedAt.IsZero() {
+		t.Fatalf("S3 snapshot marker metadata = %#v", stat)
+	}
 	loaded, err := store.Get(ctx, key, int64(len(payload)))
 	if err != nil {
 		t.Fatal(err)
@@ -186,107 +193,90 @@ func TestNATSProjectionSnapshotPointerStoreEnforcesRevisions(t *testing.T) {
 	}
 }
 
-func TestProjectionSnapshotSweepDeletesOldOrphanThroughStorageBackends(t *testing.T) {
+func TestS3ProjectionSnapshotExpiryDeletesOnlyMarkedGenerationObjects(t *testing.T) {
 	ctx := context.Background()
-	tests := []struct {
-		name  string
-		store func(*testing.T) (projectionsnapshot.BlobStore, projectionsnapshot.PointerStore)
-	}{
-		{
-			name: "nats",
-			store: func(t *testing.T) (projectionsnapshot.BlobStore, projectionsnapshot.PointerStore) {
-				_, nc := testutil.StartNATS(t)
-				js, err := jetstream.New(nc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				objectStore, err := js.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{Bucket: "SNAPSHOT_SWEEP_TEST"})
-				if err != nil {
-					t.Fatal(err)
-				}
-				pointerKV, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "SNAPSHOT_POINTER_TEST"})
-				if err != nil {
-					t.Fatal(err)
-				}
-				return natsSnapshotBlobStore{store: objectStore}, natsSnapshotPointerStore{kv: pointerKV}
-			},
-		},
-		{
-			name: "s3",
-			store: func(t *testing.T) (projectionsnapshot.BlobStore, projectionsnapshot.PointerStore) {
-				server := fakes3.NewServer(t)
-				useSSL := false
-				pathStyle := true
-				client, err := NewS3Client(config.S3Config{
-					Endpoint: server.EndpointHost(), Bucket: "snapshots", PathPrefix: "tenant/chatto",
-					AccessKeyID: "key", SecretAccessKey: "secret", UseSSL: &useSSL, PathStyle: &pathStyle,
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-				client.listPageSize = 1
-				if err := client.EnsureBucket(ctx); err != nil {
-					t.Fatal(err)
-				}
-				_, nc := testutil.StartNATS(t)
-				js, err := jetstream.New(nc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				pointerKV, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "S3_SNAPSHOT_POINTER_TEST"})
-				if err != nil {
-					t.Fatal(err)
-				}
-				return s3SnapshotBlobStore{client: client}, natsSnapshotPointerStore{kv: pointerKV}
-			},
-		},
+	server := fakes3.NewServer(t)
+	useSSL := false
+	pathStyle := true
+	client, err := NewS3Client(config.S3Config{
+		Endpoint: server.EndpointHost(), Bucket: "snapshots", PathPrefix: "tenant/chatto",
+		AccessKeyID: "key", SecretAccessKey: "secret", UseSSL: &useSSL, PathStyle: &pathStyle,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			store, pointers := test.store(t)
-			now := time.Now().UTC().Add(48 * time.Hour)
-			repository, err := projectionsnapshot.NewRepository(store, projectionsnapshot.RepositoryOptions{
-				Pointers:  pointers,
-				SecretHex: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
-				Now:       func() time.Time { return now },
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			saved, err := repository.Save(ctx, projectionsnapshot.SaveInput{
-				ProjectionKey: "threads", CompatibilityID: "threads-v1", StreamName: "EVT",
-				StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 1, Payload: []byte("current"),
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			var savedKey string
-			if err := store.Walk(ctx, "internal/projection-snapshots/v1/objects/", func(info projectionsnapshot.BlobInfo) error {
-				savedKey = info.Key
-				return nil
-			}); err != nil {
-				t.Fatal(err)
-			}
-			orphanKey := strings.TrimSuffix(savedKey, saved.GenerationID) + strings.Repeat("f", 32)
-			if err := store.Put(ctx, orphanKey, []byte("orphan"), "application/octet-stream"); err != nil {
-				t.Fatal(err)
-			}
+	client.listPageSize = 1
+	if err := client.EnsureBucket(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pointerKV, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "S3_SNAPSHOT_POINTER_TEST"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := s3SnapshotBlobStore{client: client}
+	now := time.Now().UTC().Add(48 * time.Hour)
+	repository, err := projectionsnapshot.NewRepository(store, projectionsnapshot.RepositoryOptions{
+		Pointers: natsSnapshotPointerStore{kv: pointerKV}, SecretHex: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Save(ctx, projectionsnapshot.SaveInput{
+		ProjectionKey: "threads", CompatibilityID: "v1", StreamName: "EVT",
+		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 1, Payload: []byte("current"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	lookalike := "internal/projection-snapshots/threads/v1/objects/0123456789abcdef/" + strings.Repeat("f", 32)
+	if _, err := client.PutObjectFromBytes(ctx, lookalike, []byte("not a snapshot"), projectionsnapshot.ObjectContentType); err != nil {
+		t.Fatal(err)
+	}
 
-			result, err := repository.Sweep(ctx, projectionsnapshot.SweepOptions{
-				GracePeriod: 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if result.DeletedObjects != 1 || result.ReferencedObjects != 1 {
-				t.Fatalf("sweep result = %#v", result)
-			}
-			if _, err := store.Get(ctx, orphanKey, 1024); !errors.Is(err, projectionsnapshot.ErrBlobNotFound) {
-				t.Fatalf("orphan Get error = %v", err)
-			}
-			if _, err := repository.Load(ctx, "threads", "threads-v1", "EVT", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 1); err != nil {
-				t.Fatalf("referenced generation no longer loads: %v", err)
-			}
-		})
+	result, err := repository.Expire(ctx, projectionsnapshot.ExpireOptions{
+		Retention: 24 * time.Hour, MaxDeletes: 10, MaxDeleteBytes: 1024,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
+	if result.DeletedObjects != 1 || result.IgnoredObjects != 1 {
+		t.Fatalf("expiry result = %#v", result)
+	}
+	if _, err := client.StatObject(ctx, lookalike); err != nil {
+		t.Fatalf("unmarked lookalike was deleted: %v", err)
+	}
+	if _, err := repository.Load(ctx, "threads", "v1", "EVT", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 1); err == nil {
+		t.Fatal("expired current generation still loaded")
+	}
+}
+
+func TestNATSProjectionSnapshotObjectStoreTTLExpiresObjects(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	store, err := js.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{Bucket: "SNAPSHOT_TTL_TEST", TTL: 250 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	blobs := natsSnapshotBlobStore{store: store}
+	if err := blobs.Put(ctx, "internal/projection-snapshots/threads/v1/objects/0123456789abcdef/"+strings.Repeat("a", 32), []byte("snapshot"), projectionsnapshot.ObjectContentType); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		_, err := blobs.Stat(ctx, "internal/projection-snapshots/threads/v1/objects/0123456789abcdef/"+strings.Repeat("a", 32))
+		if errors.Is(err, projectionsnapshot.ErrBlobNotFound) {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatal("NATS snapshot object did not expire within timeout")
 }

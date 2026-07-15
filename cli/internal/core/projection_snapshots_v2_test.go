@@ -140,7 +140,11 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 	}
 
-	compatibilityIDs := make(map[string]string, len(tests))
+	expectedCompatibility := map[string]string{
+		"room_directory": "v1", "server_config": "v1", "room_group_layout": "v1",
+		"room_timeline": "v1", "call_state": "v1", "assets": "v1", "reactions": "v1",
+		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v2",
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			original := tt.new()
@@ -188,13 +192,9 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				t.Fatal("cold restore did not reset projection")
 			}
 			id := original.SnapshotCompatibilityID()
-			if id == "" {
-				t.Fatal("empty compatibility ID")
+			if id != expectedCompatibility[tt.name] {
+				t.Fatalf("compatibility ID = %q, want %q", id, expectedCompatibility[tt.name])
 			}
-			if previous := compatibilityIDs[id]; previous != "" {
-				t.Fatalf("compatibility ID %q also used by %s", id, previous)
-			}
-			compatibilityIDs[id] = tt.name
 		})
 	}
 }

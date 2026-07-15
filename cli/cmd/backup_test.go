@@ -57,6 +57,9 @@ func (b backupTestSnapshotBlobs) Delete(ctx context.Context, key string) error {
 func (backupTestSnapshotBlobs) Walk(context.Context, string, func(projectionsnapshot.BlobInfo) error) error {
 	return errors.New("backup test snapshot inventory is not implemented")
 }
+func (backupTestSnapshotBlobs) Stat(context.Context, string) (projectionsnapshot.BlobInfo, error) {
+	return projectionsnapshot.BlobInfo{}, errors.New("backup test snapshot stat is not implemented")
+}
 
 type backupTestSnapshotPointers struct{ kv jetstream.KeyValue }
 
@@ -478,7 +481,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	snapshotPayload := []byte("restorable projection state")
 	savedSnapshot, err := snapshotRepository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey: projectionsnapshot.ProjectionV1ThreadsKey, CompatibilityID: "threads-v1", StreamName: "TEST_EVENTS",
+		ProjectionKey: projectionsnapshot.ProjectionThreadsKey, CompatibilityID: "v1", StreamName: "TEST_EVENTS",
 		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 3, Payload: snapshotPayload,
 	})
 	if err != nil {
@@ -663,7 +666,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to create restored snapshot repository:", err)
 	}
-	restoredSnapshot, err := restoredRepository.Load(ctx, projectionsnapshot.ProjectionV1ThreadsKey, "threads-v1", "TEST_EVENTS", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 3)
+	restoredSnapshot, err := restoredRepository.Load(ctx, projectionsnapshot.ProjectionThreadsKey, "v1", "TEST_EVENTS", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 3)
 	if err != nil {
 		t.Fatal("Failed to load restored snapshot:", err)
 	}

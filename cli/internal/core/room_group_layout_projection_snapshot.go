@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomGroupLayoutSnapshotCompatibilityID = "room-group-layout-v1"
+const roomGroupLayoutSnapshotCompatibilityID = "v1"
 
 func (*RoomGroupLayoutProjection) SnapshotCompatibilityID() string {
 	return roomGroupLayoutSnapshotCompatibilityID

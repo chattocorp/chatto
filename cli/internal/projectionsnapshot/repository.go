@@ -20,20 +20,25 @@ import (
 )
 
 const (
-	// Namespace membership is immutable for mixed-version cleanup safety. The
-	// v1 namespace contains only the Threads projection. Adding another
-	// projection requires a new namespace version so an older replica cannot
-	// mistake the newer projection's opaque pointer and generations for orphans.
 	objectRootPrefix     = "internal/projection-snapshots/"
 	maxPayloadSize       = 64 << 20
 	maxEncryptedSize     = 80 << 20
 	maxDecompressedSize  = 72 << 20
 	contentType          = "application/vnd.chatto.projection-snapshot"
 	streamIdentityPrefix = "evt-incarnation-v1:"
+	objectPurpose        = "projection-snapshot"
+)
+
+// ObjectContentType and object-purpose metadata identify encrypted snapshot
+// generations before age-based S3 cleanup deletes them.
+const (
+	ObjectContentType        = contentType
+	ObjectPurpose            = objectPurpose
+	ObjectPurposeMetadataKey = "chatto-object-type"
 )
 
 const (
-	ProjectionV1ThreadsKey       = "threads"
+	ProjectionThreadsKey         = "threads"
 	ProjectionRoomDirectoryKey   = "room_directory"
 	ProjectionServerConfigKey    = "server_config"
 	ProjectionRoomGroupLayoutKey = "room_group_layout"
@@ -47,64 +52,14 @@ const (
 	ProjectionUsersKey           = "users"
 )
 
-// Namespace fixes the projection membership of one snapshot storage version.
-// Membership cannot change after release because older sweepers must know every
-// pointer that can reference generations in the namespace.
-type Namespace struct {
-	version        string
-	projectionKeys []string
-	keySet         map[string]struct{}
-}
-
-// NamespaceV1Threads is the frozen Threads-only namespace from the first
-// snapshot implementation.
-var NamespaceV1Threads = mustNamespace("v1", ProjectionV1ThreadsKey)
-
-// NamespaceV2Core contains the privacy-reviewed snapshot cohort. Threads
-// remains in v1 and Users remains cold so existing generations, cleanup, and
-// credential/PII boundaries stay valid during rollout.
-var NamespaceV2Core = mustNamespace("v2",
-	ProjectionRoomDirectoryKey,
-	ProjectionServerConfigKey,
-	ProjectionRoomGroupLayoutKey,
-	ProjectionRoomTimelineKey,
-	ProjectionCallStateKey,
-	ProjectionAssetsKey,
-	ProjectionReactionsKey,
-	ProjectionContentKeysKey,
-	ProjectionRBACKey,
-	ProjectionMentionablesKey,
-)
-
-// NamespaceV3Users contains only the snapshot-safe user profile projection.
-// Credential-bearing user auth state remains outside every snapshot namespace.
-var NamespaceV3Users = mustNamespace("v3", ProjectionUsersKey)
-
-func mustNamespace(version string, keys ...string) Namespace {
-	if version == "" || len(keys) == 0 {
-		panic("projection snapshot namespace requires a version and projection keys")
-	}
-	namespace := Namespace{version: version, projectionKeys: append([]string(nil), keys...), keySet: make(map[string]struct{}, len(keys))}
-	for _, key := range keys {
-		if key == "" {
-			panic("projection snapshot namespace contains an empty projection key")
-		}
-		if _, duplicate := namespace.keySet[key]; duplicate {
-			panic("projection snapshot namespace repeats projection key " + key)
-		}
-		namespace.keySet[key] = struct{}{}
-	}
-	return namespace
-}
-
 var (
-	ErrBlobNotFound        = errors.New("projection snapshot blob not found")
-	ErrPointerNotFound     = errors.New("projection snapshot pointer not found")
-	ErrPointerConflict     = errors.New("projection snapshot pointer revision conflict")
-	ErrSnapshotNotFound    = errors.New("projection snapshot not found")
-	ErrSnapshotNotAdvanced = errors.New("projection snapshot does not advance the current generation")
-	ErrIncompatible        = errors.New("incompatible projection snapshot")
-	errInvalidPointer      = errors.New("invalid projection snapshot pointer")
+	ErrBlobNotFound      = errors.New("projection snapshot blob not found")
+	ErrPointerNotFound   = errors.New("projection snapshot pointer not found")
+	ErrPointerConflict   = errors.New("projection snapshot pointer revision conflict")
+	ErrSnapshotNotFound  = errors.New("projection snapshot not found")
+	ErrSnapshotRegressed = errors.New("projection snapshot cutoff regresses the current generation")
+	ErrIncompatible      = errors.New("incompatible projection snapshot")
+	errInvalidPointer    = errors.New("invalid projection snapshot pointer")
 )
 
 type Logger interface {
@@ -122,6 +77,7 @@ type BlobStore interface {
 	Get(context.Context, string, int64) ([]byte, error)
 	Delete(context.Context, string) error
 	Walk(context.Context, string, func(BlobInfo) error) error
+	Stat(context.Context, string) (BlobInfo, error)
 }
 
 // PointerStore provides durable optimistic concurrency for the encrypted
@@ -137,13 +93,14 @@ type PointerStore interface {
 // Keys are private logical locators and must not be logged or exposed through
 // operator APIs.
 type BlobInfo struct {
-	Key        string
-	Size       int64
-	ModifiedAt time.Time
+	Key         string
+	Size        int64
+	ModifiedAt  time.Time
+	ContentType string
+	Purpose     string
 }
 
 type RepositoryOptions struct {
-	Namespace       Namespace
 	Pointers        PointerStore
 	SecretHex       string
 	ProducerVersion string
@@ -162,7 +119,6 @@ type Repository struct {
 	rand            io.Reader
 	now             func() time.Time
 	maxPayloadSize  int
-	namespace       Namespace
 }
 
 type SaveInput struct {
@@ -190,13 +146,6 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	if opts.Pointers == nil {
 		return nil, fmt.Errorf("snapshot pointer store is nil")
 	}
-	namespace := opts.Namespace
-	if namespace.version == "" {
-		namespace = NamespaceV1Threads
-	}
-	if len(namespace.projectionKeys) == 0 || len(namespace.keySet) != len(namespace.projectionKeys) {
-		return nil, fmt.Errorf("snapshot namespace is invalid")
-	}
 	secret, err := hex.DecodeString(opts.SecretHex)
 	if err != nil || len(secret) != 32 {
 		return nil, fmt.Errorf("decode core.secret_key for snapshots: expected 32-byte hex secret")
@@ -219,18 +168,15 @@ func NewRepository(blobs BlobStore, opts RepositoryOptions) (*Repository, error)
 	}
 	return &Repository{
 		blobs: blobs, pointers: opts.Pointers, codec: codec, secret: secret, producerVersion: version,
-		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize, namespace: namespace,
+		logger: opts.Logger, rand: random, now: now, maxPayloadSize: maxPayloadSize,
 	}, nil
 }
 
 func (r *Repository) Backend() string { return r.blobs.Backend() }
 
 func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot, error) {
-	if input.ProjectionKey == "" || input.CompatibilityID == "" || input.StreamName == "" {
+	if !validProjectionKey(input.ProjectionKey) || !validCompatibilityID(input.CompatibilityID) || input.StreamName == "" {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key, compatibility id, and stream name are required")
-	}
-	if !r.namespace.contains(input.ProjectionKey) {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace %s", input.ProjectionKey, r.namespace.version)
 	}
 	if !validStreamIdentity(input.StreamIdentity) {
 		return LoadedSnapshot{}, fmt.Errorf("snapshot EVT cutoff identity is invalid")
@@ -255,8 +201,8 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if pointer.GetCurrentGenerationId() != "" &&
 		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
 		pointer.GetCurrentCompatibilityId() == input.CompatibilityID &&
-		input.CutoffSequence <= pointer.GetCurrentCutoffSequence() {
-		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d does not exceed current cutoff %d", ErrSnapshotNotAdvanced, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
+		input.CutoffSequence < pointer.GetCurrentCutoffSequence() {
+		return LoadedSnapshot{}, fmt.Errorf("%w: cutoff %d is older than current cutoff %d", ErrSnapshotRegressed, input.CutoffSequence, pointer.GetCurrentCutoffSequence())
 	}
 
 	started := time.Now()
@@ -294,12 +240,13 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	if len(sealed) > maxEncryptedSize {
 		return LoadedSnapshot{}, fmt.Errorf("encrypted snapshot exceeds %d bytes", maxEncryptedSize)
 	}
-	objectKey := r.generationObjectKey(generationIDText)
+	objectKey := r.generationObjectKey(input.ProjectionKey, input.CompatibilityID, generationIDText)
 	if err := r.blobs.Put(ctx, objectKey, sealed, contentType); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("write snapshot generation: %w", err)
 	}
 
 	dropped := pointer.GetPreviousGenerationId()
+	droppedCompatibility := pointer.GetPreviousCompatibilityId()
 	pointer.PreviousGenerationId = pointer.GetCurrentGenerationId()
 	pointer.PreviousCutoffSequence = pointer.GetCurrentCutoffSequence()
 	pointer.PreviousStreamIdentity = pointer.GetCurrentStreamIdentity()
@@ -314,8 +261,8 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 		}
 		return LoadedSnapshot{}, fmt.Errorf("publish snapshot pointer: %w", err)
 	}
-	if dropped != "" && dropped != pointer.GetPreviousGenerationId() {
-		if err := r.blobs.Delete(ctx, r.generationObjectKey(dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
+	if dropped != "" && dropped != pointer.GetPreviousGenerationId() && validCompatibilityID(droppedCompatibility) {
+		if err := r.blobs.Delete(ctx, r.generationObjectKey(input.ProjectionKey, droppedCompatibility, dropped)); err != nil && !errors.Is(err, ErrBlobNotFound) {
 			r.logWarn("Projection snapshot cleanup failed", input.ProjectionKey, "cleanup", err)
 		}
 	}
@@ -331,8 +278,8 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 }
 
 func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
-	if !r.namespace.contains(projectionKey) {
-		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key %q is not a member of namespace %s", projectionKey, r.namespace.version)
+	if !validProjectionKey(projectionKey) || !validCompatibilityID(compatibilityID) {
+		return LoadedSnapshot{}, fmt.Errorf("snapshot projection key or compatibility id is invalid")
 	}
 	started := time.Now()
 	pointer, err := r.loadPointer(ctx, projectionKey)
@@ -342,17 +289,23 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 		}
 		return LoadedSnapshot{}, err
 	}
-	ids := []string{pointer.GetCurrentGenerationId(), pointer.GetPreviousGenerationId()}
+	positions := []struct {
+		id              string
+		compatibilityID string
+	}{
+		{pointer.GetCurrentGenerationId(), pointer.GetCurrentCompatibilityId()},
+		{pointer.GetPreviousGenerationId(), pointer.GetPreviousCompatibilityId()},
+	}
 	var failures []error
-	for index, id := range ids {
-		if id == "" {
+	for index, position := range positions {
+		if position.id == "" {
 			continue
 		}
-		loaded, err := r.loadGeneration(ctx, id, projectionKey, compatibilityID, streamName, streamIdentity, maxCutoff)
+		loaded, err := r.loadGeneration(ctx, position.id, projectionKey, position.compatibilityID, compatibilityID, streamName, streamIdentity, maxCutoff)
 		if err == nil {
 			r.logInfo("Projection snapshot loaded", projectionKey,
 				"restore", nil,
-				"generation_id", id,
+				"generation_id", position.id,
 				"cutoff_seq", loaded.CutoffSequence,
 				"pointer_slot", index,
 				"payload_bytes", len(loaded.Payload),
@@ -360,8 +313,8 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 				"duration", time.Since(started))
 			return loaded, nil
 		}
-		failures = append(failures, fmt.Errorf("generation %s: %w", id, err))
-		r.logWarn("Projection snapshot generation rejected", projectionKey, "generation_read", err, "generation_id", id, "pointer_slot", index)
+		failures = append(failures, fmt.Errorf("generation %s: %w", position.id, err))
+		r.logWarn("Projection snapshot generation rejected", projectionKey, "generation_read", err, "generation_id", position.id, "pointer_slot", index)
 	}
 	if len(failures) == 0 {
 		return LoadedSnapshot{}, ErrSnapshotNotFound
@@ -369,12 +322,15 @@ func (r *Repository) Load(ctx context.Context, projectionKey, compatibilityID, s
 	return LoadedSnapshot{}, errors.Join(failures...)
 }
 
-func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, compatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
+func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, storedCompatibilityID, expectedCompatibilityID, streamName, streamIdentity string, maxCutoff uint64) (LoadedSnapshot, error) {
 	expectedID, err := parseGenerationID(id)
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
-	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(id), maxEncryptedSize)
+	if !validCompatibilityID(storedCompatibilityID) {
+		return LoadedSnapshot{}, fmt.Errorf("%w: stored compatibility id is invalid", ErrIncompatible)
+	}
+	sealed, err := r.blobs.Get(ctx, r.generationObjectKey(projectionKey, storedCompatibilityID, id), maxEncryptedSize)
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
@@ -399,8 +355,11 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, comp
 	if generation.GetProjectionKey() != projectionKey {
 		return LoadedSnapshot{}, fmt.Errorf("%w: projection key mismatch", ErrIncompatible)
 	}
-	if generation.GetCompatibilityId() != compatibilityID {
-		return LoadedSnapshot{}, fmt.Errorf("%w: compatibility id %q does not match %q", ErrIncompatible, generation.GetCompatibilityId(), compatibilityID)
+	if generation.GetCompatibilityId() != storedCompatibilityID {
+		return LoadedSnapshot{}, fmt.Errorf("%w: stored compatibility id mismatch", ErrIncompatible)
+	}
+	if generation.GetCompatibilityId() != expectedCompatibilityID {
+		return LoadedSnapshot{}, fmt.Errorf("%w: compatibility id %q does not match %q", ErrIncompatible, generation.GetCompatibilityId(), expectedCompatibilityID)
 	}
 	if generation.GetStreamName() != streamName {
 		return LoadedSnapshot{}, fmt.Errorf("%w: stream name %q does not match %q", ErrIncompatible, generation.GetStreamName(), streamName)
@@ -492,7 +451,7 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey st
 			}
 			continue
 		}
-		if !validStreamIdentity(position.streamIdentity) || position.compatibilityID == "" {
+		if !validStreamIdentity(position.streamIdentity) || !validCompatibilityID(position.compatibilityID) {
 			return nil, revision, fmt.Errorf("%w: %s generation metadata is incomplete", errInvalidPointer, position.name)
 		}
 	}
@@ -517,20 +476,40 @@ func (r *Repository) savePointer(ctx context.Context, projectionKey string, poin
 }
 
 func (r *Repository) pointerKey(projectionKey string) string {
-	return "projection_snapshot_pointer." + opaqueLocator(r.secret, r.namespace.version+":"+projectionKey)
+	return "projection_snapshot_pointer." + opaqueLocator(r.secret, "projection:"+projectionKey)
 }
 
-func (r *Repository) generationObjectPrefix() string {
-	return objectRootPrefix + r.namespace.version + "/objects/" + opaqueLocator(r.secret, "generation-key-epoch-"+r.namespace.version) + "/"
+func (r *Repository) generationObjectPrefix(projectionKey, compatibilityID string) string {
+	epoch := opaqueLocator(r.secret, "generation-key-epoch:"+projectionKey+":"+compatibilityID)
+	return objectRootPrefix + projectionKey + "/" + compatibilityID + "/objects/" + epoch + "/"
 }
 
-func (r *Repository) generationObjectKey(generationID string) string {
-	return r.generationObjectPrefix() + generationID
+func (r *Repository) generationObjectKey(projectionKey, compatibilityID, generationID string) string {
+	return r.generationObjectPrefix(projectionKey, compatibilityID) + generationID
 }
 
-func (n Namespace) contains(key string) bool {
-	_, ok := n.keySet[key]
-	return ok
+func validProjectionKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for _, ch := range key {
+		if (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func validCompatibilityID(id string) bool {
+	if len(id) < 2 || id[0] != 'v' || id[1] == '0' {
+		return false
+	}
+	for _, ch := range id[1:] {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func compress(plain []byte) ([]byte, error) {

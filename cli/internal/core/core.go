@@ -38,38 +38,37 @@ const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
-	nc                              *nats.Conn
-	js                              jetstream.JetStream
-	logger                          *log.Logger
-	storage                         *storage
-	config                          config.CoreConfig
-	encryption                      *encryptionManager
-	dekResolver                     *unwrappedDEKResolver
-	configManager                   *ConfigManager
-	roomModel                       *RoomModel
-	roomCommands                    *RoomCommandModel
-	roomDirectoryReads              *RoomDirectoryReadModel
-	messageModel                    *MessageModel
-	notificationPrefs               *NotificationPreferencesModel
-	roomTimelineReads               *RoomTimelineReadModel
-	readStateModel                  *ReadStateModel
-	threadFollows                   *ThreadFollowModel
-	reactionModel                   *ReactionModel
-	userModel                       *UserModel
-	rbacModel                       *RBACModel
-	mentionables                    *MentionablesModel
-	myEventsModel                   *MyEventsModel
-	presenceModel                   *PresenceModel
-	mediaModel                      *MediaModel
-	callModel                       *CallModel
-	assetModel                      *AssetModel
-	models                          []modelRegistration
-	s3Client                        *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver              *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache                *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher              *linkpreview.Fetcher // Fetcher for link preview metadata
-	projectionSnapshotWorker        *projectionSnapshotWorker
-	projectionSnapshotCleanupWorker *projectionSnapshotCleanupWorker
+	nc                       *nats.Conn
+	js                       jetstream.JetStream
+	logger                   *log.Logger
+	storage                  *storage
+	config                   config.CoreConfig
+	encryption               *encryptionManager
+	dekResolver              *unwrappedDEKResolver
+	configManager            *ConfigManager
+	roomModel                *RoomModel
+	roomCommands             *RoomCommandModel
+	roomDirectoryReads       *RoomDirectoryReadModel
+	messageModel             *MessageModel
+	notificationPrefs        *NotificationPreferencesModel
+	roomTimelineReads        *RoomTimelineReadModel
+	readStateModel           *ReadStateModel
+	threadFollows            *ThreadFollowModel
+	reactionModel            *ReactionModel
+	userModel                *UserModel
+	rbacModel                *RBACModel
+	mentionables             *MentionablesModel
+	myEventsModel            *MyEventsModel
+	presenceModel            *PresenceModel
+	mediaModel               *MediaModel
+	callModel                *CallModel
+	assetModel               *AssetModel
+	models                   []modelRegistration
+	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
+	projectionSnapshotWorker *projectionSnapshotWorker
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -325,18 +324,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return nil
 		})
 	}
-	if c.projectionSnapshotCleanupWorker != nil {
-		g.Go(func() error {
-			err := c.projectionSnapshotCleanupWorker.Run(gctx, c.bootDone)
-			if errors.Is(err, context.Canceled) {
-				return err
-			}
-			// Cleanup is optional housekeeping for disposable snapshots. It must
-			// never make core unavailable.
-			return nil
-		})
-	}
-
 	return g.Wait()
 }
 
@@ -1237,8 +1224,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	var snapshotRepository *projectionsnapshot.Repository
-	var coreSnapshotRepository *projectionsnapshot.Repository
-	var userSnapshotRepository *projectionsnapshot.Repository
 	var snapshotJobs []projectionSnapshotJob
 	var snapshotStreamIdentity string
 	if cfg.ProjectionSnapshots {
@@ -1253,6 +1238,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					Storage:     jetstream.FileStorage,
 					Compression: true,
 					Replicas:    cfg.Replicas,
+					TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
 				})
 			})
 			if snapshotStoreErr != nil {
@@ -1270,34 +1256,12 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				SecretHex:       cfg.SecretKey,
 				ProducerVersion: cfg.Version,
 				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
-				Namespace:       projectionsnapshot.NamespaceV1Threads,
 			})
 			if err != nil {
 				logger.Warn("Projection snapshots disabled after initialization failure",
 					"stage", "initialize",
 					"error", err)
 				snapshotRepository = nil
-			} else {
-				coreSnapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
-					Pointers: natsSnapshotPointerStore{kv: storage.runtimeStateKV}, SecretHex: cfg.SecretKey,
-					ProducerVersion: cfg.Version, Logger: logger.WithPrefix("core.ProjectionSnapshots"), Namespace: projectionsnapshot.NamespaceV2Core,
-				})
-				if err != nil {
-					logger.Warn("Projection snapshots disabled after v2 repository initialization failure", "stage", "initialize", "error", err)
-					snapshotRepository = nil
-					coreSnapshotRepository = nil
-				} else {
-					userSnapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
-						Pointers: natsSnapshotPointerStore{kv: storage.runtimeStateKV}, SecretHex: cfg.SecretKey,
-						ProducerVersion: cfg.Version, Logger: logger.WithPrefix("core.ProjectionSnapshots"), Namespace: projectionsnapshot.NamespaceV3Users,
-					})
-					if err != nil {
-						logger.Warn("Projection snapshots disabled after v3 repository initialization failure", "stage", "initialize", "error", err)
-						snapshotRepository = nil
-						coreSnapshotRepository = nil
-						userSnapshotRepository = nil
-					}
-				}
 			}
 			if snapshotRepository != nil {
 				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
@@ -1306,8 +1270,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 						"stage", "stream_identity",
 						"error", err)
 					snapshotRepository = nil
-					coreSnapshotRepository = nil
-					userSnapshotRepository = nil
 				} else {
 					logger.Info("Projection snapshot storage initialized",
 						"backend", snapshotRepository.Backend())
@@ -1389,32 +1351,31 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
-	if snapshotRepository != nil && coreSnapshotRepository != nil && userSnapshotRepository != nil {
+	if snapshotRepository != nil {
 		streamName := storage.serverEvtStream.CachedInfo().Config.Name
 		type snapshotSpec struct {
 			key, compatibility string
 			projector          *events.Projector
-			repository         *projectionsnapshot.Repository
 		}
 		specs := []snapshotSpec{
-			{projectionsnapshot.ProjectionV1ThreadsKey, threadSnapshotCompatibilityID, threadsProjector, snapshotRepository},
-			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotCompatibilityID, roomDirectoryProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotCompatibilityID, serverConfigProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotCompatibilityID, roomGroupLayoutProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotCompatibilityID, roomTimelineProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotCompatibilityID, callStateProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotCompatibilityID, assetProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotCompatibilityID, reactionsProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector, coreSnapshotRepository},
-			{projectionsnapshot.ProjectionUsersKey, userSnapshotCompatibilityID, usersProjector, userSnapshotRepository},
+			{projectionsnapshot.ProjectionThreadsKey, threadSnapshotCompatibilityID, threadsProjector},
+			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotCompatibilityID, roomDirectoryProjector},
+			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotCompatibilityID, serverConfigProjector},
+			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotCompatibilityID, roomGroupLayoutProjector},
+			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotCompatibilityID, roomTimelineProjector},
+			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotCompatibilityID, callStateProjector},
+			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotCompatibilityID, assetProjector},
+			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotCompatibilityID, reactionsProjector},
+			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector},
+			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector},
+			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector},
+			{projectionsnapshot.ProjectionUsersKey, userSnapshotCompatibilityID, usersProjector},
 		}
 		for _, spec := range specs {
-			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: spec.repository}, snapshotStreamIdentity); err != nil {
+			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
 				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
 			}
-			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: spec.repository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
+			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
 			for i := range projections {
 				if projections[i].key == spec.key {
 					projections[i].snapshotCohort = true
@@ -1521,31 +1482,17 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		})
 		if snapshotLeaseErr != nil {
 			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
-				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
+				"projection", projectionsnapshot.ProjectionThreadsKey,
 				"stage", "lease_initialize",
 				"error", snapshotLeaseErr)
 		} else {
 			core.projectionSnapshotWorker = &projectionSnapshotWorker{
 				jobs: snapshotJobs, lease: snapshotLease,
 				logger: logger.WithPrefix("core.ProjectionSnapshotWorker"), done: make(chan struct{}),
+				retention: cfg.ProjectionSnapshotRetentionOrDefault(),
 			}
-		}
-		cleanupLease, cleanupLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
-			Name:   projectionSnapshotCleanupLeaseName,
-			Bucket: "MEMORY_CACHE",
-			Logger: logger.WithPrefix("core.ProjectionSnapshotCleanupLease"),
-		})
-		if cleanupLeaseErr != nil {
-			logger.Warn("Projection snapshot cleanup disabled after lease initialization failure",
-				"stage", "cleanup_lease_initialize",
-				"error", cleanupLeaseErr)
-		} else {
-			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
-				repository:   snapshotRepository,
-				repositories: []projectionSnapshotSweeper{snapshotRepository, coreSnapshotRepository, userSnapshotRepository},
-				lease:        cleanupLease,
-				logger:       logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
-				done:         make(chan struct{}),
+			if snapshotRepository.Backend() == "s3" && cfg.ProjectionSnapshotS3CleanupOrDefault() {
+				core.projectionSnapshotWorker.expirer = snapshotRepository
 			}
 		}
 	}

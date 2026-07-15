@@ -162,7 +162,15 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 ## Core
 
 <EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
-  Persist encrypted projection snapshots and replay only the later `EVT` delta for eligible projections at startup. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, or unavailable. User profile state is eligible, but password verifiers, external identities, and OAuth consent remain outside snapshots and cold-replay from focused event subjects. While enabled, one elected replica periodically removes unreferenced snapshot objects after a 24-hour grace period. S3 credentials therefore require permission to list the configured bucket prefix in addition to reading, writing, and deleting objects.
+  Persist encrypted projection snapshots and replay only the later `EVT` delta for eligible projections at startup. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, expired, or unavailable. User profile state is eligible, but password verifiers, external identities, and OAuth consent remain outside snapshots and cold-replay from focused event subjects. One elected replica attempts publication after boot and every 23–24 hours.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" toml="core.projection_snapshot_retention" default="7d">
+  Retain projection snapshot generations for this duration. NATS applies the duration as the dedicated Object Store TTL. Chatto uses it as the cutoff for optional S3 expiry. Supports values such as `7d`, `1w`, and `168h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" toml="core.projection_snapshot_s3_cleanup" default="true">
+  Delete marked S3 projection snapshot generations older than `core.projection_snapshot_retention`. Disable this when the bucket has an external lifecycle policy for `internal/projection-snapshots/`. When enabled, S3 credentials need permission to list that prefix, inspect object metadata, and delete matching objects. Chatto validates the exact internal generation path, content type, and object-purpose marker before deletion; asset paths are never eligible.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

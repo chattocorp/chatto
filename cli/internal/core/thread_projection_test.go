@@ -72,8 +72,8 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotCompatibilityID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "threads-v1" {
-		t.Fatalf("SnapshotCompatibilityID() = %q, want threads-v1", got)
+	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "v1" {
+		t.Fatalf("SnapshotCompatibilityID() = %q, want v1", got)
 	}
 }
 

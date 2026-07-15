@@ -144,6 +144,8 @@ cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 projection_snapshots = true
+projection_snapshot_retention = "9d"
+projection_snapshot_s3_cleanup = false
 
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
@@ -165,6 +167,12 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if !cfg.Core.ProjectionSnapshots {
 		t.Error("expected projection snapshots from file")
 	}
+	if cfg.Core.ProjectionSnapshotRetentionOrDefault() != 9*24*time.Hour {
+		t.Errorf("projection snapshot retention = %s", cfg.Core.ProjectionSnapshotRetentionOrDefault())
+	}
+	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Error("expected S3 snapshot cleanup to be disabled from file")
+	}
 }
 
 func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
@@ -173,6 +181,8 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOTS", "true")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION", "10d")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP", "false")
 
 	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
 	if err != nil {
@@ -180,6 +190,22 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	}
 	if !cfg.Core.ProjectionSnapshots {
 		t.Error("expected projection snapshots from environment")
+	}
+	if cfg.Core.ProjectionSnapshotRetentionOrDefault() != 10*24*time.Hour {
+		t.Errorf("projection snapshot retention = %s", cfg.Core.ProjectionSnapshotRetentionOrDefault())
+	}
+	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Error("expected S3 snapshot cleanup to be disabled from environment")
+	}
+}
+
+func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
+	var cfg CoreConfig
+	if got := cfg.ProjectionSnapshotRetentionOrDefault(); got != 7*24*time.Hour {
+		t.Fatalf("default projection snapshot retention = %s", got)
+	}
+	if !cfg.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Fatal("S3 projection snapshot cleanup should default to enabled")
 	}
 }
 
@@ -1004,6 +1030,14 @@ func TestChattoConfig_Validate_APICompressionMinBytes(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil || !strings.Contains(err.Error(), "webserver.api_compression_min_bytes must not be negative") {
 		t.Fatalf("Validate() error = %v, want negative API compression threshold error", err)
+	}
+}
+
+func TestChattoConfig_ValidateProjectionSnapshotRetention(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Core.ProjectionSnapshotRetention = Duration(-time.Hour)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.projection_snapshot_retention must be positive") {
+		t.Fatalf("Validate() error = %v, want projection snapshot retention error", err)
 	}
 }
 

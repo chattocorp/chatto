@@ -81,20 +81,18 @@ authorization, live events, backup/restore, and backend tests.
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
   unwrapped keys, or state that would weaken crypto-shredding.
-- Treat the set of projection keys inside a shipped snapshot namespace as
-  immutable. Adding a snapshotted projection requires a new namespace version
-  so older replicas cannot delete the newer projection's referenced generations
-  during a mixed-version rollout. Keep snapshot pointers on a durable
-  revisioned store and publish them with OCC; a process lease is not fencing.
-  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer and
-  reject non-advancing captures; pointer revision OCC alone cannot detect state
-  captured before the latest pointer read.
-  Scope generation object paths by encryption-key epoch so cleanup cannot cross
-  secrets during a rolling key change.
-- Snapshot namespace `v1` is permanently Threads-only. Namespace `v2` is
-  permanently Room Directory, Server Config, Room Group Layout, Room Timeline,
-  Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. Namespace
-  `v3` is permanently the user profile projection only. Keep password
+- Scope snapshot generation paths by projection key and projection-local
+  compatibility version. Keep snapshot pointers on a durable revisioned store
+  and publish them with OCC; a process lease is not fencing.
+  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer.
+  Allow same-cutoff refreshes for retention, reject regressing captures, and use
+  pointer revision OCC to prevent concurrent writers from replacing newer
+  history.
+  Scope generation object paths by encryption-key epoch. NATS Object Store TTL
+  and marker-verified S3 age expiry may remove referenced generations; loaders
+  must treat absence as a normal cold-replay condition.
+- Most current snapshot codecs use projection-local compatibility version `v1`;
+  the user profile projection uses `v2`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.

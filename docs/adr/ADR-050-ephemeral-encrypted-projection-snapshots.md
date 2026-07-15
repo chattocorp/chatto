@@ -52,7 +52,7 @@ Each snapshot records three distinct versions:
 
 - an envelope format version for framing, compression, encryption, and
   integrity metadata;
-- a projection compatibility ID, such as `threads-v1`, for the meaning and
+- a projection-scoped compatibility ID, such as `v1`, for the meaning and
   serialized shape of one projection; and
 - the producing Chatto version for diagnostics only.
 
@@ -75,29 +75,27 @@ configured asset-storage backend:
   `PROJECTION_SNAPSHOTS` NATS Object Store; and
 - S3-backed deployments store snapshot objects in the configured S3 bucket.
 
-Snapshot generations use a reserved internal prefix such as
-`internal/projection-snapshots/v1/objects/<opaque-key-epoch>/`. They are not assets: they do not produce
+Snapshot generations use the reserved per-projection prefix
+`internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueKeyEpoch}/{generationId}`.
+They are not assets: they do not produce
 asset lifecycle events, receive signed URLs, participate in user-facing asset
 APIs, or enter asset cleanup decisions.
 
-Namespace membership is immutable once shipped. `v1` contains only Threads.
-`v2` contains Room Directory, Server Config, Room Group Layout, Room Timeline,
-Call State, Assets, Reactions, Content Keys, RBAC, and Mentionables. `v3`
-contains only the user profile projection. Adding a projection to any shipped
-namespace is forbidden; a different cohort requires a new namespace version. This
-prevents an older replica's cleaner from treating a newer projection's
-generations as abandoned during a mixed-version rollout.
+Compatibility versions are local to one projection. Adding another projection
+does not change any existing path or compatibility contract. During a codec
+upgrade, the encrypted pointer records the version of each current and previous
+generation so both slots remain locatable across forward and rollback deploys.
 
 The small encrypted current/previous pointer lives in `RUNTIME_STATE`, using KV
 `Create` and revisioned `Update` for optimistic concurrency. This is true for
 both NATS and S3 payload backends. A stale lease holder can upload a generation,
 but it cannot regress a newer pointer; a failed pointer CAS rolls back the
 unpublished upload and leaves the newer history intact.
+
 The pointer also carries each generation's cutoff sequence, EVT incarnation,
-and projection compatibility ID. A writer rejects a captured state that does
-not advance the current generation for the same EVT incarnation and
-compatibility contract. Revision OCC alone is insufficient because a writer
-can capture old projection state before reading a newer pointer revision.
+and projection compatibility ID. A writer may refresh the same cutoff but
+rejects a lower cutoff for the same EVT incarnation and compatibility contract.
+Revision OCC prevents a concurrent writer from replacing newer history.
 
 NATS-backed snapshots are included in `chatto backup` as opaque encrypted
 objects because `PROJECTION_SNAPSHOTS` is a file-backed JetStream resource.
@@ -106,10 +104,11 @@ S3-backed user assets; the Chatto backup command does not copy either kind of
 S3 object into its NATS archive. The encrypted pointer remains in the backed-up
 `RUNTIME_STATE` bucket but is disposable when its S3 generation is absent. A
 carried snapshot can avoid reconstructing snapshotted projection state when the
-restored deployment retains the same `core.secret_key`. Snapshots remain
-optional: an absent or undecryptable snapshot causes cold replay. Backup
-tooling does not decrypt, interpret, or make snapshots part of backup
-correctness.
+restored deployment retains the same `core.secret_key`.
+
+Snapshots remain optional: an absent or undecryptable snapshot causes cold
+replay. Backup tooling does not decrypt, interpret, or make snapshots part of
+backup correctness.
 
 Asset-storage migration may copy the reserved snapshot namespace when doing so
 is cheap, but does not promise to preserve it. Moving to another storage backend
@@ -122,27 +121,28 @@ then encrypted with an authenticated cipher before upload. The initial
 envelope uses XChaCha20-Poly1305 with a random salt and nonce and a key derived
 from `core.secret_key` using a snapshot-specific domain separator. Rotating
 `core.secret_key` invalidates existing snapshots and causes cold replay.
-Generation object paths include an opaque epoch derived from that key, so a
-new-key cleaner cannot delete generations still used by an old-key replica
-during a rolling secret change. Old key epochs are not automatically swept by
-the new key and remain subject to the deployment's storage lifecycle or later
-key-migration tooling.
+Generation object paths include an opaque epoch derived from that key. Storage
+expiry is age-based and may remove generations from any current key epoch once
+they exceed the configured retention. A missing generation always causes cold
+replay.
 
-The pre-epoch canary layout placed generation IDs directly below
-`internal/projection-snapshots/v1/objects/`. Upgrading from that unshipped
-canary layout intentionally cold-replays and does not let the new cleaner cross
-the unauthenticated epoch boundary. Those legacy objects require the storage
-provider's lifecycle policy or explicit later migration tooling.
+Earlier canary layouts grouped projections under global `v1`, `v2`, and `v3`
+directories. Upgrading intentionally cold-replays and publishes the new
+per-projection layout. Application S3 expiry does not guess at legacy keys;
+those objects require provider lifecycle or explicit operator cleanup. The
+dedicated NATS Object Store TTL applies to both layouts.
 
 The unencrypted envelope contains only the framing data required to select the
 decryption scheme, derive the key, and authenticate the ciphertext: a magic
 value, envelope version, key-scheme identifier, random salt and nonce, and the
 opaque object generation ID. Projection names, compatibility IDs, EVT stream
 identity and sequence, creation time, checksums, entry counts, and other
-semantic metadata live inside the encrypted authenticated payload. Object names
-and backend metadata are opaque and generic. Ciphertext length and backend
-write time remain observable; padding policies may be added later if those
-side channels prove material.
+semantic metadata live inside the encrypted authenticated payload. Object paths
+reveal the fixed projection key and compatibility version, but not server data,
+EVT positions, or creation metadata.
+
+Ciphertext length and backend write time remain observable; padding policies
+may be added later if those side channels prove material.
 
 The envelope identifies its key scheme independently from its format. The
 initial scheme is `core-secret-hkdf-v1`. A later release may add a server-scoped
@@ -184,40 +184,40 @@ when EVT is deleted and recreated. Missing metadata is deterministically
 derived once from the stream creation time so concurrent replicas converge,
 then persisted; `StreamInfo.Created` is not used for later comparisons because
 it is not stable across embedded NATS process reconstruction.
-Projection restore codecs are transactional: a
-rejected payload must leave prior state unchanged so the projector can reset to
-its cold-start state and replay all of `EVT`. Capturing a snapshot must bind
-projection state and its applied EVT sequence at one projector-owned barrier;
-reading projection state and a projector cursor in separate unsynchronized
-operations is invalid.
 
-Each projection retains the current and previous referenced generations. A writer deletes
-the generation that falls out of that window and rolls back a newly uploaded
-generation when pointer publication reports failure. Writers treat a missing
+Projection restore codecs are transactional: a rejected payload must leave
+prior state unchanged so the projector can reset to its cold-start state and
+replay all of `EVT`. Capturing a snapshot must bind projection state and its
+applied EVT sequence at one projector-owned barrier. Reading projection state
+and a projector cursor in separate unsynchronized operations is invalid.
+
+Each projection pointer retains current and previous generation references. A
+writer deletes the generation that falls out of that window and rolls back a
+newly uploaded generation when pointer publication reports failure. Writers treat a missing
 pointer as an empty history and may replace a cryptographically or structurally
 invalid pointer at its observed revision. A storage transport error while
 reading the pointer aborts the write without uploading a generation or changing
 either retained fallback. A revision conflict aborts publication and rolls back
 the uploaded generation rather than overwriting newer history.
 
-An elected backend-listing sweeper reclaims objects abandoned by a process crash,
-stale writer, or failed rollback deletion. It first
-authenticates every registered projection pointer and completes a read-only
-inventory of the current opaque key epoch while collecting a bounded batch of unreferenced generation objects
-that are at least 24 hours old. Only after the inventory succeeds does it check
-lease ownership and delete the collected batch. Pointers are not blob objects
-and are never part of backend inventory. Current
-and previous generations, recent objects, malformed keys, and unknown namespace
-entries are never deleted. Pointer or listing failures delete nothing; lease
-loss, cancellation, or deletion failure stops the pass.
+`core.projection_snapshot_retention` controls generation lifetime and defaults
+to seven days. NATS-backed deployments apply it as the TTL of the dedicated
+`PROJECTION_SNAPSHOTS` Object Store, so JetStream owns expiry.
 
-The sweeper runs only while projection snapshots are enabled. One replica holds
-a separate `MEMORY_CACHE` lease, waits a random 5-10 minutes after normal boot,
-and then sweeps every six hours. Failed passes and successful passes that reach
-a deletion limit retry after 30 minutes. Each pass has a five-minute deadline
-and deletes at most 100 objects or 1 GiB. These fixed limits bound cleanup
-work and provide catch-up behavior, but they are not a hard namespace storage
-cap. Production evidence still needs to inform a final operator-tunable budget.
+S3-backed deployments use age-based expiry after each elected publication pass
+unless `core.projection_snapshot_s3_cleanup` is disabled for an external
+provider lifecycle policy. Application expiry lists only the exact reserved
+root and accepts only the per-projection generation grammar. Before deletion it
+uses `HEAD` to require the expected content type and the private
+`chatto-object-type=projection-snapshot` metadata marker. It deletes marked
+objects older than retention regardless of pointer references. Deleting a
+current or previous generation can only cause cold replay.
+
+An S3 expiry pass has a five-minute deadline and deletes at most 100 objects or
+1 GiB. Listing or metadata failures delete nothing; cancellation or deletion
+failure stops the batch. Malformed, unmarked, legacy-layout, recent, and
+non-snapshot objects are ignored. Expiry reclaims abandoned uploads, stale key
+epochs, and failed rollback deletions without interpreting encrypted pointers.
 
 The repository rejects projection payloads larger than 64 MiB and bounds encrypted
 and decompressed representations separately. This is a guardrail against
@@ -242,24 +242,22 @@ identity, projector configuration, and lease failures disable the affected
 snapshot workers and log the reason. They do not prevent core startup when EVT
 is available.
 
-The worker attempts one generation per eligible projection after boot, and only
-when that projection has advanced beyond its currently referenced compatible
-snapshot. A failure for one projection is logged and does not prevent the
-remaining jobs from running. It does not add a periodic generation cadence or
-operator-tunable interval.
-Cleanup uses its own elected periodic worker and does not delay generation,
-readiness, or request handling.
+The worker publishes one generation per eligible projection immediately after
+boot and starts another sequential pass every 23-24 hours. It refreshes a
+generation even when the projection's EVT cutoff is unchanged, ensuring quiet
+projections receive a new storage timestamp before retention expiry. A lower
+cutoff for the same EVT history and compatibility is rejected. A failure for
+one projection is logged and does not prevent the remaining jobs from running.
+On S3, the same elected worker runs bounded expiry after publication; expiry
+failure does not stop the daily cadence.
 
 ### Eligible projections share a coordinated replay frontier
 
-`ThreadProjection` remains in the permanently frozen `v1` namespace. The ten
-additional eligible projections use the permanently frozen `v2` namespace.
-The user profile projection uses the permanently frozen `v3` namespace.
-Each projection retains its own compatibility ID, pointer, current/previous
-generations, cutoff, and fallback behavior; the namespace is a cleanup and
-mixed-version safety boundary, not one atomic multi-projection bundle.
+Each projection has its own compatibility version, pointer, current/previous
+generations, cutoff, and fallback behavior. Most initial codecs use `v1`; the
+privacy-separated user profile codec uses `v2`.
 
-The initial 0.5 implementation uses compatibility ID `threads-v1`. It does not
+The initial 0.5 Threads implementation uses compatibility ID `v1`. It does not
 import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
 rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
@@ -274,7 +272,7 @@ Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
 
 `UserProjection` retains encrypted PII source fields and materializes them only
-at read boundaries. Its explicit `users-profile-v2` codec stores those encrypted
+at read boundaries. Its explicit `v2` codec stores those encrypted
 values, lookup digests, wrapped DEK records, and non-secret profile metadata.
 Credential-bearing state is owned by the separate `UserAuthProjection`; its
 schema has no snapshot representation and its focused account, password,
@@ -294,7 +292,10 @@ existing durable representation of non-secret metadata are preserved.
 
 Snapshot persistence is disabled by default. Operators enable it with
 `[core].projection_snapshots = true` or
-`CHATTO_CORE_PROJECTION_SNAPSHOTS=true`.
+`CHATTO_CORE_PROJECTION_SNAPSHOTS=true`. Retention defaults to seven days and
+can be changed with `[core].projection_snapshot_retention`. Operators that
+configure S3 lifecycle expiry disable Chatto's redundant pass with
+`[core].projection_snapshot_s3_cleanup = false`.
 
 ## Consequences
 
@@ -305,12 +306,10 @@ Snapshot persistence is disabled by default. Operators enable it with
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
   S3 snapshots follow the operator's S3 backup policy.
 - Snapshot payloads consume additional storage, network bandwidth, and
-  background CPU. Compression, current/previous generation retention, and the
-  elected grace-period sweeper reclaim normal and abandoned objects. A hard
-  namespace storage cap, final generation cadence, and operator-tunable budgets
-  remain follow-up decisions informed by production measurements. Key rotation
-  intentionally leaves the prior opaque generation epoch for provider lifecycle
-  or later migration tooling rather than letting a new-key cleaner cross epochs.
+  background CPU. Compression, daily publication, configurable retention, NATS
+  TTL, and bounded S3 age expiry constrain normal and abandoned objects. The
+  fixed per-pass S3 limits are operational guardrails rather than a hard storage
+  budget.
 - Upgrades and rollbacks remain safe but may cold-replay when projection
   compatibility changes.
 - Storage-backend availability can affect the optimization but cannot affect
@@ -334,5 +333,5 @@ Snapshot persistence is disabled by default. Operators enable it with
 - Incremental or chained snapshots.
 - Persisting decrypted sensitive projection state.
 - A generic snapshot format shared by all projections.
-- Selecting a final cadence, storage budget, or default-on rollout policy.
+- Selecting a default-on rollout policy.
 - Extending `chatto backup` to include S3-backed assets or snapshots.

@@ -33,10 +33,9 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 ## Snapshot support
 
 `core.projection_snapshots` enables the ADR-050 encrypted snapshot cohort.
-Threads remains alone in frozen namespace `v1`. Frozen namespace `v2` contains
-Room Directory, Server Config, Room Group Layout, Room Timeline, Call State,
-Assets, Reactions, Content Keys, RBAC, and Mentionables. Frozen namespace `v3`
-contains only the user profile projection.
+Every eligible projection owns a per-projection compatibility version and
+generation prefix. Most codecs currently use `v1`; the user profile codec uses
+`v2`.
 
 Snapshot loads run concurrently. If every projection with matching history
 restores successfully, the cohort's shared `evt.>` consumer starts after its
@@ -56,31 +55,31 @@ profile metadata. Its schema has no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
 One replica is elected through a `MEMORY_CACHE` lease after boot to publish
-advanced generations for all eligible projections. Generations are compressed
-and authenticated with XChaCha20-Poly1305 under an HKDF key derived from
-`core.secret_key`, then stored under a secret-derived opaque epoch in the
-dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3 bucket.
-Their encrypted current/previous pointers live in `RUNTIME_STATE` and use KV
-revision OCC regardless of payload backend.
+fresh generations for all eligible projections immediately and then every
+23-24 hours, including when a projection's EVT cutoff is unchanged. Jobs run
+sequentially. Generations are compressed and authenticated with
+XChaCha20-Poly1305 under an HKDF key derived from `core.secret_key`, then stored under
+`internal/projection-snapshots/{projection}/{compatibility}/objects/{opaqueEpoch}/{generationId}`
+in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3
+bucket. Their encrypted current/previous pointers live in `RUNTIME_STATE` and
+use KV revision OCC regardless of payload backend.
 
-A new secret uses a different generation epoch, preventing its cleaner from
-deleting generations still used by old-secret replicas during a rolling
-change. EVT carries a versioned opaque incarnation ID so snapshot compatibility
-survives process reconstruction and backup restore but changes when EVT is
-recreated.
+A new secret uses a different generation epoch and pointer locator. EVT carries
+a versioned opaque incarnation ID so snapshot compatibility survives process
+reconstruction and backup restore but changes when EVT is recreated.
 
-A separately elected cleanup worker starts 5-10 minutes after boot, inventories
-all three frozen namespaces every six hours, and deletes at most 100 objects or
-1 GiB across one cleanup pass when unreferenced generations are at least 24
-hours old. Snapshot failures are logged and never affect core readiness or
-EVT-backed reconstruction. Pre-epoch canary objects remain outside this cleaner
-and require provider lifecycle or explicit migration tooling.
+`core.projection_snapshot_retention` defaults to seven days. NATS applies it as
+the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication
+unless `core.projection_snapshot_s3_cleanup` is disabled for an external
+lifecycle policy. S3 deletion requires the exact generation-key grammar,
+expected snapshot content type, and private object-purpose marker. Snapshot and
+expiry failures are logged and never affect core readiness or EVT-backed
+reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
-| Projection cohort | Namespace | Payload store | Pointer store | Publication |
-| ----------------- | --------- | ------------- | ------------- | ----------- |
-| Threads | `v1` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher after boot when the projection advances |
-| Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointers with KV revision OCC | Same elected publisher, one generation per advanced projection |
-| Users (profile state only) | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted `RUNTIME_STATE` pointer with KV revision OCC | Same elected publisher when the profile projection advances |
+| Projection | Compatibility | Payload store | Pointer store | Publication |
+| ---------- | ------------- | ------------- | ------------- | ----------- |
+| Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher after boot and every 23-24 hours |
+| Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected publisher after boot and every 23-24 hours |
 
 ## Registered projections
 
