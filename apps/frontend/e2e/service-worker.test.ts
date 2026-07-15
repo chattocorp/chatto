@@ -57,7 +57,7 @@ test('service worker caches only the app shell and serves it offline', async ({
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Welcome to Chatto' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Choose where you chat' })).toBeVisible();
 
     const offlineCacheSnapshot = await cacheSnapshot(page);
     expect(offlineCacheSnapshot.apiDiscoveryCached).toBe(false);

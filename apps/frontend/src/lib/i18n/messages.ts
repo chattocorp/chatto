@@ -417,6 +417,7 @@ const msg_auth_login_title = (): LocalizedString => messages().auth_login_title(
 const msg_auth_login_welcome_title = (): LocalizedString => messages().auth_login_welcome_title(empty());
 const msg_auth_login_welcome_page_title = (): LocalizedString => messages().auth_login_welcome_page_title(empty());
 const msg_auth_login_welcome_description = (): LocalizedString => messages().auth_login_welcome_description(empty());
+const msg_auth_login_welcome_sign_in_hint = (): LocalizedString => messages().auth_login_welcome_sign_in_hint(empty());
 const msg_auth_login_add_server = (): LocalizedString => messages().auth_login_add_server(empty());
 const msg_auth_login_password_reset_success = (): LocalizedString => messages().auth_login_password_reset_success(empty());
 const msg_auth_login_continue_with_provider = (
@@ -1891,6 +1892,7 @@ export { msg_auth_login_title as 'auth.login.title' };
 export { msg_auth_login_welcome_title as 'auth.login.welcome_title' };
 export { msg_auth_login_welcome_page_title as 'auth.login.welcome_page_title' };
 export { msg_auth_login_welcome_description as 'auth.login.welcome_description' };
+export { msg_auth_login_welcome_sign_in_hint as 'auth.login.welcome_sign_in_hint' };
 export { msg_auth_login_add_server as 'auth.login.add_server' };
 export { msg_auth_login_password_reset_success as 'auth.login.password_reset_success' };
 export { msg_auth_login_continue_with_provider as 'auth.login.continue_with_provider' };
