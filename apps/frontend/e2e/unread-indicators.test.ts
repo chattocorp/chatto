@@ -143,8 +143,8 @@ test.describe('Multi-window unread sync', () => {
             const generalLink2 = page2.locator('nav').locator('a', { hasText: '# general' });
 
             await expect(async () => {
-              await expect(generalLink1).toHaveClass(/font-semibold/);
-              await expect(generalLink2).toHaveClass(/font-semibold/);
+              await expect(generalLink1).toHaveClass(/sidebar-item-attention/);
+              await expect(generalLink2).toHaveClass(/sidebar-item-attention/);
             }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
           }
         );
@@ -177,7 +177,7 @@ test.describe('Unread indicators', () => {
     // Verify general has no unread indicator
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     await expect(generalLink).toBeVisible();
-    await expect(generalLink).not.toHaveClass(/font-semibold/);
+    await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
 
     // User B: Create account and open the server
     await withServerUser(
@@ -197,7 +197,7 @@ test.describe('Unread indicators', () => {
 
         // User A: Verify unread indicator appears on "general"
         await expect(async () => {
-          await expect(generalLink).toHaveClass(/font-semibold/);
+          await expect(generalLink).toHaveClass(/sidebar-item-attention/);
           const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
           await expect(unreadDot).toBeVisible();
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
@@ -214,7 +214,7 @@ test.describe('Unread indicators', () => {
 
         // Verify the unread indicator is now gone
         await expect(async () => {
-          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
           const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
           await expect(unreadDot).not.toBeVisible();
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
@@ -241,8 +241,8 @@ test.describe('Unread indicators', () => {
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
     const announcementsLink = chatPage.roomList.locator('a', { hasText: '# announcements' });
 
-    await expect(generalLink).not.toHaveClass(/font-semibold/);
-    await expect(announcementsLink).not.toHaveClass(/font-semibold/);
+    await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
+    await expect(announcementsLink).not.toHaveClass(/sidebar-item-attention/);
   });
 });
 
@@ -530,7 +530,7 @@ test.describe('Room unread separator', () => {
     );
   });
 
-  test('refocus keeps the separator stable when only non-message events arrived while hidden', async ({
+  test('refocus keeps the separator hidden when only non-message events arrived while hidden', async ({
     page,
     chatPage,
     roomPage,
@@ -539,13 +539,9 @@ test.describe('Room unread separator', () => {
   }) => {
     test.setTimeout(60000); // Multi-user test with real-time events needs more time
 
-    // Regression test for the bug where the "New messages" separator would
-    // flicker out on tab refocus when the only thing that arrived while the
-    // tab was hidden was a non-message room event (join, leave). The server-
-    // side read cursor only tracks root messages, so a refocus mutation
-    // round-trip returned previousLastReadAt === lastReadAt and the bounded
-    // window collapsed to empty. The marker is now deferred until refocus,
-    // and the same-room refocus must not overwrite that deferred anchor.
+    // The server-side read cursor only tracks root messages. Non-message room
+    // events such as joins and leaves should not create an unread separator on
+    // refocus because there is no unread message window to anchor.
 
     // User A: Create account, enter general, post the initial message
     // so User B has a real read cursor anchored on a root message.
@@ -570,8 +566,7 @@ test.describe('Room unread separator', () => {
         await waitForRoomReadViaConnect(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
 
-        // User B's tab goes hidden. The unread anchor is captured, but the
-        // rendered separator is deferred until User B returns.
+        // User B's tab goes hidden.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -596,11 +591,9 @@ test.describe('Room unread separator', () => {
           await roomPage2.expectNoUnreadSeparator();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-        // User B's tab returns to the foreground. With the bug, this refocus
-        // would fire markRoomAsRead which returns previousLastReadAt ===
-        // lastReadAt (server cursor never moved), the .then() would overwrite
-        // the deferred open-bound anchor with an empty window, and the
-        // separator would blink out.
+        // User B's tab returns to the foreground. Since the server read cursor
+        // did not see any newer root messages, there is no marker window and
+        // no separator should appear.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'visible',
@@ -610,15 +603,11 @@ test.describe('Room unread separator', () => {
           document.dispatchEvent(new Event('visibilitychange'));
         });
 
-        // Separator must remain visible across the focus transition — it
-        // shouldn't toggle just because the user came back to the tab.
         await expect(async () => {
-          await roomPage2.expectUnreadSeparator();
+          await roomPage2.expectNoUnreadSeparator();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-        // A second hide/show cycle to be sure: with the old code the marker
-        // would reappear on blur and vanish again on focus, so a second
-        // refocus must also leave it in place.
+        // A second hide/show cycle should not synthesize a separator either.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -627,7 +616,7 @@ test.describe('Room unread separator', () => {
           });
           document.dispatchEvent(new Event('visibilitychange'));
         });
-        await roomPage2.expectUnreadSeparator();
+        await roomPage2.expectNoUnreadSeparator();
 
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
@@ -638,7 +627,7 @@ test.describe('Room unread separator', () => {
           document.dispatchEvent(new Event('visibilitychange'));
         });
         await expect(async () => {
-          await roomPage2.expectUnreadSeparator();
+          await roomPage2.expectNoUnreadSeparator();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
       }
     );
@@ -859,7 +848,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         // User B should see unread dot
         const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
         await expect(async () => {
-          await expect(generalLink).toHaveClass(/font-semibold/);
+          await expect(generalLink).toHaveClass(/sidebar-item-attention/);
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
 
         // User B enters general room → dot should clear
@@ -872,7 +861,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 
         // Verify the unread dot is gone
         await expect(async () => {
-          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
           const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
           await expect(unreadDot).not.toBeVisible();
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
@@ -899,7 +888,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
 
         // The renamed room should NOT show an unread dot (the loadRooms refresh
         // should not have restored the stale unread state)
-        await expect(renamedLink).not.toHaveClass(/font-semibold/);
+        await expect(renamedLink).not.toHaveClass(/sidebar-item-attention/);
         const unreadDot = renamedLink.locator('[data-testid="room-unread-dot"]');
         await expect(unreadDot).not.toBeVisible();
       }
@@ -961,7 +950,7 @@ test.describe('Thread reply unread behavior', () => {
         const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
         const roomUnreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
         await expect(async () => {
-          await expect(generalLink).not.toHaveClass(/font-semibold/);
+          await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
           await expect(roomUnreadDot).not.toBeVisible();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
@@ -975,7 +964,7 @@ test.describe('Thread reply unread behavior', () => {
 
         // User B should see unread dot on general room
         await expect(async () => {
-          await expect(generalLink).toHaveClass(/font-semibold/);
+          await expect(generalLink).toHaveClass(/sidebar-item-attention/);
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
       }
     );

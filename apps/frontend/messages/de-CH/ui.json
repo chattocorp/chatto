@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Seitenleiste umschalten",
+    "notifications": "Benachrichtigungen",
+    "open_quick_switcher": "Schnellwechsler öffnen",
+    "quick_switcher_shortcut": "Schnellwechsler (Cmd+K)",
+    "realtime_paused": "Echtzeitaktualisierungen pausiert. Verbindung wird wiederhergestellt...",
+    "update_available": "Eine neue Version ist verfügbar",
+    "reload": "Neu laden",
+    "sign_out": "Abmelden",
+    "close": "Schliessen",
+    "auth_status": {
+      "origin_title": "Sitzung abgelaufen",
+      "origin_message": "Du kannst bereits geladene Inhalte weiter lesen. Melde dich erneut an, um Nachrichten zu senden und Daten zu aktualisieren.",
+      "origin_action": "Erneut anmelden",
+      "remote_title": "{server} benötigt eine Anmeldung",
+      "remote_message": "Dieser Server hat die gespeicherte Anmeldung abgelehnt. Verbinde ihn erneut, um Live-Aktualisierungen und Aktionen fortzusetzen.",
+      "remote_action": "Neu verbinden",
+      "remote_failed": "Neuverbinden konnte nicht gestartet werden",
+      "sidebar_reauth": "{server} benötigt eine Anmeldung"
+    },
+    "access_denied": {
+      "title": "Zugriff verweigert",
+      "message": "Du hast keine Berechtigung, diese Seite aufzurufen.",
+      "back": "Zurück zum Chat",
+      "back_to_server": "Zurück zum Server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Mehr Informationen",
+      "about": "Über {subject}"
+    },
+    "pane_header": {
+      "back": "Zurück"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Zurück zum Chat"
+    },
+    "resize_handle": {
+      "resize": "Grösse ändern",
+      "resize_sidebar": "Seitenleiste vergrössern/verkleinern"
+    },
+    "data_table": {
+      "empty": "Keine Daten",
+      "loading_more": "Weitere werden geladen..."
+    },
+    "loading_page": {
+      "loading": "Wird geladen..."
+    },
+    "image_modal": {
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "fallback_alt": "Bild"
+    },
+    "toast": {
+      "dismiss": "Benachrichtigung ausblenden"
+    },
+    "combobox": {
+      "loading": "Wird geladen...",
+      "empty": "Keine Treffer",
+      "clear": "Leeren"
+    },
+    "expiry": {
+      "label": "Läuft ab",
+      "24h": "24 Stunden",
+      "7d": "7 Tage",
+      "30d": "30 Tage",
+      "indefinite": "Kein Ablauf",
+      "custom": "Benutzerdefiniert",
+      "custom_label": "Benutzerdefinierter Ablauf",
+      "error_required": "Wähle ein Ablaufdatum.",
+      "error_invalid": "Gib einen gültigen Ablauf ein.",
+      "error_future": "Der Ablauf muss in der Zukunft liegen."
+    },
+    "form": {
+      "required": "Erforderlich"
+    },
+    "dates": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "this_week": "Diese Woche",
+      "this_month": "Dieser Monat"
+    }
+  }
+}

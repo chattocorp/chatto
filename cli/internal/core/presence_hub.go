@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -12,8 +13,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// PresenceUpdate represents a raw presence change from the KV watcher.
-// Subscribers perform their own filtering (space membership) and deduplication.
+// PresenceUpdate represents a deduplicated presence change from the KV watcher.
 type PresenceUpdate struct {
 	UserID string
 	Status string // PresenceStatusOnline, PresenceStatusAway, etc., or PresenceStatusOffline for delete
@@ -24,12 +24,14 @@ type PresenceSubscription struct {
 	// C receives presence updates. Closed when Unsubscribe is called.
 	C  <-chan PresenceUpdate
 	ch chan PresenceUpdate // internal writable channel
+	// Done closes as soon as the subscription ends, even if C still contains
+	// buffered updates. Callers should stop immediately and reconnect when
+	// Lagged reports true.
+	Done <-chan struct{}
+	done chan struct{}
 
-	// Snapshot contains the current presence state at subscription time.
-	// Use this to initialize deduplication maps.
-	Snapshot map[string]string // userID -> status
-
-	id uint64
+	id     uint64
+	lagged atomic.Bool
 }
 
 // PresenceHub runs a single MEMORY_CACHE watcher on presence.> and fans out
@@ -126,8 +128,10 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 					select {
 					case sub.ch <- update:
 					default:
-						// Slow consumer — drop update. Presence refreshes every 30s
-						// so the subscriber will self-correct on the next cycle.
+						sub.lagged.Store(true)
+						delete(h.subscribers, sub.id)
+						close(sub.done)
+						close(sub.ch)
 					}
 				}
 			}
@@ -137,13 +141,16 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 	}
 }
 
-// Subscribe registers a new subscriber. The returned PresenceSubscription
-// contains a channel for receiving updates and a snapshot of current presence
-// state for initializing deduplication maps.
-//
-// The subscription is registered atomically with the snapshot copy, so no
-// events can be missed between reading the snapshot and starting to receive
-// from the channel.
+// Lagged reports whether the hub closed this subscription after its queue
+// overflowed. Callers must reconnect and refetch latest-value presence state.
+func (s *PresenceSubscription) Lagged() bool {
+	return s != nil && s.lagged.Load()
+}
+
+// Subscribe registers a new subscriber for future presence transitions. The
+// hub owns the process-wide current-state snapshot and already suppresses
+// unchanged status refreshes, so subscribers do not need private snapshot
+// copies for deduplication.
 //
 // The caller must call Unsubscribe() when done.
 func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, error) {
@@ -155,23 +162,18 @@ func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, err
 	}
 
 	ch := make(chan PresenceUpdate, 64)
+	done := make(chan struct{})
 
 	h.mu.Lock()
 	id := h.nextID
 	h.nextID++
 
-	// Copy snapshot under the same lock that registers the subscriber —
-	// this ensures no events are missed between snapshot and channel registration.
-	snapshot := make(map[string]string, len(h.snapshot))
-	for k, v := range h.snapshot {
-		snapshot[k] = v
-	}
-
 	sub := &PresenceSubscription{
-		C:        ch,
-		ch:       ch,
-		Snapshot: snapshot,
-		id:       id,
+		C:    ch,
+		ch:   ch,
+		Done: done,
+		done: done,
+		id:   id,
 	}
 	h.subscribers[id] = sub
 	h.mu.Unlock()
@@ -179,11 +181,36 @@ func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, err
 	return sub, nil
 }
 
+// LivePresenceCount returns the number of users with a current live presence
+// record in MEMORY_CACHE. Offline users are represented by absence and are not
+// included. The call waits for the initial watcher snapshot so callers see a
+// process-local count derived from the same state used for live presence fanout.
+func (h *PresenceHub) LivePresenceCount(ctx context.Context) (int, error) {
+	select {
+	case <-h.ready:
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	count := 0
+	for _, status := range h.snapshot {
+		if status != PresenceStatusOffline {
+			count++
+		}
+	}
+	return count, nil
+}
+
 // Unsubscribe removes a subscriber and closes its channel.
 func (h *PresenceHub) Unsubscribe(sub *PresenceSubscription) {
 	h.mu.Lock()
-	delete(h.subscribers, sub.id)
+	if _, ok := h.subscribers[sub.id]; ok {
+		delete(h.subscribers, sub.id)
+		close(sub.done)
+		close(sub.ch)
+	}
 	h.mu.Unlock()
-	// Close channel after removing from map to prevent sends to closed channel
-	close(sub.ch)
 }

@@ -12,7 +12,8 @@ Cell semantics:
                              baseline at this scope without an override)
 
 A missing cell renders as an empty placeholder (the permission doesn't
-apply at that scope's tier).
+apply at that scope's tier). Hovering or focusing an available cell highlights
+its permission row and scope column.
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
@@ -42,6 +43,7 @@ apply at that scope's tier).
     cells: MatrixCellData[];
   };
   export type CellState = 'allow' | 'deny' | 'neutral';
+  type MatrixCoordinate = { category: string; column: string; permission: string };
 
   const DEFAULT_CATEGORY_ORDER = [
     'space',
@@ -110,6 +112,10 @@ apply at that scope's tier).
     readOnly?: boolean;
     categoryOrder?: string[];
   } = $props();
+
+  let hoveredCell = $state<MatrixCoordinate | null>(null);
+  let focusedCell = $state<MatrixCoordinate | null>(null);
+  const highlightedCell = $derived(hoveredCell ?? focusedCell);
 
   // ----- Column layout ----------------------------------------------------
 
@@ -184,9 +190,33 @@ apply at that scope's tier).
   }
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
-    if (kind === 'SERVER') return 'bg-surface-200/40';
-    if (kind === 'GROUP') return 'bg-surface-200/20';
+    if (kind === 'SERVER') return 'bg-surface-emphasized/40';
+    if (kind === 'GROUP') return 'bg-surface-emphasized/20';
     return '';
+  }
+
+  function coordinate(category: string, column: string, permission: string): MatrixCoordinate {
+    return { category, column, permission };
+  }
+
+  function columnIsHighlighted(category: string, column: string): boolean {
+    return highlightedCell?.category === category && highlightedCell.column === column;
+  }
+
+  function rowIsHighlighted(category: string, permission: string): boolean {
+    return highlightedCell?.category === category && highlightedCell.permission === permission;
+  }
+
+  function cellBackgroundClass(
+    category: string,
+    scope: MatrixScope,
+    permission: string
+  ): string {
+    const row = rowIsHighlighted(category, permission);
+    const columnHighlighted = columnIsHighlighted(category, scope.id);
+    if (row && columnHighlighted) return 'bg-action/15';
+    if (row || columnHighlighted) return 'bg-action/8';
+    return scopeColumnClass(scope.kind);
   }
 </script>
 
@@ -210,7 +240,7 @@ apply at that scope's tier).
           >
             {#snippet header()}
               <th
-                class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+                class="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom font-medium"
                 style="width: 14rem"
               >
                 Permission
@@ -219,7 +249,9 @@ apply at that scope's tier).
                 <th
                   class={[
                     'px-0 py-3 text-center align-bottom font-medium',
-                    scopeColumnClass(scope.kind)
+                    columnIsHighlighted(group.category, scope.id)
+                      ? 'bg-action/10 text-action'
+                      : scopeColumnClass(scope.kind)
                   ]}
                   style="width: 2rem; min-width: 2rem; height: 12rem"
                   title={`${scope.label} (${scope.kind.toLowerCase()})`}
@@ -229,7 +261,7 @@ apply at that scope's tier).
                     class={[
                       'text-sm',
                       scope.kind === 'SERVER' ? 'font-semibold' : '',
-                      scope.kind === 'GROUP' ? 'text-primary' : '',
+                      scope.kind === 'GROUP' ? 'text-neutral-action' : '',
                       scope.kind === 'ROOM' ? 'text-muted' : ''
                     ]}
                     style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
@@ -240,8 +272,19 @@ apply at that scope's tier).
               {/each}
             {/snippet}
             {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
-                <code data-testid="permission-name" class="text-sm">{permission}</code>
+              <td
+                class={[
+                  'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
+                  rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-surface'
+                ]}
+              >
+                <code
+                  data-testid="permission-name"
+                  class={[
+                    'text-sm',
+                    rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                  ]}>{permission}</code
+                >
                 <HelpTooltip label={`About ${permission}`}>
                   {getPermissionDescription(permission)}
                 </HelpTooltip>
@@ -251,10 +294,21 @@ apply at that scope's tier).
                 {@const cellKey = `${scope.id}::${permission}`}
                 {@const isUpdating = updatingKey === cellKey}
                 <td
-                  class={['px-0 py-2 text-center', scopeColumnClass(scope.kind)]}
+                  class={[
+                    'px-0 py-2 text-center',
+                    cellBackgroundClass(group.category, scope, permission)
+                  ]}
                   style="width: 2.5rem; min-width: 2.5rem"
                   data-scope={scope.id}
                   data-permission={permission}
+                  onmouseenter={cell
+                    ? () => (hoveredCell = coordinate(group.category, scope.id, permission))
+                    : undefined}
+                  onmouseleave={cell ? () => (hoveredCell = null) : undefined}
+                  onfocusin={cell
+                    ? () => (focusedCell = coordinate(group.category, scope.id, permission))
+                    : undefined}
+                  onfocusout={cell ? () => (focusedCell = null) : undefined}
                 >
                   {#if cell}
                     {@const ov = decisionToState(cell.override)}

@@ -7,7 +7,7 @@
   Bordered admin surface for grouped management content. Use \`Panel\` when a
   section needs a title band, optional summary copy, and optional header
   actions. It owns the canonical \`panel-shell panel-shell-raised\` container
-  plus \`panel-header\` / \`panel-body\` treatment.
+  and the shared, single-surface \`panel-header\` treatment.
   `.trim();
 
   const { Story } = defineMeta({

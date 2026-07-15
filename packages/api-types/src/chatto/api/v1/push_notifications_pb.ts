@@ -193,3 +193,77 @@ export class UnsubscribePushResponse extends Message<UnsubscribePushResponse> {
     return proto3.util.equals(UnsubscribePushResponse, a, b);
   }
 }
+
+/**
+ * Request to test the current user's registered browser push subscriptions.
+ *
+ * @generated from message chatto.api.v1.SendTestPushNotificationRequest
+ */
+export class SendTestPushNotificationRequest extends Message<SendTestPushNotificationRequest> {
+  constructor(data?: PartialMessage<SendTestPushNotificationRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SendTestPushNotificationRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTestPushNotificationRequest {
+    return new SendTestPushNotificationRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SendTestPushNotificationRequest {
+    return new SendTestPushNotificationRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SendTestPushNotificationRequest {
+    return new SendTestPushNotificationRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SendTestPushNotificationRequest | PlainMessage<SendTestPushNotificationRequest> | undefined, b: SendTestPushNotificationRequest | PlainMessage<SendTestPushNotificationRequest> | undefined): boolean {
+    return proto3.util.equals(SendTestPushNotificationRequest, a, b);
+  }
+}
+
+/**
+ * Result of sending a test Web Push notification.
+ *
+ * @generated from message chatto.api.v1.SendTestPushNotificationResponse
+ */
+export class SendTestPushNotificationResponse extends Message<SendTestPushNotificationResponse> {
+  /**
+   * True when the push provider accepted the notification.
+   *
+   * @generated from field: bool sent = 1;
+   */
+  sent = false;
+
+  constructor(data?: PartialMessage<SendTestPushNotificationResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SendTestPushNotificationResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "sent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTestPushNotificationResponse {
+    return new SendTestPushNotificationResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SendTestPushNotificationResponse {
+    return new SendTestPushNotificationResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SendTestPushNotificationResponse {
+    return new SendTestPushNotificationResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SendTestPushNotificationResponse | PlainMessage<SendTestPushNotificationResponse> | undefined, b: SendTestPushNotificationResponse | PlainMessage<SendTestPushNotificationResponse> | undefined): boolean {
+    return proto3.util.equals(SendTestPushNotificationResponse, a, b);
+  }
+}

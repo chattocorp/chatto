@@ -2,6 +2,7 @@ package assets
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/draw"
@@ -28,9 +29,17 @@ const (
 	MaxBannerWidth = 768
 	// MaxBannerHeight is the maximum height for space banner images (4:3 aspect ratio).
 	MaxBannerHeight = 576
-	// ThumbnailQuality is the JPEG quality for transformed thumbnails (1-100).
+	// DefaultTransformJPEGQuality is the JPEG quality used by transformed images
+	// unless the caller selects a surface-specific quality (1-100).
 	// 80 provides a good balance between file size and visual quality.
-	ThumbnailQuality = 80
+	DefaultTransformJPEGQuality = 80
+	// MaxDecodedImageDimension and MaxDecodedImagePixels bound allocations made
+	// by image decoders before images are resized for display.
+	MaxDecodedImageDimension = 16_384
+	MaxDecodedImagePixels    = 40_000_000
+	// Animated images retain full-canvas frame snapshots during conversion.
+	MaxAnimatedImageFrames           = 256
+	MaxAnimatedImageCumulativePixels = 100_000_000
 )
 
 // Config holds configuration for asset processing.
@@ -44,6 +53,135 @@ func DefaultConfig() Config {
 	return Config{
 		MaxUploadSize: DefaultMaxUploadSize,
 	}
+}
+
+func readAndValidateImage(input io.Reader, maxBytes int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(input, maxBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read image: %w", err)
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("image exceeds maximum size of %d bytes", maxBytes)
+	}
+	if err := validateDecodedImageSize(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func validateDecodedImageSize(data []byte) error {
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to decode image configuration: %w", err)
+	}
+	if config.Width <= 0 || config.Height <= 0 || config.Width > MaxDecodedImageDimension || config.Height > MaxDecodedImageDimension {
+		return fmt.Errorf("image dimensions %dx%d exceed the supported limit", config.Width, config.Height)
+	}
+	pixels := int64(config.Width) * int64(config.Height)
+	if pixels > MaxDecodedImagePixels {
+		return fmt.Errorf("image contains %d pixels, exceeding the supported limit of %d", pixels, MaxDecodedImagePixels)
+	}
+	if len(data) >= 6 && (string(data[:6]) == "GIF87a" || string(data[:6]) == "GIF89a") {
+		if _, err := inspectGIFFrames(data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// inspectGIFFrames walks GIF block framing without decompressing image data,
+// allowing frame and per-frame dimension limits to be enforced before DecodeAll.
+func inspectGIFFrames(data []byte) (int, error) {
+	if len(data) < 13 {
+		return 0, fmt.Errorf("invalid GIF header")
+	}
+	offset := 13
+	packed := data[10]
+	if packed&0x80 != 0 {
+		offset += 3 * (1 << ((packed & 0x07) + 1))
+	}
+	if offset > len(data) {
+		return 0, fmt.Errorf("invalid GIF color table")
+	}
+
+	frames := 0
+	var cumulativePixels int64
+	skipSubBlocks := func() error {
+		for {
+			if offset >= len(data) {
+				return io.ErrUnexpectedEOF
+			}
+			size := int(data[offset])
+			offset++
+			if size == 0 {
+				return nil
+			}
+			if size > len(data)-offset {
+				return io.ErrUnexpectedEOF
+			}
+			offset += size
+		}
+	}
+
+	for offset < len(data) {
+		switch data[offset] {
+		case 0x3b: // trailer
+			return frames, nil
+		case 0x21: // extension
+			offset += 2 // introducer and label
+			if offset > len(data) {
+				return 0, io.ErrUnexpectedEOF
+			}
+			if err := skipSubBlocks(); err != nil {
+				return 0, fmt.Errorf("invalid GIF extension: %w", err)
+			}
+		case 0x2c: // image descriptor
+			if offset+10 > len(data) {
+				return 0, io.ErrUnexpectedEOF
+			}
+			width := int(binary.LittleEndian.Uint16(data[offset+5 : offset+7]))
+			height := int(binary.LittleEndian.Uint16(data[offset+7 : offset+9]))
+			if width <= 0 || height <= 0 || width > MaxDecodedImageDimension || height > MaxDecodedImageDimension {
+				return 0, fmt.Errorf("GIF frame dimensions %dx%d exceed the supported limit", width, height)
+			}
+			framePixels := int64(width) * int64(height)
+			if framePixels > MaxDecodedImagePixels {
+				return 0, fmt.Errorf("GIF frame contains %d pixels, exceeding the supported limit of %d", framePixels, MaxDecodedImagePixels)
+			}
+			frames++
+			cumulativePixels += framePixels
+			if frames > MaxAnimatedImageFrames || cumulativePixels > MaxAnimatedImageCumulativePixels {
+				return 0, fmt.Errorf("animated image exceeds supported frame limits")
+			}
+			packed := data[offset+9]
+			offset += 10
+			if packed&0x80 != 0 {
+				offset += 3 * (1 << ((packed & 0x07) + 1))
+			}
+			if offset >= len(data) {
+				return 0, io.ErrUnexpectedEOF
+			}
+			offset++ // LZW minimum code size
+			if err := skipSubBlocks(); err != nil {
+				return 0, fmt.Errorf("invalid GIF image data: %w", err)
+			}
+		default:
+			return 0, fmt.Errorf("invalid GIF block marker 0x%x", data[offset])
+		}
+	}
+	return 0, io.ErrUnexpectedEOF
+}
+
+func decodeBoundedImage(input io.Reader, cfg Config) (image.Image, error) {
+	data, err := readAndValidateImage(input, cfg.MaxUploadSize)
+	if err != nil {
+		return nil, err
+	}
+	img, _, err := imageorient.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image: %w", err)
+	}
+	return img, nil
 }
 
 // FitMode defines how an image should be fitted within the target dimensions.
@@ -71,6 +209,12 @@ type TransformResult struct {
 	ContentType string
 }
 
+// TransformOptions controls image derivative encoding.
+type TransformOptions struct {
+	// JPEGQuality is used for opaque static images. It must be between 1 and 100.
+	JPEGQuality int
+}
+
 // DetectImageContentType returns the MIME type of image data based on magic bytes.
 // Returns "image/jpeg" for JPEG, "image/webp" for WebP, "image/gif" for GIF,
 // "image/png" for PNG, or "application/octet-stream" if unrecognized.
@@ -91,11 +235,8 @@ func DetectImageContentType(data []byte) string {
 
 // IsAnimatedGIF checks if the given bytes represent an animated GIF (more than 1 frame).
 func IsAnimatedGIF(data []byte) bool {
-	g, err := gif.DecodeAll(bytes.NewReader(data))
-	if err != nil {
-		return false
-	}
-	return len(g.Image) > 1
+	frames, err := inspectGIFFrames(data)
+	return err == nil && frames > 1
 }
 
 // ProcessAvatarImage reads an image from the input reader, resizes it to fit
@@ -110,10 +251,7 @@ func ProcessAvatarImage(input io.Reader) (io.Reader, error) {
 // encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
 func ProcessAvatarImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) {
 	// Limit input size to prevent memory exhaustion
-	limitedReader := io.LimitReader(input, cfg.MaxUploadSize+1)
-
-	// Decode the input image (auto-detects format, applies EXIF orientation)
-	img, _, err := imageorient.Decode(limitedReader)
+	img, err := decodeBoundedImage(input, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -142,10 +280,7 @@ func ProcessLogoImage(input io.Reader) (io.Reader, error) {
 // encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
 func ProcessLogoImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) {
 	// Limit input size to prevent memory exhaustion
-	limitedReader := io.LimitReader(input, cfg.MaxUploadSize+1)
-
-	// Decode the input image (auto-detects format, applies EXIF orientation)
-	img, _, err := imageorient.Decode(limitedReader)
+	img, err := decodeBoundedImage(input, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -174,10 +309,7 @@ func ProcessBannerImage(input io.Reader) (io.Reader, error) {
 // encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
 func ProcessBannerImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) {
 	// Limit input size to prevent memory exhaustion
-	limitedReader := io.LimitReader(input, cfg.MaxUploadSize+1)
-
-	// Decode the input image (auto-detects format, applies EXIF orientation)
-	img, _, err := imageorient.Decode(limitedReader)
+	img, err := decodeBoundedImage(input, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -206,10 +338,7 @@ const MaxLinkPreviewHeight = 630
 // encodes it as WebP. Returns an error if the input exceeds cfg.MaxUploadSize.
 func ProcessLinkPreviewImageWithConfig(input io.Reader, cfg Config) (io.Reader, error) {
 	// Limit input size to prevent memory exhaustion
-	limitedReader := io.LimitReader(input, cfg.MaxUploadSize+1)
-
-	// Decode the input image (auto-detects format, applies EXIF orientation)
-	img, _, err := imageorient.Decode(limitedReader)
+	img, err := decodeBoundedImage(input, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -250,13 +379,9 @@ func ProcessAttachmentImage(input io.Reader) (*AttachmentImageResult, error) {
 // Returns an error if the input exceeds cfg.MaxUploadSize or cannot be decoded.
 func ProcessAttachmentImageWithConfig(input io.Reader, cfg Config) (*AttachmentImageResult, error) {
 	// Read all input into memory (limited to MaxUploadSize)
-	limitedReader := io.LimitReader(input, cfg.MaxUploadSize+1)
-	originalBytes, err := io.ReadAll(limitedReader)
+	originalBytes, err := readAndValidateImage(input, cfg.MaxUploadSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read image: %w", err)
-	}
-	if int64(len(originalBytes)) > cfg.MaxUploadSize {
-		return nil, fmt.Errorf("image exceeds maximum size of %d bytes", cfg.MaxUploadSize)
+		return nil, err
 	}
 
 	// Decode the image to get dimensions (applies EXIF orientation for correct dimensions)
@@ -326,6 +451,23 @@ func hasTransparency(img image.Image) bool {
 // For images with transparency, returns WebP to preserve alpha.
 // For opaque images, returns JPEG for smaller file sizes.
 func TransformImage(data []byte, width, height int, fit FitMode) (*TransformResult, error) {
+	return TransformImageWithOptions(data, width, height, fit, TransformOptions{
+		JPEGQuality: DefaultTransformJPEGQuality,
+	})
+}
+
+// TransformImageWithOptions transforms an image with explicit encoding options.
+func TransformImageWithOptions(data []byte, width, height int, fit FitMode, options TransformOptions) (*TransformResult, error) {
+	if options.JPEGQuality < 1 || options.JPEGQuality > 100 {
+		return nil, fmt.Errorf("invalid JPEG quality: %d", options.JPEGQuality)
+	}
+	if int64(len(data)) > DefaultMaxUploadSize {
+		return nil, fmt.Errorf("image exceeds maximum size of %d bytes", DefaultMaxUploadSize)
+	}
+	if err := validateDecodedImageSize(data); err != nil {
+		return nil, err
+	}
+
 	// Check if this is an animated GIF - handle specially to preserve animation
 	if IsAnimatedGIF(data) {
 		return transformAnimatedGIF(data, width, height, fit)
@@ -369,7 +511,7 @@ func TransformImage(data []byte, width, height int, fit FitMode) (*TransformResu
 		}, nil
 	}
 
-	if err := jpeg.Encode(&buf, transformed, &jpeg.Options{Quality: ThumbnailQuality}); err != nil {
+	if err := jpeg.Encode(&buf, transformed, &jpeg.Options{Quality: options.JPEGQuality}); err != nil {
 		return nil, fmt.Errorf("failed to encode to jpeg: %w", err)
 	}
 
@@ -394,6 +536,9 @@ func transformAnimatedGIF(data []byte, width, height int, fit FitMode) (*Transfo
 	if len(g.Image) == 0 {
 		return nil, fmt.Errorf("GIF has no frames")
 	}
+	if len(g.Image) > MaxAnimatedImageFrames {
+		return nil, fmt.Errorf("animated image has %d frames, exceeding the supported limit of %d", len(g.Image), MaxAnimatedImageFrames)
+	}
 
 	// Use Config dimensions (the logical canvas size), not first frame bounds
 	// which may be a sub-rectangle.
@@ -402,6 +547,9 @@ func transformAnimatedGIF(data []byte, width, height int, fit FitMode) (*Transfo
 	if canvasWidth == 0 || canvasHeight == 0 {
 		canvasWidth = g.Image[0].Bounds().Max.X
 		canvasHeight = g.Image[0].Bounds().Max.Y
+	}
+	if int64(canvasWidth)*int64(canvasHeight)*int64(len(g.Image)) > MaxAnimatedImageCumulativePixels {
+		return nil, fmt.Errorf("animated image exceeds the cumulative pixel limit of %d", MaxAnimatedImageCumulativePixels)
 	}
 
 	// Calculate target dimensions
@@ -518,7 +666,7 @@ func compositeGIFFrames(g *gif.GIF) []*image.NRGBA {
 			if previous != nil {
 				copy(canvas.Pix, previous.Pix)
 			}
-		// DisposalNone (0x01) and unspecified (0x00): leave canvas as-is
+			// DisposalNone (0x01) and unspecified (0x00): leave canvas as-is
 		}
 	}
 

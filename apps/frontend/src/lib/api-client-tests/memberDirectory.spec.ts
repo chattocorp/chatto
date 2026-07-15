@@ -203,6 +203,22 @@ describe('createMemberDirectoryAPI', () => {
     );
   });
 
+  it('defaults room member pages to 250 members', async () => {
+    mocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      page: { totalCount: 0n, hasMore: false }
+    });
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await api.listRoomMembers('room-1');
+
+    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
+      { roomId: 'room-1', search: '', page: { limit: 250, offset: 0 } },
+      { headers: undefined }
+    );
+  });
+
   it('gets and batch gets room members', async () => {
     const member = {
       user: {

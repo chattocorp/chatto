@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -453,7 +453,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 					return time.Time{}, nil
 				}
 				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
@@ -473,7 +473,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 		}
 
 		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
@@ -504,7 +504,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 				buf := make([]byte, 8)
 				binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
 				if _, err := bucket.Create(ctx, key, buf); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
+					if jetstreamutil.IsSequenceConflict(err) {
 						continue
 					}
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
@@ -526,7 +526,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
 		if _, err := bucket.Update(ctx, key, buf, entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
@@ -572,67 +572,6 @@ func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string
 		}
 	}
 	return threadRootEventID
-}
-
-// threadFollowKey returns the KV key for tracking whether a user is following a thread.
-func threadFollowKey(userID, roomID, threadRootEventID string) string {
-	return fmt.Sprintf("thread_follow.%s.%s.%s", userID, roomID, threadRootEventID)
-}
-
-func parseThreadFollowState(value []byte) ThreadFollowState {
-	if len(value) == 1 && value[0] == 0x01 {
-		return ThreadFollowStateFollowing
-	}
-	switch ThreadFollowState(string(value)) {
-	case ThreadFollowStateFollowing:
-		return ThreadFollowStateFollowing
-	case ThreadFollowStateUnfollowed:
-		return ThreadFollowStateUnfollowed
-	default:
-		return ThreadFollowStateNone
-	}
-}
-
-func isMissingRuntimeStateKey(err error) bool {
-	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
-}
-
-func (c *ChattoCore) seedLegacyThreadFollowStateFromRuntime(ctx context.Context) error {
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, "thread_follow.>")
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil
-		}
-		return fmt.Errorf("list legacy thread follow keys: %w", err)
-	}
-
-	seeded := 0
-	for key := range lister.Keys() {
-		parts := strings.Split(key, ".")
-		if len(parts) != 4 || parts[0] != "thread_follow" {
-			continue
-		}
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			if isMissingRuntimeStateKey(err) {
-				continue
-			}
-			return fmt.Errorf("read legacy thread follow key %q: %w", key, err)
-		}
-		state := parseThreadFollowState(entry.Value())
-		if state == ThreadFollowStateNone {
-			continue
-		}
-		// TODO(remove-after-0.4): delete this RUNTIME_STATE compatibility
-		// import after a documented cutoff or migration to canonical
-		// ThreadFollowed/ThreadUnfollowed events.
-		c.Threads.SeedLegacyThreadFollowState(parts[1], parts[2], parts[3], state)
-		seeded++
-	}
-	if seeded > 0 {
-		c.logger.Info("Seeded legacy thread follow state from RUNTIME_STATE", "count", seeded)
-	}
-	return nil
 }
 
 func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadFollowState, error) {
@@ -870,6 +809,15 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 	for _, ref := range c.rooms().followedThreadsForUser(userID) {
 		roomID := ref.roomID
 		threadRootEventID := ref.threadRootEventID
+
+		room, err := c.FindRoomByID(ctx, roomID)
+		if err != nil {
+			c.logger.Warn("Skipping followed thread with unavailable room", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
+			continue
+		}
+		if KindOfRoom(room) != kind {
+			continue
+		}
 
 		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
 		if err != nil {

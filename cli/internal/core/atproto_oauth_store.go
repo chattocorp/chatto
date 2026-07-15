@@ -27,7 +27,7 @@ import (
 // sign-in by the PDS. The store nevertheless exists to make sign-in survive a
 // multi-replica deployment where the callback may land on a different replica
 // than the one that started the flow. See ADR-036 (runtime-state boundary) and
-// FDR-029 for context.
+// FDR-031 for context.
 //
 // Session entries contain plaintext access tokens, refresh tokens, and a
 // DPoP private key. This matches the in-memory exposure of the previous

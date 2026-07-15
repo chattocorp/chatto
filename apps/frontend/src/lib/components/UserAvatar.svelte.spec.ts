@@ -15,12 +15,14 @@ function computedBackgroundColor(color: string): string {
 }
 
 describe('UserAvatar', () => {
-  it('renders medium avatars as circles without presence by default', () => {
+  it('renders medium placeholder avatars with a subtle inset ring', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
     expect(avatar.className).toContain('rounded-full');
-    expect(avatar.className).not.toContain('ring-');
+    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-inset');
+    expect(avatar.className).toContain('ring-muted/15');
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });

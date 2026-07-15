@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -128,6 +129,20 @@ func TestPresenceModelGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *t
 	}
 }
 
+func TestPresenceModelGetUserPresenceTreatsInvalidUserIDAsOffline(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
+	ctx := testContext(t)
+
+	for _, userID := range []string{"", "bad>", ".bad", "bad."} {
+		t.Run(userID, func(t *testing.T) {
+			got, err := service.GetUserPresence(ctx, userID)
+			if err != nil || got != PresenceStatusOffline {
+				t.Fatalf("GetUserPresence(%q) = %q, %v; want %q, nil", userID, got, err, PresenceStatusOffline)
+			}
+		})
+	}
+}
+
 func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
@@ -137,6 +152,73 @@ func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
 	}
 	if got, err := service.GetUserPresence(ctx, "U-missing"); err != nil || got != PresenceStatusOnline {
 		t.Fatalf("GetUserPresence = %q, %v; want %q, nil", got, err, PresenceStatusOnline)
+	}
+}
+
+func TestPresenceModelWriteRetriesSequenceConflictVariants(t *testing.T) {
+	tests := []struct {
+		name string
+		code jetstream.ErrorCode
+	}{
+		{name: "detailed form", code: jetstream.ErrorCode(10071)},
+		{name: "constant form", code: jetstream.ErrorCode(10164)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _, _ := newTestPresenceModel(t)
+			ctx := testContext(t)
+			if err := service.SetPresence(ctx, "U-conflict", PresenceStatusOnline); err != nil {
+				t.Fatalf("seed presence: %v", err)
+			}
+
+			putWithTTL := service.putWithTTL
+			attempts := 0
+			service.putWithTTL = func(ctx context.Context, key string, data []byte, revision uint64) (uint64, error) {
+				attempts++
+				if attempts == 1 {
+					return 0, &jetstream.APIError{Code: 400, ErrorCode: tt.code, Description: "wrong last sequence"}
+				}
+				return putWithTTL(ctx, key, data, revision)
+			}
+
+			if err := service.SetPresence(ctx, "U-conflict", PresenceStatusAway); err != nil {
+				t.Fatalf("SetPresence after conflict: %v", err)
+			}
+			if attempts != 2 {
+				t.Fatalf("put attempts = %d, want 2", attempts)
+			}
+			if got, err := service.GetUserPresence(ctx, "U-conflict"); err != nil || got != PresenceStatusAway {
+				t.Fatalf("GetUserPresence = %q, %v; want %q, nil", got, err, PresenceStatusAway)
+			}
+		})
+	}
+}
+
+func TestPresenceModelRefreshIgnoresSequenceConflictVariants(t *testing.T) {
+	tests := []struct {
+		name string
+		code jetstream.ErrorCode
+	}{
+		{name: "detailed form", code: jetstream.ErrorCode(10071)},
+		{name: "constant form", code: jetstream.ErrorCode(10164)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, _, _ := newTestPresenceModel(t)
+			ctx := testContext(t)
+			if err := service.SetPresence(ctx, "U-refresh-conflict", PresenceStatusOnline); err != nil {
+				t.Fatalf("seed presence: %v", err)
+			}
+			service.putWithTTL = func(context.Context, string, []byte, uint64) (uint64, error) {
+				return 0, &jetstream.APIError{Code: 400, ErrorCode: tt.code, Description: "wrong last sequence"}
+			}
+
+			if err := service.refreshPresence(ctx, "U-refresh-conflict"); err != nil {
+				t.Fatalf("refreshPresence returned conflict: %v", err)
+			}
+		})
 	}
 }
 
@@ -186,6 +268,44 @@ func TestPresenceModelChattoCoreFacades(t *testing.T) {
 	}
 }
 
+func TestPresenceModelLivePresenceCount(t *testing.T) {
+	service, kv, _ := newTestPresenceModel(t)
+	ctx := testContext(t)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- service.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	if got, err := service.LivePresenceCount(ctx); err != nil || got != 0 {
+		t.Fatalf("initial LivePresenceCount = %d, %v; want 0, nil", got, err)
+	}
+
+	if err := service.SetPresence(ctx, "U-online", PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence online: %v", err)
+	}
+	if err := service.SetPresence(ctx, "U-away", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence away: %v", err)
+	}
+	if err := service.SetPresence(ctx, "U-dnd", PresenceStatusDoNotDisturb); err != nil {
+		t.Fatalf("SetPresence dnd: %v", err)
+	}
+	if _, err := kv.Put(ctx, presenceKey("U-corrupt"), []byte("not protobuf")); err != nil {
+		t.Fatalf("Put corrupt returned error: %v", err)
+	}
+
+	waitForPresenceCount(t, ctx, service, 3)
+
+	if err := kv.Delete(ctx, presenceKey("U-away")); err != nil {
+		t.Fatalf("Delete returned error: %v", err)
+	}
+
+	waitForPresenceCount(t, ctx, service, 2)
+}
+
 func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
 	service, kv, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
@@ -211,4 +331,19 @@ func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
 	if _, err := kv.Put(ctx, presenceKey("U-sub"), data); err != nil {
 		t.Fatalf("Put returned error: %v", err)
 	}
+}
+
+func waitForPresenceCount(t *testing.T, ctx context.Context, service *PresenceModel, want int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var got int
+	var err error
+	for time.Now().Before(deadline) {
+		got, err = service.LivePresenceCount(ctx)
+		if err == nil && got == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("LivePresenceCount = %d, %v; want %d", got, err, want)
 }

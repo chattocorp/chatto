@@ -9,7 +9,11 @@
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getAuthenticatedServerState } from '$lib/api-client/serverState';
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
-  import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+  import {
+    createRoomDirectoryAPI,
+    RoomDirectoryScope,
+    RoomKind
+  } from '$lib/api-client/roomDirectory';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
@@ -59,13 +63,17 @@
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
-  let loaded = $state(false);
+  let privateDataLoaded = $state(false);
+  const loaded = $derived(!stores.isAuthenticated || privateDataLoaded);
 
   const iconServer = $derived.by(() => {
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
     return {
       name: displayName || refreshedName || registeredServer?.name || stores.serverInfo.name,
-      logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
+      logoUrl:
+        stores.isAuthenticated && privateDataLoaded
+          ? logoUrl
+          : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
@@ -86,15 +94,12 @@
   }
 
   async function loadAll() {
-    if (registeredServer?.reauthRequiredAt != null) {
-      loaded = true;
-      return;
-    }
+    const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
     try {
-      const [serverState, viewer, dmRooms] = await Promise.all([
+      const [serverState, viewer, rooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
         getViewerStateViaConnect(connectAPIConfig()),
-        roomDirectoryAPI().listRooms(RoomDirectoryScope.DMS),
+        roomDirectoryAPI().listRooms(RoomDirectoryScope.ALL),
         notificationStore.fetch()
       ]);
 
@@ -106,20 +111,18 @@
 
       const pref = viewer.serverNotificationPreference;
       notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      roomUnreadStore.clear();
-      roomUnreadStore.setServerHasUnread(serverState.viewerHasUnreadRooms);
-
-      // Populate DM unread status. Channel and DM rooms now share the same
-      // per-room unread map.
-      for (const room of dmRooms) {
-        if (room.hasUnread) {
-          roomUnreadStore.setRoomUnread(room.id, true);
-        }
-      }
+      const hasUnreadChannel = rooms.some(
+        (room) => room.kind === RoomKind.CHANNEL && room.hasUnread
+      );
+      roomUnreadStore.initRooms(
+        rooms,
+        serverState.viewerHasUnreadRooms && !hasUnreadChannel,
+        unreadSnapshotRevision
+      );
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
-      loaded = true;
+      privateDataLoaded = true;
     } catch (err) {
       console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
     }
@@ -138,7 +141,7 @@
   }
 
   onMount(() => {
-    void loadAll();
+    if (stores.isAuthenticated) void loadAll();
   });
 
   // Subscribe to server events. Use $effect (not onMount) so that if the
@@ -243,9 +246,11 @@
     let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
+      const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
       const rooms = await roomDirectoryAPI().listRooms(RoomDirectoryScope.CHANNELS);
-      roomUnreadStore.initRooms(rooms);
-      roomId = rooms.find((r) => r.hasUnread)?.id ?? null;
+      roomUnreadStore.updateRooms(rooms, unreadSnapshotRevision);
+      roomUnreadStore.resolveUnknownUnread();
+      roomId = roomUnreadStore.getFirstUnreadRoomId();
     }
 
     if (roomId) {

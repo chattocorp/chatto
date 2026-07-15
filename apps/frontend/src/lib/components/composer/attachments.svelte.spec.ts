@@ -16,6 +16,10 @@ function videoFile(name = 'clip.mp4', bytes = 3): File {
   return new File([new Uint8Array(bytes)], name, { type: 'video/mp4' });
 }
 
+function documentFile(name = 'document.pdf', bytes = 3): File {
+  return new File([new Uint8Array(bytes)], name, { type: 'application/pdf' });
+}
+
 describe('AttachmentsState', () => {
   let limits: AttachmentLimits;
   let state: AttachmentsState;
@@ -40,12 +44,12 @@ describe('AttachmentsState', () => {
     });
   });
 
-  it('reflects whether video uploads are accepted', () => {
-    expect(state.accept).toBe('image/*,audio/*');
+  it('accepts non-media files', async () => {
+    const file = documentFile();
 
-    limits.videoProcessingEnabled = true;
+    await state.stageFiles([file]);
 
-    expect(state.accept).toBe('image/*,video/*,audio/*');
+    expect(state.selectedFiles).toEqual([file]);
   });
 
   it('stages prepared files and appends subsequent files', async () => {

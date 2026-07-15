@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyAuthoritativeBadgeState,
   BadgeStateVersionGate,
-  type ForegroundNotificationCountStorage,
+  createCacheForegroundBadgeIntentStorage,
+  type ForegroundBadgeIntentStorage,
+  type NativeNotificationLike,
   ServiceWorkerBadgeCoordinator,
   syncBadgeFromNativeNotifications
 } from './notificationBadge.worker';
@@ -15,28 +17,65 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function createMemoryForegroundCountStorage(): ForegroundNotificationCountStorage {
-  let notificationCount: number | null = null;
+function createMemoryBadgeIntentStorage(): ForegroundBadgeIntentStorage {
+  let badgeIntent: { kind: 'clear' } | { kind: 'flag' } | { kind: 'count'; count: number } | null =
+    null;
   let serviceWorkerAppBadgeEnabled = false;
   return {
-    async readForegroundNotificationCount() {
-      return notificationCount;
+    async readForegroundBadgeIntent() {
+      return badgeIntent;
     },
     async readServiceWorkerAppBadgeEnabled() {
       return serviceWorkerAppBadgeEnabled;
     },
-    async writeForegroundNotificationState(count, enabled) {
-      notificationCount = count;
+    async writeForegroundNotificationState(intent, enabled) {
+      badgeIntent = intent;
       serviceWorkerAppBadgeEnabled = enabled;
     },
-    async clearForegroundNotificationCount() {
-      notificationCount = null;
+    async clearForegroundBadgeIntent() {
+      badgeIntent = null;
     }
   };
 }
 
+function createMemoryCacheStorage(): CacheStorage {
+  const entries = new Map<string, Response>();
+  return {
+    open: vi.fn(async () => ({
+      match: vi.fn(async (request: RequestInfo | URL) => entries.get(request.toString())?.clone()),
+      put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
+        entries.set(request.toString(), response.clone());
+      })
+    }))
+  } as unknown as CacheStorage;
+}
+
+describe('createCacheForegroundBadgeIntentStorage', () => {
+  it('reads legacy foreground notification count cache entries', async () => {
+    const caches = createMemoryCacheStorage();
+    const cache = await caches.open('badge-state');
+    await cache.put(
+      '/__chatto/foreground-notification-count',
+      new Response(
+        JSON.stringify({
+          notificationCount: 3,
+          serviceWorkerAppBadgeEnabled: true
+        })
+      )
+    );
+
+    const storage = createCacheForegroundBadgeIntentStorage(caches, 'badge-state');
+
+    await expect(storage.readForegroundBadgeIntent()).resolves.toEqual({
+      kind: 'count',
+      count: 3
+    });
+    await expect(storage.readServiceWorkerAppBadgeEnabled()).resolves.toBe(true);
+  });
+});
+
 describe('syncBadgeFromNativeNotifications', () => {
-  it('sets the app badge to the remaining native notification count', async () => {
+  it('sets a flag app badge when native notifications remain', async () => {
     const registration = {
       getNotifications: vi.fn(async () => [{}, {}])
     };
@@ -48,11 +87,11 @@ describe('syncBadgeFromNativeNotifications', () => {
     await syncBadgeFromNativeNotifications(registration, badgeNavigator);
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
-    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(2);
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith();
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
   });
 
-  it('uses the foreground notification count as a lower bound when requested', async () => {
+  it('uses the foreground count intent when requested', async () => {
     const registration = {
       getNotifications: vi.fn(async () => [])
     };
@@ -62,11 +101,29 @@ describe('syncBadgeFromNativeNotifications', () => {
     };
 
     await syncBadgeFromNativeNotifications(registration, badgeNavigator, {
-      minimumNotificationCount: 3
+      minimumBadgeIntent: { kind: 'count', count: 3 }
     });
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
     expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(3);
+    expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('treats a clear foreground intent as no lower bound when native notifications remain', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [{}, {}])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+
+    await syncBadgeFromNativeNotifications(registration, badgeNavigator, {
+      minimumBadgeIntent: { kind: 'clear' }
+    });
+
+    expect(registration.getNotifications).toHaveBeenCalledOnce();
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith();
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
   });
 
@@ -104,7 +161,7 @@ describe('syncBadgeFromNativeNotifications', () => {
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
   });
 
-  it('preserves the foreground lower bound when native notification listing fails', async () => {
+  it('preserves the foreground intent when native notification listing fails', async () => {
     const registration = {
       getNotifications: vi.fn(async () => {
         throw new Error('notification store unavailable');
@@ -116,7 +173,7 @@ describe('syncBadgeFromNativeNotifications', () => {
     };
 
     await syncBadgeFromNativeNotifications(registration, badgeNavigator, {
-      minimumNotificationCount: 3
+      minimumBadgeIntent: { kind: 'count', count: 3 }
     });
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
@@ -135,7 +192,7 @@ describe('applyAuthoritativeBadgeState', () => {
       clearAppBadge: vi.fn(async () => {})
     };
 
-    await applyAuthoritativeBadgeState(registration, badgeNavigator, 3);
+    await applyAuthoritativeBadgeState(registration, badgeNavigator, { kind: 'count', count: 3 });
 
     expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(3);
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
@@ -151,9 +208,14 @@ describe('applyAuthoritativeBadgeState', () => {
       clearAppBadge: vi.fn(async () => {})
     };
 
-    await applyAuthoritativeBadgeState(registration, badgeNavigator, 3, {
-      isCurrent: () => false
-    });
+    await applyAuthoritativeBadgeState(
+      registration,
+      badgeNavigator,
+      { kind: 'count', count: 3 },
+      {
+        isCurrent: () => false
+      }
+    );
 
     expect(badgeNavigator.setAppBadge).not.toHaveBeenCalled();
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
@@ -170,7 +232,7 @@ describe('applyAuthoritativeBadgeState', () => {
       clearAppBadge: vi.fn(async () => {})
     };
 
-    await applyAuthoritativeBadgeState(registration, badgeNavigator, 0);
+    await applyAuthoritativeBadgeState(registration, badgeNavigator, { kind: 'clear' });
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
     expect(nativeNotifications[0].close).toHaveBeenCalledOnce();
@@ -189,9 +251,14 @@ describe('applyAuthoritativeBadgeState', () => {
       clearAppBadge: vi.fn(async () => {})
     };
 
-    await applyAuthoritativeBadgeState(registration, badgeNavigator, 0, {
-      isCurrent: () => false
-    });
+    await applyAuthoritativeBadgeState(
+      registration,
+      badgeNavigator,
+      { kind: 'clear' },
+      {
+        isCurrent: () => false
+      }
+    );
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
     expect(nativeNotifications[0].close).not.toHaveBeenCalled();
@@ -212,9 +279,14 @@ describe('applyAuthoritativeBadgeState', () => {
     };
     const gate = new BadgeStateVersionGate();
 
-    const pending = applyAuthoritativeBadgeState(registration, badgeNavigator, 0, {
-      isCurrent: gate.next()
-    });
+    const pending = applyAuthoritativeBadgeState(
+      registration,
+      badgeNavigator,
+      { kind: 'clear' },
+      {
+        isCurrent: gate.next()
+      }
+    );
     gate.invalidate();
     listing.resolve(nativeNotifications);
     await pending;
@@ -236,7 +308,7 @@ describe('applyAuthoritativeBadgeState', () => {
       clearAppBadge: vi.fn(async () => {})
     };
 
-    await applyAuthoritativeBadgeState(registration, badgeNavigator, 0);
+    await applyAuthoritativeBadgeState(registration, badgeNavigator, { kind: 'clear' });
 
     expect(registration.getNotifications).toHaveBeenCalledOnce();
     expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
@@ -270,18 +342,18 @@ describe('ServiceWorkerBadgeCoordinator', () => {
       setAppBadge: vi.fn(async () => {}),
       clearAppBadge: vi.fn(async () => {})
     };
-    const foregroundCountStorage = createMemoryForegroundCountStorage();
+    const foregroundBadgeIntentStorage = createMemoryBadgeIntentStorage();
 
     await new ServiceWorkerBadgeCoordinator(
       registration,
       badgeNavigator,
-      foregroundCountStorage
+      foregroundBadgeIntentStorage
     ).applyForegroundNotificationCount(3, { serviceWorkerAppBadgeEnabled: true });
 
     await new ServiceWorkerBadgeCoordinator(
       registration,
       badgeNavigator,
-      foregroundCountStorage
+      foregroundBadgeIntentStorage
     ).reconcileAfterNotificationClick();
 
     expect(badgeNavigator.setAppBadge).toHaveBeenLastCalledWith(3);
@@ -296,12 +368,12 @@ describe('ServiceWorkerBadgeCoordinator', () => {
       setAppBadge: vi.fn(async () => {}),
       clearAppBadge: vi.fn(async () => {})
     };
-    const foregroundCountStorage = createMemoryForegroundCountStorage();
+    const foregroundBadgeIntentStorage = createMemoryBadgeIntentStorage();
 
     const coordinator = new ServiceWorkerBadgeCoordinator(
       registration,
       badgeNavigator,
-      foregroundCountStorage
+      foregroundBadgeIntentStorage
     );
 
     await coordinator.applyForegroundNotificationCount(3, { serviceWorkerAppBadgeEnabled: false });
@@ -310,6 +382,104 @@ describe('ServiceWorkerBadgeCoordinator', () => {
 
     expect(badgeNavigator.setAppBadge).not.toHaveBeenCalled();
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('clears a push-only badge after clicking the only native notification', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const coordinator = new ServiceWorkerBadgeCoordinator(registration, badgeNavigator);
+
+    coordinator.recordRegularPush();
+    await coordinator.setProvisionalPushFlagBadge();
+    await coordinator.reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledOnce();
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
+  it('sets push app badge counts immediately without preserving them after click', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const coordinator = new ServiceWorkerBadgeCoordinator(registration, badgeNavigator);
+
+    await coordinator.setPushAppBadgeCount(1);
+    await coordinator.reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(1);
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
+  it('does not let a persisted foreground clear hide remaining native notifications', async () => {
+    const nativeNotifications: NativeNotificationLike[] = [{}];
+    const registration = {
+      getNotifications: vi.fn(async (): Promise<NativeNotificationLike[]> => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const foregroundBadgeIntentStorage = createMemoryBadgeIntentStorage();
+
+    await new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundBadgeIntentStorage
+    ).applyForegroundNotificationCount(0, { serviceWorkerAppBadgeEnabled: true });
+    registration.getNotifications.mockResolvedValue(nativeNotifications);
+    badgeNavigator.clearAppBadge.mockClear();
+    badgeNavigator.setAppBadge.mockClear();
+
+    await new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundBadgeIntentStorage
+    ).reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith();
+    expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('does not persist push app badge counts as foreground state', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const foregroundBadgeIntentStorage = createMemoryBadgeIntentStorage();
+
+    const firstCoordinator = new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundBadgeIntentStorage
+    );
+    await firstCoordinator.applyForegroundNotificationCount(0, {
+      serviceWorkerAppBadgeEnabled: true
+    });
+    badgeNavigator.clearAppBadge.mockClear();
+    badgeNavigator.setAppBadge.mockClear();
+
+    await firstCoordinator.setPushAppBadgeCount(1);
+
+    await new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundBadgeIntentStorage
+    ).reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(1);
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
   });
 
   it('does not preserve a cached foreground count after a dismiss push', async () => {
@@ -337,12 +507,12 @@ describe('ServiceWorkerBadgeCoordinator', () => {
       setAppBadge: vi.fn(async () => {}),
       clearAppBadge: vi.fn(async () => {})
     };
-    const foregroundCountStorage = createMemoryForegroundCountStorage();
+    const foregroundBadgeIntentStorage = createMemoryBadgeIntentStorage();
 
     const coordinator = new ServiceWorkerBadgeCoordinator(
       registration,
       badgeNavigator,
-      foregroundCountStorage
+      foregroundBadgeIntentStorage
     );
     await coordinator.applyForegroundNotificationCount(3, { serviceWorkerAppBadgeEnabled: true });
     await coordinator.reconcileAfterDismissPush();
@@ -350,7 +520,7 @@ describe('ServiceWorkerBadgeCoordinator', () => {
     await new ServiceWorkerBadgeCoordinator(
       registration,
       badgeNavigator,
-      foregroundCountStorage
+      foregroundBadgeIntentStorage
     ).reconcileAfterNotificationClick();
 
     expect(badgeNavigator.clearAppBadge).toHaveBeenLastCalledWith();

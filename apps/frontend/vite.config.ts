@@ -1,12 +1,15 @@
 /// <reference types="vitest/config" />
+import { execFile } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { playwright } from '@vitest/browser-playwright';
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -16,6 +19,10 @@ const backendTarget =
 const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
+const execFileAsync = promisify(execFile);
+const i18nSettings = JSON.parse(
+  readFileSync(new URL('./project.inlang/settings.json', import.meta.url), 'utf8')
+) as { baseLocale: string };
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -116,6 +123,21 @@ function highlightLanguageMetadata(): Plugin {
   };
 }
 
+function i18nFacade(): Plugin {
+  return {
+    name: 'chatto-i18n-facade',
+    buildStart: {
+      order: 'post',
+      sequential: true,
+      async handler() {
+        await execFileAsync(process.execPath, [
+          fileURLToPath(new URL('./scripts/generate-i18n-facade.mjs', import.meta.url))
+        ]);
+      }
+    }
+  };
+}
+
 export default defineConfig({
   clearScreen: false,
   plugins: [
@@ -125,9 +147,10 @@ export default defineConfig({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
       strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: true,
+      emitTsDeclarations: false,
       outputStructure: 'locale-modules'
     }),
+    i18nFacade(),
     sveltekit(),
     devtoolsJson()
   ],
@@ -135,8 +158,10 @@ export default defineConfig({
     reportCompressedSize: false,
     rollupOptions: {
       output: {
+        onlyExplicitManualChunks: true,
         manualChunks(id) {
-          if (id.includes('src/lib/paraglide/messages/de.js')) return 'i18n-de';
+          const locale = id.match(/src\/lib\/paraglide\/messages\/([^/]+)\.js$/)?.[1];
+          if (locale && locale !== i18nSettings.baseLocale) return `i18n-${locale.toLowerCase()}`;
         },
         experimentalMinChunkSize: 20_000
       }
@@ -198,6 +223,10 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true
       },
+      '/.well-known/chatto/shields': {
+        target: backendTarget,
+        changeOrigin: true
+      },
       '/webhooks': {
         target: backendTarget,
         changeOrigin: true
@@ -237,6 +266,23 @@ export default defineConfig({
           include: ['src/**/*.{test,spec}.{js,ts}'],
           exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
           testTimeout: 10000 // CI is slower with Svelte module transforms
+        }
+      },
+      {
+        extends: true,
+        plugins: [
+          storybookTest({
+            configDir: fileURLToPath(new URL('./.storybook', import.meta.url))
+          })
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: !process.env.SHOW_BROWSER,
+            instances: [{ browser: 'chromium' }]
+          }
         }
       }
     ]

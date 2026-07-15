@@ -4,11 +4,58 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 )
+
+func TestChattoCore_ExchangeAuthCodeConcurrentSingleUse(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-auth-code", "Concurrent Auth Code", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	redirectURI := "https://example.com/callback"
+	code, err := core.CreateAuthCode(ctx, user.Id, redirectURI, GenerateCodeChallenge(verifier), "S256")
+	if err != nil {
+		t.Fatalf("CreateAuthCode: %v", err)
+	}
+
+	const attempts = 8
+	start := make(chan struct{})
+	results := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, _, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+			continue
+		}
+		if !errors.Is(err, ErrAuthCodeNotFound) {
+			t.Fatalf("ExchangeAuthCode returned unexpected error: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful exchanges = %d, want 1", successes)
+	}
+}
 
 func TestChattoCore_CreateAuthCode(t *testing.T) {
 	core, _ := setupTestCore(t)

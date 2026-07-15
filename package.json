@@ -8,6 +8,7 @@
     "build:api-types": "pnpm --filter @chatto/api-types build",
     "build:docs": "pnpm --filter docs-website build",
     "build:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend build",
+    "build:storybook": "pnpm --filter chatto-frontend build-storybook",
     "check:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend check",
     "dev:docs": "mise dev-docs-website",
     "dev:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend dev",

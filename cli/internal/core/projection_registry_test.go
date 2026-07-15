@@ -2,8 +2,9 @@ package core
 
 import (
 	"regexp"
-	"slices"
 	"testing"
+
+	"hmans.de/chatto/internal/events"
 )
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -11,8 +12,8 @@ var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 12 {
-		t.Fatalf("registered projections = %d, want 12", len(core.projections))
+	if len(core.projections) != 13 {
+		t.Fatalf("registered projections = %d, want 13", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -64,6 +65,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	if _, ok := registryNames["Mentionables"]; !ok {
 		t.Fatal("Mentionables projection is not registered")
 	}
+	if _, ok := registryNames["User Auth"]; !ok {
+		t.Fatal("User Auth projection is not registered")
+	}
 
 	states, err := core.ProjectionAdminStates(testContext(t))
 	if err != nil {
@@ -92,29 +96,17 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 }
 
-func TestProjectionRunGroupsUseSingleEVTReplayConsumer(t *testing.T) {
+func TestProjectionRegistryDefinesIndependentConsumers(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	groups := projectionRunGroups(core.projections)
-	if len(groups) != 1 {
-		t.Fatalf("projection run groups = %d, want 1", len(groups))
-	}
-
-	group := groups[0]
-	if !slices.Equal(group.replaySubjects, []string{"evt.>"}) {
-		t.Fatalf("replay subjects = %v, want [evt.>]", group.replaySubjects)
-	}
-	if len(group.projectors) != len(core.projections) {
-		t.Fatalf("group projectors = %d, registered projections = %d", len(group.projectors), len(core.projections))
-	}
-
-	names := make(map[string]bool, len(group.names))
-	for _, name := range group.names {
-		names[name] = true
-	}
-	for _, want := range []string{"Room Timeline", "Threads", "Room Directory", "Reactions", "Call State", "Mentionables"} {
-		if !names[want] {
-			t.Fatalf("single replay group missing %q: %v", want, group.names)
+	seen := make(map[*events.Projector]string, len(core.projections))
+	for _, registration := range core.projections {
+		if previous, duplicate := seen[registration.projector]; duplicate {
+			t.Fatalf("%s and %s share one projector", previous, registration.name)
+		}
+		seen[registration.projector] = registration.name
+		if replaySubjects := registration.projector.ReplaySubjects(); len(replaySubjects) == 0 {
+			t.Fatalf("%s projection has no physical replay filter", registration.name)
 		}
 	}
 }

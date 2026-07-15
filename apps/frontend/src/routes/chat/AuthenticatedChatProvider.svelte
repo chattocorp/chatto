@@ -2,7 +2,11 @@
   import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { PresenceStatus } from '$lib/render/types';
-  import type { PresenceCache } from '$lib/state/presenceCache.svelte';
+  import {
+    updateAuthenticatedCurrentUserPresenceEntries,
+    type PresenceCache
+  } from '$lib/state/presenceCache.svelte';
+  import { presencePreference } from '$lib/state/presencePreference.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -70,7 +74,7 @@
     }
   });
   // svelte-ignore state_referenced_locally
-  presenceCache.update(user.id, PresenceStatus.Online);
+  presenceCache.update({ serverId: originServer.id, userId: user.id }, PresenceStatus.Online);
 
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally
@@ -181,9 +185,11 @@
           };
         }),
     (status) => {
-      if (currentUserState.user) {
-        presenceCache.update(currentUserState.user.id, status);
-      }
+      updateAuthenticatedCurrentUserPresenceEntries(
+        presenceCache,
+        currentUserPresenceStores(),
+        status
+      );
     },
     {
       onPauseLiveEvents: () => {
@@ -200,6 +206,27 @@
     }
   );
   onDestroy(stopPresenceTracking);
+
+  $effect(() => {
+    updateAuthenticatedCurrentUserPresenceEntries(
+      presenceCache,
+      currentUserPresenceStores(),
+      presencePreference.effectiveStatus
+    );
+  });
+
+  function currentUserPresenceStores() {
+    return serverRegistry.servers.map((server) => {
+      const store = serverRegistry.tryGetStore(server.id);
+      return store
+        ? {
+            serverId: server.id,
+            isAuthenticated: store.isAuthenticated,
+            currentUser: store.currentUser
+          }
+        : null;
+    });
+  }
 </script>
 
 <ReturnUrlHandler />

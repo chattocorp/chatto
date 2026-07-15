@@ -29,7 +29,7 @@ type wsTestEnv struct {
 	httpServer *HTTPServer
 }
 
-func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
+func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -102,7 +102,7 @@ func setupWebSocketTestServer(t *testing.T) *wsTestEnv {
 	}
 }
 
-func (env *wsTestEnv) login(t *testing.T, login, password string) {
+func (env *wsTestEnv) login(t testing.TB, login, password string) {
 	t.Helper()
 
 	loginBody := `{"login":"` + login + `","password":"` + password + `"}`

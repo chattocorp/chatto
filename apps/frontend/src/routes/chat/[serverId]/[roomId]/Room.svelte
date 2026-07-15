@@ -6,7 +6,6 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import type { EventEnvelope } from '$lib/eventBus.svelte';
   import { createRoleAPI } from '$lib/api-client/roles';
   import {
     useRoomData,
@@ -15,7 +14,7 @@
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
-  import { appState } from '$lib/state/globals.svelte';
+  import { appState, sidebarNav } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import {
     createComposerContext,
@@ -44,9 +43,10 @@
     type RoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import { onDestroy, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
@@ -60,7 +60,11 @@
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
-  let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
+  let {
+    roomId,
+    threadId,
+    routeMessageId
+  }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
   const connection = useConnection();
   const roomFilesStore = new RoomFilesStore(connection());
@@ -72,10 +76,13 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
+  let pendingMainHighlightId = $state<string | null>(null);
+  let mainHighlightRequestId = 0;
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
   let pendingThreadReplyId = 0;
+  let appliedThreadMessageRoute: string | null = null;
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
     pendingThreadHighlight = options.highlightEventId ?? null;
@@ -263,6 +270,15 @@
     // until the new room's data has actually loaded.
     if (room.roomData.room.id !== roomId) return;
 
+    if (threadId && routeMessageId) {
+      const threadMessageRoute = `${roomId}:${threadId}:${routeMessageId}`;
+      if (appliedThreadMessageRoute === threadMessageRoute) return;
+      appliedThreadMessageRoute = threadMessageRoute;
+      applyHighlight(routeMessageId);
+      return;
+    }
+    appliedThreadMessageRoute = null;
+
     const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
       applyHighlight(pending);
@@ -291,37 +307,15 @@
     if (threadId) {
       pendingThreadHighlight = eventId;
     } else {
-      tick().then(() => {
-        jumpState.jumpToMessage(eventId);
+      const requestId = ++mainHighlightRequestId;
+      pendingMainHighlightId = eventId;
+      tick().then(async () => {
+        const jumped = await jumpState.jumpToMessage(eventId);
+        if (!jumped && mainHighlightRequestId === requestId && pendingMainHighlightId === eventId) {
+          pendingMainHighlightId = null;
+          toast.error(m['room.jump_failed']());
+        }
       });
-    }
-  }
-
-  function scopedRoomId(event: EventEnvelope['event']): string | null {
-    if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
-    return event.roomId;
-  }
-
-  function shouldRevealAwaySeparator(event: EventEnvelope): boolean {
-    const eventData = event.event;
-    if (!eventData) return false;
-    if (event.actorId === currentUser.user?.id) return false;
-
-    switch (roomEventKind(eventData)) {
-      case RoomEventKind.MessagePosted:
-        if (!isMessagePostedEvent(eventData)) return false;
-        return (
-          eventData.roomId === roomId && (!!eventData.echoOfEventId || !eventData.threadRootEventId)
-        );
-      case RoomEventKind.UserJoinedRoom:
-      case RoomEventKind.UserLeftRoom:
-      case RoomEventKind.RoomUpdated:
-      case RoomEventKind.RoomDeleted:
-      case RoomEventKind.RoomArchived:
-      case RoomEventKind.RoomUnarchived:
-        return scopedRoomId(eventData) === roomId;
-      default:
-        return false;
     }
   }
 
@@ -332,10 +326,6 @@
     roomFilesStore.ingestServerEvent(event);
     roomMembersStore.ingestServerEvent(event);
     if (!event.event) return;
-
-    if (!appState.isPresent && shouldRevealAwaySeparator(event)) {
-      unread.noteAwayEvent(event.id);
-    }
 
     if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
       const actorId = event.actorId;
@@ -488,6 +478,7 @@
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
+    if (sidebarNav.isMobile && target.closest('[data-app-sidebar]')) return;
     closeThread();
   }}
 />
@@ -569,6 +560,10 @@
           onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
+          pendingHighlightId={pendingMainHighlightId}
+          onHighlightComplete={() => {
+            pendingMainHighlightId = null;
+          }}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />

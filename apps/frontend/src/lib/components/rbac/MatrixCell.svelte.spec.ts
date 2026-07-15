@@ -90,6 +90,22 @@ describe('MatrixCell', () => {
     expect(onCycle).not.toHaveBeenCalled();
   });
 
+  it('shows a spinner and prevents repeat clicks while updating', async () => {
+    const onCycle = vi.fn();
+    const { container } = renderCell({ updating: true, onCycle });
+    const button = container.querySelector('button') as HTMLButtonElement;
+
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.className).toContain('ring-action/40');
+    expect(button.querySelector('.h-4.w-4.animate-spin.uil--spinner')).not.toBeNull();
+    expect(button.querySelector('.uil--minus')).toBeNull();
+
+    button.click();
+    flushSync();
+    expect(onCycle).not.toHaveBeenCalled();
+  });
+
   it('shows the allow icon when override is allow', async () => {
     const { container } = renderCell({ override: 'allow' });
     expect(container.querySelector('.uil--check')).not.toBeNull();

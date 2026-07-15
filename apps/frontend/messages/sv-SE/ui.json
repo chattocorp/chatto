@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Växla sidofältet",
+    "notifications": "Aviseringar",
+    "open_quick_switcher": "Öppna snabbväxeln",
+    "quick_switcher_shortcut": "Snabbväxling (Cmd+K)",
+    "realtime_paused": "Realtidsuppdateringar pausade. Återansluter...",
+    "update_available": "En ny version är tillgänglig",
+    "reload": "Ladda om",
+    "sign_out": "Logga ut",
+    "close": "Stäng",
+    "auth_status": {
+      "origin_title": "Sessionen har löpt ut",
+      "origin_message": "Du kan fortsätta läsa det som redan är laddat. Logga in igen för att skicka meddelanden och uppdatera data.",
+      "origin_action": "Logga in igen",
+      "remote_title": "{server} behöver logga in",
+      "remote_message": "Den här servern avvisade den lagrade inloggningen. Återanslut den för att återuppta liveuppdateringar och åtgärder.",
+      "remote_action": "Återanslut",
+      "remote_failed": "Det gick inte att starta återanslutningen",
+      "sidebar_reauth": "{server} behöver logga in"
+    },
+    "access_denied": {
+      "title": "Åtkomst nekad",
+      "message": "Du har inte behörighet att komma åt den här sidan.",
+      "back": "Återgå till chatten",
+      "back_to_server": "Återgå till servern"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Mer information",
+      "about": "Om {subject}"
+    },
+    "pane_header": {
+      "back": "Tillbaka"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Tillbaka till chatten"
+    },
+    "resize_handle": {
+      "resize": "Ändra storlek",
+      "resize_sidebar": "Ändra storlek på sidofältet"
+    },
+    "data_table": {
+      "empty": "Inga data",
+      "loading_more": "Laddar mer..."
+    },
+    "loading_page": {
+      "loading": "Laddar..."
+    },
+    "image_modal": {
+      "previous": "Föregående bild",
+      "next": "Nästa bild",
+      "fallback_alt": "Bild"
+    },
+    "toast": {
+      "dismiss": "Avvisa meddelande"
+    },
+    "combobox": {
+      "loading": "Laddar...",
+      "empty": "Inga matchningar",
+      "clear": "Rensa"
+    },
+    "expiry": {
+      "label": "Upphör att gälla",
+      "24h": "24 timmar",
+      "7d": "7 dagar",
+      "30d": "30 dagar",
+      "indefinite": "Inget utgångsdatum",
+      "custom": "Anpassad",
+      "custom_label": "Anpassat utgångsdatum",
+      "error_required": "Välj ett utgångsdatum.",
+      "error_invalid": "Ange ett giltigt utgångsdatum.",
+      "error_future": "Förfallodatumet måste vara i framtiden."
+    },
+    "form": {
+      "required": "Krävs"
+    },
+    "dates": {
+      "today": "Idag",
+      "yesterday": "Igår",
+      "this_week": "Den här veckan",
+      "this_month": "Den här månaden"
+    }
+  }
+}

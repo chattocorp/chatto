@@ -13,10 +13,10 @@ path-specific guidance.
 - [proto/chatto/admin/v1/AGENTS.md](proto/chatto/admin/v1/AGENTS.md) — administrative ConnectRPC API consistency rules for `chatto.admin.v1`.
 - [proto/chatto/realtime/v1/AGENTS.md](proto/chatto/realtime/v1/AGENTS.md) — realtime WebSocket protobuf protocol rules for `chatto.realtime.v1`.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
-- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
+- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture-inventory`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
 - `docs/fdr/INDEX.md` — feature behavior and rationale.
 - `docs/adr/INDEX.md` — cross-cutting architecture decisions.
-- `docs/ARCHITECTURE.md` — current inventory of services, streams, buckets, subjects, projections, realtime delivery, and ConnectRPC APIs.
+- `docs/architecture/INDEX.md` — current runtime inventory, split by components, projections, NATS resources, subjects, runtime state, effects, interfaces, and realtime delivery.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
 ## Project Status
@@ -24,6 +24,7 @@ path-specific guidance.
 - Chatto is public, self-hosted, and has real user data.
 - The project is pre-1.0, but people are already self-hosting Chatto, so we want to avoid breaking changes where possible. For new API surface, prefer new protobuf fields on existing protobuf types, then new protobuf types. Only implement _breaking_ API changes if absolutely necessary, but discuss this with the user first. Changes to the `core` protobuf messages (used by our persistence layer) must never be breaking.
 - Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
+- The next planned version is `0.5.0`. There's a 0.5.0 milestone on GitHub, but also we're locally tracking planned features and changes for 0.5.0 in `docs/TODO-0-5.md`. Please use these for guidance, and update them as we cross off features from the list. Do not add to the list unless the user specifically asks you to.
 
 ## Prime Directives
 
@@ -39,6 +40,10 @@ path-specific guidance.
 - Never log PII: no raw login names, display names, email addresses, submitted
   auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes,
   reset links, raw IPs, or full query strings.
+- Treat optional operational telemetry as best-effort: its failure must not make
+  broader diagnostics unavailable. Preserve an explicit unavailable state across
+  API and UI boundaries instead of replacing unknown values with healthy-looking
+  zeroes, empty strings, or timestamps.
 
 ## Tooling
 
@@ -80,8 +85,11 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - Avoid `$effect` unless synchronizing with the outside world. Prefer
   `$derived`, event handlers, context getters, and store methods for state flow.
 - Review visible frontend changes in the browser using Chrome DevTools MCP.
-- User-visible strings go through Paraglide message catalogs with both English
-  and German entries. Follow ADR-043 and [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md).
+- User-visible strings go through the British English (`en-GB`) source and all
+  complete translated Paraglide catalogs, with sparse US English (`en-US`)
+  overrides where wording differs. Preserve message structure and placeholders.
+  Follow ADR-043 and
+  [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md).
 - In user-facing copy, do not prefix end-user accounts, users, members, or
   usernames with the product name. People belong to the community powered by
   Chatto; use "account", "user", "member", or "username" as appropriate.
@@ -127,8 +135,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 ## Documentation Updates
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
-- Update `docs/ARCHITECTURE.md` when changing core services, projections, EVT
-  events or subjects, NATS resources, realtime delivery, or ConnectRPC APIs.
+- Update the relevant file in `docs/architecture/` when changing runtime
+  components, projections, EVT events or subjects, NATS resources, runtime
+  state, durable effects, realtime delivery, or mounted ConnectRPC services.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
 - Update the docs website when changing user-facing features, config,

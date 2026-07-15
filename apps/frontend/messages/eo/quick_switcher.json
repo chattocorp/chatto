@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Iru al servilo, ĉambro aŭ konversacio...",
+    "no_results": "Neniuj rezultoj",
+    "recent": "Lastatempa",
+    "kind": {
+      "destination": "Iru al",
+      "server": "Servilo",
+      "room": "Ĉambro",
+      "dm": "DM",
+      "user": "Uzanto"
+    }
+  }
+}

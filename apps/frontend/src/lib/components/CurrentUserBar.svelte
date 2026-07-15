@@ -16,14 +16,15 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
-  import { RoomType } from '$lib/render/types';
+  import { PresenceStatus, RoomType } from '$lib/render/types';
+  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
@@ -32,6 +33,7 @@ to the user settings page for the active server.
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
   const connection = useConnection();
+  const presenceCache = getPresenceCache();
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
@@ -70,12 +72,19 @@ to the user settings page for the active server.
     }
     return `# ${room.name}`;
   });
-  const compactCallButtonClass = 'btn-secondary h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
-  const compactCallActiveButtonClass = 'btn-success h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
-  const compactCallDangerButtonClass = 'btn-danger h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
-  const isTouch = isTouchDevice();
+  const compactCallButtonClass = 'btn-secondary btn-compact';
+  const compactCallActiveButtonClass = 'btn-success btn-compact';
+  const compactCallDangerButtonClass = 'btn-danger btn-compact';
+  const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
-  const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
+  const currentPresence = $derived.by(() => {
+    if (!activeServerUser) return PresenceStatus.Offline;
+    return presenceCache.get(
+      { serverId: activeServerId, userId: activeServerUser.id },
+      activeServerUser.presenceStatus
+    );
+  });
+  const presenceLabel = $derived.by(() => presenceStatusLabel(currentPresence));
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
   let customStatusDialogVisible = $state(false);
 
@@ -101,6 +110,19 @@ to the user settings page for the active server.
         return m['settings.profile.presence.do_not_disturb']();
       case 'invisible':
         return m['settings.profile.presence.invisible']();
+      default:
+        return m['settings.profile.presence.auto']();
+    }
+  }
+
+  function presenceStatusLabel(status: PresenceStatus): string {
+    switch (status) {
+      case PresenceStatus.Away:
+        return m['settings.profile.presence.away']();
+      case PresenceStatus.DoNotDisturb:
+        return m['settings.profile.presence.do_not_disturb']();
+      case PresenceStatus.Offline:
+        return m['settings.profile.presence.offline']();
       default:
         return m['settings.profile.presence.auto']();
     }
@@ -174,19 +196,16 @@ to the user settings page for the active server.
 {#if activeServerUser}
   <div class="flex shrink-0 flex-col gap-1 p-2">
     {#if activeCallRoomId && voiceCallState}
-      <div
-        class="flex min-w-0 items-center gap-1.5 rounded-xl bg-surface p-1"
-        data-testid="current-user-call-card"
-      >
+      <div class="grid min-w-0 grid-cols-5 gap-1.5" data-testid="current-user-call-card">
         <button
           type="button"
-          class="btn-secondary h-7 min-w-0 flex-1 cursor-pointer !justify-start !px-2 !py-0 text-xs"
+          class={compactCallButtonClass}
           title={`Open ${activeCallRoomName}`}
+          aria-label={`Open ${activeCallRoomName}`}
           data-testid="current-user-call-link"
           onclick={openActiveCallRoom}
         >
-          <span class="iconify shrink-0 animate-pulse text-accent uil--phone"></span>
-          <span class="truncate">{activeCallRoomName}</span>
+          <span class="iconify text-action uil--phone" aria-hidden="true"></span>
         </button>
         <button
           type="button"
@@ -285,12 +304,7 @@ to the user settings page for the active server.
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
       >
-        <UserAvatar
-          user={activeServerUser}
-          size="sm"
-          showPresence
-          presenceOverride={presencePreference.effectiveStatus}
-        />
+        <UserAvatar user={activeServerUser} size="sm" showPresence />
       </button>
       <div
         class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"
@@ -306,7 +320,7 @@ to the user settings page for the active server.
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
         aria-label={m['voice.user_settings']()}
-        class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+        class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
       >
         <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
       </a>
@@ -332,7 +346,7 @@ to the user settings page for the active server.
             type="button"
             class={[
               'sidebar-item w-full gap-3 text-left',
-              presencePreference.mode === mode ? 'bg-surface-100' : ''
+              presencePreference.mode === mode ? 'bg-surface' : ''
             ]}
             role="menuitemradio"
             aria-checked={presencePreference.mode === mode}
@@ -372,7 +386,7 @@ to the user settings page for the active server.
 {/if}
 
 {#if activeServerUser}
-  {#if isTouch}
+  {#if useSheetDialog}
     <BottomSheet
       bind:visible={customStatusDialogVisible}
       onclose={() => (customStatusDialogVisible = false)}
@@ -385,7 +399,7 @@ to the user settings page for the active server.
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
             aria-label={m['ui.close']()}
           >
             <span class="iconify text-xl uil--times"></span>

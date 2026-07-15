@@ -1,40 +1,83 @@
-import { createContext } from 'svelte';
+import { createContext, untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import type { PresenceStatus } from '$lib/render/types';
 
+export type PresenceCacheScope = {
+  serverId: string;
+  userId: string;
+};
+
 /**
- * Global cache for live user presence updates.
+ * Server-scoped cache for live user presence updates.
  *
- * Solves the problem where newly-mounted UserAvatar components (e.g., in popovers)
- * show stale presence from the initial server snapshot because they missed earlier
- * PresenceChangedEvents. By writing all presence updates to a shared cache,
- * any component can read the most recently observed status at mount time.
- *
- * The chat layout calls createPresenceCache() during initialization,
- * ServerEventProvider populates it, and components read via get().
+ * Presence is server-wide, not global across Chatto servers. A user can have
+ * different ids on different servers, and two servers can also contain the
+ * same user id string. Cache entries therefore include both server id and user
+ * id so avatar dots always read the presence for the active server.
  */
 export class PresenceCache {
   #entries = new SvelteMap<string, PresenceStatus>();
   #version = $state(0);
 
-  update(userId: string, status: PresenceStatus) {
-    this.#entries.set(userId, status);
-    this.#version++;
+  update(scope: PresenceCacheScope, status: PresenceStatus) {
+    untrack(() => {
+      this.#entries.set(presenceCacheKey(scope), status);
+      this.#version++;
+    });
   }
 
-  clear() {
-    this.#entries.clear();
-    this.#version++;
+  clear(retainedEntries: Iterable<readonly [PresenceCacheScope, PresenceStatus]> = []) {
+    untrack(() => {
+      this.#entries.clear();
+      for (const [scope, status] of retainedEntries) {
+        this.#entries.set(presenceCacheKey(scope), status);
+      }
+      this.#version++;
+    });
   }
 
-  get(userId: string, fallback: PresenceStatus): PresenceStatus {
+  get(scope: PresenceCacheScope, fallback: PresenceStatus): PresenceStatus {
     void this.#version;
-    return this.#entries.get(userId) ?? fallback;
+    return this.#entries.get(presenceCacheKey(scope)) ?? fallback;
   }
 
   get version() {
     return this.#version;
   }
+}
+
+export type PresenceCacheCurrentUserStore = {
+  serverId: string;
+  isAuthenticated: boolean;
+  currentUser: {
+    user?: { id: string } | null;
+  };
+};
+
+export function authenticatedCurrentUserPresenceEntries(
+  stores: Iterable<PresenceCacheCurrentUserStore | undefined | null>,
+  status: PresenceStatus
+): Array<readonly [PresenceCacheScope, PresenceStatus]> {
+  const entries: Array<readonly [PresenceCacheScope, PresenceStatus]> = [];
+  for (const store of stores) {
+    if (!store?.isAuthenticated || !store.currentUser.user) continue;
+    entries.push([{ serverId: store.serverId, userId: store.currentUser.user.id }, status]);
+  }
+  return entries;
+}
+
+export function updateAuthenticatedCurrentUserPresenceEntries(
+  presenceCache: PresenceCache,
+  stores: Iterable<PresenceCacheCurrentUserStore | undefined | null>,
+  status: PresenceStatus
+) {
+  for (const [scope, retainedStatus] of authenticatedCurrentUserPresenceEntries(stores, status)) {
+    presenceCache.update(scope, retainedStatus);
+  }
+}
+
+function presenceCacheKey({ serverId, userId }: PresenceCacheScope): string {
+  return `${serverId}\u0000${userId}`;
 }
 
 const [getCache, setCache] = createContext<PresenceCache>();

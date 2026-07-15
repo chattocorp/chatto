@@ -12,6 +12,38 @@ export function getLocale(): Locale {
   return getReactiveLocale();
 }
 
+export function getBrowserLocale(): string {
+  return (
+    globalThis.navigator?.languages?.[0] ??
+    globalThis.navigator?.language ??
+    new Intl.DateTimeFormat().resolvedOptions().locale
+  );
+}
+
+/**
+ * Combine Chatto's selected language with the browser's region for Intl formatting.
+ *
+ * Region-bearing content locales (for example, `en-GB`) are preserved. Language-only
+ * locales such as `de` inherit the browser's region so regional formatting remains
+ * useful until Chatto offers a more specific translation locale.
+ */
+export function getFormattingLocale(locale: string = getLocale()): string {
+  if (typeof Intl.Locale !== 'function') return locale;
+
+  try {
+    const languageLocale = new Intl.Locale(locale);
+    if (languageLocale.region) return languageLocale.toString();
+
+    const browserLocale = getBrowserLocale();
+    const browserRegion = new Intl.Locale(browserLocale).maximize().region;
+    return browserRegion
+      ? new Intl.Locale(languageLocale.baseName, { region: browserRegion }).toString()
+      : languageLocale.toString();
+  } catch {
+    return locale;
+  }
+}
+
 function applyDocumentLocale(locale: Locale): void {
   if (typeof document === 'undefined') return;
   document.documentElement.lang = locale;

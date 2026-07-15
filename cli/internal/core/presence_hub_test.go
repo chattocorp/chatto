@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -36,33 +38,45 @@ func TestPresenceHub_BasicFanOut(t *testing.T) {
 	}
 }
 
-func TestPresenceHub_SnapshotIncludesExisting(t *testing.T) {
+func TestPresenceHub_SubscribeReceivesOnlyFutureTransitions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Set presence — hub is already running, so this gets picked up live
-	err := core.SetPresence(ctx, "existing-user", PresenceStatusAway)
-	if err != nil {
+	if err := core.SetPresence(ctx, "existing-user", PresenceStatusAway); err != nil {
 		t.Fatalf("SetPresence failed: %v", err)
 	}
+	waitForPresenceHubStatus(t, core.PresenceHub, "existing-user", PresenceStatusAway)
 
-	// Brief wait for the hub to process the KV update
-	time.Sleep(100 * time.Millisecond)
-
-	// Subscribe — snapshot should include the existing presence
 	sub, err := core.PresenceHub.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("Subscribe failed: %v", err)
 	}
 	defer core.PresenceHub.Unsubscribe(sub)
 
-	status, exists := sub.Snapshot["existing-user"]
-	if !exists {
-		t.Fatal("Expected existing-user in snapshot")
+	assertNoPresenceUpdate(t, sub, 100*time.Millisecond)
+
+	transitions := []string{
+		PresenceStatusDoNotDisturb,
+		PresenceStatusOnline,
+		PresenceStatusAway,
 	}
-	if status != PresenceStatusAway {
-		t.Errorf("Expected AWAY in snapshot, got %s", status)
+	for _, status := range transitions {
+		if err := core.SetPresence(ctx, "existing-user", status); err != nil {
+			t.Fatalf("SetPresence %s failed: %v", status, err)
+		}
+		expectPresenceUpdate(t, sub, "existing-user", status)
 	}
+
+	// Refreshing an unchanged status must remain suppressed by the hub.
+	if err := core.SetPresence(ctx, "existing-user", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence unchanged away failed: %v", err)
+	}
+	assertNoPresenceUpdate(t, sub, 100*time.Millisecond)
+
+	if err := core.storage.memoryCacheKV.Delete(ctx, presenceKey("existing-user")); err != nil {
+		t.Fatalf("Delete presence failed: %v", err)
+	}
+	expectPresenceUpdate(t, sub, "existing-user", PresenceStatusOffline)
 }
 
 func TestPresenceHub_MultipleSubscribers(t *testing.T) {
@@ -182,5 +196,51 @@ func expectPresenceUpdate(t *testing.T, sub *PresenceSubscription, userID, statu
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("Timeout waiting for %s presence update", status)
+	}
+}
+
+func assertNoPresenceUpdate(t *testing.T, sub *PresenceSubscription, wait time.Duration) {
+	t.Helper()
+	select {
+	case update := <-sub.C:
+		t.Fatalf("Unexpected presence update: %+v", update)
+	case <-time.After(wait):
+	}
+}
+
+func waitForPresenceHubStatus(t *testing.T, hub *PresenceHub, userID, status string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		hub.mu.Lock()
+		current := hub.snapshot[userID]
+		hub.mu.Unlock()
+		if current == status {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("PresenceHub snapshot for %s did not reach %s", userID, status)
+}
+
+func BenchmarkPresenceHubSubscribe(b *testing.B) {
+	for _, onlineUsers := range []int{0, 100, 1000} {
+		b.Run("online_users_"+strconv.Itoa(onlineUsers), func(b *testing.B) {
+			hub := NewPresenceHub(nil, nil)
+			for i := range onlineUsers {
+				hub.snapshot["user-"+strconv.Itoa(i)] = PresenceStatusOnline
+			}
+			close(hub.ready)
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				sub, err := hub.Subscribe(context.Background())
+				if err != nil {
+					b.Fatalf("Subscribe failed: %v", err)
+				}
+				hub.Unsubscribe(sub)
+			}
+		})
 	}
 }

@@ -67,6 +67,43 @@ func TestRequestLoggerUsesConfiguredFormatter(t *testing.T) {
 	}
 }
 
+func TestRequestLoggerLogsSuccessfulRequestsAtDebug(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var buf bytes.Buffer
+	logger := log.New(&buf)
+	logger.SetFormatter(log.JSONFormatter)
+	logger.SetLevel(log.DebugLevel)
+
+	router := gin.New()
+	router.Use(requestLogger(logger))
+	router.GET("/ok", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var line map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
+		t.Fatalf("request log should be JSON, got %q: %v", buf.String(), err)
+	}
+
+	assertLogField(t, line, "level", "debug")
+	assertLogField(t, line, "msg", "HTTP request")
+	assertLogField(t, line, "method", http.MethodGet)
+	assertLogField(t, line, "path", "/ok")
+	if got := line["status"]; got != float64(http.StatusOK) {
+		t.Fatalf("status field = %v, want %d", got, http.StatusOK)
+	}
+}
+
 func assertLogField(t *testing.T, line map[string]any, key string, want string) {
 	t.Helper()
 

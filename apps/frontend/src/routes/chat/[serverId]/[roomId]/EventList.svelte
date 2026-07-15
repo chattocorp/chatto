@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
@@ -20,14 +21,23 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
   import type { ResumeSignal } from '$lib/hooks/resumeCoordinator.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
+  import { convergeAtBottom } from './bottomScrollConvergence';
+  import {
+    scheduleNextTombstoneExpiry,
+    shouldHideTombstone,
+    visibleTombstoneEvents,
+    visibleUnreadMarkerEventId
+  } from './tombstoneVisibility';
 
   let {
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore,
     events,
     // Scroll behavior
@@ -69,6 +79,7 @@
     pendingHighlightId = null
   }: {
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore: MessagesStore;
     events: RoomEventView[];
     // Scroll behavior
@@ -98,12 +109,12 @@
     typingMembers?: RoomMember[];
     // Jump to message
     scrollToEventId?: string | null;
-    onScrollToEventComplete?: () => void;
+    onScrollToEventComplete?: (landed: boolean) => void;
     isJumpedMode?: boolean;
     isLoadingNewer?: boolean;
     hasReachedEnd?: boolean;
     onLoadNewer?: () => Promise<void>;
-    onJumpToPresent?: () => void;
+    onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
     onReachedBottom?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
@@ -117,12 +128,31 @@
   };
 
   let initialScrollDone = $state(false);
+  let bottomScrollOperation = 0;
+  let userScrollIntentAt = 0;
+  const USER_SCROLL_INTENT_MS = 250;
 
   // State for smart scroll behavior (when not alwaysScrollToBottom)
   let shouldScrollToBottom = $state(true);
   let hasNewMessages = $state(false);
   let lastSeenNewestId = $state<string | null>(null);
   let firstVisibleAt = $state<string | null>(null);
+  const expandedSystemEventIds = new SvelteSet<string>();
+  let expandedStateRoomId: string | null = null;
+
+  function isSystemGroupExpanded(groupEvents: RoomEventView[]): boolean {
+    return groupEvents.some((event) => expandedSystemEventIds.has(event.id));
+  }
+
+  function setSystemGroupExpanded(groupEvents: RoomEventView[], expanded: boolean): void {
+    for (const event of groupEvents) {
+      if (expanded) {
+        expandedSystemEventIds.add(event.id);
+      } else {
+        expandedSystemEventIds.delete(event.id);
+      }
+    }
+  }
 
   function setShouldScrollToBottom(value: boolean) {
     shouldScrollToBottom = value;
@@ -144,8 +174,9 @@
     firstVisibleAt ? formatDayLabel(firstVisibleAt, userSettings, activeLocale) : null
   );
 
-  // Filter events based on configuration
-  let filteredEvents = $derived(
+  // First apply structural timeline filtering. Tombstone expiry is a separate
+  // stage so row removal cannot be mistaken for a newly arrived message.
+  let timelineEvents = $derived(
     events.filter((e) => {
       if (!isMessagePostedEvent(e.event)) return true;
 
@@ -155,22 +186,69 @@
       // In thread pane, filterThreadReplies=false to show all messages
       if (filterThreadReplies && msg?.threadRootEventId != null) return false;
 
-      // Deleted messages (body === null) are always shown with placeholder
       return true;
     })
+  );
+  let tombstoneClockVersion = $state(0);
+  let filteredEvents = $derived.by(() => {
+    void tombstoneClockVersion;
+    const nowMs = Date.now();
+    return visibleTombstoneEvents(timelineEvents, nowMs);
+  });
+  let messageEventCount = $derived(
+    filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
   );
 
   // Apply message grouping and day separators
   let eventsWithMeta = $derived(computeEventMetadata(filteredEvents, userSettings, activeLocale));
 
-  // The unread separator event ID is computed by the parent component
-  // (RoomEventsPane for sequence-based, ThreadPane for time-based)
-  // and passed in directly as unreadAfterEventId.
+  // If the marker points at an expired tombstone, move it to the next visible
+  // event instead of silently dropping the unread boundary.
+  let effectiveUnreadAfterEventId = $derived.by(() => {
+    return visibleUnreadMarkerEventId(timelineEvents, filteredEvents, unreadAfterEventId ?? null);
+  });
 
   // Build flat array for the virtualizer (events + interleaved separators)
   let virtualItems = $derived(
-    buildVirtualItems(eventsWithMeta, unreadAfterEventId ?? null, hasReachedStart, showStartMarker)
+    buildVirtualItems(eventsWithMeta, effectiveUnreadAfterEventId, hasReachedStart, showStartMarker)
   );
+
+  async function expireTombstones(atMs: number) {
+    const bottomDistance = distanceFromBottom();
+    const wasAtBottom =
+      alwaysScrollToBottom ||
+      (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
+    const anchor = wasAtBottom ? null : captureRefreshAnchor(atMs);
+
+    tombstoneClockVersion += 1;
+    await tick();
+
+    if (wasAtBottom && scrollContainer) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      scrollFader?.refresh();
+      return;
+    }
+    if (!anchor || !scrollContainer) return;
+
+    // Virtua can measure and correct the keyed list over several frames. Keep
+    // restoring the same event anchor while those measurements settle.
+    for (let frame = 0; frame < 4; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
+      if (!target) return;
+      scrollContainer.scrollTop += target.getBoundingClientRect().top - anchor.top;
+    }
+    scrollFader?.refresh();
+  }
+
+  $effect(() => {
+    void tombstoneClockVersion;
+    const nowMs = Date.now();
+    return scheduleNextTombstoneExpiry(timelineEvents, nowMs, (expiresAt) => {
+      void expireTombstones(expiresAt);
+    });
+  });
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
@@ -197,11 +275,25 @@
   $effect(() => {
     void roomId;
 
+    cancelBottomScroll();
     initialScrollDone = false;
     setShouldScrollToBottom(true);
     lastSeenNewestId = null;
     firstVisibleAt = null;
     previousOffset = null;
+  });
+
+  $effect(() => {
+    const currentRoomId = roomId;
+    if (expandedStateRoomId === null) {
+      expandedStateRoomId = currentRoomId;
+      return;
+    }
+    if (currentRoomId === expandedStateRoomId) return;
+    expandedStateRoomId = currentRoomId;
+    // This reset belongs exclusively to room navigation. Reading the reactive
+    // set here would also subscribe the effect to expansion changes.
+    untrack(() => expandedSystemEventIds.clear());
   });
 
   // When exiting jumped mode (returning to present), re-enable auto-scroll
@@ -219,9 +311,8 @@
   // messages via pagination (which prepends to the array) doesn't falsely trigger.
   $effect(() => {
     if (!showNewMessagesIndicator || alwaysScrollToBottom) return;
-    if (filteredEvents.length === 0) return;
-
-    const newestId = filteredEvents[filteredEvents.length - 1].id;
+    if (timelineEvents.length === 0) return;
+    const newestId = timelineEvents[timelineEvents.length - 1].id;
 
     if (lastSeenNewestId !== null && newestId !== lastSeenNewestId && !shouldScrollToBottom) {
       hasNewMessages = true;
@@ -247,59 +338,70 @@
       }
       tick().then(() => {
         if (scrollContainer && shouldScrollToBottom) {
-          startScrollCorrection();
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          scrollFader?.refresh();
+          void requestBottomScroll();
         }
       });
     }
   });
 
   // Scroll to a specific event by ID (for jump-to-message)
+  let scrollAttemptId = 0;
   $effect(() => {
+    const attemptId = ++scrollAttemptId;
     const targetId = scrollToEventId;
     if (!targetId || !virtualizerHandle || virtualItems.length === 0) return;
-
-    // Find the target event's index in virtualItems
-    const targetIdx = virtualItems.findIndex(
-      (item) => item.type === 'event' && item.event.id === targetId
-    );
-    if (targetIdx === -1) return;
+    const targetEventId = targetId;
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     setShouldScrollToBottom(false);
     // Mark initial scroll as done so pending initial loading state cannot obscure the jump.
     initialScrollDone = true;
 
-    // Wait for render, then scroll and highlight.
-    // After a cache replacement (jump-to-message), virtua needs multiple frames
-    // to measure items and render the target element. Retry the highlight
-    // a few times to handle this latency.
+    // After a cache replacement, virtua can need several frames before the
+    // target item is indexed, measured, and mounted. Retry the full lookup +
+    // scroll path instead of giving up before the target is renderable.
     tick().then(() => {
-      safeScrollToIndex(targetIdx, { align: 'center' });
-
-      // After the scroll and virtualizer measurement settle, restore
-      // shouldScrollToBottom if we landed at the bottom (e.g., linking to a
-      // recent message, or content doesn't overflow the viewport). Without this,
-      // the "Jump to Present" button appears spuriously because no scroll event
-      // fires when content is shorter than the viewport.
-      setTimeout(() => {
-        if (!virtualizerHandle) return;
-        const dist =
-          virtualizerHandle.getScrollSize() -
-          virtualizerHandle.getScrollOffset() -
-          virtualizerHandle.getViewportSize();
-        if (dist < 50) {
-          setShouldScrollToBottom(true);
-        }
-      }, 200);
-
       let attempts = 0;
-      function tryHighlight() {
+      const maxAttempts = 60;
+      let completed = false;
+
+      function complete(landed: boolean) {
+        if (completed || scrollAttemptId !== attemptId) return;
+        if (!landed) {
+          completed = true;
+          onScrollToEventComplete?.(false);
+          return;
+        }
+
+        // Check after the successful target scroll has settled. Starting this
+        // timer before the virtual row mounts can re-enable bottom scrolling
+        // based on the previous window's offset.
+        setTimeout(() => {
+          if (completed || !virtualizerHandle || scrollAttemptId !== attemptId) return;
+          const dist =
+            virtualizerHandle.getScrollSize() -
+            virtualizerHandle.getScrollOffset() -
+            virtualizerHandle.getViewportSize();
+          if (dist < 50) setShouldScrollToBottom(true);
+          completed = true;
+          onScrollToEventComplete?.(true);
+        }, 200);
+      }
+
+      function tryScrollAndHighlight() {
+        if (scrollAttemptId !== attemptId) return;
+
+        const targetIdx = virtualItems.findIndex(
+          (item) => item.type === 'event' && item.event.id === targetEventId
+        );
+        if (targetIdx !== -1) {
+          safeScrollToIndex(targetIdx, { align: 'center' });
+        }
+
         // Scope to this EventList's scroll container so the thread pane
         // highlights within the thread, not in the main room view.
         const scope = scrollContainer ?? document;
-        const target = scope.querySelector(`[data-event-id="${targetId}"]`);
+        const target = scope.querySelector(eventSelector(targetEventId));
         if (target instanceof HTMLElement) {
           target.classList.add('highlight-flash');
           target.addEventListener(
@@ -307,17 +409,24 @@
             () => target.classList.remove('highlight-flash'),
             { once: true }
           );
-          onScrollToEventComplete?.();
-        } else if (attempts < 15) {
-          attempts++;
-          requestAnimationFrame(tryHighlight);
-        } else {
-          // Give up — element never appeared, still signal completion
-          onScrollToEventComplete?.();
+          complete(true);
+          return;
         }
+
+        if (attempts >= maxAttempts) {
+          complete(false);
+          return;
+        }
+        attempts++;
+        requestAnimationFrame(tryScrollAndHighlight);
       }
-      requestAnimationFrame(tryHighlight);
+
+      requestAnimationFrame(tryScrollAndHighlight);
     });
+
+    return () => {
+      if (scrollAttemptId === attemptId) scrollAttemptId++;
+    };
   });
 
   // Scroll container and virtualizer handle
@@ -336,6 +445,51 @@
     } catch {
       // Virtualizer not yet initialized — scroll will self-correct on next render
     }
+  }
+
+  function cancelBottomScroll() {
+    bottomScrollOperation += 1;
+  }
+
+  function requestBottomScroll(): Promise<boolean> | undefined {
+    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return undefined;
+
+    const operation = ++bottomScrollOperation;
+    const requestedRoomId = roomId;
+    const intentAtStart = userScrollIntentAt;
+    return convergeAtBottom({
+      continueWhile: () =>
+        operation === bottomScrollOperation &&
+        roomId === requestedRoomId &&
+        userScrollIntentAt === intentAtStart &&
+        !isJumpedMode &&
+        (alwaysScrollToBottom || shouldScrollToBottom) &&
+        Boolean(scrollContainer && virtualizerHandle),
+      waitForFrame: async () => {
+        await tick();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      },
+      scroll: () => {
+        if (!scrollContainer) return;
+        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        scrollFader?.refresh();
+      },
+      measure: () => {
+        if (!virtualizerHandle) return null;
+        return {
+          distanceFromBottom:
+            virtualizerHandle.getScrollSize() -
+            virtualizerHandle.getScrollOffset() -
+            virtualizerHandle.getViewportSize(),
+          scrollSize: virtualizerHandle.getScrollSize(),
+          viewportSize: virtualizerHandle.getViewportSize()
+        };
+      }
+    }).then((converged) => {
+      if (operation === bottomScrollOperation) initialScrollDone = true;
+      return converged;
+    });
   }
 
   // Register the scroll container with ScrollState so sibling components
@@ -368,24 +522,7 @@
     if (virtualItems.length > 0 && virtualizerHandle) {
       const shouldScroll = untrack(() => alwaysScrollToBottom || shouldScrollToBottom);
       if (shouldScroll) {
-        // Wait for Svelte to flush DOM updates so the virtualizer has
-        // accurate measurements for the new items before scrolling.
-        tick().then(() => {
-          if (!virtualizerHandle) return;
-          if (!untrack(() => alwaysScrollToBottom || shouldScrollToBottom)) return;
-          startScrollCorrection();
-          safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-          scrollFader?.refresh();
-          if (!untrack(() => initialScrollDone)) {
-            // Give virtua time to measure actual item heights and settle the
-            // scroll position.
-            setTimeout(() => {
-              safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-              scrollFader?.refresh();
-              initialScrollDone = true;
-            }, 80);
-          }
-        });
+        void requestBottomScroll();
       }
     }
   });
@@ -394,33 +531,23 @@
   function scrollToBottom() {
     setShouldScrollToBottom(true);
     onReachedBottom?.();
-    if (virtualizerHandle) {
-      safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-      scrollFader?.refresh();
-    }
+    void requestBottomScroll();
   }
 
-  function handleJumpToPresentClick() {
+  async function handleJumpToPresentClick() {
+    // The replacement latest window must perform a fresh initial-style bottom
+    // scroll. Virtua otherwise preserves the historical window's offset when
+    // the keyed data is replaced and can leave the user stranded mid-window.
+    setShouldScrollToBottom(true);
+    initialScrollDone = false;
+    scrollUpLock = false;
     onReachedBottom?.();
-    onJumpToPresent?.();
-  }
-
-  // Timer-based flag set by programmatic scrolls (auto-scroll effect, scroll-request
-  // effect). During the window, handleVirtuaScroll will self-correct if the virtualizer
-  // re-measures items (changing scrollHeight) and leaves position short of bottom.
-  // Uses a timeout because the virtualizer may settle over multiple frames — a simple
-  // distance check clears too early (first scroll reaches bottom, flag clears, then
-  // virtualizer re-renders and grows scrollHeight).
-  let pendingScrollCorrection = false;
-  let scrollCorrectionTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function startScrollCorrection() {
-    pendingScrollCorrection = true;
-    if (scrollCorrectionTimer) clearTimeout(scrollCorrectionTimer);
-    scrollCorrectionTimer = setTimeout(() => {
-      pendingScrollCorrection = false;
-      scrollCorrectionTimer = null;
-    }, 500);
+    const requestedRoomId = roomId;
+    const intentAtStart = userScrollIntentAt;
+    if (!(await onJumpToPresent?.())) return;
+    await tick();
+    if (roomId !== requestedRoomId || userScrollIntentAt !== intentAtStart) return;
+    void requestBottomScroll();
   }
 
   // Lock to prevent virtua's scroll corrections from immediately re-enabling
@@ -435,11 +562,24 @@
   // so virtua's internal scroll adjustments (re-measurement, $fixScrollJump),
   // composer-resize-driven scrollTop writes, and browser scroll clamping during
   // layout shifts never get misread as the user scrolling up.
-  let userScrollIntentAt = 0;
-  const USER_SCROLL_INTENT_MS = 250;
-
   function markUserScrollIntent() {
     userScrollIntentAt = Date.now();
+    cancelBottomScroll();
+  }
+
+  function markKeyboardScrollIntent(event: KeyboardEvent) {
+    const target = event.target;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+      markUserScrollIntent();
+    }
   }
 
   function distanceFromBottom(): number | null {
@@ -461,34 +601,68 @@
     return `[data-event-id="${CSS.escape(eventId)}"]`;
   }
 
-  function captureRefreshAnchor(): RefreshAnchor | null {
+  function captureRefreshAnchor(visibleAtMs?: number): RefreshAnchor | null {
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
 
+    const viewportTop = scrollContainer.getBoundingClientRect().top;
+    let partiallyVisibleAnchor: RefreshAnchor | null = null;
     const startIdx = Math.max(
       0,
       virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset())
     );
     for (let i = startIdx; i < virtualItems.length; i++) {
-      const eventId = eventIdForVirtualItem(virtualItems[i]);
+      const item = virtualItems[i];
+      if (
+        visibleAtMs !== undefined &&
+        item.type === 'event' &&
+        shouldHideTombstone(item.event, visibleAtMs)
+      ) {
+        continue;
+      }
+      const eventId = eventIdForVirtualItem(item);
       if (!eventId) continue;
 
       const el = scrollContainer.querySelector<HTMLElement>(eventSelector(eventId));
       if (!el) continue;
-      return {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom <= viewportTop) continue;
+      const candidate = {
         eventId,
-        top: el.getBoundingClientRect().top
+        top: rect.top
       };
+      if (rect.top >= viewportTop) return candidate;
+      partiallyVisibleAnchor ??= candidate;
     }
 
+    if (partiallyVisibleAnchor) return partiallyVisibleAnchor;
     console.debug('[room-refresh] no visible anchor found', { roomId });
     return null;
   }
 
   let softRefreshInFlight = false;
+  const MIN_BROWSER_WAKE_REFRESH_HIDDEN_MS = 5_000;
+
+  function isShortBrowserWake(signal: ResumeSignal): boolean {
+    if (signal.source !== 'browser') return false;
+    if (signal.reason !== 'visibility' && signal.reason !== 'pageshow') return false;
+    return (
+      signal.hiddenDurationMs !== null &&
+      signal.hiddenDurationMs < MIN_BROWSER_WAKE_REFRESH_HIDDEN_MS
+    );
+  }
 
   async function refreshAfterPossibleMiss(signal: ResumeSignal): Promise<boolean> {
     if (softRefreshInFlight) return false;
     if (isLoading && virtualItems.length === 0) return false;
+    if (isShortBrowserWake(signal)) {
+      console.debug('[room-refresh] skipped short browser wake refresh', {
+        roomId,
+        reason: signal.reason,
+        hiddenDurationMs: signal.hiddenDurationMs,
+        epoch: signal.epoch
+      });
+      return false;
+    }
 
     const bottomDistance = distanceFromBottom();
     const wasAtBottom =
@@ -501,37 +675,45 @@
       console.debug('[room-refresh] event list refresh started', {
         roomId,
         reason: signal.reason,
+        source: signal.source,
         phase: signal.phase,
         hiddenDurationMs: signal.hiddenDurationMs,
         epoch: signal.epoch,
         mode: wasAtBottom ? 'latest' : 'anchored',
+        wasAtBottom,
         bottomDistance,
         anchorEventId: anchor?.eventId ?? null,
         itemCount: virtualItems.length
       });
-      const result = await messageStore.refreshCurrentWindow(anchor?.eventId ?? null);
+      const result = await messageStore.refreshCurrentWindow(
+        wasAtBottom ? null : (anchor?.eventId ?? null)
+      );
       if (!result.refreshed) {
         console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
           roomId,
           reason: signal.reason,
+          source: signal.source,
           phase: signal.phase,
+          wasAtBottom,
           result
         });
         return false;
       }
       onSoftRefresh?.(result, anchor !== null);
+      if (!result.changed) {
+        console.debug('[room-refresh] event list refresh completed unchanged', {
+          roomId,
+          result,
+          itemCount: virtualItems.length
+        });
+        return true;
+      }
       await tick();
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
       if (wasAtBottom) {
         setShouldScrollToBottom(true);
-        initialScrollDone = true;
-        startScrollCorrection();
-        scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight });
-        if (virtualItems.length > 0) {
-          safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-        }
-        scrollFader?.refresh();
+        await requestBottomScroll();
         console.debug('[room-refresh] event list refresh completed at bottom', {
           roomId,
           result,
@@ -575,6 +757,7 @@
   // while hidden, leaving shouldScrollToBottom=true even though the scroll has
   // drifted off the bottom (which would suppress the Jump to Present button).
   useTabResumeCallback(() => {
+    tombstoneClockVersion += 1;
     if (alwaysScrollToBottom || !shouldScrollToBottom || !initialScrollDone) return;
     if (!virtualizerHandle) return;
     const dist =
@@ -585,6 +768,7 @@
   });
 
   let forwardLoadInFlight = false;
+  let underfilledBackfillInFlight = false;
 
   function exitJumpedModeAtPresent(bottomDistance: number): boolean {
     if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
@@ -617,6 +801,71 @@
       forwardLoadInFlight = false;
     }
   }
+
+  async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
+    if (
+      !enablePagination ||
+      !onLoadMore ||
+      isLoading ||
+      isLoadingMore ||
+      hasReachedStart ||
+      isJumpedMode ||
+      underfilledBackfillInFlight
+    ) {
+      return;
+    }
+
+    underfilledBackfillInFlight = true;
+    try {
+      // A fetched page can consist entirely of expired tombstones. There is no
+      // Virtualizer in that state, but pagination still needs to walk backward
+      // until it finds visible history or reaches the beginning.
+      if (timelineEvents.length > 0 && filteredEvents.length === 0) {
+        await onLoadMore();
+        return;
+      }
+
+      await tick();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (
+        !virtualizerHandle ||
+        isLoading ||
+        isLoadingMore ||
+        hasReachedStart ||
+        isJumpedMode ||
+        virtualItems.length === 0
+      ) {
+        return;
+      }
+
+      const scrollSize = virtualizerHandle.getScrollSize();
+      const viewportSize = virtualizerHandle.getViewportSize();
+      const lacksInitialRoomMessages =
+        filterThreadReplies &&
+        timelineEvents.length > 0 &&
+        messageEventCount < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET;
+      if (scrollSize <= viewportSize + 50 || lacksInitialRoomMessages) {
+        await onLoadMore();
+      }
+    } finally {
+      underfilledBackfillInFlight = false;
+    }
+  }
+
+  $effect(() => {
+    void virtualItems.length;
+    void timelineEvents.length;
+    void filteredEvents.length;
+    void messageEventCount;
+    void enablePagination;
+    void isLoading;
+    void isLoadingMore;
+    void hasReachedStart;
+    void isJumpedMode;
+    void virtualizerHandle;
+
+    void loadOlderIfTimelineNeedsBackfill();
+  });
 
   // Handle scroll events from virtua to detect user intent and trigger pagination.
   // virtua's shift=true handles scroll restoration during pagination automatically,
@@ -652,34 +901,13 @@
         distanceFromBottom > 20
       ) {
         setShouldScrollToBottom(false);
-        pendingScrollCorrection = false;
-        if (scrollCorrectionTimer) {
-          clearTimeout(scrollCorrectionTimer);
-          scrollCorrectionTimer = null;
-        }
+        cancelBottomScroll();
         scrollUpLock = true;
         if (scrollUpLockTimer) clearTimeout(scrollUpLockTimer);
         scrollUpLockTimer = setTimeout(() => {
           scrollUpLock = false;
         }, 150);
       }
-    }
-
-    // Self-correcting scroll: after a programmatic scroll, the virtualizer may
-    // re-measure items (changing scrollHeight), leaving the position short of
-    // the bottom. Re-scroll to the true bottom. Only fires during the short
-    // window after a programmatic scroll set the flag — never during user scrolling.
-    // Also gated on shouldScrollToBottom so a stale correction window from the
-    // initial auto-scroll doesn't yank the user back to the bottom after a
-    // jump-to-message takes them to an old event within those 500ms.
-    if (
-      pendingScrollCorrection &&
-      (alwaysScrollToBottom || shouldScrollToBottom) &&
-      distanceFromBottom > 50 &&
-      scrollContainer
-    ) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      scrollFader?.refresh();
     }
 
     previousOffset = offset;
@@ -753,6 +981,8 @@
   }
 </script>
 
+<svelte:window onkeydown={markKeyboardScrollIntent} />
+
 <div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
   <!-- Gradient fade overlay at top -->
   <div
@@ -768,11 +998,12 @@
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
+    onpointerdown={markUserScrollIntent}
   >
     <div class="mt-auto">
       {#if !isLoading && virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">
-          <div class="py-4 text-sm text-muted/40">{emptyMessage}</div>
+          <div class="py-4 text-sm text-muted">{emptyMessage}</div>
         </div>
       {:else if !isLoading}
         <Virtualizer
@@ -788,8 +1019,8 @@
             {#if !item}
               <!-- Stale virtualizer index during data transition, skip -->
             {:else if item.type === 'start-marker'}
-              <div class="pt-10 pb-2 text-center text-sm text-muted/40">
-                This is the beginning of this conversation.
+              <div class="pt-10 pb-2 text-center text-sm text-muted">
+                {m['room.timeline.beginning']()}
               </div>
             {:else if item.type === 'day-separator'}
               <DaySeparator label={item.label} />
@@ -802,7 +1033,12 @@
               {@const groupEvents = item?.events}
               {@const groupKind = item?.kind}
               {#if groupEvents && groupKind && groupEvents.length > 0}
-                <SystemEventGroup events={groupEvents} kind={groupKind} />
+                <SystemEventGroup
+                  events={groupEvents}
+                  kind={groupKind}
+                  expanded={isSystemGroupExpanded(groupEvents)}
+                  onExpandedChange={(expanded) => setSystemGroupExpanded(groupEvents, expanded)}
+                />
               {/if}
             {:else}
               <!--
@@ -817,6 +1053,7 @@
                   event={eventData}
                   compact={!item.isFirstInGroup}
                   {roomId}
+                  {permalinkThreadRootEventId}
                   {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
                 />

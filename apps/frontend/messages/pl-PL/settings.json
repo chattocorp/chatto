@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Ustawienia",
+      "back_to_server": "Powrót do serwera",
+      "profile": "Profil",
+      "display": "Wyświetlacz",
+      "notifications": "Powiadomienia",
+      "account": "Konto"
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Zarządzaj informacjami w swoim profilu",
+      "avatar": {
+        "title": "Awatar",
+        "drop_title": "Upuść obraz",
+        "drop_subtitle": "Prześlij jako swój awatar",
+        "alt": "Twój awatar",
+        "description": "Prześlij awatar. Rozmiar obrazów zostanie zmniejszony do 256 x 256 pikseli.",
+        "uploading": "Przesyłanie...",
+        "upload": "Prześlij awatar",
+        "change": "Zmień awatar",
+        "removing": "Usuwanie...",
+        "remove": "Usuń",
+        "invalid_type": "Proszę wybrać plik obrazu",
+        "too_large": "Obraz musi mieć mniej niż 10 MB",
+        "uploaded": "Awatar został pomyślnie przesłany",
+        "upload_failed": "Nie udało się przesłać awatara",
+        "removed": "Usunięto awatar",
+        "delete_failed": "Nie udało się usunąć awatara"
+      },
+      "display_name": {
+        "label": "Nazwa wyświetlana",
+        "placeholder": "Wpisz swoją nazwę wyświetlaną",
+        "invalid": "Nieprawidłowa nazwa wyświetlana"
+      },
+      "username": {
+        "label": "Nazwa użytkownika",
+        "placeholder": "Wpisz swoją nazwę użytkownika",
+        "invalid": "Nieprawidłowa nazwa użytkownika",
+        "cooldown_error": "Nazwę użytkownika możesz zmienić tylko raz na 30 dni. Spróbuj ponownie w {remaining}.",
+        "cooldown_notice": "Możesz ponownie zmienić swoją nazwę użytkownika w {remaining}.",
+        "confirm_title": "Zmień nazwę użytkownika",
+        "confirm_prompt": "Czy na pewno chcesz zmienić swoją nazwę użytkownika na @{login}?",
+        "confirm_cooldown": "Nazwę użytkownika możesz zmienić tylko raz na 30 dni.",
+        "confirm_button": "Zmień nazwę użytkownika"
+      },
+      "status": {
+        "title": "Status niestandardowy",
+        "dialog_title": "Ustaw status",
+        "set_custom_status": "Ustaw status niestandardowy",
+        "edit_button": "Edytuj status",
+        "emoji": {
+          "label": "Emoji stanu",
+          "placeholder": "🌿",
+          "choose": "Wybierz emoji"
+        },
+        "text": {
+          "label": "Tekst stanu",
+          "placeholder": "W trybie skupienia"
+        },
+        "expires_at": {
+          "label": "Kasuj automatycznie o godz"
+        },
+        "expiry": {
+          "today": "Dzisiaj",
+          "thirty_minutes": "30 minut",
+          "one_hour": "1 godzina",
+          "four_hours": "4 godziny",
+          "tomorrow": "Jutro",
+          "never": "Nie usuwaj",
+          "custom": "Niestandardowe",
+          "custom_date": "Niestandardowy czas kasowania"
+        },
+        "suggestions": "Sugestie",
+        "template": {
+          "label": "Szablon",
+          "none": "Brak statusu",
+          "out_for_lunch": "Wyjście na lunch",
+          "vacation": "Wakacje",
+          "sick": "Chory",
+          "custom": "Niestandardowe"
+        },
+        "emoji_required": "Wybierz emoji dla swojego statusu",
+        "text_required": "Wprowadź tekst statusu",
+        "saved": "Stan zaktualizowany",
+        "save_failed": "Nie udało się zapisać statusu",
+        "cleared": "Stan wyczyszczony",
+        "clear_failed": "Nie udało się wyczyścić statusu",
+        "save_button": "Zapisz status",
+        "clear_button": "Wyczyść status"
+      },
+      "presence": {
+        "button": "Obecność: {status}",
+        "title": "Obecność",
+        "auto": "Online",
+        "away": "Nieobecny",
+        "do_not_disturb": "Nie przeszkadzać",
+        "offline": "Nieaktywny",
+        "invisible": "Wyglądaj offline"
+      },
+      "saved": "Profil został pomyślnie zaktualizowany",
+      "save_failed": "Nie udało się zapisać profilu",
+      "save_button": "Zapisz zmiany"
+    },
+    "preferences": {
+      "title": "Wyświetlacz",
+      "subtitle": "Wybierz sposób wyświetlania Chatto",
+      "theme": {
+        "title": "Temat",
+        "system": {
+          "label": "System",
+          "description": "Śledź wygląd swojej przeglądarki lub systemu operacyjnego"
+        },
+        "light": {
+          "label": "Światło",
+          "description": "Użyj jasnego interfejsu w tej przeglądarce"
+        },
+        "dark": {
+          "label": "Ciemno",
+          "description": "Użyj ciemnego interfejsu w tej przeglądarce"
+        }
+      },
+      "language": {
+        "title": "Język",
+        "description": "Wybierz język i sformułowania regionalne dla tej przeglądarki.",
+        "english_uk": "Angielski (Wielka Brytania)",
+        "english_us": "Angielski (Stany Zjednoczone)",
+        "german": "Niemiecki"
+      },
+      "timezone": {
+        "title": "Strefa czasowa",
+        "description": "Ustaw swoją strefę czasową, aby wyświetlać znaczniki czasu w czasie lokalnym. Pozostaw puste, aby użyć ustawień domyślnych przeglądarki.",
+        "browser_default": "Domyślna przeglądarka",
+        "clear": "Wyczyść strefę czasową (użyj domyślnej przeglądarki)",
+        "invalid": "Wybierz prawidłową strefę czasową z listy",
+        "more_results": "{count} więcej - wpisz, aby zawęzić wyniki",
+        "current_time": "Aktualny czas tam: {time}"
+      },
+      "time_format": {
+        "title": "Format czasu",
+        "browser_default": {
+          "label": "Domyślna przeglądarka",
+          "description": "Użyj ustawień regionalnych przeglądarki, aby określić format 12- lub 24-godzinny"
+        },
+        "12h": {
+          "label": "12-godzinny",
+          "description": "np. 2:30 PM"
+        },
+        "24h": {
+          "label": "24 godziny na dobę",
+          "description": "np. 14:30"
+        }
+      },
+      "save_button": "Zapisz ustawienia wyświetlania",
+      "saved": "Ustawienia wyświetlacza zostały zapisane",
+      "save_failed": "Nie udało się zapisać ustawień wyświetlania"
+    },
+    "notifications": {
+      "title": "Powiadomienia",
+      "subtitle": "Skonfiguruj sposób otrzymywania powiadomień",
+      "push": {
+        "title": "Powiadomienia push",
+        "not_configured": "Powiadomienia push nie są skonfigurowane na tym serwerze",
+        "not_supported": "Powiadomienia push nie są obsługiwane w tej przeglądarce.",
+        "ios_home_screen_title": "Dodaj Chatto do swojego ekranu głównego",
+        "ios_home_screen_description": "W obsługiwanych wersjach iOS/iPadOS dodaj Chatto do ekranu głównego i otwórz go za pomocą ikony aplikacji, aby włączyć powiadomienia push.",
+        "blocked_title": "Powiadomienia push zablokowane",
+        "blocked_description": "Włącz powiadomienia w ustawieniach przeglądarki lub systemu operacyjnego, a następnie ponownie otwórz Chatto.",
+        "enabled_title": "Powiadomienia push włączone",
+        "enabled_description": "Chatto wykorzystuje uprawnienia do powiadamiania przeglądarki lub systemu operacyjnego jako przełącznik. Aby wyłączyć powiadomienia, wyłącz je dla tej witryny w ustawieniach przeglądarki lub systemu operacyjnego.",
+        "test_button": "Wyślij powiadomienie testowe",
+        "testing": "Wysyłam…",
+        "test_sent": "Wysłano powiadomienie testowe.",
+        "test_failed": "Nie można wysłać powiadomienia testowego. Spróbuj ponownie włączyć powiadomienia push.",
+        "enable_title": "Włącz powiadomienia push",
+        "enable_description": "Otrzymuj powiadomienia o nowych wiadomościach, gdy Chatto jest zamknięty lub działa w tle.",
+        "enable_button": "Włącz",
+        "enabling": "Włączam...",
+        "blocked_error": "Powiadomienia push są blokowane w ustawieniach przeglądarki lub systemu operacyjnego.",
+        "enable_failed": "Nie udało się włączyć powiadomień push. Spróbuj ponownie.",
+        "enable_error": "Wystąpił błąd podczas włączania powiadomień push",
+        "remote_title": "Natywny push jest niedostępny dla serwerów zdalnych",
+        "remote_description": "Ta zainstalowana aplikacja może rejestrować powiadomienia push przeglądarki tylko na serwerze, który ją obsługiwał. Plakietki i dźwięki powiadomień w aplikacji nadal działają na tym serwerze, gdy Chatto jest otwarty."
+      },
+      "push_prompt": {
+        "title": "Włącz powiadomienia push",
+        "message": "Otrzymuj powiadomienia o czacie, wzmiankach i odpowiedziach.",
+        "ios_home_screen_title": "Dodaj Chatto do swojego ekranu głównego",
+        "ios_home_screen_message": "W obsługiwanych wersjach iOS/iPadOS otwórz Chatto z poziomu ikony na ekranie głównym przed włączeniem powiadomień push.",
+        "enabled": "Powiadomienia push włączone",
+        "blocked": "Powiadomienia push są blokowane w ustawieniach przeglądarki lub systemu operacyjnego",
+        "enable_failed": "Nie udało się włączyć powiadomień push",
+        "enabling": "Włączam...",
+        "enable": "Włącz",
+        "dismiss": "Nie, dziękuję"
+      },
+      "levels": {
+        "loading": "Ładowanie...",
+        "load_failed": "Nie udało się załadować preferencji powiadomień",
+        "server_updated": "Zaktualizowano poziom powiadamiania serwera",
+        "room_updated": "Zaktualizowano poziom powiadamiania o pokoju",
+        "update_failed": "Nie udało się zaktualizować",
+        "server_title": "Poziom powiadamiania serwera",
+        "server_description": "Kontroluje sposób otrzymywania powiadomień dla wszystkich pokoi na tym serwerze. Poszczególne pokoje mogą zastąpić to ustawienie.",
+        "room_title": "Zastąpienia pokoju",
+        "room_description": "Zastąp ustawienia na poziomie serwera dla poszczególnych pokoi. Pokoje ustawione na „Domyślne” dziedziczą ustawienia serwera ({level}).",
+        "room_level_label": "Poziom powiadomień dla #{room}",
+        "effective": "Obowiązuje: {level}",
+        "default": {
+          "label": "Domyślnie",
+          "description": "Użyj odziedziczonej wartości domyślnej"
+        },
+        "muted": {
+          "label": "Wyciszony",
+          "description": "Brak powiadomień i nieprzeczytanych znaczników"
+        },
+        "normal": {
+          "label": "Normalny",
+          "description": "Nieprzeczytane znaczniki + wzmianki, DM i odpowiedzi w wątkach"
+        },
+        "all_messages": {
+          "label": "Wszystkie wiadomości",
+          "description": "Normalny + powiadomienie o każdej nowej wiadomości"
+        }
+      },
+      "sound": {
+        "title": "Dźwięk powiadomienia",
+        "shape_title": "Kształt dźwięku",
+        "preview": "Podgląd",
+        "reset": "Zresetuj",
+        "off": "Wyłączone",
+        "volume": "Tom",
+        "tinny": "Maleńki",
+        "muffled": "Stłumione",
+        "echo": "Echo",
+        "reverb": "Pogłos",
+        "crunch": "Chrupnięcie",
+        "category": {
+          "silent": "Cicho",
+          "simple": "Proste",
+          "playful": "Zabawne",
+          "robots": "Roboty",
+          "musical": "Muzyczny",
+          "here_be_dragons": "Oto smoki"
+        },
+        "name": {
+          "silent": "Cicho",
+          "ding": "Ding",
+          "chime_up": "Narastający dzwonek",
+          "chime_down": "Dzwonek opadający",
+          "pop": "Delikatny pop",
+          "bubble": "Bańka",
+          "retro": "Retro sygnał dźwiękowy",
+          "coin": "Zbieraj monety",
+          "powerup": "Włącz zasilanie",
+          "fanfare": "8-bitowa fanfara",
+          "laser": "Laserowy Zap",
+          "robot": "Głos robota",
+          "ufo": "UFO",
+          "beepboop": "Bip, bum",
+          "dialup": "Połączenie telefoniczne",
+          "r2d2": "R2-D2",
+          "harp": "Rozkwit harfy",
+          "music_box": "Pozytywka",
+          "celesta": "Sen Celesty",
+          "synth": "Akord syntezatorowy",
+          "orchestra": "Hit orkiestrowy",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Chaos",
+          "glitch": "Błąd",
+          "siren": "Syrena alarmowa",
+          "dubstep": "Dubstepowy spadek",
+          "circus": "Cyrk"
+        }
+      }
+    },
+    "account": {
+      "title": "Konto",
+      "subtitle": "Zarządzaj ustawieniami swojego konta",
+      "info_title": "Informacje o koncie",
+      "username": "Nazwa użytkownika",
+      "display_name": "Nazwa wyświetlana",
+      "danger_title": "Strefa zagrożenia",
+      "danger_description": "Usunięcie konta jest trwałe i nie można go cofnąć. Wszystkie Twoje dane zostaną usunięte.",
+      "delete_button": "Usuń konto",
+      "delete_failed": "Nie udało się usunąć konta",
+      "delete_request_failed": "Nie udało się poprosić o usunięcie konta",
+      "password": {
+        "title": "Hasło",
+        "add_description": "Dodaj hasło, aby móc zalogować się bezpośrednio i odłączyć ostatniego dostawcę SSO.",
+        "change_description": "Zmień hasło używane do bezpośredniego logowania.",
+        "current_label": "Aktualne hasło",
+        "current_required": "Wpisz swoje aktualne hasło.",
+        "add_button": "Dodaj hasło",
+        "change_button": "Zmień hasło",
+        "saving": "Zapisuję hasło...",
+        "saved": "Hasło dodane",
+        "changed": "Hasło zmienione",
+        "save_failed": "Nie udało się zapisać hasła",
+        "fresh_auth_required": "Zaloguj się ponownie przed dodaniem hasła.",
+        "already_set": "To konto ma już hasło."
+      },
+      "sso": {
+        "title": "Pojedyncze logowanie",
+        "loading": "Ładowanie dostawców logowania...",
+        "load_failed": "Nie udało się załadować dostawców logowania",
+        "none_configured": "Nie skonfigurowano zewnętrznych dostawców logowania.",
+        "linked": "Połączono",
+        "not_linked": "Brak połączenia",
+        "link_button": "Link",
+        "link_failed": "Nie udało się połączyć dostawcy logowania",
+        "fresh_auth_required": "Zaloguj się ponownie przed połączeniem z innym dostawcą.",
+        "provider_unconfigured": "Dostawca nie jest już skonfigurowany",
+        "disconnect_button": "Rozłącz",
+        "disconnecting": "Rozłączam...",
+        "disconnect_failed": "Nie udało się odłączyć dostawcy logowania",
+        "disconnect_last_method": "Dodaj hasło lub inną metodę logowania przed odłączeniem tego dostawcy.",
+        "disconnect_fresh_auth_required": "Zaloguj się ponownie przed odłączeniem tego dostawcy.",
+        "disconnect_modal": {
+          "title": "Odłącz dostawcę",
+          "body": "Odłączyć {provider} od tego konta?",
+          "action": "Rozłącz"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Nie można odłączyć dostawcy",
+          "body": "{provider} to jedyna metoda logowania. Najpierw dodaj hasło lub połącz innego dostawcę."
+        },
+        "fresh_auth_modal": {
+          "title": "Potwierdź hasło",
+          "body": "Wprowadź swoje aktualne hasło przed połączeniem {provider}.",
+          "action": "Kontynuuj"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Potwierdź hasło",
+          "body": "Wprowadź swoje aktualne hasło przed odłączeniem {provider}.",
+          "action": "Rozłącz"
+        }
+      },
+      "delete_modal": {
+        "title": "Usuń konto",
+        "warning_label": "Ostrzeżenie:",
+        "warning_text": "Ta akcja jest trwała i nie można jej cofnąć.",
+        "intro": "Spowoduje to trwałe usunięcie Twojego konta i:",
+        "remove_from_rooms": "Usuwa Cię ze wszystkich przestrzeni i pokoi",
+        "delete_messages": "Usuń wszystkie wiadomości (treści nie będzie można odzyskać)",
+        "delete_profile": "Usuń swój profil, awatar i powiązane dane",
+        "confirm_label": "Wpisz DELETE, aby potwierdzić",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Anuluj",
+        "deleting": "Usuwanie..."
+      }
+    }
+  }
+}

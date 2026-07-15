@@ -46,52 +46,10 @@ or thread pane. Shows small avatars of typing users with animated dots.
         </div>
       {/if}
     {/each}
-    <span class="typing-dots ml-0.5">
-      <span class="dot"></span>
-      <span class="dot"></span>
-      <span class="dot"></span>
+    <span class="typing-dots ml-0.5 inline-flex items-center gap-0.5">
+      <span class="typing-dot"></span>
+      <span class="typing-dot [animation-delay:200ms]"></span>
+      <span class="typing-dot [animation-delay:400ms]"></span>
     </span>
   </div>
 {/if}
-
-<style>
-  .typing-dots {
-    display: inline-flex;
-    gap: 2px;
-    align-items: center;
-  }
-
-  .dot {
-    width: 3px;
-    height: 3px;
-    background-color: currentColor;
-    border-radius: 50%;
-    opacity: 0.5;
-    animation: typing-bounce 1.4s ease-in-out infinite;
-  }
-
-  .dot:nth-child(1) {
-    animation-delay: 0s;
-  }
-
-  .dot:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .dot:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  @keyframes typing-bounce {
-    0%,
-    60%,
-    100% {
-      transform: translateY(0);
-      opacity: 0.4;
-    }
-    30% {
-      transform: translateY(-3px);
-      opacity: 1;
-    }
-  }
-</style>

@@ -8,6 +8,8 @@ import {
   type DirectoryRoomSummary,
   type RoomDirectoryAPI
 } from '$lib/api-client/roomDirectory';
+import { PresenceStatus } from '$lib/api-client/renderTypes';
+import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 
@@ -33,6 +35,12 @@ function makeRoomDirectoryAPI(
   };
 }
 
+function makeMemberDirectoryAPI(): Pick<MemberDirectoryAPI, 'listRoomMembers'> {
+  return {
+    listRoomMembers: vi.fn().mockResolvedValue({ members: [], totalCount: 0, hasMore: false })
+  };
+}
+
 function roomAPI(
   overrides: Partial<Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>> = {}
 ): Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'> {
@@ -46,12 +54,14 @@ function roomAPI(
 
 function makeStore({
   roomDirectoryAPI = makeRoomDirectoryAPI(),
+  memberDirectoryAPI = makeMemberDirectoryAPI(),
   commands = roomAPI()
 }: {
   roomDirectoryAPI?: Pick<RoomDirectoryAPI, 'listRooms'>;
+  memberDirectoryAPI?: Pick<MemberDirectoryAPI, 'listRoomMembers'>;
   commands?: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>;
 } = {}) {
-  return new RoomDirectoryStore(roomDirectoryAPI, commands);
+  return new RoomDirectoryStore(roomDirectoryAPI, memberDirectoryAPI, commands);
 }
 
 async function settle() {
@@ -90,6 +100,44 @@ describe('RoomDirectoryStore - initial load', () => {
 
     expect(store.allRooms).toEqual([]);
     expect(store.isLoading).toBe(false);
+  });
+});
+
+describe('RoomDirectoryStore - join preview', () => {
+  it('returns five sampled members and the exact total from ListMembers', async () => {
+    const memberDirectoryAPI = makeMemberDirectoryAPI();
+    vi.mocked(memberDirectoryAPI.listRoomMembers).mockResolvedValue({
+      members: [
+        {
+          id: 'u1',
+          login: 'alice',
+          displayName: 'Alice',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: PresenceStatus.Offline,
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 12,
+      hasMore: true
+    });
+    const store = makeStore({ memberDirectoryAPI });
+
+    await expect(store.loadJoinPreview('r1')).resolves.toMatchObject({
+      memberCount: 12,
+      sampleMembers: [{ id: 'u1', displayName: 'Alice' }]
+    });
+    expect(memberDirectoryAPI.listRoomMembers).toHaveBeenCalledWith('r1', '', 5, 0);
+  });
+
+  it('returns no preview when the member listing fails', async () => {
+    const memberDirectoryAPI = makeMemberDirectoryAPI();
+    vi.mocked(memberDirectoryAPI.listRoomMembers).mockRejectedValue(new Error('offline'));
+    const store = makeStore({ memberDirectoryAPI });
+
+    await expect(store.loadJoinPreview('r1')).resolves.toBeNull();
   });
 });
 

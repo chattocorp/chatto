@@ -292,7 +292,7 @@ func (c *ChattoCore) SeedDefaultChannelRoomPermissions(ctx context.Context, room
 
 // EnsureDefaultChannelRoomPermissions backfills default room-tier grants for
 // existing rooms. It preserves operator edits by only writing when no
-// decision exists.
+// decision exists. Startup intentionally does not call this legacy helper.
 func (c *ChattoCore) EnsureDefaultChannelRoomPermissions(ctx context.Context) error {
 	rooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
@@ -369,7 +369,8 @@ func (c *ChattoCore) InitDefaultPermissions(ctx context.Context) error {
 
 // EnsureDefaultRolePermissions backfills missing default grants for system
 // roles. It preserves operator edits by only writing when neither an allow nor
-// a deny exists for that role/permission pair.
+// a deny exists for that role/permission pair. Startup intentionally does not
+// call this legacy helper.
 func (c *ChattoCore) EnsureDefaultRolePermissions(ctx context.Context) error {
 	roleDefaults := []struct {
 		role  string

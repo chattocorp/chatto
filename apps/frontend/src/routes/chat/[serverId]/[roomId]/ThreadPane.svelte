@@ -9,6 +9,8 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
+  import { dropZone } from '$lib/attachments/dropZone.svelte';
+  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
   import {
@@ -102,11 +104,23 @@
   let consumedQuoteId = 0;
   let consumedReplyId = 0;
   let composerApi = $state<MessageComposerApi | null>(null);
+  let isDraggingFiles = $state(false);
+
+  const threadDropZone = $derived(
+    canPostInThread && canAttach
+      ? dropZone({
+          onDrop: (files) => composerApi?.addFiles(files),
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
+          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+        })
+      : undefined
+  );
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
   const jumpState = composerContext.jumpState;
   jumpState.setJumpHandler(async (eventId: string) => {
     jumpState.scrollToEventId = eventId;
+    return true;
   });
 
   let canPost = $derived(canPostInThread);
@@ -117,10 +131,38 @@
     store.setThread(roomId, threadRootEventId);
   });
 
-  // Jump to a specific message when highlightEventId prop is set
+  // Load a permalink target outside the latest page before asking the
+  // virtualized timeline to scroll to it.
+  let handledHighlightKey: string | null = null;
+  let highlightRequestId = 0;
   $effect(() => {
-    if (!highlightEventId || store.isInitialLoading) return;
-    jumpState.jumpToMessage(highlightEventId);
+    const targetEventId = highlightEventId;
+    const targetThreadRootEventId = threadRootEventId;
+    if (!targetEventId) {
+      handledHighlightKey = null;
+      highlightRequestId += 1;
+      return;
+    }
+    if (store.isInitialLoading) return;
+
+    const highlightKey = `${targetThreadRootEventId}:${targetEventId}`;
+    if (handledHighlightKey === highlightKey) return;
+    handledHighlightKey = highlightKey;
+    const requestId = ++highlightRequestId;
+
+    void (async () => {
+      if (!threadEvents.some((event) => event.id === targetEventId)) {
+        await store.refreshCurrentWindow(targetEventId);
+      }
+      if (
+        requestId !== highlightRequestId ||
+        threadRootEventId !== targetThreadRootEventId ||
+        highlightEventId !== targetEventId
+      ) {
+        return;
+      }
+      await jumpState.jumpToMessage(targetEventId);
+    })();
   });
 
   $effect(() => {
@@ -171,8 +213,6 @@
       if (currentUser.user && actorId !== currentUser.user.id) {
         if (appState.isPresent) {
           void unread.markAsRead(threadRootEventId, serverEvent.id);
-        } else {
-          unread.noteAwayEvent(serverEvent.id);
         }
       }
     }
@@ -188,16 +228,26 @@
   let isFollowingThread = $state(false);
   let _followSeededForThread = '';
   let _followSubFiredForThread = '';
+  let threadFollowRequestId = 0;
+  let isThreadFollowPending = $state(false);
+
+  function setAuthoritativeThreadFollowState(value: boolean) {
+    threadFollowRequestId += 1;
+    isThreadFollowPending = false;
+    isFollowingThread = value;
+  }
 
   $effect(() => {
     const threadId = threadRootEventId;
 
     if (threadId !== _followSeededForThread) {
+      threadFollowRequestId += 1;
+      isThreadFollowPending = false;
       // Only reset if the subscription hasn't already authoritatively set the
       // state for this thread (auto-follow can fire before the initial query
       // resolves).
       if (_followSubFiredForThread !== threadId) {
-        isFollowingThread = false;
+        setAuthoritativeThreadFollowState(false);
       }
 
       // Wait until data has loaded before reading follow state
@@ -206,7 +256,7 @@
         if (_followSubFiredForThread !== threadId) {
           const rootEvent = threadEvents.find((e) => e.id === threadId);
           if (isMessagePostedEvent(rootEvent?.event)) {
-            isFollowingThread = rootEvent.event.viewerIsFollowingThread ?? false;
+            setAuthoritativeThreadFollowState(rootEvent.event.viewerIsFollowingThread ?? false);
           }
         }
       }
@@ -214,8 +264,14 @@
   });
 
   async function toggleThreadFollow() {
+    if (isThreadFollowPending) return;
+
     const wasFollowing = isFollowingThread;
-    isFollowingThread = !wasFollowing;
+    const nextFollowing = !wasFollowing;
+    const requestId = ++threadFollowRequestId;
+
+    isThreadFollowPending = true;
+    isFollowingThread = nextFollowing;
 
     try {
       const conn = connection();
@@ -224,12 +280,13 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      if (wasFollowing) {
-        await api.unfollowThread({ roomId, threadRootEventId });
-      } else {
-        await api.followThread({ roomId, threadRootEventId });
-      }
+      const input = { roomId, threadRootEventId };
+      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
+      if (threadFollowRequestId !== requestId) return;
+      setAuthoritativeThreadFollowState(result.following);
     } catch {
+      if (threadFollowRequestId !== requestId) return;
+      isThreadFollowPending = false;
       isFollowingThread = wasFollowing;
     }
   }
@@ -238,7 +295,7 @@
   $effect(() =>
     onThreadFollowChanged((update) => {
       if (update.threadRootEventId === threadRootEventId) {
-        isFollowingThread = update.isFollowing;
+        setAuthoritativeThreadFollowState(update.isFollowing);
         _followSubFiredForThread = update.threadRootEventId;
       }
     })
@@ -266,7 +323,9 @@
   class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
+  {@attach threadDropZone}
 >
+  <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m['room.thread.title']({ room: roomName })}
     onBack={onClose}
@@ -278,6 +337,7 @@
         label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
         tone={isFollowingThread ? 'active' : 'default'}
         onclick={toggleThreadFollow}
+        disabled={isThreadFollowPending}
       />
       <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
     {/snippet}
@@ -285,6 +345,7 @@
 
   <TimelineEventsPane
     {roomId}
+    permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}

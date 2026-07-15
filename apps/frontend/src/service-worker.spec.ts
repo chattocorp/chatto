@@ -8,7 +8,16 @@ vi.mock('$service-worker', () => ({
 
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
-  notification?: { close: () => void; data?: { url?: string } };
+  notification?: {
+    title?: string;
+    body?: string;
+    icon?: string;
+    badge?: string;
+    app_badge?: string | number;
+    tag?: string;
+    data?: { notificationId?: string; url?: string };
+    close?: () => void;
+  };
   waitUntil: (promise: Promise<unknown>) => void;
 }) => void;
 
@@ -46,9 +55,7 @@ function createMemoryCacheStorage() {
       }
 
       return {
-        match: vi.fn(async (request: RequestInfo | URL) =>
-          cache.get(request.toString())?.clone()
-        ),
+        match: vi.fn(async (request: RequestInfo | URL) => cache.get(request.toString())?.clone()),
         put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
           cache.set(request.toString(), response.clone());
         }),
@@ -66,7 +73,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     getNotifications: vi.fn(
       async (_options?: { tag?: string }): Promise<TestNativeNotification[]> => []
     ),
-    showNotification: vi.fn(async () => {})
+    showNotification: vi.fn(async (_title: string, _options?: NotificationOptions) => {})
   };
   const clients = {
     claim: vi.fn(async () => {}),
@@ -155,8 +162,184 @@ describe('service worker badge orchestration', () => {
     await Promise.all(messageDispatch.pending);
 
     expect(worker.registration.showNotification).toHaveBeenCalledOnce();
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('New notification', {
+      body: 'Hello',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'notification-1',
+      data: {
+        notificationId: undefined,
+        url: 'https://chatto.example/chat/-/room-1'
+      }
+    });
     expect(nativeNotification.close).not.toHaveBeenCalled();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('uses declarative push notification fields when legacy root fields are absent', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.setAppBadge.mockClear();
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'Declarative notification',
+            body: 'Opened by the browser or worker fallback',
+            tag: 'notification-2',
+            icon: 'https://chatto.example/icons/icon-192.png',
+            badge: 'https://chatto.example/icons/icon-192.png',
+            app_badge: '5',
+            navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
+            data: {
+              notificationId: 'notif-2',
+              url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
+            }
+          }
+        })
+      }
+    });
+
+    expect(worker.setAppBadge).toHaveBeenCalledWith(5);
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
+      body: 'Opened by the browser or worker fallback',
+      icon: 'https://chatto.example/icons/icon-192.png',
+      badge: 'https://chatto.example/icons/icon-192.png',
+      tag: 'notification-2',
+      data: {
+        notificationId: 'notif-2',
+        url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
+      }
+    });
+  });
+
+  it('clears a declarative DM push app badge after clicking the only native notification', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.clearAppBadge.mockClear();
+    worker.setAppBadge.mockClear();
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'New DM',
+            body: 'Hello from a DM',
+            tag: 'dm-event-1',
+            app_badge: '1',
+            navigate: 'https://chatto.example/chat/-/dm-room-1',
+            data: {
+              notificationId: 'notif-dm-1',
+              url: 'https://chatto.example/chat/-/dm-room-1'
+            }
+          }
+        })
+      }
+    });
+
+    const options = worker.registration.showNotification.mock.calls[0][1] as NotificationOptions;
+    worker.registration.getNotifications.mockResolvedValueOnce([]);
+
+    await worker.dispatch('notificationclick', {
+      notification: {
+        close: vi.fn(),
+        data: options.data as { url?: string }
+      }
+    });
+
+    expect(worker.setAppBadge).toHaveBeenCalledOnce();
+    expect(worker.setAppBadge).toHaveBeenCalledWith(1);
+    expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
+  it('handles mutable declarative push events with event.notification and no payload data', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.setAppBadge.mockClear();
+
+    await worker.dispatch('push', {
+      notification: {
+        title: 'Mutable declarative notification',
+        body: 'Handled through PushEvent.notification',
+        tag: 'notification-3',
+        icon: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/icon-192.png',
+        app_badge: 3,
+        data: {
+          notificationId: 'notif-3',
+          url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
+        }
+      }
+    });
+
+    expect(worker.registration.showNotification).toHaveBeenCalledWith(
+      'Mutable declarative notification',
+      {
+        body: 'Handled through PushEvent.notification',
+        icon: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/icon-192.png',
+        tag: 'notification-3',
+        data: {
+          notificationId: 'notif-3',
+          url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
+        }
+      }
+    );
+    expect(worker.setAppBadge).toHaveBeenCalledWith(3);
+  });
+
+  it('uses declarative navigate as the fallback notification click URL', async () => {
+    const worker = await importServiceWorker();
+    const targetUrl = 'https://chatto.example/chat/-/room-2?highlight=event-2';
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'Declarative notification',
+            navigate: targetUrl,
+            data: {
+              notificationId: 'notif-2'
+            }
+          }
+        })
+      }
+    });
+
+    const options = worker.registration.showNotification.mock.calls[0][1] as NotificationOptions;
+    await worker.dispatch('notificationclick', {
+      notification: {
+        close: vi.fn(),
+        data: options.data as { url?: string }
+      }
+    });
+
+    expect(worker.clients.openWindow).toHaveBeenCalledWith(targetUrl);
   });
 
   it('preserves a foreground authoritative count after clicking the only native notification', async () => {
@@ -180,6 +363,40 @@ describe('service worker badge orchestration', () => {
 
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.setAppBadge).toHaveBeenLastCalledWith(3);
+    expect(worker.clients.openWindow.mock.invocationCallOrder[0]).toBeLessThan(
+      worker.registration.getNotifications.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('reconciles badge state even when notification click routing fails', async () => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.clearAppBadge.mockClear();
+    worker.registration.getNotifications.mockClear();
+    worker.clients.openWindow.mockRejectedValueOnce(new Error('window activation failed'));
+    worker.registration.getNotifications.mockResolvedValueOnce([]);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await worker.dispatch('notificationclick', {
+        notification: {
+          close: vi.fn(),
+          data: { url: 'https://chatto.example/chat/-/room-1' }
+        }
+      });
+
+      expect(worker.registration.getNotifications).toHaveBeenCalledOnce();
+      expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledOnce();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('preserves a foreground authoritative count after a service worker restart', async () => {

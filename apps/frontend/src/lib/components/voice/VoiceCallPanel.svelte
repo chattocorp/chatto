@@ -220,7 +220,9 @@ Room sidebar panel for voice/video calls.
   );
   let stageTiles = $derived([...screenShareTiles, ...participantTiles]);
   let featuredStageTile = $derived(
-    screenShareTiles[0] ?? participantTiles.find((tile) => tile.kind === 'video') ?? participantTiles[0]
+    screenShareTiles[0] ??
+      participantTiles.find((tile) => tile.kind === 'video') ??
+      participantTiles[0]
   );
   let secondaryStageTiles = $derived(
     featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
@@ -234,12 +236,12 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
-    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface-100 p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-200/70';
+    'call-speaking-card participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-emphasized/70';
   const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
   const callTileIdentityButtonClass =
-    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
   const callTileMediaButtonClass =
-    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-neutral-action';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -270,7 +272,10 @@ Room sidebar panel for voice/video calls.
       const opacity = audioLevel > 0.01 ? 0.35 + Math.pow(audioLevel, 0.35) * 0.65 : 0;
       const visible = isSpeaking || opacity > 0;
 
-      node.style.setProperty('--call-speaking-ring-opacity', visible ? String(opacity || 0.85) : '0');
+      node.style.setProperty(
+        '--call-speaking-ring-opacity',
+        visible ? String(opacity || 0.85) : '0'
+      );
       node.style.setProperty('--call-speaking-ring-strength', visible ? String(audioLevel) : '0');
       node.dataset.callSpeaking = visible ? 'true' : 'false';
     }
@@ -374,7 +379,9 @@ Room sidebar panel for voice/video calls.
 </script>
 
 {#snippet localMuteButton(participant: DisplayParticipant)}
-  {@const isMutedForViewer = participant.isLocal ? voiceCallState.isMuted : participant.isLocallyMuted}
+  {@const isMutedForViewer = participant.isLocal
+    ? voiceCallState.isMuted
+    : participant.isLocallyMuted}
   <CallTileActionButton
     icon={isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'}
     active={isMutedForViewer}
@@ -567,7 +574,7 @@ Room sidebar panel for voice/video calls.
   {@const isScreen = tile.kind === 'screen'}
   {@const isVideo = tile.kind === 'video'}
   <div
-    class={[callTileCardClass, 'h-full min-h-0 participant-card-video']}
+    class={[callTileCardClass, 'participant-card-video h-full min-h-0']}
     {@attach isInThisCall && speakingCard(participant.key)}
     title={isScreen
       ? m['voice.screen_title']({ name: participant.displayName })
@@ -578,7 +585,9 @@ Room sidebar panel for voice/video calls.
   >
     {@render participantHeader(
       participant,
-      isScreen ? m['voice.screen_title']({ name: participant.displayName }) : participant.displayName,
+      isScreen
+        ? m['voice.screen_title']({ name: participant.displayName })
+        : participant.displayName,
       isScreen || isVideo ? 'media' : 'voice',
       true
     )}
@@ -693,7 +702,9 @@ Room sidebar panel for voice/video calls.
 
         <button
           type="button"
-          class={voiceCallState.isScreenShareEnabled ? activeControlButtonClass : controlButtonClass}
+          class={voiceCallState.isScreenShareEnabled
+            ? activeControlButtonClass
+            : controlButtonClass}
           title={voiceCallState.isScreenShareEnabled
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
@@ -728,7 +739,7 @@ Room sidebar panel for voice/video calls.
     <div class={isStageLayout ? 'mx-auto max-w-sm' : ''}>
       <button
         type="button"
-        class="btn-accent w-full btn-sm"
+        class="btn-action w-full btn-sm"
         data-testid="call-join-button"
         onclick={handleJoin}
         disabled={isInAnotherCall || isConnecting}
@@ -837,9 +848,9 @@ Room sidebar panel for voice/video calls.
   :global(.call-speaking-card)::after {
     position: absolute;
     inset: 0;
-    border: 2px solid var(--color-accent);
+    border: 2px solid var(--color-action);
     border-radius: inherit;
-    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-accent) 30%, transparent);
+    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 30%, transparent);
     content: '';
     opacity: var(--call-speaking-ring-opacity);
     pointer-events: none;

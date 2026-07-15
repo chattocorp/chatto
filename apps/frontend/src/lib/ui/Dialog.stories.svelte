@@ -111,7 +111,7 @@
     docs: {
       description: {
         story:
-          'Footer actions follow the shared modal pattern: horizontal, right-aligned, secondary cancel, primary action.'
+          'Footer actions follow the shared modal pattern: horizontal, right-aligned, secondary cancel, recommended action.'
       }
     }
   }}

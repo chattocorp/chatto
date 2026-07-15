@@ -128,6 +128,19 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 			delete(p.rooms, roomID)
 			delete(p.activeCalls, roomID)
 		}
+	case *corev1.Event_UserLeftRoom:
+		if event.GetActorId() == "" {
+			return nil
+		}
+		if participants := p.rooms[roomID]; participants != nil {
+			if _, ok := participants[event.GetActorId()]; ok {
+				delete(participants, event.GetActorId())
+				if len(participants) == 0 {
+					delete(p.rooms, roomID)
+					delete(p.activeCalls, roomID)
+				}
+			}
+		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, roomID)
 		delete(p.activeCalls, roomID)

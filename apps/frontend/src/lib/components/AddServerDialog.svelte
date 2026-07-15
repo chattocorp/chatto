@@ -6,8 +6,8 @@ The "Add Server" dialog. Two stages in one modal:
 1. URL — collects a hostname/URL and probes ServerDiscoveryService.GetServer
    to confirm it's a Chatto server.
 2. Preview — shows what was found (name, hostname, version) so the user
-   can confirm before being bounced to the remote's OAuth login. On
-   submit it kicks off the OAuth PKCE flow and redirects.
+   can confirm before opening the remote's OAuth login in a popup. On
+   submit it kicks off the OAuth PKCE flow.
 
 Internal naming stays "instance" (registry, file name, route ids) per
 ADR-027 — only user-facing copy says "server".
@@ -158,9 +158,10 @@ ADR-027 — only user-facing copy says "server".
 
     try {
       await startServerOAuthFlow(probedUrl, probedInfo);
-    } catch (err) {
+      handleClose();
+    } catch {
       connecting = false;
-      formError = err instanceof Error ? err.message : m['add_server.start_failed']();
+      formError = m['add_server.start_failed']();
     }
   }
 
@@ -212,28 +213,42 @@ ADR-027 — only user-facing copy says "server".
       autofocus
     />
   {:else if probedInfo}
-    <div class="overflow-hidden rounded-lg border border-border bg-surface-100">
+    <div class="overflow-hidden rounded-lg border border-border bg-surface">
       {#if probedInfo.bannerUrl}
-        <img src={probedInfo.bannerUrl} alt="" class="aspect-[1200/630] w-full object-cover" />
+        <img
+          src={probedInfo.bannerUrl}
+          alt=""
+          data-testid="server-preview-banner"
+          class="h-24 w-full object-cover"
+        />
       {/if}
-      <div class="flex items-start gap-3 p-4">
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface-200">
-          {#if probedInfo.iconUrl}
-            <img src={probedInfo.iconUrl} alt="" class="h-12 w-12 rounded-lg object-cover" />
-          {:else}
-            <span class="iconify text-2xl text-muted uil--globe"></span>
-          {/if}
+      <div class="p-4">
+        <div class="flex items-start gap-3">
+          <div
+            class={[
+              'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-emphasized',
+              probedInfo.bannerUrl ? '-mt-9' : ''
+            ]}
+          >
+            {#if probedInfo.iconUrl}
+              <img src={probedInfo.iconUrl} alt="" class="h-full w-full rounded-lg object-cover" />
+            {:else}
+              <span class="iconify text-2xl text-muted uil--globe"></span>
+            {/if}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-lg font-semibold">{probedInfo.name}</div>
+            <div class="flex flex-wrap items-baseline gap-x-2">
+              <span class="truncate text-sm text-muted">{hostnameOf(probedUrl)}</span>
+              {#if probedInfo.version}
+                <span class="text-xs text-muted/70">Chatto v{probedInfo.version}</span>
+              {/if}
+            </div>
+          </div>
         </div>
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-lg font-semibold">{probedInfo.name}</div>
-          <div class="truncate text-sm text-muted">{hostnameOf(probedUrl)}</div>
-          {#if probedInfo.version}
-            <div class="text-xs text-muted/70">Chatto v{probedInfo.version}</div>
-          {/if}
-          {#if probedInfo.description}
-            <p class="mt-2 text-sm text-muted">{probedInfo.description}</p>
-          {/if}
-        </div>
+        {#if probedInfo.description}
+          <p class="mt-3 line-clamp-2 text-sm text-muted">{probedInfo.description}</p>
+        {/if}
       </div>
     </div>
 

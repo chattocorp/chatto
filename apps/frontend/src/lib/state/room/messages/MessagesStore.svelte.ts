@@ -1,14 +1,33 @@
 import { tick } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import { PAGE_SIZE } from './queries';
+import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
+import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
+import {
+  beginOptimisticReaction as beginOptimisticReactionPatch,
+  clearOptimisticReactionsForEvent,
+  type OptimisticReactionAction,
+  type OptimisticReactionHandle
+} from './optimisticReactions';
+import {
+  beginOptimisticThreadFollow as beginOptimisticThreadFollowPatch,
+  clearOptimisticThreadFollowForEvent,
+  type OptimisticThreadFollowHandle
+} from './optimisticThreadFollow';
+
+export type {
+  OptimisticReactionAction,
+  OptimisticReactionHandle,
+  OptimisticReactionServerSummary
+} from './optimisticReactions';
+export type { OptimisticThreadFollowHandle } from './optimisticThreadFollow';
 
 type MessageScope = 'room' | 'thread';
 type RoomEventPayload = NonNullable<RoomEventView['event']>;
@@ -31,6 +50,7 @@ export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
   hasNewer: boolean;
   refreshed: boolean;
+  changed: boolean;
 };
 
 function eventCacheKey(roomId: string, eventId: string): string {
@@ -39,6 +59,53 @@ function eventCacheKey(roomId: string, eventId: string): string {
 
 function compareEventCreatedAt(a: RoomEventView, b: RoomEventView): number {
   return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+}
+
+function sortRoomEventList(events: RoomEventView[]): RoomEventView[] {
+  return events
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
+    .map(({ event }) => event);
+}
+
+function sortThreadEventList(events: RoomEventView[], threadRootEventId: string): RoomEventView[] {
+  return events
+    .map((event, index) => ({ event, index }))
+    .sort((a, b) => {
+      const aIsRoot = a.event.id === threadRootEventId;
+      const bIsRoot = b.event.id === threadRootEventId;
+      if (aIsRoot && !bIsRoot) return -1;
+      if (!aIsRoot && bIsRoot) return 1;
+
+      const byCreatedAt = compareEventCreatedAt(a.event, b.event);
+      return byCreatedAt || a.index - b.index;
+    })
+    .map(({ event }) => event);
+}
+
+function eventFingerprint(event: RoomEventView): string {
+  return JSON.stringify(event);
+}
+
+function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false;
+    if (eventFingerprint(a[i]) !== eventFingerprint(b[i])) return false;
+  }
+  return true;
+}
+
+function isContinuityEvent(
+  event: RoomEventView,
+  scope: MessageScope | null,
+  threadRootEventId: string
+): boolean {
+  return scope !== 'thread' || event.id !== threadRootEventId;
+}
+
+function skippedRefreshResult(): RefreshCurrentWindowResult {
+  return { hasOlder: false, hasNewer: false, refreshed: false, changed: false };
 }
 
 function isMessagePostedPayload(
@@ -114,10 +181,16 @@ export class MessagesStore {
   private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
+  private optimisticReactions = new OptimisticMutationRegistry();
+  private optimisticThreadFollows = new OptimisticMutationRegistry();
 
   /** Increments on every load kickoff. Async callbacks compare against
    *  it via {@link isStale} to discard results from superseded loads. */
   #loadId = 0;
+  #jumpId = 0;
+  #windowId = 0;
+  #pendingAuthoritativeLoadId: number | null = null;
+  #pendingJumpId: number | null = null;
 
   constructor(
     serverConnection: ServerConnection,
@@ -183,11 +256,62 @@ export class MessagesStore {
 
   /** Apply a successful local message delete without querying around a now-hidden echo. */
   applyLocalMessageDeletion(messageEventId: string): void {
-    this.applyDeletion(messageEventId);
+    // The committed realtime retraction replaces this client timestamp with
+    // the server event time. This provisional value lets the local tombstone
+    // enter the grace period immediately after the mutation succeeds.
+    this.applyDeletion(messageEventId, new SvelteDate().toISOString());
+  }
+
+  /**
+   * Apply a provisional local reaction update. The returned handle can
+   * reconcile the touched emoji from the RPC response or roll back if the
+   * request fails. Projected server rows remain authoritative and clear the
+   * optimistic version before a stale rollback can restore old state.
+   */
+  beginOptimisticReaction(input: {
+    messageEventId: string;
+    emoji: string;
+    action: OptimisticReactionAction;
+  }): OptimisticReactionHandle {
+    return beginOptimisticReactionPatch({
+      ...input,
+      getEvents: () => this.events,
+      previews: this.previewEvents,
+      registry: this.optimisticReactions,
+      setEvent: (eventId, event) => {
+        const index = this.events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) this.events[index] = event;
+      },
+      setPreview: (key, event) => {
+        this.previewEvents.set(key, event);
+      }
+    });
+  }
+
+  /**
+   * Apply a provisional local thread follow-state update on a known thread root.
+   * Projected server rows and live follow events remain authoritative and clear
+   * the pending optimistic mutation for the affected root row.
+   */
+  beginOptimisticThreadFollow(
+    threadRootEventId: string,
+    isFollowing: boolean
+  ): OptimisticThreadFollowHandle {
+    return beginOptimisticThreadFollowPatch({
+      threadRootEventId,
+      isFollowing,
+      getEvents: () => this.events,
+      registry: this.optimisticThreadFollows,
+      setEvent: (eventId, event) => {
+        const index = this.events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) this.events[index] = event;
+      }
+    });
   }
 
   /** Update the viewer's thread follow state on a known thread root event. */
   setThreadRootFollowState(threadRootEventId: string, isFollowing: boolean): void {
+    clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, threadRootEventId);
     const idx = this.events.findIndex((e) => e.id === threadRootEventId);
     if (idx === -1) return;
 
@@ -217,6 +341,7 @@ export class MessagesStore {
 
     const promise = this.fetchEventById(eventId)
       .then((event) => {
+        if (event) this.clearOptimisticVersionForEvent(event.id);
         this.previewEvents.set(key, event);
       })
       .catch((error: unknown) => {
@@ -232,6 +357,10 @@ export class MessagesStore {
 
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
+    if (this.#pendingAuthoritativeLoadId !== null) {
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+    }
     return ++this.#loadId;
   }
 
@@ -244,13 +373,21 @@ export class MessagesStore {
     return eventCacheKey(this.roomId, eventId);
   }
 
+  private clearOptimisticVersionForEvent(eventId: string): void {
+    clearOptimisticReactionsForEvent(this.optimisticReactions, eventId, this.previewKey(eventId));
+    clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, eventId);
+  }
+
   setRoom(roomId: string): void {
     if (this.scope === 'room' && this.roomId === roomId) return;
 
     this.scope = 'room';
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
     this.roomId = roomId;
     this.threadRootEventId = '';
-    this.resetAndFetchLatest();
+    void this.resetAndFetchLatest();
   }
 
   setThread(roomId: string, threadRootEventId: string): void {
@@ -263,6 +400,9 @@ export class MessagesStore {
     }
 
     this.scope = 'thread';
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
@@ -315,7 +455,7 @@ export class MessagesStore {
     if (eventRoomId != null && eventRoomId !== this.roomId) return;
 
     if (isMessageRetractedPayload(eventData)) {
-      this.applyDeletion(eventData.messageEventId);
+      this.applyDeletion(eventData.messageEventId, spaceEvent.createdAt);
       return;
     }
 
@@ -382,14 +522,21 @@ export class MessagesStore {
 
       const olderEvents = unmask(page.events);
       if (olderEvents.length === 0) {
-        this.hasReachedStart = true;
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
+        }
+        if (!page.hasOlder || !page.startCursor || page.startCursor === before) {
+          this.hasReachedStart = true;
+        }
       } else {
         if (page.startCursor) {
           this.oldestCursor = page.startCursor;
         }
         const added = this.prependEvents(olderEvents);
         this.afterOlderPagePrepended();
-        if (added === 0) this.hasReachedStart = true;
+        if (added === 0 && (!page.hasOlder || !page.startCursor || page.startCursor === before)) {
+          this.hasReachedStart = true;
+        }
       }
 
       if (!page.hasOlder) this.hasReachedStart = true;
@@ -433,21 +580,46 @@ export class MessagesStore {
     }
   }
 
+  private roomWindowMessageCount(): number {
+    return this.rootEvents.filter((event) => isMessagePostedPayload(event.event)).length;
+  }
+
+  private async backfillInitialRoomWindow(thisLoad: number): Promise<void> {
+    while (
+      !this.isStale(thisLoad) &&
+      this.scope === 'room' &&
+      !this.hasReachedStart &&
+      this.oldestCursor &&
+      this.roomWindowMessageCount() < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET
+    ) {
+      await this.loadMore();
+    }
+  }
+
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
     if (this.scope !== 'room') return;
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
+    const roomId = this.roomId;
+    const windowId = this.#windowId;
     jumpState.isLoadingNewer = true;
     try {
       const page = await this.roomTimeline.getRoomEvents({
-        roomId: this.roomId,
+        roomId,
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
 
       // User left jumped mode while in flight — abandon the result.
-      if (!jumpState.isJumpedMode) return;
+      if (
+        !jumpState.isJumpedMode ||
+        this.scope !== 'room' ||
+        this.roomId !== roomId ||
+        this.#windowId !== windowId
+      ) {
+        return;
+      }
 
       const newer = unmask(page.events);
       if (newer.length === 0) {
@@ -463,28 +635,53 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      jumpState.isLoadingNewer = false;
+      if (this.roomId === roomId && this.#windowId === windowId) {
+        jumpState.isLoadingNewer = false;
+      }
     }
   }
 
-  async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<void> {
-    if (this.scope !== 'room') return;
+  async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
+    if (this.scope !== 'room') return false;
+    const jumpId = ++this.#jumpId;
+    const roomId = this.roomId;
     if (this.events.some((e) => e.id === eventId)) {
+      if (this.#pendingJumpId !== null) {
+        this.#pendingJumpId = null;
+        if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
+      }
       jumpState.scrollToEventId = eventId;
-      return;
+      return true;
     }
 
+    this.#windowId++;
+    this.#pendingJumpId = jumpId;
+    jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     try {
       const around = await this.roomTimeline.getRoomEventsAround({
-        roomId: this.roomId,
+        roomId,
         eventId,
         limit: PAGE_SIZE
       });
 
+      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
+      if (!parsed.some((event) => event.id === eventId)) {
+        jumpState.scrollToEventId = null;
+        jumpState.isJumpedMode = false;
+        jumpState.hasReachedEnd = false;
+        jumpState.hasOlderMessages = false;
+        return false;
+      }
 
+      // This replacement becomes the authoritative room window. Cancel any
+      // older latest-page load before installing it.
+      this.startLoad();
+      this.#pendingAuthoritativeLoadId = null;
+      for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
       this.seenIds = new SvelteSet(parsed.map((e) => e.id));
       this.oldestCursor = startCursor ?? undefined;
@@ -496,15 +693,30 @@ export class MessagesStore {
       jumpState.hasReachedEnd = !hasNewer;
       jumpState.hasOlderMessages = hasOlder;
       jumpState.scrollToEventId = eventId;
+      return true;
+    } catch (error) {
+      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      console.error('MessagesStore: jumpToMessage failed:', error);
+      jumpState.scrollToEventId = null;
+      jumpState.isJumpedMode = false;
+      jumpState.hasReachedEnd = false;
+      jumpState.hasOlderMessages = false;
+      return false;
     } finally {
-      this.isInitialLoading = false;
+      if (this.#jumpId === jumpId && this.scope === 'room' && this.roomId === roomId) {
+        this.#pendingJumpId = null;
+        this.isInitialLoading = this.#pendingAuthoritativeLoadId !== null;
+      }
     }
   }
 
-  jumpToPresent(jumpState: JumpToMessageState): void {
-    if (this.scope !== 'room') return;
+  jumpToPresent(jumpState: JumpToMessageState): Promise<boolean> {
+    if (this.scope !== 'room') return Promise.resolve(false);
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
     jumpState.reset();
-    this.resetAndFetchLatest();
+    return this.resetAndFetchLatest();
   }
 
   /**
@@ -513,7 +725,7 @@ export class MessagesStore {
    * have missed subscription events.
    */
   async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
-    if (!this.scope || !this.roomId) return { hasOlder: false, hasNewer: false, refreshed: false };
+    if (!this.scope || !this.roomId) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
@@ -575,9 +787,9 @@ export class MessagesStore {
       });
       return result;
     } catch (error) {
-      if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
+      if (this.isStale(thisLoad)) return skippedRefreshResult();
       console.error('MessagesStore: refreshCurrentWindow failed:', error);
-      return { hasOlder: false, hasNewer: false, refreshed: false };
+      return skippedRefreshResult();
     }
   }
 
@@ -666,6 +878,7 @@ export class MessagesStore {
       this.scope === 'thread' && eventId !== this.threadRootEventId ? this.threadRootEventId : null
     );
     if (!updated) return;
+    this.clearOptimisticVersionForEvent(updated.id);
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;
   }
@@ -690,7 +903,7 @@ export class MessagesStore {
    * Reactions and reply metadata are left intact so the tombstone row keeps
    * its existing engagement visible alongside the placeholder.
    */
-  private applyDeletion(messageEventId: string): void {
+  private applyDeletion(messageEventId: string, deletedAt: string): void {
     this.clearChannelEchoLink(messageEventId);
 
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
@@ -710,7 +923,7 @@ export class MessagesStore {
 
       this.events[i] = {
         ...e,
-        event: { ...evt, body: null, attachments: [], linkPreview: null }
+        event: { ...evt, body: null, attachments: [], linkPreview: null, deletedAt }
       };
     }
 
@@ -719,7 +932,13 @@ export class MessagesStore {
     if (isMessagePostedPayload(preview?.event)) {
       this.previewEvents.set(previewKey, {
         ...preview,
-        event: { ...preview.event, body: null, attachments: [], linkPreview: null }
+        event: {
+          ...preview.event,
+          body: null,
+          attachments: [],
+          linkPreview: null,
+          deletedAt
+        }
       });
     }
   }
@@ -818,6 +1037,7 @@ export class MessagesStore {
   private appendMany(events: RoomEventView[]): void {
     let added = false;
     for (const e of events) {
+      this.clearOptimisticVersionForEvent(e.id);
       added = this.addEvent(e, { sortRoom: false }) || added;
     }
     if (added && this.scope === 'room') this.sortRoomEvents();
@@ -825,6 +1045,7 @@ export class MessagesStore {
 
   private prependEvents(olderEvents: RoomEventView[]): number {
     const newOnes = olderEvents.filter((e) => !this.seenIds.has(e.id));
+    for (const e of newOnes) this.clearOptimisticVersionForEvent(e.id);
     for (const e of newOnes) this.seenIds.add(e.id);
     this.events.unshift(...newOnes);
     return newOnes.length;
@@ -845,6 +1066,7 @@ export class MessagesStore {
     const merged: RoomEventView[] = [];
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
+      this.clearOptimisticVersionForEvent(e.id);
       newSeen.add(e.id);
       merged.push(e);
     }
@@ -863,6 +1085,8 @@ export class MessagesStore {
     this.seenIds = new SvelteSet();
     this.previewEvents.clear();
     this.pendingPreviewFetches.clear();
+    this.optimisticReactions.clearAll();
+    this.optimisticThreadFollows.clearAll();
     this.oldestCursor = undefined;
     this.newestCursor = undefined;
     this.hasReachedStart = false;
@@ -888,17 +1112,34 @@ export class MessagesStore {
       hasOlder?: boolean;
     },
     existingBeforeFetch: ReadonlySet<string>,
-    options: { preserveExistingWindow?: boolean } = {}
-  ): void {
+    options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
+  ): boolean {
     const fetched = unmask(connection.events);
     const newSeen = new SvelteSet<string>();
     const merged: RoomEventView[] = [];
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
+    const hasExistingContinuityEvents = this.events.some(
+      (event) =>
+        existingBeforeFetch.has(event.id) &&
+        isContinuityEvent(event, this.scope, this.threadRootEventId)
+    );
+    const hasFetchedOverlap = fetched.some(
+      (event) =>
+        existingBeforeFetch.has(event.id) &&
+        isContinuityEvent(event, this.scope, this.threadRootEventId)
+    );
+    const discontinuousLatestSnapshot =
+      !!options.preserveExistingWindow &&
+      !!options.latestSnapshot &&
+      !!connection.hasOlder &&
+      hasExistingContinuityEvents &&
+      !hasFetchedOverlap;
 
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
+      this.clearOptimisticVersionForEvent(e.id);
       newSeen.add(e.id);
       merged.push(e);
     }
@@ -908,18 +1149,35 @@ export class MessagesStore {
     // fetched window so returning from another tab does not visually collapse a
     // long scrolled buffer.
     for (const e of this.events) {
-      if (!options.preserveExistingWindow && existingBeforeFetch.has(e.id)) continue;
+      if (
+        (!options.preserveExistingWindow || discontinuousLatestSnapshot) &&
+        existingBeforeFetch.has(e.id)
+      ) {
+        continue;
+      }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       merged.push(e);
     }
 
-    this.events = merged;
-    if (this.scope === 'room') this.sortRoomEvents();
-    this.seenIds = newSeen;
-    if (options.preserveExistingWindow) {
+    const nextEvents =
+      this.scope === 'room'
+        ? sortRoomEventList(merged)
+        : this.scope === 'thread'
+          ? sortThreadEventList(merged, this.threadRootEventId)
+          : merged;
+    const changed = !sameEventList(this.events, nextEvents);
+
+    if (changed) {
+      this.events = nextEvents;
+      this.seenIds = newSeen;
+    }
+
+    if (options.preserveExistingWindow && !discontinuousLatestSnapshot) {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
-      this.newestCursor = previousNewestCursor ?? connection.endCursor ?? undefined;
+      this.newestCursor = options.latestSnapshot
+        ? (connection.endCursor ?? previousNewestCursor ?? undefined)
+        : (previousNewestCursor ?? connection.endCursor ?? undefined);
       this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
     } else {
       this.oldestCursor = connection.startCursor ?? undefined;
@@ -928,11 +1186,14 @@ export class MessagesStore {
     }
     console.debug('[room-refresh] snapshot applied', {
       fetchedCount: fetched.length,
-      preservedExistingCount: merged.length - fetched.length,
+      preservedExistingCount: nextEvents.length - fetched.length,
+      changed,
+      discontinuousLatestSnapshot,
       eventCount: this.events.length,
       hasOlder: connection.hasOlder ?? false,
       hasReachedStart: this.hasReachedStart
     });
+    return changed;
   }
 
   private async refreshRoomLatest(
@@ -944,9 +1205,12 @@ export class MessagesStore {
       limit: PAGE_SIZE
     });
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+    if (this.isStale(thisLoad)) return skippedRefreshResult();
+    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+      preserveExistingWindow: true,
+      latestSnapshot: true
+    });
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
   }
 
   private async refreshRoomAround(
@@ -960,11 +1224,11 @@ export class MessagesStore {
       limit: PAGE_SIZE
     });
 
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+    if (this.isStale(thisLoad)) return skippedRefreshResult();
+    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
       preserveExistingWindow: true
     });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
   }
 
   private async refreshThreadWindow(
@@ -984,40 +1248,47 @@ export class MessagesStore {
           threadRootEventId: this.threadRootEventId,
           limit: PAGE_SIZE
         });
-    if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: anchorEventId !== null && anchorEventId !== this.threadRootEventId
+    if (this.isStale(thisLoad)) return skippedRefreshResult();
+    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+      preserveExistingWindow: anchorEventId === null || anchorEventId !== this.threadRootEventId,
+      latestSnapshot: anchorEventId === null
     });
-    this.sortThreadEvents();
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
+    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
   }
 
-  private resetAndFetchLatest(): void {
+  private resetAndFetchLatest(): Promise<boolean> {
     const thisLoad = this.startLoad();
+    this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+    return this.fetchLatest(thisLoad);
   }
 
-  private fetchLatest(thisLoad: number): void {
+  private fetchLatest(thisLoad: number): Promise<boolean> {
     const promise = this.roomTimeline.getRoomEvents({
       roomId: this.roomId,
       limit: PAGE_SIZE
     });
 
-    promise
-      .then((page) => {
-        if (this.isStale(thisLoad)) return;
+    return promise
+      .then(async (page) => {
+        if (this.isStale(thisLoad)) return false;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
           this.hasReachedStart = !page.hasOlder;
+          await this.backfillInitialRoomWindow(thisLoad);
         }
+        if (this.isStale(thisLoad)) return false;
+        this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
+        return true;
       })
       .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
+        if (this.isStale(thisLoad)) return false;
         console.error('MessagesStore: fetchLatest failed:', error);
+        this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
+        return false;
       });
   }
 
@@ -1089,24 +1360,10 @@ export class MessagesStore {
   }
 
   private sortThreadEvents(): void {
-    this.events = this.events
-      .map((event, index) => ({ event, index }))
-      .sort((a, b) => {
-        const aIsRoot = a.event.id === this.threadRootEventId;
-        const bIsRoot = b.event.id === this.threadRootEventId;
-        if (aIsRoot && !bIsRoot) return -1;
-        if (!aIsRoot && bIsRoot) return 1;
-
-        const byCreatedAt = compareEventCreatedAt(a.event, b.event);
-        return byCreatedAt || a.index - b.index;
-      })
-      .map(({ event }) => event);
+    this.events = sortThreadEventList(this.events, this.threadRootEventId);
   }
 
   private sortRoomEvents(): void {
-    this.events = this.events
-      .map((event, index) => ({ event, index }))
-      .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
-      .map(({ event }) => event);
+    this.events = sortRoomEventList(this.events);
   }
 }

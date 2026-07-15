@@ -45,7 +45,7 @@ function sameOriginURLForPath(origin: string, pathname: string, search = '', has
   return new URL(`${pathname}${search}${hash}`, origin).href;
 }
 
-function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
+export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
   const sameOriginUrl = normalizeSameOriginUrl(rawUrl, origin);
   if (sameOriginUrl) return sameOriginUrl;
 

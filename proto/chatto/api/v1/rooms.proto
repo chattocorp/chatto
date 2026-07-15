@@ -351,7 +351,8 @@ service RoomService {
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
-  // Lists explicit members of a room. The caller must be a member of the room.
+  // Lists effective room members. Existing members may list their room;
+  // nonmembers of a channel room need both room.list and room.join.
   rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
   // Gets one explicit member of a room. The caller must be a member of the
   // room. Returns NOT_FOUND when the target is unknown or not a room member.

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
+  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
   import * as m from '$lib/i18n/messages';
@@ -11,9 +12,11 @@
     eventId,
     deleteEventId = eventId,
     messageBody,
+    permalinkThreadRootEventId = null,
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
+    messageStore = null,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -31,9 +34,11 @@
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    permalinkThreadRootEventId?: string | null;
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
+    messageStore?: MessagesStore | null;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -46,7 +51,8 @@
     onClose: () => void;
   } = $props();
 
-  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
+  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const quickReactions = $derived(recentEmojis.quickReactions);
 
   const actions = useMessageActions();
   const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
@@ -61,9 +67,11 @@
     eventId,
     deleteEventId,
     messageBody,
+    permalinkThreadRootEventId,
     threadRootEventId,
     channelEchoEventId,
-    canAddChannelEcho
+    canAddChannelEcho,
+    messageStore
   });
 
   /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes) */
@@ -112,7 +120,7 @@
     <div class="flex justify-between menu-section px-2 py-1.5">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl active:bg-surface-100"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl active:bg-surface"
           onclick={() => handleReaction(emoji)}
           aria-label={m['room.message.actions.react_with']({ emoji })}
         >
@@ -121,7 +129,7 @@
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl text-muted active:bg-surface-100"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-xl text-muted active:bg-surface"
           onclick={() => {
             onOpenEmojiPicker();
             onClose();

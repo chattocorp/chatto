@@ -4,48 +4,55 @@
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     events,
-    kind
+    kind,
+    expanded,
+    onExpandedChange
   }: {
     events: RoomEventView[];
     kind: SystemGroupKind;
+    expanded: boolean;
+    onExpandedChange: (expanded: boolean) => void;
   } = $props();
 
-  const action = $derived.by(() => {
+  const actionKind = $derived.by(() => {
     switch (kind) {
       case 'join':
-        return 'joined the room';
+        return 'joined';
       case 'leave':
-        return 'left the room';
+        return 'left';
     }
   });
 
   type Actor = {
     id: string;
     name: string;
-    user: UserAvatarUserView | null;
+    user: UserAvatarUserView;
   };
 
   function displayName(user: UserAvatarUserView): string {
     return getLiveDisplayName(user.id, user.displayName || user.login);
   }
 
-  function eventSubject(event: RoomEventView): Actor {
+  function eventSubject(event: RoomEventView): Actor | null {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
-    return { id: event.actorId ?? 'unknown', name: 'Deleted User', user: null };
+    return null;
   }
 
-  // Deduplicate by actor so batched join/leave events stay compact.
+  // Deleted actors add no useful membership context. Filter them before
+  // deduplicating so names, avatars, counts, and truncation stay consistent.
   const actors = $derived.by<Actor[]>(() => {
     const result: Actor[] = [];
     for (const event of events) {
       const subject = eventSubject(event);
+      if (!subject) continue;
       if (result.some((a) => a.id === subject.id)) continue;
       result.push(subject);
     }
@@ -57,19 +64,31 @@
   const visibleAvatars = $derived(actors.slice(0, MAX_AVATARS));
   const isTruncatable = $derived(actors.length > NAMES_BEFORE_TRUNCATION + 1);
 
-  let expanded = $state(false);
-
-  function joinNames(names: string[]): string {
-    if (names.length === 0) return '';
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-  }
-
-  const allNames = $derived(joinNames(actors.map((a) => a.name)));
-  const headNames = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION).map((a) => a.name).join(', '));
+  const headActors = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION));
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
+  const action = $derived(
+    actionKind === 'joined'
+      ? m['room.system_events.joined']({ count: actors.length })
+      : m['room.system_events.left']({ count: actors.length })
+  );
 </script>
+
+{#snippet actorName(actor: Actor)}
+  {actor.name}
+{/snippet}
+
+{#snippet actorNames(items: Actor[])}
+  {#each items as actor, index (actor.id)}
+    {#if index > 0}
+      {#if index === items.length - 1}
+        {items.length > 2 ? ', ' : ' '}{m['room.system_events.and']()}
+      {:else}
+        ,
+      {/if}
+    {/if}
+    {@render actorName(actor)}
+  {/each}
+{/snippet}
 
 {#if actors.length > 0}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={events[0].id}>
@@ -77,37 +96,32 @@
     <div class="flex w-11 shrink-0 items-center justify-center">
       <div class="flex -space-x-1.5">
         {#each visibleAvatars as actor (actor.id)}
-          {#if actor.user}
-            <UserAvatar user={actor.user} size="xs" />
-          {:else}
-            <div
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted ring-1 ring-background"
-            >
-              <span class="iconify text-xs uil--user-times"></span>
-            </div>
-          {/if}
+          <UserAvatar user={actor.user} size="xs" />
         {/each}
       </div>
     </div>
 
     <span class="text-sm text-muted">
       {#if !isTruncatable || expanded}
-        {allNames} {action}
+        {@render actorNames(actors)}
+        {action}
         {#if isTruncatable}
           <button
             type="button"
             class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
-            onclick={() => (expanded = false)}
+            onclick={() => onExpandedChange(false)}
           >
-            show less
+            {m['room.system_events.show_less']()}
           </button>
         {/if}
       {:else}
-        {headNames}, and <button
+        {@render actorNames(headActors)}, {m['room.system_events.and']()}
+        <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
-          onclick={() => (expanded = true)}
-        >{extraCount} {extraCount === 1 ? 'other' : 'others'}</button>
+          onclick={() => onExpandedChange(true)}
+          >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button
+        >
         {action}
       {/if}
     </span>

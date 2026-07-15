@@ -47,6 +47,7 @@ scroll container; children render inside the scroll container.
 
   let scrolledFromTop = $state(false);
   let scrolledFromBottom = $state(false);
+  let scrollProps = $derived({ tabindex: 0, ...rest });
 
   function updateScrollEdges(el: HTMLElement) {
     const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
@@ -99,7 +100,7 @@ scroll container; children render inside the scroll container.
     bind:this={scrollEl}
     {@attach trackScrollEdges}
     class={['flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto', scrollClass]}
-    {...rest}
+    {...scrollProps}
   >
     {@render children()}
   </div>

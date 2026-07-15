@@ -25,10 +25,6 @@ export class AttachmentsState {
     return this.filesWithUrls.map((f) => f.file);
   }
 
-  get accept(): string {
-    return this.getLimits().videoProcessingEnabled ? 'image/*,video/*,audio/*' : 'image/*,audio/*';
-  }
-
   restore(files: FileWithUrl[]): void {
     this.filesWithUrls = files;
   }

@@ -16,7 +16,11 @@ vi.mock('./registry.svelte', () => ({
   }
 }));
 
-import { httpToWsUrl, ServerConnection, type ServerConnectionConfig } from './serverConnection.svelte';
+import {
+  httpToWsUrl,
+  ServerConnection,
+  type ServerConnectionConfig
+} from './serverConnection.svelte';
 
 function makeConfig(overrides: Partial<ServerConnectionConfig> = {}): ServerConnectionConfig {
   return {
@@ -127,6 +131,18 @@ describe('ServerConnection', () => {
     client.forceReconnect('second');
 
     expect(reconnect).not.toHaveBeenCalled();
+    client.dispose();
+  });
+
+  it('forces reconnect on browser online events even while marked connected', () => {
+    const client = new ServerConnection(makeConfig());
+    const reconnect = vi.fn();
+
+    client.setRealtimeConnectionStatus('connected');
+    client.registerRealtimeReconnect(reconnect);
+    window.dispatchEvent(new Event('online'));
+
+    expect(reconnect).toHaveBeenCalledWith('network came back online');
     client.dispose();
   });
 

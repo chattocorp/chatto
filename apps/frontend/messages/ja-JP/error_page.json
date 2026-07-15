@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "問題が発生しました",
+    "description": "このビューを開けませんでした。 Chatto に戻って、そこから再試行できます。",
+    "unknown": "不明なエラー",
+    "home_link": "Chatto に戻る",
+    "missing_media_title": "メディアが利用できません",
+    "missing_media_description": "このリンクからこのファイルを開けませんでした。削除されたか、プライベート メディア リンクが利用できなくなった可能性があります。"
+  }
+}

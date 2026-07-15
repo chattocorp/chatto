@@ -12,7 +12,6 @@ declare global {
         type:
           | 'createRoom'
           | 'logout'
-          | 'joinRoom'
           | 'leaveRoom'
           | 'deleteMessage'
           | 'leaveServer'
@@ -22,13 +21,18 @@ declare global {
         spaceId?: string;
         roomId?: string;
         roomName?: string;
-        viewerCanJoinRoom?: boolean;
         spaceName?: string;
         eventId?: string;
         attachmentId?: string;
         attachmentFilename?: string;
         previewUrl?: string;
-        imageItems?: Array<{ id?: string; src: string; alt?: string; filename?: string }>;
+        imageItems?: Array<{
+          id?: string;
+          src: string;
+          originalSrc?: string;
+          alt?: string;
+          filename?: string;
+        }>;
         imageIndex?: number;
       };
     }

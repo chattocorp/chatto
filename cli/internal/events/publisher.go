@@ -24,6 +24,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -249,15 +250,21 @@ func (p *Publisher) publishAt(ctx context.Context, subject string, data []byte, 
 		return ack.Sequence, nil
 	}
 
-	var apiErr *jetstream.APIError
-	if errors.As(err, &apiErr) && apiErr.ErrorCode == jetstream.JSErrCodeStreamWrongLastSequence {
-		target := subject
-		if filter != "" {
-			target = "filter " + filter
-		}
-		return 0, fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
+	target := subject
+	if filter != "" {
+		target = "filter " + filter
+	}
+	if conflictErr := sequenceConflictError(err, target, expectedSeq); conflictErr != nil {
+		return 0, conflictErr
 	}
 	return 0, fmt.Errorf("publish: %w", err)
+}
+
+func sequenceConflictError(err error, target string, expectedSeq uint64) error {
+	if !jetstreamutil.IsSequenceConflict(err) {
+		return nil
+	}
+	return fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)
 }
 
 // BatchEntry is one event in an atomic publish batch (AppendBatch).
@@ -390,12 +397,17 @@ func decodeBatchAck(resp *nats.Msg, e BatchEntry) (uint64, error) {
 		return 0, fmt.Errorf("decode ack: %w", err)
 	}
 	if env.Error != nil {
-		if env.Error.ErrCode == uint16(jetstream.JSErrCodeStreamWrongLastSequence) {
-			target := e.Subject
-			if e.FilterSubject != "" {
-				target = "filter " + e.FilterSubject
-			}
-			return 0, fmt.Errorf("%s at expected seq %d: %w", target, e.ExpectedSeq, ErrConflict)
+		apiErr := &jetstream.APIError{
+			Code:        env.Error.Code,
+			ErrorCode:   jetstream.ErrorCode(env.Error.ErrCode),
+			Description: env.Error.Description,
+		}
+		target := e.Subject
+		if e.FilterSubject != "" {
+			target = "filter " + e.FilterSubject
+		}
+		if conflictErr := sequenceConflictError(apiErr, target, e.ExpectedSeq); conflictErr != nil {
+			return 0, conflictErr
 		}
 		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
 	}
@@ -466,9 +478,42 @@ func (p *Publisher) LastSubjectPosition(ctx context.Context, subjectOrFilter str
 // SubjectEvents returns events currently published on a subject, in stream
 // order, plus the stream sequence of the last matching event.
 func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev1.Event, uint64, error) {
+	return p.SubjectEventsAfter(ctx, subject, 0)
+}
+
+// SubjectEventsAfter returns events on a subject whose stream sequence is
+// greater than afterSeq, plus the last matching stream sequence.
+func (p *Publisher) SubjectEventsAfter(ctx context.Context, subject string, afterSeq uint64) ([]*corev1.Event, uint64, error) {
+	subjectEvents, lastSeq, err := p.SubjectEventsWithSubjectsAfter(ctx, subject, afterSeq)
+	if err != nil {
+		return nil, lastSeq, err
+	}
+	events := make([]*corev1.Event, 0, len(subjectEvents))
+	for _, subjectEvent := range subjectEvents {
+		events = append(events, subjectEvent.Event)
+	}
+	return events, lastSeq, nil
+}
+
+// SubjectEvent preserves the durable subject alongside a decoded event.
+type SubjectEvent struct {
+	Subject string
+	Event   *corev1.Event
+}
+
+// SubjectEventsWithSubjectsAfter is SubjectEventsAfter for consumers whose
+// correctness depends on validating the matched aggregate identity.
+func (p *Publisher) SubjectEventsWithSubjectsAfter(ctx context.Context, subject string, afterSeq uint64) ([]*SubjectEvent, uint64, error) {
+	deliverPolicy := jetstream.DeliverAllPolicy
+	var startSeq uint64
+	if afterSeq > 0 {
+		deliverPolicy = jetstream.DeliverByStartSequencePolicy
+		startSeq = afterSeq + 1
+	}
 	consumer, err := p.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},
-		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		DeliverPolicy:     deliverPolicy,
+		OptStartSeq:       startSeq,
 		AckPolicy:         jetstream.AckNonePolicy,
 		MemoryStorage:     true,
 		InactiveThreshold: 30 * time.Second,
@@ -484,7 +529,7 @@ func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev
 	}
 
 	remaining := int(info.NumPending)
-	events := make([]*corev1.Event, 0, remaining)
+	events := make([]*SubjectEvent, 0, remaining)
 	var lastSeq uint64
 	for remaining > 0 {
 		batchSize := remaining
@@ -512,7 +557,7 @@ func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev
 			if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 				return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", lastSeq, err)
 			}
-			events = append(events, &event)
+			events = append(events, &SubjectEvent{Subject: msg.Subject(), Event: &event})
 		}
 		if fetched == 0 {
 			break

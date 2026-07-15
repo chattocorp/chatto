@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.admin.v1;
 
+import "google/protobuf/timestamp.proto";
+
 // Request to read owner-only server diagnostics.
 message GetSystemInfoRequest {}
 
@@ -11,6 +13,44 @@ message GetSystemInfoResponse {
   AdminSystemInfo system_info = 1;
   // Event-sourced projection health and memory estimates.
   repeated AdminProjectionState projections = 2;
+  // Recoverable physical deletion worker health.
+  AdminAssetCleanupStatus asset_cleanup = 3;
+}
+
+// Current health of recoverable message-owned asset deletion.
+message AdminAssetCleanupStatus {
+  // Operator-facing worker state derived from lease and heartbeat state.
+  AdminAssetCleanupHealth health = 1;
+  // Deletion effects currently waiting for a successful retry.
+  int64 pending_count = 2;
+  // Creation time of the oldest pending deletion, when known.
+  google.protobuf.Timestamp oldest_pending_at = 3;
+  // Whether the elected worker is currently running a cleanup pass.
+  bool pass_in_progress = 4;
+  // Completion time of the most recent pass.
+  google.protobuf.Timestamp last_pass_at = 5;
+  // Completion time of the most recent fully successful pass.
+  google.protobuf.Timestamp last_successful_pass_at = 6;
+  // Time of the latest elected-worker heartbeat.
+  google.protobuf.Timestamp updated_at = 7;
+  // Whether the most recent completed pass had one or more failures.
+  bool last_pass_failed = 8;
+  // Global EVT sequence through which deletion facts were inspected.
+  string last_inspected_sequence = 9;
+  // Current latest global EVT sequence matching asset deletion facts.
+  string latest_deletion_sequence = 10;
+}
+
+// Operator-facing state for the elected asset cleanup worker.
+enum AdminAssetCleanupHealth {
+  ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED = 0;
+  ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE = 1;
+  ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING = 2;
+  ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY = 3;
+  ADMIN_ASSET_CLEANUP_HEALTH_RETRYING = 4;
+  ADMIN_ASSET_CLEANUP_HEALTH_STALLED = 5;
+  // Cleanup diagnostics could not be read; other system diagnostics remain valid.
+  ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE = 6;
 }
 
 // Broker and application diagnostics shown on the server admin system page.

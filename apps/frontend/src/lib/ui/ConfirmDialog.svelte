@@ -69,7 +69,7 @@ Use the `tone` prop to communicate the weight of the action:
   {title}
   size="sm"
   submitLabel={actionLabel}
-  submitTone={tone}
+  submitTone={tone === 'info' ? 'action' : tone}
   submitIcon={resolvedIcon}
   submitLoadingText={m['ui.dialog.submit_loading']({ label: actionLabel })}
   {loading}

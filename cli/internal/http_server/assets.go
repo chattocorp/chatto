@@ -43,6 +43,8 @@ type transformRequest struct {
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
+	// JPEGQuality overrides the default quality for opaque static derivatives.
+	JPEGQuality int
 	// FetchAsset returns the asset data and content type.
 	// The reader will be closed if it implements io.Closer.
 	FetchAsset func(ctx context.Context) (io.Reader, string, error)
@@ -90,23 +92,41 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		path = path[1:]
 	}
 
-	// Check if this is a transform request: path ends with /t/{signedPath}
-	// Pattern: {key}/t/{signedPath}
+	// /assets/server/* is intentionally unauthenticated and may only serve
+	// explicitly public, server-scoped assets. Classify the base key before
+	// transform signature parsing, derivative-cache access, object reads, or
+	// image transformation so shared-store private objects always look absent.
+	key := path
+	signedPath := ""
+	transformRequest := false
 	if idx := strings.LastIndex(path, "/t/"); idx != -1 {
-		key := path[:idx]
-		signedPath := path[idx+3:] // skip "/t/"
-		if key != "" && signedPath != "" {
-			s.serveTransformedServerAsset(c, key, signedPath)
-			return
-		}
+		transformRequest = true
+		key = path[:idx]
+		signedPath = path[idx+3:]
+	}
+	location, public := s.core.ResolvePublicServerAsset(c.Request.Context(), key)
+	if key == "" || !public {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
+	}
+	if transformRequest && signedPath == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		return
 	}
 
-	s.logger.Debug("Serving server asset", "asset_id", path)
+	// Check if this is a transform request: path ends with /t/{signedPath}
+	// Pattern: {key}/t/{signedPath}
+	if transformRequest {
+		s.serveTransformedServerAsset(c, key, signedPath, location)
+		return
+	}
+
+	s.logger.Debug("Serving server asset", "asset_id", key)
 
 	// Probe both NATS and S3 backends
-	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), path)
+	reader, info, err := s.core.GetPublicServerAsset(c.Request.Context(), location)
 	if err != nil {
-		s.logger.Error("Failed to get server asset", "error", err, "asset_id", path)
+		s.logger.Error("Failed to get server asset", "error", err, "asset_id", key)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
@@ -118,12 +138,12 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	// Get content type, fall back to extension-based detection
 	contentType := info.ContentType
 	if contentType == "" {
-		contentType = getContentType(path)
+		contentType = getContentType(key)
 	}
 
 	// Immutable asset - cache forever
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", path))
+	c.Header("ETag", fmt.Sprintf("\"%s\"", key))
 	c.Header("Vary", "Accept-Encoding")
 
 	c.DataFromReader(
@@ -231,6 +251,7 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	s.serveTransformedAssetWithParams(c, transformRequest{
 		CachePrefix: AttachmentStableCachePrefix,
 		AssetID:     assetID,
+		JPEGQuality: AttachmentDerivativeJPEGQuality,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 			if err != nil {
@@ -242,7 +263,14 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	}, params)
 }
 
-const AttachmentStableCachePrefix = "attachment-stable"
+const (
+	// AttachmentDerivativeJPEGQuality keeps displayed attachment images compact
+	// without changing the encoding quality of public server assets.
+	AttachmentDerivativeJPEGQuality = 75
+	// AttachmentStableCachePrefix is versioned whenever attachment derivative
+	// encoding changes so older cached bytes cannot be reused.
+	AttachmentStableCachePrefix = core.AttachmentDerivativeCacheResource
+)
 
 func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformParams, error) {
 	widthText, heightText, ok := strings.Cut(dimensions, "x")
@@ -348,6 +376,10 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 	}
 
 	reqWithUser := s.injectUserIntoContext(c)
+	if authenticationValidationError(reqWithUser.Context()) != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+		return "", false
+	}
 	user := authctx.ForContext(reqWithUser.Context())
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -431,7 +463,14 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	}
 
 	// Transform the image
-	result, err := assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	var result *assets.TransformResult
+	if req.JPEGQuality > 0 {
+		result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
+			JPEGQuality: req.JPEGQuality,
+		})
+	} else {
+		result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	}
 	if err != nil {
 		s.logger.Error("Failed to transform image", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})
@@ -482,8 +521,8 @@ func transformedAssetVary(public bool) string {
 // serveTransformedServerAsset serves a dynamically transformed version of an server asset.
 // URL format: /assets/server/{key}/t/{signedPath}
 // Called by serveServerAsset when it detects a transform pattern in the path.
-// Probes both NATS and S3 backends for the asset.
-func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string) {
+// Opens only the backend object bound by pre-cache public classification.
+func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string, location *core.PublicServerAssetLocation) {
 	s.logger.Debug("Serving transformed server asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{
@@ -493,8 +532,7 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 		CachePrefix: core.ServerAssetSignResource,
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			// Probe both NATS and S3 backends
-			reader, info, err := s.core.GetServerAssetFromAnyBackend(ctx, key)
+			reader, info, err := s.core.GetPublicServerAsset(ctx, location)
 			if err != nil {
 				s.logger.Debug("Failed to fetch server asset",
 					"asset_id", key,

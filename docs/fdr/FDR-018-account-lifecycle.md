@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-07-15
 
 ## Overview
 
@@ -16,7 +16,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
 - Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
 - Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
-- External provider account creation uses the pending external-identity confirmation flow described in FDR-023. AT Protocol is one such path when a `[[auth.providers]]` entry uses `type = "atproto"`; if the user grants `account:email` and the PDS confirms the email, that address is attached as verified on account creation. See FDR-029.
+- External provider account creation uses the pending external-identity confirmation flow described in FDR-023. AT Protocol is one such path when a `[[auth.providers]]` entry uses `type = "atproto"`; if the user grants `account:email` and the PDS confirms the email, that address is attached as verified on account creation. See FDR-031.
 - If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
 
 ### Email management
@@ -32,9 +32,10 @@ This FDR covers the user account from registration through deletion: signup, ema
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
-- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
-- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
-- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
+- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, records durable deletion facts for message-owned assets and derivatives, and revokes all their sessions and bearer tokens. An elected cleanup worker retries physical removal for current message-owned asset deletion facts.
+- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
+- Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
+- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.
 
 ## Design Decisions
@@ -77,9 +78,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
 
-**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. User and mentionable projections decrypt login/email transiently while applying events to derive normalised in-memory lookup digests, then discard the plaintext. They retain ciphertext for read hydration; no lookup digest is persisted in EVT.
 **Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
-**Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
+**Tradeoff:** Projection replay and reads need access to key-unwrapping and may incur KMS latency, mitigated by request-scoped DEK reuse during reads. If a user's key is gone, cold replay intentionally cannot rebuild their PII or uniqueness indexes.
 
 ### 7. KMS service boundary, even though it's in-process
 
@@ -101,8 +102,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-048 (external identity integration boundaries)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-029 (Sign in with AT Protocol)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-051 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-031 (Sign in with AT Protocol)
 
 ## Open Questions
 

@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -139,6 +141,7 @@ func runServer(configPath string) {
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
+	cfg.Core.Version = Version
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		log.Error("Failed to create Chatto core", "error", err)
@@ -331,6 +334,48 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 	logger.Info("Push notifications enabled")
 
+	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
+		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if len(subscriptions) == 0 {
+			return errors.New("no push subscriptions registered")
+		}
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return errors.New("no current push subscriptions registered")
+		}
+		results := sender.SendToMany(ctx, subscriptions, &push.Payload{
+			Title: "Test notification",
+			Body:  "Push notifications are working.",
+			URL:   cfg.Webserver.URL,
+			Icon:  "/icons/icon-192.png",
+			Badge: "/icons/icon-192.png",
+			Tag:   "push-test",
+		})
+		var sendErr error
+		accepted := false
+		for _, result := range results {
+			if result.Gone {
+				_ = chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint)
+			}
+			if result.Error == nil && result.Success {
+				accepted = true
+			}
+			if result.Error != nil {
+				sendErr = result.Error
+			}
+		}
+		if accepted {
+			return nil
+		}
+		if sendErr != nil {
+			return sendErr
+		}
+		return errors.New("push provider did not accept the test notification")
+	}
+
 	// Set the callback that will be invoked when notifications are created
 	chattoCore.OnNotificationCreated = func(ctx context.Context, notification *corev1.Notification) {
 		// Get user's push subscriptions
@@ -363,6 +408,38 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 		// Build and send push notification
 		payload := push.BuildPayloadFromNotification(notification, actorName, cfg.Webserver.URL, payloadCtx)
+		if pushNotificationUsesCountBadge(notification) {
+			if count, err := chattoCore.GetNotificationCount(ctx, notification.RecipientId); err == nil {
+				payload.AppBadge = strconv.Itoa(count)
+			} else {
+				logger.Warn("Failed to get notification count for push app badge",
+					"user_id", notification.RecipientId,
+					"error", err)
+			}
+		}
+
+		// Creation and dismissal callbacks run asynchronously. A dismissal can
+		// overtake a slow creation callback, so fail closed if the notification is
+		// no longer pending immediately before delivery.
+		pending, err := chattoCore.GetNotification(ctx, notification.RecipientId, notification.Id)
+		if err != nil {
+			logger.Warn("Failed to revalidate notification before push delivery",
+				"user_id", notification.RecipientId,
+				"notification_id", notification.Id,
+				"error", err)
+			return
+		}
+		if pending == nil {
+			logger.Debug("Skipped stale push for dismissed notification",
+				"user_id", notification.RecipientId,
+				"notification_id", notification.Id)
+			return
+		}
+
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, notification.RecipientId, subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return
+		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 
 		// Process results - clean up expired subscriptions
@@ -415,6 +492,10 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			Action: "dismiss",
 			Tag:    tag,
 		}
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return
+		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 
 		// Process results - clean up expired subscriptions
@@ -436,6 +517,30 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			}
 		}
 	}
+}
+
+func filterOwnedPushSubscriptions(
+	ctx context.Context,
+	chattoCore *core.ChattoCore,
+	userID string,
+	subscriptions []*corev1.PushSubscription,
+	logger *log.Logger,
+) []*corev1.PushSubscription {
+	owned := make([]*corev1.PushSubscription, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		isOwned, err := chattoCore.PushSubscriptionCurrentForUser(ctx, userID, subscription)
+		if err != nil {
+			logger.Warn("Failed to revalidate push endpoint ownership",
+				"user_id", userID,
+				"endpoint_id", push.EndpointLogID(subscription.Endpoint),
+				"error", err)
+			continue
+		}
+		if isOwned {
+			owned = append(owned, subscription)
+		}
+	}
+	return owned
 }
 
 // fetchPayloadContext builds the payload context with message preview and room name.
@@ -518,4 +623,9 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	return payloadCtx
+}
+
+func pushNotificationUsesCountBadge(notification *corev1.Notification) bool {
+	_, ok := notification.GetNotification().(*corev1.Notification_DmMessage)
+	return ok
 }

@@ -58,7 +58,9 @@
   let linkFreshAuthError = $state('');
   let disconnectingSubjectHash = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
-  let disconnectFreshAuthTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
+  let disconnectFreshAuthTarget = $state<{ subjectHash: string; providerLabel: string } | null>(
+    null
+  );
   let disconnectCurrentPassword = $state('');
   let disconnectFreshAuthError = $state('');
   let blockedDisconnectProviderLabel = $state('');
@@ -102,12 +104,8 @@
         )
     )
   );
-  const hasSSORows = $derived(
-    ssoProviders.length > 0 || unconfiguredLinkedIdentities.length > 0
-  );
-  const disconnectWouldRemoveLastMethod = $derived(
-    !hasPassword && linkedSSOIdentities.length <= 1
-  );
+  const hasSSORows = $derived(ssoProviders.length > 0 || unconfiguredLinkedIdentities.length > 0);
+  const disconnectWouldRemoveLastMethod = $derived(!hasPassword && linkedSSOIdentities.length <= 1);
 
   $effect(() => {
     void refreshExternalIdentities();
@@ -547,19 +545,16 @@
                 </div>
                 {#if provider.linked}
                   {#if provider.linkedIdentitySubjectHash}
-                    <button
-                      type="button"
-                      class="btn-secondary btn-sm hover:!from-danger/65 hover:!to-danger/95 hover:!text-white hover:!ring-danger/30"
-                      aria-busy={
-                        disconnectingSubjectHash === provider.linkedIdentitySubjectHash ||
-                        undefined
-                      }
+                    <Button
+                      variant="danger-secondary"
+                      size="sm"
+                      loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
                       disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                       onclick={() => openDisconnectProvider(provider)}
                     >
                       <span class="iconify uil--link-broken"></span>
                       {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
-                    </button>
+                    </Button>
                   {:else}
                     <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
                   {/if}
@@ -581,8 +576,7 @@
             {#each unconfiguredLinkedIdentities as identity (identity.subjectHash)}
               <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
                 <div class="flex min-w-0 items-center gap-3">
-                  <span
-                    class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
+                  <span class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
                   ></span>
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
@@ -591,16 +585,16 @@
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  class="btn-secondary btn-sm hover:!from-danger/65 hover:!to-danger/95 hover:!text-white hover:!ring-danger/30"
-                  aria-busy={disconnectingSubjectHash === identity.subjectHash || undefined}
+                <Button
+                  variant="danger-secondary"
+                  size="sm"
+                  loading={disconnectingSubjectHash === identity.subjectHash}
                   disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                   onclick={() => openDisconnectIdentity(identity)}
                 >
                   <span class="iconify uil--link-broken"></span>
                   {disconnectButtonLabel(identity.subjectHash)}
-                </button>
+                </Button>
               </div>
             {/each}
           </div>

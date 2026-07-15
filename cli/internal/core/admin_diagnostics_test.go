@@ -43,4 +43,15 @@ func TestGetAdminDiagnosticsRequiresOwner(t *testing.T) {
 	if len(diagnostics.Projections) == 0 {
 		t.Fatal("Projections len = 0, want projection diagnostics")
 	}
+
+	if _, err := core.storage.memoryCacheKV.Put(ctx, assetCleanupStatusKey, []byte("not-json")); err != nil {
+		t.Fatalf("write malformed cleanup status: %v", err)
+	}
+	diagnostics, err = core.GetAdminDiagnostics(ctx, owner.Id)
+	if err != nil {
+		t.Fatalf("GetAdminDiagnostics with malformed cleanup status: %v", err)
+	}
+	if diagnostics.AssetCleanup.Health != AssetCleanupHealthUnavailable {
+		t.Fatalf("AssetCleanup health = %v, want unavailable", diagnostics.AssetCleanup.Health)
+	}
 }

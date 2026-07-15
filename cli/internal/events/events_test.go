@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strings"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -54,12 +54,24 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 		Subjects:           []string{SubjectRoot + ">"},
 		Storage:            jetstream.FileStorage,
 		AllowAtomicPublish: true, // exercise AppendBatch in tests
+		Metadata: map[string]string{
+			EVTStreamIdentityMetadataKey: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
 	})
 	if err != nil {
 		t.Fatalf("create test stream: %v", err)
 	}
 
 	return js, stream
+}
+
+func testStreamIdentity(t *testing.T, stream jetstream.Stream) string {
+	t.Helper()
+	identity, err := StreamIdentity(stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return identity
 }
 
 // makeEvent constructs a minimal event with a UserJoinedRoom payload so
@@ -87,6 +99,130 @@ func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
 				RoomId: roomID,
 			},
 		},
+	}
+}
+
+func TestIncrementalEffectConsumer_RetriesOnlyFailedEffectsAndAdvances(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-consumer").Subject(EventUserJoinedRoom)
+
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	fail := true
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if fail && event.GetActorId() == "U2" {
+			return errors.New("effect unavailable")
+		}
+		return nil
+	})
+
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for failed effect batch")
+	}
+	fail = false
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume retry: %v", err)
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume incremental event: %v", err)
+	}
+
+	want := []string{"U1", "U2", "U2", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-independent").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if event.GetActorId() == "U1" {
+			return errors.New("permanent effect failure")
+		}
+		return nil
+	})
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for permanent effect failure")
+	}
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 || status.AfterSeq == 0 {
+		t.Fatalf("status after failure = %+v, want initialized with one pending effect and cursor", status)
+	}
+	if status.OldestPendingAt.IsZero() {
+		t.Fatal("oldest pending time is zero")
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume retry returned nil for permanent effect failure")
+	}
+
+	want := []string{"U1", "U2", "U1", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-serialized").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-serialized", "U1")); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(context.Context, *corev1.Event) error {
+		calls++
+		if calls == 1 {
+			close(started)
+			<-release
+		}
+		return nil
+	})
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- consumer.Consume(ctx) }()
+	<-started
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 {
+		t.Fatalf("status during active handler = %+v, want initialized with one pending effect", status)
+	}
+	go func() { errCh <- consumer.Consume(ctx) }()
+	close(release)
+	for range 2 {
+		if err := <-errCh; err != nil {
+			t.Fatalf("Consume: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("handler calls = %d, want 1", calls)
 	}
 }
 
@@ -411,10 +547,11 @@ func TestPublisher_AppendBatch_EmptyIsNoOp(t *testing.T) {
 // trackingProjection records every Apply call so tests can assert on the
 // observed event stream.
 type trackingProjection struct {
-	mu     sync.Mutex
-	events []*corev1.Event
-	seqs   []uint64
-	subs   []string
+	mu                sync.Mutex
+	events            []*corev1.Event
+	seqs              []uint64
+	subs              []string
+	replayCompletions int
 }
 
 func newTrackingProjection(subs ...string) *trackingProjection {
@@ -434,10 +571,22 @@ func (p *trackingProjection) Apply(e *corev1.Event, seq uint64) error {
 func (p *trackingProjection) Snapshot() ([]byte, error) { return nil, nil }
 func (p *trackingProjection) Restore(_ []byte) error    { return nil }
 
+func (p *trackingProjection) CompleteStartupReplay() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.replayCompletions++
+}
+
 func (p *trackingProjection) Count() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.events)
+}
+
+func (p *trackingProjection) ReplayCompletions() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.replayCompletions
 }
 
 type replayTrackingProjection struct {
@@ -475,6 +624,73 @@ type blockingProjection struct {
 	entered chan struct{}
 	release chan struct{}
 	once    sync.Once
+}
+
+type snapshotTrackingProjection struct {
+	*trackingProjection
+	restored   []byte
+	restoreErr error
+	snapshot   []byte
+}
+
+type snapshotReplayTrackingProjection struct {
+	*snapshotTrackingProjection
+	replay []string
+}
+
+func (p *snapshotReplayTrackingProjection) ReplaySubjects() []string { return p.replay }
+
+func newSnapshotTrackingProjection(subs ...string) *snapshotTrackingProjection {
+	return &snapshotTrackingProjection{trackingProjection: newTrackingProjection(subs...), snapshot: []byte("captured")}
+}
+
+func (*snapshotTrackingProjection) SnapshotCompatibilityID() string { return "tracking-v1" }
+func (p *snapshotTrackingProjection) Snapshot() ([]byte, error) {
+	return append([]byte(nil), p.snapshot...), nil
+}
+func (p *snapshotTrackingProjection) Restore(data []byte) error {
+	if len(data) > 0 && p.restoreErr != nil {
+		return p.restoreErr
+	}
+	p.restored = append([]byte(nil), data...)
+	return nil
+}
+
+type staticSnapshotSource struct {
+	snapshot ProjectionSnapshot
+	err      error
+	request  ProjectionSnapshotLoadRequest
+}
+
+type blockingSnapshotSource struct {
+	canceled chan struct{}
+}
+
+type gatedSnapshotSource struct {
+	started  chan struct{}
+	release  chan struct{}
+	snapshot ProjectionSnapshot
+}
+
+func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	close(s.started)
+	select {
+	case <-s.release:
+		return s.snapshot, nil
+	case <-ctx.Done():
+		return ProjectionSnapshot{}, ctx.Err()
+	}
+}
+
+func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	<-ctx.Done()
+	close(s.canceled)
+	return ProjectionSnapshot{}, ctx.Err()
+}
+
+func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+	s.request = request
+	return s.snapshot, s.err
 }
 
 func newBlockingProjection(subs ...string) *blockingProjection {
@@ -532,9 +748,357 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	if got := projector.LastSeq(); got != msg.Sequence {
 		t.Errorf("LastSeq=%d, want %d", got, msg.Sequence)
 	}
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Errorf("startup replay completions = %d, want 1", got)
+	}
 }
 
-func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) {
+func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	var seqs []uint64
+	for i := 0; i < 3; i++ {
+		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	restoredProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	coldProjection := newTrackingProjection(RoomSubjectFilter())
+	restoredProjector := NewProjector(js, stream, restoredProjection, testLogger())
+	coldProjector := NewProjector(js, stream, coldProjection, testLogger())
+	createdAt := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Payload: []byte("restored")}}
+	if err := restoredProjector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+		t.Fatal(err)
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = restoredProjector.Run(runCtx) }()
+	go func() { _ = coldProjector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return restoredProjector.Status().StartupComplete && coldProjector.Status().StartupComplete
+	})
+	if got := restoredProjection.Count(); got != 1 {
+		t.Fatalf("restored Apply count = %d, want 1", got)
+	}
+	if got := coldProjection.Count(); got != 3 {
+		t.Fatalf("cold Apply count = %d, want 3", got)
+	}
+	status := restoredProjector.Status()
+	if !status.SnapshotRestored || status.SnapshotCutoffSeq != seqs[1] || status.StartupMessages != 1 || status.LastSeq != seqs[2] {
+		t.Fatalf("restored status = %#v", status)
+	}
+	if status.LatestSnapshotSeq != seqs[1] || !status.LatestSnapshotAt.Equal(createdAt) {
+		t.Fatalf("latest snapshot status = %#v", status)
+	}
+	if source.request.StreamName != "EVT_TEST" || !ValidStreamIdentity(source.request.StreamIdentity) || source.request.MaxCutoff != seqs[2] || source.request.CompatibilityID != "tracking-v1" {
+		t.Fatalf("snapshot load request = %#v", source.request)
+	}
+}
+
+func TestProjectorsStartAfterTheirOwnSnapshotCutoffs(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	malformedAck, err := js.Publish(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), []byte("not protobuf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	malformedSeq := malformedAck.Sequence
+	pub := NewPublisher(js, stream, testLogger())
+	lastSeq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "tail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	firstProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	secondProjection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	first := NewProjector(js, stream, firstProjection, testLogger())
+	second := NewProjector(js, stream, secondProjection, testLogger())
+	for projector, cutoff := range map[*Projector]uint64{first: malformedSeq, second: lastSeq} {
+		source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: cutoff, Payload: []byte("restored")}}
+		if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = first.Run(runCtx) }()
+	go func() { _ = second.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return first.Status().StartupComplete && second.Status().StartupComplete
+	})
+	for name, projector := range map[string]*Projector{"first": first, "second": second} {
+		status := projector.Status()
+		wantMessages := uint64(1)
+		if projector == second {
+			wantMessages = 0
+		}
+		if status.Failed || !status.SnapshotRestored || status.LastSeq != lastSeq || status.StartupMessages != wantMessages {
+			t.Fatalf("%s status = %#v", name, status)
+		}
+	}
+}
+
+func TestProjectorConfiguresRestoredConsumerAfterItsCutoff(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	var seqs []uint64
+	for i := 0; i < 3; i++ {
+		seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U"+itoa(i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{
+		GenerationID:   "generation",
+		CutoffSequence: seqs[1],
+		Payload:        []byte("restored"),
+	}}
+	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+
+	var info *jetstream.ConsumerInfo
+	waitFor(t, 2*time.Second, func() bool {
+		lister := stream.ListConsumers(ctx)
+		for candidate := range lister.Info() {
+			info = candidate
+			break
+		}
+		return lister.Err() == nil && info != nil
+	})
+	if info.Config.DeliverPolicy != jetstream.DeliverByStartSequencePolicy {
+		t.Fatalf("consumer deliver policy = %v, want start sequence", info.Config.DeliverPolicy)
+	}
+	if info.Config.OptStartSeq != seqs[1]+1 {
+		t.Fatalf("consumer start sequence = %d, want %d", info.Config.OptStartSeq, seqs[1]+1)
+	}
+}
+
+func TestProjectorRestoreReleasesWaiterRegisteredInFlight(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := context.Background()
+	pub := NewPublisher(js, stream, testLogger())
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "joined"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &gatedSnapshotSource{started: make(chan struct{}), release: make(chan struct{}), snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq, Payload: []byte("restored")}}
+	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	select {
+	case <-source.started:
+	case <-time.After(time.Second):
+		t.Fatal("snapshot load did not start")
+	}
+	waitDone := make(chan error, 1)
+	go func() { waitDone <- projector.WaitForCurrent(ctx) }()
+	close(source.release)
+	select {
+	case err := <-waitDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("restore did not release sequence waiter")
+	}
+}
+
+func TestProjectorSnapshotCutoffTracksItsLogicalEvents(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := context.Background()
+	pub := NewPublisher(js, stream, testLogger())
+	joined := makeEvent("R1", "joined")
+	joinedSeq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(joined), joined)
+	if err != nil {
+		t.Fatal(err)
+	}
+	posted := makeMessagePostedEvent("R1", "poster")
+	if _, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(posted), posted); err != nil {
+		t.Fatal(err)
+	}
+	projection := &snapshotReplayTrackingProjection{
+		snapshotTrackingProjection: &snapshotTrackingProjection{
+			trackingProjection: newTrackingProjection(RoomEventTypeFilter(EventUserJoinedRoom)),
+			snapshot:           []byte("captured"),
+		},
+		replay: []string{RoomSubjectFilter()},
+	}
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, time.Second, func() bool { return projector.Status().StartupComplete })
+	if got := projector.LastSeq(); got != joinedSeq {
+		t.Fatalf("projection replay watermark = %d, want last logical event %d", got, joinedSeq)
+	}
+	captured, err := projector.CaptureSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.CutoffSequence != joinedSeq {
+		t.Fatalf("snapshot cutoff = %d, want %d", captured.CutoffSequence, joinedSeq)
+	}
+}
+
+func TestProjectorRejectsFutureSnapshotAndFallsBackAfterRestoreFailure(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		cutoffDelta uint64
+		restoreErr  error
+	}{
+		{name: "future cutoff", cutoffDelta: 1},
+		{name: "restore failure", restoreErr: errors.New("invalid snapshot payload")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			js, stream := setupTestStream(t)
+			pub := NewPublisher(js, stream, testLogger())
+			ctx := testContext(t)
+			seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+			projection.restoreErr = test.restoreErr
+			projector := NewProjector(js, stream, projection, testLogger())
+			source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seq + test.cutoffDelta, Payload: []byte("bad")}}
+			if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+				t.Fatal(err)
+			}
+			runCtx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+			go func() { _ = projector.Run(runCtx) }()
+			waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+			if got := projection.Count(); got != 1 {
+				t.Fatalf("fallback Apply count = %d, want 1", got)
+			}
+			if projector.Status().SnapshotRestored {
+				t.Fatal("invalid snapshot reported as restored")
+			}
+		})
+	}
+}
+
+func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
+		t.Fatal(err)
+	}
+
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	source := &blockingSnapshotSource{canceled: make(chan struct{})}
+	if err := projector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
+		t.Fatal(err)
+	}
+	projector.snapshotLoadTimeout = 20 * time.Millisecond
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+	if projection.Count() != 1 || projector.Status().SnapshotRestored {
+		t.Fatalf("timeout fallback projection count/status = %d/%#v", projection.Count(), projector.Status())
+	}
+	select {
+	case <-source.canceled:
+	default:
+		t.Fatal("snapshot source was not canceled at the load deadline")
+	}
+}
+
+func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	seq, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := newBlockingProjection(RoomSubjectFilter())
+	projection := &snapshotTrackingProjection{trackingProjection: base.trackingProjection, snapshot: []byte("captured")}
+	projector := NewProjector(js, stream, projection, testLogger())
+
+	// Exercise the same barrier directly with a projection whose Apply blocks.
+	projector.proj = structSnapshotBlockingProjection{blockingProjection: base}
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	select {
+	case <-base.entered:
+	case <-ctx.Done():
+		t.Fatal("Apply did not enter")
+	}
+	capturedCh := make(chan ProjectionSnapshot, 1)
+	go func() { captured, _ := projector.CaptureSnapshot(); capturedCh <- captured }()
+	select {
+	case <-capturedCh:
+		t.Fatal("CaptureSnapshot crossed an in-progress Apply")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(base.release)
+	select {
+	case captured := <-capturedCh:
+		if captured.CutoffSequence != seq || string(captured.Payload) != "captured" {
+			t.Fatalf("captured = %#v", captured)
+		}
+	case <-ctx.Done():
+		t.Fatal("CaptureSnapshot did not complete")
+	}
+}
+
+type structSnapshotBlockingProjection struct{ blockingProjection *blockingProjection }
+
+func (p structSnapshotBlockingProjection) Subjects() []string { return p.blockingProjection.Subjects() }
+func (p structSnapshotBlockingProjection) Apply(e *corev1.Event, seq uint64) error {
+	return p.blockingProjection.Apply(e, seq)
+}
+func (structSnapshotBlockingProjection) Snapshot() ([]byte, error) { return []byte("captured"), nil }
+func (structSnapshotBlockingProjection) Restore([]byte) error      { return nil }
+
+func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
+	js, stream := setupTestStream(t)
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete && proj.ReplayCompletions() == 1
+	})
+	projector.maybeCompleteStartup(time.Now())
+	projector.maybeCompleteStartup(time.Now())
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Fatalf("startup replay completions = %d, want 1", got)
+	}
+}
+
+func TestProjectorsConsumeTheSameEventsIndependently(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 
@@ -552,7 +1116,8 @@ func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) 
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go func() { _ = RunProjectors(runCtx, projectorA, projectorB) }()
+	go func() { _ = projectorA.Run(runCtx) }()
+	go func() { _ = projectorB.Run(runCtx) }()
 
 	waitFor(t, 2*time.Second, func() bool {
 		return projA.Count() == 3 && projB.Count() == 3
@@ -569,9 +1134,12 @@ func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) 
 	if statusA.LastSeq != statusB.LastSeq {
 		t.Fatalf("last seq mismatch = %d/%d", statusA.LastSeq, statusB.LastSeq)
 	}
+	if gotA, gotB := projA.ReplayCompletions(), projB.ReplayCompletions(); gotA != 1 || gotB != 1 {
+		t.Fatalf("startup replay completions = %d/%d, want 1/1", gotA, gotB)
+	}
 }
 
-func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
+func TestProjectorBroadReplayFilterSkipsNonLogicalSubjects(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())
 
@@ -597,7 +1165,8 @@ func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go func() { _ = RunProjectors(runCtx, broadProjector, focusedProjector) }()
+	go func() { _ = broadProjector.Run(runCtx) }()
+	go func() { _ = focusedProjector.Run(runCtx) }()
 
 	waitFor(t, 2*time.Second, func() bool {
 		return broad.Count() == 2 && focused.Count() == 1 && broadProjector.LastSeq() == postedSeq
@@ -614,92 +1183,7 @@ func TestRunProjectors_SharedReplaySkipsNonLogicalSubjects(t *testing.T) {
 		t.Fatalf("focused startup messages = %d, want 1", status.StartupMessages)
 	}
 	if status.LastSeq != joinedSeq {
-		t.Fatalf("focused last seq = %d, want applied joined seq %d", status.LastSeq, joinedSeq)
-	}
-}
-
-func TestRunProjectors_RejectsMismatchedSubjects(t *testing.T) {
-	js, stream := setupTestStream(t)
-
-	projectorA := NewProjector(js, stream, newTrackingProjection(RoomSubjectFilter()), testLogger())
-	projectorB := NewProjector(js, stream, newTrackingProjection(UserSubjectFilter()), testLogger())
-
-	err := RunProjectors(testContext(t), projectorA, projectorB)
-	if err == nil || !strings.Contains(err.Error(), "identical replay subjects") {
-		t.Fatalf("RunProjectors error = %v, want identical replay subjects error", err)
-	}
-}
-
-func TestRunProjectorsOnSubjects_AllowsMixedReplayFilters(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-
-	ctx := testContext(t)
-	event := makeEvent("R1", "U1")
-	seq, err := pub.Append(ctx, RoomAggregate("R1").SubjectFor(event), event)
-	if err != nil {
-		t.Fatalf("Append: %v", err)
-	}
-
-	projA := newReplayTrackingProjection([]string{RoomSubjectFilter()}, []string{RoomSubjectFilter()})
-	projB := newReplayTrackingProjection([]string{RoomSubjectFilter()}, []string{UserSubjectFilter()})
-	projectorA := NewProjector(js, stream, projA, testLogger())
-	projectorB := NewProjector(js, stream, projB, testLogger())
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go func() { _ = RunProjectorsOnSubjects(runCtx, []string{EventSubjectFilter()}, projectorA, projectorB) }()
-
-	waitFor(t, 2*time.Second, func() bool {
-		return projA.Count() == 1 && projB.Count() == 1 && projectorA.LastSeq() == seq && projectorB.LastSeq() == seq
-	})
-}
-
-func TestRunProjectors_ContinuesFanoutAfterProjectionFailure(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-	ctx := testContext(t)
-
-	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
-	seq, err := pub.Append(ctx, subject, makeEvent("R1", "U1"))
-	if err != nil {
-		t.Fatalf("Append: %v", err)
-	}
-
-	applyErr := errors.New("apply failed")
-	failing := &failingProjection{
-		trackingProjection: newTrackingProjection(RoomSubjectFilter()),
-		err:                applyErr,
-	}
-	healthy := newTrackingProjection(RoomSubjectFilter())
-	failingProjector := NewProjector(js, stream, failing, testLogger())
-	healthyProjector := NewProjector(js, stream, healthy, testLogger())
-
-	runCtx, cancelRun := context.WithCancel(context.Background())
-	t.Cleanup(cancelRun)
-	errCh := make(chan error, 1)
-	go func() { errCh <- RunProjectors(runCtx, failingProjector, healthyProjector) }()
-
-	select {
-	case err := <-errCh:
-		if !errors.Is(err, ErrProjectionFailed) {
-			t.Fatalf("RunProjectors error = %v, want ErrProjectionFailed", err)
-		}
-		if !errors.Is(err, applyErr) {
-			t.Fatalf("RunProjectors error = %v, want wrapped apply error", err)
-		}
-	case <-ctx.Done():
-		t.Fatal("RunProjectors did not return after projection failure")
-	}
-
-	if got := healthy.Count(); got != 1 {
-		t.Fatalf("healthy projection Apply count = %d, want 1", got)
-	}
-	if got := healthyProjector.LastSeq(); got != seq {
-		t.Fatalf("healthy projector LastSeq = %d, want %d", got, seq)
-	}
-	if err := healthyProjector.WaitFor(ctx, SubjectPosition(subject, seq)); err != nil {
-		t.Fatalf("healthy projector WaitFor failed after shared failure: %v", err)
+		t.Fatalf("focused replay watermark = %d, want logical event seq %d", status.LastSeq, joinedSeq)
 	}
 }
 

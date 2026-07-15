@@ -156,7 +156,11 @@ export class ServerStateStore {
       this.roomUnread,
       notificationAPI
     );
-    this.roomDirectory = new RoomDirectoryStore(roomDirectoryAPI, roomCommandAPI);
+    this.roomDirectory = new RoomDirectoryStore(
+      roomDirectoryAPI,
+      memberDirectoryAPI,
+      roomCommandAPI
+    );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
 

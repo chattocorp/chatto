@@ -1042,7 +1042,7 @@ Request to create a message in a room or thread.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
 | `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. At most 10 IDs may be supplied. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
@@ -1636,7 +1636,8 @@ Result of leaving a room.
 
 ### ListMembers
 
-Lists explicit members of a room. The caller must be a member of the room.
+Lists effective room members. Existing members may list their room;
+nonmembers of a channel room need both room.list and room.join.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListMembers
@@ -1650,9 +1651,9 @@ Request for members of one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose explicit members should be listed. |
+| `room_id` | `string` | Required. Room whose effective members should be listed. Existing members may list their room; nonmembers of a channel room need both room.list and room.join. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 250 results when absent or limit is zero. |
 
 
 <a id="chatto-api-v1-ListRoomMembersResponse"></a>
@@ -2434,6 +2435,34 @@ Response from removing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unsubscribed` | `bool` | True when the request completed. |
+
+
+<a id="chatto-api-v1-PushNotificationService-SendTestNotification"></a>
+
+### SendTestNotification
+
+Sends a test notification to the caller's registered browser subscriptions.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/SendTestNotification
+```
+
+<a id="chatto-api-v1-SendTestPushNotificationRequest"></a>
+
+#### Input: SendTestPushNotificationRequest
+
+Request to test the current user's registered browser push subscriptions.
+
+
+<a id="chatto-api-v1-SendTestPushNotificationResponse"></a>
+
+#### Result: SendTestPushNotificationResponse
+
+Result of sending a test Web Push notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sent` | `bool` | True when the push provider accepted the notification. |
 
 
 <a id="chatto-api-v1-RoleService"></a>
@@ -3584,6 +3613,7 @@ requests.
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state, when known for a thread root message. |
+| `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
 
 
 

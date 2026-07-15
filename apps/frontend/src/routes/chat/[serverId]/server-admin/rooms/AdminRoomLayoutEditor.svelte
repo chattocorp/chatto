@@ -498,7 +498,7 @@
             animate:flip={{ duration: 200 }}
             class={[
               'overflow-hidden panel-shell panel-shell-raised transition-shadow',
-              layout.draggingGroupId === group.id && 'shadow-lg ring-1 ring-accent/30'
+              layout.draggingGroupId === group.id && 'shadow-lg ring-1 ring-action/30'
             ]}
           >
             <header class="group-header flex items-center gap-3 panel-header px-4 py-3">
@@ -557,10 +557,10 @@
                 items: group.items,
                 flipDurationMs: 200,
                 dropTargetStyle: {
-                  outline: '2px dashed var(--color-accent)',
+                  outline: '2px dashed var(--color-action)',
                   'outline-offset': '-2px',
                   'border-radius': '0.5rem',
-                  'background-color': 'color-mix(in srgb, var(--color-accent) 5%, transparent)'
+                  'background-color': 'color-mix(in srgb, var(--color-action) 5%, transparent)'
                 },
                 type: 'rooms'
               }}
@@ -571,7 +571,7 @@
                 <div
                   animate:flip={{ duration: 200 }}
                   class={[
-                    'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface-100',
+                    'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface',
                     room.kind === 'room' && room.room.archived && 'opacity-60'
                   ]}
                 >
@@ -584,7 +584,7 @@
                             <span class="min-w-0 truncate font-medium">{room.room.name}</span>
                             {#if room.room.isUniversal}
                               <Pill
-                                tone="accent"
+                                tone="action"
                                 title={m['admin.rooms_admin.universal_room']()}
                                 class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
                               >

@@ -1,20 +1,22 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { docsSiteUrl } from "./src/docsMetadata.ts";
 
 // https://astro.build/config
 export default defineConfig({
+  site: docsSiteUrl,
   redirects: {
     "/getting-started/overview": "/getting-started/introduction",
     "/guides/deployment-read-this-first": "/guides/deployment/read-this-first",
     "/guides/binary": "/guides/deployment/binary",
     "/guides/dockercompose": "/guides/deployment/docker-compose",
     "/guides/kubernetes": "/guides/deployment/kubernetes",
-    "/guides/community-structure": "/guides/planning/community-structure",
-    "/guides/identity-login": "/guides/planning/identity-login",
-    "/guides/permissions": "/guides/planning/permissions",
-    "/guides/notifications-web-push": "/guides/planning/notifications-web-push",
-    "/guides/privacy-erasure": "/guides/planning/privacy-erasure",
+    "/guides/community-structure": "/guides/operations/community-structure",
+    "/guides/identity-login": "/guides/operations/identity-login",
+    "/guides/permissions": "/guides/operations/permissions",
+    "/guides/notifications-web-push": "/guides/operations/notifications-web-push",
+    "/guides/privacy-erasure": "/guides/operations/privacy-erasure",
     "/guides/server-operations": "/guides/operations/server-operations",
     "/guides/backup-restore": "/guides/operations/backup-restore",
     "/guides/security": "/guides/operations/security",
@@ -27,11 +29,18 @@ export default defineConfig({
     "/guides/voice-calls": "/guides/infrastructure/voice-calls",
     "/guides/integrating-with-chatto": "/guides/integrations/chatto-api",
     "/guides/external-login-providers": "/guides/integrations/external-login-providers",
+    "/guides/community-shields": "/guides/integrations/community-shields",
   },
   integrations: [
     starlight({
       title: "Chatto",
       customCss: ["./src/custom.css"],
+      routeMiddleware: "./src/routeData.ts",
+      components: {
+        Banner: "./src/components/DocsBanner.astro",
+        SiteTitle: "./src/components/DocsSiteTitle.astro",
+        SocialIcons: "./src/components/SocialIcons.astro",
+      },
       social: [
         {
           icon: "github",
@@ -45,6 +54,7 @@ export default defineConfig({
           items: [
             "getting-started/introduction",
             "getting-started/quick-start",
+            "getting-started/faq",
           ],
         },
         {
@@ -58,22 +68,17 @@ export default defineConfig({
           ],
         },
         {
-          label: "Planning Your Server",
+          label: "Operating Your Server",
           items: [
-            "guides/planning/community-structure",
-            "guides/planning/identity-login",
-            "guides/planning/permissions",
-            "guides/planning/notifications-web-push",
-            "guides/planning/privacy-erasure",
-          ],
-        },
-        {
-          label: "Operations",
-          items: [
-            "guides/operations/server-operations",
-            "guides/operations/backup-restore",
+            "guides/operations/community-structure",
+            "guides/operations/identity-login",
+            "guides/operations/permissions",
+            "guides/operations/notifications-web-push",
             "guides/operations/security",
+            "guides/operations/privacy-erasure",
+            "guides/operations/server-operations",
             "guides/operations/operator-cli",
+            "guides/operations/backup-restore",
           ],
         },
         {
@@ -92,6 +97,8 @@ export default defineConfig({
           items: [
             "guides/integrations/chatto-api",
             "guides/integrations/external-login-providers",
+            "guides/integrations/community-shields",
+            "guides/integrations/pocket-id",
           ],
         },
         {

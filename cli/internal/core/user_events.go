@@ -26,6 +26,9 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for user projection: %w", err)
 		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+			return 0, fmt.Errorf("wait for user auth projection: %w", err)
+		}
 		if check != nil {
 			if err := check(); err != nil {
 				return 0, err
@@ -36,6 +39,11 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
+			}
+			if isUserAuthEvent(event) {
+				if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(subject, seq)); err != nil {
+					return 0, fmt.Errorf("wait for user auth projection: %w", err)
+				}
 			}
 			return seq, nil
 		}
@@ -68,6 +76,9 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for user projection: %w", err)
 		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+			return 0, fmt.Errorf("wait for user auth projection: %w", err)
+		}
 		if check != nil {
 			if err := check(); err != nil {
 				return 0, err
@@ -86,6 +97,14 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
 			}
+			for i := len(chunk) - 1; i >= 0; i-- {
+				if isUserAuthEvent(chunk[i].Event) {
+					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+						return 0, fmt.Errorf("wait for user auth projection: %w", err)
+					}
+					break
+				}
+			}
 			return lastSeq, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -101,6 +120,25 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 	return 0, fmt.Errorf("user batch OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
+func isUserAuthEvent(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_UserAccountCreated,
+		*corev1.Event_UserPasswordHashChanged,
+		*corev1.Event_UserOidcSubjectLinked,
+		*corev1.Event_UserExternalIdentityLinked,
+		*corev1.Event_UserExternalIdentityUnlinked,
+		*corev1.Event_OauthConsentGranted,
+		*corev1.Event_UserAccountDeleted,
+		*corev1.Event_UserKeyShredded:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []events.BatchEntry, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
@@ -114,6 +152,9 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 		}
 		if err := c.mentionables.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for mentionables projection: %w", err)
+		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+			return 0, fmt.Errorf("wait for user auth projection: %w", err)
 		}
 		if check != nil {
 			if err := check(); err != nil {
@@ -135,6 +176,14 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 			}
 			if err := c.mentionables.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for mentionables projection: %w", err)
+			}
+			for i := len(chunk) - 1; i >= 0; i-- {
+				if isUserAuthEvent(chunk[i].Event) {
+					if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+						return 0, fmt.Errorf("wait for user auth projection: %w", err)
+					}
+					break
+				}
 			}
 			return lastSeq, nil
 		}

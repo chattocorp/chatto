@@ -10,10 +10,12 @@
  */
 
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
-import { getLocale } from '$lib/i18n/runtime';
+import { getBrowserLocale, getFormattingLocale, getLocale } from '$lib/i18n/runtime';
 import * as m from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+export type TimeFormatSettings = Pick<UserSettingsState, 'effectiveTimezone' | 'effectiveHour12'>;
 
 function toDate(date: Date | string): Date {
   return typeof date === 'string' ? new Date(date) : date;
@@ -33,6 +35,41 @@ function getFormatter(
     formatterCache.set(key, fmt);
   }
   return fmt;
+}
+
+function regionalLocale(locale: string): string {
+  try {
+    return new Intl.Locale(locale).region ? locale : getBrowserLocale();
+  } catch {
+    return locale;
+  }
+}
+
+/** Format translated values using the browser region's field order and punctuation. */
+function formatVisibleDateTime(
+  date: Date,
+  locale: string,
+  options: Intl.DateTimeFormatOptions
+): string {
+  const calendar = getFormatter(locale, options).resolvedOptions().calendar;
+  const sharedOptions = { ...options, calendar };
+  const regionalFormatter = getFormatter(regionalLocale(locale), sharedOptions);
+  const localizedOptions =
+    options.hour !== undefined && options.hour12 === undefined
+      ? { ...sharedOptions, hour12: regionalFormatter.resolvedOptions().hour12 }
+      : sharedOptions;
+  const localizedParts = getFormatter(locale, localizedOptions).formatToParts(date);
+  const localizedValues = new Map(
+    localizedParts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value])
+  );
+
+  return regionalFormatter
+    .formatToParts(date)
+    .map((part) =>
+      part.type === 'literal' ? part.value : (localizedValues.get(part.type) ?? part.value)
+    )
+    .join('')
+    .replace(/[\u00a0\u202f]/g, ' ');
 }
 
 function activeLocale(): string {
@@ -93,8 +130,7 @@ function normalizeFirstDay(firstDay: number | undefined): number | null {
 
 export function firstDayOfWeekForLocale(locale?: string): number {
   const fallback = 1;
-  const localeName =
-    locale ?? globalThis.navigator?.languages?.[0] ?? globalThis.navigator?.language;
+  const localeName = getFormattingLocale(locale ?? activeLocale());
   if (!localeName || typeof Intl.Locale !== 'function') return fallback;
 
   try {
@@ -117,16 +153,15 @@ function startOfWeekSerial(parts: DateParts, firstDay: number): number {
  */
 export function formatMessageTime(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
-  const fmt = getFormatter(locale, {
+  return formatVisibleDateTime(toDate(date), locale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: settings.effectiveHour12,
     timeZone: settings.effectiveTimezone
   });
-  return fmt.format(toDate(date));
 }
 
 /**
@@ -134,16 +169,15 @@ export function formatMessageTime(
  */
 export function formatDate(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
-  const fmt = getFormatter(locale, {
+  return formatVisibleDateTime(toDate(date), locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     timeZone: settings.effectiveTimezone
   });
-  return fmt.format(toDate(date));
 }
 
 /**
@@ -151,10 +185,10 @@ export function formatDate(
  */
 export function formatDateTime(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
-  const fmt = getFormatter(locale, {
+  return formatVisibleDateTime(toDate(date), locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -163,7 +197,6 @@ export function formatDateTime(
     hour12: settings.effectiveHour12,
     timeZone: settings.effectiveTimezone
   });
-  return fmt.format(toDate(date));
 }
 
 /**
@@ -204,14 +237,13 @@ export function formatDayLabel(
   const yearFmt = getFormatter('en-US', { year: 'numeric', timeZone: tz });
   const sameYear = yearFmt.format(d) === yearFmt.format(now);
 
-  const labelFmt = getFormatter(locale, {
+  return formatVisibleDateTime(d, locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: sameYear ? undefined : 'numeric',
     timeZone: tz
   });
-  return labelFmt.format(d);
 }
 
 export function formatMonthYear(
@@ -219,12 +251,11 @@ export function formatMonthYear(
   settings: UserSettingsState,
   locale: string = activeLocale()
 ): string {
-  const fmt = getFormatter(locale, {
+  return formatVisibleDateTime(toDate(date), locale, {
     month: 'long',
     year: 'numeric',
     timeZone: settings.effectiveTimezone
   });
-  return fmt.format(toDate(date));
 }
 
 export function fileDateGroup(

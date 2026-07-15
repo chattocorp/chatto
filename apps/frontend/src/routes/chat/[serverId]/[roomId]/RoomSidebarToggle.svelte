@@ -81,7 +81,7 @@ Room header affordance for opening or hiding room extras panels.
       class={[
         'group/pane-header-icon-button pane-header-icon-button',
         isActive && 'pane-header-icon-button-active',
-        isActiveCallPanel && 'text-accent'
+        isActiveCallPanel && 'text-action'
       ]}
       onclick={() => onToggle(panel.id)}
       title={isActive ? panel.hideLabel : panel.showLabel}
@@ -91,16 +91,16 @@ Room header affordance for opening or hiding room extras panels.
       <span class="relative inline-flex">
         {#if shouldPulseCallIcon}
           <span
-            class={['pane-header-icon-glyph absolute inset-0 animate-ping opacity-45', panel.icon]}
+            class={['absolute inset-0 pane-header-icon-glyph animate-ping opacity-45', panel.icon]}
             aria-hidden="true"
             data-testid="active-call-pulse-icon"
           ></span>
         {/if}
         <span
           class={[
-            'pane-header-icon-glyph relative',
+            'relative pane-header-icon-glyph',
             panel.icon,
-            isActiveCallPanel && 'text-accent'
+            isActiveCallPanel && 'text-action'
           ]}
           aria-hidden="true"
         ></span>

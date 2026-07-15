@@ -26,7 +26,9 @@ import {
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ServerConnection } from './serverConnection.svelte';
 
-const HEARTBEAT_STALL_MS = 75_000;
+const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
+const MIN_HEARTBEAT_STALL_MS = 30_000;
+const MISSED_HEARTBEATS_BEFORE_STALL = 3;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
 const CATCH_UP_RETRY_MS = 2_500;
 const RECONNECT_WAIT_MS = 5_000;
@@ -78,6 +80,11 @@ function subscribeEventsFrame(): Uint8Array {
   }).toBinary();
 }
 
+function heartbeatStallMsForInterval(seconds: number): number {
+  if (seconds <= 0) return DEFAULT_HEARTBEAT_STALL_MS;
+  return Math.max(MIN_HEARTBEAT_STALL_MS, seconds * MISSED_HEARTBEATS_BEFORE_STALL * 1000);
+}
+
 class EventBusManager {
   // SvelteMap so getBus() is a reactive read — consumers like NotificationSync
   // re-run their $effect when a bus is started/stopped, avoiding mount races.
@@ -98,6 +105,7 @@ class EventBusManager {
     const catchUpHandlers = new SvelteSet<EventBusCatchUpHandler>();
     const bus: EventBus = { handlers, catchUpHandlers };
     let lastEventAt = Date.now();
+    let heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
     let heartbeatCount = 0;
     let dispatchedEventCount = 0;
     let reconnectCount = 0;
@@ -114,6 +122,7 @@ class EventBusManager {
       events: dispatchedEventCount,
       heartbeats: heartbeatCount,
       reconnects: reconnectCount,
+      heartbeatStallMs,
       lastEventAgeMs: Date.now() - lastEventAt
     });
 
@@ -229,6 +238,9 @@ class EventBusManager {
           lastEventAt = Date.now();
           switch (frame.frame.case) {
             case 'hello':
+              heartbeatStallMs = heartbeatStallMsForInterval(
+                frame.frame.value.heartbeatIntervalSeconds
+              );
               nextSocket.send(subscribeEventsFrame());
               return;
             case 'subscribed':
@@ -345,7 +357,7 @@ class EventBusManager {
       if (stopped) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const ageMs = Date.now() - lastEventAt;
-      if (ageMs < HEARTBEAT_STALL_MS) return;
+      if (ageMs < heartbeatStallMs) return;
       console.warn(`[eventBus:${serverId}] heartbeat stalled`, {
         ageMs,
         ...debugState()

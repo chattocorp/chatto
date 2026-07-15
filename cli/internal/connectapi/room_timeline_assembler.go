@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
@@ -26,7 +27,7 @@ func newRoomTimelineAssembler(api *API) *roomTimelineAssembler {
 func defaultTimelineAttachmentThumbnail() attachmentThumbnailRequest {
 	return attachmentThumbnailRequest{
 		width:  960,
-		height: 800,
+		height: 400,
 		fit:    "contain",
 	}
 }
@@ -208,6 +209,9 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		EchoFromThreadRootEventId: payload.GetEchoFromThreadRootEventId(),
 		Reactions:                 h.reactions(event.Id),
 	}
+	if deletedAt, ok := h.api.core.RoomTimeline.MessageDeletedAt(event.Id); ok {
+		message.DeletedAt = timestamppb.New(deletedAt)
+	}
 
 	if echoID, ok := h.api.core.RoomTimeline.ChannelEchoEventID(event.Id); ok {
 		message.ChannelEchoEventId = echoID
@@ -215,7 +219,17 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 
 	body, err := h.api.core.GetFullMessageBodyByEventID(ctx, event.Id)
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, core.ErrMessageBodyCorrupt) {
+			return nil, err
+		}
+		// A single corrupt body envelope must not make the whole room history
+		// unreadable. Keep the message envelope renderable and let clients show
+		// the existing unavailable-message state.
+		log.Warn("Failed to hydrate room timeline message body",
+			"room_id", payload.GetRoomId(),
+			"message_event_id", event.Id,
+			"error", err)
+		body = nil
 	}
 	if body != nil {
 		message.Body = &body.Body

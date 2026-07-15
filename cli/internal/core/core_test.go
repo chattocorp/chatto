@@ -81,8 +81,13 @@ func startCoreServices(t testing.TB, core *ChattoCore) {
 	// calls would seed rooms without a group assignment.
 	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer bootCancel()
-	if err := core.WaitForBoot(bootCtx); err != nil {
-		t.Fatalf("WaitForBoot: %v", err)
+	select {
+	case err := <-done:
+		done <- err
+		t.Fatalf("core.Run stopped before boot completed: %v", err)
+	case <-core.bootDone:
+	case <-bootCtx.Done():
+		t.Fatalf("WaitForBoot: %v", bootCtx.Err())
 	}
 }
 

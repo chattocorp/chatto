@@ -1,9 +1,14 @@
 package cmd
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +19,207 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/jetstreamutil"
+	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
 )
+
+const backupTestSnapshotSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+type backupTestSnapshotBlobs struct{ store jetstream.ObjectStore }
+
+func (b backupTestSnapshotBlobs) Backend() string { return "nats" }
+func (b backupTestSnapshotBlobs) Put(ctx context.Context, key string, data []byte, _ string) error {
+	_, err := b.store.PutBytes(ctx, key, data)
+	return err
+}
+func (b backupTestSnapshotBlobs) Get(ctx context.Context, key string, max int64) ([]byte, error) {
+	data, err := b.store.GetBytes(ctx, key)
+	if errors.Is(err, jetstream.ErrObjectNotFound) {
+		return nil, projectionsnapshot.ErrBlobNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > max {
+		return nil, fmt.Errorf("snapshot exceeds %d bytes", max)
+	}
+	return data, nil
+}
+func (b backupTestSnapshotBlobs) Delete(ctx context.Context, key string) error {
+	if err := b.store.Delete(ctx, key); errors.Is(err, jetstream.ErrObjectNotFound) {
+		return projectionsnapshot.ErrBlobNotFound
+	} else {
+		return err
+	}
+}
+func (backupTestSnapshotBlobs) Walk(context.Context, string, func(projectionsnapshot.BlobInfo) error) error {
+	return errors.New("backup test snapshot inventory is not implemented")
+}
+func (backupTestSnapshotBlobs) Stat(context.Context, string) (projectionsnapshot.BlobInfo, error) {
+	return projectionsnapshot.BlobInfo{}, errors.New("backup test snapshot stat is not implemented")
+}
+
+type backupTestSnapshotPointers struct{ kv jetstream.KeyValue }
+
+func (p backupTestSnapshotPointers) GetPointer(ctx context.Context, key string) ([]byte, uint64, error) {
+	entry, err := p.kv.Get(ctx, key)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return nil, 0, projectionsnapshot.ErrPointerNotFound
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	return entry.Value(), entry.Revision(), nil
+}
+func (p backupTestSnapshotPointers) CreatePointer(ctx context.Context, key string, value []byte) (uint64, error) {
+	revision, err := p.kv.Create(ctx, key, value)
+	if jetstreamutil.IsSequenceConflict(err) {
+		return 0, projectionsnapshot.ErrPointerConflict
+	}
+	return revision, err
+}
+func (p backupTestSnapshotPointers) UpdatePointer(ctx context.Context, key string, value []byte, expected uint64) (uint64, error) {
+	revision, err := p.kv.Update(ctx, key, value, expected)
+	if jetstreamutil.IsSequenceConflict(err) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return 0, projectionsnapshot.ErrPointerConflict
+	}
+	return revision, err
+}
+
+func TestBackupStagingIsPrivateAndRemoved(t *testing.T) {
+	archivePath := filepath.Join(t.TempDir(), "backup.tar.gz")
+	staging, err := newBackupStaging(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := staging.root
+	for _, path := range []string{staging.root, staging.backupDir, staging.streamsDir} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0700 {
+			t.Fatalf("%s mode = %o, want 700", path, got)
+		}
+	}
+	staging.cleanup()
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("staging directory still exists after cleanup: %v", err)
+	}
+}
+
+func TestSecureBackupStagingRestrictsFiles(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "streams")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "snapshot.bin")
+	if err := os.WriteFile(file, []byte("secret"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := secureBackupStaging(root); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]os.FileMode{root: 0700, dir: 0700, file: 0600} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Fatalf("%s mode = %o, want %o", path, got, want)
+		}
+	}
+}
+
+func TestWriteArchiveAtomically(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "backup.tar.gz")
+	if err := os.WriteFile(dest, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wantErr := errors.New("write failed")
+	if err := writeArchiveAtomically(dest, func(w io.Writer) error {
+		_, _ = w.Write([]byte("partial"))
+		return wantErr
+	}); !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "old" {
+		t.Fatalf("destination changed after failed write: data=%q err=%v", data, err)
+	}
+
+	if err := writeArchiveAtomically(dest, func(w io.Writer) error {
+		_, err := w.Write([]byte("complete"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("archive mode = %o, want 600", info.Mode().Perm())
+	}
+	if matches, _ := filepath.Glob(filepath.Join(dir, ".backup.tar.gz.tmp-*")); len(matches) != 0 {
+		t.Fatalf("temporary archive files remain: %v", matches)
+	}
+}
+
+type testTarEntry struct {
+	name     string
+	typeflag byte
+	data     string
+}
+
+func makeTarGz(t *testing.T, entries ...testTarEntry) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	gz := gzip.NewWriter(&out)
+	tw := tar.NewWriter(gz)
+	for _, entry := range entries {
+		header := &tar.Header{Name: entry.name, Typeflag: entry.typeflag, Mode: 0600, Size: int64(len(entry.data))}
+		if err := tw.WriteHeader(header); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write([]byte(entry.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return out.Bytes()
+}
+
+func TestReadTarGzRejectsUnsafeOrOversizedArchives(t *testing.T) {
+	tests := []struct {
+		name       string
+		entries    []testTarEntry
+		maxEntries int
+		maxFile    int64
+		maxTotal   int64
+	}{
+		{name: "path traversal", entries: []testTarEntry{{name: "../escape", typeflag: tar.TypeReg, data: "x"}}, maxEntries: 10, maxFile: 10, maxTotal: 10},
+		{name: "symlink", entries: []testTarEntry{{name: "backup/link", typeflag: tar.TypeSymlink}}, maxEntries: 10, maxFile: 10, maxTotal: 10},
+		{name: "entry count", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg}, {name: "backup/b", typeflag: tar.TypeReg}}, maxEntries: 1, maxFile: 10, maxTotal: 10},
+		{name: "file size", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg, data: "12345"}}, maxEntries: 10, maxFile: 4, maxTotal: 10},
+		{name: "total size", entries: []testTarEntry{{name: "backup/a", typeflag: tar.TypeReg, data: "123"}, {name: "backup/b", typeflag: tar.TypeReg, data: "456"}}, maxEntries: 10, maxFile: 10, maxTotal: 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := readTarGzWithLimits(bytes.NewReader(makeTarGz(t, tt.entries...)), t.TempDir(), tt.maxEntries, tt.maxFile, tt.maxTotal); err == nil {
+				t.Fatal("readTarGzWithLimits accepted unsafe archive")
+			}
+		})
+	}
+}
 
 func TestSkipReason(t *testing.T) {
 	tests := []struct {
@@ -47,6 +251,8 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
+		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
+		{"OBJ_SERVER_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},
 		{"KV_SPACE_abc123_RBAC", false, false, ""},
@@ -84,6 +290,7 @@ func TestClassifyStream(t *testing.T) {
 		{"KV_INSTANCE", "kv"},
 		{"KV_SPACE_abc_CONFIG", "kv"},
 		{"OBJ_INSTANCE_ASSETS", "object_store"},
+		{"OBJ_PROJECTION_SNAPSHOTS", "object_store"},
 		{"OBJ_SPACE_abc_ASSETS", "object_store"},
 		{"SPACE_abc_EVENTS", "stream"},
 		{"SOME_OTHER_STREAM", "stream"},
@@ -230,6 +437,9 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		Name:     "TEST_EVENTS",
 		Subjects: []string{"events.>"},
 		Storage:  jetstream.FileStorage,
+		Metadata: map[string]string{
+			events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
 	})
 	if err != nil {
 		t.Fatal("Failed to create stream:", err)
@@ -244,6 +454,38 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		if _, err := srcJS.Publish(ctx, subj, []byte("payload:"+subj)); err != nil {
 			t.Fatalf("Failed to publish to %s: %v", subj, err)
 		}
+	}
+
+	// NATS-backed projection snapshots use a dedicated Object Store and an
+	// encrypted OCC pointer in RUNTIME_STATE. Save a real snapshot so the test
+	// proves the two restored resources remain usable together.
+	snapshotStore, err := srcJS.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{
+		Bucket:  "PROJECTION_SNAPSHOTS",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatal("Failed to create snapshot object store:", err)
+	}
+	runtimeState, err := srcJS.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:  "RUNTIME_STATE",
+		Storage: jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatal("Failed to create runtime state bucket:", err)
+	}
+	snapshotRepository, err := projectionsnapshot.NewRepository(backupTestSnapshotBlobs{store: snapshotStore}, projectionsnapshot.RepositoryOptions{
+		Pointers: backupTestSnapshotPointers{kv: runtimeState}, SecretHex: backupTestSnapshotSecret, ProducerVersion: "backup-test",
+	})
+	if err != nil {
+		t.Fatal("Failed to create snapshot repository:", err)
+	}
+	snapshotPayload := []byte("restorable projection state")
+	savedSnapshot, err := snapshotRepository.Save(ctx, projectionsnapshot.SaveInput{
+		ProjectionKey: projectionsnapshot.ProjectionThreadsKey, CompatibilityID: "v1", StreamName: "TEST_EVENTS",
+		StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", CutoffSequence: 3, Payload: snapshotPayload,
+	})
+	if err != nil {
+		t.Fatal("Failed to save snapshot:", err)
 	}
 
 	// Create a memory-only stream (should be skipped)
@@ -405,6 +647,31 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	if info.State.Msgs != uint64(len(testMessages)) {
 		t.Errorf("Stream has %d messages, want %d", info.State.Msgs, len(testMessages))
+	}
+	if got := info.Config.Metadata[events.EVTStreamIdentityMetadataKey]; got != "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Errorf("Restored EVT stream identity = %q", got)
+	}
+
+	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")
+	if err != nil {
+		t.Fatal("Failed to open restored snapshot object store:", err)
+	}
+	restoredRuntimeState, err := dstJS.KeyValue(ctx, "RUNTIME_STATE")
+	if err != nil {
+		t.Fatal("Failed to open restored runtime state:", err)
+	}
+	restoredRepository, err := projectionsnapshot.NewRepository(backupTestSnapshotBlobs{store: restoredSnapshotStore}, projectionsnapshot.RepositoryOptions{
+		Pointers: backupTestSnapshotPointers{kv: restoredRuntimeState}, SecretHex: backupTestSnapshotSecret, ProducerVersion: "restore-test",
+	})
+	if err != nil {
+		t.Fatal("Failed to create restored snapshot repository:", err)
+	}
+	restoredSnapshot, err := restoredRepository.Load(ctx, projectionsnapshot.ProjectionThreadsKey, "v1", "TEST_EVENTS", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 3)
+	if err != nil {
+		t.Fatal("Failed to load restored snapshot:", err)
+	}
+	if restoredSnapshot.GenerationID != savedSnapshot.GenerationID || restoredSnapshot.CutoffSequence != 3 || !bytes.Equal(restoredSnapshot.Payload, snapshotPayload) {
+		t.Errorf("Restored snapshot = %#v, want generation %s with original payload", restoredSnapshot, savedSnapshot.GenerationID)
 	}
 
 	// Read back each message and verify payload

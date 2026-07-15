@@ -18,8 +18,7 @@ export class NotificationsPage {
 
   /** The orange indicator dot on the bell icon (visible when there are notifications) */
   get bellIndicator(): Locator {
-    // bg-warning class is on a span inside the link when there are notifications
-    return this.page.locator('a[title="Notifications"] .bg-warning');
+    return this.bellButton.getByTestId('notifications-unread-dot');
   }
 
   // --- Notifications Page ---

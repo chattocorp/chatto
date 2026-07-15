@@ -15,7 +15,7 @@ Chatto can consume external OAuth and OIDC providers for sign-in. Providers are 
 
 | Type             | Use for                                      |
 | ---------------- | -------------------------------------------- |
-| `oidc` | Any standards-compatible OIDC provider       |
+| `oidc` | Any standards-compatible OIDC provider, including [Pocket ID](/guides/integrations/pocket-id/) |
 | `github`         | GitHub OAuth apps                            |
 | `gitlab`         | GitLab OAuth applications                    |
 | `google`         | Google OAuth clients                         |
@@ -23,6 +23,10 @@ Chatto can consume external OAuth and OIDC providers for sign-in. Providers are 
 | `atproto`        | AT Protocol identities, including Bluesky    |
 
 Other provider types are not exposed as curated providers yet. Use `oidc` for standards-compatible OIDC providers.
+
+<Aside type="tip" title="Self-hosted OIDC providers">
+  Options you may want to explore include [Pocket ID](https://pocket-id.org/), [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth), [Portier](https://portier.github.io/), [Authelia](https://www.authelia.com/), [Dex](https://dexidp.io/), [Authentik](https://goauthentik.io/), and [Keycloak](https://www.keycloak.org/). Their account models and OIDC capabilities differ, so confirm that your chosen provider supports Chatto's generic OIDC configuration.
+</Aside>
 
 ## Provider IDs
 

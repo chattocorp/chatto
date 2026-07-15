@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel
@@ -32,7 +33,6 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       replaceState: vi.fn(),
-      noteAwayEvent: vi.fn(),
       markRoomAsRead: vi.fn(),
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
@@ -51,9 +51,15 @@ const { mocks } = vi.hoisted(() => {
       },
       livekitUrl: null as string | null,
       roomKind: 1,
+      sidebarNav: {
+        isMobile: false
+      },
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
+      pendingHighlightConsume: vi.fn(
+        (_roomId: string, _threadRootId: string | null): string | null => null
+      ),
       notifications: {
         notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -124,7 +130,6 @@ vi.mock('$lib/hooks', () => ({
     unreadMarkerEventId: null,
     unreadMarkerWindow: null,
     markRoomAsRead: mocks.markRoomAsRead,
-    noteAwayEvent: mocks.noteAwayEvent,
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
@@ -169,7 +174,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       notifications: mocks.notifications,
       pendingHighlights: {
-        consume: vi.fn(() => null)
+        consume: mocks.pendingHighlightConsume
       },
       activeCallRooms: {
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
@@ -192,7 +197,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
   appState: {
     isFocused: true,
     isPresent: true
-  }
+  },
+  sidebarNav: mocks.sidebarNav
 }));
 
 vi.mock('$lib/state/appUi.svelte', async (importActual) => {
@@ -224,8 +230,8 @@ vi.mock('./RoomEventsPane.svelte', async () => {
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: ThreadPaneMock } = await import('./RoomThreadPaneMock.svelte');
+  return { default: ThreadPaneMock };
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
@@ -278,6 +284,33 @@ function emptyTimelinePage() {
   };
 }
 
+function roomMessageEvent(id: string) {
+  return {
+    id,
+    createdAt: '2026-06-17T10:47:00Z',
+    actorId: 'test-user',
+    actor: null,
+    event: {
+      kind: RoomEventKind.MessagePosted,
+      roomId: 'room-1',
+      body: id,
+      attachments: [],
+      linkPreview: null,
+      reactions: [],
+      updatedAt: null,
+      inReplyTo: null,
+      threadRootEventId: null,
+      echoOfEventId: null,
+      echoFromThreadRootEventId: null,
+      channelEchoEventId: null,
+      replyCount: 0,
+      lastReplyAt: null,
+      threadParticipants: [],
+      viewerIsFollowingThread: true
+    }
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -289,6 +322,9 @@ beforeEach(() => {
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.sidebarNav.isMobile = false;
+  mocks.pendingHighlightConsume.mockReset();
+  mocks.pendingHighlightConsume.mockReturnValue(null);
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
   mocks.getAppUiState.mockReturnValue(appUi);
@@ -307,6 +343,81 @@ beforeEach(() => {
 });
 
 describe('Room local message echo', () => {
+  it('opens and highlights the explicit message from a nested thread route', async () => {
+    const { container } = render(Room, {
+      props: {
+        roomId: 'room-1',
+        threadId: 'thread-root',
+        routeMessageId: 'thread-message'
+      }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="thread-pane-root-id"]'))
+      .toHaveTextContent('thread-root');
+    await expect
+      .element(q(container, '[data-testid="thread-pane-highlight-id"]'))
+      .toHaveTextContent('thread-message');
+    expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
+  });
+
+  it('keeps root message-link highlights pending until the jump completes', async () => {
+    mocks.pendingHighlightConsume.mockReturnValueOnce('msg-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-before'), roomMessageEvent('msg-linked')],
+      startCursor: 'tl:before',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-linked',
+        limit: 50
+      });
+    });
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('msg-linked');
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-before,msg-linked');
+
+    (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
+  });
+
+  it('clears root message-link highlights when the jump target cannot be loaded', async () => {
+    mocks.pendingHighlightConsume.mockReturnValueOnce('msg-missing-from-window');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-other')],
+      startCursor: 'tl:other',
+      endCursor: 'tl:other',
+      hasOlder: false,
+      hasNewer: false
+    });
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-missing-from-window',
+        limit: 50
+      });
+    });
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
+  });
+
   it('inserts a returned main-room post into the same store rendered by the room timeline', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -365,6 +476,53 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('keeps the thread open when pressing the app sidebar surface on mobile', async () => {
+    mocks.sidebarNav.isMobile = true;
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    await tick();
+    mocks.goto.mockClear();
+
+    const appSidebar = document.createElement('div');
+    appSidebar.dataset.appSidebar = 'true';
+    document.body.append(appSidebar);
+
+    try {
+      appSidebar.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0
+        })
+      );
+
+      expect(mocks.goto).not.toHaveBeenCalled();
+    } finally {
+      appSidebar.remove();
+    }
+  });
+
+  it('closes the thread when pressing the desktop app sidebar surface', async () => {
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    await tick();
+    mocks.goto.mockClear();
+
+    const appSidebar = document.createElement('div');
+    appSidebar.dataset.appSidebar = 'true';
+    document.body.append(appSidebar);
+
+    try {
+      appSidebar.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0
+        })
+      );
+
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+    } finally {
+      appSidebar.remove();
+    }
   });
 
   it('lets a maximized desktop call sidebar fill the room route content area', async () => {

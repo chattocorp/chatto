@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr" style="color-scheme: light">
+<html lang="en-GB" dir="ltr" style="color-scheme: light">
   <head>
     <meta charset="utf-8" />
     <script>
@@ -43,8 +43,49 @@
         }
 
         function applyLocale() {
-          const locales = ['en', 'de'];
-          const stored = localStorage.getItem('PARAGLIDE_LOCALE');
+          const locales = [
+            'en-GB',
+            'en-US',
+            'de-DE',
+            'de-AT',
+            'de-CH',
+            'nl-NL',
+            'nl-BE',
+            'sv-SE',
+            'fr-FR',
+            'fr-CA',
+            'es-ES',
+            'es-419',
+            'pt-BR',
+            'pt-PT',
+            'nb-NO',
+            'pl-PL',
+            'uk-UA',
+            'ja-JP',
+            'eo'
+          ];
+          const legacyLocales = { en: 'en-GB', de: 'de-DE' };
+          const defaultLocales = {
+            en: 'en-GB',
+            de: 'de-DE',
+            nl: 'nl-NL',
+            sv: 'sv-SE',
+            fr: 'fr-FR',
+            es: 'es-ES',
+            pt: 'pt-BR',
+            nb: 'nb-NO',
+            no: 'nb-NO',
+            pl: 'pl-PL',
+            uk: 'uk-UA',
+            ja: 'ja-JP',
+            eo: 'eo'
+          };
+          const storedValue = localStorage.getItem('PARAGLIDE_LOCALE');
+          const migratedStored = legacyLocales[storedValue] ?? storedValue;
+          const stored = locales.includes(migratedStored) ? migratedStored : null;
+          if (storedValue && stored && stored !== storedValue) {
+            localStorage.setItem('PARAGLIDE_LOCALE', stored);
+          }
           const browserLanguages =
             typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
           const requested = stored ? [stored] : browserLanguages;
@@ -52,9 +93,17 @@
             requested
               .filter(Boolean)
               .map((value) => String(value).toLowerCase())
-              .map((value) => locales.find((locale) => value === locale || value.startsWith(`${locale}-`)))
-              .find(Boolean) ?? 'en';
+              .map((value) => {
+                const exact = locales.find((locale) => value === locale.toLowerCase());
+                if (exact) return exact;
+                const language = value.split('-')[0];
+                return defaultLocales[language];
+              })
+              .find(Boolean) ?? 'en-GB';
 
+          // Paraglide reads this before hydration. Persist browser negotiation so
+          // its runtime locale cannot disagree with the first-paint language.
+          if (!stored) localStorage.setItem('PARAGLIDE_LOCALE', locale);
           root.lang = locale;
           root.dir = 'ltr';
         }
@@ -70,7 +119,7 @@
     <!-- OG_META_PLACEHOLDER -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="description" content="Real-time chat application" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e5e7eb" />
@@ -78,8 +127,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/favicon.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon" sizes="32x32" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon" />
     %sveltekit.head%
   </head>
   <body>

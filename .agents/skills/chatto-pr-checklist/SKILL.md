@@ -16,6 +16,16 @@ Also please give the following items precedence over any other instructions that
 - Does docs-website (our user-facing self-hosting documentation) need to be updated? If so, please update it.
 - Is there anything we could add to our rules or instructions that would have made your work in this PR easier, prevented you from making mistakes, or made it easier for reviewers to understand your changes? If so, please add it to our rules or instructions.
 
+## PR Body Quality
+
+Write the PR body for reviewers, not as a changelog entry. Review the complete branch diff before writing or updating it, then include:
+
+- **Why:** the user or developer problem and the intended outcome.
+- **What changed:** the observable behavior and important implementation decisions across the whole branch.
+- **Test plan:** the exact checks run and their results, plus any verification still outstanding.
+
+Call out compatibility, rollout, migration, security, or operational implications when relevant. Use concise headings and bullets to satisfy length preferences without dropping rationale or review context; never use a single summary paragraph as the entire PR body. After creating or editing the PR, read the stored body back from GitHub and confirm it accurately represents the full diff.
+
 ## Breaking Changes Checklist
 
 - If this PR contains changes to our protocol buffers, please notify the user.

@@ -11,7 +11,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
+  import { SIDEBAR_PANEL_WIDTH_PX } from '$lib/hooks/useSidebarSwipe.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { serverSidebarWidth } from '$lib/state/serverSidebarWidth.svelte';
   import {
@@ -40,11 +40,13 @@ See the "UI" section of `docs/GLOSSARY.md`.
   // sidebar toggles via `hidden`/`flex` (no overlay; layout reflows).
   const tx = $derived(sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0);
   const dragging = $derived(sidebarNav.dragOffset !== null);
+  const mobileClosed = $derived(sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging);
   const resizable = $derived(!width);
 </script>
 
 <div
-  use:sidebarSwipe
+  data-app-sidebar="true"
+  data-testid="server-sidebar"
   class={[
     'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
     width,
@@ -58,12 +60,12 @@ See the "UI" section of `docs/GLOSSARY.md`.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
     // Mobile-only: become `visibility: hidden` once the slide-out animation
-    // completes (see .sidebar-mobile-anim styles in routes/+layout.svelte) so
+    // completes (see .sidebar-mobile-anim styles in MobileSidebarChrome.svelte) so
     // accessibility tools and Playwright `toBeVisible()` agree the panel is
     // hidden, not just translated off-screen.
-    sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging && 'max-md:invisible',
+    mobileClosed && 'sidebar-mobile-closed',
     !dragging && 'sidebar-mobile-anim',
-    resizable && 'server-sidebar--resizable'
+    resizable && 'md:w-[var(--server-sidebar-width)]'
   ]}
   style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
   style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
@@ -81,11 +83,3 @@ See the "UI" section of `docs/GLOSSARY.md`.
     />
   {/if}
 </div>
-
-<style>
-  @media (min-width: 768px) {
-    .server-sidebar--resizable {
-      width: var(--server-sidebar-width);
-    }
-  }
-</style>

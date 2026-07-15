@@ -707,7 +707,10 @@ type Message struct {
 	// Reaction summaries for this message.
 	Reactions []*MessageReaction `protobuf:"bytes,19,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	// Aggregated thread state, when known for a thread root message.
-	Thread        *ThreadSummary `protobuf:"bytes,20,opt,name=thread,proto3" json:"thread,omitempty"`
+	Thread *ThreadSummary `protobuf:"bytes,20,opt,name=thread,proto3" json:"thread,omitempty"`
+	// Time when the message content was deleted through retraction or account
+	// crypto-shredding. Absent when unavailable body content is not a deletion.
+	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -847,6 +850,13 @@ func (x *Message) GetThread() *ThreadSummary {
 	return nil
 }
 
+func (x *Message) GetDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return nil
+}
+
 var File_chatto_api_v1_message_types_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_message_types_proto_rawDesc = "" +
@@ -901,7 +911,7 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12?\n" +
 	"\x1cparticipant_preview_user_ids\x18\x04 \x03(\tR\x19participantPreviewUserIds\x12+\n" +
 	"\x11participant_count\x18\x05 \x01(\x05R\x10participantCount\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\xc9\x06\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\x84\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x129\n" +
@@ -920,7 +930,9 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x1eecho_from_thread_root_event_id\x18\f \x01(\tR\x19echoFromThreadRootEventId\x121\n" +
 	"\x15channel_echo_event_id\x18\r \x01(\tR\x12channelEchoEventId\x12<\n" +
 	"\treactions\x18\x13 \x03(\v2\x1e.chatto.api.v1.MessageReactionR\treactions\x124\n" +
-	"\x06thread\x18\x14 \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06threadB\a\n" +
+	"\x06thread\x18\x14 \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06thread\x129\n" +
+	"\n" +
+	"deleted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAtB\a\n" +
 	"\x05_bodyJ\x04\b\x0e\x10\x13R\vreply_countR\rlast_reply_atR#thread_participant_preview_user_idsR\x18thread_participant_countR\x1aviewer_is_following_thread*\xda\x01\n" +
 	"\x1cMessageVideoProcessingStatus\x12/\n" +
 	"+MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x12.\n" +
@@ -973,11 +985,12 @@ var file_chatto_api_v1_message_types_proto_depIdxs = []int32{
 	9,  // 13: chatto.api.v1.Message.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 14: chatto.api.v1.Message.reactions:type_name -> chatto.api.v1.MessageReaction
 	7,  // 15: chatto.api.v1.Message.thread:type_name -> chatto.api.v1.ThreadSummary
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	9,  // 16: chatto.api.v1.Message.deleted_at:type_name -> google.protobuf.Timestamp
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_types_proto_init() }

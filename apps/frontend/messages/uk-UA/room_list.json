@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Активний виклик",
+    "call_participants": "{count} учасників дзвінка",
+    "go_to_notifications": "Перейти до сповіщень {count}",
+    "notifications": "Сповіщення {count}",
+    "unread_messages": "непрочитані повідомлення",
+    "go_to_dm_notifications": "Перейти до сповіщень прямої переписки {count}",
+    "new_direct_messages": "{count} нові прямі повідомлення",
+    "direct_messages": "Прямі повідомлення",
+    "empty_title": "Ще немає кімнат",
+    "empty_prefix": "Ви не приєдналися до жодної кімнати на цьому сервері. Прямуйте до",
+    "empty_overview": "Огляд",
+    "empty_suffix": ", щоб переглянути каталог і приєднатися до тих, хто вас цікавить."
+  }
+}

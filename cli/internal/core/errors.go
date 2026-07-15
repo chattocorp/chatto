@@ -76,6 +76,12 @@ var (
 	// ErrMessageNotFound is returned when a message body doesn't exist (already deleted).
 	ErrMessageNotFound = errors.New("message not found")
 
+	// ErrMessageBodyCorrupt is returned when a persisted message body envelope is
+	// malformed or cannot be authenticated. Callers may render the affected
+	// message as unavailable, but should not treat dependency or request errors
+	// as this sentinel.
+	ErrMessageBodyCorrupt = errors.New("message body corrupt")
+
 	// ErrMessageAttachmentNotFound is returned when a message does not contain
 	// the requested attachment.
 	ErrMessageAttachmentNotFound = errors.New("message attachment not found")
@@ -289,4 +295,10 @@ const (
 
 	// MaxLinkPreviewImageAssetIDLength is the maximum length of a client-provided link preview image asset ID in bytes.
 	MaxLinkPreviewImageAssetIDLength = 15
+
+	// MaxMessageAttachmentAssetIDs is the maximum number of attachment asset IDs accepted for one message.
+	MaxMessageAttachmentAssetIDs = 10
+
+	// MaxMessageAttachmentAssetIDLength is the maximum length of a message attachment asset ID in bytes.
+	MaxMessageAttachmentAssetIDLength = 15
 )

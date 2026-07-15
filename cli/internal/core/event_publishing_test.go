@@ -10,6 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -172,6 +173,62 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
+func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, SystemActorID, "rbac-stream-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "rbac-stream-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "rbac-stream-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	if err := core.DenyUserRoomPermission(ctx, author.Id, room.Id, viewer.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "secret after revocation", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	timer := time.NewTimer(500 * time.Millisecond)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-eventChan:
+			if !ok {
+				t.Fatal("event stream closed while refreshing RBAC visibility")
+			}
+			if envelope.ID() == posted.Id {
+				t.Fatal("viewer received a room event after room.join was revoked")
+			}
+		case <-timer.C:
+			return
+		}
+	}
+}
+
 func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -270,13 +327,13 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
-
-	delivered, ok, closeStream := service.filterLiveEVTEvent(ctx, userID, map[string]struct{}{roomID: {}}, msg, event)
-	if delivered != nil || ok {
-		t.Fatalf("filterLiveEVTEvent delivered %T/%v, want dropped", delivered, ok)
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
 	}
-	if !closeStream {
-		t.Fatal("filterLiveEVTEvent closeStream = false, want true")
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
 	}
 }
 

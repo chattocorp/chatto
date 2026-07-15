@@ -14,7 +14,6 @@ function renderDialog(props: {
 }
 
 const FRAME = 'dialog > div';
-const WELL = 'dialog > div > div';
 
 describe('Dialog', () => {
   describe('dialog element', () => {
@@ -99,55 +98,53 @@ describe('Dialog', () => {
         children: testSnippet('<span>Test Content</span>')
       });
 
-      await expect.element(q(container, `${WELL} > div.text-text`)).toBeInTheDocument();
+      await expect.element(q(container, `${FRAME} > div.text-text`)).toBeInTheDocument();
     });
   });
 
   describe('frame styling', () => {
-    it('outer frame uses surface-100 with subtle border and shadow', async () => {
+    it('outer frame uses surface with subtle border and shadow', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
       const frame = q(container, FRAME);
-      await expect.element(frame).toHaveClass('bg-surface-100');
+      await expect.element(frame).toHaveClass('bg-surface');
       await expect.element(frame).toHaveClass('border');
       await expect.element(frame).toHaveClass('rounded-lg');
       await expect.element(frame).toHaveClass('shadow-xl');
     });
   });
 
-  describe('well styling', () => {
-    it('inner well sits on the page background color', async () => {
+  describe('flat surface styling', () => {
+    it('does not nest a second background well', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      const well = q(container, WELL);
-      await expect.element(well).toHaveClass('bg-background');
-      await expect.element(well).toHaveClass('rounded-md');
+      expect(q(container, `${FRAME} > .bg-background`)).toBeNull();
     });
 
-    it('well has padding', async () => {
+    it('keeps content padding on the surface frame', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, WELL)).toHaveClass('p-3');
+      await expect.element(q(container, FRAME)).toHaveClass('p-5');
     });
   });
 
   describe('overflow handling', () => {
-    it('well has vertical overflow auto', async () => {
+    it('surface frame has vertical overflow auto', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, WELL)).toHaveClass('overflow-y-auto');
+      await expect.element(q(container, FRAME)).toHaveClass('overflow-y-auto');
     });
   });
 
@@ -184,9 +181,7 @@ describe('Dialog', () => {
       // for the bug that closed AddServerDialog after probe.
       const { container } = renderDialog({
         visible: true,
-        children: testSnippet(
-          '<button type="button" data-testid="inside">Inside</button>'
-        )
+        children: testSnippet('<button type="button" data-testid="inside">Inside</button>')
       });
 
       const dialog = q(container, 'dialog') as HTMLDialogElement;

@@ -81,11 +81,13 @@ message ListRoomMembersRequest {
   reserved 3, 4;
   reserved "limit", "offset";
 
-  // Required. Room whose explicit members should be listed.
+  // Required. Room whose effective members should be listed. Existing members
+  // may list their room; nonmembers of a channel room need both room.list and
+  // room.join.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Optional case-insensitive search against login and display name.
   string search = 2 [(buf.validate.field).string.max_len = 100];
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Page request. Defaults to 250 results when absent or limit is zero.
   PageRequest page = 5;
 }
 

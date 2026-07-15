@@ -48,6 +48,7 @@ Owner-only operational diagnostics for the Chatto server.
 | --- | --- | --- |
 | `system_info` | [`AdminSystemInfo`](#chatto-admin-v1-AdminSystemInfo) | Broker connection, account, and JetStream state. |
 | `projections` | repeated [`AdminProjectionState`](#chatto-admin-v1-AdminProjectionState) | Event-sourced projection health and memory estimates. |
+| `asset_cleanup` | [`AdminAssetCleanupStatus`](#chatto-admin-v1-AdminAssetCleanupStatus) | Recoverable physical deletion worker health. |
 
 
 <a id="chatto-admin-v1-AdminEventLogService"></a>
@@ -1611,6 +1612,27 @@ JetStream account limits and usage.
 
 
 
+<a id="chatto-admin-v1-AdminAssetCleanupStatus"></a>
+
+### AdminAssetCleanupStatus
+
+Current health of recoverable message-owned asset deletion.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `health` | [`AdminAssetCleanupHealth`](#chatto-admin-v1-AdminAssetCleanupHealth) | Operator-facing worker state derived from lease and heartbeat state. |
+| `pending_count` | `int64` | Deletion effects currently waiting for a successful retry. |
+| `oldest_pending_at` | `google.protobuf.Timestamp` | Creation time of the oldest pending deletion, when known. |
+| `pass_in_progress` | `bool` | Whether the elected worker is currently running a cleanup pass. |
+| `last_pass_at` | `google.protobuf.Timestamp` | Completion time of the most recent pass. |
+| `last_successful_pass_at` | `google.protobuf.Timestamp` | Completion time of the most recent fully successful pass. |
+| `updated_at` | `google.protobuf.Timestamp` | Time of the latest elected-worker heartbeat. |
+| `last_pass_failed` | `bool` | Whether the most recent completed pass had one or more failures. |
+| `last_inspected_sequence` | `string` | Global EVT sequence through which deletion facts were inspected. |
+| `latest_deletion_sequence` | `string` | Current latest global EVT sequence matching asset deletion facts. |
+
+
+
 <a id="chatto-admin-v1-AdminConnectionInfo"></a>
 
 ### AdminConnectionInfo
@@ -2070,6 +2092,23 @@ Runtime-editable server profile settings.
 
 
 ## Enums
+
+<a id="chatto-admin-v1-AdminAssetCleanupHealth"></a>
+
+### AdminAssetCleanupHealth
+
+Operator-facing state for the elected asset cleanup worker.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED` | `0` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE` | `1` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING` | `2` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY` | `3` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_RETRYING` | `4` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_STALLED` | `5` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE` | `6` | Cleanup diagnostics could not be read; other system diagnostics remain valid. |
+
 
 <a id="chatto-admin-v1-PermissionDecision"></a>
 

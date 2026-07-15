@@ -36,16 +36,17 @@ type HTTPServerConfig struct {
 
 // HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
-	config     config.ChattoConfig
-	nc         *nats.Conn
-	router     *gin.Engine
-	core       *core.ChattoCore
-	mailer     email.Sender
-	mockMailer *email.MockSender // Non-nil when test email endpoint is enabled
-	addr       string
-	version    string
-	logger     *log.Logger
-	metrics    *processMetrics
+	config         config.ChattoConfig
+	nc             *nats.Conn
+	router         *gin.Engine
+	core           *core.ChattoCore
+	mailer         email.Sender
+	mockMailer     *email.MockSender // Non-nil when test email endpoint is enabled
+	addr           string
+	version        string
+	logger         *log.Logger
+	metrics        *processMetrics
+	trustedProxies trustedProxySet
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
@@ -55,7 +56,45 @@ const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
 	httpServerShutdownTimeout   = 5 * time.Second
+	legacyRequestBodyLimit      = 64 * 1024
+	legacyRequestBodyTimeout    = 30 * time.Second
 )
+
+type requestConnectionContextKey struct{}
+
+// limitLegacyRequestBody bounds the small JSON/form requests handled outside
+// ConnectRPC. It deliberately applies only to legacy route groups so uploads
+// and long-lived realtime connections keep their dedicated limits.
+func limitLegacyRequestBody() gin.HandlerFunc {
+	return limitRequestBody(legacyRequestBodyLimit, legacyRequestBodyTimeout)
+}
+
+func limitRequestBody(maxBytes int64, readTimeout time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body == nil {
+			c.Next()
+			return
+		}
+		if c.Request.ContentLength > maxBytes {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Request body is too large"})
+			return
+		}
+
+		controller := http.NewResponseController(c.Writer)
+		deadlineSet := controller.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+		if !deadlineSet && c.Request.ProtoMajor == 1 {
+			if conn, ok := c.Request.Context().Value(requestConnectionContextKey{}).(net.Conn); ok {
+				deadlineSet = conn.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+				defer conn.SetReadDeadline(time.Time{})
+			}
+		}
+		if deadlineSet {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		c.Next()
+	}
+}
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
@@ -71,22 +110,30 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 
 	// Create Gin router with Recovery middleware, and optionally Logger
 	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.Config.Webserver.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("configure trusted proxies: %w", err)
+	}
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
 		router.Use(requestLogger(logger))
 	}
 
+	trustedProxies, err := newTrustedProxySet(cfg.Config.Webserver.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
 	s := &HTTPServer{
-		config:     cfg.Config,
-		nc:         cfg.NC,
-		router:     router,
-		core:       cfg.Core,
-		mailer:     mailer,
-		mockMailer: mockMailer,
-		addr:       cfg.Addr,
-		version:    cfg.Version,
-		logger:     logger,
-		metrics:    newProcessMetrics(),
+		config:         cfg.Config,
+		nc:             cfg.NC,
+		router:         router,
+		core:           cfg.Core,
+		mailer:         mailer,
+		mockMailer:     mockMailer,
+		addr:           cfg.Addr,
+		version:        cfg.Version,
+		logger:         logger,
+		metrics:        newProcessMetrics(),
+		trustedProxies: trustedProxies,
 	}
 
 	// Set up all routes
@@ -103,6 +150,9 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: httpServerReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
+		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+			return context.WithValue(ctx, requestConnectionContextKey{}, conn)
+		},
 	}
 }
 
@@ -147,7 +197,7 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 		case status >= http.StatusBadRequest:
 			logger.Warn("HTTP request", fields...)
 		default:
-			logger.Info("HTTP request", fields...)
+			logger.Debug("HTTP request", fields...)
 		}
 	}
 }
@@ -189,6 +239,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupAuthRoutes()
 	s.setupOAuthRoutes()
 	s.setupAssetRoutes()
+	s.setupShieldRoutes()
 
 	if err := s.setupFrontendRoutes(); err != nil {
 		return err
@@ -210,10 +261,11 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
 
-		// Ensure certificate cache directory exists
+		// Ensure certificate cache directory exists and remains private even when
+		// reusing a path created with more permissive permissions.
 		cacheDir := tlsConfig.CacheDirOrDefault()
-		if err := os.MkdirAll(cacheDir, 0700); err != nil {
-			return fmt.Errorf("failed to create certificate cache directory: %w", err)
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			return err
 		}
 
 		// Create autocert manager for Let's Encrypt
@@ -313,6 +365,64 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	}
 }
 
+const autocertCacheDirMode os.FileMode = 0o700
+
+func ensureAutocertCacheDir(cacheDir string) error {
+	if err := os.MkdirAll(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to create certificate cache directory: %w", err)
+	}
+
+	info, err := os.Lstat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to inspect certificate cache directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q is not a directory", cacheDir)
+	}
+	uid, _, ownerAvailable := fileOwnerIDs(info)
+	if ownerAvailable && uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("certificate cache directory %q is owned by uid %d, want uid %d", cacheDir, uid, os.Geteuid())
+	}
+	if ownerAvailable {
+		parent := filepath.Dir(filepath.Clean(cacheDir))
+		parentInfo, err := os.Lstat(parent)
+		if err != nil {
+			return fmt.Errorf("failed to inspect certificate cache parent directory: %w", err)
+		}
+		if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
+			return fmt.Errorf("certificate cache parent path %q is not a directory", parent)
+		}
+		parentUID, _, ok := fileOwnerIDs(parentInfo)
+		if !ok {
+			return fmt.Errorf("failed to inspect owner of certificate cache parent directory %q", parent)
+		}
+		if parentUID != uint32(os.Geteuid()) && parentUID != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is owned by uid %d, want uid %d or root", parent, parentUID, os.Geteuid())
+		}
+		if got := parentInfo.Mode().Perm(); got&0o022 != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is writable by group or other users; mode is %04o", parent, got)
+		}
+	}
+
+	if err := os.Chmod(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to secure certificate cache directory: %w", err)
+	}
+	info, err = os.Lstat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to verify certificate cache directory permissions: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q changed while securing it", cacheDir)
+	}
+	if verifiedUID, _, ok := fileOwnerIDs(info); ownerAvailable && (!ok || verifiedUID != uint32(os.Geteuid())) {
+		return fmt.Errorf("certificate cache directory ownership changed while securing it")
+	}
+	if got := info.Mode().Perm(); ownerAvailable && got != autocertCacheDirMode {
+		return fmt.Errorf("certificate cache directory has mode %04o after securing, want %04o", got, autocertCacheDirMode)
+	}
+	return nil
+}
+
 func metricsServerURL(addr, path string) string {
 	return (&url.URL{Scheme: "http", Host: addr, Path: path}).String()
 }
@@ -396,14 +506,6 @@ func validateOperatorAPISocketParent(parent string) error {
 		return fmt.Errorf("operator API socket directory %s must not be accessible by group or other users; mode is %04o", parent, perm)
 	}
 	return nil
-}
-
-func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, false
-	}
-	return stat.Uid, stat.Gid, true
 }
 
 func isStaleOperatorSocketError(err error) bool {

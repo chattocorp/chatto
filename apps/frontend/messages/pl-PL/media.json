@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Baner serwera",
+    "fullscreen_video": "Wideo na pełnym ekranie",
+    "close_fullscreen_video": "Zamknij wideo na pełnym ekranie",
+    "video_alt": "Wideo",
+    "video_original_missing": "Film jest niedostępny, ponieważ brakuje oryginalnego pliku.",
+    "video_processing_failed_retry": "Przetwarzanie wideo nie powiodło się. Spróbuj przesłać ponownie.",
+    "video_queued": "Film w kolejce do przetworzenia...",
+    "video_processing": "Przetwarzam wideo...",
+    "video_processing_failed": "Przetwarzanie wideo nie powiodło się"
+  }
+}

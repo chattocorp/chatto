@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Aviseringar",
+      "subtitle": "Här är vad som är nytt",
+      "clear_all": "Rensa alla",
+      "empty_title": "Inga aviseringar",
+      "empty_body": "Ni är alla ikapp!",
+      "time_now": "Just nu",
+      "time_minutes": "{count}m sedan",
+      "time_hours": "{count}h sedan",
+      "time_days": "{count}d sedan"
+    },
+    "sign_out": {
+      "title": "Logga ut",
+      "current_server": "Aktuell server",
+      "all_servers": "Alla servrar",
+      "description": "Logga ut endast från den valda servern, eller koppla bort varje server från den här klienten."
+    },
+    "overview": {
+      "title": "Översikt"
+    },
+    "server_nav": {
+      "back_to_server": "Tillbaka till servern",
+      "server_fallback": "Server",
+      "administration": "Serveradministration"
+    },
+    "user_menu": {
+      "profile": "Användarprofil",
+      "send_message": "Skicka meddelande"
+    },
+    "server_gutter": {
+      "add_server": "Lägg till server"
+    },
+    "threads": {
+      "title": "Mina trådar",
+      "subtitle": "Trådar du följer",
+      "filter_label": "Filtertrådar",
+      "filter_all": "Alla",
+      "filter_unread": "Oläst",
+      "empty_title": "Inga följda trådar",
+      "empty_body": "Trådar du följer kommer att visas här. Du följer automatiskt trådar du deltar i.",
+      "no_unread_loaded": "Inga olästa trådar laddade",
+      "all_caught_up": "Alla kom ikapp",
+      "loaded_count": "{loaded} av {total} följde trådar laddade.",
+      "load_more": "Ladda mer",
+      "no_unread": "Inga olästa trådar just nu.",
+      "message_missing": "Meddelandet är inte längre tillgängligt",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { PaneHeader, Hint, FormSection } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
+  import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
+  import { Button, RangeField } from '$lib/ui/form';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
@@ -15,7 +15,8 @@
     ensureRegistered,
     getPushCapability,
     getPermission,
-    isSubscribed as checkPushSubscription
+    isSubscribed as checkPushSubscription,
+    sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -169,6 +170,8 @@
   let pushSubscribed = $state(false);
   let pushLoading = $state(false);
   let pushError = $state<string | null>(null);
+  let pushTestLoading = $state(false);
+  let pushTestStatus = $state<'sent' | 'failed' | null>(null);
 
   // Check push subscription status on mount
   $effect(() => {
@@ -205,6 +208,18 @@
       pushError = m['settings.notifications.push.enable_error']();
     } finally {
       pushLoading = false;
+    }
+  }
+
+  async function handleTestPush() {
+    pushTestLoading = true;
+    pushTestStatus = null;
+    try {
+      pushTestStatus = (await sendTestNotification()) ? 'sent' : 'failed';
+    } catch {
+      pushTestStatus = 'failed';
+    } finally {
+      pushTestLoading = false;
     }
   }
 </script>
@@ -269,14 +284,37 @@
             </p>
           </div>
         {:else if pushSubscribed}
-          <Hint tone="success">
-            <div>
-              <p class="font-medium">{m['settings.notifications.push.enabled_title']()}</p>
-              <p class="mt-1 text-sm text-muted">
-                {m['settings.notifications.push.enabled_description']()}
-              </p>
+          <div class="flex flex-col gap-3">
+            <Hint tone="success">
+              <div>
+                <p class="font-medium">{m['settings.notifications.push.enabled_title']()}</p>
+                <p class="mt-1 text-sm text-muted">
+                  {m['settings.notifications.push.enabled_description']()}
+                </p>
+              </div>
+            </Hint>
+            <div class="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={handleTestPush}
+                disabled={pushTestLoading}
+                loading={pushTestLoading}
+                loadingText={m['settings.notifications.push.testing']()}
+              >
+                {m['settings.notifications.push.test_button']()}
+              </Button>
+              {#if pushTestStatus === 'sent'}
+                <span class="text-sm text-success" role="status">
+                  {m['settings.notifications.push.test_sent']()}
+                </span>
+              {:else if pushTestStatus === 'failed'}
+                <span class="text-sm text-danger" role="alert">
+                  {m['settings.notifications.push.test_failed']()}
+                </span>
+              {/if}
             </div>
-          </Hint>
+          </div>
         {:else}
           <div class="flex items-center justify-between surface-box px-4 py-3">
             <div>
@@ -286,7 +324,7 @@
               </p>
             </div>
             <Button
-              variant="accent"
+              variant="action"
               size="sm"
               onclick={handleEnablePush}
               disabled={pushLoading}
@@ -311,24 +349,21 @@
       {#each soundCategories as category (category)}
         {@const sounds = getSoundsForCategory(category)}
         <div>
-          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted/70 uppercase">
+          <h4 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
             {soundCategoryLabel(category)}
           </h4>
-          <div class="flex flex-col gap-1">
+          <div
+            class="flex flex-col gap-1"
+            role="radiogroup"
+            aria-label={soundCategoryLabel(category)}
+          >
             {#each sounds as sound (sound.id)}
               {@const isSelected = userPreferences.notificationSound === sound.id}
-              <button
-                type="button"
-                class={['choice-row', isSelected && 'choice-row-selected']}
+              <ChoiceRow
+                label={soundNameLabel(sound.id)}
+                selected={isSelected}
                 onclick={() => selectSound(sound.id)}
-              >
-                <span class={['choice-indicator', isSelected && 'choice-indicator-selected']}>
-                  {#if isSelected}
-                    <span class="choice-indicator-dot"></span>
-                  {/if}
-                </span>
-                <span class={isSelected ? 'font-medium' : ''}>{soundNameLabel(sound.id)}</span>
-              </button>
+              />
             {/each}
           </div>
         </div>
@@ -356,146 +391,85 @@
     {/snippet}
 
     <div class="flex flex-col gap-2">
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--volume" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.volume']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatVolume(userPreferences.notificationSoundFilters.volume)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-volume-filter"
-          type="range"
-          min="0"
-          max="2"
-          step="0.05"
-          value={userPreferences.notificationSoundFilters.volume}
-          oninput={(event) => updateSoundFilter('volume', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-volume-filter"
+        testid="notification-volume-filter"
+        label={m['settings.notifications.sound.volume']()}
+        icon="uil--volume"
+        min={0}
+        max={2}
+        step={0.05}
+        value={userPreferences.notificationSoundFilters.volume}
+        displayValue={formatVolume(userPreferences.notificationSoundFilters.volume)}
+        oninput={(event) => updateSoundFilter('volume', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--bolt" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.tinny']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-high-pass-filter"
-          type="range"
-          min="20"
-          max="2000"
-          step="10"
-          value={userPreferences.notificationSoundFilters.highPassHz}
-          oninput={(event) => updateSoundFilter('highPassHz', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-high-pass-filter"
+        testid="notification-high-pass-filter"
+        label={m['settings.notifications.sound.tinny']()}
+        icon="uil--bolt"
+        min={20}
+        max={2000}
+        step={10}
+        value={userPreferences.notificationSoundFilters.highPassHz}
+        displayValue={formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
+        oninput={(event) => updateSoundFilter('highPassHz', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--volume-mute" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.muffled']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-low-pass-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
-          oninput={updateMuffledFilter}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-low-pass-filter"
+        testid="notification-low-pass-filter"
+        label={m['settings.notifications.sound.muffled']()}
+        icon="uil--volume-mute"
+        min={0}
+        max={100}
+        value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
+        displayValue={formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
+        oninput={updateMuffledFilter}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--redo" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.echo']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.echo)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-echo-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.echo}
-          oninput={(event) => updateSoundFilter('echo', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-echo-filter"
+        testid="notification-echo-filter"
+        label={m['settings.notifications.sound.echo']()}
+        icon="uil--redo"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.echo}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.echo)}
+        oninput={(event) => updateSoundFilter('echo', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--cloud" aria-hidden="true"
-            ></span>
-            <span>{m['settings.notifications.sound.reverb']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.reverb)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-reverb-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.reverb}
-          oninput={(event) => updateSoundFilter('reverb', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-reverb-filter"
+        testid="notification-reverb-filter"
+        label={m['settings.notifications.sound.reverb']()}
+        icon="uil--cloud"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.reverb}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.reverb)}
+        oninput={(event) => updateSoundFilter('reverb', event)}
+        onchange={previewSelectedSound}
+      />
 
-      <label class="flex flex-col gap-2 rounded-lg border border-border px-3 py-2">
-        <span class="flex items-center justify-between gap-3 text-sm">
-          <span class="flex min-w-0 items-center gap-2 font-medium">
-            <span class="iconify shrink-0 text-base text-muted uil--fire" aria-hidden="true"></span>
-            <span>{m['settings.notifications.sound.crunch']()}</span>
-          </span>
-          <span class="text-muted tabular-nums">
-            {formatEffect(userPreferences.notificationSoundFilters.crunch)}
-          </span>
-        </span>
-        <input
-          data-testid="notification-crunch-filter"
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={userPreferences.notificationSoundFilters.crunch}
-          oninput={(event) => updateSoundFilter('crunch', event)}
-          onchange={previewSelectedSound}
-          class="w-full cursor-pointer accent-accent"
-        />
-      </label>
+      <RangeField
+        id="notification-crunch-filter"
+        testid="notification-crunch-filter"
+        label={m['settings.notifications.sound.crunch']()}
+        icon="uil--fire"
+        min={0}
+        max={100}
+        value={userPreferences.notificationSoundFilters.crunch}
+        displayValue={formatEffect(userPreferences.notificationSoundFilters.crunch)}
+        oninput={(event) => updateSoundFilter('crunch', event)}
+        onchange={previewSelectedSound}
+      />
     </div>
   </FormSection>
 </div>

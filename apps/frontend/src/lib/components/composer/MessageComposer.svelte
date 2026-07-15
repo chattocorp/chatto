@@ -12,6 +12,7 @@
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { toast } from '$lib/ui/toast';
   import {
     getRoomMembers,
@@ -21,19 +22,53 @@
     type RoomMember
   } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { hasVisibleContent } from '$lib/validation';
   import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type { TipTapEditorApi } from './TipTapEditor.svelte';
+  import type {
+    ComposerFormattingCommand,
+    ComposerFormattingState,
+    TipTapEditorApi
+  } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
+  import {
+    createMessageTimestampToken,
+    dateToDatetimeLocalValue,
+    localDatetimeToEpochSeconds
+  } from '$lib/messageTimestamps';
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
+  const timestampTimezoneListId = `timestamp-timezones-${Math.random().toString(36).slice(2)}`;
+  const emptyFormattingState: ComposerFormattingState = {
+    bold: false,
+    italic: false,
+    inlineCode: false,
+    heading: false,
+    bulletList: false,
+    orderedList: false,
+    blockquote: false,
+    codeBlock: false
+  };
+  const formattingControls: {
+    command: ComposerFormattingCommand;
+    icon?: string;
+  }[] = [
+    { command: 'bold', icon: 'mdi--format-bold' },
+    { command: 'italic', icon: 'mdi--format-italic' },
+    { command: 'inlineCode', icon: 'mdi--code-tags' },
+    { command: 'heading', icon: 'mdi--format-header-2' },
+    { command: 'bulletList', icon: 'mdi--format-list-bulleted' },
+    { command: 'orderedList', icon: 'mdi--format-list-numbered' },
+    { command: 'blockquote', icon: 'mdi--format-quote-open' },
+    { command: 'codeBlock', icon: 'mdi--code-block-braces' }
+  ];
 
   type ShortcutHints = {
     submit: string;
@@ -41,7 +76,7 @@
   };
 
   function getShortcutHints(): ShortcutHints | null {
-    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
 
     const userAgentDataPlatform =
       'userAgentData' in navigator
@@ -99,6 +134,7 @@
   } = $props();
 
   const connection = useConnection();
+  const userSettings = getUserSettings();
 
   let alsoSendToChannel = $state(false);
 
@@ -293,13 +329,12 @@
       }
       if (cancelled) return false;
       mentionRoles =
-        roles
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? [];
+        roles.map((role) => ({
+          name: role.name,
+          isSystem: role.isSystem,
+          position: role.position,
+          pingable: role.pingable
+        })) ?? [];
       mentionRolesLoadFailed = false;
       mentionRolesLoadComplete = true;
       return true;
@@ -314,6 +349,33 @@
   let loading = $state(false);
   let roleMentionCheckLoading = $state(false);
   let fileInputElement = $state<HTMLInputElement>();
+  let timestampTriggerElement = $state<HTMLButtonElement>();
+  let timestampDateTimeInput = $state<HTMLInputElement>();
+  let formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
+  let timestampPickerOpen = $state(false);
+  let timestampPickerAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let timestampLocalValue = $state('');
+  let timestampTimezoneSearch = $state('');
+  const timestampTimezoneOptions = Intl.supportedValuesOf?.('timeZone') ?? [];
+  const timestampTimezoneSuggestions = $derived(
+    timestampTimezoneOptions
+      .filter((timezone) =>
+        timezone.toLowerCase().includes(timestampTimezoneSearch.trim().toLowerCase())
+      )
+      .slice(0, 60)
+  );
+  const timestampTimeZoneValid = $derived(isValidTimestampTimeZone(timestampTimezoneSearch));
+  const timestampEpochSeconds = $derived(
+    timestampTimeZoneValid
+      ? localDatetimeToEpochSeconds(timestampLocalValue, timestampTimezoneSearch.trim())
+      : null
+  );
+  const timestampPickerError = $derived.by(() => {
+    if (!timestampLocalValue) return m['composer.timestamp.error_required']();
+    if (!timestampTimeZoneValid) return m['composer.timestamp.error_timezone']();
+    if (timestampEpochSeconds === null) return m['composer.timestamp.error_invalid']();
+    return null;
+  });
 
   // Input is disabled when user can't post or websocket is disconnected.
   // Note: loading is intentionally excluded — the editor stays editable during sends
@@ -418,6 +480,88 @@
 
   function insertQuote(text: QuoteInsertionContent) {
     tick().then(() => editorApi?.insertQuote(text));
+  }
+
+  function formattingLabel(command: ComposerFormattingCommand): string {
+    switch (command) {
+      case 'bold':
+        return m['composer.format.bold']();
+      case 'italic':
+        return m['composer.format.italic']();
+      case 'inlineCode':
+        return m['composer.format.inline_code']();
+      case 'heading':
+        return m['composer.format.heading']();
+      case 'bulletList':
+        return m['composer.format.bullet_list']();
+      case 'orderedList':
+        return m['composer.format.ordered_list']();
+      case 'blockquote':
+        return m['composer.format.blockquote']();
+      case 'codeBlock':
+        return m['composer.format.code_block']();
+    }
+  }
+
+  function toggleFormatting(command: ComposerFormattingCommand) {
+    editorApi?.toggleFormatting(command);
+  }
+
+  function browserTimeZone(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  }
+
+  function preferredTimestampTimeZone(): string {
+    const timezone = userSettings.effectiveTimezone ?? browserTimeZone();
+    return isValidTimestampTimeZone(timezone) ? timezone : 'UTC';
+  }
+
+  function isValidTimestampTimeZone(timezone: string): boolean {
+    const trimmed = timezone.trim();
+    if (!trimmed) return false;
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: trimmed }).format(new Date());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function openTimestampPicker(event: MouseEvent) {
+    if (inputDisabled) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    const rect = button.getBoundingClientRect();
+    const timezone = preferredTimestampTimeZone();
+    timestampTriggerElement = button;
+    timestampTimezoneSearch = timezone;
+    timestampLocalValue = dateToDatetimeLocalValue(new Date(Date.now() + 60 * 60_000), timezone);
+    timestampPickerAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
+    timestampPickerOpen = true;
+    tick().then(() => {
+      if (!timestampPickerOpen) return;
+      timestampDateTimeInput?.focus();
+      timestampDateTimeInput?.select();
+    });
+  }
+
+  function closeTimestampPicker({ restoreFocus = true }: { restoreFocus?: boolean } = {}) {
+    timestampPickerOpen = false;
+    timestampPickerAnchor = null;
+    if (restoreFocus) {
+      timestampTriggerElement?.focus();
+    }
+  }
+
+  function insertTimestamp(event: SubmitEvent) {
+    event.preventDefault();
+    const epochSeconds = timestampEpochSeconds;
+    if (epochSeconds === null || !editorApi) return;
+
+    const token = createMessageTimestampToken(epochSeconds);
+    const beforeCursor = editorApi.getTextBeforeCursor();
+    const prefix = beforeCursor.length > 0 && !/\s$/.test(beforeCursor) ? ' ' : '';
+    editorApi.insertText(`${prefix}${token} `);
+    closeTimestampPicker({ restoreFocus: false });
   }
 
   let insertedQuoteRequestId = 0;
@@ -743,7 +887,7 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && isTouchDevice()) {
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
       return false;
     }
 
@@ -752,8 +896,12 @@
         if (isRichComposer) {
           handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
         } else {
+          if (hasVisibleContent(message)) {
+            editorApi?.insertBlockBreak();
+          }
+          // TipTap reports an empty document while inserting the first block break,
+          // so commit manual rich mode after that update has had a chance to clear it.
           manualRichMode = true;
-          editorApi?.insertBlockBreak();
         }
         return true;
       }
@@ -872,7 +1020,7 @@
 
   <!-- Selected files preview -->
   {#if attachments.filesWithUrls.length > 0}
-    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-300 p-2">
+    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-strong p-2">
       {#each attachments.filesWithUrls as { file, url }, index (url)}
         <div class="relative">
           {#if file.type.startsWith('image/')}
@@ -889,19 +1037,22 @@
           {:else if file.type.startsWith('audio/')}
             <div
               data-testid="audio-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
             >
               <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
-            <div class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200">
+            <div
+              data-testid="file-attachment-preview"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
+            >
               <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
             </div>
           {/if}
           <button
             type="button"
             onclick={() => removeFile(index)}
-            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
+            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-xs text-on-danger transition-[background-color] hover:bg-danger/80"
           >
             ×
           </button>
@@ -915,21 +1066,19 @@
     <input
       bind:this={fileInputElement}
       type="file"
-      accept={attachments.accept}
       multiple
       onchange={handleFileSelect}
       class="hidden"
     />
   {/if}
 
-  <!-- Unified input container -->
+  <!-- Unified composer surface -->
   <div
-    class={[
-      'relative flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
-      isEditing ? 'pl-3' : 'pl-2'
-    ]}
+    data-testid="composer-input-surface"
+    data-composer-mode={isRichComposer ? 'rich' : 'simple'}
+    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-3 py-2"
     class:opacity-50={inputDisabled}
-    class:sending={loading}
+    class:composer-sending={loading}
   >
     <!-- Emoji autocomplete popup -->
     {#if autocomplete.emoji}
@@ -952,60 +1101,172 @@
         onClose={closeMentionAutocomplete}
       />
     {/if}
-    <!-- Attachment button - hidden in edit mode (editMessage only supports text) -->
-    {#if !isEditing && canAttach}
-      <button
-        type="button"
-        onclick={() => fileInputElement?.click()}
-        disabled={inputDisabled}
-        class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed"
-        title={m['composer.attach_file']()}
+    {#if timestampPickerOpen}
+      <ContextMenu
+        anchor={timestampPickerAnchor}
+        role="dialog"
+        ariaLabel={m['composer.timestamp.title']()}
+        class="w-[min(22rem,calc(100vw-1rem))]"
+        onclose={closeTimestampPicker}
       >
-        <span class="iconify text-xl uil--image-upload"></span>
-      </button>
+        <form class="flex flex-col gap-1" onsubmit={insertTimestamp}>
+          <header class="flex items-center gap-2 menu-section px-3 py-2 text-sm font-medium">
+            <span class="iconify uil--clock text-muted"></span>
+            <span>{m['composer.timestamp.title']()}</span>
+          </header>
+
+          <section class="flex flex-col gap-3 menu-section px-3 py-2">
+            <label class="flex flex-col gap-1 text-sm">
+              <span class="text-muted">{m['composer.timestamp.date_time']()}</span>
+              <input
+                class="input"
+                type="datetime-local"
+                bind:this={timestampDateTimeInput}
+                bind:value={timestampLocalValue}
+                required
+              />
+            </label>
+
+            <label class="flex flex-col gap-1 text-sm">
+              <span class="text-muted">{m['composer.timestamp.timezone']()}</span>
+              <input
+                class="input"
+                list={timestampTimezoneListId}
+                bind:value={timestampTimezoneSearch}
+                autocomplete="off"
+                spellcheck="false"
+                required
+              />
+              <datalist id={timestampTimezoneListId}>
+                {#each timestampTimezoneSuggestions as timezone (timezone)}
+                  <option value={timezone}></option>
+                {/each}
+              </datalist>
+            </label>
+
+            {#if timestampPickerError}
+              <p class="form-error text-xs">{timestampPickerError}</p>
+            {/if}
+          </section>
+
+          <footer class="flex justify-end gap-2 menu-section px-3 py-2">
+            <button type="button" class="btn-secondary btn-sm" onclick={() => closeTimestampPicker()}>
+              {m['common.cancel']()}
+            </button>
+            <button type="submit" class="btn-action btn-sm" disabled={timestampPickerError !== null}>
+              {m['composer.timestamp.insert']()}
+            </button>
+          </footer>
+        </form>
+      </ContextMenu>
     {/if}
-
     <!-- Text input (TipTap editor) -->
-    {#await tipTapEditorModule}
-      <div class="min-h-8 min-w-0 flex-1 py-1" aria-hidden="true"></div>
-    {:then { default: TipTapEditor }}
-      <TipTapEditor
-        placeholder={currentPlaceholder}
-        editable={!inputDisabled}
-        autofocus={autoFocus && shouldAutoFocus()}
-        {testid}
-        onUpdate={handleEditorUpdate}
-        onKeyDown={handleEditorKeyDown}
-        onPaste={handlePaste}
-        onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
-        onRichStructureChange={handleRichStructureChange}
-        onReady={handleEditorReady}
-      />
-    {/await}
+    <div class="min-h-10 min-w-0 py-1" data-testid="composer-editor-row">
+      {#await tipTapEditorModule}
+        <div class="min-h-8 min-w-0" aria-hidden="true"></div>
+      {:then { default: TipTapEditor }}
+        <TipTapEditor
+          placeholder={currentPlaceholder}
+          editable={!inputDisabled}
+          autofocus={autoFocus && shouldAutoFocus()}
+          {testid}
+          onUpdate={handleEditorUpdate}
+          onKeyDown={handleEditorKeyDown}
+          onPaste={handlePaste}
+          onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
+          onRichStructureChange={handleRichStructureChange}
+          onFormattingStateChange={(state) => (formattingState = { ...state })}
+          onReady={handleEditorReady}
+        />
+      {/await}
+    </div>
 
-    <div class="flex h-8 shrink-0 items-center gap-2">
-      {#if submitHint && canSubmit}
-        <span
-          aria-hidden="true"
-          title={submitHint}
-          class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
+    <div
+      class="mt-1 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-1"
+      data-testid="composer-toolbar"
+    >
+      <div class="flex items-center gap-1">
+        <div
+          class="flex min-w-0 flex-wrap items-center gap-0.5"
+          data-testid="composer-formatting-toolbar"
         >
-          {submitHint}
-        </span>
-      {/if}
+          {#each formattingControls as control (control.command)}
+            {@const label = formattingLabel(control.command)}
+            {@const active = formattingState[control.command]}
+            <button
+              type="button"
+              onpointerdown={(event) => event.preventDefault()}
+              onclick={() => toggleFormatting(control.command)}
+              disabled={inputDisabled || !editorApi}
+              aria-label={label}
+              aria-pressed={active}
+              title={label}
+              class={[
+                'flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+                active
+                  ? 'bg-surface-emphasized text-text'
+                  : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
+              ]}
+            >
+              <span class={['iconify text-base', control.icon]}></span>
+            </button>
+          {/each}
+        </div>
 
-      <!-- Send button -->
-      <button
-        type="button"
-        onpointerdown={(e) => e.preventDefault()}
-        onclick={handleSubmit}
-        disabled={!canSubmit}
-        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={m['composer.send']()}
-        title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
-      >
-        <span class="iconify text-xl uil--telegram-alt"></span>
-      </button>
+        <div class="mx-1 h-4 w-px bg-border/60"></div>
+
+        <!-- Attachment button - hidden in edit mode (editMessage only supports text) -->
+        {#if !isEditing && canAttach}
+          <button
+            type="button"
+            onclick={() => fileInputElement?.click()}
+            disabled={inputDisabled}
+            class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={m['composer.attach_file']()}
+            title={m['composer.attach_file']()}
+          >
+            <span class="iconify text-base uil--image-upload"></span>
+          </button>
+        {/if}
+
+        <button
+          type="button"
+          onpointerdown={(e) => e.preventDefault()}
+          onclick={openTimestampPicker}
+          bind:this={timestampTriggerElement}
+          disabled={inputDisabled}
+          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={m['composer.timestamp.insert_label']()}
+          title={m['composer.timestamp.insert_label']()}
+        >
+          <span class="iconify text-base uil--clock"></span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        {#if submitHint && canSubmit}
+          <span
+            aria-hidden="true"
+            title={submitHint}
+            class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
+          >
+            {submitHint}
+          </span>
+        {/if}
+
+        <!-- Send button -->
+        <button
+          type="button"
+          onpointerdown={(e) => e.preventDefault()}
+          onclick={handleSubmit}
+          disabled={!canSubmit}
+          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={m['composer.send']()}
+          title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
+        >
+          <span class="iconify text-base uil--telegram-alt"></span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1016,7 +1277,7 @@
         type="checkbox"
         bind:checked={alsoSendToChannel}
         disabled={inputDisabled}
-        class="cursor-pointer accent-primary"
+        class="cursor-pointer accent-neutral-action"
       />
       {m['composer.also_send_to_channel']()}
     </label>
@@ -1026,7 +1287,7 @@
   {#if inReplyTo && replyDisplayName}
     <div
       data-testid="reply-indicator"
-      class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm"
+      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
     >
       <span class="min-w-0 truncate text-text">
         {m['composer.replying_to']()} <strong>{replyDisplayName}</strong>
@@ -1040,14 +1301,14 @@
         onclick={() => onCancelReply?.()}
         class="hidden shrink-0 cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
         {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
         type="button"
         onclick={() => onCancelReply?.()}
-        class="shrink-0 cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
+        class="shrink-0 cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
       >
         {m['common.cancel']()}
       </button>
@@ -1056,7 +1317,9 @@
 
   <!-- Edit mode indicator -->
   {#if isEditing}
-    <div class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm">
+    <div
+      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
+    >
       <span class="text-text">{m['composer.editing']()}</span>
       <!-- Desktop: clickable "Esc to cancel" -->
       <button
@@ -1064,14 +1327,14 @@
         onclick={cancelEdit}
         class="hidden cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
       >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
+        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
         {m['composer.esc_to_cancel']()}
       </button>
       <!-- Mobile: visible "Cancel" button -->
       <button
         type="button"
         onclick={cancelEdit}
-        class="cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
+        class="cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
       >
         {m['common.cancel']()}
       </button>
@@ -1092,27 +1355,3 @@
     {m['composer.role_mention_confirm_body']()}
   </ConfirmDialog>
 {/if}
-
-<style>
-  .sending {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      var(--color-surface) 0%,
-      var(--color-surface-highlighted) 50%,
-      var(--color-surface) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-</style>

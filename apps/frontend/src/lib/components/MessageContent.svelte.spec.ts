@@ -1,9 +1,10 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
 import { PresenceStatus } from '$lib/render/types';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -20,7 +21,8 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : serverId),
+  serverIdToSegment: (serverId: string) =>
+    serverId === 'origin' ? '-' : serverId === 'chatto-run' ? 'chat.chatto.run' : serverId,
   segmentToServerId: mocks.segmentToServerId
 }));
 
@@ -32,7 +34,17 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     tryGetStore: () => mocks.store,
     getServer: (serverId: string) =>
-      serverId === 'origin' ? { id: 'origin', url: window.location.origin } : undefined
+      serverId === 'origin'
+        ? { id: 'origin', url: window.location.origin }
+        : serverId === 'chatto-run'
+          ? { id: 'chatto-run', url: 'https://chat.chatto.run' }
+          : undefined,
+    get servers() {
+      return [
+        { id: 'origin', url: window.location.origin },
+        { id: 'chatto-run', url: 'https://chat.chatto.run' }
+      ];
+    }
   }
 }));
 
@@ -46,6 +58,17 @@ const threadRootEventId = 'Ethread12345678';
 function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
   return render(MessageContent, { props: { body, members, roleHandles } });
 }
+
+const utc24Settings: TimeFormatSettings = {
+  get effectiveTimezone() {
+    return 'UTC';
+  },
+  get effectiveHour12() {
+    return false;
+  }
+};
+let originalShowPopover: typeof HTMLElement.prototype.showPopover;
+let originalHidePopover: typeof HTMLElement.prototype.hidePopover;
 
 function member(login: string): RoomMember {
   return {
@@ -85,7 +108,25 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+beforeAll(() => {
+  originalShowPopover = HTMLElement.prototype.showPopover;
+  originalHidePopover = HTMLElement.prototype.hidePopover;
+
+  HTMLElement.prototype.showPopover = function showPopover() {
+    this.setAttribute('popover-open', '');
+  };
+  HTMLElement.prototype.hidePopover = function hidePopover() {
+    this.removeAttribute('popover-open');
+  };
+});
+
+afterAll(() => {
+  HTMLElement.prototype.showPopover = originalShowPopover;
+  HTMLElement.prototype.hidePopover = originalHidePopover;
 });
 
 describe('renderMarkdown', () => {
@@ -341,6 +382,16 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
+  it('does not render encoded non-breaking spaces as tall message content', async () => {
+    const body = `Magnets, how\n\ndo they work?\n\n- ONCE\n- TWICE\n- THRICE\n\nA haiku by a professional chef,\n\nthis was\n${'&nbsp;\n'.repeat(500)}`;
+    const { container } = renderMessage(body);
+
+    await expect.poll(() => q(container, '.prose p')).toBeTruthy();
+    const content = q(container, '.prose')!;
+    expect(content.textContent).not.toContain('&nbsp;');
+    expect(content.clientHeight).toBeLessThan(500);
+  });
+
   // Wait for the markdown renderer to initialize before running tests
   beforeAll(async () => {
     await rendererReady;
@@ -373,6 +424,116 @@ describe('MessageContent component', () => {
     await expect.poll(() => q(container, 'strong')).toBeTruthy();
     expect(q(container, 'strong')?.textContent).toBe('fsdf');
     expect(container.textContent).toContain('fsdfsd fsdffdsf (edited)');
+  });
+
+  it('renders message timestamp tokens as localized time elements', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    const button = q(container, 'button.message-timestamp')!;
+    const time = q(container, 'button.message-timestamp time')!;
+    expect(button.querySelector('.message-timestamp-icon')).toBeTruthy();
+    expect(button.getAttribute('data-timestamp-epoch')).toBe('1745764200');
+    expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(button.getAttribute('aria-label')).toBeNull();
+    expect(time.getAttribute('datetime')).toBe('2025-04-27T14:30:00.000Z');
+    expect(time.textContent).toMatch(/April\s*27,?\s*2025/);
+    expect(time.textContent).toContain('14:30');
+  });
+
+  it('opens timestamp details from a rendered timestamp', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    (q(container, 'button.message-timestamp') as HTMLButtonElement).click();
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('Date and time');
+    const details = q(container, '[data-testid="message-timestamp-details"]')!;
+    expect(details.textContent).toContain('Local');
+    expect(details.textContent).toContain('Relative');
+    expect(details.textContent).not.toContain('UTC');
+    expect(details.textContent).not.toContain('1745764200');
+  });
+
+  it('updates the relative timestamp detail while the popover is open', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-04-27T14:29:59Z'));
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    (q(container, 'button.message-timestamp') as HTMLButtonElement).click();
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('in 1 second');
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('now');
+  });
+
+  it('leaves invalid timestamp tokens literal', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:abc:F> or <t:1745764200:R>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => container.textContent).toContain('<t:abc:F>');
+    expect(container.textContent).toContain('<t:1745764200:R>');
+    expect(q(container, '.message-timestamp')).toBeNull();
+  });
+
+  it('does not render timestamp tokens inside code or blockquotes', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: '`<t:1745764200:F>`\n\n> <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'code')).toBeTruthy();
+    expect(q(container, '.message-timestamp')).toBeNull();
+    expect(container.textContent).toContain('<t:1745764200:F>');
+  });
+
+  it('does not render timestamp tokens inside links', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: '[<t:1745764200:F>](https://example.com)',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    expect(q(container, '.message-timestamp')).toBeNull();
+    expect(q(container, 'a')?.textContent).toContain('<t:1745764200:F>');
   });
 
   it('applies prose classes for typography', async () => {
@@ -445,6 +606,19 @@ describe('MessageContent component', () => {
     q(container, 'a')!.click();
 
     expect(mocks.goto).toHaveBeenCalledWith(`/chat/-/${channelRoomId}/m/${messageId}`);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('navigates registered external Chatto message URLs in the current tab', async () => {
+    const href = `https://chat.chatto.run/chat/-/${channelRoomId}/m/${messageId}`;
+    const { container } = renderMessage(`[message](${href})`);
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    q(container, 'a')!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith(
+      `/chat/chat.chatto.run/${channelRoomId}/m/${messageId}`
+    );
     expect(window.open).not.toHaveBeenCalled();
   });
 

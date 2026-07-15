@@ -6,6 +6,7 @@
 
 <script lang="ts">
   import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -13,12 +14,13 @@
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
-  type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
 
   const sizeClasses: Record<Size, string> = {
     xs: 'h-5 w-5',
     sm: 'h-8 w-8',
     md: 'h-10 w-10',
+    message: 'h-11 w-11',
     lg: 'h-12 w-12',
     xl: 'h-16 w-16'
   };
@@ -27,6 +29,7 @@
     xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-base',
+    message: 'text-base',
     lg: 'text-lg',
     xl: 'text-xl'
   };
@@ -42,6 +45,7 @@
     xs: '',
     sm: 'h-2 w-2',
     md: 'h-2.5 w-2.5',
+    message: 'h-2.5 w-2.5',
     lg: 'h-3 w-3',
     xl: 'h-3.5 w-3.5'
   };
@@ -50,6 +54,7 @@
     xs: '',
     sm: 'h-3.5 w-3.5',
     md: 'h-4 w-4',
+    message: 'h-4 w-4',
     lg: 'h-[18px] w-[18px]',
     xl: 'h-5 w-5'
   };
@@ -58,6 +63,7 @@
     xs: 'text-[10px]',
     sm: 'text-xs',
     md: 'text-sm',
+    message: 'text-sm',
     lg: 'text-base',
     xl: 'text-lg'
   };
@@ -65,19 +71,18 @@
     user,
     size = 'md',
     showPresence = false,
-    presenceOverride = null,
     showStatus = false,
     class: className = ''
   }: {
     user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
-    presenceOverride?: PresenceStatus | null;
     showStatus?: boolean;
     class?: string;
   } = $props();
 
   const presenceCache = getPresenceCache();
+  const serverId = $derived(getActiveServer());
 
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
@@ -93,7 +98,7 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return presenceOverride ?? presenceCache.get(user.id, user.presenceStatus);
+    return presenceCache.get({ serverId, userId: user.id }, user.presenceStatus);
   });
 
   const customStatus = $derived(
@@ -103,12 +108,7 @@
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
   const wrapperClass = $derived(
-    [
-      sizeClasses[size],
-      'inline-grid shrink-0 rounded-full',
-      hasOverlay && 'relative',
-      className
-    ]
+    [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
       .filter(Boolean)
       .join(' ')
   );
@@ -117,7 +117,7 @@
     [
       avatarClass,
       textSizeClasses[size],
-      'flex items-center justify-center bg-surface-200 font-semibold text-muted'
+      'flex items-center justify-center bg-surface-emphasized font-semibold text-muted ring-1 ring-inset ring-muted/15'
     ]
       .filter(Boolean)
       .join(' ')
@@ -144,7 +144,7 @@
         class="{avatarClass} object-cover"
       />
     {:else}
-      <div class={placeholderClass} aria-label={user.login}>
+      <div class={placeholderClass} role="img" aria-label={user.login}>
         {initials}
       </div>
     {/if}
@@ -162,6 +162,7 @@
           presenceDotShellSizeClasses[size],
           'pointer-events-none absolute right-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface'
         ]}
+        role="img"
         aria-label={presenceLabel}
       >
         <span

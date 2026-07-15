@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-07-06
+**Last reviewed:** 2026-07-10
 
 ## Overview
 
@@ -15,15 +15,17 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
+- The room timeline loads attachment images within 960×400 bounds, while the lightbox loads a separate derivative within 2048×2048 bounds. The untouched upload remains available through Open original and file-download actions.
 - When enabled, videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
-- Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. In the room timeline, ordinary posted landscape videos with near-square metadata are presented in a widescreen frame so common screen recordings do not appear as tall 4:3 embeds; converted animated GIF loops preserve their measured dimensions.
+- Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. The room timeline displays every posted video uncropped at its measured aspect ratio, including unusual near-square dimensions and converted animated GIF loops. The player canvas is bounded to the available timeline width and a maximum height; for ratios beyond 9:16 or 16:9, it uses letterboxing so playback controls remain usable without cropping the video.
 - A thumbnail is generated from an early video frame using the same display dimensions, so non-square-pixel sources do not persist squished or pillarboxed poster images.
-- Resized images can be cached as WebP with an auto-expiring cache.
+- Opaque static attachment derivatives use JPEG quality 75. Derivatives that require transparency or animation use lossless WebP, and resized results can be held in the auto-expiring server cache.
 - Browser media uses direct signed asset URLs. Relative attachment URLs are resolved against the server that owns the message or room-file item, so remote-server images, audio, and video can load without cross-site cookies or bearer headers.
 - Clients refresh expiring attachment URL fields through room-scoped `AssetService.GetAsset` / `BatchGetAssets`, or by refetching the relevant timeline or room attachment-list page. The timeline, previews, lightbox, downloads, and room-files surfaces refresh before expiry and retry after media load errors.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
 - The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
+- Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. A single elected cleanup worker retries failed physical deletion after process restart or replica handover.
 
 ## Design Decisions
 
@@ -53,9 +55,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 5. Quality variants are selected per source
 
-**Decision:** Transcoding produces multiple H.264 MP4 variants whose target resolutions are derived from the source display resolution. A 1080p source might yield 720p and 480p; a 480p source skips the higher tiers. Processing metadata records display dimensions so clients can reserve the correct frame for sources with non-square pixels or rotation metadata. Generated thumbnails are rendered at display dimensions with square pixels. The chat timeline treats ambiguous near-square landscape video metadata as a widescreen presentation case for ordinary uploaded videos.
+**Decision:** Transcoding produces multiple H.264 MP4 variants whose target resolutions are derived from the source display resolution. A 1080p source might yield 720p and 480p; a 480p source skips the higher tiers. Processing metadata records display dimensions so clients can reserve the correct frame for sources with non-square pixels or rotation metadata. Generated thumbnails are rendered at display dimensions with square pixels. The chat timeline fits the complete video without cropping. For media more extreme than 9:16 or 16:9, it clamps the player canvas to that range and letterboxes the media so the controls have usable space.
 **Why:** Producing tiers higher than the source is pointless (upscaling is lossy without benefit). Producing tiers near the source is bandwidth waste for the common case.
-**Tradeoff:** No HLS / adaptive bitrate streaming yet — the frontend picks a variant based on viewport and connection at the time of play. Historical processed-video manifests are not rewritten when display-dimension handling improves; clients can still correct the rendered frame after media metadata loads. The widescreen presentation heuristic can crop truly 4:3 uploaded videos in the timeline, but avoids the more common failure where screen recordings appear in a tall padded frame. Adaptive streaming is tracked separately in GitHub issue #668.
+**Tradeoff:** No HLS / adaptive bitrate streaming yet — the frontend picks a variant based on viewport and connection at the time of play. Historical processed-video manifests are not rewritten when display-dimension handling improves; clients can still correct the rendered frame after media metadata loads. Videos whose meaningful content occupies only part of the encoded canvas retain that empty space because the player does not guess which parts are safe to crop. Adaptive streaming is tracked separately in GitHub issue #668.
 
 ### 6. Attachments are declared content; derivative manifests are durable events
 
@@ -80,6 +82,24 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Decision:** `Room.attachments` exposes a paginated list of current message attachments for a room. The read walks the visible room timeline projection, folds current message bodies, includes thread replies, preserves attachment order within each message, and sorts by newest message first.
 **Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the list from the existing room/message projections keeps the panel consistent with the timeline without adding duplicate durable state.
 **Tradeoff:** There is no search or media filtering in this iteration. Clients page through the current list and refresh it after attachment-affecting live events.
+
+### 10. Displayed images use bounded derivatives
+
+**Decision:** Timeline images fit within 960×400 bounds and lightbox images fit within 2048×2048 bounds. Opaque static derivatives use JPEG quality 75, while transparency and animation continue to use lossless WebP. Original uploads remain unchanged and available separately.
+**Why:** Timeline frames are much smaller than typical camera and screenshot uploads, and even full-screen viewing rarely benefits from transferring the source resolution. Separate display sizes reduce bandwidth without sacrificing the original file-sharing behavior.
+**Tradeoff:** Opaque displayed images are lossy and capped in resolution. Transparent and animated images may see smaller savings because preserving their behavior requires lossless encoding.
+
+### 11. Message-owned asset deletion is replayable
+
+**Decision:** Request paths still attempt immediate NATS/S3 and transform-cache deletion, while the holder of the `asset_cleanup` lease incrementally consumes canonical `AssetDeletedEvent` facts and retries each idempotent cleanup independently. The asset ID locates the same aggregate's durable `AssetCreatedEvent`, which supplies storage metadata even after the in-memory projection drops it. Beta room-scoped histories without a canonical asset creation aggregate are skipped rather than probing guessed object keys.
+**Why:** A committed deletion must remain recoverable when immediate storage cleanup fails, the process exits, or another replica committed the event. Resolving the immutable creation fact preserves that guarantee without duplicating storage metadata in the deletion event or depending on a mutable projection.
+**Tradeoff:** Each cleanup requires an aggregate-history lookup, and a fresh worker replays prior deletion facts idempotently. Beta room-scoped events cannot gain the same guarantee without a migration or unsafe backend-key inference, and server branding/avatar cleanup remains outside this message-owned worker.
+
+### 12. Cleanup health is shared and owner-visible
+
+**Decision:** The elected cleanup worker publishes a privacy-safe heartbeat to `MEMORY_CACHE`. Owner-only admin diagnostics compare that record with the current lease and latest asset-deletion sequence, then expose initializing, healthy, retrying, stalled, or inactive state together with pending retry count/age and pass timestamps. The Server Admin System tab renders this status without exposing asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
+**Why:** Automatic retry is only operationally useful when self-hosters can tell whether it completed, is catching up, or stopped reporting. Shared runtime state makes the result consistent when an admin request reaches a non-holder replica.
+**Tradeoff:** The heartbeat is intentionally volatile and is reconstructed after loss. Counts describe queued retry work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
 
 ## Permissions
 

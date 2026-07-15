@@ -3,74 +3,55 @@ import { panGesture } from './panGesture.svelte';
 
 /**
  * Svelte action: drives the mobile sidebar's open/close state from a
- * horizontal pointer drag on the host element.
+ * horizontal pointer drag anywhere inside the app-shell host.
  *
  * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
- * rightward drags claim; when open, only leftward drags claim. Taps and
- * long-presses are forwarded to the element directly underneath the host so
- * dedicated overlay zones (the 24px edge strip, the backdrop) still let
- * underlying content receive clicks and context menus.
- *
- * The host MUST have `touch-action: none` along the X axis — without it,
- * Chrome / iOS Safari fire `pointercancel` ~8px in when they decide a touch
- * is a back-navigation / text-selection drag.
+ * rightward drags claim; when open, only leftward drags claim. Gestures that
+ * begin inside horizontally scrollable content are ignored so galleries and
+ * wide tables retain their native scrolling. Dialogs, popovers, fullscreen
+ * surfaces, form fields, media controls, and elements marked with
+ * `data-sidebar-swipe-ignore` also retain their own gestures. Unclaimed taps,
+ * long presses, and vertical movement continue through normal browser event
+ * flow.
  */
+function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTMLElement): boolean {
+  for (const pathEntry of event.composedPath()) {
+    if (pathEntry === host) return false;
+    if (pathEntry === document.fullscreenElement) return true;
+    if (!(pathEntry instanceof HTMLElement)) continue;
+
+    const element = pathEntry;
+    if (
+      element instanceof HTMLDialogElement ||
+      element.hasAttribute('popover') ||
+      element.matches(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), audio, video, media-player, [role="dialog"][aria-modal="true"], [data-sidebar-swipe-ignore]'
+      )
+    ) {
+      return true;
+    }
+
+    const { overflowX } = getComputedStyle(element);
+    if (
+      (overflowX === 'auto' || overflowX === 'scroll') &&
+      element.scrollWidth > element.clientWidth
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function sidebarSwipe(node: HTMLElement) {
-  function elementBelow(x: number, y: number) {
-    return document
-      .elementsFromPoint(x, y)
-      .find((el) => el !== node && !node.contains(el));
-  }
-
-  function tappedChild(x: number, y: number) {
-    const target = document.elementFromPoint(x, y);
-    return target !== null && target !== node && node.contains(target);
-  }
-
-  function forwardLongPress(x: number, y: number) {
-    if (tappedChild(x, y)) return;
-
-    elementBelow(x, y)?.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        button: 2
-      })
-    );
-  }
-
-  function forwardTap(x: number, y: number) {
-    if (tappedChild(x, y)) return;
-
-    const target = elementBelow(x, y);
-    if (!target) return;
-    const opts: MouseEventInit = {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      clientX: x,
-      clientY: y,
-      button: 0
-    };
-    target.dispatchEvent(new PointerEvent('pointerdown', opts));
-    target.dispatchEvent(new MouseEvent('mousedown', opts));
-    target.dispatchEvent(new PointerEvent('pointerup', opts));
-    target.dispatchEvent(new MouseEvent('mouseup', opts));
-    target.dispatchEvent(new MouseEvent('click', opts));
-  }
-
   return panGesture(node, {
     axis: 'x',
-    enabled: () => sidebarNav.isMobile,
+    enabled: (event) => sidebarNav.isMobile && !startsInsideExcludedSurface(event, node),
     shouldClaim: (dx) => (sidebarNav.isOpen ? dx < 0 : dx > 0),
     onStart: () => sidebarNav.startDrag(),
     onUpdate: (dx) => sidebarNav.updateDrag(dx),
     onEnd: (_dx, vx) => sidebarNav.endDrag(vx),
-    onCancel: () => sidebarNav.endDrag(0),
-    onTap: forwardTap,
-    onLongPress: forwardLongPress
+    onCancel: () => sidebarNav.endDrag(0)
   });
 }
 

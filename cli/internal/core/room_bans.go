@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -30,13 +31,6 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
 		return nil, err
 	}
-	isMember, err := c.RoomMembershipExists(ctx, kind, targetUserID, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, ErrNotRoomMember
-	}
 
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -63,34 +57,41 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	banPos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), banEvent)
-	if err != nil {
-		return nil, fmt.Errorf("publish RoomMemberBannedEvent: %w", err)
-	}
-	if err := c.rooms().waitForTimeline(ctx, banPos); err != nil {
-		return nil, err
-	}
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("read room ban OCC tail: %w", err)
+		}
+		if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
+			return nil, fmt.Errorf("wait for room projections before ban: %w", err)
+		}
+		isMember, err := c.RoomMembershipExists(ctx, kind, targetUserID, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if !isMember {
+			return nil, ErrNotRoomMember
+		}
 
-	leaveEvent := newEvent(targetUserID, &corev1.Event{
-		Event: &corev1.Event_UserLeftRoom{
-			UserLeftRoom: &corev1.UserLeftRoomEvent{
-				RoomId: roomID,
-			},
-		},
-	})
-	leavePos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), leaveEvent)
-	if err != nil {
-		return nil, fmt.Errorf("publish UserLeftRoomEvent for room ban: %w", err)
-	}
-	if err := c.rooms().waitForTimeline(ctx, leavePos); err != nil {
-		return nil, err
-	}
+		if err := c.appendRoomLeaveBatch(ctx, kind, roomID, targetUserID, expectedSeq, banEvent); err == nil {
+			ban, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now())
+			if !ok {
+				return nil, fmt.Errorf("room ban projection did not contain newly published ban")
+			}
+			return &ban, nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
 
-	ban, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now())
-	if !ok {
-		return nil, fmt.Errorf("room ban projection did not contain newly published ban")
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	return &ban, nil
+	return nil, fmt.Errorf("publish room ban retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 }
 
 // UnbanMember clears an active room ban. It is idempotent when no active

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Er is iets misgegaan",
+    "description": "Deze weergave kan niet worden geopend. U kunt terugkeren naar Chatto en het vanaf daar opnieuw proberen.",
+    "unknown": "Onbekende fout",
+    "home_link": "Terug naar Chatto",
+    "missing_media_title": "Media niet beschikbaar",
+    "missing_media_description": "Dit bestand kan niet worden geopend via deze link. Mogelijk is deze verwijderd of is de privémedialink niet langer beschikbaar."
+  }
+}

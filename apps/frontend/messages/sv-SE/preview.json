@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Stäng förhandsgranskningen",
+    "delete": "Ta bort förhandsvisning",
+    "open_link": "Öppna länken",
+    "copy_url": "Kopiera URL",
+    "youtube_title": "YouTube video",
+    "youtube_dismiss": "Stäng video",
+    "youtube_delete": "Ta bort video",
+    "youtube_open": "Öppet på YouTube",
+    "youtube_delete_embed": "Ta bort inbäddning"
+  }
+}

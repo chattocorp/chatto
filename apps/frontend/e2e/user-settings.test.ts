@@ -51,7 +51,7 @@ test.describe('User Settings - Display', () => {
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
   });
 
-  test('can choose a local language', async ({ page }) => {
+  test('can choose and persist a regional locale', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
     await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
@@ -60,16 +60,17 @@ test.describe('User Settings - Display', () => {
 
     const pageMarker = await page.evaluate(() => {
       const marker = `locale-switch-${Date.now()}`;
-      (window as typeof window & { __chattoLocaleSwitchMarker?: string }).__chattoLocaleSwitchMarker =
-        marker;
+      (
+        window as typeof window & { __chattoLocaleSwitchMarker?: string }
+      ).__chattoLocaleSwitchMarker = marker;
       return marker;
     });
 
-    await page.getByRole('radio', { name: 'Deutsch' }).click();
+    await page.getByRole('radio', { name: 'German (Germany)' }).click();
     await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
     await expect
       .poll(() =>
         page.evaluate(
@@ -84,7 +85,19 @@ test.describe('User Settings - Display', () => {
     await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByRole('radio', { name: 'Deutsch' })).toHaveAttribute(
+    await expect(page.getByRole('radio', { name: 'Deutsch (Deutschland)' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await page.getByRole('radio', { name: 'Englisch (Vereinigte Staaten)' }).click();
+    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+
+    await page.reload();
+    await expect(page.getByRole('radio', { name: 'American English' })).toHaveAttribute(
       'aria-checked',
       'true'
     );
@@ -125,8 +138,16 @@ test.describe('User Settings - Display', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Select 24-hour format
-    await page.getByRole('button', { name: '24-hour' }).click();
+    const timezoneInput = page.getByTestId('timezone-input');
+    await timezoneInput.fill('Europe/Berlin');
+
+    const currentTime = page.getByText(/^Current time there:/);
+    await page.getByRole('radio', { name: '12-hour' }).click();
+    await expect(currentTime).toContainText(/[AP]M$/);
+
+    // Select 24-hour format and verify the unsaved preview updates.
+    await page.getByRole('radio', { name: '24-hour' }).click();
+    await expect(currentTime).not.toContainText(/[AP]M$/);
 
     // Save
     const saveButton = page.getByRole('button', { name: 'Save Display Settings' });
@@ -140,10 +161,10 @@ test.describe('User Settings - Display', () => {
     // Reload and verify the 24-hour option is still selected
     await page.reload();
     // The selected option has a filled radio indicator
-    const twentyFourHourButton = page.getByRole('button', { name: '24-hour' });
-    await expect(twentyFourHourButton).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    const twentyFourHourOption = page.getByRole('radio', { name: '24-hour' });
+    await expect(twentyFourHourOption).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     // Verify it has the shared selected-row styling.
-    await expect(twentyFourHourButton).toHaveClass(/choice-row-selected/, {
+    await expect(twentyFourHourOption).toHaveClass(/choice-row-selected/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

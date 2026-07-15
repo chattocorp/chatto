@@ -21,7 +21,15 @@
 </script>
 
 <script lang="ts">
-  const variants = ['primary', 'accent', 'secondary', 'ghost', 'warning', 'danger'] as const;
+  const variants = [
+    'action',
+    'neutral',
+    'secondary',
+    'ghost',
+    'warning',
+    'danger',
+    'danger-secondary'
+  ] as const;
   const sizes = ['sm', 'md', 'lg'] as const;
 </script>
 
@@ -32,7 +40,7 @@
     docs: {
       description: {
         story:
-          'The supported semantic tones. Prefer primary or accent for positive flow actions, secondary for cancellation, warning/danger for risky actions, and ghost only for low-emphasis commands.'
+          'Use action for the recommended flow action, neutral for neutral emphasis, secondary for cancellation, warning/danger for risky actions, danger-secondary for a quiet destructive action, and ghost only for low-emphasis commands.'
       }
     }
   }}

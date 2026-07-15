@@ -231,7 +231,7 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
     const threadLink = page.getByRole('link', { name: /1 reply/i });
     await expect(threadLink).toBeVisible();
     await expect(threadLink).toHaveAttribute('href', /\/chat\/-\/[^/]+\/[^/]+$/);
-    const threadNotificationDot = threadLink.locator('.bg-warning');
+    const threadNotificationDot = threadLink.getByTestId('thread-notification-dot');
     await expect(threadNotificationDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // 4. Open the thread - notification should be dismissed

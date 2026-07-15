@@ -1,0 +1,88 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Alternar barra lateral",
+    "notifications": "Notificaciones",
+    "open_quick_switcher": "Abrir conmutador rápido",
+    "quick_switcher_shortcut": "Conmutador rápido (Cmd+K)",
+    "realtime_paused": "Actualizaciones en tiempo real pausadas. Reconectando...",
+    "update_available": "Una nueva versión está disponible",
+    "reload": "Recargar",
+    "sign_out": "Cerrar sesión",
+    "close": "Cerrar",
+    "auth_status": {
+      "origin_title": "La sesión expiró",
+      "origin_message": "Puedes seguir leyendo lo que ya está cargado. Inicie sesión nuevamente para enviar mensajes y actualizar datos.",
+      "origin_action": "Inicia sesión nuevamente",
+      "remote_title": "{server} necesita iniciar sesión",
+      "remote_message": "Este servidor rechazó el inicio de sesión almacenado. Vuelva a conectarlo para reanudar las actualizaciones y acciones en vivo.",
+      "remote_action": "Reconectar",
+      "remote_failed": "No se pudo iniciar la reconexión",
+      "sidebar_reauth": "{server} necesita iniciar sesión"
+    },
+    "access_denied": {
+      "title": "Acceso denegado",
+      "message": "No tienes permiso para acceder a esta página.",
+      "back": "Volver al chat",
+      "back_to_server": "Regresar al Servidor"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Más información",
+      "about": "Acerca de {subject}"
+    },
+    "pane_header": {
+      "back": "Volver"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Volver al chat"
+    },
+    "resize_handle": {
+      "resize": "Cambiar tamaño",
+      "resize_sidebar": "Cambiar tamaño de barra lateral"
+    },
+    "data_table": {
+      "empty": "Sin datos",
+      "loading_more": "Cargando más..."
+    },
+    "loading_page": {
+      "loading": "Cargando..."
+    },
+    "image_modal": {
+      "previous": "Imagen anterior",
+      "next": "Siguiente imagen",
+      "fallback_alt": "Imagen"
+    },
+    "toast": {
+      "dismiss": "Descartar notificación"
+    },
+    "combobox": {
+      "loading": "Cargando...",
+      "empty": "No hay coincidencias",
+      "clear": "Borrar"
+    },
+    "expiry": {
+      "label": "Vence",
+      "24h": "24 horas",
+      "7d": "7 días",
+      "30d": "30 días",
+      "indefinite": "Sin vencimiento",
+      "custom": "Personalizado",
+      "custom_label": "Caducidad personalizada",
+      "error_required": "Elige una fecha de vencimiento.",
+      "error_invalid": "Ingresa un vencimiento válido.",
+      "error_future": "El vencimiento debe ser en el futuro."
+    },
+    "form": {
+      "required": "Requerido"
+    },
+    "dates": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "this_week": "Esta semana",
+      "this_month": "Este mes"
+    }
+  }
+}

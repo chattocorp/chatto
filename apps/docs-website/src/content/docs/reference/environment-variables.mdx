@@ -35,12 +35,20 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
 </EnvVar>
 
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION" toml="webserver.api_compression" default="true">
+  Compress eligible ConnectRPC API responses with gzip. Disable this to reduce compressor memory and CPU at the cost of higher network usage. Chatto continues to accept compressed API requests.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" toml="webserver.api_compression_min_bytes" default="1024">
+  Minimum uncompressed ConnectRPC response size, in bytes, eligible for gzip compression. Increase this threshold when small API responses do not save enough bandwidth to justify compressor memory and CPU.
+</EnvVar>
+
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
-  Enable WebSocket compression.
+  Negotiate WebSocket compression. The realtime server compresses frames of at least 1 KiB with a Huffman-only encoder; smaller invalidation and heartbeat frames stay uncompressed and do not instantiate server-side compressor state.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_REQUEST_LOGGING" toml="webserver.request_logging" default="false">
-  Log HTTP requests.
+  Log HTTP requests. Successful requests are debug-level and require `CHATTO_LOG_LEVEL=debug`; 4xx and 5xx responses remain visible at warning and error levels.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
@@ -49,6 +57,10 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 
 <EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
   Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_TRUSTED_PROXIES" toml="webserver.trusted_proxies">
+  Comma-separated IP addresses or CIDR ranges for reverse proxies that Chatto may trust to supply `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host`. The default is empty, so direct clients cannot spoof audit attribution or WebSocket same-origin checks with forwarded headers. Configure the narrow network used by your proxy—for example, `127.0.0.1` for a same-host proxy or the specific container-network CIDR—and make the proxy overwrite forwarded headers rather than preserving client-supplied values. This does not make forwarded protocol headers authoritative for public URL generation; continue setting `webserver.url`.
 </EnvVar>
 
 ### TLS
@@ -125,6 +137,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Timeout for one S3 bucket-size refresh.
 </EnvVar>
 
+## Shields
+
+<EnvVar name="CHATTO_WEBSERVER_SHIELDS_ENABLED" toml="webserver.shields.enabled" default="false">
+  Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">
@@ -143,8 +161,20 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
+  Persist encrypted projection snapshots and replay only the later `EVT` delta for eligible projections at startup. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, expired, or unavailable. User profile state is eligible, but password verifiers, external identities, and OAuth consent remain outside snapshots and cold-replay from focused event subjects. One elected replica attempts publication after boot and every 23–24 hours.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" toml="core.projection_snapshot_retention" default="7d">
+  Retain projection snapshot generations for this duration. NATS applies the duration as the dedicated Object Store TTL. Chatto uses it as the cutoff for optional S3 expiry. Supports values such as `7d`, `1w`, and `168h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" toml="core.projection_snapshot_s3_cleanup" default="true">
+  Delete marked S3 projection snapshot generations older than `core.projection_snapshot_retention`. Disable this when the bucket has an external lifecycle policy for `internal/projection-snapshots/`. When enabled, S3 credentials need permission to list that prefix, inspect object metadata, and delete matching objects. Chatto validates the exact internal generation path, content type, and object-purpose marker before deletion; asset paths are never eligible.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
-  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive.
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
 </EnvVar>
 
 ## Assets

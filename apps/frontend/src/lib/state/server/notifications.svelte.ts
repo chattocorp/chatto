@@ -124,6 +124,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
 export class NotificationStore {
   #api: NotificationAPI;
   #locallyDismissedNotificationIds = new SvelteSet<string>();
+  #fetchGeneration = 0;
   notifications = $state<NotificationItem[]>([]);
   unreadNotificationCount = $state(0);
   loading = $state(false);
@@ -258,19 +259,29 @@ export class NotificationStore {
    * must not erase already-loaded notifications on others.
    */
   async fetch() {
+    const generation = ++this.#fetchGeneration;
     this.loading = true;
     this.error = null;
 
     try {
       const page = await this.#api.listNotifications(50);
-      this.notifications = page.items;
-      this.unreadNotificationCount = page.totalCount;
+      if (generation !== this.#fetchGeneration) return;
+
+      const notifications = page.items.filter(
+        (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
+      );
+      const locallyDismissedPageItems = page.items.length - notifications.length;
+      this.notifications = notifications;
+      this.unreadNotificationCount = Math.max(0, page.totalCount - locallyDismissedPageItems);
       this.hasLoaded = true;
     } catch (e) {
+      if (generation !== this.#fetchGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
       console.error('Failed to fetch notifications:', e);
     } finally {
-      this.loading = false;
+      if (generation === this.#fetchGeneration) {
+        this.loading = false;
+      }
     }
   }
 
@@ -332,6 +343,7 @@ export class NotificationStore {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
 
+    this.#invalidateFetch();
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
     this.#markLocalDismissal(notificationId);
@@ -360,8 +372,9 @@ export class NotificationStore {
   async dismissAll(): Promise<number> {
     const original = this.notifications;
     const originalCount = this.unreadNotificationCount;
-    if (original.length === 0) return 0;
+    if (original.length === 0 && originalCount === 0) return 0;
 
+    this.#invalidateFetch();
     this.notifications = [];
     this.unreadNotificationCount = 0;
     for (const notification of original) {
@@ -377,6 +390,7 @@ export class NotificationStore {
       }
       this.notifications = original;
       this.unreadNotificationCount = originalCount;
+      await this.fetch();
       return 0;
     }
   }
@@ -389,11 +403,30 @@ export class NotificationStore {
     this.#upsertNotification(notification);
   }
 
-  #upsertNotification(notification: NotificationItem): void {
+  #upsertNotification(notification: NotificationItem): boolean {
+    const existed = this.notifications.some((candidate) => candidate.id === notification.id);
+    this.#invalidateFetch();
     this.notifications = [
       ...this.notifications.filter((n) => n.id !== notification.id),
       notification
-    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    ]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 50);
+    return !existed;
+  }
+
+  #invalidateFetch(): void {
+    const shouldRestart = this.loading;
+    this.#fetchGeneration++;
+    this.loading = false;
+    if (shouldRestart) {
+      const invalidatedGeneration = this.#fetchGeneration;
+      queueMicrotask(() => {
+        if (this.#fetchGeneration === invalidatedGeneration && !this.loading) {
+          void this.fetch();
+        }
+      });
+    }
   }
 
   #markLocalDismissal(notificationId: string): void {
@@ -409,11 +442,26 @@ export class NotificationStore {
 
   /**
    * Add a notification (for real-time updates from instance events).
-   * Triggers a refetch to get full notification data.
+   * Hydrates the event's notification ID directly, with a full-list fallback
+   * for older or temporarily incompatible servers.
    */
-  async addNotification() {
-    // Refetch to get the new notification with full data
-    await this.fetch();
+  async addNotification(notificationId?: string) {
+    if (!notificationId) {
+      await this.fetch();
+      return;
+    }
+
+    try {
+      const notification = await this.#api.getNotification(notificationId);
+      if (!notification || this.#locallyDismissedNotificationIds.has(notificationId)) return;
+
+      if (this.#upsertNotification(notification)) {
+        this.unreadNotificationCount++;
+      }
+    } catch (e) {
+      console.error('Failed to hydrate notification:', e);
+      await this.fetch();
+    }
   }
 
   /**
@@ -421,6 +469,7 @@ export class NotificationStore {
    */
   removeNotification(notificationId: string) {
     const removed = this.notifications.find((n) => n.id === notificationId);
+    this.#invalidateFetch();
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     if (removed) {
       this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);

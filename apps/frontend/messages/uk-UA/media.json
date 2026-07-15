@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Банер сервера",
+    "fullscreen_video": "Повноекранне відео",
+    "close_fullscreen_video": "Закрити повноекранне відео",
+    "video_alt": "Відео",
+    "video_original_missing": "Відео недоступне, оскільки відсутнє оригінальне завантаження.",
+    "video_processing_failed_retry": "Помилка обробки відео. Будь ласка, спробуйте завантажити знову.",
+    "video_queued": "Відео в черзі на обробку...",
+    "video_processing": "Обробка відео...",
+    "video_processing_failed": "Помилка обробки відео"
+  }
+}

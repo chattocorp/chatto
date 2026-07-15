@@ -14,6 +14,10 @@ authorization, live events, backup/restore, and backend tests.
 - Services own their domain state and projections. Do not bypass service
   boundaries to poke JetStream, KV, or projections from unrelated code.
 - Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
+- Projections must not retain decrypted PII when encrypted source fields can be
+  retained and hydrated at read boundaries. Keep derived lookup state
+  non-plaintext, and never turn KMS or decryption failures into apparent
+  absence, deletion, or a free uniqueness claim.
 
 ## Architecture Touchpoints
 
@@ -21,7 +25,8 @@ authorization, live events, backup/restore, and backend tests.
 - `cli/internal/connectapi` is the protobuf/ConnectRPC API.
 - `proto/chatto/core/v1` holds persisted/internal protobufs.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
-- `docs/ARCHITECTURE.md`, FDRs, and ADRs should move with architectural changes.
+- The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
+  with architectural changes.
 
 ## Public APIs
 
@@ -56,10 +61,52 @@ authorization, live events, backup/restore, and backend tests.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- Defaults required for a newly created aggregate must commit with its creation
+  facts in the same atomic EVT batch. Do not reconstruct creation-time defaults
+  later by scanning projections during startup.
+- When a committed EVT fact requires a KMS, LiveKit, object-store, or other
+  external side effect, that fact must provide a durable recovery path. Verify
+  crash recovery, multi-replica discovery, lease handover, and bounded
+  request-path cost.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
   prefix so reads can filter by subject/prefix without deserializing everything.
+- Projection snapshots are disposable acceleration data, never recovery data.
+  Bind them to the durable EVT incarnation identity in stream metadata as well
+  as the stream name and cutoff sequence; reject missing, corrupt,
+  incompatible, or future snapshots by replaying EVT. Do not use
+  `StreamInfo.Created` as a persisted identity.
+- Snapshot restore codecs must be transactional on error and must account for
+  compatibility state preloaded before projector startup. Privacy-review every
+  persisted field: do not snapshot decrypted bodies, raw PII, credentials,
+  unwrapped keys, or state that would weaken crypto-shredding.
+- Scope snapshot generation paths by projection key and projection-local
+  compatibility version. Keep snapshot pointers on a durable revisioned store
+  and publish them with OCC; a process lease is not fencing.
+  Carry cutoff, creation time, EVT incarnation, and compatibility metadata in
+  the pointer.
+  Version the opaque pointer lineage whenever the meaning of the cutoff changes;
+  never compare or apply no-regression rules across incompatible cursor models.
+  Allow same-cutoff refreshes for retention, but do not republish a fresh,
+  unchanged generation merely because a process restarted. Reject regressing
+  captures, and use pointer revision OCC to prevent concurrent writers from
+  replacing newer history.
+  Scope generation object paths by encryption-key epoch. NATS Object Store TTL
+  and marker-verified S3 age expiry may remove referenced generations; loaders
+  must treat absence as a normal cold-replay condition.
+- Most current snapshot codecs use projection-local compatibility version `v1`;
+  the user profile projection uses `v2`. Keep password
+  verifiers, auth generations, external identity subjects, and OAuth consent in
+  the independently cold-replayed `UserAuthProjection`; never add them to a
+  profile snapshot schema or codec.
+- Every projection owns its ordered EVT consumer, snapshot restore, and replay
+  frontier. A usable snapshot starts only that consumer after its cutoff; a
+  missing snapshot cold-replays only its owning projection. Keep global boot
+  readiness gated on every required projection becoming current. Release
+  boot-time sequence waiters when installing a restored cutoff, and test
+  all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
+  waiter interleavings.
 
 ## Live Events
 
@@ -70,6 +117,9 @@ authorization, live events, backup/restore, and backend tests.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a transient live event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.
+- Do not use a locally published NATS message as a global ordering fence for
+  JetStream republish or messages from other replicas. Tie projection snapshots
+  and stale-event suppression to authoritative EVT stream sequences.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
 - New live event types usually require protobuf, publishing, authorization,
@@ -108,6 +158,17 @@ authorization, live events, backup/restore, and backend tests.
 
 ## Attachment URL Authorization
 
+- `/assets/server/*` is unauthenticated and may serve only positively
+  classified public server assets: current/historical avatars, server branding,
+  and server-fetched link-preview images. Classification must happen before
+  transform-signature parsing, resize-cache lookup, object reads, or transforms.
+- New NATS public objects and URLs use `public/{assetId}`. Keep canonical
+  `{assetId}` aliases and the positive compatibility classifier for historical
+  flat-key public objects; never migrate content during an unauthenticated read.
+- `SERVER_ASSETS` is a mixed store. Never treat an opaque key, missing private
+  metadata, or a valid transform signature as proof that an object is public.
+  Deny room-asset declarations and tombstones, `Room-Id`/`Upload-Id` metadata,
+  reserved namespaces, and unknown object classes with the same 404 response.
 - Stable asset URLs use `/assets/files/{assetId}` and image transform variants.
 - Browser-facing ConnectRPC attachment URL fields append a signed per-user
   `access` ticket and expose expiry in the API asset URL object.
@@ -131,8 +192,8 @@ authorization, live events, backup/restore, and backend tests.
   conflict modes `error`, `skip`, and `overwrite`.
 - `KV_ENCRYPTION_KEYS`/KEK material is intentionally separate from data backups.
   Use `chatto keys export`/`import` for built-in KMS key records.
-- When adding streams or KV buckets, decide whether backup should include or skip
-  them and update `skipReason()` if needed.
+- When adding streams, KV buckets, or Object Stores, decide whether backup should
+  include or skip them and update `skipReason()` if needed.
 
 ## Backend Tests
 
@@ -147,6 +208,10 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Tests that mutate a projection wired into a running `ChattoCore` must append
+  the fact through `EventPublisher` and wait for the owning projector. Reserve
+  direct `Apply` calls for isolated projection tests, using monotonically
+  increasing stream sequences.
 - Permission tests need positive and negative cases.
 - DM behavior needs explicit coverage when touching room/message/permission logic.
 - Endpoint tests for `/auth/test/*` or `/webhooks/test/*` require
@@ -157,6 +222,28 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ## Local Profiling
 
 - Store local benchmark/profiling artifacts under `.context/bench/`.
+- Run `mise bench-projections` for projection replay throughput, allocations,
+  and retained Go heap. It uses a versioned deterministic protobuf fixture and
+  reports room timeline, threads, and combined results at multiple history
+  sizes. Benchmarks are explicit and do not run as part of `mise test`;
+  ordinary tests only run the small fixture-validation test.
+- Compare projection changes with repeated before/after runs on the same
+  machine and Go version. Keep the fixture version constant, check both 10,000
+  and 50,000-message retained-heap results, and reject memory improvements that
+  cause an unacceptable replay-throughput regression.
+- Run `mise bench-projections-profile` for exact retained-heap attribution.
+  Profiles are written under `.context/bench/projections/`; exact allocation
+  sampling is intentionally slower than the normal benchmark.
+- Treat the synthetic projection benchmark as a regression and attribution
+  tool, not a production RSS model. Confirm meaningful wins against a restored
+  real EVT history before shipping them. If the fixture event mix changes,
+  bump its version so results from different workloads are not compared.
+- For realtime connection-memory work, negotiate production WebSocket
+  compression and use an external load generator so client allocations do not
+  enter the server profile.
+- Validate connection-scaled memory with server RSS/runtime `Sys` deltas and
+  active-connection heap profiles. Treat in-process `HeapAlloc` benchmarks as
+  regression signals, not production RSS models.
 - Startup CPU profile:
   `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof`.
 - Runtime pprof: set `CHATTO_METRICS_ENABLED=true`,

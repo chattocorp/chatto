@@ -98,7 +98,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async listRoomMembers(
       roomId: string,
       search = "",
-      limit = 20,
+      limit = 250,
       offset = 0,
     ): Promise<MemberDirectoryPage> {
       const response = await rooms.listMembers(

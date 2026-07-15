@@ -357,12 +357,12 @@ describe('computeEventMetadata', () => {
       const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });
       const result = computeEventMetadata([event], defaultSettings);
 
-      expect(result[0].dayLabel).toMatch(/Thursday, November 20/);
+      expect(result[0].dayLabel).toMatch(/Thursday 20 November/);
     });
 
     it('uses an explicit locale for visible day labels', async () => {
-      await loadLocaleMessages('de');
-      setReactiveLocale('de');
+      await loadLocaleMessages('de-DE');
+      setReactiveLocale('de-DE');
 
       try {
         const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });
@@ -372,8 +372,8 @@ describe('computeEventMetadata', () => {
         expect(result[0].dayLabel).toMatch(/November/);
         expect(result[0].dayLabel).toMatch(/20/);
       } finally {
-        await loadLocaleMessages('en');
-        setReactiveLocale('en');
+        await loadLocaleMessages('en-GB');
+        setReactiveLocale('en-GB');
       }
     });
 

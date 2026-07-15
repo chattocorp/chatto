@@ -32,6 +32,7 @@
     .min(2, m['common.validation.username_min']())
     .max(32, m['common.validation.username_max']())
     .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
+    .refine((val) => !val.endsWith('.'), m['common.validation.username_end_alphanumeric']())
     .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
   const passwordSchema = z.string().min(8, m['common.validation.password_min']());
 
@@ -292,7 +293,7 @@
             oninput={(e) => handleCodeInput(index, e)}
             onpaste={(e) => handleCodePaste(index, e)}
             onkeydown={(e) => handleCodeKeydown(index, e)}
-            class="h-14 rounded-lg border border-text/20 bg-input text-center text-xl font-semibold transition outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
+            class="h-14 rounded-lg border border-text/20 bg-input text-center text-xl font-semibold transition-[border-color,box-shadow] outline-none focus:border-action focus:ring-2 focus:ring-action/30 disabled:opacity-60"
           />
         {/each}
       </div>
@@ -376,7 +377,7 @@
 
   <Divider label={m['common.or']()} />
 
-  <a href={resolve('/login')} class="btn-secondary block w-full btn-lg text-center">
+  <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
     {m['common.sign_in']()}
-  </a>
+  </Button>
 </AuthLayout>

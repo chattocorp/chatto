@@ -1,5 +1,6 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { AdminDiagnosticsService } from "@chatto/api-types/admin/v1/diagnostics_connect";
+import { authHeaders, createChattoClient } from './connect.js';
+import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
+import { AdminAssetCleanupHealth } from '@chatto/api-types/admin/v1/diagnostics_pb';
 
 export type AdminDiagnosticsAPIConfig = {
   baseUrl: string;
@@ -13,6 +14,21 @@ export type AdminSystemInfo = {
   nats: AdminNatsStats;
   stats: AdminServerStats;
   projections: AdminProjectionState[];
+  assetCleanup: AdminAssetCleanupStatus;
+};
+
+export type AdminAssetCleanupStatus = {
+  available: boolean;
+  health: 'unavailable' | 'inactive' | 'initializing' | 'healthy' | 'retrying' | 'stalled';
+  pendingCount: number;
+  oldestPendingAt: Date | null;
+  passInProgress: boolean;
+  lastPassAt: Date | null;
+  lastSuccessfulPassAt: Date | null;
+  updatedAt: Date | null;
+  lastPassFailed: boolean;
+  lastInspectedSequence: string;
+  latestDeletionSequence: string;
 };
 
 export type AdminConnectionInfo = {
@@ -114,21 +130,47 @@ function adminDiagnosticsClient(config: AdminDiagnosticsAPIConfig) {
   return { client, headers };
 }
 
+function assetCleanupHealth(
+  health: AdminAssetCleanupHealth | undefined
+): AdminAssetCleanupStatus['health'] {
+  switch (health) {
+    case AdminAssetCleanupHealth.INACTIVE:
+      return 'inactive';
+    case AdminAssetCleanupHealth.INITIALIZING:
+      return 'initializing';
+    case AdminAssetCleanupHealth.HEALTHY:
+      return 'healthy';
+    case AdminAssetCleanupHealth.RETRYING:
+      return 'retrying';
+    case AdminAssetCleanupHealth.STALLED:
+      return 'stalled';
+    case AdminAssetCleanupHealth.UNAVAILABLE:
+      return 'unavailable';
+    default:
+      return 'unavailable';
+  }
+}
+
 export async function getAdminSystemInfo(
-  config: AdminDiagnosticsAPIConfig,
+  config: AdminDiagnosticsAPIConfig
 ): Promise<AdminSystemInfo> {
   const { client, headers } = adminDiagnosticsClient(config);
   const response = await client.getSystemInfo({}, { headers });
   const systemInfo = response.systemInfo;
+  const cleanup = response.assetCleanup;
+  const cleanupAvailable =
+    cleanup != null &&
+    cleanup.health !== AdminAssetCleanupHealth.UNSPECIFIED &&
+    cleanup.health !== AdminAssetCleanupHealth.UNAVAILABLE;
 
   return {
     connection: {
       connected: systemInfo?.connection?.connected ?? false,
-      serverId: systemInfo?.connection?.serverId ?? "",
-      serverName: systemInfo?.connection?.serverName ?? "",
-      version: systemInfo?.connection?.version ?? "",
+      serverId: systemInfo?.connection?.serverId ?? '',
+      serverName: systemInfo?.connection?.serverName ?? '',
+      version: systemInfo?.connection?.version ?? '',
       maxPayload: Number(systemInfo?.connection?.maxPayload ?? 0),
-      rtt: systemInfo?.connection?.rtt ?? "",
+      rtt: systemInfo?.connection?.rtt ?? ''
     },
     account: {
       memory: Number(systemInfo?.account?.memory ?? 0),
@@ -138,7 +180,7 @@ export async function getAdminSystemInfo(
       streams: systemInfo?.account?.streams ?? 0,
       streamsUsed: systemInfo?.account?.streamsUsed ?? 0,
       consumers: systemInfo?.account?.consumers ?? 0,
-      consumersUsed: systemInfo?.account?.consumersUsed ?? 0,
+      consumersUsed: systemInfo?.account?.consumersUsed ?? 0
     },
     nats: {
       totalMessages: Number(systemInfo?.nats?.totalMessages ?? 0),
@@ -156,7 +198,7 @@ export async function getAdminSystemInfo(
         lastSequence: stream.lastSequence,
         consumerCount: stream.consumerCount,
         replicas: stream.replicas,
-        clusterLeader: stream.clusterLeader,
+        clusterLeader: stream.clusterLeader
       })),
       consumers: (systemInfo?.nats?.consumers ?? []).map((consumer) => ({
         stream: consumer.stream,
@@ -174,13 +216,26 @@ export async function getAdminSystemInfo(
         deliveredConsumerSequence: consumer.deliveredConsumerSequence,
         deliveredStreamSequence: consumer.deliveredStreamSequence,
         ackFloorConsumerSequence: consumer.ackFloorConsumerSequence,
-        ackFloorStreamSequence: consumer.ackFloorStreamSequence,
-      })),
+        ackFloorStreamSequence: consumer.ackFloorStreamSequence
+      }))
     },
     stats: {
       userCount: systemInfo?.stats?.userCount ?? 0,
       channelRoomCount: systemInfo?.stats?.channelRoomCount ?? 0,
-      dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0,
+      dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0
+    },
+    assetCleanup: {
+      available: cleanupAvailable,
+      health: assetCleanupHealth(cleanup?.health),
+      pendingCount: Number(cleanup?.pendingCount ?? 0),
+      oldestPendingAt: cleanup?.oldestPendingAt?.toDate() ?? null,
+      passInProgress: cleanup?.passInProgress ?? false,
+      lastPassAt: cleanup?.lastPassAt?.toDate() ?? null,
+      lastSuccessfulPassAt: cleanup?.lastSuccessfulPassAt?.toDate() ?? null,
+      updatedAt: cleanup?.updatedAt?.toDate() ?? null,
+      lastPassFailed: cleanup?.lastPassFailed ?? false,
+      lastInspectedSequence: cleanup?.lastInspectedSequence ?? '0',
+      latestDeletionSequence: cleanup?.latestDeletionSequence ?? '0'
     },
     projections: response.projections.map((projection) => ({
       key: projection.key,
@@ -201,8 +256,8 @@ export async function getAdminSystemInfo(
       metrics: projection.metrics.map((metric) => ({
         name: metric.name,
         value: Number(metric.value),
-        bytes: Number(metric.bytes),
-      })),
-    })),
+        bytes: Number(metric.bytes)
+      }))
+    }))
   };
 }

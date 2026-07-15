@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Servila standardo",
+    "fullscreen_video": "Plenekrana video",
+    "close_fullscreen_video": "Fermu plenekranan videon",
+    "video_alt": "Video",
+    "video_original_missing": "Video ne disponeblas ĉar mankas la originala alŝuto.",
+    "video_processing_failed_retry": "Videoprocesado malsukcesis. Bonvolu provi alŝuti denove.",
+    "video_queued": "Vidbendo envicigita por prilaborado...",
+    "video_processing": "Prilaborado de video...",
+    "video_processing_failed": "Video-traktado malsukcesis"
+  }
+}

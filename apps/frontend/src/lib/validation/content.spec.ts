@@ -105,6 +105,11 @@ describe('hasVisibleContent', () => {
       expect(hasVisibleContent('!!!')).toBe(true);
     });
 
+    test('literal entity-like text', () => {
+      expect(hasVisibleContent('&NBSP;')).toBe(true);
+      expect(hasVisibleContent('&#00000160;')).toBe(true);
+    });
+
     test('text with leading space', () => {
       expect(hasVisibleContent(' hello')).toBe(true);
     });

@@ -2,9 +2,12 @@ package events
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,11 +30,23 @@ var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume su
 // one supplied by the caller.
 var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
+// Projection replay is a sequential bulk read. NATS defaults to a 500-message
+// client buffer, which turns histories of many small EVT records into many
+// latency-bound pull requests on a remote JetStream cluster. A byte window
+// keeps those pulls large while bounding client-side memory.
+const (
+	projectionPullMaxBytes        = 16 * 1024 * 1024
+	projectionSnapshotLoadTimeout = 15 * time.Second
+	// EVTStreamIdentityMetadataKey stores the durable stream incarnation used to
+	// reject projection snapshots after EVT is deleted and recreated.
+	EVTStreamIdentityMetadataKey = "chatto.evt.incarnation"
+	streamIdentityPrefix         = "evt-incarnation-v1:"
+)
+
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
-// subclasses use for read/write coordination, plus no-op
-// Snapshot/Restore methods that satisfy the Projection interface until
-// snapshot orchestration (ADR-033) ships.
+// subclasses use for read/write coordination, plus no-op Snapshot/Restore
+// methods for projections that have not opted into snapshot persistence.
 //
 // Embed by value — the zero mutex is ready to use. Subclasses still
 // implement Subjects() and Apply(). Future non-memory projection types
@@ -40,13 +55,12 @@ type MemoryProjection struct {
 	sync.RWMutex
 }
 
-// Snapshot implements Projection (no-op until ADR-033 snapshot
-// orchestration ships; the Projector treats (nil, nil) as "skip
-// snapshot persistence").
+// Snapshot implements Projection. The Projector treats (nil, nil) as "skip
+// snapshot persistence".
 func (*MemoryProjection) Snapshot() ([]byte, error) { return nil, nil }
 
-// Restore implements Projection. Called once before Run with
-// nil/empty until snapshot orchestration ships.
+// Restore implements Projection. Called once before Run with nil/empty on a
+// cold start.
 func (*MemoryProjection) Restore(_ []byte) error { return nil }
 
 // Projection is the read side. Implementations are in-memory Go data
@@ -58,8 +72,7 @@ func (*MemoryProjection) Restore(_ []byte) error { return nil }
 // concurrently; projections typically embed a sync.RWMutex for this.
 //
 // Idempotency: Apply(e, n) followed by Apply(e, n) must produce the same
-// state as a single Apply(e, n). Snapshots aren't implemented yet, but the
-// contract holds now so we don't have to revisit it later.
+// state as a single Apply(e, n). Snapshot tail replay relies on this contract.
 //
 // Event immutability: core event protobufs are durable facts. Apply
 // implementations must treat the input event as read-only, and projection
@@ -77,30 +90,72 @@ type Projection interface {
 
 	// Snapshot returns a serialized form of the current state.
 	// Returning (nil, nil) means "no snapshot support yet"; the Projector
-	// will then skip snapshot persistence. Interface is committed; the
-	// orchestration that calls Snapshot/Restore is deferred per ADR-033.
+	// will then skip snapshot persistence.
 	Snapshot() ([]byte, error)
 
 	// Restore initializes state from a snapshot. Called once before Run
 	// starts consuming. May be called with nil/empty for cold start —
-	// the projection should treat that as "no prior state."
+	// the projection should treat that as "no prior snapshot state."
+	// Implementations must leave their prior state unchanged when returning
+	// an error so the Projector can reliably fall back to cold replay.
 	Restore(snapshot []byte) error
 }
 
+// SnapshotCompatibleProjection opts a Projection into persisted snapshots.
+// The compatibility ID describes the projection's serialized state and replay
+// semantics; changing unrelated Chatto versions must not invalidate it.
+type SnapshotCompatibleProjection interface {
+	Projection
+	SnapshotCompatibilityID() string
+}
+
+// ProjectionSnapshot is a validated snapshot returned by a snapshot source.
+type ProjectionSnapshot struct {
+	GenerationID   string
+	CutoffSequence uint64
+	CreatedAt      time.Time
+	Payload        []byte
+}
+
+// ProjectionSnapshotLoadRequest contains the encrypted repository lookup
+// constraints owned by the Projector. Sources must reject mismatched or newer
+// stream state before returning a snapshot.
+type ProjectionSnapshotLoadRequest struct {
+	ProjectionKey   string
+	CompatibilityID string
+	StreamName      string
+	StreamIdentity  string
+	MaxCutoff       uint64
+}
+
+type ProjectionSnapshotSource interface {
+	LoadProjectionSnapshot(context.Context, ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error)
+}
+
 // ReplaySubjectProjection can be implemented when a projection's logical
-// consumed subjects are narrower than the physical stream subjects it should
-// replay. This lets related projections share one ordered consumer and one
-// protobuf decode path while waits/admin still report the narrower Subjects.
+// consumed subjects are narrower than the physical filters its ordered
+// consumer should use. Waits and diagnostics still report the narrower
+// Subjects contract.
 type ReplaySubjectProjection interface {
 	ReplaySubjects() []string
 }
 
+// StartupReplayCompleter can be implemented by projections that retain
+// temporary state only while replaying the stream at process startup. The
+// Projector calls CompleteStartupReplay exactly once after every event through
+// the captured startup target has been applied. It is also called for an empty
+// or already-current projection.
+type StartupReplayCompleter interface {
+	CompleteStartupReplay()
+}
+
 // Projector runs the consumer + apply loop for one projection.
 type Projector struct {
-	js     jetstream.JetStream
-	stream jetstream.Stream
-	proj   Projection
-	logger Logger
+	js      jetstream.JetStream
+	stream  jetstream.Stream
+	proj    Projection
+	logger  Logger
+	applyMu sync.Mutex
 
 	subjects        []string
 	replaySubjects  []string
@@ -125,6 +180,15 @@ type Projector struct {
 	startupCompleted bool
 	startupMessages  uint64
 	startupLogged    bool
+
+	snapshotKey          string
+	snapshotSource       ProjectionSnapshotSource
+	snapshotStreamID     string
+	snapshotLoadTimeout  time.Duration
+	restoredSeq          uint64
+	restoredGenerationID string
+	latestSnapshotSeq    uint64
+	latestSnapshotAt     time.Time
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -134,10 +198,15 @@ type ProjectorStatus struct {
 	Started bool
 	LastSeq uint64
 
-	StartupTargetSeq uint64
-	StartupComplete  bool
-	StartupDuration  time.Duration
-	StartupMessages  uint64
+	StartupTargetSeq     uint64
+	StartupComplete      bool
+	StartupDuration      time.Duration
+	StartupMessages      uint64
+	SnapshotRestored     bool
+	SnapshotCutoffSeq    uint64
+	SnapshotGenerationID string
+	LatestSnapshotSeq    uint64
+	LatestSnapshotAt     time.Time
 
 	Failed    bool
 	FailedSeq uint64
@@ -167,6 +236,91 @@ func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projecti
 	}
 }
 
+// ConfigureSnapshots enables best-effort bootstrap restore for this projector.
+// It must be called before Run. A load or restore failure is logged and falls
+// back to an empty projection followed by full EVT replay.
+func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSource, streamIdentity string) error {
+	if key == "" {
+		return fmt.Errorf("projection snapshot key is required")
+	}
+	if source == nil {
+		return fmt.Errorf("projection snapshot source is nil")
+	}
+	if !ValidStreamIdentity(streamIdentity) {
+		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
+	}
+	compatible, ok := p.proj.(SnapshotCompatibleProjection)
+	if !ok || compatible.SnapshotCompatibilityID() == "" {
+		return fmt.Errorf("projection %q does not declare snapshot compatibility", key)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.started {
+		return fmt.Errorf("configure projection snapshots after projector start")
+	}
+	p.snapshotKey = key
+	p.snapshotSource = source
+	p.snapshotStreamID = streamIdentity
+	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
+	return nil
+}
+
+// CaptureSnapshot serializes projection state and the corresponding applied
+// EVT sequence at one barrier. An empty protobuf payload is valid canonical
+// state and still carries the projection's replay cutoff.
+func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
+	p.applyMu.Lock()
+	defer p.applyMu.Unlock()
+
+	payload, err := p.proj.Snapshot()
+	if err != nil {
+		return ProjectionSnapshot{}, err
+	}
+	p.mu.Lock()
+	seq := p.lastSeq
+	p.mu.Unlock()
+	return ProjectionSnapshot{CutoffSequence: seq, Payload: payload}, nil
+}
+
+// NewStreamIdentity deterministically derives an opaque identity for one EVT
+// stream incarnation. created is used only when initializing missing metadata;
+// normal restarts read the persisted identity instead.
+func NewStreamIdentity(created time.Time) (string, error) {
+	if created.IsZero() {
+		return "", fmt.Errorf("EVT stream creation time is required")
+	}
+	sum := sha256.Sum256([]byte("chatto/evt-incarnation/v1\x00" + created.UTC().Format(time.RFC3339Nano)))
+	return streamIdentityPrefix + hex.EncodeToString(sum[:16]), nil
+}
+
+// ValidStreamIdentity reports whether identity has Chatto's versioned EVT
+// stream-incarnation format.
+func ValidStreamIdentity(identity string) bool {
+	if len(identity) != len(streamIdentityPrefix)+32 || !strings.HasPrefix(identity, streamIdentityPrefix) {
+		return false
+	}
+	_, err := hex.DecodeString(identity[len(streamIdentityPrefix):])
+	return err == nil
+}
+
+// StreamIdentity reads the durable incarnation identity cached when EVT was
+// opened. Unlike StreamInfo.Created, this value survives process reconstruction
+// and backup restore.
+func StreamIdentity(stream jetstream.Stream) (string, error) {
+	if stream == nil {
+		return "", fmt.Errorf("EVT stream is required")
+	}
+	info := stream.CachedInfo()
+	if info == nil {
+		return "", fmt.Errorf("EVT stream info is unavailable")
+	}
+	identity := info.Config.Metadata[EVTStreamIdentityMetadataKey]
+	if !ValidStreamIdentity(identity) {
+		return "", fmt.Errorf("EVT stream identity is missing or invalid")
+	}
+	return identity, nil
+}
+
 // Status returns the projector's current lifecycle state. Safe to call from
 // any goroutine.
 func (p *Projector) Status() ProjectorStatus {
@@ -174,11 +328,16 @@ func (p *Projector) Status() ProjectorStatus {
 	defer p.mu.Unlock()
 
 	status := ProjectorStatus{
-		Started:          p.started,
-		LastSeq:          p.lastSeq,
-		StartupTargetSeq: p.startupTargetSeq,
-		StartupComplete:  p.startupCompleted,
-		StartupMessages:  p.startupMessages,
+		Started:              p.started,
+		LastSeq:              p.lastSeq,
+		StartupTargetSeq:     p.startupTargetSeq,
+		StartupComplete:      p.startupCompleted,
+		StartupMessages:      p.startupMessages,
+		SnapshotRestored:     p.restoredSeq > 0 || p.restoredGenerationID != "",
+		SnapshotCutoffSeq:    p.restoredSeq,
+		SnapshotGenerationID: p.restoredGenerationID,
+		LatestSnapshotSeq:    p.latestSnapshotSeq,
+		LatestSnapshotAt:     p.latestSnapshotAt,
 	}
 	if !p.startupStartedAt.IsZero() {
 		startupEndsAt := p.startupEndedAt
@@ -196,14 +355,24 @@ func (p *Projector) Status() ProjectorStatus {
 	return status
 }
 
+// RecordSnapshotPublication updates the latest persisted generation metadata
+// used by the snapshot worker's refresh policy. Publication remains guarded by
+// the repository's cross-replica OCC checks.
+func (p *Projector) RecordSnapshotPublication(cutoff uint64, createdAt time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.latestSnapshotSeq = cutoff
+	p.latestSnapshotAt = createdAt
+}
+
 // Err returns the fatal projection error, if the projector has stopped
 // because it could not decode or apply an event.
 func (p *Projector) Err() error {
 	return p.Status().Err
 }
 
-// LastSeq returns the highest stream sequence applied to the projection so
-// far. Safe to call from any goroutine.
+// LastSeq returns the highest matching ordered stream sequence the projector
+// has applied. Safe to call from any goroutine.
 func (p *Projector) LastSeq() uint64 {
 	return p.Status().LastSeq
 }
@@ -469,8 +638,12 @@ type projectionTarget struct {
 }
 
 func (p *Projector) currentTarget(ctx context.Context) (projectionTarget, error) {
+	return p.targetForSubjects(ctx, p.subjects)
+}
+
+func (p *Projector) targetForSubjects(ctx context.Context, subjects []string) (projectionTarget, error) {
 	var target projectionTarget
-	for _, subject := range p.subjects {
+	for _, subject := range subjects {
 		msg, err := p.stream.GetLastMsgForSubject(ctx, subject)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -542,9 +715,6 @@ func (p *Projector) fail(seq uint64, err error) {
 
 // Run starts the consumer + apply loop. Blocks until ctx is cancelled.
 // Returns the context's error on shutdown.
-//
-// Snapshot orchestration is deferred (ADR-033). For now, Restore is always
-// called with nil and the loop replays from the beginning of the stream.
 func (p *Projector) Run(ctx context.Context) error {
 	startedAt := time.Now()
 	p.mu.Lock()
@@ -554,23 +724,28 @@ func (p *Projector) Run(ctx context.Context) error {
 	}
 	p.mu.Unlock()
 
-	if err := p.proj.Restore(nil); err != nil {
-		return fmt.Errorf("restore projection: %w", err)
-	}
-
 	target, err := p.currentTarget(ctx)
 	if err != nil {
 		return fmt.Errorf("read projection startup target: %w", err)
 	}
-	p.mu.Lock()
-	p.startupTargetSeq = target.seq
-	p.mu.Unlock()
+	if err := p.restoreForRun(ctx, target.seq); err != nil {
+		return err
+	}
+	p.setStartupTarget(target.seq)
 
-	cons, err := p.stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
+	consumerConfig := jetstream.OrderedConsumerConfig{
 		FilterSubjects:    p.replaySubjects,
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: 30 * time.Second,
-	})
+	}
+	p.mu.Lock()
+	restoredSeq := p.restoredSeq
+	p.mu.Unlock()
+	if restoredSeq > 0 {
+		consumerConfig.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+		consumerConfig.OptStartSeq = restoredSeq + 1
+	}
+	cons, err := p.stream.OrderedConsumer(ctx, consumerConfig)
 	if err != nil {
 		return fmt.Errorf("create ordered consumer: %w", err)
 	}
@@ -584,6 +759,7 @@ func (p *Projector) Run(ctx context.Context) error {
 	// quiet when idle. See the perf-investigation notes accompanying
 	// this change.
 	cc, err := cons.Consume(p.handleMessage,
+		jetstream.PullMaxBytes(projectionPullMaxBytes),
 		jetstream.ConsumeErrHandler(p.handleConsumeErr),
 	)
 	if err != nil {
@@ -628,6 +804,9 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	if !p.consumesSubject(msg.Subject()) {
 		return
 	}
+	if p.shouldSkipRestored(seq) {
+		return
+	}
 
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
@@ -640,7 +819,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	if err := p.proj.Apply(&event, seq); err != nil {
+	if err := p.apply(&event, seq); err != nil {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
 			"seq", seq,
@@ -650,9 +829,27 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
+	p.maybeCompleteStartup(time.Now())
+}
+
+func (p *Projector) apply(event *corev1.Event, seq uint64) error {
+	p.applyMu.Lock()
+	defer p.applyMu.Unlock()
+	if p.shouldSkipRestored(seq) {
+		return nil
+	}
+	if err := p.proj.Apply(event, seq); err != nil {
+		return err
+	}
 	p.countStartupMessage()
 	p.advance(seq)
-	p.maybeCompleteStartup(time.Now())
+	return nil
+}
+
+func (p *Projector) shouldSkipRestored(seq uint64) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.restoredSeq > 0 && seq <= p.restoredSeq
 }
 
 func (p *Projector) countStartupMessage() {
@@ -666,11 +863,13 @@ func (p *Projector) countStartupMessage() {
 func (p *Projector) maybeCompleteStartup(now time.Time) {
 	p.mu.Lock()
 	shouldLog := false
+	shouldCompleteReplay := false
 	var duration time.Duration
 	var targetSeq, lastSeq, messages uint64
 	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
 		p.startupEndedAt = now
 		p.startupCompleted = true
+		shouldCompleteReplay = true
 	}
 	if p.started && p.startupCompleted && !p.startupLogged {
 		p.startupLogged = true
@@ -681,6 +880,12 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 		messages = p.startupMessages
 	}
 	p.mu.Unlock()
+
+	if shouldCompleteReplay {
+		if projection, ok := p.proj.(StartupReplayCompleter); ok {
+			projection.CompleteStartupReplay()
+		}
+	}
 
 	if shouldLog {
 		var rate float64
@@ -706,198 +911,98 @@ func (p *Projector) handleConsumeErr(_ jetstream.ConsumeContext, err error) {
 	p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
 }
 
-// RunProjectors starts one consumer for projectors with identical replay
-// filters and fans each decoded event out to every projection. Each projector
-// still owns its own lifecycle state, waiters, and failure status.
-func RunProjectors(ctx context.Context, projectors ...*Projector) error {
-	if len(projectors) == 0 {
-		<-ctx.Done()
-		return ctx.Err()
-	}
-	for i, projector := range projectors {
-		if projector == nil {
-			return fmt.Errorf("shared projection %d is nil", i)
-		}
-	}
-	if len(projectors) == 1 {
-		return projectors[0].Run(ctx)
-	}
-
-	subjects := projectors[0].ReplaySubjects()
-	for _, projector := range projectors {
-		if !sameSubjects(subjects, projector.ReplaySubjects()) {
-			return fmt.Errorf("shared projectors must use identical replay subjects: %v != %v", subjects, projector.ReplaySubjects())
-		}
-	}
-
-	return runProjectorsOnSubjects(ctx, subjects, projectors...)
-}
-
-// RunProjectorsOnSubjects starts one consumer for the supplied physical replay
-// filters and fans each decoded event out to projectors whose logical Subjects
-// match the event subject. It is used by ChattoCore to replay the EVT stream
-// once per process while preserving per-projection status and readiness.
-func RunProjectorsOnSubjects(ctx context.Context, replaySubjects []string, projectors ...*Projector) error {
-	if len(replaySubjects) == 0 {
-		return fmt.Errorf("shared projectors require at least one replay subject")
-	}
-	return runProjectorsOnSubjects(ctx, append([]string(nil), replaySubjects...), projectors...)
-}
-
-func runProjectorsOnSubjects(ctx context.Context, subjects []string, projectors ...*Projector) error {
-	if len(projectors) == 0 {
-		<-ctx.Done()
-		return ctx.Err()
-	}
-	for i, projector := range projectors {
-		if projector == nil {
-			return fmt.Errorf("shared projection %d is nil", i)
-		}
-	}
-
-	startedAt := time.Now()
-	for _, projector := range projectors {
-		projector.markStarted(startedAt)
-	}
-
-	for _, projector := range projectors {
-		if err := projector.proj.Restore(nil); err != nil {
-			return fmt.Errorf("restore projection: %w", err)
-		}
-	}
-
-	for _, projector := range projectors {
-		target, err := projector.currentTarget(ctx)
-		if err != nil {
-			return fmt.Errorf("read projection startup target: %w", err)
-		}
-		projector.setStartupTarget(target.seq)
-	}
-
-	cons, err := projectors[0].stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
-		FilterSubjects:    subjects,
-		DeliverPolicy:     jetstream.DeliverAllPolicy,
-		InactiveThreshold: 30 * time.Second,
-	})
-	if err != nil {
-		return fmt.Errorf("create ordered consumer: %w", err)
-	}
-
-	failedCh := make(chan struct{}, 1)
-	cc, err := cons.Consume(func(msg jetstream.Msg) {
-		handleSharedProjectorMessage(msg, projectors, failedCh)
-	}, jetstream.ConsumeErrHandler(func(cc jetstream.ConsumeContext, err error) {
-		for _, projector := range projectors {
-			projector.handleConsumeErr(cc, err)
-		}
-	}))
-	if err != nil {
-		return fmt.Errorf("start consume: %w", err)
-	}
-	defer cc.Stop()
-	for _, projector := range projectors {
-		projector.maybeCompleteStartup(time.Now())
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-failedCh:
-		for _, projector := range projectors {
-			if err := projector.Err(); err != nil {
-				return err
-			}
-		}
-		return ErrProjectionFailed
-	}
-}
-
-func (p *Projector) markStarted(startedAt time.Time) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.started = true
-	if p.startupStartedAt.IsZero() {
-		p.startupStartedAt = startedAt
-	}
-}
-
 func (p *Projector) setStartupTarget(seq uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.startupTargetSeq = seq
 }
 
-func sameSubjects(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
+func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
+	coldRestore := func() error {
+		if err := p.proj.Restore(nil); err != nil {
+			return fmt.Errorf("restore empty projection: %w", err)
 		}
+		p.mu.Lock()
+		p.lastSeq = 0
+		p.restoredSeq = 0
+		p.restoredGenerationID = ""
+		p.latestSnapshotSeq = 0
+		p.latestSnapshotAt = time.Time{}
+		p.mu.Unlock()
+		return nil
 	}
-	return true
-}
 
-func handleSharedProjectorMessage(msg jetstream.Msg, projectors []*Projector, failedCh chan<- struct{}) {
-	seq, err := streamSequenceFromMsg(msg)
+	p.mu.Lock()
+	source := p.snapshotSource
+	key := p.snapshotKey
+	streamIdentity := p.snapshotStreamID
+	loadTimeout := p.snapshotLoadTimeout
+	p.mu.Unlock()
+	if source == nil {
+		return coldRestore()
+	}
+	compatible := p.proj.(SnapshotCompatibleProjection)
+	streamName := ""
+	if info := p.stream.CachedInfo(); info != nil {
+		streamName = info.Config.Name
+	}
+	if loadTimeout <= 0 {
+		loadTimeout = projectionSnapshotLoadTimeout
+	}
+	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
+	defer cancelLoad()
+	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
+		ProjectionKey:   key,
+		CompatibilityID: compatible.SnapshotCompatibilityID(),
+		StreamName:      streamName,
+		StreamIdentity:  streamIdentity,
+		MaxCutoff:       targetSeq,
+	})
 	if err != nil {
-		err := fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err)
-		for _, projector := range projectors {
-			projector.logger.Error("Projection message metadata failed", "subject", msg.Subject(), "error", err)
-			projector.fail(0, err)
+		p.logger.Info("Projection snapshot unavailable; replaying EVT",
+			"projection", key,
+			"stage", "restore",
+			"error", err)
+		return coldRestore()
+	}
+	if snapshot.CutoffSequence > targetSeq {
+		p.logger.Warn("Projection snapshot cutoff rejected; replaying EVT",
+			"projection", key,
+			"stage", "restore_validate",
+			"generation_id", snapshot.GenerationID,
+			"cutoff_seq", snapshot.CutoffSequence,
+			"target_seq", targetSeq)
+		return coldRestore()
+	}
+	if err := p.proj.Restore(snapshot.Payload); err != nil {
+		p.logger.Warn("Projection snapshot restore failed; replaying EVT",
+			"projection", key,
+			"stage", "restore_apply",
+			"generation_id", snapshot.GenerationID,
+			"error", err)
+		if resetErr := coldRestore(); resetErr != nil {
+			return errors.Join(fmt.Errorf("restore projection snapshot: %w", err), resetErr)
 		}
-		notifySharedProjectorFailure(failedCh)
-		return
+		return nil
 	}
-
-	now := time.Now()
-	var consumerBuf [16]*Projector
-	consumers := consumerBuf[:0]
-	for _, projector := range projectors {
-		if projector.consumesSubject(msg.Subject()) {
-			consumers = append(consumers, projector)
-		}
-	}
-	if len(consumers) == 0 {
-		return
-	}
-
-	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
-		for _, projector := range consumers {
-			projector.logger.Error("Projection decode failed",
-				"subject", msg.Subject(),
-				"seq", seq,
-				"error", err)
-			projector.fail(seq, err)
-		}
-		notifySharedProjectorFailure(failedCh)
-		return
-	}
-
-	var applyErr error
-	for _, projector := range consumers {
-		if err := projector.proj.Apply(&event, seq); err != nil {
-			projector.logger.Error("Projection Apply failed",
-				"subject", msg.Subject(),
-				"seq", seq,
-				"event_id", event.GetId(),
-				"error", err)
-			projector.fail(seq, err)
-			if applyErr == nil {
-				applyErr = err
-			}
-			continue
-		}
-		projector.countStartupMessage()
-		projector.advance(seq)
-		projector.maybeCompleteStartup(now)
-	}
-	if applyErr != nil {
-		notifySharedProjectorFailure(failedCh)
-	}
+	p.mu.Lock()
+	p.restoredSeq = snapshot.CutoffSequence
+	p.restoredGenerationID = snapshot.GenerationID
+	p.latestSnapshotSeq = snapshot.CutoffSequence
+	p.latestSnapshotAt = snapshot.CreatedAt
+	p.mu.Unlock()
+	// Restore runs after markStarted, so boot-time callers may already be
+	// waiting for this sequence. Advance through the normal waiter path instead
+	// of assigning lastSeq directly.
+	p.advance(snapshot.CutoffSequence)
+	p.logger.Info("Projection snapshot restored",
+		"projection", key,
+		"stage", "restore_apply",
+		"generation_id", snapshot.GenerationID,
+		"cutoff_seq", snapshot.CutoffSequence,
+		"target_seq", targetSeq,
+		"payload_bytes", len(snapshot.Payload))
+	return nil
 }
 
 func streamSequenceFromMsg(msg jetstream.Msg) (uint64, error) {
@@ -955,11 +1060,4 @@ func parseAckSequenceToken(token string) (uint64, error) {
 		n = n*10 + digit
 	}
 	return n, nil
-}
-
-func notifySharedProjectorFailure(ch chan<- struct{}) {
-	select {
-	case ch <- struct{}{}:
-	default:
-	}
 }

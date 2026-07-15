@@ -12,6 +12,7 @@ const { mocks } = vi.hoisted(() => {
   const store = {
     isAuthenticated: true,
     notifications: {
+      notifications: [] as Array<{ kind: string }>,
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
@@ -106,6 +107,7 @@ describe('NotificationSync', () => {
     vi.clearAllMocks();
 
     mocks.store.isAuthenticated = true;
+    mocks.store.notifications.notifications = [];
     mocks.store.notifications.count = 0;
     mocks.store.notifications.unreadNotificationCount = 0;
     mocks.store.notifications.hasLoaded = true;
@@ -130,6 +132,7 @@ describe('NotificationSync', () => {
     });
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
+    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
     expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
@@ -148,6 +151,7 @@ describe('NotificationSync', () => {
     });
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
+    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
     expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
@@ -185,14 +189,44 @@ describe('NotificationSync', () => {
     expect(mocks.store.rooms.refresh).not.toHaveBeenCalled();
   });
 
-  it('uses the authoritative notification count when the cached list is lower', async () => {
+  it('uses a numeric app badge for loaded DM notifications', async () => {
+    mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
+    mocks.store.notifications.count = 1;
+    mocks.store.notifications.unreadNotificationCount = 1;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+    );
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({
+      kind: 'count',
+      count: 1
+    });
+    expect(mocks.clearBadge).not.toHaveBeenCalled();
+  });
+
+  it('uses a flag instead of a capped DM count when notifications are not fully loaded', async () => {
+    mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
     mocks.store.notifications.count = 1;
     mocks.store.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith(3));
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(3);
+    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
+    expect(mocks.clearBadge).not.toHaveBeenCalled();
+  });
+
+  it('uses a flag app badge for channel notifications', async () => {
+    mocks.store.notifications.notifications = [{ kind: 'mention' }];
+    mocks.store.notifications.count = 1;
+    mocks.store.notifications.unreadNotificationCount = 1;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
     expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
@@ -200,7 +234,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(0);
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'clear' });
     expect(mocks.updateBadge).not.toHaveBeenCalled();
   });
 
@@ -220,8 +254,8 @@ describe('NotificationSync', () => {
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith(2));
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(2);
+    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
     expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
@@ -231,7 +265,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(0);
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'clear' });
     expect(mocks.updateBadge).not.toHaveBeenCalled();
   });
 });

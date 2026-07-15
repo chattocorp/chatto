@@ -1,0 +1,111 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Ta bort roll",
+      "prompt": "Är du säker på att du vill ta bort rollen {role}? Detta kommer att:",
+      "remove_from_users": "Ta bort rollen från alla användare som har den",
+      "delete_grants": "Ta bort alla tillståndsbeviljande för den här rollen",
+      "irreversible": "Denna åtgärd kan inte ångras.",
+      "deleting": "Tar bort...",
+      "action": "Ta bort roll"
+    },
+    "role_form": {
+      "save": "Spara",
+      "saving": "Sparar...",
+      "name": "Namn",
+      "name_placeholder": "t.ex. moderator",
+      "name_description": "Endast små bokstäver. Kan inte ändras efter skapande.",
+      "name_too_long": "Namnet måste bestå av 32 tecken eller mindre",
+      "name_invalid": "Namnet måste använda gemener, siffror och bindestreck; börja med en bokstav",
+      "name_locked": "Rollnamn kan inte ändras efter skapandet.",
+      "display_name": "Visningsnamn",
+      "display_name_placeholder": "t.ex. Moderator",
+      "display_name_too_long": "Visningsnamnet måste vara 64 tecken eller mindre",
+      "description": "Beskrivning",
+      "description_placeholder": "Valfri beskrivning för den här rollen",
+      "pingable": "Tillåt andra att pinga den här rollen",
+      "pingable_description": "Pingbara roller visas i @ autocomplete och meddela tilldelade rumsmedlemmar."
+    },
+    "permissions": {
+      "loading": "Läser in behörigheter...",
+      "no_data": "Ingen data tillgänglig.",
+      "no_roles": "Inga roller är tillämpliga i detta omfång.",
+      "permission": "Tillstånd",
+      "state": "Tillstånd",
+      "decided_by": "Beslutades av",
+      "granted": "Beviljas",
+      "denied": "Nekad",
+      "no_decision": "Inget beslut",
+      "no_role_decided": "Ingen roll bestämd",
+      "hide_trace": "Dölj spår",
+      "show_trace": "Visa spår",
+      "trace_one": "Upplösningsspårning (1 post)",
+      "trace_many": "Upplösningsspårning ({count}-poster)",
+      "allow": "tillåt",
+      "deny": "neka",
+      "winning_decision": "(vinnande beslut)",
+      "level_server": "Server",
+      "level_group": "Grupp",
+      "level_room": "Rum",
+      "empty_category": "Inga behörigheter i denna kategori",
+      "categories": {
+        "space": {
+          "title": "Serverbehörigheter",
+          "description": "Funktioner på servernivå hålls under den äldre kategorinyckeln för kompatibilitet"
+        },
+        "room": {
+          "title": "Rumsbehörigheter",
+          "description": "Serverns standardinställningar för att hitta och gå med i rum, plus skapande av rum. Lägg till rum/grupp nekade för lokala begränsningar"
+        },
+        "message": {
+          "title": "Meddelandebehörigheter",
+          "description": "Serverns standardinställningar för inlägg, trådar, reaktioner, eko och meddelandemoderering. Rum/grupp nekar skapar lokala undantag"
+        },
+        "member": {
+          "title": "Medlemsbehörigheter",
+          "description": "Kontrollera vem som kan bjuda in och ta bort servermedlemmar"
+        },
+        "role": {
+          "title": "Rollbehörigheter",
+          "description": "Kontrollera vem som kan redigera roller, tilldela roller och hantera behörighetsförinställningar"
+        },
+        "admin": {
+          "title": "Administratörsbehörigheter",
+          "description": "Kontrollera åtkomst till serveromfattande administrativa vyer och diagnostik"
+        },
+        "dm": {
+          "title": "DM-behörigheter",
+          "description": "Kontrollera åtkomsten till ingångspunkter för direktmeddelanden"
+        },
+        "user": {
+          "title": "Användarbehörigheter",
+          "description": "Kontrollera användarkonto och per-användares behörighetsoperationer. Varje nekande av icke-ägare annullerar bidrag"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
+      "room_create": "Skapa nya rum",
+      "room_join": "Gå med i befintliga rum",
+      "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",
+      "room_manage": "Redigera ett rums inställningar och behörigheter och ta bort rum",
+      "room_ban_member": "Blockera medlemmar från rum",
+      "message_post": "Lägg upp rootmeddelanden i rum och starta DM",
+      "message_post_in_thread": "Lägg upp svar i en tråd",
+      "message_attach": "Bifoga filer till meddelanden",
+      "message_echo": "När du gör ett inlägg i en tråd ska du också visa meddelandet i huvudkanalen",
+      "message_manage": "Redigera och ta bort andra användares meddelanden",
+      "message_react": "Lägg till och ta bort reaktioner på meddelanden",
+      "role_manage": "Skapa, redigera, ta bort och ändra ordning på roller och deras tillstånd",
+      "role_assign": "Tilldela och återkalla roller för användare",
+      "admin_view_users": "Visa användarsidan i admin",
+      "admin_view_system": "Visa projektionsdiagnostik i admin",
+      "admin_view_audit": "Visa granskningsloggningen i admin",
+      "user_delete_any": "Ta bort en annan användares konto",
+      "user_delete_self": "Radera ditt eget konto",
+      "user_manage_accounts": "Skapa användare, redigera kontoidentitet, återställ lösenord, bifoga verifierade e-postmeddelanden och rensa nedkylningar för inloggning",
+      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Contributing
 
-Chatto is not accepting outside contributions at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik@mans.de).
+Chatto is not accepting outside contributions at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik.mans@chattocorp.eu), or just drop by our [Chatto HQ community server](https://chat.chatto.run/).
 
 ## Agentic Engineering
 

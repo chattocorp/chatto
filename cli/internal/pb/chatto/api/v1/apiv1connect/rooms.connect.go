@@ -111,7 +111,8 @@ type RoomServiceClient interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
-	// Lists explicit members of a room. The caller must be a member of the room.
+	// Lists effective room members. Existing members may list their room;
+	// nonmembers of a channel room need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
 	// Gets one explicit member of a room. The caller must be a member of the
 	// room. Returns NOT_FOUND when the target is unknown or not a room member.
@@ -453,7 +454,8 @@ type RoomServiceHandler interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
-	// Lists explicit members of a room. The caller must be a member of the room.
+	// Lists effective room members. Existing members may list their room;
+	// nonmembers of a channel room need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
 	// Gets one explicit member of a room. The caller must be a member of the
 	// room. Returns NOT_FOUND when the target is unknown or not a room member.

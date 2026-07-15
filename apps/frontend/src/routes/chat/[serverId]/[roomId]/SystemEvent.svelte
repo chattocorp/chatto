@@ -4,6 +4,8 @@
   import { useRenderData } from '$lib/render/data';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { event }: { event: RoomEventView } = $props();
 
@@ -19,36 +21,37 @@
 
   const subject = $derived.by<Subject>(() => {
     const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
-    if (actor) {
+    if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
 
     return { id: event?.actorId ?? 'unknown', name: 'Deleted User', user: null };
   });
 
+  const eventKind = $derived(event?.event ? roomEventKind(event.event) : null);
+
   const action = $derived.by(() => {
-    if (!event?.event) return null;
-    switch (roomEventKind(event.event)) {
+    switch (eventKind) {
       case RoomEventKind.UserJoinedRoom:
-        return 'joined the room';
+        return m['room.system_events.joined']({ count: 1 });
       case RoomEventKind.UserLeftRoom:
-        return 'left the room';
+        return m['room.system_events.left']({ count: 1 });
       case RoomEventKind.RoomArchived:
-        return 'archived the room';
+        return m['room.system_events.archived']();
       case RoomEventKind.RoomUnarchived:
-        return 'unarchived the room';
+        return m['room.system_events.unarchived']();
       default:
         return null;
     }
   });
 
-  const message = $derived.by(() => {
-    if (!action) return null;
-    return `${subject.name} ${action}`;
-  });
+  const isDeletedJoinLeave = $derived(
+    !subject.user &&
+      (eventKind === RoomEventKind.UserJoinedRoom || eventKind === RoomEventKind.UserLeftRoom)
+  );
 </script>
 
-{#if message}
+{#if action && !isDeletedJoinLeave}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
@@ -57,13 +60,20 @@
       {:else}
         <!-- Deleted user placeholder -->
         <div
-          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
           <span class="iconify text-xs uil--user-times"></span>
         </div>
       {/if}
     </div>
 
-    <span class="text-sm text-muted">{message}</span>
+    <span class="text-sm text-muted">
+      {#if subject.user}
+        {subject.name}
+      {:else}
+        <DeletedUserLabel />
+      {/if}
+      {action}
+    </span>
   </div>
 {/if}

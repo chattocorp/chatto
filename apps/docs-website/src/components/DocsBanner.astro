@@ -1,0 +1,83 @@
+---
+import {
+  docsChannel,
+  docsDisplayVersion,
+} from "../docsMetadata";
+---
+
+{
+  docsChannel === "dev" && (
+    <aside class="docs-banner" data-pagefind-ignore aria-label="Documentation channel">
+      <span class="channel">Development docs</span>
+      <span>
+        These docs describe unreleased changes from <code>{docsDisplayVersion}</code>.
+      </span>
+      <a href="https://docs.chatto.run">View stable docs</a>
+    </aside>
+  )
+}
+
+<style>
+  @layer starlight.core {
+    .docs-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.45rem 0.8rem;
+      padding: 0.7rem var(--sl-nav-pad-x);
+      border-block: 1px solid hsl(37, 90%, 62%);
+      background:
+        linear-gradient(90deg, hsl(43, 100%, 94%), hsl(37, 100%, 90%));
+      color: hsl(30, 62%, 22%);
+      font-size: var(--sl-text-sm);
+      line-height: 1.4;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    .channel {
+      padding: 0.12rem 0.48rem;
+      border-radius: 999px;
+      background: hsl(34, 76%, 31%);
+      color: white;
+      font-size: var(--sl-text-xs);
+      font-weight: 700;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+
+    code {
+      padding: 0.08rem 0.3rem;
+      border: 1px solid hsl(34, 65%, 71%);
+      border-radius: 0.25rem;
+      background: hsl(42, 100%, 97%);
+      color: inherit;
+      font-size: 0.92em;
+    }
+
+    a {
+      color: inherit;
+      font-weight: 700;
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.18em;
+    }
+
+    :global(:root[data-theme="dark"]) .docs-banner {
+      border-block-color: hsl(36, 55%, 38%);
+      background:
+        linear-gradient(90deg, hsl(31, 38%, 15%), hsl(35, 42%, 18%));
+      color: hsl(42, 80%, 84%);
+    }
+
+    :global(:root[data-theme="dark"]) .channel {
+      background: hsl(40, 84%, 72%);
+      color: hsl(30, 60%, 14%);
+    }
+
+    :global(:root[data-theme="dark"]) code {
+      border-color: hsl(35, 38%, 34%);
+      background: hsl(30, 34%, 12%);
+    }
+  }
+</style>

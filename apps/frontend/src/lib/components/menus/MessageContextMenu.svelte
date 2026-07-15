@@ -21,6 +21,7 @@ Rendered inside a ContextMenu when right-clicking a message.
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
+  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
@@ -31,9 +32,11 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId,
     deleteEventId = eventId,
     messageBody,
+    permalinkThreadRootEventId = null,
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
+    messageStore = null,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -51,9 +54,11 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId: string;
     deleteEventId?: string;
     messageBody: string;
+    permalinkThreadRootEventId?: string | null;
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
+    messageStore?: MessagesStore | null;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -66,7 +71,8 @@ Rendered inside a ContextMenu when right-clicking a message.
     onClose: () => void;
   } = $props();
 
-  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
+  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const quickReactions = $derived(recentEmojis.quickReactions);
 
   const actions = useMessageActions();
   const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
@@ -81,9 +87,11 @@ Rendered inside a ContextMenu when right-clicking a message.
     eventId,
     deleteEventId,
     messageBody,
+    permalinkThreadRootEventId,
     threadRootEventId,
     channelEchoEventId,
-    canAddChannelEcho
+    canAddChannelEcho,
+    messageStore
   });
 
   /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes) */
@@ -131,7 +139,7 @@ Rendered inside a ContextMenu when right-clicking a message.
     <div class="flex justify-between">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => handleReaction(emoji)}
           aria-label={m['room.message.actions.react_with']({ emoji })}
           role="menuitem"
@@ -141,7 +149,7 @@ Rendered inside a ContextMenu when right-clicking a message.
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base text-muted transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-base text-muted transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => {
             onOpenEmojiPicker();
             onClose();

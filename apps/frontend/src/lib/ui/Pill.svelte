@@ -8,7 +8,7 @@ clickable toggleable variants use `<ToggleChip>`.
 
 ```svelte
 <Pill tone="success">Allow from space</Pill>
-<Pill tone="primary">Space</Pill>
+<Pill tone="neutral">Space</Pill>
 <Pill tone="muted">System</Pill>
 <Pill tone="danger" dimmed>Inherited Allow (overridden)</Pill>
 ```
@@ -16,12 +16,13 @@ clickable toggleable variants use `<ToggleChip>`.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tone = 'success' | 'danger' | 'primary' | 'accent' | 'muted' | 'subtle' | 'server';
+  type Tone = 'success' | 'danger' | 'action' | 'neutral' | 'muted' | 'subtle' | 'server';
 
   let {
     children,
     tone = 'muted',
     dimmed = false,
+    compact = false,
     title,
     class: className
   }: {
@@ -33,6 +34,8 @@ clickable toggleable variants use `<ToggleChip>`.
      * overridden / no longer in effect" presentation.
      */
     dimmed?: boolean;
+    /** Reduce horizontal padding for pills embedded in constrained chrome. */
+    compact?: boolean;
     /** Native title attribute for hover hints. */
     title?: string;
     /**
@@ -46,9 +49,9 @@ clickable toggleable variants use `<ToggleChip>`.
   const toneClasses: Record<Tone, string> = {
     success: 'bg-success/10 text-success',
     danger: 'bg-danger/10 text-danger',
-    primary: 'bg-primary/10 text-primary',
-    accent: 'bg-accent/10 text-accent',
-    muted: 'bg-surface-200 text-muted',
+    action: 'bg-action/10 text-action',
+    neutral: 'bg-neutral-action/10 text-neutral-action',
+    muted: 'bg-surface-emphasized text-muted',
     subtle: 'bg-text/5 text-muted ring-1 ring-text/10 shadow-xs shadow-text/5',
     server: 'bg-server/10 text-server'
   };
@@ -57,9 +60,10 @@ clickable toggleable variants use `<ToggleChip>`.
 <span
   {title}
   class={[
-    'inline-block rounded px-2 py-0.5 text-xs font-medium',
+    'inline-block rounded py-0.5 text-xs font-medium',
+    compact ? 'px-1' : 'px-2',
     toneClasses[tone],
-    dimmed ? 'opacity-50 line-through' : '',
+    dimmed ? 'line-through' : '',
     className
   ]}
 >

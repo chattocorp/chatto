@@ -111,15 +111,12 @@
     error = null;
 
     try {
-      const profile = await updateServerConfig(
-        apiConfig(),
-        {
-          name: name.trim(),
-          description: description.trim(),
-          motd,
-          welcomeMessage
-        }
-      );
+      const profile = await updateServerConfig(apiConfig(), {
+        name: name.trim(),
+        description: description.trim(),
+        motd,
+        welcomeMessage
+      });
 
       name = profile.name;
       description = profile.description ?? '';
@@ -296,7 +293,7 @@
             {m['server_settings.save_button']()}
           </Button>
           {#if saveSuccess}
-            <span class="text-sm text-green-600">{m['common.saved']()}</span>
+            <span class="text-sm text-success">{m['common.saved']()}</span>
           {/if}
         </div>
       </form>
@@ -316,7 +313,7 @@
         />
         <!-- Logo Preview -->
         <div
-          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-200 text-5xl font-black text-muted shadow-md"
+          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-emphasized text-5xl font-black text-muted shadow-md"
         >
           {#if logoUrl}
             <img
@@ -386,7 +383,7 @@
         <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
              swallow the panel on wide layouts. -->
         {#if bannerUrl}
-          <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-200 shadow-md">
+          <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-emphasized shadow-md">
             <img
               src={bannerUrl}
               alt={m['server_settings.banner_alt']()}
@@ -395,7 +392,7 @@
           </div>
         {:else}
           <div
-            class="flex aspect-[1200/630] w-full max-w-md items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface-100 text-muted"
+            class="flex aspect-[1200/630] w-full max-w-md items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface text-muted"
           >
             <span class="text-sm">{m['server_settings.no_banner']()}</span>
           </div>

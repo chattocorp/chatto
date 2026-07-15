@@ -10,6 +10,9 @@ Click cycles the override through `neutral → allow → deny → neutral`. The
 inherited indicator persists faded behind the override (so you can see what
 the role would do without the override at this scope).
 
+While a change is being saved, the state icon is replaced with a spinner and
+the cell is temporarily non-interactive.
+
 When the permission is not applicable to the role at this scope (e.g. a
 room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
@@ -44,7 +47,7 @@ to render an inert "—" cell with an explanation tooltip.
   }
 
   function handleClick() {
-    if (disabled || !applicable) return;
+    if (disabled || updating || !applicable) return;
     onCycle(nextState());
   }
 
@@ -54,24 +57,18 @@ to render an inert "—" cell with an explanation tooltip.
   const visual = $derived(override !== 'neutral' ? override : inherited);
   const isOverride = $derived(override !== 'neutral');
 
-  // Override = saturated gradient + white icon (poppy).
-  // Inherited = lighter gradient (recognisable but quiet).
-  // Neutral = barely-there surface gradient (clickable hint).
-  // Drop shadows are intentionally absent — the design language uses
-  // gradients + soft rings for depth, not shadows.
+  // Overrides use a solid semantic fill and its contrast-safe foreground.
+  // Inherited states use a quiet tint; neutral uses the surface ladder.
   const overrideClasses: Record<State, string> = {
-    allow:
-      'bg-gradient-to-br from-success/65 to-success/95 text-white hover:from-success/75 hover:to-success',
-    deny: 'bg-gradient-to-br from-danger/65 to-danger/95 text-white hover:from-danger/75 hover:to-danger',
+    allow: 'bg-success text-on-success hover:bg-success/90',
+    deny: 'bg-danger text-on-danger hover:bg-danger/90',
     // Unreachable — neutral isn't an override state, but keep a value for type safety.
     neutral: ''
   };
   const inheritedClasses: Record<State, string> = {
-    allow:
-      'bg-gradient-to-br from-success/15 to-success/30 text-success/85 hover:from-success/25 hover:to-success/40',
-    deny: 'bg-gradient-to-br from-danger/15 to-danger/30 text-danger/85 hover:from-danger/25 hover:to-danger/40',
-    neutral:
-      'bg-gradient-to-br from-surface-200/40 to-surface-300/60 text-muted/60 hover:from-surface-200/60 hover:to-surface-300/80'
+    allow: 'bg-success/15 text-success/85 hover:bg-success/25',
+    deny: 'bg-danger/15 text-danger/85 hover:bg-danger/25',
+    neutral: 'bg-surface-emphasized/60 text-muted/60 hover:bg-surface-strong/80'
   };
 
   const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);
@@ -96,22 +93,28 @@ to render an inert "—" cell with an explanation tooltip.
     type="button"
     class={[
       'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
-      updating ? 'animate-pulse' : '',
-      disabled ? 'cursor-not-allowed opacity-60' : ''
+      updating ? 'bg-action/15 ring-2 ring-inset ring-action/40' : '',
+      disabled || updating ? 'cursor-not-allowed' : '',
+      disabled ? 'opacity-60' : ''
     ]}
-    {disabled}
+    disabled={disabled || updating}
     {title}
     aria-label={ariaLabel}
+    aria-busy={updating || undefined}
     aria-pressed={isOverride}
     onclick={handleClick}
   >
     <span
       class={[
-        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color,box-shadow,--tw-gradient-from,--tw-gradient-to]',
+        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color]',
         surfaceClasses
       ]}
     >
-      <span class={['iconify h-3 w-3', icon]}></span>
+      {#if updating}
+        <span class="iconify h-4 w-4 animate-spin uil--spinner" aria-hidden="true"></span>
+      {:else}
+        <span class={['iconify h-3 w-3', icon]}></span>
+      {/if}
     </span>
   </button>
 {/if}

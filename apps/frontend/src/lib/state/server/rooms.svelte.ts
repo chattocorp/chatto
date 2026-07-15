@@ -23,9 +23,9 @@ import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 export type RoomsListItem = {
   id: string;
   name: string;
+  description?: string | null;
   type: RoomType;
   isUniversal: boolean;
-  hasUnread: boolean;
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
   viewerNotificationCount: number;
@@ -73,7 +73,7 @@ function roomType(kind: RoomKind): RoomType {
   return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
 }
 
-function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
+export function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
   return {
     id: member.id,
     login: member.login,
@@ -125,9 +125,9 @@ function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
   return (
     a.id === b.id &&
     a.name === b.name &&
+    a.description === b.description &&
     a.type === b.type &&
     a.isUniversal === b.isUniversal &&
-    a.hasUnread === b.hasUnread &&
     a.viewerIsMember === b.viewerIsMember &&
     a.viewerCanJoinRoom === b.viewerCanJoinRoom &&
     a.viewerNotificationCount === b.viewerNotificationCount &&
@@ -196,15 +196,14 @@ export function isRoomStateRefreshEvent(event: RoomEventKindSource): boolean {
 
 /**
  * Reactive store for a server's joined-room list, layout, and per-room
- * unread/mention state. One store per registered server, owned by
+ * notification counts. One store per registered server, owned by
  * `ServerStateStore` — consumers (RoomList sidebar, the `/[serverId]` redirect
  * page, etc.) reach the active server's store via
  * `serverRegistry.getStore(activeServerId).rooms`, so the reactivity follows
  * the URL automatically when the user switches servers.
  *
- * Per-room flag mutations (markRead, setUnread, ...) are exposed as methods
- * so components can react to local UI events (entering a room) and to other
- * subscriptions (mentions, marked-as-read across tabs).
+ * Room read state is owned separately by `RoomUnreadStore` so the room list
+ * and server indicator cannot maintain competing unread projections.
  *
  * Subscription events are forwarded via {@link ingestServerEvent}; the
  * server bundle forwards events from every server's bus so each server's
@@ -237,6 +236,7 @@ export class RoomsStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
+    const unreadSnapshotRevision = this.roomUnread.captureSnapshotRevision();
     const [viewer, rooms, roomGroups] = await Promise.all([
       this.viewerStateLoader(),
       this.roomDirectoryAPI.listRooms(RoomDirectoryScope.ALL),
@@ -282,7 +282,7 @@ export class RoomsStore {
       ...visibleDms.map((room) => this.roomListItem(room, dmMembersByRoomId.get(room.id) ?? []))
     ];
     this.applyRooms(nextRooms);
-    this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
+    this.roomUnread.initRooms([...visibleChannels, ...visibleDms], false, unreadSnapshotRevision);
     void this.refreshNotificationCounts();
 
     const nextRoomGroups = roomGroups.map((group) => ({
@@ -302,9 +302,9 @@ export class RoomsStore {
     return {
       id: room.id,
       name: room.name,
+      description: room.description,
       type: roomType(room.kind),
       isUniversal: room.isUniversal,
-      hasUnread: room.hasUnread,
       viewerIsMember: room.isMember,
       viewerCanJoinRoom: room.canJoinRoom,
       viewerNotificationCount: 0,
@@ -368,14 +368,6 @@ export class RoomsStore {
   // Per-room flag mutations
   // -------------------------------------------------------------------------
 
-  markRead(roomId: string): void {
-    this.patchRoom(roomId, { hasUnread: false });
-  }
-
-  setUnread(roomId: string): void {
-    this.patchRoom(roomId, { hasUnread: true });
-  }
-
   incrementUnreadNotification(roomId: string): void {
     const room = this.rooms.find((r) => r.id === roomId);
     if (!room) return;
@@ -420,9 +412,8 @@ export class RoomsStore {
 
   private patchRoom(roomId: string, patch: Partial<RoomsListItem>): void {
     // Wrapped in untrack so callers can invoke from within a $effect without
-    // creating a read+write loop on `rooms` (e.g. `$effect(() =>
-    // store.markRead(activeRoomId))`). Reactivity for other consumers still
-    // fires from the assignment.
+    // creating a read+write loop on `rooms`. Reactivity for other consumers
+    // still fires from the assignment.
     untrack(() => {
       const idx = this.rooms.findIndex((r) => r.id === roomId);
       if (idx === -1) return;

@@ -9,15 +9,8 @@ chat-event tree or registering a server in the global registry.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type {
-    RoomsListItem,
-    RoomsListGroup,
-    RoomsStore
-  } from '$lib/state/server/rooms.svelte';
-  import {
-    RoomDirectoryStore,
-    type DirectoryRoom
-  } from '$lib/state/server/roomDirectory.svelte';
+  import type { RoomsListItem, RoomsListGroup, RoomsStore } from '$lib/state/server/rooms.svelte';
+  import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
   import RoomDirectory from './RoomDirectory.svelte';
 
   let {
@@ -40,9 +33,13 @@ chat-event tree or registering a server in the global registry.
     // never replace the fixture data.
     listRooms: () => new Promise<never>(() => {})
   };
+  const stubMemberDirectoryAPI = {
+    listRoomMembers: async () => ({ members: [], totalCount: 0, hasMore: false })
+  };
 
   const directory = new RoomDirectoryStore(
     stubRoomDirectoryAPI,
+    stubMemberDirectoryAPI,
     stubRoomAPI
   );
   directory.allRooms = untrack(() => initialRooms);

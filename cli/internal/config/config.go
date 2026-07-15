@@ -69,15 +69,19 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 }
 
 type WebserverConfig struct {
-	URL                    string    `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
-	Port                   int       `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string  `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
-	OAuthRedirectOrigins   []string  `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
-	WebSocketCompression   *bool     `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression. Reduces bandwidth but uses more CPU. Default: true."`
-	RequestLogging         *bool     `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Useful for debugging but can be noisy in production. Default: false."`
-	CookieSigningSecret    string    `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
-	CookieEncryptionSecret string    `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
-	TLS                    TLSConfig `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
+	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
+	AllowedOrigins         []string      `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
+	OAuthRedirectOrigins   []string      `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
+	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
+	APICompression         *bool         `toml:"api_compression" env:"CHATTO_WEBSERVER_API_COMPRESSION" comment:"Compress eligible ConnectRPC API responses with gzip. Disable to reduce compressor memory and CPU at the cost of higher network usage. Default: true."`
+	APICompressionMinBytes *int          `toml:"api_compression_min_bytes" env:"CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" comment:"Minimum uncompressed ConnectRPC response size eligible for gzip compression. Default: 1024."`
+	WebSocketCompression   *bool         `toml:"websocket_compression" env:"CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" comment:"Enable WebSocket compression for eligible realtime frames. Default: true."`
+	RequestLogging         *bool         `toml:"request_logging" env:"CHATTO_WEBSERVER_REQUEST_LOGGING" comment:"Log HTTP requests. Successful requests are debug-level; 4xx responses are warnings; 5xx responses are errors. Useful for debugging but can be noisy in production. Default: false."`
+	CookieSigningSecret    string        `toml:"cookie_signing_secret" env:"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" comment:"Secret for signing session cookies. NEVER SHARE THIS!\nIf it leaks, change it immediately, but please note that all existing sessions will become invalid."`
+	CookieEncryptionSecret string        `toml:"cookie_encryption_secret" env:"CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" comment:"Optional hex-encoded secret used to encrypt session cookies (in addition to signing). Must decode to 16, 24, or 32 bytes (AES-128/192/256). If unset, cookies are signed but not encrypted — anything ever written to the session is readable by anyone who steals the cookie."`
+	TLS                    TLSConfig     `toml:"tls" comment:"Automatic TLS configuration via Let's Encrypt."`
+	Shields                ShieldsConfig `toml:"shields,commented" comment:"Public Shields.io-compatible community badges. Disabled by default."`
 }
 
 // MetricsConfig controls the process-local Prometheus scrape endpoint.
@@ -97,6 +101,11 @@ type ExporterConfig struct {
 	Path              string   `toml:"path,commented" env:"CHATTO_EXPORTER_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
 	S3RefreshInterval Duration `toml:"s3_refresh_interval,commented" env:"CHATTO_EXPORTER_S3_REFRESH_INTERVAL" comment:"How often to refresh cached S3 bucket size metrics. Default: 15m."`
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
+}
+
+// ShieldsConfig controls public Shields.io-compatible community badges.
+type ShieldsConfig struct {
+	Enabled bool `toml:"enabled" env:"CHATTO_WEBSERVER_SHIELDS_ENABLED" comment:"Expose public Shields.io-compatible badge endpoints for aggregate community counts. Disabled by default because counts reveal server size and activity."`
 }
 
 // DiagnosticsConfig controls opt-in local/operator diagnostics.
@@ -283,6 +292,26 @@ func (c *WebserverConfig) WebSocketCompressionEnabled() bool {
 	return *c.WebSocketCompression
 }
 
+const defaultAPICompressionMinBytes = 1024
+
+// APICompressionEnabled returns whether ConnectRPC responses may be
+// compressed, defaulting to true. Compressed requests remain supported.
+func (c *WebserverConfig) APICompressionEnabled() bool {
+	if c.APICompression == nil {
+		return true
+	}
+	return *c.APICompression
+}
+
+// APICompressionMinBytesOrDefault returns the smallest uncompressed
+// ConnectRPC response eligible for compression.
+func (c *WebserverConfig) APICompressionMinBytesOrDefault() int {
+	if c.APICompressionMinBytes == nil {
+		return defaultAPICompressionMinBytes
+	}
+	return *c.APICompressionMinBytes
+}
+
 // RequestLoggingEnabled returns whether HTTP request logging is enabled (default: false)
 func (c *WebserverConfig) RequestLoggingEnabled() bool {
 	if c.RequestLogging == nil {
@@ -423,13 +452,31 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	SecretKey    string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid."`
-	Assets       AssetsConfig   `toml:"assets"`
-	AuthTokenTTL time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
-	EmailOTP     EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
-	Replicas     int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits       LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
-	Owners       OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	SecretKey                   string         `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens and account-flow credentials. NEVER SHARE THIS!\nIf it changes, existing bearer tokens and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
+	ProjectionSnapshots         bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
+	ProjectionSnapshotRetention Duration       `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
+	ProjectionSnapshotS3Cleanup *bool          `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
+	Assets                      AssetsConfig   `toml:"assets"`
+	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	EmailOTP                    EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
+	Replicas                    int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
+	Limits                      LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Owners                      OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
+	Version                     string         `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
+}
+
+// ProjectionSnapshotRetentionOrDefault returns the configured retention, or
+// seven days when it is unset.
+func (c *CoreConfig) ProjectionSnapshotRetentionOrDefault() time.Duration {
+	if c.ProjectionSnapshotRetention == 0 {
+		return 7 * 24 * time.Hour
+	}
+	return c.ProjectionSnapshotRetention.Duration()
+}
+
+// ProjectionSnapshotS3CleanupOrDefault reports whether Chatto owns S3 expiry.
+func (c *CoreConfig) ProjectionSnapshotS3CleanupOrDefault() bool {
+	return c.ProjectionSnapshotS3Cleanup == nil || *c.ProjectionSnapshotS3Cleanup
 }
 
 const (
@@ -985,6 +1032,9 @@ func (c *ChattoConfig) Validate() error {
 	if c.Webserver.Port == 0 && !c.Webserver.TLS.Enabled {
 		errs = append(errs, "webserver.port is required when TLS is disabled")
 	}
+	if c.Webserver.APICompressionMinBytes != nil && *c.Webserver.APICompressionMinBytes < 0 {
+		errs = append(errs, "webserver.api_compression_min_bytes must not be negative")
+	}
 	if c.Metrics.Enabled {
 		if c.Metrics.Port < 0 || c.Metrics.Port > 65535 {
 			errs = append(errs, "metrics.port must be between 0 and 65535")
@@ -1052,6 +1102,13 @@ func (c *ChattoConfig) Validate() error {
 	for _, origin := range c.Webserver.OAuthRedirectOrigins {
 		if err := validateOrigin("webserver.oauth_redirect_origins", origin, true, true); err != nil {
 			errs = append(errs, err.Error())
+		}
+	}
+	for _, proxy := range c.Webserver.TrustedProxies {
+		if net.ParseIP(proxy) == nil {
+			if _, _, err := net.ParseCIDR(proxy); err != nil {
+				errs = append(errs, fmt.Sprintf("webserver.trusted_proxies contains invalid IP address or CIDR %q", proxy))
+			}
 		}
 	}
 
@@ -1199,6 +1256,9 @@ func (c *ChattoConfig) Validate() error {
 	// Asset cache configuration
 	if c.Core.Assets.Cache.Enabled && c.Core.Assets.Cache.TTL.Duration() < 0 {
 		errs = append(errs, "core.assets.cache.ttl must be positive when cache is enabled")
+	}
+	if c.Core.ProjectionSnapshotRetention.Duration() < 0 {
+		errs = append(errs, "core.projection_snapshot_retention must be positive")
 	}
 
 	// Storage backend validation

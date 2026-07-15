@@ -1,12 +1,105 @@
 package core
 
 import (
+	"bytes"
 	"slices"
 	"testing"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
+	full := NewThreadProjection()
+	eventsBefore := []*corev1.Event{
+		threadCreatedEvent("THREAD", "R1", "ROOT", "U1", 1),
+		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+		postedEvent(postedOpts{envelopeID: "REPLY-2", eventID: "REPLY-2", roomID: "R1", actorID: "U3", inThread: "ROOT", at: 3}),
+		threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U2", true),
+		retractedEvent("RETRACT", "REPLY-2", "R1", "U3", "removed", 5),
+		userKeyShreddedSnapshotTestEvent("SHRED", "U3"),
+	}
+	applyAll(t, full, eventsBefore)
+	// Historical duplicate IDs activate the replay guard's compatibility mode,
+	// which must survive snapshot restore for first-event-wins behavior.
+	if err := full.Apply(eventsBefore[1], 7); err != nil {
+		t.Fatal(err)
+	}
+	full.CompleteStartupReplay()
+
+	first, err := full.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := full.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("Thread snapshot encoding is not deterministic")
+	}
+
+	restored := NewThreadProjection()
+	if err := restored.Restore(first); err != nil {
+		t.Fatal(err)
+	}
+	restoredBytes, err := restored.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, restoredBytes) {
+		t.Fatal("restored canonical Thread state differs from captured state")
+	}
+
+	tail := postedEvent(postedOpts{envelopeID: "REPLY-3", eventID: "REPLY-3", roomID: "R1", actorID: "U4", inThread: "ROOT", at: 8})
+	if err := full.Apply(tail, 8); err != nil {
+		t.Fatal(err)
+	}
+	if err := restored.Apply(tail, 8); err != nil {
+		t.Fatal(err)
+	}
+	fullBytes, _ := full.Snapshot()
+	restoredBytes, _ = restored.Snapshot()
+	if !bytes.Equal(fullBytes, restoredBytes) {
+		t.Fatal("snapshot plus tail differs from full projection state")
+	}
+	if got := restored.ReplyCount("ROOT"); got != 2 {
+		t.Fatalf("ReplyCount after restore and tail = %d, want 2", got)
+	}
+	if got := restored.FollowState("U2", "R1", "ROOT"); got != ThreadFollowStateFollowing {
+		t.Fatalf("FollowState after restore = %q", got)
+	}
+}
+
+func TestThreadProjectionSnapshotCompatibilityID(t *testing.T) {
+	if got := NewThreadProjection().SnapshotCompatibilityID(); got != "v1" {
+		t.Fatalf("SnapshotCompatibilityID() = %q, want v1", got)
+	}
+}
+
+func TestThreadProjectionSnapshotRestoreFailureIsTransactional(t *testing.T) {
+	p := NewThreadProjection()
+	if err := p.Apply(threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U1", true), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Restore([]byte("not protobuf")); err == nil {
+		t.Fatal("Restore accepted malformed snapshot")
+	}
+	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
+		t.Fatalf("canonical follow state after failed restore = %q", got)
+	}
+}
+
+func threadFollowSnapshotTestEvent(id, roomID, rootID, userID string, following bool) *corev1.Event {
+	if following {
+		return &corev1.Event{Id: id, Event: &corev1.Event_ThreadFollowed{ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
+	}
+	return &corev1.Event{Id: id, Event: &corev1.Event_ThreadUnfollowed{ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
+}
+
+func userKeyShreddedSnapshotTestEvent(id, userID string) *corev1.Event {
+	return &corev1.Event{Id: id, Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID}}}
+}
 
 // =============================================================================
 // ThreadProjection
@@ -132,7 +225,7 @@ func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Errorf("ReplyCount = %d, want 1", got)
 	}
-	if got := len(p.appliedEventIDs); got != 2 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 2 {
 		t.Errorf("appliedEventIDs = %d, want 2 to confirm edit routed through envelope-id fallback", got)
 	}
 }
@@ -262,11 +355,18 @@ func TestThreadProjection_Idempotency(t *testing.T) {
 	if err := p.Apply(reply, 1); err != nil {
 		t.Fatalf("second Apply: %v", err)
 	}
+	p.CompleteStartupReplay()
+	if err := p.Apply(reply, 1); err != nil {
+		t.Fatalf("Apply duplicate after replay: %v", err)
+	}
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Errorf("duplicate Apply doubled ReplyCount: %d, want 1", got)
 	}
 	if got := len(p.ThreadEvents("ROOT")); got != 1 {
 		t.Errorf("duplicate Apply doubled ThreadEvents: %d, want 1", got)
+	}
+	if got := len(p.replayGuard.retainedEventIDs()); got != 1 {
+		t.Errorf("duplicate replay retained event IDs = %d, want 1", got)
 	}
 }
 
@@ -279,7 +379,7 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 	if err := p.Apply(root, 1); err != nil {
 		t.Fatalf("second root Apply: %v", err)
 	}
-	if got := len(p.appliedEventIDs); got != 0 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 0 {
 		t.Fatalf("ignored root events populated appliedEventIDs with %d entries, want 0", got)
 	}
 
@@ -290,7 +390,7 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Fatalf("ReplyCount = %d, want 1", got)
 	}
-	if got := len(p.appliedEventIDs); got != 1 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 1 {
 		t.Fatalf("appliedEventIDs after relevant event = %d, want 1", got)
 	}
 }
@@ -363,36 +463,6 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 	}
 	if followed := p.FollowedThreadsForUser("U1"); len(followed) != 0 {
 		t.Fatalf("FollowedThreadsForUser(U1) after unfollow = %#v, want empty", followed)
-	}
-}
-
-func TestThreadProjection_SeedLegacyThreadFollowState(t *testing.T) {
-	p := NewThreadProjection()
-	p.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateFollowing)
-
-	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
-		t.Fatalf("seeded FollowState = %q, want following", got)
-	}
-	if followers := p.ThreadFollowers("R1", "ROOT"); !slices.Equal(followers, []string{"U1"}) {
-		t.Fatalf("seeded ThreadFollowers = %v, want [U1]", followers)
-	}
-
-	applyAll(t, p, []*corev1.Event{
-		{
-			Id:      "UNFOLLOW-U1",
-			ActorId: "U1",
-			Event: &corev1.Event_ThreadUnfollowed{
-				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
-					RoomId:            "R1",
-					ThreadRootEventId: "ROOT",
-					UserId:            "U1",
-				},
-			},
-		},
-	})
-
-	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateUnfollowed {
-		t.Fatalf("EVT should override seeded legacy state, got %q", got)
 	}
 }
 

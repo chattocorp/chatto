@@ -41,6 +41,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use `Snippet<[Args]>` for reusable layout/render snippets.
 - Prefer attachments (`{@attach}`) over legacy actions for new reusable DOM
   behavior.
+- Prefer Svelte template event attributes such as `onclick` and `onpointerdown`
+  for component-owned DOM event handling. Reserve imperative event listeners for
+  reusable actions, attachments, subscriptions, and external targets such as
+  `window`, `document`, or third-party libraries.
 
 ## Routing And Navigation
 
@@ -68,7 +72,16 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## UI And Styling
 
+- Read [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before changing visible UI. It is
+  the canonical guide for choosing components, semantic utilities, tokens, and
+  Storybook coverage.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
+- Never add decorative one-sided accent borders or inset edge stripes to cards,
+  rows, panels, or selected states. Use a uniform border when a real boundary is
+  needed, and use fill plus the control's indicator to communicate selection.
+- Prefer an established component, then a semantic utility from `src/app.css`,
+  then raw Tailwind for local layout. Do not use `!` overrides to invent
+  missing component variants; extend the component and its story instead.
 - Svelte files use tabs; match local style.
 - Use base text size by default. Reserve smaller text for metadata.
 - Use browser/platform default text rendering. Do not apply global font
@@ -78,11 +91,15 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Do not use `{@html}` directly in feature components. Render trusted markdown
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.
-- Use `link` for inline links, not `text-primary`.
+- Use `link` for inline links, not a hand-built `text-action` treatment.
 - Flex children with truncation or fixed-width media usually need `min-w-0`.
 - Prefer native browser scrolling for scrollable regions and galleries; do not
   intercept wheel, touch, or pointer scrolling unless the interaction is
   explicitly custom and approved.
+- App-wide pan gestures must yield to horizontal scrollers, form and media
+  controls, custom drag surfaces, and browser top-layer UI such as dialogs,
+  popovers, and fullscreen elements. Mark custom surfaces with the gesture's
+  explicit opt-out and cover both pointer and touch paths in tests.
 - Do not double-nest `Panel`.
 - `PaneHeader` actions are icon affordances. Put primary actions such as Save,
   Cancel, and Create in the page body or form area.
@@ -101,8 +118,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Internationalization
 
-- New or changed user-visible strings go through Paraglide catalogs with both
-  English and German entries. Follow ADR-043.
+- New or changed user-visible strings go through the British English (`en-GB`)
+  source and every complete translated Paraglide catalog. Preserve message
+  structure and placeholders. Add a sparse US English (`en-US`) override when
+  spelling or terminology differs; do not duplicate identical base messages.
+  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-043.
 - Import product messages from `$lib/i18n/messages`, not generated Paraglide
   internals.
 - Use nested keys grouped by feature/surface; do not use English sentences as
@@ -144,10 +164,23 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
+- When changing multi-server authentication or shared chat providers, cover an
+  authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state
   mutations when needed.
+- For focused component tests, filter to the relevant test instead of initially
+  running the entire spec. Use a plain substring without regular-expression
+  characters such as `+`:
+
+```sh
+mise x -- pnpm --filter chatto-frontend exec vitest --run \
+  src/path/Component.svelte.spec.ts -t 'plain substring'
+```
+
+- If Vite reloads after first-run dependency optimization and then stops making
+  progress, terminate the test and rerun it once with the warmed cache.
 - E2E runs locally without Docker/Tilt/OrbStack; Playwright starts its own
   embedded-NATS Chatto binary.
 - Prefer targeted e2e runs before the full suite:
@@ -172,7 +205,13 @@ mise test-e2e
 - Use addon-svelte-csf v5 conventions; pass `asChild` on `<Story>` blocks that
   contain markup.
 - Stories should document behavior through realistic variants, not long prose.
+- Literal fixture copy local to a story is exempt from Paraglide catalogs.
+  Production component and route strings still require British English and
+  German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.
+- Route accessibility coverage lives in `e2e/accessibility.test.ts`. Keep its
+  representative public, authenticated, mobile, admin, and dialog scans free of
+  blanket axe exclusions.
 
 ## PWA And Assets
 

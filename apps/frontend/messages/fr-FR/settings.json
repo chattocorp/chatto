@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Paramètres",
+      "back_to_server": "Retour au serveur",
+      "profile": "Profil",
+      "display": "Affichage",
+      "notifications": "Notifications",
+      "account": "Compte"
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Gérer les informations de votre profil",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Déposer l'image",
+        "drop_subtitle": "Téléchargez en tant qu'avatar",
+        "alt": "Votre avatar",
+        "description": "Téléchargez un avatar. Les images seront redimensionnées à 256x256 pixels.",
+        "uploading": "Téléchargement...",
+        "upload": "Télécharger l'avatar",
+        "change": "Changer d'avatar",
+        "removing": "Suppression...",
+        "remove": "Supprimer",
+        "invalid_type": "Veuillez sélectionner un fichier image",
+        "too_large": "L'image doit faire moins de 10 Mo",
+        "uploaded": "L'avatar a été téléchargé avec succès",
+        "upload_failed": "Échec du téléchargement de l'avatar",
+        "removed": "Avatar supprimé",
+        "delete_failed": "Échec de la suppression de l'avatar"
+      },
+      "display_name": {
+        "label": "Nom d'affichage",
+        "placeholder": "Saisissez votre nom d'affichage",
+        "invalid": "Nom d'affichage non valide"
+      },
+      "username": {
+        "label": "Nom d'utilisateur",
+        "placeholder": "Entrez votre nom d'utilisateur",
+        "invalid": "Nom d'utilisateur invalide",
+        "cooldown_error": "Vous ne pouvez modifier votre nom d'utilisateur qu'une fois tous les 30 jours. Réessayez dans {remaining}.",
+        "cooldown_notice": "Vous pouvez à nouveau modifier votre nom d'utilisateur dans {remaining}.",
+        "confirm_title": "Changer le nom d'utilisateur",
+        "confirm_prompt": "Êtes-vous sûr de vouloir changer votre nom d'utilisateur en @{login} ?",
+        "confirm_cooldown": "Vous ne pouvez modifier votre nom d'utilisateur qu'une fois tous les 30 jours.",
+        "confirm_button": "Changer le nom d'utilisateur"
+      },
+      "status": {
+        "title": "Statut personnalisé",
+        "dialog_title": "Définir un statut",
+        "set_custom_status": "Définir le statut personnalisé",
+        "edit_button": "Modifier le statut",
+        "emoji": {
+          "label": "Emoji de statut",
+          "placeholder": "🌿",
+          "choose": "Choisissez un emoji"
+        },
+        "text": {
+          "label": "Texte d'état",
+          "placeholder": "En mode mise au point"
+        },
+        "expires_at": {
+          "label": "Effacer automatiquement à"
+        },
+        "expiry": {
+          "today": "Aujourd'hui",
+          "thirty_minutes": "30 minutes",
+          "one_hour": "1 heure",
+          "four_hours": "4 heures",
+          "tomorrow": "Demain",
+          "never": "Ne pas effacer",
+          "custom": "Personnalisé",
+          "custom_date": "Heure d'effacement personnalisée"
+        },
+        "suggestions": "Suggestions",
+        "template": {
+          "label": "Modèle",
+          "none": "Aucun statut",
+          "out_for_lunch": "Sortir pour déjeuner",
+          "vacation": "Vacances",
+          "sick": "Malade",
+          "custom": "Personnalisé"
+        },
+        "emoji_required": "Choisissez un emoji pour votre statut",
+        "text_required": "Saisir le texte d'état",
+        "saved": "Statut mis à jour",
+        "save_failed": "Échec de l'enregistrement du statut",
+        "cleared": "Statut effacé",
+        "clear_failed": "Échec de l'effacement du statut",
+        "save_button": "Enregistrer le statut",
+        "clear_button": "Effacer le statut"
+      },
+      "presence": {
+        "button": "Présence : {status}",
+        "title": "Présence",
+        "auto": "En ligne",
+        "away": "Absent",
+        "do_not_disturb": "Ne pas déranger",
+        "offline": "Hors ligne",
+        "invisible": "Rechercher hors ligne"
+      },
+      "saved": "Profil mis à jour avec succès",
+      "save_failed": "Échec de l'enregistrement du profil",
+      "save_button": "Enregistrer les modifications"
+    },
+    "preferences": {
+      "title": "Affichage",
+      "subtitle": "Choisissez comment Chatto apparaît",
+      "theme": {
+        "title": "Thème",
+        "system": {
+          "label": "Système",
+          "description": "Suivez l'apparence de votre navigateur ou de votre système d'exploitation"
+        },
+        "light": {
+          "label": "Lumière",
+          "description": "Utiliser l'interface légère sur ce navigateur"
+        },
+        "dark": {
+          "label": "Sombre",
+          "description": "Utiliser l'interface sombre sur ce navigateur"
+        }
+      },
+      "language": {
+        "title": "Langue",
+        "description": "Choisissez la langue et la formulation régionale de ce navigateur.",
+        "english_uk": "Anglais (Royaume-Uni)",
+        "english_us": "Anglais (États-Unis)",
+        "german": "Allemand"
+      },
+      "timezone": {
+        "title": "Fuseau horaire",
+        "description": "Définissez votre fuseau horaire pour afficher les horodatages à votre heure locale. Laissez vide pour utiliser les valeurs par défaut de votre navigateur.",
+        "browser_default": "Navigateur par défaut",
+        "clear": "Effacer le fuseau horaire (utiliser le navigateur par défaut)",
+        "invalid": "Veuillez sélectionner un fuseau horaire valide dans la liste",
+        "more_results": "{count} plus - tapez pour affiner les résultats",
+        "current_time": "Heure actuelle là-bas : {time}"
+      },
+      "time_format": {
+        "title": "Format de l'heure",
+        "browser_default": {
+          "label": "Navigateur par défaut",
+          "description": "Utilisez les paramètres régionaux de votre navigateur pour déterminer le format 12 h ou 24 h."
+        },
+        "12h": {
+          "label": "12 heures",
+          "description": "par exemple, 2:30 PM"
+        },
+        "24h": {
+          "label": "24 heures",
+          "description": "par exemple, 14h30"
+        }
+      },
+      "save_button": "Enregistrer les paramètres d'affichage",
+      "saved": "Paramètres d'affichage enregistrés",
+      "save_failed": "Échec de l'enregistrement des paramètres d'affichage"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Configurez la façon dont vous recevez les notifications",
+      "push": {
+        "title": "Notifications poussées",
+        "not_configured": "Les notifications push ne sont pas configurées sur ce serveur",
+        "not_supported": "Les notifications push ne sont pas prises en charge dans ce navigateur.",
+        "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
+        "ios_home_screen_description": "Sur les versions iOS/iPadOS prises en charge, ajoutez Chatto à l'écran d'accueil et ouvrez-le à partir de l'icône de l'application pour activer les notifications push.",
+        "blocked_title": "Notifications push bloquées",
+        "blocked_description": "Activez les notifications dans les paramètres de votre navigateur ou de votre système d'exploitation, puis ouvrez à nouveau Chatto.",
+        "enabled_title": "Notifications push activées",
+        "enabled_description": "Chatto utilise l'autorisation de notification de votre navigateur ou de votre système d'exploitation comme commutateur. Pour désactiver les notifications, désactivez-les pour ce site dans les paramètres de votre navigateur ou de votre système d'exploitation.",
+        "test_button": "Envoyer une notification de test",
+        "testing": "Envoi en cours…",
+        "test_sent": "Notification de test envoyée.",
+        "test_failed": "Impossible d'envoyer une notification de test. Essayez à nouveau d'activer les notifications push.",
+        "enable_title": "Activer les notifications push",
+        "enable_description": "Soyez averti des nouveaux messages lorsque Chatto est fermé ou exécuté en arrière-plan.",
+        "enable_button": "Activer",
+        "enabling": "Activation...",
+        "blocked_error": "Les notifications push sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation.",
+        "enable_failed": "Échec de l'activation des notifications push. Veuillez réessayer.",
+        "enable_error": "Une erreur s'est produite lors de l'activation des notifications push",
+        "remote_title": "Le push natif n'est pas disponible pour les serveurs distants",
+        "remote_description": "Cette application installée ne peut enregistrer les notifications push du navigateur qu'avec le serveur qui l'a servie. Les badges et les sons de notification dans l'application fonctionnent toujours pour ce serveur lorsque Chatto est ouvert."
+      },
+      "push_prompt": {
+        "title": "Activer les notifications push",
+        "message": "Soyez informé des DM, des mentions et des réponses.",
+        "ios_home_screen_title": "Ajoutez Chatto à votre écran d'accueil",
+        "ios_home_screen_message": "Sur les versions iOS/iPadOS prises en charge, ouvrez Chatto à partir de son icône sur l'écran d'accueil avant d'activer les notifications push.",
+        "enabled": "Notifications push activées",
+        "blocked": "Les notifications push sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation",
+        "enable_failed": "Échec de l'activation des notifications push",
+        "enabling": "Activation...",
+        "enable": "Activer",
+        "dismiss": "Non merci"
+      },
+      "levels": {
+        "loading": "Chargement...",
+        "load_failed": "Échec du chargement des préférences de notification",
+        "server_updated": "Niveau de notification du serveur mis à jour",
+        "room_updated": "Niveau de notification de la salle mis à jour",
+        "update_failed": "Échec de la mise à jour",
+        "server_title": "Niveau de notification du serveur",
+        "server_description": "Contrôle la façon dont vous recevez des notifications pour toutes les salles de ce serveur. Les pièces individuelles peuvent remplacer ce paramètre.",
+        "room_title": "Remplacements de salle",
+        "room_description": "Remplacez le paramètre au niveau du serveur pour les salles individuelles. Les salles définies sur « Par défaut » héritent du paramètre du serveur ({level}).",
+        "room_level_label": "Niveau de notification pour #{room}",
+        "effective": "En vigueur : {level}",
+        "default": {
+          "label": "Par défaut",
+          "description": "Utiliser la valeur par défaut héritée"
+        },
+        "muted": {
+          "label": "Muet",
+          "description": "Aucune notification ni marqueur non lu"
+        },
+        "normal": {
+          "label": "Normale",
+          "description": "Marqueurs non lus + mentions, messages directs et réponses au fil de discussion"
+        },
+        "all_messages": {
+          "label": "Tous les messages",
+          "description": "Normal + notification pour chaque nouveau message"
+        }
+      },
+      "sound": {
+        "title": "Son de notification",
+        "shape_title": "Forme sonore",
+        "preview": "Aperçu",
+        "reset": "Réinitialiser",
+        "off": "Désactivé",
+        "volume": "Volume",
+        "tinny": "Tinny",
+        "muffled": "Étouffé",
+        "echo": "Écho",
+        "reverb": "Réverbération",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Silencieux",
+          "simple": "Simple",
+          "playful": "Ludique",
+          "robots": "Robots",
+          "musical": "Comédie musicale",
+          "here_be_dragons": "Voici les dragons"
+        },
+        "name": {
+          "silent": "Silencieux",
+          "ding": "Ding",
+          "chime_up": "Carillon montant",
+          "chime_down": "Carillon qui tombe",
+          "pop": "Pop douce",
+          "bubble": "Bulle",
+          "retro": "Bip rétro",
+          "coin": "Collecte de pièces",
+          "powerup": "Mise sous tension",
+          "fanfare": "Fanfare 8 bits",
+          "laser": "Zap laser",
+          "robot": "Voix de robot",
+          "ufo": "OVNI",
+          "beepboop": "Bip Boop",
+          "dialup": "Accès commuté",
+          "r2d2": "R2-D2",
+          "harp": "Harpe s'épanouit",
+          "music_box": "Boîte à musique",
+          "celesta": "Rêve de Célesta",
+          "synth": "Accord de synthé",
+          "orchestra": "Coup d'orchestre",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Chaos",
+          "glitch": "Problème",
+          "siren": "Sirène d'alerte",
+          "dubstep": "Sortie Dubstep",
+          "circus": "Cirque"
+        }
+      }
+    },
+    "account": {
+      "title": "Compte",
+      "subtitle": "Gérer les paramètres de votre compte",
+      "info_title": "Informations sur le compte",
+      "username": "Nom d'utilisateur",
+      "display_name": "Nom d'affichage",
+      "danger_title": "Zone dangereuse",
+      "danger_description": "La suppression de votre compte est définitive et irréversible. Toutes vos données seront supprimées.",
+      "delete_button": "Supprimer le compte",
+      "delete_failed": "Échec de la suppression du compte",
+      "delete_request_failed": "Échec de la demande de suppression du compte",
+      "password": {
+        "title": "Mot de passe",
+        "add_description": "Ajoutez un mot de passe pour pouvoir vous connecter directement et déconnecter votre dernier fournisseur SSO.",
+        "change_description": "Modifiez le mot de passe utilisé pour la connexion directe.",
+        "current_label": "Mot de passe actuel",
+        "current_required": "Saisissez votre mot de passe actuel.",
+        "add_button": "Ajouter un mot de passe",
+        "change_button": "Modifier le mot de passe",
+        "saving": "Enregistrement du mot de passe...",
+        "saved": "Mot de passe ajouté",
+        "changed": "Mot de passe modifié",
+        "save_failed": "Échec de l'enregistrement du mot de passe",
+        "fresh_auth_required": "Connectez-vous à nouveau avant d'ajouter un mot de passe.",
+        "already_set": "Ce compte a déjà un mot de passe."
+      },
+      "sso": {
+        "title": "Authentification unique",
+        "loading": "Chargement des fournisseurs d'authentification...",
+        "load_failed": "Échec du chargement des fournisseurs d'authentification",
+        "none_configured": "Aucun fournisseur de connexion externe n'est configuré.",
+        "linked": "Lié",
+        "not_linked": "Non lié",
+        "link_button": "Lien",
+        "link_failed": "Échec de l'association du fournisseur d'authentification",
+        "fresh_auth_required": "Connectez-vous à nouveau avant de lier un autre fournisseur.",
+        "provider_unconfigured": "Le fournisseur n'est plus configuré",
+        "disconnect_button": "Déconnecter",
+        "disconnecting": "Déconnexion...",
+        "disconnect_failed": "Échec de la déconnexion du fournisseur de connexion",
+        "disconnect_last_method": "Ajoutez un mot de passe ou une autre méthode de connexion avant de déconnecter ce fournisseur.",
+        "disconnect_fresh_auth_required": "Connectez-vous à nouveau avant de déconnecter ce fournisseur.",
+        "disconnect_modal": {
+          "title": "Déconnecter le fournisseur",
+          "body": "Déconnecter {provider} de ce compte ?",
+          "action": "Déconnecter"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Le fournisseur ne peut pas être déconnecté",
+          "body": "{provider} est votre seule méthode de connexion. Ajoutez un mot de passe ou associez d'abord un autre fournisseur."
+        },
+        "fresh_auth_modal": {
+          "title": "Confirmer le mot de passe",
+          "body": "Entrez votre mot de passe actuel avant de lier {provider}.",
+          "action": "Continuer"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Confirmer le mot de passe",
+          "body": "Saisissez votre mot de passe actuel avant de déconnecter le {provider}.",
+          "action": "Déconnecter"
+        }
+      },
+      "delete_modal": {
+        "title": "Supprimer le compte",
+        "warning_label": "Attention :",
+        "warning_text": "Cette action est permanente et ne peut être annulée.",
+        "intro": "Cela supprimera définitivement votre compte et :",
+        "remove_from_rooms": "Vous supprimer de tous les espaces et pièces",
+        "delete_messages": "Supprimez tous vos messages (le contenu sera irrécupérable)",
+        "delete_profile": "Supprimez votre profil, votre avatar et les données associées",
+        "confirm_label": "Tapez DELETE pour confirmer",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Annuler",
+        "deleting": "Suppression..."
+      }
+    }
+  }
+}

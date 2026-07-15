@@ -1,0 +1,6 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "welcome": {
+    "verified": "メールアドレスが確認され、アカウントの準備が整いました。"
+  }
+}

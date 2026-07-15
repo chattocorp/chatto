@@ -11,10 +11,11 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := testEventProjector(t)
+	authProjector := testEventProjector(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := testEventProjector(t)
 
-	service := newUserModel(publisher, users, usersProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(publisher, users, usersProjector, authProjector, contentKeys, contentKeysProjector)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
@@ -24,6 +25,9 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 	}
 	if service.usersProjector != usersProjector {
 		t.Fatal("users projector was not wired")
+	}
+	if service.authProjector != authProjector {
+		t.Fatal("user auth projector was not wired")
 	}
 	if service.contentKeys != contentKeys {
 		t.Fatal("content keys projection was not wired")
@@ -38,7 +42,7 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, nil, nil, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, nil, nil, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -75,7 +79,7 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
 	startTestProjector(t, usersProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, nil, nil)
+	service := newUserModel(harness.publisher, users, usersProjector, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -114,7 +118,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, users, usersProjector, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	avatarEvent := newEvent(SystemActorID, &corev1.Event{

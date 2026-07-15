@@ -28,9 +28,9 @@
   // that began inside (e.g. text selection) from closing on release outside.
   // Defaults to `true` so a click that reaches the dialog without an observed
   // pointerdown is treated as "not a backdrop click" and ignored — only a
-  // real pointerdown on the backdrop arms the close path. Required on mobile,
-  // where the sidebar's tap-forwarding (`useSidebarSwipe`) can synthesize a
-  // stray click that bubbles to the dialog right as it opens.
+  // real pointerdown on the backdrop arms the close path. This also protects
+  // against programmatic or keyboard-synthesized clicks being mistaken for a
+  // backdrop dismissal.
   let pressStartedInside = true;
 
   // Stable per-instance id for the title (so screen readers announce it
@@ -63,9 +63,7 @@
             'input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled])';
           const active = document.activeElement;
           const alreadyOnField =
-            active instanceof HTMLElement &&
-            node.contains(active) &&
-            active.matches(fieldSelector);
+            active instanceof HTMLElement && node.contains(active) && active.matches(fieldSelector);
           if (alreadyOnField) return;
           const target =
             node.querySelector<HTMLElement>(fieldSelector) ??
@@ -140,41 +138,39 @@
     leak into selectors like `button[type="submit"]` on the host page.
   -->
   {#if visible || closing}
-    <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-    <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
-      <!-- Inner content well, mirroring .menu-section. -->
-      <div class="max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
-        <!--
+    <div
+      class="max-h-[78vh] overflow-y-auto rounded-lg border border-text/10 bg-surface p-5 shadow-xl"
+    >
+      <!--
           Header row holds the title (if any) and the close button, so
           they share a baseline and the title isn't artificially indented
           relative to the body content below.
         -->
-        <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
-          {#if title}
-            <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
-          {:else}
-            <span></span>
-          {/if}
-          <button
-            type="button"
-            onclick={close}
-            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
-            aria-label={m['ui.close']()}
-          >
-            <span class="iconify text-xl uil--times"></span>
-          </button>
-        </header>
-
-        <div class="text-text">
-          {@render children()}
-        </div>
-
-        {#if footer}
-          <footer class="mt-6">
-            {@render footer()}
-          </footer>
+      <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
+        {#if title}
+          <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
+        {:else}
+          <span></span>
         {/if}
+        <button
+          type="button"
+          onclick={close}
+          class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
+          aria-label={m['ui.close']()}
+        >
+          <span class="iconify text-xl uil--times"></span>
+        </button>
+      </header>
+
+      <div class="text-text">
+        {@render children()}
       </div>
+
+      {#if footer}
+        <footer class="mt-6">
+          {@render footer()}
+        </footer>
+      {/if}
     </div>
   {/if}
 </dialog>

@@ -17,8 +17,8 @@ type UseUnreadMarkerOptions<TReadResult> = {
  * Shared unread separator lifecycle for room and thread timelines.
  *
  * The rendered separator is always a concrete event id. Server read-state
- * timestamp windows are resolved once by the timeline pane, and same-target
- * refocuses only reveal deferred event ids captured while the user was away.
+ * timestamp windows are resolved once by the timeline pane. The server read
+ * cursor is the source of truth on entry, target changes, and refocus.
  */
 export function useUnreadMarker<TReadResult>(
   getTargetId: () => string,
@@ -26,15 +26,13 @@ export function useUnreadMarker<TReadResult>(
 ) {
   let unreadMarkerEventId = $state<string | null>(null);
   let unreadMarkerWindow = $state<UnreadMarkerWindow | null>(null);
-  let pendingAwayEventId: string | null = null;
+
+  let lastFiredTargetId = '';
+  let wasPresent = false;
+  let readMarkerGeneration = 0;
 
   async function markTargetAsRead(targetId: string, upToEventId?: string) {
     return markAsRead(targetId, upToEventId);
-  }
-
-  function noteAwayEvent(eventId: string) {
-    if (unreadMarkerEventId !== null || pendingAwayEventId !== null) return;
-    pendingAwayEventId = eventId;
   }
 
   function setUnreadMarkerEventId(eventId: string | null) {
@@ -47,11 +45,7 @@ export function useUnreadMarker<TReadResult>(
   function clearUnreadMarker() {
     unreadMarkerEventId = null;
     unreadMarkerWindow = null;
-    pendingAwayEventId = null;
   }
-
-  let lastFiredTargetId = '';
-  let wasPresent = false;
 
   $effect(() => {
     const targetId = getTargetId();
@@ -62,26 +56,24 @@ export function useUnreadMarker<TReadResult>(
       return;
     }
 
-    if (wasPresent && lastFiredTargetId === targetId) return;
-
     const isTargetChange = lastFiredTargetId !== targetId;
+
+    if (wasPresent && !isTargetChange) return;
+
     wasPresent = true;
     lastFiredTargetId = targetId;
 
     if (isTargetChange) {
       clearUnreadMarker();
-    } else if (pendingAwayEventId) {
-      setUnreadMarkerEventId(pendingAwayEventId);
-      pendingAwayEventId = null;
-    } else {
-      pendingAwayEventId = null;
     }
 
     const markedAtMs = Date.now();
-    markTargetAsRead(targetId).then((result) => {
+    const generation = ++readMarkerGeneration;
+    markAsRead(targetId).then((result) => {
+      if (generation !== readMarkerGeneration) return;
       if (getTargetId() !== targetId || !result) return;
-      if (!isTargetChange) return;
 
+      unreadMarkerEventId = null;
       unreadMarkerWindow = markerWindowFromReadResult(result, markedAtMs);
     });
   });
@@ -94,7 +86,6 @@ export function useUnreadMarker<TReadResult>(
       return unreadMarkerWindow;
     },
     markAsRead: markTargetAsRead,
-    noteAwayEvent,
     setUnreadMarkerEventId,
     clearUnreadMarker
   };

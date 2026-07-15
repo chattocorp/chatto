@@ -320,7 +320,7 @@ function timelinePayload(
   }
 }
 
-function messagePostedPayload(message: Message, users: Record<string, User>) {
+export function messagePostedPayload(message: Message, users: Record<string, User>) {
   const thread = message.thread;
   return {
     kind: RoomEventKind.MessagePosted,
@@ -334,6 +334,7 @@ function messagePostedPayload(message: Message, users: Record<string, User>) {
     echoOfEventId: message.echoOfEventId || null,
     echoFromThreadRootEventId: message.echoFromThreadRootEventId || null,
     channelEchoEventId: message.channelEchoEventId || null,
+    deletedAt: timestampToISOOrNull(message.deletedAt),
     replyCount: thread?.replyCount ?? 0,
     lastReplyAt: timestampToISOOrNull(thread?.lastReplyAt),
     threadParticipantCount: thread?.participantCount ?? 0,

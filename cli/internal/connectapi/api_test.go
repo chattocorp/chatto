@@ -32,6 +32,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
+	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
@@ -198,6 +199,18 @@ func TestRequireCaller(t *testing.T) {
 	})
 }
 
+func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	user, err := (&userService{api: env.api}).userSummary(env.ctx, core.DeletedUserReference("bad>"), nil)
+	if err != nil {
+		t.Fatalf("userSummary: %v", err)
+	}
+	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("PresenceStatus = %v, want OFFLINE", user.GetPresenceStatus())
+	}
+}
+
 func TestPrivateHandlersRequireAuth(t *testing.T) {
 	api := New(nil, config.ChattoConfig{}, "test")
 	mux := http.NewServeMux()
@@ -213,6 +226,46 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 		Body:   "hello",
 	}))
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
+}
+
+func TestCreateMessageAttachmentAssetIDsValidateThroughConnectHandler(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	path, handler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
+	mux.Handle(path, handler)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
+	maxIDs := make([]string, core.MaxMessageAttachmentAssetIDs)
+	for i := range maxIDs {
+		maxIDs[i] = strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength)
+	}
+
+	tests := []struct {
+		name     string
+		assetIDs []string
+		wantCode connect.Code
+	}{
+		{name: "at limits reaches authentication", assetIDs: maxIDs, wantCode: connect.CodeUnauthenticated},
+		{name: "too many", assetIDs: append(append([]string(nil), maxIDs...), "A"), wantCode: connect.CodeInvalidArgument},
+		{name: "empty", assetIDs: []string{""}, wantCode: connect.CodeInvalidArgument},
+		{name: "too long", assetIDs: []string{strings.Repeat("A", core.MaxMessageAttachmentAssetIDLength+1)}, wantCode: connect.CodeInvalidArgument},
+		{name: "too many multibyte bytes", assetIDs: []string{strings.Repeat("é", core.MaxMessageAttachmentAssetIDLength/2+1)}, wantCode: connect.CodeInvalidArgument},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.CreateMessage(context.Background(), connect.NewRequest(&apiv1.CreateMessageRequest{
+				RoomId:             "room",
+				Body:               "hello",
+				AttachmentAssetIds: tt.assetIDs,
+			}))
+			if connect.CodeOf(err) != tt.wantCode {
+				t.Fatalf("CreateMessage() code = %v, want %v", connect.CodeOf(err), tt.wantCode)
+			}
+		})
+	}
 }
 
 func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
@@ -1068,7 +1121,7 @@ func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetUser().GetPresenceStatus())
 	}
 
-	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
+	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "👋", "around", nil); err != nil {
 		t.Fatalf("SetUserCustomStatus: %v", err)
 	}
 	if err := env.core.SetPresenceWithOptions(env.ctx, env.viewer.Id, "ONLINE", true); err != nil {
@@ -1578,6 +1631,43 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	}
 	if len(resp.Msg.GetProjections()) == 0 {
 		t.Fatal("Projections len = 0, want projection diagnostics")
+	}
+	if resp.Msg.GetAssetCleanup() == nil {
+		t.Fatal("AssetCleanup = nil")
+	}
+}
+
+func TestAdminAssetCleanupStatusMapping(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
+		Health:               core.AssetCleanupHealthRetrying,
+		PendingCount:         2,
+		OldestPendingAt:      now.Add(-time.Hour),
+		PassInProgress:       true,
+		LastPassAt:           now.Add(-time.Minute),
+		LastSuccessfulPassAt: now.Add(-2 * time.Hour),
+		UpdatedAt:            now,
+		LastPassFailed:       true,
+		LastInspectedSeq:     41,
+		LatestDeletionSeq:    44,
+	})
+	if mapped.GetHealth() != adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_RETRYING {
+		t.Fatalf("health = %v, want retrying", mapped.GetHealth())
+	}
+	if mapped.GetPendingCount() != 2 || mapped.GetLastInspectedSequence() != "41" || mapped.GetLatestDeletionSequence() != "44" {
+		t.Fatalf("mapped status = %+v", mapped)
+	}
+	if !mapped.GetUpdatedAt().AsTime().Equal(now) || !mapped.GetOldestPendingAt().AsTime().Equal(now.Add(-time.Hour)) {
+		t.Fatalf("mapped timestamps = %+v", mapped)
+	}
+}
+
+func TestAdminAssetCleanupUnavailableStatusMapping(t *testing.T) {
+	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
+		Health: core.AssetCleanupHealthUnavailable,
+	})
+	if mapped.GetHealth() != adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE {
+		t.Fatalf("health = %v, want unavailable", mapped.GetHealth())
 	}
 }
 
@@ -3786,6 +3876,47 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	}
 }
 
+func TestRoomServiceJoinRoomKeepsNormalPostingPermissions(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "join-posts", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "join-posts-caller", "Join Posts Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	callerCtx := withCaller(env.ctx, caller)
+
+	if _, err := env.rooms.JoinRoom(callerCtx, connect.NewRequest(&apiv1.JoinRoomRequest{
+		RoomId: room.Id,
+	})); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	getResp, err := env.directory.GetRoom(callerCtx, connect.NewRequest(&apiv1.GetRoomRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if !apiRoomPermissionGranted(getResp.Msg.GetRoom(), core.PermMessagePost) {
+		t.Fatalf("joined room message.post = false, room = %+v", getResp.Msg.GetRoom())
+	}
+
+	createResp, err := env.messages.CreateMessage(callerCtx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id,
+		Body:   "hello after joining",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage after join: %v", err)
+	}
+	if createResp.Msg.GetMessage().GetBody() != "hello after joining" {
+		t.Fatalf("CreateMessage body = %q, want posted body", createResp.Msg.GetMessage().GetBody())
+	}
+}
+
 func TestUserServiceListUsers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
@@ -3880,7 +4011,7 @@ func TestUserServiceListUsers(t *testing.T) {
 	}
 }
 
-func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
+func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("room-members-room")
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-alice", "Room Alice", "password")
@@ -3908,14 +4039,29 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); err != nil {
+		t.Fatalf("joinable outsider ListMembers: %v", err)
 	}
 	if _, err := env.rooms.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider GetMember code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	}
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("join-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.ClearRoomPermissionState(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("ClearRoomPermissionState room.join: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission room.list: %v", err)
+	}
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("list-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), req)
@@ -3954,10 +4100,75 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	}
 }
 
-func TestMemberDirectoryOversizedPagesClampTo500(t *testing.T) {
-	limit, offset := apiPagination(&apiv1.PageRequest{Limit: 9999}, defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "member-preview-page", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "member-preview-caller", "Preview Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	members := []struct {
+		login       string
+		displayName string
+	}{
+		{login: "preview-zulu", displayName: "Zulu"},
+		{login: "preview-alice", displayName: "alice"},
+		{login: "preview-bob", displayName: "Bob"},
+		{login: "preview-charlie", displayName: "charlie"},
+		{login: "preview-delta", displayName: "Delta"},
+		{login: "preview-echo", displayName: "echo"},
+	}
+	for _, input := range members {
+		member, err := env.core.CreateUser(env.ctx, core.SystemActorID, input.login, input.displayName, "password")
+		if err != nil {
+			t.Fatalf("CreateUser %s: %v", input.login, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", input.login, err)
+		}
+	}
+
+	resp, err := env.rooms.ListMembers(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomMembersRequest{
+		RoomId: room.Id,
+		Page:   &apiv1.PageRequest{Limit: 5},
+	}))
+	if err != nil {
+		t.Fatalf("ListMembers: %v", err)
+	}
+	if page := resp.Msg.GetPage(); page.GetTotalCount() != 6 || !page.GetHasMore() {
+		t.Fatalf("ListMembers page = %+v, want total 6 and has_more", page)
+	}
+	gotNames := make([]string, len(resp.Msg.GetMembers()))
+	for i, member := range resp.Msg.GetMembers() {
+		gotNames[i] = member.GetUser().GetDisplayName()
+	}
+	if got, want := strings.Join(gotNames, ","), "alice,Bob,charlie,Delta,echo"; got != want {
+		t.Fatalf("ListMembers names = %q, want %q", got, want)
+	}
+}
+
+func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
+	userLimit, userOffset := userDirectoryPagination(nil)
+	if userLimit != 20 || userOffset != 0 {
+		t.Fatalf("userDirectoryPagination nil page = %d, %d; want 20, 0", userLimit, userOffset)
+	}
+
+	roomLimit, roomOffset := roomMemberDirectoryPagination(nil)
+	if roomLimit != 250 || roomOffset != 0 {
+		t.Fatalf("roomMemberDirectoryPagination nil page = %d, %d; want 250, 0", roomLimit, roomOffset)
+	}
+
+	roomZeroLimit, roomZeroOffset := roomMemberDirectoryPagination(&apiv1.PageRequest{Limit: 0, Offset: 7})
+	if roomZeroLimit != 250 || roomZeroOffset != 7 {
+		t.Fatalf("roomMemberDirectoryPagination zero-limit page = %d, %d; want 250, 7", roomZeroLimit, roomZeroOffset)
+	}
+
+	limit, offset := roomMemberDirectoryPagination(&apiv1.PageRequest{Limit: 9999})
 	if limit != 500 || offset != 0 {
-		t.Fatalf("apiPagination limit, offset = %d, %d; want 500, 0", limit, offset)
+		t.Fatalf("roomMemberDirectoryPagination oversized page = %d, %d; want 500, 0", limit, offset)
 	}
 
 	users := make([]*corev1.User, 501)
@@ -4004,6 +4215,14 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
+	}
+
+	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+		Emoji: "e",
+		Text:  "Invalid emoji",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateCustomStatus invalid emoji error = %v, want InvalidArgument", err)
 	}
 
 	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))
@@ -4246,6 +4465,18 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 
+	testPushCalled := false
+	env.core.OnPushTestRequested = func(_ context.Context, userID string) error {
+		testPushCalled = userID == env.viewer.Id
+		return nil
+	}
+	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
+	if err != nil {
+		t.Fatalf("SendTestNotification: %v", err)
+	}
+	if !testResp.Msg.GetSent() || !testPushCalled {
+		t.Fatalf("SendTestNotification sent = %v, callback called = %v", testResp.Msg.GetSent(), testPushCalled)
+	}
 	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
 	}))
@@ -4439,6 +4670,74 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
+func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("voice-room-removal")
+	env.api.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+		ServerID:  "test-server",
+	}
+
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-room-removal-target", "Voice Room Removal Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom target: %v", err)
+	}
+	if err := env.core.RecordCallParticipantJoined(env.ctx, core.KindChannel, room.Id, target.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+
+	participantsResp, err := env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("ListCallParticipants before removal: %v", err)
+	}
+	if participants := participantsResp.Msg.GetParticipants(); len(participants) != 1 || participants[0].GetUser().GetId() != target.Id {
+		t.Fatalf("participants before removal = %+v, want target", participants)
+	}
+
+	removeResp, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: room.Id,
+		UserId: target.Id,
+	}))
+	if err != nil {
+		t.Fatalf("RemoveMember: %v", err)
+	}
+	if !removeResp.Msg.GetRemoved() {
+		t.Fatal("RemoveMember removed=false, want true")
+	}
+
+	participantsResp, err = env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("ListCallParticipants after removal: %v", err)
+	}
+	if len(participantsResp.Msg.GetParticipants()) != 0 {
+		t.Fatalf("participants after removal = %+v, want none", participantsResp.Msg.GetParticipants())
+	}
+	if _, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetActiveCall after removal code = %v, want not_found", connect.CodeOf(err))
+	}
+	if _, err := env.voice.GetCallToken(withCaller(env.ctx, target), connect.NewRequest(&apiv1.GetCallTokenRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("removed member GetCallToken code = %v, want permission_denied", connect.CodeOf(err))
+	}
+}
+
 func TestMyAccountServiceUpdatePresence(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4568,6 +4867,9 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	}
 	if !strings.Contains(preview.GetImageUrl(), preview.GetImageAssetId()) {
 		t.Fatalf("ImageUrl %q does not contain asset id %q", preview.GetImageUrl(), preview.GetImageAssetId())
+	}
+	if !strings.Contains(preview.GetImageUrl(), "/assets/server/"+core.PublicServerAssetObjectPrefix) {
+		t.Fatalf("ImageUrl %q does not use the public NATS namespace", preview.GetImageUrl())
 	}
 	if resp.Msg.GetPreviewToken() == "" {
 		t.Fatalf("PreviewToken is empty")
@@ -5967,6 +6269,235 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	}
 }
 
+func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-tombstone-retention")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	ctx := withCaller(env.ctx, env.viewer)
+	beforeDelete, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents before delete: %v", err)
+	}
+	if got := timelinePageEvent(beforeDelete.Msg.GetPage(), root.Id).GetMessagePosted().GetMessage().GetDeletedAt(); got != nil {
+		t.Fatalf("active root deleted_at = %v, want nil", got)
+	}
+	if got := timelinePageEvent(beforeDelete.Msg.GetPage(), reply.Id).GetMessagePosted().GetMessage().GetDeletedAt(); got != nil {
+		t.Fatalf("active reply deleted_at = %v, want nil", got)
+	}
+
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, reply.Id); err != nil {
+		t.Fatalf("DeleteMessage reply: %v", err)
+	}
+	replyDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(reply.Id)
+	if !ok {
+		t.Fatal("reply projection deleted_at is missing")
+	}
+
+	thread, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             10,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents after delete: %v", err)
+	}
+	replyMessage := timelinePageEvent(thread.Msg.GetPage(), reply.Id).GetMessagePosted().GetMessage()
+	if got := replyMessage.GetDeletedAt(); got == nil || !got.AsTime().Equal(replyDeletedAt) {
+		t.Fatalf("deleted reply deleted_at = %v, want %v", got, replyDeletedAt)
+	}
+
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, root.Id); err != nil {
+		t.Fatalf("DeleteMessage root: %v", err)
+	}
+	rootDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(root.Id)
+	if !ok {
+		t.Fatal("root projection deleted_at is missing")
+	}
+	afterDelete, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents after delete: %v", err)
+	}
+	rootMessage := timelinePageEvent(afterDelete.Msg.GetPage(), root.Id).GetMessagePosted().GetMessage()
+	if got := rootMessage.GetDeletedAt(); got == nil || !got.AsTime().Equal(rootDeletedAt) {
+		t.Fatalf("deleted root deleted_at = %v, want %v", got, rootDeletedAt)
+	}
+}
+
+func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-account-key-shred")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-shredded-author", "Timeline Shredded Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	posted := env.post(room.Id, author.Id, "message before account deletion", "")
+
+	if err := env.core.DeleteUser(env.ctx, env.viewer.Id, author.Id); err != nil {
+		t.Fatalf("DeleteUser author: %v", err)
+	}
+	deletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(posted.Id)
+	if !ok {
+		t.Fatal("projection account-shred deleted_at is missing")
+	}
+
+	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents after account deletion: %v", err)
+	}
+	timelineEvent := timelinePageEvent(resp.Msg.GetPage(), posted.Id)
+	if timelineEvent == nil {
+		t.Fatalf("account-shredded message %s missing from timeline", posted.Id)
+	}
+	message := timelineEvent.GetMessagePosted().GetMessage()
+	if message == nil {
+		t.Fatal("account-shredded message payload is nil")
+	}
+	if got := message.GetDeletedAt(); got == nil || !got.AsTime().Equal(deletedAt) {
+		t.Fatalf("account-shredded message deleted_at = %v, want %v", got, deletedAt)
+	}
+}
+
+func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-dm-corrupt", "Timeline DM Corrupt", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	start, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM: %v", err)
+	}
+	dm := start.Msg.GetRoom()
+
+	bad, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "body that will be superseded", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage bad: %v", err)
+	}
+	corruptMessageBody(t, env, dm.Id, bad.Id, env.viewer.Id)
+	if _, err := env.core.GetFullMessageBodyByEventID(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
+		t.Fatalf("corrupt message body hydration error = %v, want ErrMessageBodyCorrupt", err)
+	}
+
+	goodResp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: dm.Id,
+		Body:   "good DM message",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage good: %v", err)
+	}
+	good := goodResp.Msg.GetMessage()
+	if good == nil {
+		t.Fatalf("CreateMessage good message = nil")
+	}
+
+	resp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: dm.Id,
+		Limit:  20,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents with corrupt body: %v", err)
+	}
+
+	badTimelineEvent := timelinePageEvent(resp.Msg.GetPage(), bad.Id)
+	if badTimelineEvent == nil {
+		t.Fatalf("corrupt message %s missing from timeline", bad.Id)
+	}
+	badMessage := badTimelineEvent.GetMessagePosted().GetMessage()
+	if badMessage == nil {
+		t.Fatalf("corrupt message payload = nil")
+	}
+	if badMessage.Body != nil {
+		t.Fatalf("corrupt message body present = %q, want unavailable body", badMessage.GetBody())
+	}
+	if badMessage.GetDeletedAt() != nil {
+		t.Fatalf("corrupt non-deleted message deleted_at = %v, want nil", badMessage.GetDeletedAt())
+	}
+
+	goodTimelineEvent := timelinePageEvent(resp.Msg.GetPage(), good.GetId())
+	if goodTimelineEvent == nil {
+		t.Fatalf("good message %s missing from timeline", good.GetId())
+	}
+	goodMessage := goodTimelineEvent.GetMessagePosted().GetMessage()
+	if goodMessage == nil || goodMessage.GetBody() != "good DM message" {
+		t.Fatalf("good message = %+v, want body", goodMessage)
+	}
+}
+
+func TestRoomTimelineBodyHydrationPropagatesRequestErrors(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	room := env.createJoinedRoom("timeline-body-canceled")
+	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "body should require hydration", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(env.ctx)
+	cancel()
+
+	h := &timelineHydrator{
+		api:                  env.api,
+		kind:                 core.KindChannel,
+		reactionsByMessageID: make(map[string][]core.ReactionSummary),
+		userIDs:              make(map[string]struct{}),
+	}
+	_, err = h.messagePosted(ctx, &core.RoomEvent{Event: posted}, posted.GetMessagePosted())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("messagePosted error = %v, want context cancellation", err)
+	}
+}
+
+func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, authorID string) {
+	t.Helper()
+
+	bodyEventID := core.NewEventID()
+	bodyEvent := &corev1.Event{
+		Id:        bodyEventID,
+		ActorId:   authorID,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessageBody{
+			MessageBody: &corev1.MessageBodyEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+				Body: &corev1.MessageBody{
+					CreatedAt:         timestamppb.Now(),
+					AuthorId:          authorID,
+					EncryptedBody:     []byte("not a valid ciphertext"),
+					EncryptionNonce:   []byte("bad nonce"),
+					EncryptionVersion: encryption.EnvelopeVersionV2,
+					ContentKeyEpoch:   1,
+					BodyEventId:       bodyEventID,
+				},
+			},
+		},
+	}
+	subject := events.RoomAggregate(roomID).SubjectFor(bodyEvent)
+	seq, err := env.core.EventPublisher.AppendEventually(env.ctx, subject, bodyEvent)
+	if err != nil {
+		t.Fatalf("Append corrupt MessageBodyEvent: %v", err)
+	}
+	if err := env.core.RoomTimelineProjector.WaitFor(env.ctx, events.SubjectPosition(subject, seq)); err != nil {
+		t.Fatalf("WaitFor corrupt MessageBodyEvent: %v", err)
+	}
+}
+
 func TestRoomAndThreadTimelineGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread")
@@ -6208,8 +6739,8 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	if len(attachments) != 1 {
 		t.Fatalf("attachments = %d, want 1", len(attachments))
 	}
-	if got := attachments[0].GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/960x800/contain") {
-		t.Fatalf("attachment thumbnail URL = %q, want 960x800 contain transform", got)
+	if got := attachments[0].GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/960x400/contain") {
+		t.Fatalf("attachment thumbnail URL = %q, want 960x400 contain transform", got)
 	}
 	processing := attachments[0].GetVideoProcessing()
 	if processing == nil {
@@ -6900,6 +7431,61 @@ func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsFiltersOtherRoomKinds(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-dm-participant", "Thread DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "root body", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "reply body", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	if err := env.core.FollowThread(env.ctx, core.KindDM, env.viewer.Id, dm.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+
+	resp, err := env.threads.ListFollowedThreads(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 20},
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads: %v", err)
+	}
+	if got := len(resp.Msg.GetThreads()); got != 0 {
+		t.Fatalf("ListFollowedThreads returned %d DM threads in the channel list, want 0", got)
+	}
+	if resp.Msg.GetPage().GetTotalCount() != 0 || resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 0 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+}
+
+func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	page := &core.FollowedThreadsPage{
+		Threads: []*core.FollowedThread{{
+			SpaceID:           core.LegacySpaceIDForRoomKind(core.KindChannel),
+			RoomID:            "missing-room",
+			ThreadRootEventID: "missing-root",
+		}},
+		TotalCount: 1,
+	}
+
+	resp, err := newThreadAssembler(env.api).followedThreadsResponse(env.ctx, env.viewer.Id, page)
+	if err != nil {
+		t.Fatalf("followedThreadsResponse: %v", err)
+	}
+	if got := len(resp.GetThreads()); got != 0 {
+		t.Fatalf("followedThreadsResponse returned %d unavailable threads, want 0", got)
+	}
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	valid := []struct {
 		name string
@@ -6979,6 +7565,28 @@ func TestConnectErrorMapping(t *testing.T) {
 
 	if err := connectError(errors.New("boom")); strings.Contains(err.Error(), "boom") {
 		t.Fatalf("connectError leaked internal error: %v", err)
+	}
+}
+
+func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
+	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
+
+	got := safeInternalErrorForLog(err)
+	for _, forbidden := range []string{
+		"person@example.test",
+		"other@example.test",
+		"cht_ATabcdef123456",
+		"code=secret",
+		"state=s",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("safeInternalErrorForLog leaked %q in %q", forbidden, got)
+		}
+	}
+	for _, want := range []string{"email=[redacted]", "redirect=[redacted]", "token=[redacted]", "?[redacted]", "[redacted-email]"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("safeInternalErrorForLog = %q, want redaction marker %q", got, want)
+		}
 	}
 }
 

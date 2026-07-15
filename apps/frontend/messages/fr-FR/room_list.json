@@ -1,0 +1,17 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Appel actif",
+    "call_participants": "Participants {count} à l'appel",
+    "go_to_notifications": "Accédez aux notifications {count}",
+    "notifications": "Notifications {count}",
+    "unread_messages": "messages non lus",
+    "go_to_dm_notifications": "Accédez aux notifications par message direct {count}",
+    "new_direct_messages": "{count} nouveaux messages directs",
+    "direct_messages": "Messages directs",
+    "empty_title": "Aucune chambre pour l'instant",
+    "empty_prefix": "Vous n'avez rejoint aucune salle sur ce serveur. Dirigez-vous vers le",
+    "empty_overview": "Présentation",
+    "empty_suffix": "pour parcourir l'annuaire et rejoindre ceux qui vous intéressent."
+  }
+}

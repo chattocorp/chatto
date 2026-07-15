@@ -696,7 +696,7 @@ func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *t
 	checks := 0
 	err = core.setPasswordHash(ctx, user.Id, user.Id, "staleoverwrite789", true, func() error {
 		checks++
-		if err := core.verifyUserPasswordCurrent(user.Id, "initial123"); err != nil {
+		if err := core.verifyUserPasswordCurrent(ctx, user.Id, "initial123"); err != nil {
 			return err
 		}
 		if checks == 1 {
@@ -2039,6 +2039,12 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "   ", nil); !errors.Is(err, ErrCustomStatusTextRequired) {
 		t.Fatalf("SetUserCustomStatus blank text error = %v, want ErrCustomStatusTextRequired", err)
 	}
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "e", "Invalid emoji", nil); !errors.Is(err, ErrCustomStatusEmojiInvalid) {
+		t.Fatalf("SetUserCustomStatus invalid emoji error = %v, want ErrCustomStatusEmojiInvalid", err)
+	}
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿🌿", "Too many emoji", nil); !errors.Is(err, ErrCustomStatusEmojiInvalid) {
+		t.Fatalf("SetUserCustomStatus multiple emoji error = %v, want ErrCustomStatusEmojiInvalid", err)
+	}
 
 	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
 	if err != nil {
@@ -2107,6 +2113,9 @@ func TestChattoCore_UploadUserAvatar(t *testing.T) {
 
 	if natsAsset.Key == "" {
 		t.Error("Expected asset key to be set")
+	}
+	if want := PublicServerAssetObjectKey(asset.GetId()); natsAsset.GetKey() != want {
+		t.Errorf("avatar NATS key = %q, want %q", natsAsset.GetKey(), want)
 	}
 }
 

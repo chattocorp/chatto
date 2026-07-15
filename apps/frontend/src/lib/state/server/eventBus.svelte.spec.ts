@@ -103,13 +103,13 @@ function serverFrame(frame: RealtimeServerFrame['frame']): RealtimeServerFrame {
   return new RealtimeServerFrame({ frame });
 }
 
-function helloFrame(): RealtimeServerFrame {
+function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   return serverFrame({
     case: 'hello',
     value: new RealtimeServerHello({
       protocolVersion: 1,
       serverVersion: 'test',
-      heartbeatIntervalSeconds: 10
+      heartbeatIntervalSeconds
     })
   });
 }
@@ -172,6 +172,20 @@ async function startAndSubscribe(fake = new FakeServerConnection()): Promise<{
   if (!socket) throw new Error('expected realtime socket');
   socket.open();
   await socket.receive(helloFrame());
+  await socket.receive(subscribedFrame());
+  return { fake, socket };
+}
+
+async function startAndSubscribeWithHeartbeatInterval(heartbeatIntervalSeconds: number): Promise<{
+  fake: FakeServerConnection;
+  socket: FakeRealtimeSocket;
+}> {
+  const fake = new FakeServerConnection();
+  eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+  const socket = sockets.at(-1);
+  if (!socket) throw new Error('expected realtime socket');
+  socket.open();
+  await socket.receive(helloFrame(heartbeatIntervalSeconds));
   await socket.receive(subscribedFrame());
   return { fake, socket };
 }
@@ -402,17 +416,42 @@ describe('eventBusManager realtime transport', () => {
 
   it('reconnects and notifies catch-up handlers when heartbeats stall', async () => {
     vi.useFakeTimers();
-    await startAndSubscribe();
+    await startAndSubscribeWithHeartbeatInterval(15);
     const catchUp = vi.fn();
     eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
-    await vi.advanceTimersByTimeAsync(90_000);
+    await vi.advanceTimersByTimeAsync(44_999);
+
+    expect(catchUp).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(catchUp).toHaveBeenCalledWith({
       reason: 'heartbeat-stalled',
       phase: 'immediate'
     });
+    await vi.advanceTimersByTimeAsync(1);
     expect(sockets).toHaveLength(2);
+  });
+
+  it('falls back to the previous stall timeout when heartbeat interval is omitted', async () => {
+    vi.useFakeTimers();
+    await startAndSubscribeWithHeartbeatInterval(0);
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+
+    await vi.advanceTimersByTimeAsync(74_999);
+
+    expect(catchUp).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(catchUp).toHaveBeenCalledWith({
+      reason: 'heartbeat-stalled',
+      phase: 'immediate'
+    });
   });
 
   it('does not dispatch heartbeat frames to handlers', async () => {

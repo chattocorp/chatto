@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { GetServerRequest, GetServerResponse } from "./server_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Provides unauthenticated server discovery metadata.
@@ -26,6 +26,7 @@ export const ServerDiscoveryService = {
       I: GetServerRequest,
       O: GetServerResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { routeNotificationClick, type NotificationClickClient } from './notificationClick.worker';
+import {
+  normalizeNotificationClickUrl,
+  routeNotificationClick,
+  type NotificationClickClient
+} from './notificationClick.worker';
 
 const ORIGIN = 'https://chatto.example';
 const TARGET_URL = `${ORIGIN}/chat/-/room-1?highlight=event-1`;
@@ -26,6 +30,19 @@ function clientsWith(matches: NotificationClickClient[]) {
 }
 
 describe('routeNotificationClick', () => {
+  it('normalizes click targets before activation attempts', () => {
+    expect(
+      normalizeNotificationClickUrl(
+        'https://configured.example/chat/-/room-1?highlight=event-1#message',
+        ORIGIN
+      )
+    ).toBe(`${ORIGIN}/chat/-/room-1?highlight=event-1#message`);
+    expect(normalizeNotificationClickUrl('http://[', ORIGIN)).toBe(`${ORIGIN}/chat`);
+    expect(normalizeNotificationClickUrl('https://other.example/settings', ORIGIN)).toBe(
+      `${ORIGIN}/chat`
+    );
+  });
+
   it('focuses the window before using acknowledged SPA routing', async () => {
     const channel = createAcknowledgingMessageChannel();
     const focus = vi.fn(async () => client);

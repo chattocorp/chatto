@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -81,6 +83,10 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 	return userID, true
 }
 
+func validPresenceUserID(userID string) bool {
+	return userID != "" && !strings.ContainsAny(userID, ".*>")
+}
+
 // ============================================================================
 // Presence Operations
 // ============================================================================
@@ -88,9 +94,12 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
 func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (string, error) {
+	if !validPresenceUserID(userID) {
+		return PresenceStatusOffline, nil
+	}
 	entry, err := s.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrInvalidKey) {
 			return PresenceStatusOffline, nil
 		}
 		return PresenceStatusOffline, fmt.Errorf("failed to get presence: %w", err)
@@ -153,11 +162,11 @@ func (s *PresenceModel) refreshPresence(ctx context.Context, userID string) erro
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = s.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
+	_, err = s.putWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
-		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
+		// A sequence conflict means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to refresh presence: %w", err)
@@ -171,7 +180,7 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				_, err = s.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
-				if errors.Is(err, jetstream.ErrKeyExists) {
+				if jetstreamutil.IsSequenceConflict(err) {
 					continue
 				}
 				return err
@@ -183,11 +192,11 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 			return nil
 		}
 
-		_, err = s.putPresenceWithTTL(ctx, key, data, entry.Revision())
+		_, err = s.putWithTTL(ctx, key, data, entry.Revision())
 		if err == nil {
 			return nil
 		}
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		return err
@@ -239,6 +248,12 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 
 func (c *ChattoCore) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
 	return c.presenceModel.SetPresenceWithOptions(ctx, userID, status, manuallySet)
+}
+
+// LivePresenceCount returns how many users currently have live presence,
+// regardless of whether that status is Online, Away, or Do Not Disturb.
+func (c *ChattoCore) LivePresenceCount(ctx context.Context) (int, error) {
+	return c.presenceModel.LivePresenceCount(ctx)
 }
 
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {

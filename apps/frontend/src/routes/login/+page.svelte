@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
+  import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import Divider from '$lib/ui/Divider.svelte';
@@ -52,20 +53,6 @@
   );
 
   /**
-   * Same-origin path check; mirrors the validator in +page.ts but applied
-   * to runtime values (sessionStorage.returnUrl) since +page.ts only sees
-   * the URL search params.
-   */
-  function isSafeInternalPath(value: string): boolean {
-    return (
-      typeof value === 'string' &&
-      value.startsWith('/') &&
-      !value.startsWith('//') &&
-      !value.startsWith('/\\')
-    );
-  }
-
-  /**
    * Navigate after a successful login. Uses `window.location.href` for backend
    * routes (e.g. `/oauth/authorize`) that are served by Gin, not SvelteKit.
    * Falls back to `/` for any URL that isn't a same-origin path — this is the
@@ -77,8 +64,7 @@
     if (target.startsWith('/oauth/')) {
       window.location.href = target;
     } else {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- target is validated by isSafeInternalPath; backend routes are handled above
-      goto(target);
+      goto(resolve(target as '/'));
     }
   }
 
@@ -220,15 +206,40 @@
 <PageTitle title={isStandalone ? m['auth.login.welcome_page_title']() : m['auth.login.title']()} />
 
 {#if isStandalone}
-  <AuthLayout>
-    <div class="flex flex-col items-center gap-6 text-center">
-      <h1 class="text-2xl font-bold">{m['auth.login.welcome_title']()}</h1>
-      <p class="text-muted">
-        {m['auth.login.welcome_description']()}
+  <AuthLayout showBranding={false} centerContent>
+    <div class="flex flex-col items-center text-center">
+      <div
+        class="mb-8 flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-action/50 bg-action/10 text-action"
+        aria-hidden="true"
+      >
+        <span class="iconify mdi--server-plus text-4xl"></span>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <h1 class="text-balance text-3xl font-bold tracking-tight text-text-top">
+          {m['auth.login.welcome_title']()}
+        </h1>
+        <p class="text-pretty text-muted">
+          {m['auth.login.welcome_description']()}
+        </p>
+      </div>
+
+      <div class="mt-8 w-full">
+        <Button
+          variant="action"
+          size="lg"
+          fullWidth
+          onclick={() => (addServerDialogVisible = true)}
+        >
+          <span class="iconify mdi--plus text-lg"></span>
+          {m['auth.login.add_server']()}
+        </Button>
+      </div>
+
+      <p class="mt-4 flex items-start gap-2 text-left text-sm text-muted">
+        <span class="iconify mdi--open-in-new mt-0.5 shrink-0 text-base" aria-hidden="true"></span>
+        <span>{m['auth.login.welcome_sign_in_hint']()}</span>
       </p>
-      <Button variant="accent" size="lg" fullWidth onclick={() => (addServerDialogVisible = true)}>
-        {m['auth.login.add_server']()}
-      </Button>
     </div>
   </AuthLayout>
 {:else}
@@ -341,9 +352,9 @@
     {#if directRegistrationEnabled}
       <Divider label={m['common.or']()} />
 
-      <a href={resolve('/register')} class="btn-secondary block w-full btn-lg text-center">
+      <Button href={resolve('/register')} variant="secondary" size="lg" fullWidth>
         {m['common.create_account']()}
-      </a>
+      </Button>
     {/if}
   </AuthLayout>
 {/if}

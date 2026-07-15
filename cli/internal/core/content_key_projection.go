@@ -13,14 +13,14 @@ type ContentKeyProjection struct {
 	events.MemoryProjection
 	byUserPurposeEpoch map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 	activeEpoch        map[string]map[corev1.UserDEKPurpose]int32
-	eventIDSeen        eventIDSet
+	replayGuard        projectionReplayGuard
 }
 
 func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{
 		byUserPurposeEpoch: make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 		activeEpoch:        make(map[string]map[corev1.UserDEKPurpose]int32),
-		eventIDSeen:        newEventIDSet(),
+		replayGuard:        newProjectionReplayGuard(),
 	}
 }
 
@@ -31,14 +31,14 @@ func (p *ContentKeyProjection) Subjects() []string {
 	}
 }
 
-func (p *ContentKeyProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *ContentKeyProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 
-	if p.eventIDSeen.seenOrMark(event) {
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -53,6 +53,12 @@ func (p *ContentKeyProjection) Apply(event *corev1.Event, _ uint64) error {
 		}
 	}
 	return nil
+}
+
+func (p *ContentKeyProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGeneratedEvent) {

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,7 +25,10 @@ import (
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/projectionsnapshot"
 )
+
+const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // ============================================================================
 // ChattoCore
@@ -33,36 +38,37 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
-	nc                 *nats.Conn
-	js                 jetstream.JetStream
-	logger             *log.Logger
-	storage            *storage
-	config             config.CoreConfig
-	encryption         *encryptionManager
-	dekResolver        *unwrappedDEKResolver
-	configManager      *ConfigManager
-	roomModel          *RoomModel
-	roomCommands       *RoomCommandModel
-	roomDirectoryReads *RoomDirectoryReadModel
-	messageModel       *MessageModel
-	notificationPrefs  *NotificationPreferencesModel
-	roomTimelineReads  *RoomTimelineReadModel
-	readStateModel     *ReadStateModel
-	threadFollows      *ThreadFollowModel
-	reactionModel      *ReactionModel
-	userModel          *UserModel
-	rbacModel          *RBACModel
-	mentionables       *MentionablesModel
-	myEventsModel      *MyEventsModel
-	presenceModel      *PresenceModel
-	mediaModel         *MediaModel
-	callModel          *CallModel
-	assetModel         *AssetModel
-	models             []modelRegistration
-	s3Client           *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache   *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher *linkpreview.Fetcher // Fetcher for link preview metadata
+	nc                       *nats.Conn
+	js                       jetstream.JetStream
+	logger                   *log.Logger
+	storage                  *storage
+	config                   config.CoreConfig
+	encryption               *encryptionManager
+	dekResolver              *unwrappedDEKResolver
+	configManager            *ConfigManager
+	roomModel                *RoomModel
+	roomCommands             *RoomCommandModel
+	roomDirectoryReads       *RoomDirectoryReadModel
+	messageModel             *MessageModel
+	notificationPrefs        *NotificationPreferencesModel
+	roomTimelineReads        *RoomTimelineReadModel
+	readStateModel           *ReadStateModel
+	threadFollows            *ThreadFollowModel
+	reactionModel            *ReactionModel
+	userModel                *UserModel
+	rbacModel                *RBACModel
+	mentionables             *MentionablesModel
+	myEventsModel            *MyEventsModel
+	presenceModel            *PresenceModel
+	mediaModel               *MediaModel
+	callModel                *CallModel
+	assetModel               *AssetModel
+	models                   []modelRegistration
+	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
+	projectionSnapshotWorker *projectionSnapshotWorker
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -78,6 +84,9 @@ type ChattoCore struct {
 	// Used by the push notification system to dismiss notifications on other devices.
 	// Set this after ChattoCore is created.
 	OnNotificationDismissed func(ctx context.Context, userID string, notification *corev1.Notification)
+
+	// OnPushTestRequested sends a test notification to a user's push subscriptions.
+	OnPushTestRequested func(ctx context.Context, userID string) error
 
 	// OnVideoProcessingRequested starts best-effort local video processing for
 	// an already-declared message-owned asset. The video service registers this
@@ -194,6 +203,10 @@ type ChattoCore struct {
 	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
+	// UserAuthProjector cold-replays the credential-bearing companion state.
+	// It is intentionally never included in projection snapshots.
+	UserAuthProjector *events.Projector
+
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
 	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
@@ -246,14 +259,14 @@ type ChattoCore struct {
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	for _, group := range projectionRunGroups(c.projections) {
-		group := group
+	for _, projection := range c.projections {
+		projection := projection
 		g.Go(func() error {
-			if err := events.RunProjectorsOnSubjects(gctx, group.replaySubjects, group.projectors...); err != nil {
+			if err := projection.projector.Run(gctx); err != nil {
 				if errors.Is(err, context.Canceled) {
 					return err
 				}
-				return fmt.Errorf("%s projections: %w", strings.Join(group.names, ", "), err)
+				return fmt.Errorf("%s projection: %w", projection.name, err)
 			}
 			return nil
 		})
@@ -283,9 +296,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.applyConfigOwners(gctx); err != nil {
 			return fmt.Errorf("apply config owners: %w", err)
 		}
-		if err := c.EnsureDefaultRolePermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default role permissions: %w", err)
-		}
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
@@ -294,41 +304,27 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
-		if err := c.EnsureDefaultChannelRoomPermissions(gctx); err != nil {
-			return fmt.Errorf("ensure default channel room permissions: %w", err)
-		}
 		close(c.bootDone)
 		return nil
 	})
 
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
+	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
+	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })
-
+	if c.projectionSnapshotWorker != nil {
+		g.Go(func() error {
+			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			// Snapshots are disposable acceleration data. The worker logs the
+			// stage-specific failure and must never make core unavailable.
+			return nil
+		})
+	}
 	return g.Wait()
-}
-
-type projectionRunGroup struct {
-	names          []string
-	replaySubjects []string
-	projectors     []*events.Projector
-}
-
-func projectionRunGroups(projections []projectionRegistration) []projectionRunGroup {
-	if len(projections) == 0 {
-		return nil
-	}
-
-	group := projectionRunGroup{
-		names:          make([]string, 0, len(projections)),
-		replaySubjects: []string{events.EventSubjectFilter()},
-		projectors:     make([]*events.Projector, 0, len(projections)),
-	}
-	for _, projection := range projections {
-		group.names = append(group.names, projection.name)
-		group.projectors = append(group.projectors, projection.projector)
-	}
-	return []projectionRunGroup{group}
 }
 
 // AllProjectorsStarted reports whether every registered projector
@@ -564,6 +560,9 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 		// Continue to fetch - don't fail on cache errors
 	}
 	if cached != nil {
+		if err := c.markCachedLegacyLinkPreviewPublic(ctx, cached); err != nil {
+			c.logger.Warn("Failed to preserve cached legacy link-preview image", "asset_id", cached.GetImageAssetId(), "error", err)
+		}
 		return cached, nil
 	}
 
@@ -586,6 +585,70 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	}
 
 	return preview, nil
+}
+
+// markCachedLegacyLinkPreviewPublic preserves a pre-namespace link-preview
+// image that is still referenced by the server's runtime cache but has not yet
+// appeared in durable message history. The cached server-issued AssetRecord
+// must bind one exact canonical flat NATS key; private declarations and metadata
+// always win. Only object metadata is updated—the object body is never opened.
+func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *corev1.LinkPreview) error {
+	if preview == nil || c.Assets == nil {
+		return nil
+	}
+	asset := preview.GetImageAsset()
+	assetID := preview.GetImageAssetId()
+	if asset == nil || assetID == "" || asset.GetId() != assetID {
+		return nil
+	}
+	natsAsset := asset.GetNats()
+	if natsAsset == nil || natsAsset.GetKey() != assetID {
+		return nil
+	}
+	logicalID, namespaced, ok := serverAssetRequestKey(natsAsset.GetKey())
+	if !ok || namespaced || logicalID != assetID {
+		return nil
+	}
+	if _, declared := c.Assets.AssetCreation(assetID); declared || c.Assets.AssetDeleted(assetID) {
+		return nil
+	}
+
+	info, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
+			return nil
+		}
+		return fmt.Errorf("inspect legacy preview object metadata: %w", err)
+	}
+	if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" ||
+		info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic {
+		return nil
+	}
+
+	headers := maps.Clone(info.Headers)
+	if headers == nil {
+		headers = make(nats.Header)
+	}
+	headers.Set(ServerAssetVisibilityHeader, ServerAssetVisibilityPublic)
+	headers.Set(ServerAssetVisibilityNUIDHeader, info.NUID)
+	headers.Set(ServerAssetVisibilityDigestHeader, info.Digest)
+	if err := c.storage.serverAssets.UpdateMeta(ctx, assetID, jetstream.ObjectMeta{
+		Name:        assetID,
+		Description: info.Description,
+		Headers:     headers,
+		Metadata:    maps.Clone(info.Metadata),
+	}); err != nil {
+		return fmt.Errorf("mark legacy preview object public: %w", err)
+	}
+	updated, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+	if err != nil {
+		return fmt.Errorf("verify legacy preview object metadata: %w", err)
+	}
+	if updated.Headers.Get("Room-Id") != "" || updated.Headers.Get("Upload-Id") != "" ||
+		!serverAssetVisibilityMarkerMatches(updated) {
+		return fmt.Errorf("legacy preview object generation changed during metadata update")
+	}
+	return nil
 }
 
 // HydrateLinkPreviewImageAsset ensures a posted LinkPreview carries the
@@ -658,8 +721,9 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		return asset, nil
 	}
 
+	objectKey := PublicServerAssetObjectKey(assetID)
 	meta := jetstream.ObjectMeta{
-		Name: assetID,
+		Name: objectKey,
 		Headers: map[string][]string{
 			"Content-Type": {contentType},
 		},
@@ -669,7 +733,7 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		return nil, fmt.Errorf("upload link preview image to SERVER_ASSETS: %w", err)
 	}
 	asset.Size = int64(info.Size)
-	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}}
 	c.logger.Debug("Stored link preview image in SERVER_ASSETS", "asset_id", assetID, "size", len(data))
 	return asset, nil
 }
@@ -680,12 +744,215 @@ type ServerAssetInfo struct {
 	ContentType string
 }
 
+// PublicServerAssetLocation binds a successful public classification to one
+// exact backend object. Its fields stay private so callers cannot manufacture
+// a location that bypasses ResolvePublicServerAsset.
+type PublicServerAssetLocation struct {
+	natsKey    string
+	natsNUID   string
+	natsDigest string
+	s3Key      string
+}
+
+func publicNATSServerAssetLocation(key string, info *jetstream.ObjectInfo) (*PublicServerAssetLocation, bool) {
+	if key == "" || info == nil || info.NUID == "" || info.Digest == "" {
+		return nil, false
+	}
+	return &PublicServerAssetLocation{
+		natsKey:    key,
+		natsNUID:   info.NUID,
+		natsDigest: info.Digest,
+	}, true
+}
+
+func serverAssetVisibilityMarkerMatches(info *jetstream.ObjectInfo) bool {
+	return info != nil && info.NUID != "" && info.Digest != "" &&
+		info.Headers.Get(ServerAssetVisibilityHeader) == ServerAssetVisibilityPublic &&
+		info.Headers.Get(ServerAssetVisibilityNUIDHeader) == info.NUID &&
+		info.Headers.Get(ServerAssetVisibilityDigestHeader) == info.Digest
+}
+
+// serverAssetRequestKey recognizes the explicit public/ namespace used by new
+// NATS objects and the flat canonical IDs used by historical NATS objects and
+// current S3 instance/ objects. Every other namespace fails closed.
+func serverAssetRequestKey(key string) (assetID string, namespaced bool, ok bool) {
+	if key == "" || key != strings.TrimSpace(key) || strings.HasPrefix(key, "/") || strings.Contains(key, "\\") {
+		return "", false, false
+	}
+	if strings.HasPrefix(key, PublicServerAssetObjectPrefix) {
+		namespaced = true
+		assetID = strings.TrimPrefix(key, PublicServerAssetObjectPrefix)
+	} else {
+		assetID = key
+	}
+	if len(assetID) != idLength+1 || assetID[0] != 'A' || strings.Contains(assetID, "/") {
+		return "", false, false
+	}
+	for _, ch := range assetID[1:] {
+		if !strings.ContainsRune(idAlphabet, ch) {
+			return "", false, false
+		}
+	}
+	return assetID, namespaced, true
+}
+
+func serverAssetNATSObjectKeys(key string) (logicalID string, namespaced bool, objectKeys []string, ok bool) {
+	logicalID, namespaced, ok = serverAssetRequestKey(key)
+	if !ok {
+		return "", false, nil, false
+	}
+	if namespaced {
+		return logicalID, true, []string{key}, true
+	}
+	return logicalID, false, []string{PublicServerAssetObjectKey(logicalID), logicalID}, true
+}
+
+// IsReservedServerAssetKey rejects private, internal, and unknown namespaces
+// before public-route transform parsing or backend probing.
+func IsReservedServerAssetKey(key string) bool {
+	_, _, ok := serverAssetRequestKey(key)
+	return !ok
+}
+
+// ResolvePublicServerAsset positively classifies an object and binds the
+// decision to one exact backend key before the public route performs cache
+// access, content reads, or transforms. Unknown objects fail closed.
+func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (*PublicServerAssetLocation, bool) {
+	assetID, namespaced, ok := serverAssetRequestKey(key)
+	if !ok {
+		return nil, false
+	}
+
+	// Durable room-scoped declarations take precedence over every public hint,
+	// including stale metadata or a colliding current public reference.
+	if c.Assets != nil {
+		if _, declared := c.Assets.AssetCreation(assetID); declared {
+			return nil, false
+		}
+		if c.Assets.AssetDeleted(assetID) {
+			return nil, false
+		}
+	}
+
+	// The public/ namespace is itself the positive declaration for new NATS
+	// objects. Metadata-only inspection still rejects an object misplaced there
+	// by a private writer before any content or derivative cache is opened.
+	if namespaced {
+		info, err := c.storage.serverAssets.GetInfo(ctx, key)
+		if err != nil || info == nil || info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return publicNATSServerAssetLocation(key, info)
+	}
+
+	// Canonical-ID URLs remain aliases for new namespaced objects. This keeps
+	// stored API references and clients that retained the logical ID working.
+	if info, err := c.storage.serverAssets.GetInfo(ctx, PublicServerAssetObjectKey(assetID)); err == nil && info != nil {
+		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return publicNATSServerAssetLocation(PublicServerAssetObjectKey(assetID), info)
+	}
+
+	// Object metadata is safe to inspect for classification; object content is
+	// not opened until this method has returned true.
+	var legacyNATSExists bool
+	if info, err := c.storage.serverAssets.GetInfo(ctx, assetID); err == nil && info != nil {
+		legacyNATSExists = true
+		if info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		if serverAssetVisibilityMarkerMatches(info) {
+			return publicNATSServerAssetLocation(assetID, info)
+		}
+	}
+
+	// Historical public objects predate the explicit visibility header. Their
+	// durable/current public references provide the positive declaration.
+	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
+	if c.ServerConfig != nil {
+		logo, _, _ := c.ServerConfig.ServerLogo()
+		banner, _, _ := c.ServerConfig.ServerBanner()
+		if assetRecordMatchesKey(logo, assetID) || assetRecordMatchesKey(banner, assetID) {
+			legacyDeclaredPublic = true
+		}
+	}
+	if c.RoomTimeline != nil && c.RoomTimeline.IsPublicLinkPreviewAsset(assetID) {
+		legacyDeclaredPublic = true
+	}
+	if legacyDeclaredPublic && legacyNATSExists {
+		info, err := c.storage.serverAssets.GetInfo(ctx, assetID)
+		if err != nil || info == nil || info.Headers.Get("Room-Id") != "" || info.Headers.Get("Upload-Id") != "" {
+			return nil, false
+		}
+		return publicNATSServerAssetLocation(assetID, info)
+	}
+
+	// S3 server assets live exclusively below instance/. Private current and
+	// historical attachments use attachments/ or spaces/*/attachments/.
+	if c.s3Client != nil {
+		s3Key := S3KeyServerAsset(assetID)
+		if _, err := c.s3Client.StatObject(ctx, s3Key); err == nil {
+			return &PublicServerAssetLocation{s3Key: s3Key}, true
+		}
+	}
+	return nil, false
+}
+
+// IsPublicServerAsset reports whether ResolvePublicServerAsset can bind the
+// request key to an explicitly public object. Prefer the resolver in delivery
+// paths so classification cannot fall through to a different backend object.
+func (c *ChattoCore) IsPublicServerAsset(ctx context.Context, key string) bool {
+	_, ok := c.ResolvePublicServerAsset(ctx, key)
+	return ok
+}
+
+// GetPublicServerAsset opens only the exact object previously classified by
+// ResolvePublicServerAsset. It never probes a fallback backend or key.
+func (c *ChattoCore) GetPublicServerAsset(ctx context.Context, location *PublicServerAssetLocation) (io.Reader, *ServerAssetInfo, error) {
+	if location == nil {
+		return nil, nil, jetstream.ErrObjectNotFound
+	}
+	if location.natsKey != "" {
+		obj, err := c.storage.serverAssets.Get(ctx, location.natsKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		info, err := obj.Info()
+		if err != nil || info == nil || info.NUID != location.natsNUID || info.Digest != location.natsDigest {
+			_ = obj.Close()
+			return nil, nil, jetstream.ErrObjectNotFound
+		}
+		return obj, &ServerAssetInfo{
+			Size:        int64(info.Size),
+			ContentType: info.Headers.Get("Content-Type"),
+		}, nil
+	}
+	if location.s3Key != "" && c.s3Client != nil {
+		reader, info, err := c.s3Client.GetObject(ctx, location.s3Key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return reader, &ServerAssetInfo{Size: info.Size, ContentType: info.ContentType}, nil
+	}
+	return nil, nil, jetstream.ErrObjectNotFound
+}
+
 // ServerAssetRecordFromAnyBackend builds an AssetRecord by probing the
 // server-asset backends. It is primarily for legacy ID-only server-scoped
 // assets that need to be rehydrated into richer metadata.
 func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*corev1.AssetRecord, error) {
-	obj, err := c.storage.serverAssets.Get(ctx, assetID)
-	if err == nil {
+	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
+	if !ok {
+		return nil, jetstream.ErrObjectNotFound
+	}
+	var natsErr error
+	for _, objectKey := range natsKeys {
+		obj, err := c.storage.serverAssets.Get(ctx, objectKey)
+		if err != nil {
+			natsErr = err
+			continue
+		}
 		if closer, ok := obj.(io.Closer); ok {
 			defer closer.Close()
 		}
@@ -695,39 +962,39 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 			contentType = "application/octet-stream"
 		}
 		return &corev1.AssetRecord{
-			Id:          assetID,
+			Id:          logicalID,
 			Filename:    filename,
 			ContentType: contentType,
 			Size:        int64(info.Size),
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}},
 		}, nil
 	}
 
-	if c.s3Client != nil {
-		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(assetID))
+	if c.s3Client != nil && !namespaced {
+		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(logicalID))
 		if s3Err == nil {
 			contentType := s3Info.ContentType
 			if contentType == "" {
 				contentType = "application/octet-stream"
 			}
 			return &corev1.AssetRecord{
-				Id:          assetID,
+				Id:          logicalID,
 				Filename:    filename,
 				ContentType: contentType,
 				Size:        s3Info.Size,
 				Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
-					Key:    assetID,
+					Key:    logicalID,
 					Bucket: proto.String(c.s3Client.Bucket()),
 				}},
 			}, nil
 		}
 		c.logger.Debug("Server asset record not found in either backend",
-			"asset_id", assetID,
-			"nats_error", err,
+			"asset_id", logicalID,
+			"nats_error", natsErr,
 			"s3_error", s3Err)
 	}
 
-	return nil, err
+	return nil, natsErr
 }
 
 // GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
@@ -735,8 +1002,17 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 // Returns a reader for the asset content and metadata.
 // The caller is responsible for closing the reader if it implements io.Closer.
 func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
-	obj, err := c.storage.serverAssets.Get(ctx, assetID)
-	if err == nil {
+	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
+	if !ok {
+		return nil, nil, jetstream.ErrObjectNotFound
+	}
+	var natsErr error
+	for _, objectKey := range natsKeys {
+		obj, err := c.storage.serverAssets.Get(ctx, objectKey)
+		if err != nil {
+			natsErr = err
+			continue
+		}
 		info, _ := obj.Info()
 		return obj, &ServerAssetInfo{
 			Size:        int64(info.Size),
@@ -745,8 +1021,8 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 	}
 
 	// If NATS failed and S3 is configured, try S3
-	if c.s3Client != nil {
-		s3Key := S3KeyServerAsset(assetID)
+	if c.s3Client != nil && !namespaced {
+		s3Key := S3KeyServerAsset(logicalID)
 		reader, s3Info, s3Err := c.s3Client.GetObject(ctx, s3Key)
 		if s3Err == nil {
 			return reader, &ServerAssetInfo{
@@ -756,12 +1032,12 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 		}
 		// Log S3 error but return the original NATS error
 		c.logger.Debug("Instance asset not found in either backend",
-			"asset_id", assetID,
-			"nats_error", err,
+			"asset_id", logicalID,
+			"nats_error", natsErr,
 			"s3_error", s3Err)
 	}
 
-	return nil, nil, err
+	return nil, nil, natsErr
 }
 
 // CleanupAsset deletes an asset from the server object store.
@@ -816,7 +1092,21 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAs
 }
 
 func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) {
-	deletedCount, cacheErr := c.DeleteCachedResizesForServerAsset(ctx, assetID)
+	assetKeys := []string{assetID}
+	if logicalID, namespaced, ok := serverAssetRequestKey(assetID); ok {
+		if namespaced {
+			assetKeys = append(assetKeys, logicalID)
+		} else {
+			assetKeys = append(assetKeys, PublicServerAssetObjectKey(logicalID))
+		}
+	}
+	deletedCount := 0
+	var cacheErr error
+	for _, assetKey := range assetKeys {
+		count, err := c.DeleteCachedResizesForServerAsset(ctx, assetKey)
+		deletedCount += count
+		cacheErr = errors.Join(cacheErr, err)
+	}
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for server asset",
 			"asset_id", assetID,
@@ -891,6 +1181,61 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		}
 	}
 
+	var snapshotRepository *projectionsnapshot.Repository
+	var snapshotJobs []projectionSnapshotJob
+	var snapshotStreamIdentity string
+	if cfg.ProjectionSnapshots {
+		var snapshotBlobs projectionsnapshot.BlobStore
+		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
+			snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
+		} else {
+			snapshotStore, snapshotStoreErr := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
+				return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
+					Bucket:      projectionSnapshotObjectStoreName,
+					Description: "Encrypted ephemeral projection snapshots",
+					Storage:     jetstream.FileStorage,
+					Compression: true,
+					Replicas:    cfg.Replicas,
+					TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
+				})
+			})
+			if snapshotStoreErr != nil {
+				logger.Warn("Projection snapshots disabled after object store initialization failure",
+					"backend", "nats",
+					"stage", "storage_initialize",
+					"error", snapshotStoreErr)
+			} else {
+				snapshotBlobs = natsSnapshotBlobStore{store: snapshotStore}
+			}
+		}
+		if snapshotBlobs != nil {
+			snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
+				Pointers:        natsSnapshotPointerStore{kv: storage.runtimeStateKV},
+				SecretHex:       cfg.SecretKey,
+				ProducerVersion: cfg.Version,
+				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
+			})
+			if err != nil {
+				logger.Warn("Projection snapshots disabled after initialization failure",
+					"stage", "initialize",
+					"error", err)
+				snapshotRepository = nil
+			}
+			if snapshotRepository != nil {
+				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
+				if err != nil {
+					logger.Warn("Projection snapshots disabled after EVT identity read failure",
+						"stage", "stream_identity",
+						"error", err)
+					snapshotRepository = nil
+				} else {
+					logger.Info("Projection snapshot storage initialized",
+						"backend", snapshotRepository.Backend())
+				}
+			}
+		}
+	}
+
 	// Build the event-sourcing primitives before any aggregate-specific
 	// wiring so projections and services that need them can be passed the
 	// concrete deps at construction. Order: publisher → projections →
@@ -908,6 +1253,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			key:       key,
 			name:      name,
 			projector: pr,
+			subjects:  slices.Clone(p.Subjects()),
 			estimate:  estimate,
 		})
 		return pr
@@ -951,6 +1297,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	users := newUserProjectionWithDEKResolver(dekResolver)
 	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
+	userAuth := users.AuthProjection()
+	userAuthProjector := newProjector(userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
@@ -960,6 +1308,40 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
+
+	if snapshotRepository != nil {
+		streamName := storage.serverEvtStream.CachedInfo().Config.Name
+		type snapshotSpec struct {
+			key, compatibility string
+			projector          *events.Projector
+		}
+		specs := []snapshotSpec{
+			{projectionsnapshot.ProjectionThreadsKey, threadSnapshotCompatibilityID, threadsProjector},
+			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectorySnapshotCompatibilityID, roomDirectoryProjector},
+			{projectionsnapshot.ProjectionServerConfigKey, configSnapshotCompatibilityID, serverConfigProjector},
+			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutSnapshotCompatibilityID, roomGroupLayoutProjector},
+			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineSnapshotCompatibilityID, roomTimelineProjector},
+			{projectionsnapshot.ProjectionCallStateKey, callStateSnapshotCompatibilityID, callStateProjector},
+			{projectionsnapshot.ProjectionAssetsKey, assetSnapshotCompatibilityID, assetProjector},
+			{projectionsnapshot.ProjectionReactionsKey, reactionSnapshotCompatibilityID, reactionsProjector},
+			{projectionsnapshot.ProjectionContentKeysKey, contentKeySnapshotCompatibilityID, contentKeysProjector},
+			{projectionsnapshot.ProjectionRBACKey, rbacSnapshotCompatibilityID, rbacProjector},
+			{projectionsnapshot.ProjectionMentionablesKey, mentionablesSnapshotCompatibilityID, mentionablesProjector},
+			{projectionsnapshot.ProjectionUsersKey, userSnapshotCompatibilityID, usersProjector},
+		}
+		for _, spec := range specs {
+			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
+				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
+			}
+			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, compatibility: spec.compatibility, streamName: streamName, streamIdentity: snapshotStreamIdentity})
+			for i := range projections {
+				if projections[i].key == spec.key {
+					projections[i].snapshotEnabled = true
+					break
+				}
+			}
+		}
+	}
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configModel, serverConfigProjection)
@@ -975,7 +1357,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		reactions,
 		reactionsProjector,
 	)
-	userMgr := newUserModel(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	userMgr := newUserModel(eventPublisher, users, usersProjector, userAuthProjector, contentKeys, contentKeysProjector)
 	rbacMgr := newRBACModel(rbac, rbacProjector)
 	mentionablesMgr := newMentionablesModel(mentionables, mentionablesProjector)
 
@@ -1017,6 +1399,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:       reactionsProjector,
 		Users:                    users,
 		UsersProjector:           usersProjector,
+		UserAuthProjector:        userAuthProjector,
 		ContentKeys:              contentKeys,
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,
@@ -1038,10 +1421,44 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
+	assetCleanupLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
+		Name:       assetCleanupLeaseName,
+		Bucket:     "MEMORY_CACHE",
+		TTL:        assetCleanupLeaseTTL,
+		RenewEvery: assetCleanupLeaseRenewEvery,
+		RetryEvery: assetCleanupLeaseRetryEvery,
+		Logger:     logger.WithPrefix("core.AssetCleanupLease"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
+	}
+	if len(snapshotJobs) > 0 {
+		snapshotLease, snapshotLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
+			Name:   projectionSnapshotLeaseName,
+			Bucket: "MEMORY_CACHE",
+			Logger: logger.WithPrefix("core.ProjectionSnapshotLease"),
+		})
+		if snapshotLeaseErr != nil {
+			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
+				"projection", projectionsnapshot.ProjectionThreadsKey,
+				"stage", "lease_initialize",
+				"error", snapshotLeaseErr)
+		} else {
+			core.projectionSnapshotWorker = &projectionSnapshotWorker{
+				jobs: snapshotJobs, lease: snapshotLease,
+				logger: logger.WithPrefix("core.ProjectionSnapshotWorker"), done: make(chan struct{}),
+				retention: cfg.ProjectionSnapshotRetentionOrDefault(),
+			}
+			if snapshotRepository.Backend() == "s3" && cfg.ProjectionSnapshotS3CleanupOrDefault() {
+				core.projectionSnapshotWorker.expirer = snapshotRepository
+			}
+		}
+	}
 
 	core.mediaModel = NewMediaModel(core)
 	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
 	core.assetModel = NewAssetModel(core)
+	core.assetModel.cleanupLease = assetCleanupLease
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
@@ -1050,10 +1467,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.readStateModel = &ReadStateModel{core: core}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
-
-	if err := core.seedLegacyThreadFollowStateFromRuntime(ctx); err != nil {
-		return nil, fmt.Errorf("failed to seed legacy thread follow state: %w", err)
-	}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
@@ -1211,28 +1624,51 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	// Subjects are evt.{aggregateType}.{aggregateId}.{eventType}; live.evt.> is
 	// the republish target so projections and live subscribers consume
 	// from a single NATS Core path.
+	evtMetadata, err := prepareEVTStreamMetadata(ctx, js)
+	if err != nil {
+		return nil, fmt.Errorf("prepare EVT stream metadata: %w", err)
+	}
+	evtConfig := jetstream.StreamConfig{
+		Name:        "EVT",
+		Description: "Event-sourcing log (ADR-033)",
+		Subjects:    []string{"evt.>"},
+		Storage:     jetstream.FileStorage,
+		Compression: jetstream.S2Compression,
+		Replicas:    cfg.Replicas,
+		Metadata:    evtMetadata,
+		// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
+		// protocol on this stream. Used by Publisher.AppendBatch to
+		// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
+		// adjacently in stream order so projections never observe an
+		// intermediate state that breaks an invariant.
+		AllowAtomicPublish: true,
+		RePublish: &jetstream.RePublish{
+			Source:      "evt.>",
+			Destination: "live.evt.>",
+		},
+	}
 	serverEvtStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name:        "EVT",
-			Description: "Event-sourcing log (ADR-033)",
-			Subjects:    []string{"evt.>"},
-			Storage:     jetstream.FileStorage,
-			Compression: jetstream.S2Compression,
-			Replicas:    cfg.Replicas,
-			// AllowAtomicPublish gates the Nats-Batch-Id / Nats-Batch-Commit
-			// protocol on this stream. Used by Publisher.AppendBatch to
-			// land multi-aggregate cascades (MoveRoomToGroup, DM creation)
-			// adjacently in stream order so projections never observe an
-			// intermediate state that breaks an invariant.
-			AllowAtomicPublish: true,
-			RePublish: &jetstream.RePublish{
-				Source:      "evt.>",
-				Destination: "live.evt.>",
-			},
-		})
+		return js.CreateOrUpdateStream(ctx, evtConfig)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
+	}
+	if !events.ValidStreamIdentity(evtConfig.Metadata[events.EVTStreamIdentityMetadataKey]) {
+		info := serverEvtStream.CachedInfo()
+		if info == nil {
+			return nil, fmt.Errorf("created EVT stream info is unavailable")
+		}
+		identity, identityErr := events.NewStreamIdentity(info.Created)
+		if identityErr != nil {
+			return nil, identityErr
+		}
+		evtConfig.Metadata[events.EVTStreamIdentityMetadataKey] = identity
+		serverEvtStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+			return js.CreateOrUpdateStream(ctx, evtConfig)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("persist EVT stream identity: %w", err)
+		}
 	}
 
 	return &storage{
@@ -1243,6 +1679,39 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
+}
+
+func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {
+	metadata := make(map[string]string)
+	stream, err := js.Stream(ctx, "EVT")
+	switch {
+	case err == nil:
+		info, infoErr := stream.Info(ctx)
+		if infoErr != nil {
+			return nil, fmt.Errorf("read existing EVT stream info: %w", infoErr)
+		}
+		for key, value := range info.Config.Metadata {
+			metadata[key] = value
+		}
+	case errors.Is(err, jetstream.ErrStreamNotFound):
+	case err != nil:
+		return nil, fmt.Errorf("open existing EVT stream: %w", err)
+	}
+	if events.ValidStreamIdentity(metadata[events.EVTStreamIdentityMetadataKey]) {
+		return metadata, nil
+	}
+	if stream == nil {
+		return metadata, nil
+	}
+	if stream.CachedInfo() == nil {
+		return nil, fmt.Errorf("existing EVT stream info is unavailable")
+	}
+	identity, err := events.NewStreamIdentity(stream.CachedInfo().Created)
+	if err != nil {
+		return nil, err
+	}
+	metadata[events.EVTStreamIdentityMetadataKey] = identity
+	return metadata, nil
 }
 
 func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(context.Context) (T, error)) (T, error) {
@@ -1280,9 +1749,11 @@ func isTransientJetStreamStoreCreateError(err error) bool {
 		return false
 	}
 	apiErr := provider.APIError()
-	return apiErr != nil &&
-		apiErr.ErrorCode == 10049 &&
-		strings.Contains(apiErr.Description, "error creating store for stream")
+	if apiErr == nil {
+		return false
+	}
+	return (apiErr.ErrorCode == 10049 && strings.Contains(apiErr.Description, "error creating store for stream")) ||
+		(apiErr.ErrorCode == 10058 && strings.Contains(apiErr.Description, "stream name already in use"))
 }
 
 // ============================================================================

@@ -85,7 +85,7 @@ network round trips are needed.
   <button
     bind:this={trigger}
     type="button"
-    class="flex min-w-0 max-w-full cursor-pointer bg-transparent p-0 text-left align-middle"
+    class="flex max-w-full min-w-0 cursor-pointer bg-transparent p-0 text-left align-middle"
     onclick={toggle}
     onpointerdown={(e) => e.stopPropagation()}
     aria-haspopup="dialog"
@@ -93,13 +93,11 @@ network round trips are needed.
   >
     <Pill
       tone="subtle"
-      class="shimmer-hover relative flex min-w-0 max-w-full overflow-hidden !px-1"
+      compact
+      class="shimmer-hover relative flex max-w-full min-w-0 overflow-hidden"
     >
       <span class="flex min-w-0 items-center gap-1">
-        <span
-          class="iconify shrink-0 text-xs text-instance uil--globe"
-          aria-hidden="true"
-        ></span>
+        <span class="text-instance iconify shrink-0 text-xs uil--globe" aria-hidden="true"></span>
         <span class="truncate">{name}</span>
       </span>
     </Pill>
@@ -114,9 +112,9 @@ network round trips are needed.
     class="w-72"
     onclose={() => (open = false)}
   >
-    <div class="menu-section overflow-hidden p-0">
+    <div class="overflow-hidden menu-section p-0">
       {#if bannerUrl}
-        <SkeletonImg src={bannerUrl} alt="" class="aspect-[1200/630] block w-full object-cover" />
+        <SkeletonImg src={bannerUrl} alt="" class="block aspect-[1200/630] w-full object-cover" />
       {/if}
 
       <div class="flex items-start gap-3 p-3">
@@ -124,7 +122,7 @@ network round trips are needed.
           <img src={iconUrl} alt="" class="h-10 w-10 shrink-0 rounded-md" />
         {:else}
           <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-server/10 text-instance"
+            class="text-instance flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-server/10"
           >
             <span class="iconify text-xl uil--globe" aria-hidden="true"></span>
           </div>

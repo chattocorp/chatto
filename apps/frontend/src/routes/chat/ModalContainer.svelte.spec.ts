@@ -1,24 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     modal: {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'general',
-      viewerCanJoinRoom: true
+      type: 'logout'
     } as Record<string, unknown> | undefined,
     closeModal: vi.fn(),
     goto: vi.fn(),
+    replaceState: vi.fn(),
+    refreshAttachmentUrlsForAssets: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
-    joinRoom: vi.fn(),
     deleteMessage: vi.fn(),
     deleteAttachment: vi.fn(),
     deleteLinkPreview: vi.fn(),
-    refreshRooms: vi.fn(),
     mutation: vi.fn(() => ({
       toPromise: () => Promise.resolve({ data: {}, error: null })
     })),
@@ -55,7 +52,7 @@ vi.mock('$app/state', () => ({
 
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
-  replaceState: vi.fn()
+  replaceState: mocks.replaceState
 }));
 
 vi.mock('$app/paths', () => ({
@@ -76,14 +73,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: vi.fn(() => ({
-      roomDirectory: {
-        joinRoom: mocks.joinRoom
-      },
-      rooms: {
-        refresh: mocks.refreshRooms
-      }
-    })),
     getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
     isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
     isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
@@ -135,7 +124,12 @@ vi.mock('$lib/auth/signOut', () => ({
 }));
 
 vi.mock('$lib/attachments/attachmentUrls', () => ({
-  refreshAttachmentUrlsForAssets: vi.fn()
+  LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: {
+    width: 2048,
+    height: 2048,
+    fit: 'contain'
+  },
+  refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
 }));
 
 vi.mock('$lib/CreateRoom.svelte', () => ({
@@ -148,10 +142,6 @@ vi.mock('$lib/api-client/messages', () => ({
     deleteAttachment: mocks.deleteAttachment,
     deleteLinkPreview: mocks.deleteLinkPreview
   })
-}));
-
-vi.mock('$lib/ui/ImageModal.svelte', () => ({
-  default: {}
 }));
 
 vi.mock('$lib/ui/ConfirmDialog.svelte', async () => {
@@ -190,19 +180,15 @@ function clickButton(container: HTMLElement, label: string): void {
 beforeEach(() => {
   vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
   mocks.modal = {
-    type: 'joinRoom',
-    roomId: 'room-1',
-    roomName: 'general',
-    viewerCanJoinRoom: true
+    type: 'logout'
   };
-  mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'general' } });
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
+  mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(new Map());
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
-  mocks.refreshRooms.mockResolvedValue(undefined);
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
   mocks.activeServer = 'origin';
@@ -218,55 +204,64 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('ModalContainer join room modal', () => {
-  it('joins and navigates from a joinable room modal', async () => {
-    const { container } = render(ModalContainer);
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-    await expect
-      .element(q(container, 'dialog'))
-      .toHaveTextContent('Join #general to read and participate in this room.');
-    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
-      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
-      expect(mocks.toastSuccess).toHaveBeenCalledWith('Joined #general');
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
-    });
-  });
-
-  it('shows an error toast when joining fails', async () => {
-    mocks.joinRoom.mockResolvedValue({ ok: false, error: new Error('denied') });
-
-    const { container } = render(ModalContainer);
-    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith('Failed to join room');
-      expect(mocks.refreshRooms).not.toHaveBeenCalled();
-      expect(mocks.goto).not.toHaveBeenCalled();
-    });
-  });
-
-  it('renders a non-mutating access message for non-joinable rooms', async () => {
+describe('ModalContainer image viewer', () => {
+  it('refreshes compressed display and original URLs independently', async () => {
+    vi.useFakeTimers();
     mocks.modal = {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'private',
-      viewerCanJoinRoom: false
+      type: 'imageViewer',
+      roomId: 'room_1',
+      eventId: 'event_1',
+      imageItems: [
+        {
+          id: 'att_1',
+          src: '/assets/files/att_1/image/2048x2048/contain?access=old',
+          originalSrc: '/assets/files/att_1?access=old',
+          filename: 'image.jpg'
+        }
+      ],
+      imageIndex: 0
     };
+    mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(
+      new Map([
+        [
+          'att_1',
+          {
+            assetUrl: { url: '/assets/files/att_1?access=fresh' },
+            thumbnailAssetUrl: {
+              url: '/assets/files/att_1/image/2048x2048/contain?access=fresh'
+            }
+          }
+        ]
+      ])
+    );
 
-    const { container } = render(ModalContainer);
+    render(ModalContainer);
+    await vi.advanceTimersByTimeAsync(23 * 60 * 60 * 1000);
 
-    await expect
-      .element(q(container, 'dialog'))
-      .toHaveTextContent('You do not have permission to join this room.');
-    expect(
-      [...container.querySelectorAll('button')].map((button) => button.textContent?.trim())
-    ).toEqual(['Got it']);
-    (q(container, 'button') as HTMLButtonElement).click();
-
-    expect(mocks.joinRoom).not.toHaveBeenCalled();
+    expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledWith(
+      expect.anything(),
+      'room_1',
+      ['att_1'],
+      { width: 2048, height: 2048, fit: 'contain' }
+    );
+    expect(mocks.replaceState).toHaveBeenCalledWith('', {
+      modal: {
+        ...mocks.modal,
+        imageItems: [
+          {
+            id: 'att_1',
+            src: 'https://origin.example.test/assets/files/att_1/image/2048x2048/contain?access=fresh',
+            originalSrc: 'https://origin.example.test/assets/files/att_1?access=fresh',
+            filename: 'image.jpg'
+          }
+        ],
+        imageIndex: 0
+      }
+    });
   });
 });
 

@@ -36,7 +36,7 @@
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import MessageAttachments from './MessageAttachments.svelte';
   import MessageMetaBar from './MessageMetaBar.svelte';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -52,6 +52,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -69,12 +70,14 @@
     event,
     compact = false,
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread
   }: {
     event: RoomEventView;
     compact?: boolean;
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
   } = $props();
@@ -87,7 +90,8 @@
   const jumpState = composerContext.jumpState;
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
-  const isTouch = isTouchDevice();
+  const prefersTouch = prefersTouchActions();
+  const canUseHoverActions = supportsHoverActions();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
   const mentionRoleHandles = $derived(
@@ -95,16 +99,19 @@
       .filter((role) => role.pingable && role.name !== 'everyone')
       .map((role) => role.name)
   );
-  // Actor may be null if the user has been deleted.
+  // Deleted actors may be absent or retained as a deleted reference.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null);
+  const deletedActor = $derived(!actor || actor.deleted);
 
   // Display name with live updates from profile cache
   const displayName = $derived(
-    actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
+    !deletedActor && actor
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+      : m['common.deleted_user']()
   );
   const actorCallPresence = $derived(
-    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within
@@ -136,27 +143,32 @@
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
-  // Emoji picker state (position doubles as visibility flag; on mobile ContextMenu ignores it)
+  // Emoji picker state (position doubles as visibility flag in floating mode)
   let emojiPickerPos = $state<{ x: number; y: number } | null>(null);
+  let emojiPickerPresentation = $state<'auto' | 'sheet'>('auto');
   const emojiActions = useMessageActions();
 
-  function openEmojiPicker() {
-    // Capture context menu position before it closes
-    // On mobile, position is ignored by ContextMenu (renders as BottomSheet)
+  function openEmojiPicker(presentation: 'auto' | 'sheet' = 'auto') {
+    emojiPickerPresentation = presentation;
+    // Capture context menu position before it closes. Sheet presentation ignores
+    // this fallback, but ContextMenu still requires a visibility anchor.
     emojiPickerPos = contextMenuPos ?? { x: 0, y: 0 };
   }
 
   function openEmojiPickerFromEvent(e: MouseEvent) {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = { x: e.clientX, y: e.clientY };
   }
 
   function openEmojiPickerFromToolbar(e: MouseEvent) {
+    emojiPickerPresentation = 'auto';
     const button = e.currentTarget as HTMLElement;
     const rect = button.getBoundingClientRect();
     emojiPickerPos = { x: rect.left, y: rect.bottom + 4 };
   }
 
   async function handleEmojiSelect(emoji: string) {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = null;
 
     if (!msg) return;
@@ -166,7 +178,8 @@
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
-      messageBody: msg.body ?? ''
+      messageBody: msg.body ?? '',
+      messageStore
     };
     const name = emojiToName(emoji);
     const alreadyReacted = msg.reactions.some((r) => r.emoji === name && r.hasReacted);
@@ -174,6 +187,7 @@
   }
 
   function closeEmojiPicker() {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = null;
   }
 
@@ -216,10 +230,10 @@
     cancelLongPress();
   }
 
-  // Mouse handlers for touch devices that also have mouse input (e.g., tablet with mouse)
+  // Mouse fallback for pure touch-primary devices. Hybrid devices with a hover-capable
+  // pointer use the normal hover toolbar instead.
   function handleMouseDown(e: MouseEvent) {
-    // Skip on desktop - context menu handles mouse interaction
-    if (!isTouch) return;
+    if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
     startLongPress();
@@ -288,7 +302,12 @@
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    await copyMessageLinkToClipboard(getActiveServer(), roomId, event.id);
+    await copyMessageLinkToClipboard(
+      getActiveServer(),
+      roomId,
+      event.id,
+      permalinkThreadRootEventId
+    );
   }
 
   // Check if message has been edited (updatedAt is non-null)
@@ -320,9 +339,13 @@
   // Overridable derived state: backing event data is the default, while
   // mutations/live events can update the row immediately.
   let isFollowingThread = $derived(messageEvent?.viewerIsFollowingThread ?? false);
+  let threadFollowRequestId = 0;
+  let isThreadFollowPending = $state(false);
 
   function setThreadFollowState(value: boolean) {
     if (!event) return;
+    threadFollowRequestId += 1;
+    isThreadFollowPending = false;
     isFollowingThread = value;
     messageStore?.setThreadRootFollowState(event.id, value);
   }
@@ -337,9 +360,15 @@
 
   async function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
+    if (!event || isThreadFollowPending) return;
+
     const wasFollowing = isFollowingThread;
     const nextFollowing = !wasFollowing;
-    setThreadFollowState(nextFollowing);
+    const requestId = ++threadFollowRequestId;
+    const optimistic = messageStore?.beginOptimisticThreadFollow(event.id, nextFollowing);
+
+    isThreadFollowPending = true;
+    isFollowingThread = nextFollowing;
 
     try {
       const conn = connection();
@@ -348,14 +377,15 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      if (wasFollowing) {
-        await api.unfollowThread({ roomId, threadRootEventId: event.id });
-      } else {
-        await api.followThread({ roomId, threadRootEventId: event.id });
-      }
-      setThreadFollowState(nextFollowing);
+      const input = { roomId, threadRootEventId: event.id };
+      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
+      if (threadFollowRequestId !== requestId) return;
+      setThreadFollowState(result.following);
     } catch {
-      setThreadFollowState(wasFollowing);
+      if (threadFollowRequestId !== requestId) return;
+      isThreadFollowPending = false;
+      isFollowingThread = wasFollowing;
+      optimistic?.rollback();
     }
   }
 
@@ -390,21 +420,32 @@
     const replyToId = messageEvent?.inReplyTo;
     if (!replyToId) return null;
 
-    if (!replyTarget) return { name: 'a message', body: null as string | null, actor: null };
+    if (!replyTarget) {
+      return { name: 'a message', body: null as string | null, actor: null, deleted: false };
+    }
 
     const repliedActor = replyTarget.actor
       ? useRenderData(UserAvatarViewData, replyTarget.actor)
       : null;
-    const name = repliedActor
-      ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
-      : 'Deleted User';
+    const activeRepliedActor = repliedActor && !repliedActor.deleted ? repliedActor : null;
+    const name = activeRepliedActor
+      ? getLiveDisplayName(
+          activeRepliedActor.id,
+          activeRepliedActor.displayName || activeRepliedActor.login
+        )
+      : m['common.deleted_user']();
     const body = isMessagePostedEvent(replyTarget.event) ? (replyTarget.event.body ?? null) : null;
-    return { name, body, actor: repliedActor };
+    return { name, body, actor: activeRepliedActor, deleted: !activeRepliedActor };
   });
 
   // Check if this thread has pending reply notifications
   const hasThreadNotification = $derived(
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
+  );
+  const hasMessageFooter = $derived(
+    (isEcho && !!onOpenThread) ||
+      (hasReplies && !!onOpenThread) ||
+      (msg?.reactions?.length ?? 0) > 0
   );
 
   // Check if current user is mentioned (but not by themselves)
@@ -612,7 +653,7 @@
   {#if kind}
     <span
       class={[
-        'iconify shrink-0 text-xs leading-none text-accent',
+        'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'uil--video' : 'uil--phone'
       ]}
       title={kind === 'video' ? 'In a video call' : 'In a voice call'}
@@ -636,9 +677,10 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class={[
-        'group/msg group/badges relative flex gap-4 px-2 py-1 select-none hover:bg-surface-100 md:mx-2 md:rounded-md md:pr-8',
+        'group/msg group/badges message-row',
+        hasMessageFooter ? 'message-row-footer' : '',
         compact && msg?.body ? 'items-baseline' : 'items-start',
-        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface-100' : ''
+        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface' : ''
       ]}
       ontouchstart={handleTouchStart}
       ontouchend={handleTouchEnd}
@@ -669,7 +711,7 @@
         <!-- Spacer maintains left column width; avatar is absolutely positioned
 					 so it doesn't inflate row height for short (single-line) messages -->
         <div class="w-11 shrink-0"></div>
-        {#if actor}
+        {#if !deletedActor && actor}
           <button
             type="button"
             class={['absolute left-2 z-10 cursor-pointer', replyPreview ? 'top-8' : 'top-1']}
@@ -681,17 +723,13 @@
               showPopoverForActor(e);
             }}
           >
-            <UserAvatar
-              user={actor}
-              size="md"
-              class="!h-11 !w-11 shadow-md"
-            />
+            <UserAvatar user={actor} size="message" class="shadow-md" />
           </button>
         {:else}
           <!-- Deleted user placeholder avatar -->
           <div
             class={[
-              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30',
+              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-emphasized text-muted shadow-md ring-1 ring-surface-emphasized/30',
               replyPreview ? 'top-8' : 'top-1'
             ]}
           >
@@ -701,11 +739,11 @@
       {/if}
 
       <!-- Message content column -->
-      <div class="min-w-0 flex-1 space-y-1">
+      <div class="message-content-stack">
         {#if replyPreview}
           {@const replyJumpText =
             replyPreview.body ??
-            (replyPreview.actor
+            (replyPreview.actor || replyPreview.deleted
               ? m['room.message.meta.reply_preview_fallback']()
               : replyPreview.name)}
           {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
@@ -725,12 +763,12 @@
             {#if compact}
               <span
                 aria-hidden="true"
-                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
+                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
               ></span>
             {:else}
               <span
                 aria-hidden="true"
-                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
+                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
               ></span>
             {/if}
             {#if replyPreview.actor}
@@ -751,8 +789,9 @@
                 <strong class="truncate font-medium">{replyPreview.name}</strong>
                 {@render callPresenceIcon(replyCallPresence)}
               </button>
-            {:else if replyPreview.body}
-              <strong class="max-w-[45%] shrink-0 truncate font-medium">{replyPreview.name}</strong>
+            {:else if replyPreview.deleted}
+              <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong
+              >
             {/if}
             <button
               type="button"
@@ -768,7 +807,7 @@
         <!-- Author and timestamp -->
         {#if !compact}
           <div class="flex min-w-0 items-center gap-2">
-            {#if actor}
+            {#if !deletedActor && actor}
               <button
                 type="button"
                 class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
@@ -784,7 +823,9 @@
                 {@render callPresenceIcon(actorCallPresence)}
               </button>
             {:else}
-              <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
+              <strong class="shrink-0 leading-none font-semibold text-muted"
+                ><DeletedUserLabel /></strong
+              >
             {/if}
             <a
               href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
@@ -805,7 +846,7 @@
         <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
         {#if isDeleted}
           <!-- Message deleted or encryption key removed -->
-          <span class="text-muted/50 italic">{m['room.message.meta.deleted']()}</span>
+          <span class="text-muted italic">{m['room.message.meta.deleted']()}</span>
         {:else if msg.body}
           <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
             <MessageContent
@@ -813,6 +854,8 @@
               {members}
               roleHandles={mentionRoleHandles}
               edited={isEdited}
+              timestampSettings={userSettings}
+              timestampLocale={activeLocale}
               onMentionClick={showPopoverForMember}
             />
           </div>
@@ -848,7 +891,7 @@
         {/each}
 
         <!-- Thread echo indicator, thread replies, and reactions -->
-        {#if (isEcho && onOpenThread) || (hasReplies && onOpenThread) || (msg?.reactions?.length ?? 0) > 0}
+        {#if hasMessageFooter}
           <MessageMetaBar
             {roomId}
             messageEventId={event.id}
@@ -859,7 +902,9 @@
             threadParticipants={messageEvent?.threadParticipants}
             {hasThreadNotification}
             canReact={roomPermissions.canReact}
+            {messageStore}
             {isFollowingThread}
+            {isThreadFollowPending}
             onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
             onOpenThread={onOpenThread ? handleOpenThread : undefined}
             onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromEvent : undefined}
@@ -867,8 +912,8 @@
           />
         {/if}
       </div>
-      <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
-      {#if !isDeleted && !isTouch}
+      <!-- Quick actions toolbar (hover-capable input; pure touch uses long-press sheet) -->
+      {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
           serverId={getActiveServer()}
           {roomId}
@@ -879,6 +924,7 @@
           threadRootEventId={editThreadRootEventId}
           channelEchoEventId={editChannelEchoEventId}
           canAddChannelEcho={canReconcileChannelEcho}
+          {messageStore}
           reactions={msg?.reactions ?? []}
           canReact={roomPermissions.canReact}
           {canEdit}
@@ -934,9 +980,11 @@
         eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        {permalinkThreadRootEventId}
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}
+        {messageStore}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}
@@ -951,9 +999,13 @@
     </ContextMenu>
   {/if}
 
-  <!-- Emoji picker (ContextMenu handles desktop popup vs mobile BottomSheet) -->
+  <!-- Emoji picker (ContextMenu handles floating vs sheet presentation) -->
   {#if emojiPickerPos && !isDeleted}
-    <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
+    <ContextMenu
+      position={emojiPickerPos}
+      presentation={emojiPickerPresentation}
+      onclose={closeEmojiPicker}
+    >
       <EmojiPicker
         serverId={getActiveServer()}
         onSelect={handleEmojiSelect}
@@ -972,9 +1024,11 @@
         eventId={editEventId}
         deleteEventId={event.id}
         messageBody={msg.body ?? ''}
+        {permalinkThreadRootEventId}
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}
+        {messageStore}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}
@@ -983,7 +1037,7 @@
         replyThreadLabel={replyThreadActionLabel}
         onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
         onReply={canUseThreadAction ? handleOpenThread : undefined}
-        onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
+        onOpenEmojiPicker={roomPermissions.canReact ? () => openEmojiPicker('sheet') : undefined}
         onClose={() => (showActionSheet = false)}
       />
     </BottomSheet>

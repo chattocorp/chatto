@@ -33,7 +33,7 @@ test.describe('upload configuration', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    await expect(roomPage.fileInput).toHaveAttribute('accept', 'image/*,audio/*');
+    await expect(roomPage.fileInput).not.toHaveAttribute('accept');
     await roomPage.fileInput.setInputFiles('e2e/fixtures/test-video.mp4');
 
     await expect(page.getByText('Video uploads are disabled on this server.')).toBeVisible({

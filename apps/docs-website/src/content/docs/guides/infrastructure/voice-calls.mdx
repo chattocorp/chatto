@@ -3,7 +3,7 @@ title: Voice & Video Calls
 description: How to set up and configure voice and video call capabilities in Chatto using LiveKit.
 ---
 
-import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Chatto supports real-time voice and video calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a call directly from the room header.
 
@@ -106,11 +106,69 @@ Chatto records call start/join/leave/end facts durably and reconciles active par
 Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be used for local development.
 :::
 
-- **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
+- **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments). HTTPS/WebSocket signaling and WebRTC media use different routes, as described below.
 - **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. TURN/UDP on port 3478 helps many NAT traversal failures; networks that block UDP entirely need TURN/TLS, often on port 443.
 - **Scaling**: A single LiveKit server handles hundreds of concurrent participants for typical small deployments. For larger deployments, LiveKit supports multi-node clustering with Redis.
 - **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
+
+### Network Paths and Ports
+
+Put LiveKit's API and WebSocket signaling endpoint behind a reverse proxy with
+a publicly trusted certificate. Route `wss://livekit.example.com` on TCP 443 to
+LiveKit port 7880. Media travels directly to LiveKit instead of through the HTTP
+reverse proxy:
+
+| Public port | Purpose |
+| ----------- | ------- |
+| TCP 443 | Secure LiveKit API and WebSocket signaling, proxied to TCP 7880 |
+| TCP 7881 | ICE/TCP media fallback when UDP is unavailable |
+| UDP 3478 | Optional embedded TURN/STUN relay |
+| UDP 7882 | Direct WebRTC media in the Compose example |
+
+The Compose example sets `rtc.udp_port` to `7882` so LiveKit can multiplex
+direct UDP media on one port. Do not route the TCP or UDP media ports through a
+normal HTTP reverse proxy.
+
+When `rtc.use_external_ip` is enabled, the LiveKit server also uses outbound
+UDP STUN requests at startup to discover the public IP it advertises. Allow DNS
+and outbound UDP to LiveKit's default STUN services, or point
+`rtc.stun_servers` at a self-hosted
+[coturn](https://github.com/coturn/coturn) instance or another STUN service you
+operate. If discovery fails, LiveKit logs `could not resolve external IP` and
+cannot start.
+
+These server-side discovery requests are separate from browser ICE. When the
+embedded TURN/UDP service is enabled, LiveKit advertises that service to
+browsers instead of falling back to public STUN servers.
+
+For a LAN-only deployment whose host has no external IP address, disable
+external IP discovery in the LiveKit configuration:
+
+```yaml
+rtc:
+  use_external_ip: false
+```
+
+The generated Docker Compose configuration enables this setting by default for
+internet-facing deployments. If you use that example on a private LAN, change
+`use_external_ip` to `false` in `livekit.generated.yaml` before starting or
+restarting LiveKit.
+
+For an internet-facing host with a stable public IP, you can avoid STUN-based
+discovery by configuring the address explicitly:
+
+```yaml
+rtc:
+  use_external_ip: false
+  node_ip: 203.0.113.10
+```
+
+<Aside type="tip">
+  The [Docker Compose guide](/guides/deployment/docker-compose/) provides a
+  complete working LiveKit configuration, firewall list, automatic HTTPS, and
+  generated matching secrets.
+</Aside>
 
 ## TURN for Restrictive Networks
 
@@ -124,9 +182,14 @@ turn:
   udp_port: 3478
 ```
 
-Expose UDP 3478 on the LiveKit host and keep the UDP media range open. Networks that block UDP entirely need TURN/TLS instead. If your users can only reach outbound TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen on 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS certificate must match the advertised TURN domain.
+Expose UDP 3478 on the LiveKit host, keep the direct UDP media port open, and
+enable ICE/TCP on port 7881 as a fallback when UDP is unavailable. Networks that
+also block this TCP fallback need TURN/TLS. If your users can only reach outbound
+TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen
+on 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS
+certificate must match the advertised TURN domain.
 
-Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration.
+Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration. The same coturn deployment can provide the private STUN endpoint listed in `rtc.stun_servers`, but these settings serve different paths: `stun_servers` discovers the LiveKit host's public IP, while `turn_servers` gives browsers a media relay.
 
 ## Features
 
@@ -146,4 +209,6 @@ To disable voice and video calls, either remove the `[livekit]` section from `ch
 enabled = false
 ```
 
-When disabled, call controls are hidden and all call API endpoints return `null`.
+When disabled, call controls are hidden. Call APIs return their normal
+not-configured results: lists are empty, join and leave report `false`, and a
+singular active-call lookup returns `NOT_FOUND`.

@@ -29,6 +29,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
 
   /**
    * Existing room-scoped attachment asset IDs to include with the message.
+   * At most 10 IDs may be supplied.
    *
    * @generated from field: repeated string attachment_asset_ids = 3;
    */

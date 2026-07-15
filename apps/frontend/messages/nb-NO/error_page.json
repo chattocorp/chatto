@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Noe gikk galt",
+    "description": "Denne visningen kunne ikke åpnes. Du kan gå tilbake til Chatto og prøve igjen derfra.",
+    "unknown": "Ukjent feil",
+    "home_link": "Tilbake til Chatto",
+    "missing_media_title": "Media utilgjengelig",
+    "missing_media_description": "Denne filen kunne ikke åpnes fra denne lenken. Den kan ha blitt fjernet, eller den private mediekoblingen er ikke lenger tilgjengelig."
+  }
+}

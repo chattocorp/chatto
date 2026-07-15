@@ -141,7 +141,7 @@
                   <UserAvatar {user} size="sm" />
                 {:else}
                   <div
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-200 text-muted"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
                   >
                     <span class="iconify text-base uil--user"></span>
                   </div>

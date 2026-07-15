@@ -13,6 +13,7 @@ unknown instance) the component renders nothing.
 -->
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
   import {
     FitMode,
@@ -21,7 +22,6 @@ unknown instance) the component renders nothing.
     type UserAvatarUserView
   } from '$lib/render/types';
   import { useRenderData } from '$lib/render/data';
-  import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
@@ -41,6 +41,7 @@ unknown instance) the component renders nothing.
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
+  import DeletedUserLabel from './DeletedUserLabel.svelte';
 
   let {
     link,
@@ -64,6 +65,7 @@ unknown instance) the component renders nothing.
   let preview = $state<{
     serverId: string;
     roomId: string;
+    threadRootEventId?: string;
     eventId: string;
     body: string | null;
     attachments: Attachment[];
@@ -114,7 +116,7 @@ unknown instance) the component renders nothing.
   }
 
   $effect(() => {
-    const { serverId, roomId, messageId } = link;
+    const { serverId, roomId, threadRootEventId, messageId } = link;
 
     preview = null;
     if (!serverId) return;
@@ -155,6 +157,7 @@ unknown instance) the component renders nothing.
         preview = {
           serverId,
           roomId,
+          threadRootEventId,
           eventId: messageId,
           body: inner.body ?? null,
           attachments: attachments.map((a: MessageAttachmentView) => {
@@ -315,13 +318,7 @@ unknown instance) the component renders nothing.
     const target = event.target as HTMLElement;
     if (target.closest('a, button')) return;
 
-    goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
-        roomId: preview.roomId,
-        messageId: preview.eventId
-      })
-    );
+    navigateToPreview();
   }
 
   function handlePreviewKeydown(event: KeyboardEvent) {
@@ -330,9 +327,27 @@ unknown instance) the component renders nothing.
     if (event.key !== 'Enter' && event.key !== ' ') return;
 
     event.preventDefault();
+    navigateToPreview();
+  }
+
+  function navigateToPreview() {
+    if (!preview) return;
+    const serverId = serverIdToSegment(preview.serverId);
+    if (preview.threadRootEventId) {
+      goto(
+        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+          serverId,
+          roomId: preview.roomId,
+          threadId: preview.threadRootEventId,
+          messageId: preview.eventId
+        })
+      );
+      return;
+    }
+
     goto(
       resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(preview.serverId),
+        serverId,
         roomId: preview.roomId,
         messageId: preview.eventId
       })
@@ -379,9 +394,9 @@ unknown instance) the component renders nothing.
   >
     <div class="flex min-w-0 flex-col">
       <div
-        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-200/60 px-3 py-2"
+        class="flex min-w-0 items-start gap-2 border-b border-border/70 bg-surface-emphasized/60 px-3 py-2"
       >
-        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-accent/70"></div>
+        <div class="mt-1 h-8 w-1 shrink-0 rounded-full bg-action/70"></div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           {#if preview.spaceName || preview.roomName}
             <span class="truncate text-xs tracking-wide text-muted">
@@ -391,13 +406,11 @@ unknown instance) the component renders nothing.
             </span>
           {/if}
           <div class="flex min-w-0 items-center gap-2">
-            {#if preview.actor}
+            {#if preview.actor && !preview.actor.deleted}
               <UserAvatar user={preview.actor} size="xs" />
               <span class="truncate text-sm font-medium">{displayName}</span>
             {:else}
-              <span class="truncate text-sm font-medium text-muted">
-                {m['message_preview.deleted_user']()}
-              </span>
+              <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
             {/if}
           </div>
         </div>
@@ -405,11 +418,11 @@ unknown instance) the component renders nothing.
       {#if hasBody}
         <div class="relative">
           <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface-100 via-surface-100/80 to-transparent"
+            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface via-surface/80 to-transparent"
             aria-hidden="true"
           ></div>
           <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent"
+            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface via-surface/80 to-transparent"
             aria-hidden="true"
           ></div>
           <div
@@ -451,7 +464,7 @@ unknown instance) the component renders nothing.
               </div>
             {:else}
               <div
-                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-200 text-xs text-muted"
+                class="flex h-12 w-12 items-center justify-center rounded-sm border border-border bg-surface-emphasized text-xs text-muted"
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span

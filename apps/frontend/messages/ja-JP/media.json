@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "サーバーバナー",
+    "fullscreen_video": "フルスクリーンビデオ",
+    "close_fullscreen_video": "全画面ビデオを閉じる",
+    "video_alt": "動画",
+    "video_original_missing": "元のアップロードが見つからないため、ビデオは利用できません。",
+    "video_processing_failed_retry": "ビデオ処理に失敗しました。もう一度アップロードしてください。",
+    "video_queued": "ビデオは処理のためにキューに入れられています...",
+    "video_processing": "ビデオを処理中...",
+    "video_processing_failed": "ビデオ処理に失敗しました"
+  }
+}

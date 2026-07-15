@@ -24,6 +24,8 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
+	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION", "false")
+	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES", "8192")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 
@@ -43,8 +45,81 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	if cfg.Webserver.CookieEncryptionSecret != "000102030405060708090a0b0c0d0e0f" {
 		t.Errorf("expected cookie encryption secret to be set from env var")
 	}
+	if cfg.Webserver.APICompressionEnabled() {
+		t.Error("expected API response compression disabled from env var")
+	}
+	if got := cfg.Webserver.APICompressionMinBytesOrDefault(); got != 8192 {
+		t.Errorf("APICompressionMinBytesOrDefault() = %d, want 8192", got)
+	}
 	if cfg.Core.SecretKey != "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789" {
 		t.Errorf("expected core secret to be set from env var")
+	}
+	if cfg.Webserver.Shields.Enabled {
+		t.Errorf("expected shields to default disabled")
+	}
+}
+
+func TestReadConfig_ShieldsEnabledFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_WEBSERVER_SHIELDS_ENABLED", "true")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Webserver.Shields.Enabled {
+		t.Fatal("expected shields enabled from env")
+	}
+}
+
+func TestReadConfig_ShieldsEnabledFromNestedWebserverConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	configContent := `
+[webserver]
+port = 4000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[webserver.shields]
+enabled = true
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Webserver.Shields.Enabled {
+		t.Fatal("expected shields enabled from [webserver.shields]")
 	}
 }
 
@@ -68,6 +143,9 @@ cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+projection_snapshots = true
+projection_snapshot_retention = "9d"
+projection_snapshot_s3_cleanup = false
 
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
@@ -85,6 +163,49 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	// Verify file values were applied
 	if cfg.Webserver.Port != 5000 {
 		t.Errorf("expected port 5000 from file, got %d", cfg.Webserver.Port)
+	}
+	if !cfg.Core.ProjectionSnapshots {
+		t.Error("expected projection snapshots from file")
+	}
+	if cfg.Core.ProjectionSnapshotRetentionOrDefault() != 9*24*time.Hour {
+		t.Errorf("projection snapshot retention = %s", cfg.Core.ProjectionSnapshotRetentionOrDefault())
+	}
+	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Error("expected S3 snapshot cleanup to be disabled from file")
+	}
+}
+
+func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOTS", "true")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION", "10d")
+	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP", "false")
+
+	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.Core.ProjectionSnapshots {
+		t.Error("expected projection snapshots from environment")
+	}
+	if cfg.Core.ProjectionSnapshotRetentionOrDefault() != 10*24*time.Hour {
+		t.Errorf("projection snapshot retention = %s", cfg.Core.ProjectionSnapshotRetentionOrDefault())
+	}
+	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Error("expected S3 snapshot cleanup to be disabled from environment")
+	}
+}
+
+func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
+	var cfg CoreConfig
+	if got := cfg.ProjectionSnapshotRetentionOrDefault(); got != 7*24*time.Hour {
+		t.Fatalf("default projection snapshot retention = %s", got)
+	}
+	if !cfg.ProjectionSnapshotS3CleanupOrDefault() {
+		t.Fatal("S3 projection snapshot cleanup should default to enabled")
 	}
 }
 
@@ -568,6 +689,7 @@ func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 oauth_redirect_origins = ["https://client.example"]
+trusted_proxies = ["127.0.0.1", "10.0.0.0/8"]
 
 [core]
 secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
@@ -586,14 +708,21 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "https://client.example"; got != want {
 		t.Fatalf("expected TOML oauth_redirect_origins %q, got %q", want, got)
 	}
+	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "127.0.0.1,10.0.0.0/8"; got != want {
+		t.Fatalf("expected TOML trusted_proxies %q, got %q", want, got)
+	}
 
 	t.Setenv("CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS", "*")
+	t.Setenv("CHATTO_WEBSERVER_TRUSTED_PROXIES", "192.0.2.10,2001:db8::/32")
 	cfg, err = ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() with env override failed: %v", err)
 	}
 	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "*"; got != want {
 		t.Fatalf("expected env oauth_redirect_origins %q, got %q", want, got)
+	}
+	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "192.0.2.10,2001:db8::/32"; got != want {
+		t.Fatalf("expected env trusted_proxies %q, got %q", want, got)
 	}
 }
 
@@ -858,6 +987,69 @@ func TestWebserverConfig_WebSocketCompressionEnabled(t *testing.T) {
 				t.Errorf("WebSocketCompressionEnabled() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestWebserverConfig_APICompression(t *testing.T) {
+	tests := []struct {
+		name        string
+		compression *bool
+		minBytes    *int
+		wantEnabled bool
+		wantMin     int
+	}{
+		{
+			name:        "defaults to enabled above one KiB",
+			wantEnabled: true,
+			wantMin:     1024,
+		},
+		{
+			name:        "explicitly disabled with custom threshold",
+			compression: boolPtr(false),
+			minBytes:    intPtr(8192),
+			wantEnabled: false,
+			wantMin:     8192,
+		},
+		{
+			name:        "zero threshold compresses every non-empty response",
+			compression: boolPtr(true),
+			minBytes:    intPtr(0),
+			wantEnabled: true,
+			wantMin:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := WebserverConfig{
+				APICompression:         tt.compression,
+				APICompressionMinBytes: tt.minBytes,
+			}
+			if got := cfg.APICompressionEnabled(); got != tt.wantEnabled {
+				t.Errorf("APICompressionEnabled() = %v, want %v", got, tt.wantEnabled)
+			}
+			if got := cfg.APICompressionMinBytesOrDefault(); got != tt.wantMin {
+				t.Errorf("APICompressionMinBytesOrDefault() = %d, want %d", got, tt.wantMin)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_Validate_APICompressionMinBytes(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.APICompressionMinBytes = intPtr(-1)
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "webserver.api_compression_min_bytes must not be negative") {
+		t.Fatalf("Validate() error = %v, want negative API compression threshold error", err)
+	}
+}
+
+func TestChattoConfig_ValidateProjectionSnapshotRetention(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Core.ProjectionSnapshotRetention = Duration(-time.Hour)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.projection_snapshot_retention must be positive") {
+		t.Fatalf("Validate() error = %v, want projection snapshot retention error", err)
 	}
 }
 
@@ -1304,7 +1496,15 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 				c.Webserver.URL = "https://chat.example"
 				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
 				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
+				c.Webserver.TrustedProxies = []string{"127.0.0.1", "10.0.0.0/8", "2001:db8::/32"}
 			},
+		},
+		{
+			name: "trusted proxy rejects hostnames",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.TrustedProxies = []string{"proxy.internal"}
+			},
+			wantError: "webserver.trusted_proxies contains invalid IP address or CIDR",
 		},
 		{
 			name: "webserver URL requires http or https",
