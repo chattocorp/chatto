@@ -19,6 +19,7 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
+- **SSO seeding on first sign-in** — when a user first arrives via an external identity provider, the provider's public profile data is copied into the new Chatto profile (OIDC: `picture` claim → avatar; AT Protocol: `app.bsky.actor.profile` display name + avatar). Subsequent profile edits are local — Chatto doesn't re-sync from the provider.
 
 ## Design Decisions
 
@@ -90,5 +91,5 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-043 (client-shell internationalization)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-043 (client-shell internationalization), ADR-051 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-031 (Sign in with AT Protocol)

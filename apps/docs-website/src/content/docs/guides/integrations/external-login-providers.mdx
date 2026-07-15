@@ -1,6 +1,6 @@
 ---
 title: External Login Providers
-description: Configure OIDC, GitHub, GitLab, Google, or Discord sign-in for a Chatto server.
+description: Configure OIDC, GitHub, GitLab, Google, Discord, or AT Protocol sign-in for a Chatto server.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -20,6 +20,7 @@ Chatto can consume external OAuth and OIDC providers for sign-in. Providers are 
 | `gitlab`         | GitLab OAuth applications                    |
 | `google`         | Google OAuth clients                         |
 | `discord`        | Discord OAuth2 applications                  |
+| `atproto`        | AT Protocol identities, including Bluesky    |
 
 Other provider types are not exposed as curated providers yet. Use `oidc` for standards-compatible OIDC providers.
 
@@ -58,6 +59,16 @@ https://chat.example.com/auth/providers/github-main/callback
 Chatto derives the callback from `webserver.url`, so set that value to the public HTTPS origin of your server.
 
 For older OIDC client registrations, Chatto also serves `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for the configured OIDC provider. New registrations should use the provider-specific callback URL.
+
+AT Protocol is handle-first and uses fixed routes instead of `/auth/providers/{providerID}`:
+
+```txt
+https://chat.example.com/auth/atproto
+https://chat.example.com/auth/atproto/callback
+https://chat.example.com/auth/atproto/client-metadata.json
+```
+
+No provider-side client registration is required. Chatto serves its own client metadata document, so non-loopback deployments must use a publicly reachable `webserver.url`.
 
 ## Configuration
 
@@ -134,6 +145,23 @@ CHATTO_AUTH_OIDC_CLIENT_SECRET=...
 ```
 
 Those legacy variables create one `oidc` provider with `id = "oidc"`. Do not combine counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables with `CHATTO_AUTH_OIDC_ENABLED`.
+
+</TabItem>
+<TabItem label="AT Protocol">
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+
+[[auth.providers]]
+id = "atproto"
+type = "atproto"
+label = "AT Protocol"
+# request_email defaults to true for AT Protocol.
+# auto_provision defaults to true for AT Protocol.
+```
+
+AT Protocol sign-in asks the user for their handle first, resolves that handle to the user's PDS, then sends the browser through the PDS OAuth approval flow. The provider ID must be `atproto` because the OAuth metadata and callback routes are fixed.
 
 </TabItem>
 <TabItem label="GitHub">
@@ -214,6 +242,7 @@ provider account. Email scopes are only requested when `request_email = true`.
 | `gitlab`         | none                                | `read_user`                        |
 | `google`         | `openid`, `profile`                 | `openid`, `profile`, `email`       |
 | `discord`        | `identify`                          | `identify`, `email`                |
+| `atproto`        | `atproto`                           | `atproto`, `account:email`         |
 
 You can override scopes per provider:
 
@@ -229,7 +258,7 @@ scopes = ["openid", "profile", "groups"]
 
 For OIDC providers, Chatto always includes `openid` even if you omit it from a custom scope list.
 
-`request_email` defaults to `false`. Set `request_email = true` to request provider email scopes. For OIDC, the default request is `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
+`request_email` defaults to `false` for OAuth/OIDC providers and `true` for AT Protocol. Set `request_email = true` to request provider email scopes. For OIDC, the default request is `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
 
 ## Auto-provisioning
 
@@ -240,12 +269,15 @@ For OIDC providers, Chatto always includes `openid` even if you omit it from a c
 
 Auto-provisioning never silently merges by email. If a person already has a local account, they should sign in with that account and link the provider from account settings.
 
+AT Protocol defaults `auto_provision` to `true` because the handle-first flow is intended as a self-service sign-in path. Set `auto_provision = false` if you only want existing users to link AT Protocol identities.
+
 ## Account matching
 
 Chatto matches external logins by provider identity, not by email address.
 
 - OIDC providers are matched by verified issuer URL plus subject.
 - OAuth-only providers are matched by the configured provider ID plus provider user ID.
+- AT Protocol is matched by the configured `atproto` provider ID plus the user's DID, not their mutable handle.
 - Email claims are optional profile data and are not used to pick an account.
 
 If a provider callback returns an identity that is not linked to an account, Chatto does not silently pick an account by email.

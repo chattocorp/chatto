@@ -3,6 +3,7 @@
 Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go),
 [`cli/internal/core/runtime_token_keys.go`](../../cli/internal/core/runtime_token_keys.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
+[`cli/internal/core/atproto_oauth_store.go`](../../cli/internal/core/atproto_oauth_store.go),
 [`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go), and
 [`cli/internal/projectionsnapshot/repository.go`](../../cli/internal/projectionsnapshot/repository.go)
 
@@ -77,6 +78,8 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
+| `atproto.auth_request.{state}`             | Short-lived ATProto OAuth PAR/auth-request state for cross-replica callbacks; per-key 10m TTL |
+| `atproto.session.{sha256(did + ":" + sessionId)}` | Short-lived ATProto OAuth callback session material used only to finish identity/email lookup; deleted after callback and protected by per-key 10m TTL |
 | `lease.{name}`                             | Short-lived leader lease. Current names are `livekit_reconciler`, `asset_cleanup`, and `projection-snapshot-threads`; only the current owner runs the corresponding worker. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
@@ -90,11 +93,12 @@ changes. Clients refresh through `MyAccountService.UpdatePresence`; disconnect
 and "look offline" stop refreshing instead of writing `OFFLINE`.
 
 Short-lived `lease.{name}` records coordinate singleton background work across
-replicas without adding durable state. Active voice call participants come from
-the call-state projection over durable room EVT facts and are reconciled
-against LiveKit by the elected reconciler. Per-call LiveKit E2EE keys remain
-behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
-no longer imported.
+replicas without adding durable state. ATProto OAuth records make in-flight
+login callbacks replica-safe without retaining provider tokens after callback
+completion. Active voice call participants come from the call-state projection
+over durable room EVT facts and are reconciled against LiveKit by the elected
+reconciler. Per-call LiveKit E2EE keys remain behind the KMS boundary in
+`ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is no longer imported.
 
 ## Object Store buckets
 

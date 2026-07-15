@@ -40,6 +40,15 @@
     pending && !submitting && ((isCreate && login.trim() && !loginError) || isLink)
   );
 
+  function navigateAfterSSO(path: string | null | undefined, fallback = '/') {
+    const target = path || fallback;
+    if (target.startsWith('/oauth/')) {
+      window.location.href = target;
+    } else {
+      goto(resolve(target as '/'), { replaceState: true });
+    }
+  }
+
   $effect(() => {
     const token = data.token;
     if (!token || token === loadedToken) return;
@@ -98,7 +107,7 @@
         login: result.login
       });
       await invalidateAll();
-      goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      navigateAfterSSO(pending.redirectPath);
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.create_failed']();
     } finally {
@@ -112,7 +121,7 @@
     actionError = '';
     try {
       await flowAPI.confirmLink(data.token);
-      goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      navigateAfterSSO(pending.redirectPath);
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.link_failed']();
     } finally {
@@ -128,7 +137,7 @@
         // Cancelling is best-effort; leaving the page is enough for the user.
       }
     }
-    goto(resolve((pending?.redirectPath || '/login') as '/login'), { replaceState: true });
+    navigateAfterSSO(pending?.redirectPath, '/login');
   }
 </script>
 

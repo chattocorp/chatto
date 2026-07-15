@@ -160,7 +160,12 @@ func addAuthProviderExamples(tomlText string) string {
 # id = 'github'
 # type = 'github'
 # client_id = 'replace-me'
-# client_secret = 'replace-me'`
+# client_secret = 'replace-me'
+#
+# [[auth.providers]]
+# id = 'atproto'
+# type = 'atproto'
+# label = 'AT Protocol'`
 
 	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
 }

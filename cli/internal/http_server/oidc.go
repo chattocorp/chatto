@@ -76,6 +76,9 @@ func (s *HTTPServer) setupOIDCRoutes() {
 	configured := make(map[string]*authProviderRuntime, len(providers))
 	var legacyOIDCConfig *config.AuthProviderConfig
 	for _, providerConfig := range providers {
+		if providerConfig.Type == config.AuthProviderTypeATProto {
+			continue
+		}
 		runtime, err := newAuthProviderRuntime(providerConfig, s.providerCallbackURL(providerConfig.ID))
 		if err != nil {
 			s.logger.Error("Skipping invalid auth provider", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)

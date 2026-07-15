@@ -62,6 +62,11 @@ client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
 # accounts after an explicit confirmation screen.
 auto_provision = false
 
+[[auth.providers]]
+id = 'atproto'
+type = 'atproto'
+label = 'AT Protocol'
+
 [smtp]
 enabled = true
 host = '127.0.0.1'

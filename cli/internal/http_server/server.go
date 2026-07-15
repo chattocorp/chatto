@@ -235,6 +235,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupConnectAPI()
 	s.setupRealtimeAPI(allowedOrigins)
 	s.setupOIDCRoutes()
+	s.setupATProtoRoutes()
 	s.setupAuthRoutes()
 	s.setupOAuthRoutes()
 	s.setupAssetRoutes()

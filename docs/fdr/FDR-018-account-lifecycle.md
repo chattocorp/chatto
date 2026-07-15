@@ -16,6 +16,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
 - Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
 - Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
+- External provider account creation uses the pending external-identity confirmation flow described in FDR-023. AT Protocol is one such path when a `[[auth.providers]]` entry uses `type = "atproto"`; if the user grants `account:email` and the PDS confirms the email, that address is attached as verified on account creation. See FDR-031.
 - If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
 
 ### Email management
@@ -101,8 +102,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-051 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-031 (Sign in with AT Protocol)
 
 ## Open Questions
 

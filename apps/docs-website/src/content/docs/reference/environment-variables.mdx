@@ -332,7 +332,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 ### External Login Providers
 
 External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
-Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
+Supported provider types are `oidc`, `github`, `gitlab`, `google`, `discord`, and `atproto`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
   Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`.
@@ -353,9 +353,18 @@ auto_provision = false
 
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
-`request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+AT Protocol sign-in is configured through the same provider list and does not use a client ID or client secret:
 
-Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
+```toml
+[[auth.providers]]
+id = "atproto"
+type = "atproto"
+label = "AT Protocol"
+```
+
+`request_email` defaults to `false` for OAuth/OIDC providers and `true` for AT Protocol. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+
+`auto_provision` defaults to `false` for OAuth/OIDC providers and `true` for AT Protocol. Enable it only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
 See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 

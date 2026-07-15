@@ -343,6 +343,18 @@ func TestAuthProviderConfig_RequestEmailDefault(t *testing.T) {
 	if got := (AuthProviderConfig{}).RequestEmailOrDefault(); got {
 		t.Fatalf("RequestEmailOrDefault() = %v, want false", got)
 	}
+	if got := (AuthProviderConfig{Type: AuthProviderTypeATProto}).RequestEmailOrDefault(); !got {
+		t.Fatalf("RequestEmailOrDefault() for ATProto = %v, want true", got)
+	}
+}
+
+func TestAuthProviderConfig_AutoProvisionDefault(t *testing.T) {
+	if got := (AuthProviderConfig{}).AutoProvisionOrDefault(); got {
+		t.Fatalf("AutoProvisionOrDefault() = %v, want false", got)
+	}
+	if got := (AuthProviderConfig{Type: AuthProviderTypeATProto}).AutoProvisionOrDefault(); !got {
+		t.Fatalf("AutoProvisionOrDefault() for ATProto = %v, want true", got)
+	}
 }
 
 func TestReadConfig_AuthProvidersEnvOverridesFile(t *testing.T) {
@@ -2386,17 +2398,21 @@ func TestAuthConfig_PublicProviders(t *testing.T) {
 	auth := AuthConfig{Providers: []AuthProviderConfig{
 		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
 		{ID: "github-main", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
+		{ID: "atproto", Type: AuthProviderTypeATProto},
 	}}
 
 	got := auth.PublicProviders()
-	if len(got) != 2 {
-		t.Fatalf("PublicProviders() len = %d, want 2", len(got))
+	if len(got) != 3 {
+		t.Fatalf("PublicProviders() len = %d, want 3", len(got))
 	}
 	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" {
 		t.Fatalf("PublicProviders()[0] = %+v", got[0])
 	}
 	if got[1].ID != "github-main" || got[1].Type != AuthProviderTypeGitHub || got[1].Label != "GitHub" {
 		t.Fatalf("PublicProviders()[1] = %+v", got[1])
+	}
+	if got[2].ID != "atproto" || got[2].Type != AuthProviderTypeATProto || got[2].Label != "AT Protocol" {
+		t.Fatalf("PublicProviders()[2] = %+v", got[2])
 	}
 	if got[0].ClientID != "" || got[0].ClientSecret != "" || got[0].IssuerURL != "" {
 		t.Fatalf("PublicProviders leaked provider secrets/options: %+v", got[0])
@@ -2426,9 +2442,28 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 			{ID: "gitlab-main", Type: AuthProviderTypeGitLab, ClientID: "id", ClientSecret: "secret"},
 			{ID: "google-main", Type: AuthProviderTypeGoogle, ClientID: "id", ClientSecret: "secret"},
 			{ID: "discord-main", Type: AuthProviderTypeDiscord, ClientID: "id", ClientSecret: "secret"},
+			{ID: "atproto", Type: AuthProviderTypeATProto},
 		}
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("Validate() unexpected error = %v", err)
+		}
+	})
+
+	t.Run("rejects atproto provider with noncanonical id", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "bluesky", Type: AuthProviderTypeATProto}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "id must be \"atproto\"") {
+			t.Fatalf("Validate() error = %v, want atproto id error", err)
+		}
+	})
+
+	t.Run("rejects atproto provider with client credentials", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "atproto", Type: AuthProviderTypeATProto, ClientID: "id", ClientSecret: "secret"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "client_id must be omitted") || !strings.Contains(err.Error(), "client_secret must be omitted") {
+			t.Fatalf("Validate() error = %v, want atproto credential errors", err)
 		}
 	})
 

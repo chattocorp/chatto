@@ -15,8 +15,10 @@
 
   let identifier = $state('');
   let password = $state('');
+  let atprotoHandle = $state('');
   let error = $state('');
   let isLoading = $state(false);
+  let atprotoLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
   let addServerDialogVisible = $state(false);
@@ -31,8 +33,13 @@
 
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
+  const atprotoProvider = $derived(authProviders.find((provider) => provider.type === 'atproto'));
+  const genericAuthProviders = $derived(
+    authProviders.filter((provider) => provider.type !== 'atproto')
+  );
+  const canSubmitATProto = $derived(Boolean(atprotoProvider && atprotoHandle.trim()));
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
-  const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
+  const isAuthenticating = $derived(isLoading || selectedProviderId !== null || atprotoLoading);
   const pageError = $derived(
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
   );
@@ -71,6 +78,8 @@
         return 'mdi--google';
       case 'discord':
         return 'mdi--discord';
+      case 'atproto':
+        return 'mdi--at';
       default:
         return 'mdi--shield-account';
     }
@@ -94,6 +103,12 @@
         return m['auth.login.error.external_identity_unlinked']();
       case 'external_identity_conflict':
         return m['auth.login.error.external_identity_conflict']();
+      case 'atproto_no_handle':
+        return m['auth.login.error.atproto_no_handle']();
+      case 'atproto_resolve':
+        return m['auth.login.error.atproto_resolve']();
+      case 'atproto_callback':
+        return m['auth.login.error.atproto_callback']();
       default:
         return '';
     }
@@ -106,6 +121,28 @@
     selectedProviderId = provider.id;
     window.setTimeout(() => {
       window.location.href = providerLoginHref(provider);
+    }, 250);
+  }
+
+  function handleATProtoSubmit(e: Event) {
+    e.preventDefault();
+    if (!atprotoProvider) return;
+
+    const handle = atprotoHandle.trim().replace(/^@+/, '');
+    if (!handle) {
+      error = m['auth.login.error.atproto_no_handle']();
+      return;
+    }
+
+    error = '';
+    pageErrorDismissed = true;
+    atprotoLoading = true;
+
+    const loginUrl = new URL(atprotoProvider.loginUrl, window.location.origin);
+    loginUrl.searchParams.set('handle', handle);
+    loginUrl.searchParams.set('redirect', data.redirectUrl);
+    window.setTimeout(() => {
+      window.location.href = loginUrl.toString();
     }, 250);
   }
 
@@ -220,7 +257,7 @@
     <!-- SSO providers -->
     {#if authProviders.length > 0}
       <div class="flex flex-col gap-3">
-        {#each authProviders as provider (provider.id)}
+        {#each genericAuthProviders as provider (provider.id)}
           <Button
             variant="secondary"
             size="lg"
@@ -235,6 +272,35 @@
             {m['auth.login.continue_with_provider']({ provider: provider.label })}
           </Button>
         {/each}
+
+        {#if atprotoProvider}
+          <Form onsubmit={handleATProtoSubmit}>
+            <TextInput
+              id="atproto-handle"
+              label={m['auth.login.atproto_handle_label']()}
+              bind:value={atprotoHandle}
+              placeholder={m['auth.login.atproto_handle_placeholder']()}
+              disabled={isAuthenticating}
+              required
+              autocomplete="username"
+            />
+
+            <Button
+              type="submit"
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={!canSubmitATProto || isAuthenticating}
+              loading={atprotoLoading}
+              loadingText={m['auth.login.connecting_provider']({
+                provider: atprotoProvider.label
+              })}
+            >
+              <span class={['iconify text-lg', providerIcon(atprotoProvider.type)]}></span>
+              {m['auth.login.continue_with_provider']({ provider: atprotoProvider.label })}
+            </Button>
+          </Form>
+        {/if}
 
         <Divider label={m['common.or']()} />
       </div>

@@ -426,6 +426,8 @@ const msg_auth_login_continue_with_provider = (
 const msg_auth_login_connecting_provider = (
   inputs: Parameters<LocaleMessages['auth_login_connecting_provider']>[0]
 ): LocalizedString => messages().auth_login_connecting_provider(inputs);
+const msg_auth_login_atproto_handle_label = (): LocalizedString => messages().auth_login_atproto_handle_label(empty());
+const msg_auth_login_atproto_handle_placeholder = (): LocalizedString => messages().auth_login_atproto_handle_placeholder(empty());
 const msg_auth_login_identifier_label = (): LocalizedString => messages().auth_login_identifier_label(empty());
 const msg_auth_login_signing_in = (): LocalizedString => messages().auth_login_signing_in(empty());
 const msg_auth_login_forgot_password = (): LocalizedString => messages().auth_login_forgot_password(empty());
@@ -437,6 +439,9 @@ const msg_auth_login_error_provider_denied = (): LocalizedString => messages().a
 const msg_auth_login_error_authentication_required = (): LocalizedString => messages().auth_login_error_authentication_required(empty());
 const msg_auth_login_error_external_identity_unlinked = (): LocalizedString => messages().auth_login_error_external_identity_unlinked(empty());
 const msg_auth_login_error_external_identity_conflict = (): LocalizedString => messages().auth_login_error_external_identity_conflict(empty());
+const msg_auth_login_error_atproto_no_handle = (): LocalizedString => messages().auth_login_error_atproto_no_handle(empty());
+const msg_auth_login_error_atproto_resolve = (): LocalizedString => messages().auth_login_error_atproto_resolve(empty());
+const msg_auth_login_error_atproto_callback = (): LocalizedString => messages().auth_login_error_atproto_callback(empty());
 const msg_auth_forgot_password_title = (): LocalizedString => messages().auth_forgot_password_title(empty());
 const msg_auth_forgot_password_submitted_title = (): LocalizedString => messages().auth_forgot_password_submitted_title(empty());
 const msg_auth_forgot_password_submitted_text = (): LocalizedString => messages().auth_forgot_password_submitted_text(empty());
@@ -1897,6 +1902,8 @@ export { msg_auth_login_add_server as 'auth.login.add_server' };
 export { msg_auth_login_password_reset_success as 'auth.login.password_reset_success' };
 export { msg_auth_login_continue_with_provider as 'auth.login.continue_with_provider' };
 export { msg_auth_login_connecting_provider as 'auth.login.connecting_provider' };
+export { msg_auth_login_atproto_handle_label as 'auth.login.atproto_handle_label' };
+export { msg_auth_login_atproto_handle_placeholder as 'auth.login.atproto_handle_placeholder' };
 export { msg_auth_login_identifier_label as 'auth.login.identifier_label' };
 export { msg_auth_login_signing_in as 'auth.login.signing_in' };
 export { msg_auth_login_forgot_password as 'auth.login.forgot_password' };
@@ -1908,6 +1915,9 @@ export { msg_auth_login_error_provider_denied as 'auth.login.error.provider_deni
 export { msg_auth_login_error_authentication_required as 'auth.login.error.authentication_required' };
 export { msg_auth_login_error_external_identity_unlinked as 'auth.login.error.external_identity_unlinked' };
 export { msg_auth_login_error_external_identity_conflict as 'auth.login.error.external_identity_conflict' };
+export { msg_auth_login_error_atproto_no_handle as 'auth.login.error.atproto_no_handle' };
+export { msg_auth_login_error_atproto_resolve as 'auth.login.error.atproto_resolve' };
+export { msg_auth_login_error_atproto_callback as 'auth.login.error.atproto_callback' };
 export { msg_auth_forgot_password_title as 'auth.forgot_password.title' };
 export { msg_auth_forgot_password_submitted_title as 'auth.forgot_password.submitted_title' };
 export { msg_auth_forgot_password_submitted_text as 'auth.forgot_password.submitted_text' };

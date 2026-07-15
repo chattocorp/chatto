@@ -143,11 +143,15 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMe
 }
 
 func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
+	loginURL := "/auth/providers/" + url.PathEscape(provider.ID)
+	if provider.Type == config.AuthProviderTypeATProto {
+		loginURL = "/auth/atproto"
+	}
 	return &apiv1.ProviderMetadata{
 		Id:       provider.ID,
 		Type:     provider.Type,
 		Label:    provider.LabelOrDefault(),
-		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
+		LoginUrl: loginURL,
 	}
 }
 
