@@ -44,3 +44,27 @@ func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 	assert.Equal(t, "https://example.com/story", preview.GetSocialPost().GetExternalLink().GetUrl())
 	assert.Equal(t, "Spoilers", preview.GetSocialPost().GetContentWarning())
 }
+
+func TestAPILinkPreviewMapsLegacyBlueskyPost(t *testing.T) {
+	publishedAt := timestamppb.New(time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC))
+	preview := apiLinkPreview(&API{}, &corev1.LinkPreview{
+		Url:         "https://bsky.app/profile/bsky.app/post/example",
+		Description: "A post written before the provider-neutral model.",
+		LegacyBlueskyPost: &corev1.LegacyBlueskyPostPreview{
+			AuthorDisplayName:   "Bluesky",
+			AuthorHandle:        "bsky.app",
+			PublishedAt:         publishedAt,
+			ExternalUrl:         "https://example.com/story",
+			ExternalTitle:       "Story",
+			ExternalDescription: "Description",
+		},
+	})
+
+	require.NotNil(t, preview.GetSocialPost())
+	assert.Equal(t, "bluesky", preview.GetSocialPost().GetProvider())
+	assert.Equal(t, "A post written before the provider-neutral model.", preview.GetSocialPost().GetText())
+	assert.Equal(t, "Bluesky", preview.GetSocialPost().GetAuthor().GetDisplayName())
+	assert.Equal(t, "bsky.app", preview.GetSocialPost().GetAuthor().GetHandle())
+	assert.Equal(t, publishedAt, preview.GetSocialPost().GetPublishedAt())
+	assert.Equal(t, "https://example.com/story", preview.GetSocialPost().GetExternalLink().GetUrl())
+}

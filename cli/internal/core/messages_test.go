@@ -753,6 +753,21 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 	}
 }
 
+func TestValidateLinkPreviewRejectsLegacyBlueskyPostWrites(t *testing.T) {
+	err := validateLinkPreview(&corev1.LinkPreview{
+		LegacyBlueskyPost: &corev1.LegacyBlueskyPostPreview{
+			AuthorDisplayName: "Legacy author",
+		},
+	})
+	require.ErrorContains(t, err, "legacy Bluesky post previews cannot be submitted")
+}
+
+func TestLinkPreviewSocialPostFieldNumbersPreserveLegacyReplay(t *testing.T) {
+	fields := (&corev1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
+	require.EqualValues(t, 9, fields.ByName("legacy_bluesky_post").Number())
+	require.EqualValues(t, 10, fields.ByName("social_post").Number())
+}
+
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode
 // characters are rejected. This prevents blank-looking messages that would confuse users.
 func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {

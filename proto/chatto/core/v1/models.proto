@@ -330,8 +330,26 @@ message LinkPreview {
   // Preview image content metadata and storage pointer.
   AssetRecord image_asset = 8;
 
-  // Structured social-post snapshot for native rendering.
-  SocialPostPreview social_post = 9;
+  // Deprecated replay-only snapshot written by an unreleased Bluesky preview
+  // prototype. Keep tag 9 and its original wire shape so development streams
+  // created while that prototype was in use remain decodable.
+  LegacyBlueskyPostPreview legacy_bluesky_post = 9 [deprecated = true];
+
+  // Structured provider-neutral social-post snapshot for native rendering.
+  SocialPostPreview social_post = 10;
+}
+
+// LegacyBlueskyPostPreview preserves the wire shape briefly written by the
+// unreleased Bluesky-specific preview prototype. New code must not write it.
+message LegacyBlueskyPostPreview {
+  string author_display_name = 1;
+  string author_handle = 2;
+  AssetRecord author_avatar_asset = 3;
+  google.protobuf.Timestamp published_at = 4;
+  string external_url = 5;
+  string external_title = 6;
+  string external_description = 7;
+  AssetRecord external_image_asset = 8;
 }
 
 // SocialPostPreview is a bounded, provider-neutral snapshot of a public post.

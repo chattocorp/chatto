@@ -1182,6 +1182,9 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 	if linkPreview == nil {
 		return nil
 	}
+	if linkPreview.GetLegacyBlueskyPost() != nil {
+		return invalidArgument("legacy Bluesky post previews cannot be submitted")
+	}
 	if err := validateStringMaxLength("link preview URL", linkPreview.GetUrl(), MaxLinkPreviewURLLength); err != nil {
 		return err
 	}
