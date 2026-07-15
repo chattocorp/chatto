@@ -1359,6 +1359,11 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if _, err := c.GetUser(ctx, userID); err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
+	if c.ClientSync != nil {
+		if err := c.ClientSync.BeginDeleteUser(ctx, userID); err != nil {
+			return fmt.Errorf("failed to fence client sync before user deletion: %w", err)
+		}
+	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and
 	// cleanup iterates each kind.
@@ -1393,11 +1398,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
 		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
 	}})
-	if c.ClientSync != nil {
-		if err := c.ClientSync.BeginDeleteUser(ctx, userID); err != nil {
-			return fmt.Errorf("failed to fence client sync before user deletion: %w", err)
-		}
-	}
 	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
 		if c.ClientSync != nil {
 			if cancelErr := c.ClientSync.CancelDeleteUser(ctx, userID); cancelErr != nil {
