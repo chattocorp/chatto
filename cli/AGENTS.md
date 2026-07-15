@@ -89,7 +89,8 @@ authorization, live events, backup/restore, and backend tests.
   Scope both generation paths and pointer keys by projection and contract so
   different contracts never read or overwrite each other. Keep pointers on a
   durable revisioned store and publish them with OCC; a process lease is not
-  fencing.
+  fencing. Capture the contract once during projector configuration and use
+  that same value for restore and publication; do not duplicate it in wiring.
   Carry cutoff, creation time, EVT incarnation, and contract metadata in
   the pointer.
   Allow same-cutoff refreshes for retention, but do not republish a fresh,

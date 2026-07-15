@@ -631,6 +631,7 @@ type snapshotTrackingProjection struct {
 	restored   []byte
 	restoreErr error
 	snapshot   []byte
+	contractID string
 }
 
 type snapshotReplayTrackingProjection struct {
@@ -641,10 +642,10 @@ type snapshotReplayTrackingProjection struct {
 func (p *snapshotReplayTrackingProjection) ReplaySubjects() []string { return p.replay }
 
 func newSnapshotTrackingProjection(subs ...string) *snapshotTrackingProjection {
-	return &snapshotTrackingProjection{trackingProjection: newTrackingProjection(subs...), snapshot: []byte("captured")}
+	return &snapshotTrackingProjection{trackingProjection: newTrackingProjection(subs...), snapshot: []byte("captured"), contractID: "tracking-v1"}
 }
 
-func (*snapshotTrackingProjection) SnapshotContractID() string { return "tracking-v1" }
+func (p *snapshotTrackingProjection) SnapshotContractID() string { return p.contractID }
 func (p *snapshotTrackingProjection) Snapshot() ([]byte, error) {
 	return append([]byte(nil), p.snapshot...), nil
 }
@@ -774,6 +775,12 @@ func TestProjectorsRestoreAndReplayIndependently(t *testing.T) {
 	source := &staticSnapshotSource{snapshot: ProjectionSnapshot{GenerationID: "generation", CutoffSequence: seqs[1], CreatedAt: createdAt, Payload: []byte("restored")}}
 	if err := restoredProjector.ConfigureSnapshots("tracking", source, testStreamIdentity(t, stream)); err != nil {
 		t.Fatal(err)
+	}
+	// Configuration captures the contract once so restore and publication cannot
+	// diverge if projection wiring changes later.
+	restoredProjection.contractID = "tracking-v2"
+	if got := restoredProjector.SnapshotContractID(); got != "tracking-v1" {
+		t.Fatalf("configured snapshot contract = %q, want tracking-v1", got)
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())

@@ -127,6 +127,9 @@ cutoff handling.
 - Scope pointers and generation objects by projection plus contract. Different
   contracts must never read, rotate, delete, or apply no-regression checks to
   each other's generations.
+- Capture the contract once when configuring the projector and use that value
+  for both restore and publication. Do not restate contract IDs in worker or
+  application wiring.
 - Test forward deployment and rollback when changing a contract: both old and
   new contracts must remain independently loadable, and either may safely fall
   back to cold EVT replay.

@@ -183,6 +183,7 @@ type Projector struct {
 	startupLogged    bool
 
 	snapshotKey          string
+	snapshotContractID   string
 	snapshotSource       ProjectionSnapshotSource
 	snapshotStreamID     string
 	snapshotLoadTimeout  time.Duration
@@ -251,7 +252,11 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
 	}
 	contractProjection, ok := p.proj.(SnapshotContractProjection)
-	if !ok || contractProjection.SnapshotContractID() == "" {
+	if !ok {
+		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
+	}
+	contractID := contractProjection.SnapshotContractID()
+	if contractID == "" {
 		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
 	}
 	p.mu.Lock()
@@ -260,10 +265,19 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 		return fmt.Errorf("configure projection snapshots after projector start")
 	}
 	p.snapshotKey = key
+	p.snapshotContractID = contractID
 	p.snapshotSource = source
 	p.snapshotStreamID = streamIdentity
 	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
 	return nil
+}
+
+// SnapshotContractID returns the contract captured when snapshots were
+// configured. Restore and publication must use this single value.
+func (p *Projector) SnapshotContractID() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.snapshotContractID
 }
 
 // CaptureSnapshot serializes projection state and the corresponding applied
@@ -936,13 +950,13 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.mu.Lock()
 	source := p.snapshotSource
 	key := p.snapshotKey
+	contractID := p.snapshotContractID
 	streamIdentity := p.snapshotStreamID
 	loadTimeout := p.snapshotLoadTimeout
 	p.mu.Unlock()
 	if source == nil {
 		return coldRestore()
 	}
-	contractProjection := p.proj.(SnapshotContractProjection)
 	streamName := ""
 	if info := p.stream.CachedInfo(); info != nil {
 		streamName = info.Config.Name
@@ -954,7 +968,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	defer cancelLoad()
 	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
 		ProjectionKey:  key,
-		ContractID:     contractProjection.SnapshotContractID(),
+		ContractID:     contractID,
 		StreamName:     streamName,
 		StreamIdentity: streamIdentity,
 		MaxCutoff:      targetSeq,

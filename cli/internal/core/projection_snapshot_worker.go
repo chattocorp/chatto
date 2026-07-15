@@ -29,7 +29,6 @@ type projectionSnapshotJob struct {
 	projector      *events.Projector
 	repository     *projectionsnapshot.Repository
 	projectionKey  string
-	contractID     string
 	streamName     string
 	streamIdentity string
 }
@@ -214,7 +213,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 	}
 	loaded, err := job.repository.Save(ctx, projectionsnapshot.SaveInput{
 		ProjectionKey:  job.projectionKey,
-		ContractID:     job.contractID,
+		ContractID:     job.projector.SnapshotContractID(),
 		StreamName:     job.streamName,
 		StreamIdentity: job.streamIdentity,
 		CutoffSequence: captured.CutoffSequence,
