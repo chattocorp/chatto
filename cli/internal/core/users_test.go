@@ -696,7 +696,7 @@ func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *t
 	checks := 0
 	err = core.setPasswordHash(ctx, user.Id, user.Id, "staleoverwrite789", true, func() error {
 		checks++
-		if err := core.verifyUserPasswordCurrent(user.Id, "initial123"); err != nil {
+		if err := core.verifyUserPasswordCurrent(ctx, user.Id, "initial123"); err != nil {
 			return err
 		}
 		if checks == 1 {

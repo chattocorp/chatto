@@ -375,7 +375,7 @@ func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword
 		return err
 	}
 	return c.setPasswordHash(ctx, userID, userID, newPassword, true, func() error {
-		return c.verifyUserPasswordCurrent(userID, currentPassword)
+		return c.verifyUserPasswordCurrent(ctx, userID, currentPassword)
 	})
 }
 
@@ -421,11 +421,15 @@ func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password st
 	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return err
 	}
-	return c.verifyUserPasswordCurrent(userID, password)
+	return c.verifyUserPasswordCurrent(ctx, userID, password)
 }
 
-func (c *ChattoCore) verifyUserPasswordCurrent(userID, password string) error {
-	if _, ok := c.Users.Get(userID); !ok {
+func (c *ChattoCore) verifyUserPasswordCurrent(ctx context.Context, userID, password string) error {
+	_, ok, err := c.Users.GetContext(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return ErrNotFound
 	}
 	passwordHash, ok := c.Users.PasswordHash(userID)
