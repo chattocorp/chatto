@@ -34,6 +34,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/external-identity-flow - Create a pending external identity confirmation flow
+//   - POST /auth/test/link-external-identity - Directly link an external identity
 //   - POST /auth/test/oauth-authorize - Mint an OAuth authorization code without UI interaction
 func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	if s.mockMailer == nil {
@@ -377,6 +378,31 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			"token":      token,
 			"confirmUrl": confirmURL,
 		})
+	})
+
+	// Test-only endpoint to seed an already-linked identity. This covers
+	// lifecycle UI for provider configurations that have since been removed;
+	// production confirmation flows deliberately reject those stale providers.
+	auth.POST("test/link-external-identity", func(c *gin.Context) {
+		var req struct {
+			UserID       string `json:"userId" binding:"required"`
+			ProviderID   string `json:"providerId" binding:"required"`
+			ProviderType string `json:"providerType" binding:"required"`
+			Issuer       string `json:"issuer"`
+			Subject      string `json:"subject" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Issuer == "" {
+			req.Issuer = req.ProviderID
+		}
+		if err := s.core.LinkExternalIdentity(c.Request.Context(), req.ProviderID, req.ProviderType, req.Issuer, req.Subject, req.UserID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true})
 	})
 
 	// Test-only endpoint to mint an OAuth authorization code for a known user
