@@ -144,7 +144,8 @@ func TestFetchMastodonFallsBackToOpenGraphWhenDiscoveryFails(t *testing.T) {
 	fetcher := &Fetcher{
 		logger: log.New(io.Discard),
 		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/api/oembed" {
+			switch req.URL.Path {
+			case "/api/oembed", "/api/v2/instance":
 				return response(http.StatusNotFound, "application/json", `{}`), nil
 			}
 			assert.Equal(t, postURL, req.URL.String())
@@ -156,6 +157,42 @@ func TestFetchMastodonFallsBackToOpenGraphWhenDiscoveryFails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Fallback title", result.Title)
 	assert.Equal(t, "generic", result.EmbedType)
+}
+
+func TestFetchMastodonFederatedProxyUsesInstanceDiscovery(t *testing.T) {
+	const postURL = "https://social.example/@alice@remote.example/123"
+	fetcher := &Fetcher{
+		logger: log.New(io.Discard),
+		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/api/oembed":
+				return response(http.StatusNotFound, "application/json", `{}`), nil
+			case "/api/v2/instance":
+				return response(http.StatusOK, "application/json", `{
+					"domain":"social.example",
+					"source_url":"https://github.com/mastodon/mastodon",
+					"api_versions":{"mastodon":11}
+				}`), nil
+			case "/api/v1/statuses/123":
+				return response(http.StatusOK, "application/json", `{
+					"id":"123",
+					"url":"https://remote.example/@alice/456",
+					"visibility":"public",
+					"content":"<p>Federated words</p>",
+					"account":{"display_name":"Alice","acct":"alice@remote.example"}
+				}`), nil
+			default:
+				t.Fatalf("unexpected metadata request %q", req.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	result, err := fetcher.Fetch(context.Background(), postURL)
+	require.NoError(t, err)
+	assert.Equal(t, "mastodon", result.EmbedType)
+	assert.Equal(t, "Federated words", result.SocialPost.Text)
+	assert.Equal(t, "https://remote.example/@alice/456", result.SocialPost.Url)
 }
 
 func TestFetchMastodonDoesNotFallbackForPrivateStatus(t *testing.T) {
@@ -228,6 +265,19 @@ func TestVerifyMastodonOEmbedAcceptsCurrentBlockquoteMarkup(t *testing.T) {
 		"https://social.example",
 		"https://social.example/@alice/123",
 	))
+}
+
+func TestVerifyMastodonInstanceRejectsMismatchedDomain(t *testing.T) {
+	fetcher := &Fetcher{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, "application/json", `{
+			"domain":"attacker.example",
+			"source_url":"https://github.com/mastodon/mastodon",
+			"api_versions":{"mastodon":11}
+		}`), nil
+	})}}
+
+	err := fetcher.verifyMastodonInstance(context.Background(), "https://social.example")
+	require.ErrorContains(t, err, "not bound")
 }
 
 func TestFetchMastodonStatusAcceptsFederatedCanonicalURL(t *testing.T) {

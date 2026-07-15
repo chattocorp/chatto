@@ -27,6 +27,16 @@ type mastodonOEmbed struct {
 	HTML        string `json:"html"`
 }
 
+type mastodonInstance struct {
+	Domain      string `json:"domain"`
+	SourceURL   string `json:"source_url"`
+	APIVersions struct {
+		Mastodon int `json:"mastodon"`
+	} `json:"api_versions"`
+}
+
+var errMastodonOEmbedNotFound = errors.New("Mastodon oEmbed status not found")
+
 type mastodonAccount struct {
 	DisplayName  string `json:"display_name"`
 	Acct         string `json:"acct"`
@@ -83,7 +93,15 @@ func (f *Fetcher) fetchMastodon(ctx context.Context, rawURL string) (*FetchResul
 		return nil, errors.New("invalid Mastodon status URL")
 	}
 	if err := f.verifyMastodonOEmbed(ctx, origin, rawURL); err != nil {
-		return nil, err
+		if !errors.Is(err, errMastodonOEmbedNotFound) {
+			return nil, err
+		}
+		// Mastodon does not provide oEmbed metadata for every local proxy URL
+		// that represents a federated status. In that case, verify the server's
+		// public instance metadata before trusting its status API response.
+		if err := f.verifyMastodonInstance(ctx, origin); err != nil {
+			return nil, err
+		}
 	}
 	status, err := f.fetchMastodonStatus(ctx, origin, statusID)
 	if err != nil {
@@ -145,6 +163,9 @@ func (f *Fetcher) verifyMastodonOEmbed(ctx context.Context, origin, rawURL strin
 		return fmt.Errorf("fetch Mastodon oEmbed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return errMastodonOEmbedNotFound
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Mastodon oEmbed returned status %d", resp.StatusCode)
 	}
@@ -159,6 +180,45 @@ func (f *Fetcher) verifyMastodonOEmbed(ctx context.Context, origin, rawURL strin
 		return errors.New("Mastodon oEmbed response is not bound to the status instance")
 	}
 	return nil
+}
+
+func (f *Fetcher) verifyMastodonInstance(ctx context.Context, origin string) error {
+	endpoint := origin + "/api/v2/instance"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("create Mastodon instance request: %w", err)
+	}
+	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
+	req.Header.Set("Accept", "application/json")
+	resp, err := f.mastodonHTTPClient(origin).Do(req)
+	if err != nil {
+		return fmt.Errorf("fetch Mastodon instance: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Mastodon instance API returned status %d", resp.StatusCode)
+	}
+
+	var instance mastodonInstance
+	if err := json.NewDecoder(io.LimitReader(resp.Body, MaxOEmbedSize)).Decode(&instance); err != nil {
+		return fmt.Errorf("decode Mastodon instance: %w", err)
+	}
+	parsedOrigin, err := url.Parse(origin)
+	if err != nil || !strings.EqualFold(instance.Domain, parsedOrigin.Hostname()) {
+		return errors.New("Mastodon instance metadata is not bound to the status origin")
+	}
+	if instance.APIVersions.Mastodon <= 0 && !isMastodonSourceURL(instance.SourceURL) {
+		return errors.New("instance metadata does not identify a Mastodon server")
+	}
+	return nil
+}
+
+func isMastodonSourceURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || !strings.EqualFold(parsed.Hostname(), "github.com") {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSuffix(parsed.Path, "/"), "/mastodon/mastodon")
 }
 
 func (f *Fetcher) fetchMastodonStatus(ctx context.Context, origin, statusID string) (*mastodonStatus, error) {
