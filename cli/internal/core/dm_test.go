@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -129,6 +130,7 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermMessageManage,
 		PermMessageEcho,
 		PermRoomCreate,
+		PermMessagePostInThread,
 	}
 
 	for _, perm := range denied {
@@ -145,7 +147,6 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	notBoundaryDenied := []Permission{
 		PermRoomJoin,
 		PermMessagePost,
-		PermMessagePostInThread,
 		PermMessageAttach,
 		PermMessageReact,
 	}
@@ -902,101 +903,133 @@ func TestDMNotifications(t *testing.T) {
 	})
 }
 
-func TestDMThreadReplyEcho(t *testing.T) {
+func TestDMThreadsUnsupported(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	// Create two users
-	user1, err := core.CreateUser(ctx, "system", "dmecho1", "DM Echo User 1", "password123")
+	owner, err := core.CreateUser(ctx, SystemActorID, "dm-thread-owner", "DM Thread Owner", "password123")
 	if err != nil {
-		t.Fatalf("Failed to create user1: %v", err)
+		t.Fatalf("CreateUser owner: %v", err)
 	}
-	user2, err := core.CreateUser(ctx, "system", "dmecho2", "DM Echo User 2", "password123")
+	if err := core.AssignOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	member, err := core.CreateUser(ctx, SystemActorID, "dm-thread-member", "DM Thread Member", "password123")
 	if err != nil {
-		t.Fatalf("Failed to create user2: %v", err)
+		t.Fatalf("CreateUser member: %v", err)
 	}
-
-	// Create a DM conversation
-	room, _, err := core.FindOrCreateDM(ctx, user1.Id, []string{user2.Id})
+	room, _, err := core.FindOrCreateDM(ctx, owner.Id, []string{member.Id})
 	if err != nil {
-		t.Fatalf("Failed to create DM: %v", err)
+		t.Fatalf("FindOrCreateDM: %v", err)
 	}
 
-	t.Run("echo works in DM rooms", func(t *testing.T) {
-		// Post root message
-		rootEvent, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM thread root", nil, "", "", nil, false)
-		if err != nil {
-			t.Fatalf("Failed to post root: %v", err)
-		}
-
-		// Post thread reply with echo
-		replyEvent, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM thread reply echoed", nil, rootEvent.Id, "", nil, true)
-		if err != nil {
-			t.Fatalf("Failed to post echo reply in DM: %v", err)
-		}
-
-		reply := replyEvent.GetMessagePosted()
-		if reply == nil {
-			t.Fatal("Expected MessagePosted event for DM reply")
-		}
-
-		// Verify echo appears in room events
-		roomEventsResult, err := core.GetRoomEvents(ctx, KindDM, room.Id, 50, nil)
-		if err != nil {
-			t.Fatalf("Failed to get DM room events: %v", err)
-		}
-		roomEvents := roomEventsResult.Events
-
-		var foundEcho bool
-		for _, e := range roomEvents {
-			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
-				foundEcho = true
-				// The DM echo has its own envelope id and links back to the
-				// original reply via EchoOfEventId.
-				if msg.EchoFromThreadRootEventId != rootEvent.Id {
-					t.Errorf("DM echo ThreadRootEventId should be %q, got %q", rootEvent.Id, msg.EchoFromThreadRootEventId)
-				}
-				break
+	for name, userID := range map[string]string{"member": member.Id, "owner": owner.Id} {
+		t.Run(name+" cannot post in threads", func(t *testing.T) {
+			can, err := core.CanPostInThread(ctx, userID, KindDM, room.Id)
+			if err != nil {
+				t.Fatalf("CanPostInThread: %v", err)
 			}
-		}
-		if !foundEcho {
-			t.Error("Expected echo MessagePostedEvent in DM room events")
-		}
-	})
-
-	t.Run("echo does not appear in thread events", func(t *testing.T) {
-		// Post root and reply with echo
-		rootEvent, _ := core.PostMessage(ctx, KindDM, room.Id, user2.Id, "DM root for thread test", nil, "", "", nil, false)
-		_, err := core.PostMessage(ctx, KindDM, room.Id, user2.Id, "DM reply for thread test", nil, rootEvent.Id, "", nil, true)
-		if err != nil {
-			t.Fatalf("Failed to post echo reply: %v", err)
-		}
-
-		// Thread events should not contain the echo
-		threadEvents, err := core.GetThreadEvents(ctx, KindDM, room.Id, rootEvent.Id)
-		if err != nil {
-			t.Fatalf("Failed to get DM thread events: %v", err)
-		}
-		for _, e := range threadEvents {
-			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
-				t.Error("Echo MessagePostedEvent should NOT appear in DM thread events")
+			if can {
+				t.Fatal("CanPostInThread returned true for a DM")
 			}
-		}
-	})
+		})
+	}
+	ownerPermission, err := core.permissionResolver.HasRoomPermission(ctx, owner.Id, KindDM, room.Id, PermMessagePostInThread)
+	if err != nil {
+		t.Fatalf("resolve owner permission: %v", err)
+	}
+	if !ownerPermission {
+		t.Fatal("owner should retain the permission override even though the DM capability is unavailable")
+	}
 
-	t.Run("reply_count only increments once with echo in DM", func(t *testing.T) {
-		rootEvent, _ := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM root for count", nil, "", "", nil, false)
-		_, err := core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DM reply with echo", nil, rootEvent.Id, "", nil, true)
-		if err != nil {
-			t.Fatalf("Failed to post reply: %v", err)
-		}
+	root, err := core.PostMessage(ctx, KindDM, room.Id, owner.Id, "DM root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	agg := events.RoomAggregate(room.Id)
+	before, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	if err != nil {
+		t.Fatalf("SubjectEvents before rejected post: %v", err)
+	}
+	threadsBefore, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	if err != nil {
+		t.Fatalf("ThreadCreated events before rejected post: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindDM, room.Id, owner.Id, "forbidden thread reply", nil, root.Id, "", nil, false); !errors.Is(err, ErrDMThreadsUnsupported) {
+		t.Fatalf("PostMessage explicit DM thread error = %v, want ErrDMThreadsUnsupported", err)
+	}
+	after, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	if err != nil {
+		t.Fatalf("SubjectEvents after rejected post: %v", err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("rejected DM thread post published %d message events, want none", len(after)-len(before))
+	}
+	threadsAfter, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	if err != nil {
+		t.Fatalf("ThreadCreated events after rejected post: %v", err)
+	}
+	if len(threadsAfter) != len(threadsBefore) {
+		t.Fatalf("rejected DM thread post published %d thread events, want none", len(threadsAfter)-len(threadsBefore))
+	}
+	if _, err := core.Messages().PreflightPost(ctx, MessagePostInput{
+		ActorID:               owner.Id,
+		RoomID:                room.Id,
+		Body:                  "forbidden attachment reply",
+		HasPendingAttachments: true,
+		ThreadRootEventID:     root.Id,
+	}); !errors.Is(err, ErrDMThreadsUnsupported) {
+		t.Fatalf("PreflightPost explicit DM thread error = %v, want ErrDMThreadsUnsupported", err)
+	}
 
-		metadata, err := core.GetThreadMetadata(ctx, KindDM, room.Id, rootEvent.Id)
-		if err != nil {
-			t.Fatalf("Failed to get metadata: %v", err)
-		}
-		if metadata.ReplyCount != 1 {
-			t.Errorf("Expected ReplyCount=1 in DM (echo should not increment), got %d", metadata.ReplyCount)
-		}
-	})
+	flatReply, err := core.PostMessage(ctx, KindDM, room.Id, member.Id, "flat reply", nil, "", root.Id, nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage flat reply: %v", err)
+	}
+	if posted := flatReply.GetMessagePosted(); posted.GetInThread() != "" || posted.GetInReplyTo() != root.Id {
+		t.Fatalf("flat reply fields = in_thread %q in_reply_to %q", posted.GetInThread(), posted.GetInReplyTo())
+	}
+
+	// Seed a historical DM thread directly through EVT. Current writers must
+	// reject this shape, but projections and read/follow paths remain compatible
+	// with facts persisted by earlier versions.
+	threadCreated := newEvent(owner.Id, &corev1.Event{Event: &corev1.Event_ThreadCreated{
+		ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: room.Id, ThreadRootEventId: root.Id},
+	}})
+	if _, err := core.EventPublisher.AppendEventually(ctx, agg.SubjectFor(threadCreated), threadCreated); err != nil {
+		t.Fatalf("append historical ThreadCreatedEvent: %v", err)
+	}
+	legacyReply := newEvent(owner.Id, &corev1.Event{Event: &corev1.Event_MessagePosted{
+		MessagePosted: &corev1.MessagePostedEvent{RoomId: room.Id, InThread: root.Id},
+	}})
+	legacySubject := agg.SubjectFor(legacyReply)
+	legacySeq, err := core.EventPublisher.AppendEventually(ctx, legacySubject, legacyReply)
+	if err != nil {
+		t.Fatalf("append historical thread reply: %v", err)
+	}
+	if err := core.rooms().waitForTimelineAndThreads(ctx, events.SubjectPosition(legacySubject, legacySeq)); err != nil {
+		t.Fatalf("wait for historical DM thread: %v", err)
+	}
+	threadEvents, err := core.GetThreadEvents(ctx, KindDM, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadEvents historical DM thread: %v", err)
+	}
+	if len(threadEvents) != 2 || threadEvents[1].Id != legacyReply.Id {
+		t.Fatalf("historical DM thread events = %+v, want root plus %s", threadEvents, legacyReply.Id)
+	}
+	if err := core.FollowThread(ctx, KindDM, member.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread historical DM thread: %v", err)
+	}
+	if _, err := core.Messages().PreflightPost(ctx, MessagePostInput{
+		ActorID:               member.Id,
+		RoomID:                room.Id,
+		Body:                  "implicitly threaded attachment reply",
+		HasPendingAttachments: true,
+		InReplyTo:             legacyReply.Id,
+	}); !errors.Is(err, ErrDMThreadsUnsupported) {
+		t.Fatalf("PreflightPost inherited DM thread error = %v, want ErrDMThreadsUnsupported", err)
+	}
+	if _, err := core.PostMessage(ctx, KindDM, room.Id, member.Id, "implicitly threaded reply", nil, "", legacyReply.Id, nil, false); !errors.Is(err, ErrDMThreadsUnsupported) {
+		t.Fatalf("PostMessage inherited DM thread error = %v, want ErrDMThreadsUnsupported", err)
+	}
 }

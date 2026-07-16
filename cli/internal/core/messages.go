@@ -475,6 +475,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 		}
 	}
+	if kind == KindDM && inThread != "" {
+		return nil, ErrDMThreadsUnsupported
+	}
 
 	// Validate thread root exists if posting to a thread.
 	if inThread != "" {

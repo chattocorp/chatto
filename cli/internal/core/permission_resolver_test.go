@@ -979,11 +979,11 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
+		{PermMessagePostInThread, expected{false, false}, "threads are channel-only"},
 
 		// === Resolvable, default-granted to everyone === (so regular passes)
 		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},
 		{PermMessagePost, expected{true, true}, "core DM capability"},
-		{PermMessagePostInThread, expected{true, true}, "core DM capability"},
 		{PermMessageAttach, expected{true, true}, "core DM capability"},
 		{PermMessageReact, expected{true, true}, "core DM capability"},
 	}

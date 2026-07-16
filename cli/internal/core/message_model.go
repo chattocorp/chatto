@@ -158,16 +158,6 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 	if len(input.Body) > MaxMessageBodyLength {
 		return ErrMessageTooLong
 	}
-	if err := validateLinkPreview(input.LinkPreview); err != nil {
-		return err
-	}
-	if err := s.core.HydrateLinkPreviewImageAsset(ctx, input.LinkPreview); err != nil {
-		return err
-	}
-	if err := validateLinkPreview(input.LinkPreview); err != nil {
-		return err
-	}
-
 	if inReplyTo := strings.TrimSpace(input.InReplyTo); inReplyTo != "" {
 		targetEvent, err := s.core.GetRoomEventByEventID(ctx, authorization.Kind, authorization.Room.Id, inReplyTo)
 		if err != nil {
@@ -176,9 +166,23 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 		if targetEvent == nil {
 			return invalidArgument("in_reply_to message not found in room")
 		}
-		if targetEvent.GetMessagePosted() == nil {
+		targetMessage := targetEvent.GetMessagePosted()
+		if targetMessage == nil {
 			return invalidArgument("in_reply_to target is not a message event")
 		}
+		if authorization.Kind == KindDM && targetMessage.GetInThread() != "" {
+			return ErrDMThreadsUnsupported
+		}
+	}
+
+	if err := validateLinkPreview(input.LinkPreview); err != nil {
+		return err
+	}
+	if err := s.core.HydrateLinkPreviewImageAsset(ctx, input.LinkPreview); err != nil {
+		return err
+	}
+	if err := validateLinkPreview(input.LinkPreview); err != nil {
+		return err
 	}
 
 	if input.ThreadRootEventID == "" {
@@ -232,6 +236,9 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	}
 	if !isMember {
 		return nil, ErrNotRoomMember
+	}
+	if kind == KindDM && strings.TrimSpace(input.ThreadRootEventID) != "" {
+		return nil, ErrDMThreadsUnsupported
 	}
 
 	if input.ThreadRootEventID != "" {

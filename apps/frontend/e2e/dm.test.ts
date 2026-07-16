@@ -51,10 +51,18 @@ test.describe('Direct Messages (room-shaped)', () => {
       // and the new message renders without a reload.
       const roomA = new RoomPage(page);
       const postedBody = `dm round-trip ${Date.now()}`;
-      await roomA.sendMessage(postedBody);
+      const postedMessage = await roomA.sendMessage(postedBody);
       await expect(page.getByText(postedBody)).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
+
+      // DMs support flat reply attribution, but threads are a channel-room-only
+      // capability. The server-provided room capability must suppress thread
+      // actions on both desktop and mobile surfaces.
+      await postedMessage.revealHoverToolbar();
+      await expect(postedMessage.hoverToolbar.getByLabel('Reply', { exact: true })).toBeVisible();
+      await expect(postedMessage.hoverToolbar.getByLabel('Reply in thread')).toHaveCount(0);
+      await expect(postedMessage.hoverToolbar.getByLabel('Open thread')).toHaveCount(0);
 
       // Bug #2 (the reload-redirect): on reload the rooms store is briefly
       // unloaded — the layout must wait for it before resolving spaceId,
