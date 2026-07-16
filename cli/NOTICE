@@ -70,6 +70,7 @@ Frontend and Documentation Components:
   Apache License 2.0
 - lowlight (https://github.com/wooorm/lowlight) - MIT License
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
+- node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
 - Playwright (https://playwright.dev/) - Apache License 2.0
 - Prettier and plugins (https://prettier.io/) - MIT License
