@@ -31,7 +31,7 @@ test.skip(
   'Set CHATTO_COMPAT_CURRENT_BINARY and CHATTO_COMPAT_REMOTE_BINARY to production executables'
 );
 
-test('current frontend can connect to and use the latest 0.4.x server', async ({
+test('current frontend can connect to and use the latest compatible stable server', async ({
   page,
   authPage,
   chatPage,
@@ -45,7 +45,7 @@ test('current frontend can connect to and use the latest 0.4.x server', async ({
     remoteServer = await startProductionServer(
       testInfo,
       remoteBinary!,
-      'compat-remote-0-4',
+      'compat-remote-stable',
       5,
       '127.0.0.1'
     );

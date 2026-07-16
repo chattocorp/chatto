@@ -87,7 +87,10 @@ timelines converge through projection operations.
 Protocol version 1 remains temporarily available as a live-only compatibility
 mode. Version 2 is the bundled 0.5.0 client contract and is intentionally a
 breaking semantic change for clients that previously treated every realtime
-frame as a domain-event notification.
+frame as a domain-event notification. The bundled 0.5 frontend requires a 0.5
+server because a 0.4 server cannot provide its canonical bootstrap projection;
+remote frontend/server compatibility CI therefore starts a new patch-series
+baseline when the first stable 0.5 release exists.
 
 ## Consequences
 

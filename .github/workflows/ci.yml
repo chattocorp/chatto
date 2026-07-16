@@ -259,16 +259,19 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Prepare latest stable 0.4.x release
+      - name: Prepare latest stable 0.5.x release
         id: release
         uses: ./.github/actions/prepare-released-chatto
         with:
-          release-series: "0.4"
+          release-series: "0.5"
+          allow-missing: "true"
 
       - name: Build current production executable with embedded frontend
+        if: steps.release.outputs.available == 'true'
         run: mise build-compatibility-server
 
       - name: Run remote compatibility smoke test
+        if: steps.release.outputs.available == 'true'
         working-directory: apps/frontend
         env:
           CHATTO_COMPAT_CURRENT_BINARY: ${{ github.workspace }}/apps/frontend/e2e/fixtures/bin/chatto-current

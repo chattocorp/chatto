@@ -8,7 +8,14 @@ inputs:
     description: Release archive containing the executable
     required: false
     default: chatto_Linux_x86_64.tar.gz
+  allow-missing:
+    description: Succeed without a binary when the release series has no stable release yet
+    required: false
+    default: "false"
 outputs:
+  available:
+    description: Whether a stable release was resolved
+    value: ${{ steps.release.outputs.available }}
   tag:
     description: Resolved release tag
     value: ${{ steps.release.outputs.tag }}
@@ -26,6 +33,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        ALLOW_MISSING: ${{ inputs.allow-missing }}
         RELEASE_SERIES: ${{ inputs.release-series }}
       run: |
         set -euo pipefail
@@ -38,12 +46,23 @@ runs:
         tag="$({
           gh api --paginate repos/chattocorp/chatto/releases \
             --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
-        } | grep -E "^v${escaped_series}\.[0-9]+$" | sort -V | tail -n 1)"
+        } | grep -E "^v${escaped_series}\.[0-9]+$" | sort -V | tail -n 1 || true)"
         if [[ -z "$tag" ]]; then
+          if [[ "$ALLOW_MISSING" == "true" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No stable v$RELEASE_SERIES.x release exists yet; compatibility smoke test is deferred."
+            {
+              echo "### Remote compatibility baseline"
+              echo
+              echo "No stable v$RELEASE_SERIES.x release exists yet. Compatibility testing will begin with the first stable release in this series."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           echo "::error::Could not find a stable v$RELEASE_SERIES.x GitHub release."
           exit 1
         fi
 
+        echo "available=true" >> "$GITHUB_OUTPUT"
         echo "tag=$tag" >> "$GITHUB_OUTPUT"
         echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
         {
@@ -53,12 +72,14 @@ runs:
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Cache released executable
+      if: steps.release.outputs.available == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/chatto-remote-compatibility/${{ steps.release.outputs.tag }}
         key: chatto-remote-compatibility-${{ runner.os }}-${{ runner.arch }}-${{ steps.release.outputs.tag }}
 
     - name: Download and verify released executable
+      if: steps.release.outputs.available == 'true'
       id: binary
       shell: bash
       env:
