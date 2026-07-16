@@ -76,7 +76,8 @@
       "error_future": "Förfallodatumet måste vara i framtiden."
     },
     "form": {
-      "required": "Krävs"
+      "required": "Krävs",
+      "max_bytes": "Högst {max} byte; vissa tecken använder mer än en byte."
     },
     "dates": {
       "today": "Idag",

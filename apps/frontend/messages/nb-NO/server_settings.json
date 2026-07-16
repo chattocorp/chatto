@@ -23,7 +23,7 @@
     "save_failed": "Kunne ikke lagre endringer",
     "saving": "Lagrer...",
     "save_button": "Lagre endringer",
-    "description_help": "Vises på velkomstskjermen og brukes som beskrivelse for forhåndsvisninger av koblinger. Maksimalt 500 byte; noen tegn bruker mer enn én byte.",
+    "description_help": "Vises på velkomstskjermen og brukes som beskrivelse for forhåndsvisninger av koblinger.",
     "motd_help": "Melding på én linje som vises i chattoverskriften. Støtter markdown.",
     "welcome_message_help": "Vises på påloggingssiden. Støtter markdown.",
     "logo_description": "Last opp en logo for forekomsten din. Bildene vil bli endret til 512 x 512 piksler.",

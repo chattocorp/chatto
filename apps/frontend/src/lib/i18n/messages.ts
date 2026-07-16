@@ -874,6 +874,9 @@ const msg_ui_expiry_error_required = (): LocalizedString => messages().ui_expiry
 const msg_ui_expiry_error_invalid = (): LocalizedString => messages().ui_expiry_error_invalid(empty());
 const msg_ui_expiry_error_future = (): LocalizedString => messages().ui_expiry_error_future(empty());
 const msg_ui_form_required = (): LocalizedString => messages().ui_form_required(empty());
+const msg_ui_form_max_bytes = (
+  inputs: Parameters<LocaleMessages['ui_form_max_bytes']>[0]
+): LocalizedString => messages().ui_form_max_bytes(inputs);
 const msg_ui_dates_today = (): LocalizedString => messages().ui_dates_today(empty());
 const msg_ui_dates_yesterday = (): LocalizedString => messages().ui_dates_yesterday(empty());
 const msg_ui_dates_this_week = (): LocalizedString => messages().ui_dates_this_week(empty());
@@ -2275,6 +2278,7 @@ export { msg_ui_expiry_error_required as 'ui.expiry.error_required' };
 export { msg_ui_expiry_error_invalid as 'ui.expiry.error_invalid' };
 export { msg_ui_expiry_error_future as 'ui.expiry.error_future' };
 export { msg_ui_form_required as 'ui.form.required' };
+export { msg_ui_form_max_bytes as 'ui.form.max_bytes' };
 export { msg_ui_dates_today as 'ui.dates.today' };
 export { msg_ui_dates_yesterday as 'ui.dates.yesterday' };
 export { msg_ui_dates_this_week as 'ui.dates.this_week' };

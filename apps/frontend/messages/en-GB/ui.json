@@ -76,7 +76,8 @@
       "error_future": "Expiry must be in the future."
     },
     "form": {
-      "required": "Required"
+      "required": "Required",
+      "max_bytes": "Maximum {max} bytes; some characters use more than one byte."
     },
     "dates": {
       "today": "Today",

@@ -23,7 +23,7 @@
     "save_failed": "Det gick inte att spara ändringarna",
     "saving": "Sparar...",
     "save_button": "Spara ändringar",
-    "description_help": "Visas på välkomstskärmen och används som beskrivning för länkförhandsvisningar. Högst 500 byte; vissa tecken använder mer än en byte.",
+    "description_help": "Visas på välkomstskärmen och används som beskrivning för länkförhandsvisningar.",
     "motd_help": "Enradsmeddelande visas i chatthuvudet. Stöder markdown.",
     "welcome_message_help": "Visas på inloggningssidan. Stöder markdown.",
     "logo_description": "Ladda upp en logotyp för din instans. Bilderna kommer att ändras till 512x512 pixlar.",

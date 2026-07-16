@@ -76,7 +76,8 @@
       "error_future": "L'expiration doit être dans le futur."
     },
     "form": {
-      "required": "Requis"
+      "required": "Requis",
+      "max_bytes": "Maximum de {max} octets; certains caractères utilisent plus d'un octet."
     },
     "dates": {
       "today": "Aujourd'hui",

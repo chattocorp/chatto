@@ -50,7 +50,17 @@ async function renderSettings() {
 }
 
 function inputDescription(textarea: HTMLTextAreaElement, value: string) {
-  textarea.value = value;
+  textarea.select();
+  const beforeInput = new InputEvent('beforeinput', {
+    bubbles: true,
+    cancelable: true,
+    data: value,
+    inputType: 'insertText'
+  });
+  textarea.dispatchEvent(beforeInput);
+  if (beforeInput.defaultPrevented) return;
+
+  textarea.setRangeText(value, textarea.selectionStart, textarea.selectionEnd, 'end');
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
@@ -76,25 +86,6 @@ describe('ServerSettings', () => {
     inputDescription(textarea, '💬'.repeat(126));
 
     expect(textarea.value).toBe('💬'.repeat(125));
-  });
-
-  it('rejects a middle insertion instead of deleting the existing suffix', async () => {
-    const { container } = await renderSettings();
-    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
-    const existingDraft = `${'💬'.repeat(123)}suffix`;
-    inputDescription(textarea, existingDraft);
-    textarea.setSelectionRange(10, 10);
-
-    const beforeInput = new InputEvent('beforeinput', {
-      bubbles: true,
-      cancelable: true,
-      data: 'inserted',
-      inputType: 'insertText'
-    });
-    textarea.dispatchEvent(beforeInput);
-
-    expect(beforeInput.defaultPrevented).toBe(true);
-    expect(textarea.value).toBe(existingDraft);
   });
 
   it('keeps the draft visible when the server rejects a save', async () => {

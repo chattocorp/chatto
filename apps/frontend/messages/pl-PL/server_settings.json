@@ -23,7 +23,7 @@
     "save_failed": "Nie udało się zapisać zmian",
     "saving": "Zapisywanie...",
     "save_button": "Zapisz zmiany",
-    "description_help": "Wyświetlany na ekranie powitalnym i używany jako opis podglądu linków. Maksymalnie 500 bajtów; niektóre znaki zajmują więcej niż jeden bajt.",
+    "description_help": "Wyświetlany na ekranie powitalnym i używany jako opis podglądu linków.",
     "motd_help": "Jednowierszowa wiadomość wyświetlana w nagłówku czatu. Obsługuje markdown.",
     "welcome_message_help": "Wyświetlane na stronie logowania. Obsługuje markdown.",
     "logo_description": "Prześlij logo swojej instancji. Rozmiar obrazów zostanie zmieniony na 512 x 512 pikseli.",

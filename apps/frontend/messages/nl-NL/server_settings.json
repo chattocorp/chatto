@@ -23,7 +23,7 @@
     "save_failed": "Kan wijzigingen niet opslaan",
     "saving": "Opslaan...",
     "save_button": "Wijzigingen opslaan",
-    "description_help": "Wordt weergegeven op het welkomstscherm en gebruikt als beschrijving voor linkvoorbeelden. Maximaal 500 bytes; sommige tekens gebruiken meer dan één byte.",
+    "description_help": "Wordt weergegeven op het welkomstscherm en gebruikt als beschrijving voor linkvoorbeelden.",
     "motd_help": "Bericht van één regel weergegeven in de chatkop. Ondersteunt markdown.",
     "welcome_message_help": "Weergegeven op de inlogpagina. Ondersteunt markdown.",
     "logo_description": "Upload een logo voor uw exemplaar. Het formaat van afbeeldingen wordt gewijzigd naar 512 x 512 pixels.",

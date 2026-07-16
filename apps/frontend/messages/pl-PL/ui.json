@@ -76,7 +76,8 @@
       "error_future": "Wygaśnięcie musi nastąpić w przyszłości."
     },
     "form": {
-      "required": "Wymagane"
+      "required": "Wymagane",
+      "max_bytes": "Maksymalnie {max} bajtów; niektóre znaki zajmują więcej niż jeden bajt."
     },
     "dates": {
       "today": "Dzisiaj",

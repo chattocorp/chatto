@@ -23,7 +23,7 @@
     "save_failed": "No se pudieron guardar los cambios",
     "saving": "Guardando...",
     "save_button": "Guardar cambios",
-    "description_help": "Se muestra en la pantalla de bienvenida y se utiliza como descripción para las vistas previas de enlaces. Máximo 500 bytes; algunos caracteres usan más de un byte.",
+    "description_help": "Se muestra en la pantalla de bienvenida y se utiliza como descripción para las vistas previas de enlaces.",
     "motd_help": "Mensaje de una sola línea mostrado en el encabezado del chat. Soporta markdown.",
     "welcome_message_help": "Se muestra en la página de inicio de sesión. Soporta markdown.",
     "logo_description": "Sube un logo para tu instancia. Las imágenes cambiarán de tamaño a 512x512 píxeles.",
