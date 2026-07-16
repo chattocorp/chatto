@@ -23,7 +23,7 @@
     "save_failed": "Failed to save changes",
     "saving": "Saving...",
     "save_button": "Save Changes",
-    "description_help": "Shown on the welcome screen and used as the description for link previews.",
+    "description_help": "Shown on the welcome screen and used as the description for link previews. Maximum 500 bytes; some characters use more than one byte.",
     "motd_help": "Single-line message displayed in the chat header. Supports markdown.",
     "welcome_message_help": "Shown on the login page. Supports markdown.",
     "logo_description": "Upload a logo for your instance. Images will be resized to 512x512 pixels.",

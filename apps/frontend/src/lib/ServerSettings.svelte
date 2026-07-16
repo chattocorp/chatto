@@ -17,9 +17,13 @@
 
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
+  import FormError from '$lib/ui/form/FormError.svelte';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
+  import { truncateUtf8 } from '$lib/validation/utf8';
+
+  const MAX_SERVER_DESCRIPTION_BYTES = 500;
 
   const connection = useConnection();
 
@@ -67,6 +71,13 @@
     if (name !== name.trim()) return m['server_settings.name_trim']();
     return undefined;
   });
+
+  function handleDescriptionInput(event: Event) {
+    const input = event.currentTarget as HTMLTextAreaElement;
+    const limitedDescription = truncateUtf8(input.value, MAX_SERVER_DESCRIPTION_BYTES);
+    if (limitedDescription !== input.value) input.value = limitedDescription;
+    description = limitedDescription;
+  }
 
   // Load instance data and check permissions
   async function loadData() {
@@ -124,8 +135,8 @@
       welcomeMessage = profile.welcomeMessage ?? '';
       saveSuccess = true;
       setTimeout(() => (saveSuccess = false), 3000);
-    } catch (_e) {
-      error = m['server_settings.save_failed']();
+    } catch (e) {
+      error = e instanceof Error ? e.message : m['server_settings.save_failed']();
     } finally {
       saving = false;
     }
@@ -240,8 +251,6 @@
 
 {#if loading}
   <div class="text-muted">{m['server_settings.loading']()}</div>
-{:else if error}
-  <div class="text-danger">{error}</div>
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->
@@ -260,6 +269,8 @@
           id="description"
           label={m['server_settings.description_label']()}
           bind:value={description}
+          maxlength={MAX_SERVER_DESCRIPTION_BYTES}
+          oninput={handleDescriptionInput}
           disabled={saving}
           rows={2}
           description={m['server_settings.description_help']()}
@@ -281,6 +292,10 @@
           disabled={saving}
           description={m['server_settings.welcome_message_help']()}
         />
+
+        {#if error}
+          <FormError {error} />
+        {/if}
 
         <div class="flex items-center gap-3">
           <Button
@@ -442,4 +457,6 @@
       </div>
     </Panel>
   </div>
+{:else if error}
+  <div class="text-danger">{error}</div>
 {/if}

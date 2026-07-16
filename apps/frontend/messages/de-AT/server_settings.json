@@ -23,7 +23,7 @@
     "save_failed": "Änderungen konnten nicht gespeichert werden",
     "saving": "Wird gespeichert...",
     "save_button": "Änderungen speichern",
-    "description_help": "Wird auf dem Willkommensbildschirm angezeigt und als Beschreibung für Linkvorschauen verwendet.",
+    "description_help": "Wird auf dem Willkommensbildschirm angezeigt und als Beschreibung für Linkvorschauen verwendet. Maximal 500 Byte; manche Zeichen benötigen mehr als ein Byte.",
     "motd_help": "Einzeilige Nachricht im Chat-Header. Unterstützt Markdown.",
     "welcome_message_help": "Wird auf der Anmeldeseite angezeigt. Unterstützt Markdown.",
     "logo_description": "Lade ein Logo für deine Instanz hoch. Bilder werden auf 512x512 Pixel verkleinert.",

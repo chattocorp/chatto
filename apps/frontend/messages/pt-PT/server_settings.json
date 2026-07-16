@@ -23,7 +23,7 @@
     "save_failed": "Falha ao guardar alterações",
     "saving": "A guardar...",
     "save_button": "Guardar alterações",
-    "description_help": "Exibido no ecrã de boas-vindas e utilizado como descrição para as visualizações de links.",
+    "description_help": "Exibido no ecrã de boas-vindas e utilizado como descrição para as visualizações de links. Máximo de 500 bytes; alguns caracteres utilizam mais de um byte.",
     "motd_help": "Mensagem de linha única apresentada no cabeçalho do chat. Suporta markdown.",
     "welcome_message_help": "Apresentado na página de login. Suporta markdown.",
     "logo_description": "Faça o upload de um logótipo para a sua instância. As imagens serão redimensionadas para 512x512 pixéis.",

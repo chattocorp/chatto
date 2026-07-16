@@ -23,7 +23,7 @@
     "save_failed": "Échec de l'enregistrement des modifications",
     "saving": "Enregistrement...",
     "save_button": "Enregistrer les modifications",
-    "description_help": "Affiché sur l'écran d'accueil et utilisé comme description pour les aperçus des liens.",
+    "description_help": "Affiché sur l'écran d'accueil et utilisé comme description pour les aperçus des liens. Maximum de 500 octets ; certains caractères utilisent plus d'un octet.",
     "motd_help": "Message sur une seule ligne affiché dans l'en-tête du chat. Prend en charge markdown.",
     "welcome_message_help": "Affiché sur la page de connexion. Prend en charge markdown.",
     "logo_description": "Téléchargez un logo pour votre instance. Les images seront redimensionnées à 512x512 pixels.",

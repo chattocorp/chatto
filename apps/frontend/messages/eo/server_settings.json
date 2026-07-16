@@ -23,7 +23,7 @@
     "save_failed": "Malsukcesis konservi ŝanĝojn",
     "saving": "Konservante...",
     "save_button": "Konservu Ŝanĝojn",
-    "description_help": "Montrita sur la bonvena ekrano kaj uzata kiel priskribo por ligilaj antaŭrigardoj.",
+    "description_help": "Montrita sur la bonvena ekrano kaj uzata kiel priskribo por ligilaj antaŭrigardoj. Maksimume 500 bajtoj; iuj signoj uzas pli ol unu bajton.",
     "motd_help": "Unulinia mesaĝo montrita en la babilkapo. Elportas markdown.",
     "welcome_message_help": "Montrita sur la ensaluta paĝo. Elportas markdown.",
     "logo_description": "Alŝutu emblemon por via ekzemplo. Bildoj estos regrandigitaj al 512x512 pikseloj.",
