@@ -13,6 +13,7 @@
     disabled = false,
     rows = 3,
     maxlength,
+    onbeforeinput,
     oninput
   }: {
     label: string;
@@ -26,6 +27,7 @@
     disabled?: boolean;
     rows?: number;
     maxlength?: number;
+    onbeforeinput?: (e: InputEvent) => void;
     oninput?: (e: Event) => void;
   } = $props();
 </script>
@@ -40,6 +42,7 @@
     {disabled}
     {rows}
     {maxlength}
+    {onbeforeinput}
     {oninput}
     class="input resize-none"
     aria-invalid={error ? 'true' : undefined}

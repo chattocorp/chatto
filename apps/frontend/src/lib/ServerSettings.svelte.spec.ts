@@ -63,16 +63,38 @@ describe('ServerSettings', () => {
     expect(container.textContent).toContain('Maximum 500 bytes');
 
     inputDescription(textarea, 'a'.repeat(501));
-    expect(textarea.value).toBe('a'.repeat(500));
+    expect(textarea.value).toBe('Original description');
   });
 
   it('enforces the description limit using UTF-8 bytes', async () => {
     const { container } = await renderSettings();
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
 
+    inputDescription(textarea, '💬'.repeat(125));
+    expect(textarea.value).toBe('💬'.repeat(125));
+
     inputDescription(textarea, '💬'.repeat(126));
 
     expect(textarea.value).toBe('💬'.repeat(125));
+  });
+
+  it('rejects a middle insertion instead of deleting the existing suffix', async () => {
+    const { container } = await renderSettings();
+    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+    const existingDraft = `${'💬'.repeat(123)}suffix`;
+    inputDescription(textarea, existingDraft);
+    textarea.setSelectionRange(10, 10);
+
+    const beforeInput = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      data: 'inserted',
+      inputType: 'insertText'
+    });
+    textarea.dispatchEvent(beforeInput);
+
+    expect(beforeInput.defaultPrevented).toBe(true);
+    expect(textarea.value).toBe(existingDraft);
   });
 
   it('keeps the draft visible when the server rejects a save', async () => {

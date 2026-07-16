@@ -21,7 +21,7 @@
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
-  import { truncateUtf8 } from '$lib/validation/utf8';
+  import { utf8ByteLength } from '$lib/validation/utf8';
 
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
 
@@ -43,6 +43,7 @@
   // Form state
   let name = $state('');
   let description = $state('');
+  let acceptedDescription = '';
   let motd = $state('');
   let welcomeMessage = $state('');
   let saving = $state(false);
@@ -72,11 +73,29 @@
     return undefined;
   });
 
+  function handleDescriptionBeforeInput(event: InputEvent) {
+    if (!event.inputType.startsWith('insert')) return;
+
+    const input = event.currentTarget as HTMLTextAreaElement;
+    const insertedText = event.data ?? event.dataTransfer?.getData('text/plain');
+    if (insertedText == null) return;
+
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? selectionStart;
+    const nextDescription =
+      input.value.slice(0, selectionStart) + insertedText + input.value.slice(selectionEnd);
+    if (utf8ByteLength(nextDescription) > MAX_SERVER_DESCRIPTION_BYTES) event.preventDefault();
+  }
+
   function handleDescriptionInput(event: Event) {
     const input = event.currentTarget as HTMLTextAreaElement;
-    const limitedDescription = truncateUtf8(input.value, MAX_SERVER_DESCRIPTION_BYTES);
-    if (limitedDescription !== input.value) input.value = limitedDescription;
-    description = limitedDescription;
+    if (utf8ByteLength(input.value) > MAX_SERVER_DESCRIPTION_BYTES) {
+      input.value = acceptedDescription;
+      description = acceptedDescription;
+      return;
+    }
+    description = input.value;
+    acceptedDescription = description;
   }
 
   // Load instance data and check permissions
@@ -97,6 +116,7 @@
       loaded = true;
       name = state.name;
       description = state.description ?? '';
+      acceptedDescription = description;
       motd = state.motd ?? '';
       welcomeMessage = state.welcomeMessage ?? '';
       logoUrl = state.logoUrl ?? null;
@@ -131,6 +151,7 @@
 
       name = profile.name;
       description = profile.description ?? '';
+      acceptedDescription = description;
       motd = profile.motd ?? '';
       welcomeMessage = profile.welcomeMessage ?? '';
       saveSuccess = true;
@@ -270,6 +291,7 @@
           label={m['server_settings.description_label']()}
           bind:value={description}
           maxlength={MAX_SERVER_DESCRIPTION_BYTES}
+          onbeforeinput={handleDescriptionBeforeInput}
           oninput={handleDescriptionInput}
           disabled={saving}
           rows={2}
