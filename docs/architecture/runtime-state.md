@@ -13,7 +13,7 @@ Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, short-lived leader leases, reconciliation counters, and worker health heartbeats |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
@@ -77,7 +77,7 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Short-lived leader lease. Current names are `livekit_reconciler`, `asset_cleanup`, and `projection-snapshot-threads`; only the current owner runs the corresponding worker. |
+| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `asset_cleanup`, `projection-snapshot-threads`, and `projection-snapshot-expiry`. The expiry record is retained as a 24-hour cooldown after successful S3 cleanup; the others identify active worker ownership. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
@@ -89,11 +89,11 @@ watches `presence.>` and emits `PresenceChanged` only when a user's status
 changes. Clients refresh through `MyAccountService.UpdatePresence`; disconnect
 and "look offline" stop refreshing instead of writing `OFFLINE`.
 
-Short-lived `lease.{name}` records coordinate singleton background work across
-replicas without adding durable state. Active voice call participants come from
-the call-state projection over durable room EVT facts and are reconciled
-against LiveKit by the elected reconciler. Per-call LiveKit E2EE keys remain
-behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
+Ephemeral `lease.{name}` records coordinate singleton background work and
+periodic cooldowns across replicas without adding durable state. Active voice
+call participants come from the call-state projection over durable room EVT
+facts and are reconciled against LiveKit by the elected reconciler. Per-call
+LiveKit E2EE keys remain behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
 no longer imported.
 
 ## Object Store buckets

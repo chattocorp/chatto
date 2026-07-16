@@ -172,16 +172,12 @@ func (l *Lease) OwnerID() string {
 // already owns the visible record, it refreshes that record and treats the lease
 // as reacquired; this supports retry loops after transient renewal errors.
 func (l *Lease) TryAcquire(ctx context.Context) (bool, error) {
-	now := time.Now().UTC()
-	data, err := l.marshalRecord(now, now)
+	created, err := l.tryCreate(ctx)
 	if err != nil {
 		return false, err
 	}
-	if _, err := l.kv.Create(ctx, l.key, data, jetstream.KeyTTL(l.ttl)); err == nil {
-		l.logDebug("lease acquired")
+	if created {
 		return true, nil
-	} else if !jetstreamutil.IsSequenceConflict(err) {
-		return false, fmt.Errorf("create lease %s: %w", l.name, err)
 	}
 
 	entry, err := l.kv.Get(ctx, l.key)
@@ -304,6 +300,26 @@ func (l *Lease) TryRun(ctx context.Context, work func(context.Context) error) (b
 	return true, l.runAsLeader(ctx, work)
 }
 
+// TryRunWithCooldown atomically claims work only when no live record exists.
+// A successful run retains the record until TTL so other owners, including the
+// same process, skip the cooldown period. Failed work releases the record so a
+// later attempt can retry. Work is not renewed, so TTL must exceed its maximum
+// runtime.
+func (l *Lease) TryRunWithCooldown(ctx context.Context, work func(context.Context) error) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	acquired, err := l.tryCreate(ctx)
+	if err != nil || !acquired {
+		return acquired, err
+	}
+	if err := work(ctx); err != nil {
+		l.releaseBestEffort()
+		return true, err
+	}
+	return true, nil
+}
+
 func (l *Lease) runAsLeader(ctx context.Context, work func(context.Context) error) error {
 	leaderCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -379,6 +395,22 @@ func (l *Lease) currentOwnedEntry(ctx context.Context) (jetstream.KeyValueEntry,
 		return nil, Record{}, ErrLost
 	}
 	return entry, record, nil
+}
+
+func (l *Lease) tryCreate(ctx context.Context) (bool, error) {
+	now := time.Now().UTC()
+	data, err := l.marshalRecord(now, now)
+	if err != nil {
+		return false, err
+	}
+	if _, err := l.kv.Create(ctx, l.key, data, jetstream.KeyTTL(l.ttl)); err == nil {
+		l.logDebug("lease acquired")
+		return true, nil
+	} else if jetstreamutil.IsSequenceConflict(err) {
+		return false, nil
+	} else {
+		return false, fmt.Errorf("create lease %s: %w", l.name, err)
+	}
 }
 
 func (l *Lease) marshalRecord(acquiredAt, renewedAt time.Time) ([]byte, error) {

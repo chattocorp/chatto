@@ -59,6 +59,10 @@ after cold or delta replay and refreshes unchanged generations once they reach
 23 hours old. Repository OCC remains the correctness boundary for staggered or
 stale writers.
 
+S3 expiry uses a separate `MEMORY_CACHE` cooldown claim shared by all replicas.
+The first elected pass after the cooldown expires runs bounded cleanup and keeps
+the claim for 24 hours on success. Failures release it for an hourly retry.
+
 Generations are compressed and authenticated with XChaCha20-Poly1305 under an
 HKDF key derived from `core.secret_key`, then stored under
 `internal/projection-snapshots/{projection}/{contract}/objects/{opaqueEpoch}/{generationId}`

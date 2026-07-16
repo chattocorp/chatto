@@ -2,6 +2,7 @@ package lease
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -135,6 +136,74 @@ func TestLeaseTryRunReleasesAfterWork(t *testing.T) {
 	acquired, err := second.TryAcquire(ctx)
 	require.NoError(t, err)
 	require.True(t, acquired)
+	require.NoError(t, second.Release(ctx))
+}
+
+func TestLeaseTryRunWithCooldownRetainsSuccessfulClaim(t *testing.T) {
+	ctx, js, kv := setupLeaseTest(t)
+	first := newTestLease(t, js, kv, "daily-job", "owner-a")
+	second := newTestLease(t, js, kv, "daily-job", "owner-b")
+
+	var runs atomic.Int32
+	run, err := first.TryRunWithCooldown(ctx, func(context.Context) error {
+		runs.Add(1)
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, run)
+
+	run, err = first.TryRunWithCooldown(ctx, func(context.Context) error {
+		runs.Add(1)
+		return nil
+	})
+	require.NoError(t, err)
+	require.False(t, run)
+	run, err = second.TryRunWithCooldown(ctx, func(context.Context) error {
+		runs.Add(1)
+		return nil
+	})
+	require.NoError(t, err)
+	require.False(t, run)
+	require.Equal(t, int32(1), runs.Load())
+	require.NoError(t, first.Release(ctx))
+}
+
+func TestLeaseTryRunWithCooldownReleasesFailedClaim(t *testing.T) {
+	ctx, js, kv := setupLeaseTest(t)
+	first := newTestLease(t, js, kv, "daily-job", "owner-a")
+	second := newTestLease(t, js, kv, "daily-job", "owner-b")
+	wantErr := errors.New("work failed")
+
+	run, err := first.TryRunWithCooldown(ctx, func(context.Context) error { return wantErr })
+	require.True(t, run)
+	require.ErrorIs(t, err, wantErr)
+
+	run, err = second.TryRunWithCooldown(ctx, func(context.Context) error { return nil })
+	require.NoError(t, err)
+	require.True(t, run)
+	require.NoError(t, second.Release(ctx))
+}
+
+func TestLeaseTryRunWithCooldownAllowsWorkAfterTTL(t *testing.T) {
+	ctx, js, kv := setupLeaseTest(t)
+	newCooldown := func(owner string) *Lease {
+		result, err := New(js, kv, Options{
+			Name: "short-cooldown", OwnerID: owner, Bucket: "MEMORY_CACHE",
+			TTL: time.Second, RenewEvery: 100 * time.Millisecond,
+		})
+		require.NoError(t, err)
+		return result
+	}
+	first := newCooldown("owner-a")
+	second := newCooldown("owner-b")
+	run, err := first.TryRunWithCooldown(ctx, func(context.Context) error { return nil })
+	require.NoError(t, err)
+	require.True(t, run)
+
+	require.Eventually(t, func() bool {
+		run, err = second.TryRunWithCooldown(ctx, func(context.Context) error { return nil })
+		return err == nil && run
+	}, 3*time.Second, 50*time.Millisecond)
 	require.NoError(t, second.Release(ctx))
 }
 

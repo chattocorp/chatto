@@ -264,10 +264,11 @@ it even when its cutoff is unchanged, ensuring quiet projections receive a new
 storage timestamp before retention expiry without turning restarts into writes.
 A lower cutoff for the same EVT history and contract is rejected. A
 failure for one projection is logged and does not prevent the remaining jobs
-from running. On S3, the elected pass also runs bounded expiry when its local
-daily expiry window is due. Every replica advances that window after attempting
-the pass so a later winner does not immediately duplicate expiry. Expiry failure
-does not stop publication checks.
+from running. On S3, the elected pass also attempts a cluster-wide daily expiry
+cooldown claim in `MEMORY_CACHE`. A successful bounded expiry retains that claim
+for 24 hours; a failed expiry releases it so the next hourly publication pass
+can retry. Losing or failing to acquire the publication lease does not consume
+the expiry cooldown. Expiry failure does not stop publication checks.
 
 ### Each projection owns its replay frontier
 
