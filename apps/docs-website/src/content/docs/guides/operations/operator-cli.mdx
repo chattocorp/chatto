@@ -1,15 +1,17 @@
 ---
 title: Operator CLI
-description: Local recovery and bootstrap commands with chatto operator.
+description: Create and recover accounts with the local chatto operator CLI.
 ---
 
-`chatto operator` is Chatto's local, root-equivalent operations CLI. Use it for bootstrap, recovery, and scripted user administration when an in-app admin session is unavailable or not appropriate.
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Operator commands talk to the running Chatto process over a Unix socket. They do not open a second NATS/Core writer, and they do not use Chatto sessions, bearer tokens, cookies, RBAC roles, or CORS.
+`chatto operator` provides local, root-equivalent account administration. Use it to create the first account on a server, recover access, or automate user administration when the in-app Server Admin interface is unavailable or unsuitable.
+
+The CLI talks to the running Chatto server over a Unix socket. It does not connect directly to NATS and does not use a Chatto login, bearer token, cookie, or RBAC role.
 
 ## Enable the Operator API
 
-The Operator API is disabled by default:
+The Operator API is disabled by default. Enable it in `chatto.toml`, then start or restart Chatto:
 
 ```toml
 [operator_api]
@@ -17,53 +19,205 @@ enabled = true
 socket_path = "/tmp/chatto/operator.sock"
 ```
 
-The socket mode is always `0600`. The socket parent directory must be owned by the Chatto process user and private to that user. Chatto refuses to start when an existing socket has a different mode or when the parent directory is group/other-accessible.
+The socket mode is always `0600`. Its parent directory must be owned by the Chatto process user and must not be accessible to other users. Chatto refuses to start if these checks fail.
 
-## Run Commands
+<Aside type="danger" title="Socket access is root-equivalent">
+  Anyone who can access the operator socket can create accounts, set passwords, assign roles, and delete accounts. Never publish the socket over TCP or mount it into an untrusted container.
+</Aside>
 
-On a host install, run commands as the same OS user that runs Chatto:
+## Create a user
+
+<Steps>
+1. Create the account with a unique login:
+
+   ```sh
+   chatto operator user create \
+     --login alice \
+     --display-name "Alice" \
+     --verified-email alice@example.com
+   ```
+
+   In an interactive terminal, Chatto prompts for a password. Leave it empty to create a passwordless account. If you omit `--display-name`, it defaults to the login.
+
+2. Copy the user ID from the output. Commands that change an existing account use this stable ID rather than its login or email address.
+
+3. If the account should have an explicit role, assign one at creation time or afterwards:
+
+   ```sh
+   chatto operator user create \
+     --login alice \
+     --role admin \
+     --role moderator
+
+   chatto operator user role add USER_ID admin
+   ```
+</Steps>
+
+`--verified-email` adds the address as already verified; Chatto does not send a verification email. Only use it when you trust the address. `--role` accepts a configured role name and can be repeated.
+
+### Create a user non-interactively
+
+Read passwords from standard input or a restricted file for automation:
+
+```sh
+printf '%s\n' "$CHATTO_USER_PASSWORD" | \
+  chatto operator user create \
+    --login alice \
+    --display-name "Alice" \
+    --password-stdin
+
+chatto operator user create \
+  --login alice \
+  --password-file /run/secrets/alice-password
+```
+
+When the command is not attached to a terminal and you provide no password option, it creates a passwordless account. You can later add a password with `user set-password`.
+
+<Aside type="caution">
+  The `--password` option is available, but it can expose the password in shell history and process listings. Prefer `--password-stdin` or `--password-file`. Supply only one password option.
+</Aside>
+
+## Find and inspect users
+
+List users before running a command that requires `USER_ID`:
 
 ```sh
 chatto operator user list
-chatto operator user list --search alice@example.com
-chatto operator user set-password USER_ID
-```
-
-In Docker Compose, exec into the running Chatto container as the `chatto` user:
-
-```sh
-docker compose exec -u chatto chatto /chatto operator user list
-docker compose exec -u chatto chatto /chatto operator user list --search alice@example.com
-docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
-```
-
-Use `--operator-socket` or `CHATTO_OPERATOR_API_SOCKET_PATH` only when the socket path differs from config/defaults.
-
-## User IDs First
-
-Mutating user commands take a stable user ID as their first argument. Search first when you only know a login or verified email address:
-
-```sh
 chatto operator user list --search alice
 chatto operator user list --search alice@example.com
+chatto operator user get USER_ID
 ```
 
-Then use the returned `USER_ID`:
+Search matches logins and display names, or an exact verified email address. `list` returns 20 users by default and supports offset pagination:
 
 ```sh
-chatto operator user get USER_ID
-chatto operator user update USER_ID --display-name "Alice"
-chatto operator user set-password USER_ID
+chatto operator user list --limit 100 --offset 0
+chatto operator user list --limit 100 --offset 100
+```
+
+The maximum limit is 100. Human-readable output ends with `total` and `has_more` values so you can tell whether another page exists.
+
+## Update a user
+
+Change a login, a display name, or both:
+
+```sh
+chatto operator user update USER_ID --new-login alice-renamed
+chatto operator user update USER_ID --display-name "Alice Example"
+chatto operator user update USER_ID \
+  --new-login alice-renamed \
+  --display-name "Alice Example"
+```
+
+Add an email address that Chatto should treat as already verified:
+
+```sh
 chatto operator user add-email USER_ID --email alice@example.com
+```
+
+The operator CLI can add a verified email address, but it cannot remove one.
+
+## Set a password
+
+Run the command without a password option to enter the new password at an interactive prompt:
+
+```sh
+chatto operator user set-password USER_ID
+```
+
+For automation, use standard input or a restricted file:
+
+```sh
+printf '%s\n' "$CHATTO_USER_PASSWORD" | \
+  chatto operator user set-password USER_ID --password-stdin
+
+chatto operator user set-password USER_ID \
+  --password-file /run/secrets/alice-password
+```
+
+The new password cannot be empty. Setting a password does not require the previous password.
+
+## Manage roles
+
+Assign or revoke a configured server role by name:
+
+```sh
 chatto operator user role add USER_ID moderator
 chatto operator user role remove USER_ID moderator
+```
+
+Use `user list --json` or `user get USER_ID --json` to inspect the roles currently assigned to an account. Role changes take effect through the running server's normal domain services.
+
+## Delete a user
+
+```sh
+chatto operator user delete USER_ID
+```
+
+In an interactive terminal, Chatto asks you to type a confirmation containing the user ID. Non-interactive scripts must explicitly confirm deletion:
+
+```sh
 chatto operator user delete USER_ID --yes
 ```
 
-For password automation, prefer `--password-stdin` or `--password-file` over `--password` so secrets do not appear in shell history or process listings.
+<Aside type="danger">
+  Account deletion is irreversible in the live server. Confirm the stable user ID with `user get` before using `--yes`. Existing backups are not modified by account deletion.
+</Aside>
 
-## Security Notes
+## Run commands in Docker Compose
 
-Treat operator socket access like root access to Chatto. A process that can use the socket can create users, reset passwords, assign roles, and delete accounts.
+Run the CLI inside the app container as the same `chatto` OS user that owns the socket:
 
-Do not mount or publish the socket unless the target container or host is fully trusted. If you need remote automation, run it through a trusted local agent on the Chatto host rather than exposing the socket over a network boundary.
+```sh
+docker compose exec -u chatto chatto /chatto operator user list
+
+docker compose exec -u chatto chatto /chatto operator user create \
+  --login alice \
+  --display-name "Alice"
+```
+
+For password input from your terminal, keep the default pseudo-terminal allocated by `docker compose exec`. For scripted input, use `--password-stdin`:
+
+```sh
+printf '%s\n' "$CHATTO_USER_PASSWORD" | \
+  docker compose exec -T -u chatto chatto \
+    /chatto operator user create --login alice --password-stdin
+```
+
+## Global options and JSON output
+
+The following options apply to every `chatto operator` subcommand:
+
+| Option | Purpose |
+| --- | --- |
+| `-c, --config PATH` | Read configuration from `PATH` instead of `chatto.toml`. |
+| `--operator-socket PATH` | Connect to a specific Operator API socket. |
+| `--json` | Print the protobuf response as JSON for scripts. |
+
+The socket path is resolved in this order:
+
+1. `--operator-socket`
+2. `CHATTO_OPERATOR_API_SOCKET_PATH`
+3. `operator_api.socket_path` in the selected configuration file
+4. `/tmp/chatto/operator.sock`
+
+For example:
+
+```sh
+chatto operator user list --json
+chatto operator user get USER_ID --json
+chatto operator --operator-socket /run/chatto/operator.sock user list
+chatto operator --config /etc/chatto/chatto.toml user list
+```
+
+## Troubleshooting
+
+If a command cannot connect to the socket, check that:
+
+- the running server has `operator_api.enabled = true`;
+- the CLI and server resolve the same socket path;
+- you run the CLI as the OS user that owns the socket;
+- the Chatto server is running; and
+- in containers, you execute the command in the container that owns the socket rather than on the host.
+
+Use `chatto operator --help`, `chatto operator user --help`, or a command's `--help` output for the exact options supported by your installed Chatto version.
