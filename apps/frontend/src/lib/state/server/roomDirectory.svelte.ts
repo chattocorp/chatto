@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { DirectoryRoomSummary, RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
-import { RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { UserAvatarUserView } from '$lib/render/types';
@@ -93,6 +93,17 @@ export class RoomDirectoryStore {
     // A successful refresh confirms what was optimistically applied; clear
     // the just-* sets so isJoined() falls back on the authoritative joined
     // membership reported by RoomsStore.
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
+    this.isLoading = false;
+  }
+
+  /** Replace the visible channel directory from the realtime projection. */
+  replaceProjection(rooms: DirectoryRoomSummary[]): void {
+    this.loadId++;
+    this.allRooms = rooms
+      .filter((room) => room.kind === RoomKind.CHANNEL)
+      .map(directoryRoom);
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.isLoading = false;

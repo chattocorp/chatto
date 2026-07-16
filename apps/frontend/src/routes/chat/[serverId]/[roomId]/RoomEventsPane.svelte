@@ -58,6 +58,17 @@
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
 
+  // Projection v2 folds retractions and crypto-erasure into the authoritative
+  // message row. Keep composer state aligned without requiring a second
+  // legacy event-envelope path.
+  $effect(() => {
+    const editingEventId = editState.eventId;
+    if (!editingEventId) return;
+    const editingEvent = roomEvents.find((event) => event.id === editingEventId);
+    const payload = editingEvent?.event;
+    if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
+  });
+
   // Wire jumpState handlers to the store
   if (jumpState) {
     jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));

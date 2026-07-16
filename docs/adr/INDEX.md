@@ -58,3 +58,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | 2026-07-09 |
 | [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | 2026-07-14 |
 | [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) | Ephemeral Encrypted Projection Snapshots | 2026-07-13 |
+| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | 2026-07-16 |

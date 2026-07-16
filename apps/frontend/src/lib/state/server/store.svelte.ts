@@ -27,13 +27,28 @@ import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
-import type { EventBusCatchUpSignal, EventHandler } from '$lib/eventBus.svelte';
+import type { EventHandler, ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
+import { SvelteMap } from 'svelte/reactivity';
 import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
 import { useRenderData } from '$lib/render/data';
 import { UserAvatarUserViewDocument } from '$lib/render/types';
+import { ServerProjectionStore } from './projection.svelte';
+import { MessagesStore } from '$lib/state/room';
+import type { RoomMember } from '$lib/state/room';
+import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
+import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+import { viewerResponseToState, type ViewerState } from '$lib/api-client/viewer';
+import { notifyUserSummaries } from '$lib/api-client/hooks';
+import {
+  clearUserSummaryCache,
+  removeUserSummaryCacheEntry
+} from '$lib/state/userSummaries.svelte';
+import { avatarUserFromDirectoryMember } from './rooms.svelte';
+import { mapNotificationPage } from '$lib/api-client/notifications';
 
 type CallTransitionEventPayload = {
   roomId: string;
@@ -72,8 +87,6 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewAudit: false
 };
 
-const CATCH_UP_REFRESH_DEDUPE_MS = 5_000;
-
 export class ServerStateStore {
   readonly serverId: string;
   readonly currentUser: CurrentUserState;
@@ -89,6 +102,7 @@ export class ServerStateStore {
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
+  readonly projection = new ServerProjectionStore();
 
   /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -99,14 +113,16 @@ export class ServerStateStore {
    * servers in $state.
    */
   readonly #registered: RegisteredServer;
+  readonly #serverConnection: ServerConnection;
+  // These registries are intentionally non-reactive. The stores they own are
+  // reactive, while selector calls may occur during derived evaluation.
+  #roomMessages: Record<string, MessagesStore> = Object.create(null);
+  #threadMessages: Record<string, MessagesStore> = Object.create(null);
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   #adminRoomLayoutSubscriptions = 0;
-  #lastSuccessfulCatchUpRefreshAt = 0;
-  #catchUpRefreshInFlight = false;
-  #queuedCatchUpRefreshSignal: EventBusCatchUpSignal | null = null;
 
   constructor(
     registered: RegisteredServer,
@@ -116,6 +132,7 @@ export class ServerStateStore {
   ) {
     this.serverId = registered.id;
     this.#registered = registered;
+    this.#serverConnection = serverConnection;
     const cookieAuth = this.#cookieAuth;
 
     const connectAPIConfig = {
@@ -170,25 +187,6 @@ export class ServerStateStore {
     // layouts — every server keeps itself in sync with its own bus, and
     // switching to a server only swaps which bundle's data the UI reads.
     this.#disposeEffects = $effect.root(() => {
-      // Refresh substores whose data depends on an authenticated viewer
-      // when the user becomes available. Bearer-auth servers load the
-      // user async; cookie-auth servers get it set by
-      // AuthenticatedChatProvider after the SvelteKit load resolves.
-      // Either way, this effect fires once on auth-flip and seeds the
-      // initial data without the UI knowing.
-      $effect(() => {
-        if (this.currentUser.user) {
-          this.serverInfo.refreshAuthenticatedSettings().catch((err) => {
-            console.error(
-              `[server:${this.#registered.url}] failed to load authenticated server settings`,
-              err
-            );
-          });
-          void this.rooms.refresh();
-          void this.roomDirectory.refresh();
-        }
-      });
-
       // Forward live events from this server's bus into the substores
       // that care. `eventBusManager.getBus` reads from a SvelteMap, so
       // this effect re-runs when the bus starts (post-auth for cookie
@@ -204,17 +202,7 @@ export class ServerStateStore {
             this.adminRoomLayout.ingestServerEvent(event);
           }
           const eventKind = roomEventKind(event.event);
-          if (eventKind === RoomEventKind.ServerUpdated) {
-            void this.serverInfo.refreshProfile();
-            if (this.currentUser.user) {
-              this.serverInfo.refreshAuthenticatedSettings().catch((err) => {
-                console.error(
-                  `[server:${this.#registered.url}] failed to refresh authenticated server settings`,
-                  err
-                );
-              });
-            }
-          } else if (eventKind === RoomEventKind.CallParticipantJoined) {
+          if (eventKind === RoomEventKind.CallParticipantJoined) {
             const callEvent = callTransitionEventPayload(event.event);
             if (!callEvent || !callEvent.callId) return;
             const actor = event.actor
@@ -258,103 +246,216 @@ export class ServerStateStore {
             this.voiceCall.handleCallEndedEvent(callEvent.roomId, callEvent.callId);
           }
         };
-        const catchUpHandler = (signal: EventBusCatchUpSignal) => {
-          void this.refreshProjectedStateAfterMissedEvents(signal);
-        };
+        const projectionHandler: ProjectionHandler = (event) => this.ingestProjectionEvent(event);
         bus.handlers.add(handler);
-        bus.catchUpHandlers.add(catchUpHandler);
+        bus.projectionHandlers.add(projectionHandler);
         return () => {
           bus.handlers.delete(handler);
-          bus.catchUpHandlers.delete(catchUpHandler);
+          bus.projectionHandlers.delete(projectionHandler);
         };
       });
     });
   }
 
-  private async refreshProjectedStateAfterMissedEvents(
-    signal: EventBusCatchUpSignal,
-    options: { bypassDedupe?: boolean } = {}
-  ): Promise<void> {
-    if (!this.isAuthenticated) return;
+  /** Stable room timeline owner used by routes as a rendering selector. */
+  messagesForRoom(roomId: string): MessagesStore {
+    let store = this.#roomMessages[roomId];
+    if (store) return store;
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
+    store.awaitRoomProjection(roomId);
+    this.#roomMessages[roomId] = store;
+    const page = this.projection.timelines.get(roomId);
+    if (page) store.replaceRoomProjectionPage(roomId, page);
+    return store;
+  }
 
-    if (this.#catchUpRefreshInFlight) {
-      this.#queuedCatchUpRefreshSignal = signal;
-      console.debug(
-        `[server:${this.#registered.url}] queued catch-up refresh while one is running`,
-        {
-          signal
+  /** Restore the canonical latest window when a route selects this room. */
+  restoreProjectedRoomWindow(roomId: string): void {
+    const page = this.projection.timelines.get(roomId);
+    if (page) this.messagesForRoom(roomId).replaceRoomProjectionPage(roomId, page);
+  }
+
+  /** Stable lazy thread timeline owner fed by the server projection once opened. */
+  messagesForThread(roomId: string, threadRootEventId: string): MessagesStore {
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    let store = this.#threadMessages[key];
+    if (store) return store;
+    store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
+    store.setThread(roomId, threadRootEventId);
+    this.#threadMessages[key] = store;
+    return store;
+  }
+
+  private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
+    this.projection.apply(event);
+    for (const operation of event.operations) {
+      switch (operation.operation.case) {
+        case 'reset':
+          clearUserSummaryCache(this.serverId);
+          for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
+          for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
+          this.rooms.rooms = [];
+          this.rooms.roomGroups = [];
+          this.rooms.isInitialLoading = true;
+          this.roomDirectory.allRooms = [];
+          this.roomDirectory.isLoading = true;
+          break;
+        case 'serverUpsert':
+          this.serverInfo.applyProjectionProfile(operation.operation.value);
+          break;
+        case 'serverStateUpsert':
+          this.serverInfo.applyProjectionState(operation.operation.value);
+          break;
+        case 'viewerUpsert': {
+          const viewer = viewerResponseToState(operation.operation.value);
+          this.currentUser.user = viewer.user;
+          this.currentUser.loading = false;
+          this.setPermissions(viewer);
+          this.synchronizeProjectedNavigation(viewer);
+          break;
         }
-      );
-      return;
-    }
-
-    const now = Date.now();
-    const canDedupe =
-      !options.bypassDedupe &&
-      signal.phase !== 'projection-grace' &&
-      now - this.#lastSuccessfulCatchUpRefreshAt < CATCH_UP_REFRESH_DEDUPE_MS;
-    if (canDedupe) {
-      console.debug(`[server:${this.#registered.url}] skipped duplicate catch-up refresh`, {
-        signal
-      });
-      return;
-    }
-
-    this.#catchUpRefreshInFlight = true;
-    let failed = false;
-
-    try {
-      console.debug(
-        `[server:${this.#registered.url}] refreshing projected state after event bus gap`,
-        {
-          signal
+        case 'userUpsert': {
+          const member = mapDirectoryMember(operation.operation.value);
+          if (!member.id) break;
+          notifyUserSummaries(this.serverId, [member]);
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse)
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          break;
         }
-      );
-
-      const run = async (label: string, task: () => Promise<unknown>) => {
-        try {
-          await task();
-        } catch (err) {
-          failed = true;
-          console.error(`[server:${this.#registered.url}] catch-up refresh failed: ${label}`, err);
-        }
-      };
-
-      const tasks: Promise<void>[] = [
-        run('server profile', () => this.serverInfo.refreshProfile()),
-        run('authenticated settings', () => this.serverInfo.refreshAuthenticatedSettings()),
-        run('notifications', () => this.notifications.fetch()),
-        run('rooms', () => this.rooms.refresh()),
-        run('room directory', () => this.roomDirectory.refresh()),
-        this.#adminRoomLayoutActive
-          ? run('admin room layout', () => this.adminRoomLayout.refresh())
-          : Promise.resolve(),
-        this.serverInfo.livekitUrl
-          ? run('active calls', () => this.activeCallRooms.load())
-          : Promise.resolve()
-      ];
-      await Promise.all(tasks);
-
-      if (!failed) {
-        this.#lastSuccessfulCatchUpRefreshAt = Date.now();
-        console.debug(
-          `[server:${this.#registered.url}] projected state catch-up refresh completed`,
-          {
-            signal
+        case 'userRemove':
+          removeUserSummaryCacheEntry(this.serverId, operation.operation.value.userId);
+          break;
+        case 'roomUpsert':
+        case 'roomRemove':
+        case 'roomGroupsReplace': {
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse)
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          if (operation.operation.case === 'roomRemove') {
+            const store = this.#roomMessages[operation.operation.value.roomId];
+            store?.dispose();
+            delete this.#roomMessages[operation.operation.value.roomId];
+            for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+              if (!key.startsWith(`${operation.operation.value.roomId}\u0000`)) continue;
+              threadStore.dispose();
+              delete this.#threadMessages[key];
+            }
           }
-        );
-      }
-    } finally {
-      this.#catchUpRefreshInFlight = false;
-      const queuedSignal = this.#queuedCatchUpRefreshSignal;
-      this.#queuedCatchUpRefreshSignal = null;
-      if (queuedSignal) {
-        console.debug(`[server:${this.#registered.url}] running queued catch-up refresh`, {
-          signal: queuedSignal
-        });
-        void this.refreshProjectedStateAfterMissedEvents(queuedSignal, { bypassDedupe: true });
+          break;
+        }
+        case 'roomTimelineReplace': {
+          const replacement = operation.operation.value;
+          if (replacement.page) {
+            this.#roomMessages[replacement.roomId]?.replaceRoomProjectionPage(
+              replacement.roomId,
+              replacement.page
+            );
+          }
+          break;
+        }
+        case 'roomTimelineEventUpsert': {
+          const update = operation.operation.value;
+          if (update.event) {
+            this.#roomMessages[update.roomId]?.upsertRoomProjectionEvent(
+              update.roomId,
+              update.event,
+              update.includes,
+              update.retainDeletedRow
+            );
+            for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+              if (!key.startsWith(`${update.roomId}\u0000`)) continue;
+              threadStore.upsertRoomProjectionEvent(
+                update.roomId,
+                update.event,
+                update.includes,
+                update.retainDeletedRow
+              );
+            }
+            if (
+              update.event.event.case === 'messagePosted' &&
+              !update.event.event.value.message?.threadRootEventId
+            ) {
+              this.rooms.bumpRoom(update.roomId);
+            }
+          }
+          break;
+        }
+        case 'notificationsReplace': {
+          const replacement = operation.operation.value;
+          if (replacement.page) {
+            this.notifications.replaceProjection(mapNotificationPage(replacement.page));
+          }
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse) {
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          }
+          break;
+        }
+        case 'roomViewerStateReplace': {
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse) {
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          }
+          break;
+        }
+        case 'roomTimelineEventRemove': {
+          const removal = operation.operation.value;
+          this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
+            removal.roomId,
+            removal.eventId
+          );
+          for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+            if (!key.startsWith(`${removal.roomId}\u0000`)) continue;
+            threadStore.removeRoomProjectionEvent(removal.roomId, removal.eventId);
+          }
+          break;
+        }
+        case undefined:
+          break;
       }
     }
+  }
+
+  private synchronizeProjectedNavigation(viewer: ViewerState): void {
+    const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
+      const room = entry.room ? mapDirectoryRoom(entry.room) : null;
+      return room ? [room] : [];
+    });
+    const groups = this.projection.roomGroups.map(mapRoomGroup);
+    const membersByRoomId = new SvelteMap<
+      string,
+      ReturnType<typeof avatarUserFromDirectoryMember>[]
+    >();
+    const notificationCountsByRoomId = new SvelteMap<string, number>();
+    for (const entry of this.projection.rooms.values()) {
+      const roomId = entry.room?.room?.id;
+      if (!roomId) continue;
+      const members = entry.memberUserIds.flatMap((userId) => {
+        const user = this.projection.users.get(userId);
+        return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
+      });
+      membersByRoomId.set(roomId, members);
+      notificationCountsByRoomId.set(roomId, entry.viewerNotificationCount);
+    }
+    this.rooms.replaceProjection(
+      viewer,
+      rooms,
+      groups,
+      membersByRoomId,
+      notificationCountsByRoomId
+    );
+    this.roomDirectory.replaceProjection(rooms);
+  }
+
+  /** Complete current room membership resolved through the warm user cache. */
+  projectedMembersForRoom(roomId: string): RoomMember[] {
+    const room = this.projection.rooms.get(roomId);
+    if (!room) return [];
+    return room.memberUserIds.flatMap((userId) => {
+      const user = this.projection.users.get(userId);
+      return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
+    });
   }
 
   /**
@@ -470,6 +571,10 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#disposeEffects();
+    for (const store of Object.values(this.#roomMessages)) store.dispose();
+    this.#roomMessages = Object.create(null);
+    for (const store of Object.values(this.#threadMessages)) store.dispose();
+    this.#threadMessages = Object.create(null);
     this.roomUnread.clear();
     this.notificationLevels.clear();
     this.pendingHighlights.clear();

@@ -714,6 +714,31 @@ func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (str
 	return "", false
 }
 
+// LinkedChannelEchoEventID returns the first non-hidden echo linked to an
+// original reply, including a retracted echo that must render as a tombstone.
+func (p *RoomTimelineProjection) LinkedChannelEchoEventID(originalEventID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if originalEventID == "" {
+		return "", false
+	}
+	for _, echoID := range p.echoLinks[originalEventID] {
+		if echoID == "" {
+			continue
+		}
+		if _, hidden := p.hiddenEchoes[echoID]; hidden {
+			continue
+		}
+		if _, ok := p.entryByEventIDLocked(echoID); !ok {
+			continue
+		}
+		if origID := p.echoOriginalIDLocked(echoID); origID == originalEventID {
+			return echoID, true
+		}
+	}
+	return "", false
+}
+
 // VideoAttachmentManifest returns the latest durable processing outcome for
 // the original video attachment ID, if one has been projected. The returned
 // protos are clones so callers can inspect or adapt them freely.

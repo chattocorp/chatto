@@ -16,8 +16,13 @@
   // settle before letting children mount. Without this, a freshly-loaded
   // room page can fire queries against the URL roomId before the store has
   // decided whether the room exists, briefly showing the not-found redirect.
-  const roomsStore = $derived(serverRegistry.getStore(activeServerId).rooms);
-  const ready = $derived(!roomsStore.isInitialLoading);
+  const serverStore = $derived(serverRegistry.getStore(activeServerId));
+  const roomsStore = $derived(serverStore.rooms);
+  const ready = $derived(
+    !roomsStore.isInitialLoading &&
+      !!serverStore.currentUser.user?.id &&
+      roomsStore.currentUserId === serverStore.currentUser.user.id
+  );
 
   let threadId = $derived(page.params.threadId);
 
@@ -30,7 +35,9 @@
     });
   });
   const canRenderRoom = $derived(
-    ready && roomId && (roomAccess.kind === 'member' || roomAccess.kind === 'unknown')
+    ready &&
+      roomId &&
+      (roomAccess.kind === 'member' || (roomAccess.kind === 'unknown' && !isMessageLinkMode))
   );
 </script>
 

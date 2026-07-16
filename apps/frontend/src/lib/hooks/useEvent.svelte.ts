@@ -1,5 +1,6 @@
 import {
   onEvent,
+  onProjectionEvent,
   onPresenceChange,
   onUserProfileUpdate,
   onUserCustomStatusUpdate,
@@ -13,6 +14,7 @@ import {
   onRoomLayoutUpdated,
   onSessionTerminated,
   type EventHandler,
+  type ProjectionHandler,
   type UserProfileUpdate,
   type UserCustomStatusUpdate,
   type UserSettingsUpdate,
@@ -46,6 +48,11 @@ import { getActiveServer } from '$lib/state/activeServer.svelte';
  */
 export function useEvent(handler: EventHandler) {
   $effect(() => onEvent(handler));
+}
+
+/** Subscribe to canonical projection operations on the active server. */
+export function useProjectionEvent(handler: ProjectionHandler) {
+  $effect(() => onProjectionEvent(handler));
 }
 
 /**

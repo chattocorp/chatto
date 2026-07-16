@@ -173,7 +173,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
-func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing.T) {
+func TestStreamMyEvents_DeliversRBACChangeWithoutClosingLegacyStream(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -207,24 +207,20 @@ func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing
 	if err := core.DenyUserRoomPermission(ctx, author.Id, room.Id, viewer.Id, PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
-	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "secret after revocation", nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
 
-	timer := time.NewTimer(500 * time.Millisecond)
+	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
 	for {
 		select {
-		case envelope, ok := <-eventChan:
+		case event, ok := <-eventChan:
 			if !ok {
-				t.Fatal("event stream closed while refreshing RBAC visibility")
+				t.Fatal("event stream closed after RBAC visibility changed")
 			}
-			if envelope.ID() == posted.Id {
-				t.Fatal("viewer received a room event after room.join was revoked")
+			if IsRBACEvent(event.EVTEvent()) {
+				return
 			}
 		case <-timer.C:
-			return
+			t.Fatal("viewer never received RBAC projection invalidation event")
 		}
 	}
 }

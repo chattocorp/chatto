@@ -14,7 +14,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -23,7 +25,8 @@ import (
 
 const (
 	realtimePath                     = "/api/realtime"
-	realtimeProtocolVersion          = 1
+	realtimeProtocolVersion          = 2
+	realtimeLegacyProtocolVersion    = 1
 	realtimeReadLimitBytes           = 64 << 10
 	realtimeReadBufferBytes          = 256
 	realtimeWriteBufferBytes         = 512
@@ -38,6 +41,9 @@ var realtimeServerCapabilities = []string{
 	"chatto.realtime.heartbeat.v1",
 	"chatto.realtime.ping.v1",
 }
+
+const realtimeReplayCapability = "chatto.realtime.events.resume.v1"
+const realtimeProjectionCapability = "chatto.realtime.projection.v1"
 
 func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	if s.metrics == nil {
@@ -57,6 +63,7 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 
 	s.router.GET(realtimePath, func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
+		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(req)))
 		conn, err := upgrader.Upgrade(c.Writer, req, nil)
 		if err != nil {
 			s.logger.Warn("Realtime WebSocket upgrade failed", "error", err)
@@ -145,7 +152,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
 		return
 	}
-	if clientHello.ProtocolVersion != 0 && clientHello.ProtocolVersion != realtimeProtocolVersion {
+	protocolVersion := clientHello.ProtocolVersion
+	if protocolVersion == 0 {
+		protocolVersion = realtimeLegacyProtocolVersion
+	}
+	if protocolVersion != realtimeLegacyProtocolVersion && protocolVersion != realtimeProtocolVersion {
 		writeError("unsupported_protocol", "unsupported realtime protocol version", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
@@ -162,12 +173,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
+	capabilities := append([]string(nil), realtimeServerCapabilities...)
+	if protocolVersion >= realtimeProtocolVersion {
+		capabilities = append(capabilities, realtimeReplayCapability, realtimeProjectionCapability)
+	}
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
 		Hello: &realtimev1.RealtimeServerHello{
-			ProtocolVersion:          realtimeProtocolVersion,
+			ProtocolVersion:          protocolVersion,
 			ServerVersion:            s.version,
 			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
-			Capabilities:             append([]string(nil), realtimeServerCapabilities...),
+			Capabilities:             capabilities,
 		},
 	}}); err != nil {
 		return
@@ -179,7 +194,8 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
 		return
 	}
-	if subscribe.GetSubscribeEvents() == nil {
+	subscribeEvents := subscribe.GetSubscribeEvents()
+	if subscribeEvents == nil {
 		writeError("bad_subscribe", "second frame must be subscribe_events", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
 		return
@@ -188,19 +204,92 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
+	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{
+		TouchPresence: false, ServerProjection: protocolVersion >= realtimeProtocolVersion,
+	})
 	if err != nil {
 		writeError("subscribe_failed", "failed to start realtime event stream", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
+	var replayPlan core.RealtimeReplayPlan
+	if protocolVersion >= realtimeProtocolVersion {
+		replayPlan, err = s.core.PlanRealtimeReplay(ctx, user.Id, subscribeEvents.GetResumeCursor())
+		if err != nil {
+			code, message := realtimeReplayError(err)
+			writeError(code, message, true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
+			return
+		}
+	}
+
+	subscribed := &realtimev1.RealtimeSubscribed{}
+	if protocolVersion >= realtimeProtocolVersion {
+		subscribed.StartCursor = &replayPlan.StartCursor
+	}
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
-		Subscribed: &realtimev1.RealtimeSubscribed{},
+		Subscribed: subscribed,
 	}}); err != nil {
 		return
 	}
 
 	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
+	if protocolVersion >= realtimeProtocolVersion {
+		if replayPlan.Reset {
+			frames, err := s.realtimeProjectionSnapshotFrames(ctx, user.Id)
+			if err != nil {
+				s.logger.Warn("Realtime compacted projection replay failed", "error", err)
+				writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
+				return
+			}
+			for _, frame := range frames {
+				if err := writeFrame(frame); err != nil {
+					return
+				}
+			}
+		}
+		for _, event := range replayPlan.Events {
+			frame, handled, err := s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
+			if err != nil {
+				s.logger.Warn("Realtime replay mapping failed", "event_id", event.ID(), "error", err)
+				writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+				return
+			}
+			if !handled {
+				frame, err = s.realtimeServerFrameForEvent(ctx, user.Id, event, true)
+				if err != nil {
+					s.logger.Warn("Realtime replay fallback mapping failed", "event_id", event.ID(), "error", err)
+					writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+					return
+				}
+			}
+			if err := writeFrame(frame); err != nil {
+				return
+			}
+		}
+		if !replayPlan.Reset {
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, user.Id)
+			if err != nil {
+				s.logger.Warn("Realtime notification reconciliation failed", "error", err)
+				writeError("replay_unavailable", "realtime notification reconciliation is temporarily unavailable", true)
+				return
+			}
+			if err := writeFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
+				Id:        core.NewEventID(),
+				CreatedAt: timestamppb.Now(),
+				Operations: []*realtimev1.RealtimeProjectionOperation{{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+					NotificationsReplace: realtimeProjectionNotifications(notifications),
+				}}},
+			})); err != nil {
+				return
+			}
+		}
+		if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
+			CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},
+		}}); err != nil {
+			return
+		}
+	}
 
 	for {
 		select {
@@ -213,18 +302,51 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}})
 				return
 			}
-			frame, err := s.realtimeServerFrameForEvent(ctx, user.Id, event)
-			if err != nil {
-				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", err)
+			if protocolVersion >= realtimeProtocolVersion && event.DeliverySeq() > 0 && event.DeliverySeq() <= replayPlan.BoundarySequence {
+				continue
+			}
+			var frame *realtimev1.RealtimeServerFrame
+			var handled bool
+			var mapErr error
+			if protocolVersion >= realtimeProtocolVersion {
+				frame, handled, mapErr = s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
+			}
+			if mapErr == nil && !handled {
+				frame, mapErr = s.realtimeServerFrameForEvent(ctx, user.Id, event, protocolVersion >= realtimeProtocolVersion)
+			}
+			if mapErr != nil {
+				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
+				if protocolVersion >= realtimeProtocolVersion && event.DeliverySeq() > 0 {
+					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+						Close: &realtimev1.RealtimeClose{Code: "projection_mapping_failed", Message: "durable projection mapping failed", Reconnect: true},
+					}})
+					return
+				}
 				continue
 			}
 			if err := writeFrame(frame); err != nil {
+				return
+			}
+			if frame.GetClose() != nil {
 				return
 			}
 			if core.EventSessionTerminated(event) != nil {
 				return
 			}
 		}
+	}
+}
+
+func realtimeReplayError(err error) (code, message string) {
+	switch {
+	case errors.Is(err, core.ErrRealtimeCursorInvalid):
+		return "invalid_cursor", "the realtime resume cursor is invalid for this server history"
+	case errors.Is(err, core.ErrRealtimeCursorExpired):
+		return "cursor_expired", "the realtime resume cursor is no longer retained"
+	case errors.Is(err, core.ErrRealtimeReplayLimitExceeded):
+		return "replay_limit_exceeded", "the realtime gap is too large to replay; refresh projected state"
+	default:
+		return "replay_unavailable", "realtime replay is temporarily unavailable"
 	}
 }
 
@@ -311,7 +433,7 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 	return ctx, nil, core.ErrNotAuthenticated
 }
 
-func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope, includeCursor bool) (*realtimev1.RealtimeServerFrame, error) {
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
@@ -323,6 +445,13 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 	envelope, err := s.realtimeEventEnvelope(ctx, viewerID, event)
 	if err != nil {
 		return nil, err
+	}
+	if includeCursor && event.DeliverySeq() > 0 {
+		cursor, err := s.core.RealtimeCursorForSequence(event.DeliverySeq())
+		if err != nil {
+			return nil, err
+		}
+		envelope.ResumeCursor = &cursor
 	}
 	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: envelope}}, nil
 }

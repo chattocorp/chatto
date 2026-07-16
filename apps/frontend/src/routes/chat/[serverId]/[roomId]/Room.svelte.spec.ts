@@ -4,6 +4,7 @@ import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { MessagesStore } from '$lib/state/room';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel
@@ -70,7 +71,10 @@ const { mocks } = vi.hoisted(() => {
       rooms: {
         decrementUnreadNotification: vi.fn(),
         refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
-      }
+      },
+      messagesForRoom: vi.fn(),
+      restoreProjectedRoomWindow: vi.fn(),
+      projectedMembersForRoom: vi.fn(() => [])
     }
   };
 });
@@ -134,6 +138,7 @@ vi.mock('$lib/hooks', () => ({
     clearUnreadMarker: vi.fn()
   }),
   useEvent: vi.fn(),
+  useProjectionEvent: vi.fn(),
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
@@ -158,9 +163,13 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/roomTimeline', () => ({
-  createRoomTimelineAPI: () => mocks.timeline
-}));
+vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
+  return {
+    ...actual,
+    createRoomTimelineAPI: () => mocks.timeline
+  };
+});
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -182,7 +191,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       voiceCall: {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
-      rooms: mocks.rooms
+      rooms: mocks.rooms,
+      messagesForRoom: mocks.messagesForRoom,
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      projectedMembersForRoom: mocks.projectedMembersForRoom
     }),
     originServer: { id: 'server-1', url: 'https://chat.example.test' },
     getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
@@ -320,6 +332,9 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
+  mocks.messagesForRoom.mockReturnValue(
+    new MessagesStore({} as never, () => 'test-user', mocks.timeline)
+  );
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.sidebarNav.isMobile = false;

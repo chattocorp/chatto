@@ -148,6 +148,19 @@ export class NotificationStore {
     this.unreadNotificationCount = Math.max(0, count);
   }
 
+  /** Replace the finite current page carried by the realtime projection. */
+  replaceProjection(page: { items: NotificationItem[]; totalCount: number }): void {
+    this.#fetchGeneration++;
+    const notifications = page.items.filter(
+      (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
+    );
+    this.notifications = notifications;
+    this.unreadNotificationCount = Math.max(0, page.totalCount - (page.items.length - notifications.length));
+    this.loading = false;
+    this.hasLoaded = true;
+    this.error = null;
+  }
+
   /**
    * Get the set of thread root IDs that have pending reply notifications.
    * Used to show notification indicators on thread buttons.

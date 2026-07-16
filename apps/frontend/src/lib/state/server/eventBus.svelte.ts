@@ -12,6 +12,7 @@ import type {
   EventBusCatchUpSignal,
   EventBusCatchUpHandler,
   EventHandler,
+  ProjectionHandler,
   EventBus,
   EventEnvelope
 } from '$lib/eventBus.svelte';
@@ -64,18 +65,18 @@ function clientHelloFrame(token: string | null): Uint8Array {
     frame: {
       case: 'hello',
       value: new RealtimeClientHello({
-        protocolVersion: 1,
+        protocolVersion: 2,
         bearerToken: token ?? undefined
       })
     }
   }).toBinary();
 }
 
-function subscribeEventsFrame(): Uint8Array {
+function subscribeEventsFrame(resumeCursor: string | null): Uint8Array {
   return new RealtimeClientFrame({
     frame: {
       case: 'subscribeEvents',
-      value: new RealtimeSubscribeEvents()
+      value: new RealtimeSubscribeEvents({ resumeCursor: resumeCursor ?? undefined })
     }
   }).toBinary();
 }
@@ -102,8 +103,12 @@ class EventBusManager {
     if (this.#buses.has(serverId)) return () => {};
 
     const handlers = new SvelteSet<EventHandler>();
+    const projectionHandlers = new SvelteSet<ProjectionHandler>();
     const catchUpHandlers = new SvelteSet<EventBusCatchUpHandler>();
-    const bus: EventBus = { handlers, catchUpHandlers };
+    const bus: EventBus = { handlers, projectionHandlers, catchUpHandlers };
+    // The cursor is meaningful only alongside this in-memory projection. Do
+    // not persist it across page reloads: a fresh store must request a reset.
+    let resumeCursor: string | null = null;
     let lastEventAt = Date.now();
     let heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
     let heartbeatCount = 0;
@@ -201,6 +206,20 @@ class EventBusManager {
       }
     };
 
+    const dispatchProjectionEvent = (event: Parameters<ProjectionHandler>[0]) => {
+      if (projectionHandlers.size === 0) {
+        throw new Error('projection event received before reducer registration');
+      }
+      for (const handler of projectionHandlers) {
+        handler(event);
+      }
+    };
+
+    const persistCursor = (cursor: string | undefined) => {
+      if (!cursor) return;
+      resumeCursor = cursor;
+    };
+
     const connect = (reason: string) => {
       if (stopped) return;
       clearReconnectTimer();
@@ -241,7 +260,7 @@ class EventBusManager {
               heartbeatStallMs = heartbeatStallMsForInterval(
                 frame.frame.value.heartbeatIntervalSeconds
               );
-              nextSocket.send(subscribeEventsFrame());
+              nextSocket.send(subscribeEventsFrame(resumeCursor));
               return;
             case 'subscribed':
               reconnectAttempts = 0;
@@ -258,9 +277,26 @@ class EventBusManager {
               return;
             case 'event': {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
-              if (event) dispatchEvent(attachRealtimeEventEnvelope(event, frame.frame.value));
+              if (event) {
+                dispatchEvent(attachRealtimeEventEnvelope(event, frame.frame.value));
+                persistCursor(frame.frame.value.resumeCursor);
+              }
               return;
             }
+            case 'projectionEvent': {
+              try {
+                dispatchProjectionEvent(frame.frame.value);
+              } catch (err) {
+                console.error(`[eventBus:${serverId}] projection reducer failed`, err);
+                nextSocket.close(1011, 'projection reducer failed');
+                return;
+              }
+              persistCursor(frame.frame.value.resumeCursor);
+              return;
+            }
+            case 'caughtUp':
+              persistCursor(frame.frame.value.cursor);
+              return;
             case 'error':
               console.error(`[eventBus:${serverId}] realtime error`, {
                 code: frame.frame.value.code,

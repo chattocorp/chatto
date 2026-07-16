@@ -84,7 +84,21 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       notifications: mocks.notifications,
-      rooms: mocks.rooms
+      rooms: mocks.rooms,
+      messagesForThread: () => ({
+        threadEvents: [],
+        isInitialLoading: false,
+        isLoadingMore: false,
+        hasReachedStart: true,
+        setThread: mocks.setThread,
+        dispose: mocks.disposeMessagesStore,
+        ingestServerEvent: mocks.ingestServerEvent,
+        ingestEvent: mocks.ingestEvent,
+        refreshCurrentWindow: mocks.refreshCurrentWindow,
+        loadMore: mocks.loadMore,
+        applyLocalMessageDeletion: mocks.applyLocalMessageDeletion,
+        refreshAnchorForMessageMutation: mocks.refreshAnchorForMessageMutation
+      })
     })
   }
 }));

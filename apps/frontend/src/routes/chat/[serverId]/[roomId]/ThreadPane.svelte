@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { createThreadAPI } from '$lib/api-client/threads';
@@ -16,7 +15,6 @@
   import {
     getRoomMembers,
     createComposerContext,
-    MessagesStore,
     type QuoteInsertionRequest
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
@@ -63,8 +61,8 @@
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
-  onDestroy(() => store.dispose());
+  const stores = serverRegistry.getStore(getActiveServer());
+  const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
   $effect(() =>
     onRoomMessageMutated((detail) => {

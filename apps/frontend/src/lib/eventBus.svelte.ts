@@ -23,7 +23,10 @@ import {
 } from './render/types';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { CustomUserStatus } from './state/userProfiles.svelte';
-import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type {
+  RealtimeEventEnvelope as RealtimeProtobufEventEnvelope,
+  RealtimeProjectionEvent
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 
 type EventEnvelopeReactionSummary = {
@@ -204,6 +207,7 @@ export type EventEnvelope = {
 };
 
 export type EventHandler = (event: EventEnvelope) => void;
+export type ProjectionHandler = (event: RealtimeProjectionEvent) => void;
 export type EventBusCatchUpReason = 'subscription-ended' | 'ws-reconnected' | 'heartbeat-stalled';
 export type EventBusCatchUpPhase = 'immediate' | 'projection-grace';
 export type EventBusCatchUpSignal = {
@@ -214,6 +218,7 @@ export type EventBusCatchUpHandler = (signal: EventBusCatchUpSignal) => void;
 
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;
+  projectionHandlers: SvelteSet<ProjectionHandler>;
   catchUpHandlers: SvelteSet<EventBusCatchUpHandler>;
 }
 
@@ -281,6 +286,22 @@ export function onEvent(handler: EventHandler): () => void {
   bus.handlers.add(handler);
   return () => {
     bus.handlers.delete(handler);
+  };
+}
+
+/** Register a handler for canonical projection operations on the active server. */
+export function onProjectionEvent(handler: ProjectionHandler): () => void {
+  let getBus: () => EventBus | undefined;
+  try {
+    getBus = getServerBusGetter();
+  } catch {
+    return () => {};
+  }
+  const bus = getBus();
+  if (!bus) return () => {};
+  bus.projectionHandlers.add(handler);
+  return () => {
+    bus.projectionHandlers.delete(handler);
   };
 }
 

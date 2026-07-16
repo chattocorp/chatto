@@ -60,6 +60,9 @@ type StreamMyEventsOptions struct {
 	// the user online and refreshes the current presence value. New clients that
 	// refresh presence through ConnectRPC set this to false.
 	TouchPresence bool
+	// ServerProjection opts this session into server-directory invalidations
+	// that legacy member-only realtime clients must not receive.
+	ServerProjection bool
 }
 
 func (c *ChattoCore) myEvents() *MyEventsModel {
@@ -135,7 +138,7 @@ func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID strin
 func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
 	c := s.core
 
-	hubSub, err := s.hub.Subscribe(ctx, userID)
+	hubSub, err := s.hub.SubscribeWithOptions(ctx, userID, options.ServerProjection)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to myEvents hub: %w", err)
 	}
@@ -379,6 +382,15 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		}
 	case *corev1.Event_RoomMemberBanned:
 		if e.RoomMemberBanned.GetUserId() == userID {
+			delete(memberRooms, roomID)
+		}
+	case *corev1.Event_RoomMemberAdded:
+		if e.RoomMemberAdded.GetUserId() == userID {
+			memberRooms[roomID] = struct{}{}
+			isMember = true
+		}
+	case *corev1.Event_RoomMemberRemoved:
+		if e.RoomMemberRemoved.GetUserId() == userID {
 			delete(memberRooms, roomID)
 		}
 	case *corev1.Event_RoomDeleted:

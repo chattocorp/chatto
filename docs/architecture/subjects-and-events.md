@@ -80,20 +80,21 @@ cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
 Transient `LiveEvent` messages are adapted at this boundary into public
-protobuf `/api/realtime` frames. Both surfaces are live-only, and missed state
-is recovered by projected reads. Subscriber overflow closes only that session.
+protobuf `/api/realtime` frames and remain live-only. Protocol v2 maps durable
+facts to current public projection operations; fresh or unsafe resumes begin
+with a compacted server projection. Subscriber overflow closes only that
+session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old
 subscriptions, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
-The bundled web client watches server heartbeats for silent stalls. It
-refetches server-scoped projected state after reconnect gaps, and refetches the
-current room or thread window after browser wake, WebSocket reconnect, socket
-end, or heartbeat-stall catch-up notifications. There is no per-connection
-JetStream consumer or public subscription replay cursor. See
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
+The bundled web client watches server heartbeats for silent stalls. Its
+in-memory server projection resumes a short socket gap or accepts a compacted
+reset; page reload deliberately starts without a cursor. Protocol v2 creates no
+long-lived per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
+and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 ## EVT subject patterns
 
@@ -304,6 +305,6 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,
   user/config/member subject gates, and projection readiness.
-- Live-only subscription delivery. Missed state after reconnect is recovered from projected reads: server-scoped stores refetch their current projections after event-bus gaps, and the visible room/thread refetches its current message window. Transient sync and presence signals remain live-only.
+- Live delivery plus protocol-v2 bounded replay of durable facts as current public projection operations. The WebSocket subscribes to the hub before capturing its EVT cutoff, replays through that cutoff, then drops buffered duplicates before continuing live. Fresh and unsafe resumes receive a compacted server projection through the same operation stream; transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).

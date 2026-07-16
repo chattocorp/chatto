@@ -3,7 +3,17 @@ import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import {
+  createRoomTimelineAPI,
+  roomTimelineEventToRawEvent,
+  roomTimelinePageToEventConnectionPage,
+  type RoomTimelineAPI
+} from '$lib/api-client/roomTimeline';
+import type {
+  RoomTimelineEvent,
+  RoomTimelineIncludes,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
@@ -388,6 +398,112 @@ export class MessagesStore {
     this.roomId = roomId;
     this.threadRootEventId = '';
     void this.resetAndFetchLatest();
+  }
+
+  /** Select a room without issuing a read while its projection prefix is in flight. */
+  awaitRoomProjection(roomId: string): void {
+    if (this.scope === 'room' && this.roomId === roomId) return;
+    this.startLoad();
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+  }
+
+  /** Replace this room's recent retained window from the realtime projection stream. */
+  replaceRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    this.startLoad();
+    this.#jumpId++;
+    this.#pendingJumpId = null;
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    // Reset already purged the pre-prefix state. Preserve writes ingested
+    // after that reset: the compacted page was captured before those writes
+    // and its later arrival must not erase read-your-writes.
+    this.replaceWithFetchedAndUpdateCursors(connection);
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = false;
+  }
+
+  /** Purge retained rows without changing this store's identity for mounted consumers. */
+  resetProjectionState(): void {
+    const thisLoad = this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+
+    // Thread detail is intentionally lazy and is not part of the compacted
+    // server prefix. Reload an open thread through its existing read model.
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      this.fetchThread(thisLoad);
+    }
+  }
+
+  /** Apply one authoritative current timeline row from the projection stream. */
+  upsertRoomProjectionEvent(
+    roomId: string,
+    event: RoomTimelineEvent,
+    includes: RoomTimelineIncludes | undefined,
+    retainDeletedRow = false
+  ): void {
+    if (this.roomId !== roomId) return;
+    this.isInitialLoading = false;
+    const projectedMessage = event.event.case === 'messagePosted' ? event.event.value.message : null;
+    if (projectedMessage?.deletedAt) {
+      const deletedAt = projectedMessage.deletedAt.toDate().toISOString();
+      if (retainDeletedRow) this.applyRetainedDeletion(event.id, deletedAt);
+      else this.applyDeletion(event.id, deletedAt);
+      return;
+    }
+    const raw = roomTimelineEventToRawEvent(event, includes?.users ?? {});
+    if (!raw) return;
+    const projected = unmask([raw])[0];
+    if (!projected) return;
+
+    const existingIndex = this.events.findIndex((candidate) => candidate.id === projected.id);
+    if (existingIndex === -1) {
+      this.ingestEvent(projected);
+      return;
+    }
+    this.clearOptimisticVersionForEvent(projected.id);
+    this.events[existingIndex] = projected;
+    if (this.scope === 'thread') this.sortThreadEvents();
+    else this.sortRoomEvents();
+  }
+
+  private applyRetainedDeletion(messageEventId: string, deletedAt: string): void {
+    const index = this.events.findIndex((event) => event.id === messageEventId);
+    if (index === -1) return;
+    const event = this.events[index];
+    if (!isMessagePostedPayload(event.event)) return;
+    this.events[index] = {
+      ...event,
+      event: {
+        ...event.event,
+        body: null,
+        attachments: [],
+        linkPreview: null,
+        deletedAt
+      }
+    };
+  }
+
+  /** Remove one projection-only row, such as a disabled channel echo. */
+  removeRoomProjectionEvent(roomId: string, eventId: string): void {
+    if (this.roomId !== roomId) return;
+    this.clearChannelEchoLink(eventId);
+    const index = this.events.findIndex((event) => event.id === eventId);
+    if (index === -1) return;
+    this.events.splice(index, 1);
+    this.seenIds.delete(eventId);
   }
 
   setThread(roomId: string, threadRootEventId: string): void {

@@ -3,7 +3,13 @@ syntax = "proto3";
 package chatto.realtime.v1;
 
 import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/notifications.proto";
+import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/room_directory.proto";
+import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/server.proto";
+import "chatto/api/v1/server_state.proto";
 import "chatto/api/v1/viewer.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -43,6 +49,10 @@ message RealtimeServerFrame {
     RealtimeClose close = 6;
     // Reply to a client ping.
     RealtimePong pong = 7;
+    // Confirms that durable replay reached the live-stream boundary.
+    RealtimeCaughtUp caught_up = 8;
+    // One idempotent mutation of the caller's server projection.
+    RealtimeProjectionEvent projection_event = 9;
   }
 }
 
@@ -51,7 +61,8 @@ message RealtimeClientHello {
   reserved 3;
   reserved "resume_cursor";
 
-  // Protocol version requested by the client. The current version is 1.
+  // Protocol version requested by the client. The current version is 2;
+  // version 1 remains available as a live-only compatibility mode.
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
@@ -70,17 +81,212 @@ message RealtimeServerHello {
   uint32 heartbeat_interval_seconds = 4;
   // Stable protocol capability keys supported by this server. Current keys:
   // `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
-  // `chatto.realtime.ping.v1`.
+  // `chatto.realtime.ping.v1`. Protocol version 2 also advertises
+  // `chatto.realtime.events.resume.v1` and
+  // `chatto.realtime.projection.v1`.
   repeated string capabilities = 5;
 }
 
 // Request to start the caller's authorized live event stream.
-message RealtimeSubscribeEvents {}
+message RealtimeSubscribeEvents {
+  // Opaque cursor from a previously received durable event or caught-up
+  // frame. Protocol version 2 replays authorized durable room events after
+  // this cursor before continuing with live delivery. Omit it to receive a
+  // compacted reset of the current authorised server projection.
+  optional string resume_cursor = 1;
+}
 
 // Confirms event streaming has started.
 message RealtimeSubscribed {
   reserved 1;
   reserved "cursor";
+
+  // Opaque cursor from which this subscription starts. When the request
+  // supplied a resume cursor, this is that validated cursor. Otherwise it is
+  // the current live boundary. Only present for protocol version 2.
+  optional string start_cursor = 2;
+}
+
+// Confirms that durable replay is complete and live delivery has begun.
+//
+// Clients can retain `cursor` after applying every preceding event. A cursor
+// must not outlive the projection state it describes. Events after this frame
+// are live. Transient events are never replayed.
+message RealtimeCaughtUp {
+  // Opaque cursor at the replay-to-live handoff boundary.
+  string cursor = 1;
+}
+
+// One ordered, idempotent mutation of the caller's authorised server view.
+//
+// A fresh subscription starts with a reset operation followed by current
+// resource upserts. A resumed subscription derives operations from EVT after
+// the supplied cursor. Both paths use this envelope and the same client
+// reducer. The stream is a convergence feed, not an immutable audit log:
+// replay uses current authorisation, deletion, and erasure state.
+message RealtimeProjectionEvent {
+  // Stable event ID. Synthetic compacted-replay events use server-generated IDs.
+  string id = 1;
+  // Time the source fact occurred or the compacted event was generated.
+  google.protobuf.Timestamp created_at = 2;
+  // User or system actor that caused the source fact, when known.
+  optional string actor_id = 3;
+  // Opaque cursor safe to retain with the resulting projection state after
+  // applying every operation in this event.
+  optional string resume_cursor = 4;
+  // Operations applied atomically and in order by the client reducer.
+  repeated RealtimeProjectionOperation operations = 5;
+}
+
+// One mutation of a server-scoped client projection.
+message RealtimeProjectionOperation {
+  oneof operation {
+    // Clears all canonical server projection state before compacted replay.
+    RealtimeProjectionReset reset = 1;
+    // Replaces the public server profile.
+    chatto.api.v1.ServerPublicProfile server_upsert = 2;
+    // Replaces the authenticated viewer resource.
+    chatto.api.v1.GetViewerResponse viewer_upsert = 3;
+    // Adds or replaces one server directory member.
+    chatto.api.v1.DirectoryMember user_upsert = 4;
+    // Removes one server directory member.
+    RealtimeProjectionUserRemove user_remove = 5;
+    // Adds or replaces one room, its viewer state, and current membership.
+    RealtimeProjectionRoom room_upsert = 6;
+    // Removes one room and all locally retained room state.
+    RealtimeProjectionRoomRemove room_remove = 7;
+    // Replaces the complete visible room-group layout.
+    RealtimeProjectionRoomGroupsReplace room_groups_replace = 8;
+    // Replaces the retained recent timeline window for one joined room.
+    RealtimeProjectionRoomTimelineReplace room_timeline_replace = 9;
+    // Adds or replaces one renderable event in a retained room timeline.
+    RealtimeProjectionRoomTimelineEventUpsert room_timeline_event_upsert = 10;
+    // Replaces authenticated server-wide presentation and runtime state.
+    RealtimeProjectionServerState server_state_upsert = 11;
+    // Removes one event from a retained room timeline. This is distinct from
+    // a message tombstone: projection-only channel echoes disappear when the
+    // underlying thread reply is no longer echoed into the room.
+    RealtimeProjectionRoomTimelineEventRemove room_timeline_event_remove = 12;
+    // Replaces the viewer's current pending-notification page and room counts.
+    RealtimeProjectionNotificationsReplace notifications_replace = 13;
+    // Replaces one room's current viewer state without
+    // retransmitting room metadata or membership.
+    RealtimeProjectionRoomViewerStateReplace room_viewer_state_replace = 14;
+  }
+}
+
+// Reset marker for a compacted projection replay.
+message RealtimeProjectionReset {}
+
+// Authenticated server state required by every signed-in client.
+message RealtimeProjectionServerState {
+  // Optional message of the day shown to authenticated members.
+  optional string motd = 1;
+  // Runtime capabilities and limits advertised to the client.
+  chatto.api.v1.ServerRuntimeConfig runtime = 2;
+}
+
+// Canonical room state retained by a server-scoped client projection.
+message RealtimeProjectionRoom {
+  // Public room metadata and viewer-specific state.
+  chatto.api.v1.RoomWithViewerState room = 1;
+  // Complete current room membership expressed as references into the
+  // projection's server-wide user directory.
+  repeated string member_user_ids = 2;
+  // Current pending notifications targeting this room for the viewer.
+  uint32 viewer_notification_count = 3;
+}
+
+// Removes one user from the client projection.
+message RealtimeProjectionUserRemove {
+  // Stable user ID to remove.
+  string user_id = 1;
+}
+
+// Removes one room from the client projection.
+message RealtimeProjectionRoomRemove {
+  // Stable room ID to remove.
+  string room_id = 1;
+}
+
+// Complete ordered room-group layout visible to the caller.
+message RealtimeProjectionRoomGroupsReplace {
+  // Visible room groups in sidebar order.
+  repeated chatto.api.v1.RoomGroup groups = 1;
+}
+
+// Complete retained recent timeline window for one room.
+message RealtimeProjectionRoomTimelineReplace {
+  // Room whose retained window is replaced.
+  string room_id = 1;
+  // Renderable current timeline state. Deleted and crypto-shredded message
+  // bodies are absent and represented by their normal tombstone fields.
+  chatto.api.v1.RoomTimelinePage page = 2;
+  // Opaque cursor for every retained row, keyed by timeline event ID.
+  map<string, string> event_cursors = 3;
+}
+
+// Current renderable state for one timeline event.
+message RealtimeProjectionRoomTimelineEventUpsert {
+  // Room containing the event.
+  string room_id = 1;
+  // Current renderable event state.
+  chatto.api.v1.RoomTimelineEvent event = 2;
+  // Related users needed to render this event.
+  chatto.api.v1.RoomTimelineIncludes includes = 3;
+  // Reaction transition that caused this upsert, when applicable.
+  optional RealtimeProjectionReactionChange reaction_change = 4;
+  // Preserve a deleted echo row as a tombstone. Directly deleted echoes use a
+  // remove operation instead; this flag identifies canonical-reply deletion.
+  bool retain_deleted_row = 5;
+  // Opaque room-timeline cursor for this canonical row. Clients use retained
+  // row cursors to advance a bounded window without a separate refresh read.
+  string event_cursor = 6;
+}
+
+// Removes one projection-only row from a retained room timeline.
+message RealtimeProjectionRoomTimelineEventRemove {
+  // Room containing the retained row.
+  string room_id = 1;
+  // Stable event ID of the row to remove.
+  string event_id = 2;
+}
+
+// Finite current notification state emitted on bootstrap and every resume.
+message RealtimeProjectionNotificationsReplace {
+  // Newest pending notifications and total pending count.
+  chatto.api.v1.ListNotificationsResponse page = 1;
+  // Complete current counts for rooms with pending notifications.
+  repeated chatto.api.v1.RoomNotificationCount room_counts = 2;
+}
+
+// Lightweight current viewer state for one projected room.
+message RealtimeProjectionRoomViewerStateReplace {
+  string room_id = 1;
+  chatto.api.v1.RoomViewerState viewer_state = 2;
+}
+
+// Reaction transition retained for integrations while the containing timeline
+// row carries the authoritative aggregate reaction state.
+message RealtimeProjectionReactionChange {
+  // Whether the actor added or removed the reaction.
+  RealtimeProjectionReactionAction action = 1;
+  // Canonical reacted-to message event ID.
+  string message_event_id = 2;
+  // Reaction emoji.
+  string emoji = 3;
+  // User who changed the reaction.
+  string user_id = 4;
+}
+
+// Kind of reaction transition.
+enum RealtimeProjectionReactionAction {
+  // Unknown action.
+  REALTIME_PROJECTION_REACTION_ACTION_UNSPECIFIED = 0;
+  // A reaction was added.
+  REALTIME_PROJECTION_REACTION_ACTION_ADDED = 1;
+  // A reaction was removed.
+  REALTIME_PROJECTION_REACTION_ACTION_REMOVED = 2;
 }
 
 // Application-level ping.
@@ -141,6 +347,10 @@ message RealtimeEventEnvelope {
   google.protobuf.Timestamp created_at = 2;
   // User or system actor that caused the event, when known.
   optional string actor_id = 3;
+  // Opaque resume cursor for this durable event. Absent for transient events.
+  // Protocol version 2 clients can retain this with their resulting state
+  // after applying the event.
+  optional string resume_cursor = 5;
 
   oneof event {
     // A message was posted in a room or thread.
@@ -404,10 +614,12 @@ message RealtimeRoomMarkedAsReadEvent {
   string room_id = 1;
 }
 
-// Server-profile signal.
+// Legacy protocol-v1 server-profile signal.
 //
 // Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
 // for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
+// Protocol v2 carries both public and authenticated server state as projection
+// operations instead.
 message RealtimeServerUpdatedEvent {
   // Server display name.
   string name = 1;

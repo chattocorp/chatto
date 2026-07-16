@@ -21,6 +21,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"golang.org/x/crypto/acme/autocert"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 )
@@ -40,6 +41,7 @@ type HTTPServer struct {
 	nc             *nats.Conn
 	router         *gin.Engine
 	core           *core.ChattoCore
+	connectAPI     *connectapi.API
 	mailer         email.Sender
 	mockMailer     *email.MockSender // Non-nil when test email endpoint is enabled
 	addr           string
@@ -127,6 +129,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		nc:             cfg.NC,
 		router:         router,
 		core:           cfg.Core,
+		connectAPI:     connectapi.New(cfg.Core, cfg.Config, cfg.Version),
 		mailer:         mailer,
 		mockMailer:     mockMailer,
 		addr:           cfg.Addr,

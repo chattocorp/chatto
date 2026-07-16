@@ -6397,6 +6397,55 @@ func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 	}
 }
 
+func TestRealtimeProjectionSnapshotHonorsMessageDeletionAndCryptoErasure(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("realtime-projection-deletion")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-shredded-author", "Projection Shredded Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	retracted := env.post(room.Id, env.viewer.Id, "retracted secret", "")
+	shredded := env.post(room.Id, author.Id, "crypto-erased secret", "")
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, retracted.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+	if err := env.core.DeleteUser(env.ctx, env.viewer.Id, author.Id); err != nil {
+		t.Fatalf("DeleteUser author: %v", err)
+	}
+
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	var page *apiv1.RoomTimelinePage
+	var eventCursors map[string]string
+	for _, timeline := range snapshot.Timelines {
+		if timeline.RoomID == room.Id {
+			page = timeline.Page
+			eventCursors = timeline.EventCursors
+			break
+		}
+	}
+	if page == nil {
+		t.Fatalf("room %q missing from realtime snapshot", room.Id)
+	}
+	for _, eventID := range []string{retracted.Id, shredded.Id} {
+		if eventCursors[eventID] == "" {
+			t.Fatalf("message %q has no realtime timeline cursor", eventID)
+		}
+		message := timelinePageEvent(page, eventID).GetMessagePosted().GetMessage()
+		if message.GetDeletedAt() == nil {
+			t.Fatalf("message %q deleted_at is absent", eventID)
+		}
+		if message.GetBody() != "" {
+			t.Fatalf("message %q exposed deleted body %q", eventID, message.GetBody())
+		}
+	}
+}
+
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

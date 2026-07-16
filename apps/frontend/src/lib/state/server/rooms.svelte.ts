@@ -8,6 +8,7 @@ import {
   type RoomEventKindSource
 } from '$lib/render/eventKinds';
 import type {
+  DirectoryRoomGroup,
   DirectoryRoomGroupItem,
   DirectoryRoomSummary,
   RoomDirectoryAPI
@@ -295,6 +296,41 @@ export class RoomsStore {
       this.roomGroups = nextRoomGroups;
     }
 
+    this.isInitialLoading = false;
+  }
+
+  /** Replace navigation state from the server-wide realtime projection. */
+  replaceProjection(
+    viewer: ViewerState,
+    rooms: DirectoryRoomSummary[],
+    roomGroups: DirectoryRoomGroup[],
+    membersByRoomId: ReadonlyMap<string, UserAvatarUserView[]> = new SvelteMap(),
+    notificationCountsByRoomId: ReadonlyMap<string, number> = new SvelteMap()
+  ): void {
+    this.loadId++;
+    this.currentUserId = viewer.user.id;
+    this.notificationLevels.setServerPreference(
+      viewer.serverNotificationPreference.level,
+      viewer.serverNotificationPreference.effectiveLevel
+    );
+    for (const pref of viewer.roomNotificationPreferences) {
+      this.notificationLevels.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
+    }
+
+    const visibleRooms = uniqueById(rooms.filter((room) => !room.archived));
+    this.applyRooms(
+      visibleRooms.map((room) => ({
+        ...this.roomListItem(room, membersByRoomId.get(room.id) ?? []),
+        viewerNotificationCount: notificationCountsByRoomId.get(room.id) ?? 0
+      }))
+    );
+    this.roomUnread.initRooms(visibleRooms);
+    this.roomGroups = roomGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      roomIds: group.roomIds,
+      items: group.items.map(roomGroupItem)
+    }));
     this.isInitialLoading = false;
   }
 

@@ -3,6 +3,7 @@ import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { NotificationLevel, PresenceStatus, TimeFormat } from './renderTypes.js';
 
 export type ViewerAPIConfig = {
@@ -84,6 +85,10 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
       headers: authHeaders(config)
     }
   );
+  return viewerResponseToState(response);
+}
+
+export function viewerResponseToState(response: GetViewerResponse): ViewerState {
   if (!response.user) {
     throw new Error('viewer response did not include a user');
   }

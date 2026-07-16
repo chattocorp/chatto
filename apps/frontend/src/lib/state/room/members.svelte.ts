@@ -135,6 +135,23 @@ export class RoomMembersStore {
     void this.loadInitial();
   }
 
+  /** Replace membership from the canonical server projection. */
+  replaceProjection(roomId: string, members: RoomMember[]): void {
+    if (this.roomId !== roomId) {
+      this.roomId = roomId;
+      this.reset();
+    }
+    this.#loadId++;
+    this.members = members;
+    this.totalCount = members.length;
+    this.hasFirstPage = true;
+    this.hasLoadedAll = true;
+    this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
+    this.#searchCache.clear();
+  }
+
   async setSearch(search: string): Promise<void> {
     const nextSearch = search.trim();
     this.searchInput = search;

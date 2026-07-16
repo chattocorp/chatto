@@ -4,14 +4,19 @@ import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/e
 import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RealtimeEventEnvelope,
+  RealtimeClientFrame,
   RealtimeClose,
+  RealtimeCaughtUp,
   RealtimeError,
   RealtimeHeartbeat,
   RealtimeMentionNotificationEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
   RealtimeServerUpdatedEvent,
-  RealtimeSubscribed
+  RealtimeSubscribed,
+  RealtimeProjectionEvent,
+  RealtimeProjectionOperation,
+  RealtimeProjectionReset
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
@@ -116,6 +121,20 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
 
 function subscribedFrame(): RealtimeServerFrame {
   return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed() });
+}
+
+function projectionFrame(cursor = 'cursor-1'): RealtimeServerFrame {
+  return serverFrame({
+    case: 'projectionEvent',
+    value: new RealtimeProjectionEvent({
+      resumeCursor: cursor,
+      operations: [
+        new RealtimeProjectionOperation({
+          operation: { case: 'reset', value: new RealtimeProjectionReset() }
+        })
+      ]
+    })
+  });
 }
 
 function serverUpdatedFrame(id = 'evt-1'): RealtimeServerFrame {
@@ -252,6 +271,41 @@ describe('eventBusManager realtime transport', () => {
       `[eventBus:${TEST_SERVER}] event dispatched`,
       RoomEventKind.ServerUpdated,
       expect.objectContaining({ eventId: 'evt-1' })
+    );
+  });
+
+  it('resumes socket reconnects only after the projection reducer applied the cursor', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+    const projectionHandler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(projectionHandler);
+
+    await socket.receive(projectionFrame('cursor-applied'));
+    expect(projectionHandler).toHaveBeenCalledTimes(1);
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'cursor-boundary' }) })
+    );
+    socket.serverClose();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const resumed = sockets.at(-1)!;
+    resumed.open();
+    await resumed.receive(helloFrame());
+    const subscribeFrame = RealtimeClientFrame.fromBinary(resumed.sent[1]);
+    expect(subscribeFrame.frame.case).toBe('subscribeEvents');
+    if (subscribeFrame.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
+  });
+
+  it('does not advance the cursor when no projection reducer is registered', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+
+    await socket.receive(projectionFrame('cursor-must-not-persist'));
+    expect(socket.closeCalls.at(-1)?.reason).toBe('projection reducer failed');
+    expect(consoleError).toHaveBeenCalledWith(
+      `[eventBus:${TEST_SERVER}] projection reducer failed`,
+      expect.any(Error)
     );
   });
 

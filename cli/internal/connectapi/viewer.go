@@ -32,41 +32,49 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 	if err != nil {
 		return nil, err
 	}
+	response, err := s.api.buildViewer(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(response), nil
+}
 
-	user, err := s.api.core.GetUser(ctx, caller.UserID)
+func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerResponse, error) {
+	service := &viewerService{api: a}
+	user, err := a.core.GetUser(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
-	responseUser, err := s.viewerUser(ctx, user)
+	responseUser, err := service.viewerUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
-	capabilities, err := s.viewerCapabilities(ctx, caller.UserID)
+	capabilities, err := service.viewerCapabilities(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	serverPreference, err := s.serverNotificationPreference(ctx, caller.UserID)
+	serverPreference, err := service.serverNotificationPreference(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	roomPreferences, err := s.roomNotificationPreferences(ctx, caller.UserID)
+	roomPreferences, err := service.roomNotificationPreferences(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	viewerPermissions, viewerState, err := s.api.serverViewerState(ctx, caller.UserID)
+	viewerPermissions, viewerState, err := a.serverViewerState(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	return connect.NewResponse(&apiv1.GetViewerResponse{
+	return &apiv1.GetViewerResponse{
 		User:                         responseUser,
 		Capabilities:                 capabilities,
 		ServerNotificationPreference: serverPreference,
 		RoomNotificationPreferences:  roomPreferences,
 		ViewerPermissions:            viewerPermissions,
 		ViewerState:                  viewerState,
-	}), nil
+	}, nil
 }
 
 func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*apiv1.ViewerUser, error) {

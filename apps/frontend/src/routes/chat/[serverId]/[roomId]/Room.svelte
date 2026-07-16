@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
@@ -11,6 +12,7 @@
     useRoomData,
     useRoomUnread,
     useEvent,
+    useProjectionEvent,
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
@@ -20,7 +22,6 @@
     createComposerContext,
     createMentionRoles,
     getRoomMembers,
-    MessagesStore,
     RoomFilesStore,
     RoomMembersStore,
     setRoomMembersStore,
@@ -47,7 +48,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import { onDestroy, tick } from 'svelte';
+  import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
@@ -112,10 +113,17 @@
   let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
+  const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
-  onDestroy(() => {
-    roomMessageStore.dispose();
+  $effect(() => {
+    const selectedRoomId = roomId;
+    untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    return () => {
+      // Invalidate any historical-window request before this room becomes
+      // inactive. Its late response must not replace the retained latest
+      // projection while another room is being rendered.
+      untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    };
   });
 
   $effect(() =>
@@ -187,6 +195,10 @@
   $effect(() => {
     roomFilesStore.setRoom(roomId);
     roomMembersStore.setRoom(roomId);
+  });
+
+  $effect(() => {
+    roomMembersStore.replaceProjection(roomId, stores.projectedMembersForRoom(roomId));
   });
 
   $effect(() => {
@@ -340,6 +352,21 @@
         if (actorId !== currentUser.user.id && appState.isPresent) {
           unread.markRoomAsRead(roomId, event.id);
         }
+      }
+    }
+  });
+
+  // Durable message rows arrive through projection operations. Refresh the
+  // independent files read model only when an attachment-bearing row (or its
+  // tombstone) changes, avoiding a query for ordinary text messages.
+  useProjectionEvent((event) => {
+    for (const operation of event.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
+      const message = update.event.event.value.message;
+      if ((message?.attachments.length ?? 0) > 0 || message?.deletedAt) {
+        void roomFilesStore.refresh();
       }
     }
   });

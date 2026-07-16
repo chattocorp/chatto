@@ -191,6 +191,9 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		events.EventRoomUniversalChanged,
 		events.EventUserJoinedRoom,
 		events.EventUserLeftRoom,
+		events.EventRoomMemberAdded,
+		events.EventRoomMemberRemoved,
+		events.EventRoomMemberBanned,
 		events.EventThreadCreated,
 		events.EventMessagePosted,
 		events.EventMessageEdited,
@@ -231,9 +234,42 @@ func isDeliverableLiveEVTUserEvent(event *corev1.Event) bool {
 	return isDeliverableLiveEVTUserEventType(events.EventTypeOf(event))
 }
 
+// IsRBACEvent reports whether event changes roles or permission resolution.
+// Realtime protocol v2 uses this to invalidate an authorization-dependent
+// client projection without exposing the internal RBAC payload.
+func IsRBACEvent(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_RbacRoleCreated,
+		*corev1.Event_RbacRoleDisplayNameChanged,
+		*corev1.Event_RbacRoleDescriptionChanged,
+		*corev1.Event_RbacRolePingableChanged,
+		*corev1.Event_RbacRoleDeleted,
+		*corev1.Event_RbacRolesReordered,
+		*corev1.Event_RbacRoleAssigned,
+		*corev1.Event_RbacRoleRevoked,
+		*corev1.Event_RbacPermissionGranted,
+		*corev1.Event_RbacPermissionDenied,
+		*corev1.Event_RbacPermissionCleared:
+		return true
+	default:
+		return false
+	}
+}
+
 func isDeliverableLiveEVTUserEventType(eventType string) bool {
 	switch eventType {
-	case events.EventUserCustomStatusSet, events.EventUserCustomStatusCleared:
+	case events.EventUserAccountCreated,
+		events.EventUserLoginChanged,
+		events.EventUserDisplayNameChanged,
+		events.EventUserAvatarSet,
+		events.EventUserAvatarCleared,
+		events.EventUserAccountDeleted,
+		events.EventUserKeyShredded,
+		events.EventUserCustomStatusSet,
+		events.EventUserCustomStatusCleared:
 		return true
 	default:
 		return false

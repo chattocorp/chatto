@@ -16,7 +16,7 @@ const { mocks } = vi.hoisted(() => {
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
-      addNotification: vi.fn(() => Promise.resolve()),
+      addNotification: vi.fn((_notificationId?: string): Promise<unknown> => Promise.resolve(null)),
       removeNotification: vi.fn(),
       consumeLocalDismissal: vi.fn(),
       fetch: vi.fn(() => Promise.resolve())
@@ -119,7 +119,7 @@ describe('NotificationSync', () => {
     mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
   });
 
-  it('reconciles authoritative counts on notification creation instead of incrementing locally', async () => {
+  it('increments the room from the realtime notification', async () => {
     await renderAndWaitForSubscription();
 
     dispatch({
@@ -133,8 +133,8 @@ describe('NotificationSync', () => {
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
+    expect(mocks.store.rooms.incrementUnreadNotification).toHaveBeenCalledWith('room-1');
+    expect(mocks.store.rooms.refreshNotificationCounts).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
   });
 
@@ -152,7 +152,7 @@ describe('NotificationSync', () => {
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+    expect(mocks.store.rooms.refreshNotificationCounts).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 

@@ -116,7 +116,12 @@ class RealtimeProtobufClient {
         timer: setTimeout(() => {
           const index = this.#waiters.indexOf(waiter);
           if (index >= 0) this.#waiters.splice(index, 1);
-          reject(new Error('timed out waiting for realtime frame'));
+          const queued = this.#frames.map((frame) =>
+            frame.frame.case === 'event'
+              ? `event:${frame.frame.value.event.case ?? 'unknown'}`
+              : (frame.frame.case ?? 'unknown')
+          );
+          reject(new Error(`timed out waiting for realtime frame; queued: ${queued.join(', ')}`));
         }, TIMEOUTS.REALTIME_EVENT)
       };
       this.#waiters.push(waiter);

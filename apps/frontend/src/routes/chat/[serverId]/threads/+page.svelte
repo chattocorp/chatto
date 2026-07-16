@@ -20,9 +20,8 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent } from '$lib/hooks';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { onProjectionEvent, onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -40,6 +39,7 @@
   createMentionRoles();
 
   const connection = useConnection();
+  const serverStore = serverRegistry.getStore(getActiveServer());
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
@@ -131,6 +131,43 @@
     return [...existing, ...next.filter((thread) => !seen.has(thread.threadRootEventId))];
   }
 
+  function applyThreadSummary(
+    roomId: string,
+    threadRootEventId: string,
+    replyCount: number,
+    lastReplyAt: string | null
+  ) {
+    let changed = false;
+    const next = threads.map((thread) => {
+      if (
+        thread.roomId !== roomId ||
+        thread.threadRootEventId !== threadRootEventId ||
+        thread.replyCount === replyCount
+      ) {
+        return thread;
+      }
+      changed = true;
+      const rootMessage = thread.rootMessage;
+      return {
+        ...thread,
+        rootMessage:
+          rootMessage?.event?.kind === 'messagePosted'
+            ? {
+                ...rootMessage,
+                event: {
+                  ...rootMessage.event,
+                  replyCount,
+                  lastReplyAt: lastReplyAt ?? rootMessage.event.lastReplyAt
+                }
+              }
+            : rootMessage,
+        replyCount,
+        lastReplyAt: lastReplyAt ?? thread.lastReplyAt
+      };
+    });
+    if (changed) threads = next;
+  }
+
   $effect(() => {
     loadThreads();
   });
@@ -138,15 +175,46 @@
   // Real-time: Refresh when thread follow state changes
   $effect(() => onThreadFollowChanged(() => loadThreads()));
 
-  // Real-time: Refresh when a new thread reply arrives
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-    if (!event) return;
-    if (isMessagePostedEvent(event) && event.threadRootEventId) {
-      // Only refresh if it's a reply in a thread we're displaying
-      if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
-        loadThreads();
+  // Apply live root-message summaries directly from projection operations.
+  // The canonical store reconciliation below also covers summaries that
+  // arrived before this page mounted.
+  $effect(() =>
+    onProjectionEvent((event) => {
+      for (const operation of event.operations) {
+        if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+        const update = operation.operation.value;
+        const timelineEvent = update.event;
+        if (timelineEvent?.event.case !== 'messagePosted') continue;
+        const message = timelineEvent.event.value.message;
+        const summary = message?.thread;
+        if (!message || message.threadRootEventId || !summary) continue;
+
+        applyThreadSummary(
+          update.roomId,
+          timelineEvent.id,
+          summary.replyCount,
+          summary.lastReplyAt?.toDate().toISOString() ?? null
+        );
       }
+    })
+  );
+
+  // Reconcile followed-thread summaries from the same canonical room
+  // projection that feeds every room timeline.
+  $effect(() => {
+    for (const thread of threads) {
+      const event = serverStore.projection.timelines
+        .get(thread.roomId)
+        ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
+      const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
+      const summary = message?.thread;
+      if (!summary || summary.replyCount === thread.replyCount) continue;
+      applyThreadSummary(
+        thread.roomId,
+        thread.threadRootEventId,
+        summary.replyCount,
+        summary.lastReplyAt?.toDate().toISOString() ?? null
+      );
     }
   });
 

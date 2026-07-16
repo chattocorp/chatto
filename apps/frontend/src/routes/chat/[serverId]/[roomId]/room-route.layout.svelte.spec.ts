@@ -17,8 +17,10 @@ const { mocks } = vi.hoisted(() => ({
     roomsStore: {
       rooms: [] as RoomsListItem[],
       roomGroups: [] as Array<{ id: string; name: string; roomIds: string[] }>,
-      isInitialLoading: false
+      isInitialLoading: false,
+      currentUserId: 'viewer-1'
     },
+    currentUserId: 'viewer-1',
     joinRoom: vi.fn(),
     loadJoinPreview: vi.fn(),
     refreshRooms: vi.fn(),
@@ -72,7 +74,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         get roomGroups() {
           return mocks.roomsStore.roomGroups;
         },
+        get currentUserId() {
+          return mocks.roomsStore.currentUserId;
+        },
         refresh: mocks.refreshRooms
+      },
+      currentUser: {
+        get user() {
+          return { id: mocks.currentUserId };
+        }
       },
       roomDirectory: {
         joinRoom: mocks.joinRoom,
@@ -134,12 +144,24 @@ beforeEach(() => {
   mocks.roomsStore.rooms = [room()];
   mocks.roomsStore.roomGroups = [];
   mocks.roomsStore.isInitialLoading = false;
+  mocks.roomsStore.currentUserId = 'viewer-1';
+  mocks.currentUserId = 'viewer-1';
   mocks.loadJoinPreview.mockResolvedValue(null);
   mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'development' } });
   mocks.refreshRooms.mockResolvedValue(undefined);
 });
 
 describe('room route layout access handling', () => {
+  it('waits for projected rooms to belong to the authenticated viewer', async () => {
+    mocks.roomsStore.currentUserId = 'previous-viewer';
+
+    const { container } = renderLayout();
+    await tick();
+
+    expect(q(container, '[data-testid="room-layout-room"]')).toBeNull();
+    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+  });
+
   it('renders the room without redirecting when the viewer is already a member', async () => {
     const { container } = renderLayout();
 
@@ -172,6 +194,18 @@ describe('room route layout access handling', () => {
     await expect
       .element(q(container, 'section'))
       .toHaveTextContent('Join this room to read and participate.');
+    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('does not resolve a message link until its room appears in the projection', async () => {
+    mocks.page.route.id = '/chat/[serverId]/[roomId]/m/[messageId]';
+    mocks.page.params.messageId = 'message-1';
+    mocks.roomsStore.rooms = [];
+
+    const { container } = renderLayout();
+    await tick();
+
     expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
     expect(mocks.goto).not.toHaveBeenCalled();
   });

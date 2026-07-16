@@ -1,6 +1,7 @@
 // Server events — unified bus from `myEvents` subscription.
 export {
   useEvent,
+  useProjectionEvent,
   usePresenceChange,
   useActiveEvent,
   useUserProfileUpdate,

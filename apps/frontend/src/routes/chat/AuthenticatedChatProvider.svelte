@@ -14,6 +14,7 @@
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
     useUserProfileUpdate,
+    useProjectionEvent,
     useUserCustomStatusUpdate,
     useUserSettingsUpdate,
     useSessionTerminated
@@ -134,6 +135,24 @@
           avatarUrl: update.avatarUrl,
           login: update.login
         };
+      }
+    });
+
+    // Durable profile state is delivered by the canonical projection stream
+    // in protocol v2. Keep the render cache synchronized so existing message
+    // rows update without replacing every timeline event that references the
+    // user.
+    useProjectionEvent((event) => {
+      for (const operation of event.operations) {
+        if (operation.operation.case !== 'userUpsert') continue;
+        const user = operation.operation.value.user;
+        if (!user?.id) continue;
+        profileCache.update(
+          user.id,
+          user.displayName,
+          user.avatarUrl ?? null,
+          user.login
+        );
       }
     });
 

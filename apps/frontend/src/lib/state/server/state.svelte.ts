@@ -8,6 +8,8 @@ import {
   type AuthenticatedServerState,
   type ServerStateAPIConfig
 } from '$lib/api-client/serverState';
+import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 export class ServerInfoState {
   #label: string;
@@ -93,6 +95,31 @@ export class ServerInfoState {
       this.error = err instanceof Error ? err.message : String(err);
       console.error(`[server:${this.#label}] failed to load server info`, err);
     }
+  }
+
+  /** Apply the public profile carried by the realtime projection stream. */
+  applyProjectionProfile(profile: ServerPublicProfile): void {
+    this.name = profile.name;
+    this.welcomeMessage = profile.welcomeMessage ?? null;
+    this.description = profile.description ?? null;
+    this.iconUrl = profile.logoUrl ?? null;
+    this.bannerUrl = profile.bannerUrl ?? null;
+    this.error = null;
+    this.loading = false;
+  }
+
+  /** Apply authenticated runtime state carried by the realtime projection. */
+  applyProjectionState(state: RealtimeProjectionServerState): void {
+    this.motd = state.motd ?? null;
+    const runtime = state.runtime;
+    if (!runtime) return;
+    this.pushNotificationsEnabled = runtime.pushNotificationsEnabled;
+    this.vapidPublicKey = runtime.vapidPublicKey ?? null;
+    this.livekitUrl = runtime.livekitUrl ?? null;
+    this.videoProcessingEnabled = runtime.videoProcessingEnabled;
+    this.maxUploadSize = Number(runtime.maxUploadSize);
+    this.maxVideoUploadSize = Number(runtime.maxVideoUploadSize);
+    this.messageEditWindowSeconds = runtime.messageEditWindowSeconds;
   }
 
   /**

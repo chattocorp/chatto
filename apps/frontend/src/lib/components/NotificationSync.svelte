@@ -28,7 +28,7 @@ Include this component once in the chat layout (unconditionally).
 
   function notificationCreatedEvent(
     event: EventEnvelope['event']
-  ): { notificationId: string; silent?: boolean } | null {
+  ): { notificationId: string; roomId?: string; silent?: boolean } | null {
     if (
       !event ||
       !('notificationId' in event) ||
@@ -37,7 +37,11 @@ Include this component once in the chat layout (unconditionally).
     ) {
       return null;
     }
-    return { notificationId: event.notificationId, silent: event.silent === true };
+    return {
+      notificationId: event.notificationId,
+      roomId: 'roomId' in event && typeof event.roomId === 'string' ? event.roomId : undefined,
+      silent: event.silent === true
+    };
   }
 
   function notificationDismissedEvent(
@@ -70,10 +74,10 @@ Include this component once in the chat layout (unconditionally).
           case RoomEventKind.NotificationCreated: {
             const notification = notificationCreatedEvent(event.event);
             if (!notification) break;
-            void Promise.allSettled([
-              notificationStore.addNotification(notification.notificationId),
-              stores.rooms.refreshNotificationCounts()
-            ]);
+            if (notification.roomId) {
+              stores.rooms.incrementUnreadNotification(notification.roomId);
+            }
+            void notificationStore.addNotification(notification.notificationId);
             if (!notification.silent) {
               playNotificationSound(
                 userPreferences.notificationSound,

@@ -157,7 +157,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
 
 export type RoomDirectoryAPI = ReturnType<typeof createRoomDirectoryAPI>;
 
-function mapDirectoryRoomDetails(
+export function mapDirectoryRoomDetails(
   entry: RoomWithViewerState | undefined
 ): DirectoryRoomDetails | null {
   if (!entry) return null;
@@ -178,7 +178,7 @@ function mapDirectoryRoomDetails(
   };
 }
 
-function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
+export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
     id: entry.room.id,
@@ -193,7 +193,7 @@ function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | nu
   };
 }
 
-function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
+export function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
   return {
     id: group.id,
     name: group.name,
