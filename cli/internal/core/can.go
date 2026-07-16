@@ -228,8 +228,12 @@ func (c *ChattoCore) CanPostMessage(ctx context.Context, userID string, kind Roo
 }
 
 // CanPostInThread checks if a user can post messages in a thread.
-// Uses room-level permission resolution (checks room overrides, then server defaults).
+// Threads are a channel-room-only capability; the room-kind invariant applies
+// even to effective owners before room-level permission resolution.
 func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	if kind == KindDM {
+		return false, nil
+	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
 }
 

@@ -1,15 +1,16 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-16
 
 ## Overview
 
-Chatto messages can link to one another via reply attribution, and they can live inside threads — conversations branching off a root message. Replies and threads are independent concepts: a message can reply without being in a thread, or live in a thread without referencing a specific parent. Rooms can be configured to promote one shape over another.
+Chatto messages can link to one another via reply attribution, and channel-room messages can live inside threads — conversations branching off a root message. Replies and threads are independent concepts: a message can reply without being in a thread, or live in a thread without referencing a specific parent. Channel rooms can be configured to promote one shape over another; DMs support reply attribution but not threads.
 
 ## Behavior
 
 - A message in a room can optionally reference another message as the one it's in reply to.
+- DMs keep replies in their single room timeline and do not offer thread actions. Historical DM threads remain readable but cannot receive new replies.
 - A reply renders with a byline above the message body: the referenced author's small avatar, name, and a single-line excerpt of the referenced message.
 - Clicking the byline transports the user to the referenced message and briefly highlights it.
 - Clicking the avatar or name in the byline opens the user's context menu.
@@ -60,7 +61,7 @@ Chatto messages can link to one another via reply attribution, and they can live
 ## Permissions
 
 - `message.post` — post a root message (with or without `inReplyTo`) in a room.
-- `message.post-in-thread` — post a message in a thread (whether starting it or replying inside, with or without `inReplyTo`).
+- `message.post-in-thread` — post a message in a channel-room thread (whether starting it or replying inside, with or without `inReplyTo`). This permission does not make threads available in DMs.
 
 ## Related
 
