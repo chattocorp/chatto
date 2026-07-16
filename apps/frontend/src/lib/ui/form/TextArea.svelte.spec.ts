@@ -78,4 +78,19 @@ describe('TextArea', () => {
 
     expect(textarea.value).toBe('1234');
   });
+
+  it('restores the last accepted value when beforeinput cannot prevent an edit', () => {
+    const { container } = render(TextArea, {
+      id: 'description',
+      label: 'Description',
+      value: '💬',
+      maxBytes: 4
+    });
+    const textarea = container.querySelector('textarea')!;
+
+    textarea.value = '💬a';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(textarea.value).toBe('💬');
+  });
 });
