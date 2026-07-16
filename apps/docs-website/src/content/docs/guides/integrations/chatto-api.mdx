@@ -8,7 +8,7 @@ import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automation. Start with the [ConnectRPC API overview](/reference/connectrpc-api/) to explore the available services and methods. Use the public ConnectRPC API for normal integrations, the realtime WebSocket protocol for live updates, and the local operator socket only for trusted recovery workflows.
 
 <Aside type="caution">
-  Chatto is still pre-1.0. Public APIs are documented, but breaking changes can happen in the `0.x` line. Pin server versions for production integrations and read release notes before upgrading.
+  Chatto's public API is experimental while Chatto is pre-1.0. We prefer additive changes, but breaking changes can happen in the `0.x` line. Pin server versions for production integrations, use protocol capability discovery, and read release notes before upgrading. See [API Compatibility](/guides/integrations/api-compatibility/).
 </Aside>
 
 ## API Surfaces
@@ -24,9 +24,9 @@ Do not expose the Operator API over a network. It is intentionally separate from
 
 ## Start With Server Discovery
 
-Use `ServerDiscoveryService.GetServer` as the high-compatibility discovery endpoint. It tells clients what server they are talking to, which login providers are available, and which public profile metadata should be rendered before authentication.
+Use `ServerDiscoveryService.GetServer` as the high-compatibility discovery endpoint. It tells clients what server they are talking to, which login providers are available, which public profile metadata should be rendered before authentication, and which protocol capabilities the server advertises.
 
-Discovery is also the right place for custom clients to learn public server identity before starting OAuth or login flows.
+Discovery is also the right place for custom clients to learn public server identity and compatibility before starting OAuth or login flows. Capability keys describe protocol support; they are separate from server configuration and the authenticated viewer's permissions.
 
 ## Authentication Choices
 
@@ -81,5 +81,6 @@ or leave the token literal if your client does not support inline timestamps.
   <LinkCard title="ConnectRPC API" href="/reference/connectrpc-api/" description="Generated public, admin, and realtime API reference." />
   <LinkCard title="Realtime API" href="/reference/connectrpc-api/realtime/" description="Protobuf realtime WebSocket frame reference." />
   <LinkCard title="Server Discovery" href="/reference/connectrpc-api/server-discovery/" description="Discovery endpoint for compatible clients." />
+  <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Experimental API posture, capability discovery, and version-skew guidance." />
   <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local automation over the operator socket." />
 </CardGrid>

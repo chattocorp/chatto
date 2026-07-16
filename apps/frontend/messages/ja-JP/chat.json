@@ -31,7 +31,14 @@
       "send_message": "メッセージを送信"
     },
     "server_gutter": {
-      "add_server": "サーバーの追加"
+      "add_server": "サーバーの追加",
+      "version": "バージョン {version}",
+      "version_unknown": "バージョン不明",
+      "compatibility_degraded": "このサーバーでは一部のライブ機能を利用できません。",
+      "compatibility_server_too_old": "このサーバーでは古いバージョンが実行されています。一部の機能が期待どおりに動作しない可能性があります。",
+      "compatibility_client_too_old": "このアプリは、このサーバーには古すぎます。再読み込みまたは更新してください。",
+      "compatibility_unsupported": "このサーバーは、このアプリに必要なプロトコルに対応していません。",
+      "compatibility_unknown": "このサーバーは互換性情報を提供していません。"
     },
     "threads": {
       "title": "私のスレッド",

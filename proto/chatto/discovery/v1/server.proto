@@ -15,6 +15,25 @@ message GetServerResponse {
   chatto.api.v1.ServerPublicProfile profile = 1;
   // Login and registration options.
   chatto.api.v1.ServerLogin login = 2;
+  // Protocol support and bundled-web-client compatibility metadata.
+  ServerCompatibility compatibility = 3;
+}
+
+// Machine-readable compatibility metadata for clients connecting to this
+// server.
+//
+// Capability keys describe protocol contracts rather than server
+// configuration or the authenticated viewer's permissions. Clients should
+// ignore unknown keys. An absent minimum web-client version means the server
+// has not declared a lower bound for the bundled Chatto web client.
+message ServerCompatibility {
+  // Stable protocol capability keys supported by this server. Current keys:
+  // `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
+  // `chatto.admin.v1`, and `chatto.realtime.v1`.
+  repeated string protocol_capabilities = 1;
+  // Oldest bundled Chatto web-client version this server supports, when a
+  // lower bound is required. Third-party clients should use capabilities.
+  optional string minimum_web_client_version = 2;
 }
 
 // Provides unauthenticated server discovery metadata.

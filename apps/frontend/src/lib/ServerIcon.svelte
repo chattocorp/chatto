@@ -16,7 +16,8 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    dimmed = false
+    dimmed = false,
+    compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -35,6 +36,8 @@
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
+    /** Show a non-interactive compatibility warning marker. */
+    compatibilityWarning?: boolean;
   } = $props();
 </script>
 
@@ -56,6 +59,16 @@
       <span class={icon}></span>
     {/if}
   </a>
+
+  {#if compatibilityWarning}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-compatibility-warning"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs uil--exclamation-circle"></span>
+    </span>
+  {/if}
 
   {#if indicator}
     {#if onIndicatorClick}

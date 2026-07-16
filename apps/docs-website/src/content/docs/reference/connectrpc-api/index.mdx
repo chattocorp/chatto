@@ -194,11 +194,11 @@ Generated clients expose those codes through their Connect client error helpers.
 
 ## Versioning And Stability
 
-Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.
+Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.
 
-Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.
+Chatto is still pre-1.0, so the public API is experimental and may change between releases. The `v1` suffix does not yet constitute a long-term compatibility guarantee. Pin the server version used by production integrations and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.
 
-If you call the API directly, ignore unknown fields when possible. Treat documented enum values, error codes, and permission requirements as part of the integration contract.
+Use `ServerDiscoveryService.GetServer` protocol capabilities for feature discovery. If you call the API directly, ignore unknown fields and enum values when possible. Treat documented error codes and permission requirements as part of the experimental integration contract.
 
 The realtime protocol is versioned separately as `chatto.realtime.v1` because it is a WebSocket protocol rather than a ConnectRPC service.
 

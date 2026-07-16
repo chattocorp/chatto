@@ -31,7 +31,14 @@
       "send_message": "Enviar mensagem"
     },
     "server_gutter": {
-      "add_server": "Adicionar servidor"
+      "add_server": "Adicionar servidor",
+      "version": "Versão {version}",
+      "version_unknown": "Versão desconhecida",
+      "compatibility_degraded": "Alguns recursos em tempo real não estão disponíveis neste servidor.",
+      "compatibility_server_too_old": "Este servidor está executando uma versão mais antiga. Alguns recursos podem não funcionar como esperado.",
+      "compatibility_client_too_old": "Esta aplicação é antiga demais para este servidor. Recarregue ou atualize-a.",
+      "compatibility_unsupported": "Este servidor não oferece suporte aos protocolos exigidos por esta aplicação.",
+      "compatibility_unknown": "Este servidor não informa dados de compatibilidade."
     },
     "threads": {
       "title": "Meus tópicos",

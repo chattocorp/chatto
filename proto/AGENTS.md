@@ -29,6 +29,11 @@ For public API packages:
 
 ## Compatibility
 
+- The public auth, discovery, integration, admin, and realtime `v1` packages
+  are experimental while Chatto is pre-1.0. Compatibility is preferred, not
+  guaranteed. Breaking changes require an explicit design benefit,
+  compatibility plan, generated-client/docs updates, release-note guidance,
+  and the `api-breaking-change` PR label.
 - Do not renumber fields that may be persisted or consumed by clients.
 - Do not change a field type at an existing tag. Add a new tag instead.
 - Removing a persisted field requires both `reserved <tag>` and
@@ -40,6 +45,9 @@ For public API packages:
   changes shape.
 - Transient live-event protos are less stable, but `chatto/realtime/v1` is still
   a public wire protocol and must consider mixed-version clients.
+- For new client behaviour, prefer stable discovery or realtime protocol
+  capability keys over software-version checks. Keep protocol support distinct
+  from server feature configuration and viewer authorization.
 
 ## Presence And API Shape
 

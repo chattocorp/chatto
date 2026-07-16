@@ -31,7 +31,14 @@
       "send_message": "Nachricht senden"
     },
     "server_gutter": {
-      "add_server": "Server hinzufügen"
+      "add_server": "Server hinzufügen",
+      "version": "Version {version}",
+      "version_unknown": "Version unbekannt",
+      "compatibility_degraded": "Einige Live-Funktionen sind auf diesem Server nicht verfügbar.",
+      "compatibility_server_too_old": "Auf diesem Server läuft eine ältere Version. Einige Funktionen funktionieren möglicherweise nicht wie erwartet.",
+      "compatibility_client_too_old": "Diese App ist zu alt für diesen Server. Lade sie neu oder aktualisiere sie.",
+      "compatibility_unsupported": "Dieser Server unterstützt die von dieser App benötigten Protokolle nicht.",
+      "compatibility_unknown": "Dieser Server meldet keine Kompatibilitätsinformationen."
     },
     "threads": {
       "title": "Meine Threads",

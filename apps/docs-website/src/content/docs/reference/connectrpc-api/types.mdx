@@ -33,6 +33,23 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
+<a id="chatto-discovery-v1-ServerCompatibility"></a>
+
+### ServerCompatibility
+
+Machine-readable compatibility metadata for clients connecting to this
+server.
+
+Capability keys describe protocol contracts rather than server
+configuration or the authenticated viewer's permissions. Clients should
+ignore unknown keys. An absent minimum web-client version means the server
+has not declared a lower bound for the bundled Chatto web client.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, and `chatto.realtime.v1`. |
+| `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
+
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
