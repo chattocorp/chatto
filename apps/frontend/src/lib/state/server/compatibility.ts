@@ -4,8 +4,12 @@ import valid from 'semver/functions/valid.js';
 
 export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
 export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
+export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
 
-export const REQUIRED_PROTOCOL_CAPABILITIES = ['chatto.api.v1'] as const;
+export const REQUIRED_PROTOCOL_CAPABILITIES = [
+  'chatto.api.v1',
+  REALTIME_PROJECTION_CAPABILITY
+] as const;
 export const RECOMMENDED_PROTOCOL_CAPABILITIES = ['chatto.realtime.v1'] as const;
 
 export type ServerCompatibilityStatus =
@@ -92,7 +96,7 @@ export function evaluateServerCompatibility(
   }
 
   if (compareReleaseVersions(input.serverVersion, LEGACY_SERVER_WARNING_BEFORE_VERSION) === -1) {
-    return { status: 'degraded', reason: 'server-too-old', missingCapabilities: [] };
+    return { status: 'unsupported', reason: 'server-too-old', missingCapabilities: [] };
   }
 
   return { status: 'unknown', reason: 'legacy-server', missingCapabilities: [] };

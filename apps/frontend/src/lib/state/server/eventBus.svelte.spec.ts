@@ -244,11 +244,27 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets[0].url).toBe(fake.realtimeUrl);
     sockets[0].open();
     expect(sockets[0].sent).toHaveLength(1);
+    const hello = RealtimeClientFrame.fromBinary(sockets[0].sent[0]);
+    expect(hello.frame.case).toBe('hello');
+    if (hello.frame.case !== 'hello') throw new Error('expected hello frame');
+    expect(hello.frame.value.protocolVersion).toBe(2);
 
     await sockets[0].receive(helloFrame());
     expect(sockets[0].sent).toHaveLength(2);
     await sockets[0].receive(subscribedFrame());
     expect(fake.status).toBe('connected');
+  });
+
+  it('registers the bus but defers the socket until projection support is confirmed', () => {
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, false);
+
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
+    expect(sockets).toHaveLength(0);
+
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true);
+
+    expect(sockets).toHaveLength(1);
   });
 
   it('dispatches protobuf realtime events to existing event handlers', async () => {
@@ -409,6 +425,30 @@ describe('eventBusManager realtime transport', () => {
     expect(fake.status).toBe('disconnected');
     expect(catchUp).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it('does not reconnect when the server rejects projection protocol v2', async () => {
+    vi.useFakeTimers();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+    const socket = sockets[0];
+    socket.open();
+
+    await socket.receive(
+      serverFrame({
+        case: 'error',
+        value: new RealtimeError({
+          code: 'unsupported_protocol',
+          message: 'unsupported realtime protocol version',
+          fatal: true
+        })
+      })
+    );
+
+    expect(fake.status).toBe('disconnected');
+    expect(socket.closeCalls.at(-1)?.reason).toBe('unsupported_protocol');
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(sockets).toHaveLength(1);
   });
 

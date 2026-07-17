@@ -35,7 +35,11 @@
     for (const server of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {
-        eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
+        eventBusManager.startBus(
+          server.id,
+          serverConnectionManager.getClient(server.id),
+          store.serverInfo.supportsRealtimeProjection
+        );
       }
     }
   }

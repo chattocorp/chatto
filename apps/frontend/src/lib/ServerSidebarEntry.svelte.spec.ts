@@ -351,7 +351,7 @@ describe('ServerSidebarEntry', () => {
   it('shows the server version and warns when the server is too old', async () => {
     mocks.store.serverInfo.version = '0.4.12';
     mocks.store.serverInfo.compatibility = {
-      status: 'degraded',
+      status: 'unsupported',
       reason: 'server-too-old',
       missingCapabilities: []
     };
@@ -375,7 +375,7 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain(
-        'This server is running an older version. Some features may not work as expected.'
+        'This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
       )
     );
     expect(document.body.textContent).toContain('Version 0.4.12');

@@ -17,7 +17,7 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 | ------- | ----------------- | ------- |
 | Public ConnectRPC API | `/api/connect/chatto.api.v1.*` | Normal client and integration behavior. |
 | Admin ConnectRPC API | `/api/connect/chatto.admin.v1.*` | Permission-gated administrative tooling on the public web listener. |
-| Realtime WebSocket | `/api/realtime` | Protobuf live event delivery for authenticated clients. |
+| Realtime WebSocket | `/api/realtime` | Protobuf live events and resumable server-projection delivery for authenticated clients. |
 | Operator API | Unix socket | Root-equivalent local automation and recovery. |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
@@ -41,7 +41,7 @@ Bearer tokens are opaque runtime credentials stored server-side. They are not JW
 
 ## Realtime Delivery
 
-Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. The stream is live-only. If a client disconnects or wakes from sleep, use projected ConnectRPC reads to reload room, thread, notification, and read-state windows.
+Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. Protocol v1 is a live-only compatibility mode. Protocol v2 sends one ordered server-scoped projection stream for initial state, bounded replay after reconnect, and later live mutations. Check for `chatto.realtime.projection.v1` in server discovery before requesting protocol v2.
 
 Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
 

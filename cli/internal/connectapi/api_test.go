@@ -495,6 +495,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.api.v1",
 		"chatto.admin.v1",
 		"chatto.realtime.v1",
+		"chatto.realtime.projection.v1",
 	}
 	if got := msg.GetCompatibility().GetProtocolCapabilities(); !slices.Equal(got, wantCapabilities) {
 		t.Fatalf("protocol capabilities = %v, want %v", got, wantCapabilities)

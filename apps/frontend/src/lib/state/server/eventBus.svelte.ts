@@ -90,17 +90,25 @@ class EventBusManager {
   // SvelteMap so getBus() is a reactive read — consumers like NotificationSync
   // re-run their $effect when a bus is started/stopped, avoiding mount races.
   #buses = new SvelteMap<string, EventBus>();
-  #subscriptions = new Map<string, { unsubscribe: () => void }>();
+  #subscriptions = new Map<string, { unsubscribe: () => void; enable: () => void }>();
   #cleanups = new Map<string, () => void>();
   #paused = false;
 
   /**
-   * Start an event bus for the given server. Creates the realtime socket and
-   * stores the bus. If a bus already exists for this server, returns a no-op.
+   * Register an event bus for the given server. The socket remains deferred
+   * until discovery confirms the required projection capability. Calling this
+   * again with support confirmed enables an already-registered bus.
    */
-  startBus(serverId: string, serverConnection: ServerConnection): () => void {
+  startBus(
+    serverId: string,
+    serverConnection: ServerConnection,
+    realtimeProjectionSupported = true
+  ): () => void {
     if (this.#paused) return () => {};
-    if (this.#buses.has(serverId)) return () => {};
+    if (this.#buses.has(serverId)) {
+      if (realtimeProjectionSupported) this.#subscriptions.get(serverId)?.enable();
+      return () => {};
+    }
 
     const handlers = new SvelteSet<EventHandler>();
     const projectionHandlers = new SvelteSet<ProjectionHandler>();
@@ -119,6 +127,7 @@ class EventBusManager {
     let socket: RealtimeSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    let enabled = false;
     let stopped = false;
 
     const debugState = () => ({
@@ -190,6 +199,17 @@ class EventBusManager {
       serverConnection.handleAuthenticationRequired();
     };
 
+    const stopForUnsupportedProtocol = (current: RealtimeSocket) => {
+      console.warn(`[eventBus:${serverId}] realtime projection protocol is unsupported`, {
+        ...debugState()
+      });
+      stopped = true;
+      current.onclose = null;
+      if (socket === current) socket = null;
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      current.close(1000, 'unsupported_protocol');
+    };
+
     const dispatchEvent = (event: EventEnvelope) => {
       dispatchedEventCount++;
       console.debug(
@@ -221,7 +241,7 @@ class EventBusManager {
     };
 
     const connect = (reason: string) => {
-      if (stopped) return;
+      if (stopped || !enabled) return;
       clearReconnectTimer();
       generation++;
       const socketGeneration = generation;
@@ -307,6 +327,10 @@ class EventBusManager {
                 stopForAuthenticationRequired(nextSocket, 'error frame');
                 return;
               }
+              if (frame.frame.value.code === 'unsupported_protocol') {
+                stopForUnsupportedProtocol(nextSocket);
+                return;
+              }
               if (frame.frame.value.fatal) {
                 nextSocket.close(1011, frame.frame.value.code || 'fatal realtime error');
               }
@@ -357,7 +381,7 @@ class EventBusManager {
       catchUpReason: EventBusCatchUpReason,
       delayMs?: number
     ) => {
-      if (stopped) return;
+      if (stopped || !enabled) return;
       clearReconnectTimer();
       reconnectCount++;
       reconnectAttempts++;
@@ -375,7 +399,7 @@ class EventBusManager {
     };
 
     const reconnectNow = (reason: string, catchUpReason: EventBusCatchUpReason) => {
-      if (stopped) return;
+      if (stopped || !enabled) return;
       detachSocket(true);
       reconnectAttempts = 0;
       scheduleReconnect(reason, catchUpReason, 0);
@@ -385,12 +409,19 @@ class EventBusManager {
       reconnectNow(reason, 'ws-reconnected');
     });
 
+    const enable = () => {
+      if (stopped || enabled) return;
+      enabled = true;
+      connect('projection capability confirmed');
+    };
+
     console.debug(`[eventBus:${serverId}] bus started`, debugState());
-    this.#subscriptions.set(serverId, { unsubscribe: () => detachSocket(true) });
-    connect('initial start');
+    this.#buses.set(serverId, bus);
+    this.#subscriptions.set(serverId, { unsubscribe: () => detachSocket(true), enable });
+    if (realtimeProjectionSupported) enable();
 
     const heartbeatWatchdog = setInterval(() => {
-      if (stopped) return;
+      if (stopped || !enabled) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const ageMs = Date.now() - lastEventAt;
       if (ageMs < heartbeatStallMs) return;
@@ -412,7 +443,6 @@ class EventBusManager {
       serverConnection.setRealtimeConnectionStatus('disconnected');
     });
 
-    this.#buses.set(serverId, bus);
     return () => this.stopBus(serverId);
   }
 

@@ -13,6 +13,7 @@ import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v
 import {
   evaluateServerCompatibility,
   hasProtocolCapability,
+  REALTIME_PROJECTION_CAPABILITY,
   type ServerCompatibilityResult
 } from './compatibility';
 
@@ -61,6 +62,11 @@ export class ServerInfoState {
 
   supportsProtocolCapability(capability: string): boolean | null {
     return hasProtocolCapability(this.protocolCapabilities, capability);
+  }
+
+  /** Whether discovery confirmed the projection stream required by this client. */
+  get supportsRealtimeProjection(): boolean {
+    return this.supportsProtocolCapability(REALTIME_PROJECTION_CAPABILITY) === true;
   }
 
   /**

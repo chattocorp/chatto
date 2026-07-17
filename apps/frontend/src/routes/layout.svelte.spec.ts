@@ -125,7 +125,11 @@ function renderLayout() {
     bannerUrl: null,
     authProviders: [],
     compatibility: {
-      protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+      protocolCapabilities: [
+        'chatto.api.v1',
+        'chatto.realtime.v1',
+        'chatto.realtime.projection.v1'
+      ],
       minimumWebClientVersion: null
     }
   };

@@ -325,7 +325,11 @@ class ServerRegistry {
 		// starts the bus once `isAuthenticated` flips true.
 		if (store.isAuthenticated) {
 			const serverConnection = serverConnectionManager.getClient(server.id);
-			eventBusManager.startBus(server.id, serverConnection);
+			eventBusManager.startBus(
+				server.id,
+				serverConnection,
+				store.serverInfo.supportsRealtimeProjection
+			);
 		}
 	}
 
@@ -405,7 +409,11 @@ class ServerRegistry {
 		serversSlot.set(this.servers);
 		const store = this.#createStore(server);
 		if (store.isAuthenticated) {
-			eventBusManager.startBus(id, serverConnectionManager.getClient(id));
+			eventBusManager.startBus(
+				id,
+				serverConnectionManager.getClient(id),
+				store.serverInfo.supportsRealtimeProjection
+			);
 		}
 		return true;
 	}

@@ -35,7 +35,7 @@
       "version": "Version {version}",
       "version_unknown": "Okänd version",
       "compatibility_degraded": "Vissa livefunktioner är inte tillgängliga på den här servern.",
-      "compatibility_server_too_old": "Den här servern kör en äldre version. Vissa funktioner kanske inte fungerar som förväntat.",
+      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
       "compatibility_client_too_old": "Den här appen är för gammal för servern. Läs in eller uppdatera den.",
       "compatibility_unsupported": "Den här servern stöder inte protokollen som appen kräver.",
       "compatibility_unknown": "Den här servern rapporterar ingen kompatibilitetsinformation."

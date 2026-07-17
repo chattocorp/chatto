@@ -15,6 +15,14 @@ v2 is the bundled client's server-scoped projection stream. It adds
 `caught_up` at the replay-to-live boundary. Application heartbeats and
 client `ping`/server `pong` remain common to both versions.
 
+The bundled client creates its event-bus reducer before discovery completes so
+consumers can register synchronously, but it opens the WebSocket only after
+discovery advertises `chatto.realtime.projection.v1`. Servers older than 0.5 do
+not advertise that required contract and are reported as unsupported rather
+than receiving the former ConnectRPC bootstrap plus protocol-v1 live feed. An
+`unsupported_protocol` error is terminal for the current bus and does not enter
+the reconnect loop.
+
 ## Compacted projection prefix
 
 A v2 subscription without a usable cursor emits one ordered stream of

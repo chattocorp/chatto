@@ -39,6 +39,13 @@ later changes:
 4. A missing, invalid, expired, foreign-incarnation, authorization-sensitive,
    or oversized cursor causes another `reset` plus current compacted state.
 
+The 0.5 bundled client requires the discovery capability
+`chatto.realtime.projection.v1` and does not retain the 0.4 ConnectRPC bootstrap
+as a fallback. A 0.4 server is therefore an explicit unsupported target for the
+0.5 client. The 0.5 server continues accepting protocol v1 from older clients,
+but this one-way compatibility does not weaken the v2 client projection
+contract.
+
 The browser does not persist a cursor independently of its in-memory
 projection. Reloading the page or recreating a server store omits the cursor and
 therefore rebuilds the complete projection. This prevents a valid cursor from

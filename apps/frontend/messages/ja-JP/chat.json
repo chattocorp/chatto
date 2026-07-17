@@ -35,7 +35,7 @@
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
       "compatibility_degraded": "このサーバーでは一部のライブ機能を利用できません。",
-      "compatibility_server_too_old": "このサーバーでは古いバージョンが実行されています。一部の機能が期待どおりに動作しない可能性があります。",
+      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
       "compatibility_client_too_old": "このアプリは、このサーバーには古すぎます。再読み込みまたは更新してください。",
       "compatibility_unsupported": "このサーバーは、このアプリに必要なプロトコルに対応していません。",
       "compatibility_unknown": "このサーバーは互換性情報を提供していません。"

@@ -113,7 +113,8 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
   /**
    * Stable protocol capability keys supported by this server. Current keys:
    * `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
-   * `chatto.admin.v1`, and `chatto.realtime.v1`.
+   * `chatto.admin.v1`, `chatto.realtime.v1`, and
+   * `chatto.realtime.projection.v1`.
    *
    * @generated from field: repeated string protocol_capabilities = 1;
    */

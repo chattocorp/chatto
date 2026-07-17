@@ -39,6 +39,7 @@ server before authentication. The response may include
 - `chatto.api.v1`
 - `chatto.admin.v1`
 - `chatto.realtime.v1`
+- `chatto.realtime.projection.v1`
 
 These values tell you which broad protocol surfaces the server advertises. They
 do not negotiate an API version, guarantee a particular method or field, or say
@@ -48,6 +49,11 @@ Ignore capability values you do not recognise. If a capability you need is
 absent, treat that protocol as unavailable. Older servers may omit compatibility
 metadata entirely, so decide explicitly whether to reject those servers or
 support a known range of releases through your own tests.
+
+The bundled 0.5 web client requires `chatto.realtime.projection.v1`. It does not
+fall back to the 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4
+servers as unsupported and asks the operator to upgrade them. A 0.5 server
+still accepts protocol-v1 realtime connections from older clients.
 
 `compatibility.minimumWebClientVersion`, when present, applies only to Chatto's
 bundled web client. Third-party clients must not use it as their compatibility

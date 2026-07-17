@@ -14,7 +14,11 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     bannerUrl: 'https://banner',
     authProviders: [],
     compatibility: {
-      protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+      protocolCapabilities: [
+        'chatto.api.v1',
+        'chatto.realtime.v1',
+        'chatto.realtime.projection.v1'
+      ],
       minimumWebClientVersion: null
     },
     ...overrides
@@ -43,7 +47,12 @@ describe('ServerInfoState.init()', () => {
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
     expect(state.version).toBe('test');
-    expect(state.protocolCapabilities).toEqual(['chatto.api.v1', 'chatto.realtime.v1']);
+    expect(state.protocolCapabilities).toEqual([
+      'chatto.api.v1',
+      'chatto.realtime.v1',
+      'chatto.realtime.projection.v1'
+    ]);
+    expect(state.supportsRealtimeProjection).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');
     expect(state.welcomeMessage).toBe('welcome');
@@ -177,7 +186,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.bannerUrl).toBe('https://cdn/banner.webp');
   });
 
-  it('warns about a legacy pre-0.5 server as degraded', async () => {
+  it('rejects a legacy pre-0.5 server without the projection stream', async () => {
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({ version: '0.4.12', compatibility: null })
     );
@@ -187,8 +196,9 @@ describe('ServerInfoState.init()', () => {
 
     expect(state.protocolCapabilities).toBeNull();
     expect(state.compatibility).toMatchObject({
-      status: 'degraded',
+      status: 'unsupported',
       reason: 'server-too-old'
     });
+    expect(state.supportsRealtimeProjection).toBe(false);
   });
 });

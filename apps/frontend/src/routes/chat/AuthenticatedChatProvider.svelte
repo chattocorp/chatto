@@ -111,7 +111,11 @@
   if (originServerId) {
     const authenticatedOriginServerId = originServerId;
     const originClient = serverConnectionManager.originClient;
-    eventBusManager.startBus(authenticatedOriginServerId, originClient);
+    eventBusManager.startBus(
+      authenticatedOriginServerId,
+      originClient,
+      serverRegistry.getStore(authenticatedOriginServerId).serverInfo.supportsRealtimeProjection
+    );
     provideEventBus(() => authenticatedOriginServerId);
 
     function clearTerminatedOriginSession() {
@@ -217,8 +221,13 @@
       onResumeLiveEvents: () => {
         eventBusManager.resumeAll();
         for (const server of serverRegistry.servers) {
-          if (serverRegistry.tryGetStore(server.id)?.isAuthenticated) {
-            eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
+          const store = serverRegistry.tryGetStore(server.id);
+          if (store?.isAuthenticated) {
+            eventBusManager.startBus(
+              server.id,
+              serverConnectionManager.getClient(server.id),
+              store.serverInfo.supportsRealtimeProjection
+            );
           }
         }
       }

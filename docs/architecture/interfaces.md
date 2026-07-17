@@ -51,12 +51,14 @@ CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
 The discovery response includes the server software version, stable protocol
-capability keys for the mounted public packages, and an optional minimum
-bundled-web-client version. This metadata is public pre-authentication state.
+capability keys for mounted public packages and negotiated contracts, and an
+optional minimum bundled-web-client version. The
+`chatto.realtime.projection.v1` capability is the bundled 0.5 client's gate for
+opening protocol-v2 realtime. This metadata is public pre-authentication state.
 It describes wire support, not enabled server features or the authenticated
 viewer's permission-derived capabilities. Multi-server clients refresh it per
-server and use version comparison only when an older server omits capability
-metadata.
+server and use version comparison only to classify older servers that omit
+capability metadata.
 
 Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol
