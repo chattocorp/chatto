@@ -1,6 +1,6 @@
 # Realtime Delivery Inventory
 
-Key files: [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto), [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go), [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go), [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go), [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
+Key files: [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto), [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go), [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go), [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go), [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts), [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts), [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md) and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
@@ -22,6 +22,16 @@ not advertise that required contract and are reported as unsupported rather
 than receiving the former ConnectRPC bootstrap plus protocol-v1 live feed. An
 `unsupported_protocol` error is terminal for the current bus and does not enter
 the reconnect loop.
+
+The browser keeps the event bus, projection, readiness phase, and opaque cursor
+for every authenticated server in memory for the tab session. Transport is
+separate: the URL-active server is `live`, inactive servers are normally
+`dormant`, and one inactive server at a time may be `polling`. A poll opens the
+same `/api/realtime` stream with that projection's cursor and closes as soon as
+`caught_up` arrives. Initial inactive hydration runs immediately; later polls
+run about once a minute with jitter and a 30-second client timeout. Switching
+servers closes the previous persistent socket without discarding its state and
+promotes the selected server to the sole persistent connection.
 
 ## Compacted projection prefix
 
@@ -56,6 +66,12 @@ Changing the route selects retained state for rendering and does not initiate
 initial room hydration. Room-member lists and DM labels resolve those membership
 references through the already-warm user projection instead of issuing a
 second bootstrap query.
+
+Projection readiness distinguishes cold data from transport freshness. Known
+rooms in `ready` or `stale` projections render immediately, including after a
+server switch. Absence in a stale projection is not authoritative until the
+activation catch-up reaches `caught_up`. Loading placeholders remain for a cold
+projection and for separately lazy history, threads, previews, and media.
 
 ## Resume and live handoff
 

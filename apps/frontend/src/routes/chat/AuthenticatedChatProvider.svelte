@@ -100,21 +100,17 @@
     });
   });
 
-  // Start (idempotent) and expose the origin server's event bus via Svelte
-  // context so the on* hooks below can use it. Root +layout.svelte's $effect
-  // also starts buses for every authenticated server, but the user state may
-  // not have flipped to authenticated at root-init time — starting it here
-  // unconditionally guarantees the bus exists by the time the context is
-  // set, so consumer handlers register against the right bus rather than a
-  // dropped no-op.
+  // Register and expose the origin server's stable bus surface. The root
+  // coordinator decides whether its transport is live, polling, or dormant.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
     const authenticatedOriginServerId = originServerId;
     const originClient = serverConnectionManager.originClient;
-    eventBusManager.startBus(
+    eventBusManager.ensureBus(
       authenticatedOriginServerId,
       originClient,
-      serverRegistry.getStore(authenticatedOriginServerId).serverInfo.supportsRealtimeProjection
+      serverRegistry.getStore(authenticatedOriginServerId).serverInfo.supportsRealtimeProjection,
+      serverRegistry.getStore(authenticatedOriginServerId).realtimeSync
     );
     provideEventBus(() => authenticatedOriginServerId);
 
@@ -220,16 +216,6 @@
       },
       onResumeLiveEvents: () => {
         eventBusManager.resumeAll();
-        for (const server of serverRegistry.servers) {
-          const store = serverRegistry.tryGetStore(server.id);
-          if (store?.isAuthenticated) {
-            eventBusManager.startBus(
-              server.id,
-              serverConnectionManager.getClient(server.id),
-              store.serverInfo.supportsRealtimeProjection
-            );
-          }
-        }
       }
     }
   );

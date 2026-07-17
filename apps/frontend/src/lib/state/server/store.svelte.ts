@@ -49,6 +49,7 @@ import {
 } from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationPage } from '$lib/api-client/notifications';
+import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 type CallTransitionEventPayload = {
   roomId: string;
@@ -103,6 +104,8 @@ export class ServerStateStore {
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
   readonly projection = new ServerProjectionStore();
+  /** Readiness and opaque resume position for this retained projection. */
+  readonly realtimeSync = new RealtimeProjectionSyncState();
 
   /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -152,7 +155,7 @@ export class ServerStateStore {
       undefined,
       onAuthenticationRequired
     );
-    this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader, connectAPIConfig);
+    this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore();
     this.notificationLevels = new NotificationLevelStore();
@@ -577,6 +580,7 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#disposeEffects();
+    this.realtimeSync.reset();
     for (const store of Object.values(this.#roomMessages)) store.dispose();
     this.#roomMessages = Object.create(null);
     for (const store of Object.values(this.#threadMessages)) store.dispose();

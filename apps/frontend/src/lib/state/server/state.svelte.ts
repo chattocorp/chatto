@@ -3,11 +3,6 @@
  */
 
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
-import {
-  getAuthenticatedServerState,
-  type AuthenticatedServerState,
-  type ServerStateAPIConfig
-} from '$lib/api-client/serverState';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
@@ -20,8 +15,6 @@ import {
 export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
-  #apiConfig?: ServerStateAPIConfig;
-  #getAuthenticatedServerState: (config: ServerStateAPIConfig) => Promise<AuthenticatedServerState>;
 
   name = $state('Chatto');
   version = $state('');
@@ -73,17 +66,10 @@ export class ServerInfoState {
    * Human-readable label for this server, used in log messages so console
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
-  */
-  constructor(
-    label = 'unknown',
-    publicServerInfoLoader = getPublicServerInfo,
-    apiConfig?: ServerStateAPIConfig,
-    authenticatedServerStateLoader = getAuthenticatedServerState
-  ) {
+   */
+  constructor(label = 'unknown', publicServerInfoLoader = getPublicServerInfo) {
     this.#label = label;
     this.#getPublicServerInfo = publicServerInfoLoader;
-    this.#apiConfig = apiConfig;
-    this.#getAuthenticatedServerState = authenticatedServerStateLoader;
   }
 
   /**
@@ -153,25 +139,5 @@ export class ServerInfoState {
     this.maxUploadSize = Number(runtime.maxUploadSize);
     this.maxVideoUploadSize = Number(runtime.maxVideoUploadSize);
     this.messageEditWindowSeconds = runtime.messageEditWindowSeconds;
-  }
-
-  /**
-   * Fetch authenticated server settings used by the in-app UI. This runs only
-   * after the store knows the viewer is authenticated.
-   */
-  async refreshAuthenticatedSettings(): Promise<void> {
-    if (!this.#apiConfig) {
-      throw new Error('authenticated server state Connect API config is not configured');
-    }
-    const info = await this.#getAuthenticatedServerState(this.#apiConfig);
-
-    this.motd = info.motd;
-    this.pushNotificationsEnabled = info.pushNotificationsEnabled;
-    this.vapidPublicKey = info.vapidPublicKey;
-    this.livekitUrl = info.livekitUrl;
-    this.videoProcessingEnabled = info.videoProcessingEnabled;
-    this.maxUploadSize = info.maxUploadSize;
-    this.maxVideoUploadSize = info.maxVideoUploadSize;
-    this.messageEditWindowSeconds = info.messageEditWindowSeconds;
   }
 }

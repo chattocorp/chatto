@@ -73,10 +73,11 @@ test.describe('Cross-instance dots', () => {
     }
   });
 
-  test('@mention on a remote server lights up its server icon in real time', async ({
+  test('@mention on an inactive remote server appears after background catch-up', async ({
     page,
     chatPage
   }) => {
+    test.slow();
     // Home: log in so the SPA boots.
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -122,8 +123,9 @@ test.describe('Cross-instance dots', () => {
       `hey @${viewerLogin} ping ${ts}`
     );
 
-    // The remote server icon should light up in real time, no reload.
-    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    // The inactive server has no persistent socket. Its serialized resume poll
+    // should still update the retained projection without a reload.
+    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.BACKGROUND_SERVER_POLL });
     await expect(remoteSpaceBadge).toHaveText('1');
   });
 
@@ -136,6 +138,7 @@ test.describe('Cross-instance dots', () => {
     chatPage,
     roomPage
   }) => {
+    test.slow();
     // Home: mount a normal room first. This is the stale-state setup: the
     // currently rendered Room subtree belongs to the home server before the
     // remote notification badge routes to another server.
@@ -183,7 +186,7 @@ test.describe('Cross-instance dots', () => {
       remoteRootEventId
     );
 
-    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.BACKGROUND_SERVER_POLL });
     await expect(remoteSpaceBadge).toHaveText('1');
     await remoteSpaceBadge.click();
 

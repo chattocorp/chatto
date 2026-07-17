@@ -39,14 +39,6 @@ export function useServerRegistry(getUser: () => unknown): void {
 
       const store = serverRegistry.getStore(originId);
       void store.serverInfo.init();
-      if (store.isAuthenticated) {
-        store.serverInfo.refreshAuthenticatedSettings().catch((err) => {
-          console.error(
-            `[server:${store.serverId}] failed to refresh authenticated server settings`,
-            err
-          );
-        });
-      }
     });
   });
 }

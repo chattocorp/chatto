@@ -53,6 +53,15 @@ projection. Reloading the page or recreating a server store omits the cursor and
 therefore rebuilds the complete projection. This prevents a valid cursor from
 being applied to an empty client store.
 
+The browser retains one projection store for every authenticated server for the
+lifetime of the tab. Each store owns an explicit `empty`, `hydrating`, `ready`,
+or `stale` phase and its own cursor. Socket teardown does not discard either.
+The URL-active server has the only persistent realtime WebSocket. Inactive
+servers periodically open short-lived connections, resume through `caught_up`,
+and close; these catch-ups are serialized across the browser and use the same
+frames and reducer as the active connection. Polling is therefore a transport
+lifecycle, not a second bootstrap mechanism.
+
 Resume cursors are encrypted and authenticated with a purpose-separated key
 derived from `core.secret_key`, use a random nonce, and are bound to the
 authenticated viewer. EVT stream incarnation and global sequence remain inside
@@ -136,6 +145,21 @@ Reactions, edits, retractions, channel-echo additions/removals, and new
 messages received while a room is inactive remain
 current, and reconnect can recover exact reaction transitions for integrations
 while also transmitting the authoritative aggregate message row.
+
+Switching among already-hydrated servers also renders retained state
+immediately, then resumes it in the background. Known rooms do not return to a
+loading skeleton merely because their transport was dormant. A room absent from
+a stale projection is not treated as authoritatively missing until activation
+reaches `caught_up`. Cold server hydration, thread/history windows, non-member
+previews, and media remain independently loadable and may still show loading
+states.
+
+At most one background catch-up socket exists alongside the active persistent
+socket. Inactive polls are jittered and serialized, and a stalled poll is
+abandoned after 30 seconds so one server cannot block the rest. Non-replayable
+typing, presence transitions, and similar transient frames are intentionally
+not reconstructed while a server is dormant; activation observes current
+latest-value state and later transitions according to their owning subsystem.
 
 Initial connection payload and server hydration work grow with server users,
 visible rooms, and joined-room timeline windows. Timeline hydration is bounded

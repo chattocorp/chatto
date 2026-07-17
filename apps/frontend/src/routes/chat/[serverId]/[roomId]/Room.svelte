@@ -201,21 +201,14 @@
     roomMembersStore.replaceProjection(roomId, stores.projectedMembersForRoom(roomId));
   });
 
-  $effect(() => {
-    if (room.roomData) {
-      roomMembersStore.ensureLoaded();
-    }
-  });
-
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
 
   createRoomPermissions(() => permissions);
 
-  // roomData === null means the server returned a clean response with no room
-  // (deleted, archived, no access). Transient network failures are filtered
-  // upstream in useRoomData, so reaching this branch is genuine — clear
+  // roomData === null means the ready projection contains no visible room
+  // (deleted, archived, or no access), so reaching this branch is genuine — clear
   // lastRoom so [spaceId]/+page.svelte's onMount doesn't redirect us right
   // back here in an infinite loop.
   $effect.pre(() => {

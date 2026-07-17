@@ -63,42 +63,6 @@ describe('ServerInfoState.init()', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('loads authenticated runtime settings separately', async () => {
-    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
-    const authenticatedLoader = vi.fn().mockResolvedValue({
-      motd: 'hello',
-      pushNotificationsEnabled: true,
-      vapidPublicKey: 'vap',
-      livekitUrl: 'wss://lk',
-      videoProcessingEnabled: true,
-      maxUploadSize: 100,
-      maxVideoUploadSize: 200,
-      messageEditWindowSeconds: 7200
-    });
-    const state = new ServerInfoState(
-      'https://acme.test',
-      loader,
-      { baseUrl: 'https://acme.test/api/connect', bearerToken: 'token' },
-      authenticatedLoader
-    );
-
-    await state.init();
-    await state.refreshAuthenticatedSettings();
-
-    expect(authenticatedLoader).toHaveBeenCalledWith({
-      baseUrl: 'https://acme.test/api/connect',
-      bearerToken: 'token'
-    });
-    expect(state.motd).toBe('hello');
-    expect(state.pushNotificationsEnabled).toBe(true);
-    expect(state.vapidPublicKey).toBe('vap');
-    expect(state.livekitUrl).toBe('wss://lk');
-    expect(state.videoProcessingEnabled).toBe(true);
-    expect(state.maxUploadSize).toBe(100);
-    expect(state.maxVideoUploadSize).toBe(200);
-    expect(state.messageEditWindowSeconds).toBe(7200);
-  });
-
   it('refreshes profile fields without toggling initial loading state', async () => {
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({

@@ -18,8 +18,13 @@ import {
   RealtimeProjectionOperation,
   RealtimeProjectionReset
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
+import {
+  eventBusManager,
+  setRealtimePollRandomForTests,
+  setRealtimeSocketFactoryForTests
+} from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
+import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -228,8 +233,9 @@ describe('eventBusManager realtime transport', () => {
 
   afterEach(() => {
     eventBusManager.resumeAll();
-    eventBusManager.stopBus(TEST_SERVER);
+    eventBusManager.stopAll();
     setRealtimeSocketFactoryForTests(null);
+    setRealtimePollRandomForTests(null);
     consoleError.mockRestore();
     consoleWarn.mockRestore();
     consoleDebug.mockRestore();
@@ -309,7 +315,8 @@ describe('eventBusManager realtime transport', () => {
     await resumed.receive(helloFrame());
     const subscribeFrame = RealtimeClientFrame.fromBinary(resumed.sent[1]);
     expect(subscribeFrame.frame.case).toBe('subscribeEvents');
-    if (subscribeFrame.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    if (subscribeFrame.frame.case !== 'subscribeEvents')
+      throw new Error('expected subscribe frame');
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
@@ -592,21 +599,206 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets[0].closeCalls).toHaveLength(1);
   });
 
-  it('pauseAll stops active buses and blocks later startBus calls until resumeAll', async () => {
+  it('pauseAll closes transports but retains buses and their projection sessions', async () => {
     const fake = new FakeServerConnection();
     await startAndSubscribe(fake);
     expect(sockets).toHaveLength(1);
 
     eventBusManager.pauseAll();
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
+    expect(sockets[0].closeCalls.at(-1)?.reason).toBe('dormant');
 
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     expect(sockets).toHaveLength(1);
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
+    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
 
     eventBusManager.resumeAll();
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     expect(sockets).toHaveLength(2);
     expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
+  });
+
+  it('keeps only the active server live and closes an inactive catch-up at caught_up', async () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://inactive.test/api/realtime';
+    const activeSync = new RealtimeProjectionSyncState();
+    const inactiveSync = new RealtimeProjectionSyncState();
+
+    eventBusManager.synchronizeAuthenticatedServers(
+      [
+        {
+          serverId: 'active-server',
+          connection: active as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: activeSync
+        },
+        {
+          serverId: 'inactive-server',
+          connection: inactive as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: inactiveSync
+        }
+      ],
+      'active-server'
+    );
+    eventBusManager.getBus('active-server')!.projectionHandlers.add(vi.fn());
+    eventBusManager.getBus('inactive-server')!.projectionHandlers.add(vi.fn());
+
+    expect(sockets.map((socket) => socket.url)).toEqual([active.realtimeUrl, inactive.realtimeUrl]);
+    const inactiveSocket = sockets[1];
+    inactiveSocket.open();
+    await inactiveSocket.receive(helloFrame());
+    await inactiveSocket.receive(projectionFrame('inactive-event'));
+    await inactiveSocket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'inactive-ready' }) })
+    );
+
+    expect(inactiveSocket.closeCalls.at(-1)?.reason).toBe('caught_up');
+    expect(inactiveSync.phase).toBe('ready');
+    expect(inactiveSync.resumeCursor).toBe('inactive-ready');
+    expect(active.status).toBe('connecting');
+    expect(inactive.status).toBe('disconnected');
+  });
+
+  it('reuses an inactive projection cursor when that server becomes active', async () => {
+    const first = new FakeServerConnection();
+    const second = new FakeServerConnection();
+    second.realtimeUrl = 'ws://second.test/api/realtime';
+    const firstSync = new RealtimeProjectionSyncState();
+    const secondSync = new RealtimeProjectionSyncState();
+    const registrations = [
+      {
+        serverId: 'first-server',
+        connection: first as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: firstSync
+      },
+      {
+        serverId: 'second-server',
+        connection: second as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: secondSync
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'first-server');
+    eventBusManager.getBus('first-server')!.projectionHandlers.add(vi.fn());
+    eventBusManager.getBus('second-server')!.projectionHandlers.add(vi.fn());
+    const firstLive = sockets[0];
+    firstLive.open();
+    await firstLive.receive(helloFrame());
+    await firstLive.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'first-ready' }) })
+    );
+    const inactivePoll = sockets[1];
+    inactivePoll.open();
+    await inactivePoll.receive(helloFrame());
+    await inactivePoll.receive(projectionFrame('second-event'));
+    await inactivePoll.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'second-ready' }) })
+    );
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'second-server');
+    expect(firstLive.closeCalls.at(-1)?.reason).toBe('dormant');
+    const promoted = sockets.at(-1)!;
+    promoted.open();
+    await promoted.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(promoted.sent[1]);
+
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.resumeCursor).toBe('second-ready');
+    expect(firstSync.phase).toBe('stale');
+  });
+
+  it('serializes initial catch-up connections for multiple inactive servers', async () => {
+    const active = new FakeServerConnection();
+    const inactiveA = new FakeServerConnection();
+    const inactiveB = new FakeServerConnection();
+    inactiveA.realtimeUrl = 'ws://inactive-a.test/api/realtime';
+    inactiveB.realtimeUrl = 'ws://inactive-b.test/api/realtime';
+    const registrations = [
+      {
+        serverId: 'active',
+        connection: active as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState()
+      },
+      {
+        serverId: 'inactive-a',
+        connection: inactiveA as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState()
+      },
+      {
+        serverId: 'inactive-b',
+        connection: inactiveB as unknown as ServerConnection,
+        projectionSupported: true,
+        sync: new RealtimeProjectionSyncState()
+      }
+    ];
+
+    eventBusManager.synchronizeAuthenticatedServers(registrations, 'active');
+    for (const registration of registrations) {
+      eventBusManager.getBus(registration.serverId)!.projectionHandlers.add(vi.fn());
+    }
+    expect(sockets.map((socket) => socket.url)).toEqual([
+      active.realtimeUrl,
+      inactiveA.realtimeUrl
+    ]);
+
+    const pollA = sockets[1];
+    pollA.open();
+    await pollA.receive(helloFrame());
+    await pollA.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'a-ready' }) })
+    );
+    await vi.waitFor(() => expect(sockets).toHaveLength(3));
+    expect(sockets[2].url).toBe(inactiveB.realtimeUrl);
+  });
+
+  it('periodically resumes a ready inactive projection with jittered serialized polling', async () => {
+    vi.useFakeTimers();
+    setRealtimePollRandomForTests(() => 0.5);
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://periodic.test/api/realtime';
+    const inactiveSync = new RealtimeProjectionSyncState();
+    inactiveSync.markCaughtUp('periodic-cursor');
+
+    eventBusManager.synchronizeAuthenticatedServers(
+      [
+        {
+          serverId: 'periodic-active',
+          connection: active as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: new RealtimeProjectionSyncState()
+        },
+        {
+          serverId: 'periodic-inactive',
+          connection: inactive as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: inactiveSync
+        }
+      ],
+      'periodic-active'
+    );
+    eventBusManager.getBus('periodic-active')!.projectionHandlers.add(vi.fn());
+    eventBusManager.getBus('periodic-inactive')!.projectionHandlers.add(vi.fn());
+
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
+
+    const poll = sockets[1];
+    poll.open();
+    await poll.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(poll.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.resumeCursor).toBe('periodic-cursor');
   });
 });
