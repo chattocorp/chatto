@@ -523,7 +523,9 @@ type RealtimeSubscribeEvents struct {
 	// Opaque cursor from a previously received durable event or caught-up
 	// frame. The server replays authorized durable projection changes after
 	// this cursor before continuing with live delivery. Omit it to receive a
-	// compacted reset of the current authorised server projection.
+	// compacted reset of the current authorised server projection. Cursors
+	// expire 24 hours after issue; an expired cursor also receives a compacted
+	// reset rather than historical replay.
 	ResumeCursor  *string `protobuf:"bytes,1,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -618,7 +620,8 @@ func (x *RealtimeSubscribed) GetStartCursor() string {
 //
 // Clients can retain `cursor` after applying every preceding event. A cursor
 // must not outlive the projection state it describes. Events after this frame
-// are live. Transient events are never replayed.
+// are live. Transient events are never replayed. A cursor is usable for up to
+// 24 hours after issue and should be replaced by each later caught-up cursor.
 type RealtimeCaughtUp struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque cursor at the replay-to-live handoff boundary.

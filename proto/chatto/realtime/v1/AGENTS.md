@@ -24,3 +24,6 @@ protocol used at `/api/realtime`.
 - Resume cursors are encrypted, authenticated, and viewer-bound. They may use
   EVT coordinates internally but must never disclose NATS/JetStream identities,
   sequences, subjects, or other persistence details on the wire.
+- Resume cursors have a bounded public lifetime (currently 24 hours). Expired
+  cursors must converge through compacted current state, never through a
+  partially trusted replay position.

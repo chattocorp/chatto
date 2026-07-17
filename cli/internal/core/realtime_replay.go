@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -15,8 +16,10 @@ import (
 )
 
 const (
-	realtimeCursorVersion         = 1
-	realtimeCursorPurpose         = "realtime-resume-v1"
+	realtimeCursorVersion         = 2
+	realtimeCursorPurpose         = "realtime-resume-v2"
+	realtimeCursorLifetime        = 24 * time.Hour
+	realtimeCursorFutureSkew      = 5 * time.Minute
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
 )
@@ -25,7 +28,8 @@ var (
 	// ErrRealtimeCursorInvalid means the cursor is malformed, references a
 	// different EVT incarnation, or points beyond the current stream.
 	ErrRealtimeCursorInvalid = errors.New("invalid realtime cursor")
-	// ErrRealtimeCursorExpired means the cursor precedes retained EVT history.
+	// ErrRealtimeCursorExpired means the cursor is older than its public
+	// lifetime or precedes retained EVT history.
 	ErrRealtimeCursorExpired = errors.New("realtime cursor expired")
 	// ErrRealtimeReplayLimitExceeded means the requested gap exceeds the
 	// bounded reconnect replay budget.
@@ -37,6 +41,7 @@ type realtimeCursorPayload struct {
 	StreamIdentity string `json:"i"`
 	Sequence       uint64 `json:"s"`
 	UserID         string `json:"u"`
+	IssuedAtUnix   int64  `json:"t"`
 }
 
 // RealtimeReplayPlan is a bounded, authorized durable replay ending at one
@@ -261,6 +266,10 @@ func realtimeReplayRoomSubject(subject string) (string, bool) {
 }
 
 func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequence uint64) (string, error) {
+	return c.encodeRealtimeCursorAt(userID, streamIdentity, sequence, time.Now())
+}
+
+func (c *ChattoCore) encodeRealtimeCursorAt(userID, streamIdentity string, sequence uint64, now time.Time) (string, error) {
 	if userID == "" || !events.ValidStreamIdentity(streamIdentity) {
 		return "", ErrRealtimeCursorInvalid
 	}
@@ -269,6 +278,7 @@ func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequenc
 		StreamIdentity: streamIdentity,
 		Sequence:       sequence,
 		UserID:         userID,
+		IssuedAtUnix:   now.Unix(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("encode realtime cursor: %w", err)
@@ -281,13 +291,24 @@ func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequenc
 }
 
 func (c *ChattoCore) decodeRealtimeCursor(userID, cursor string) (realtimeCursorPayload, error) {
+	return c.decodeRealtimeCursorAt(userID, cursor, time.Now())
+}
+
+func (c *ChattoCore) decodeRealtimeCursorAt(userID, cursor string, now time.Time) (realtimeCursorPayload, error) {
 	payload, err := publiccursor.Open(c.config.SecretKey, realtimeCursorPurpose, userID, cursor)
 	if err != nil {
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
 	}
 	var decoded realtimeCursorPayload
-	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || !events.ValidStreamIdentity(decoded.StreamIdentity) {
+	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || decoded.IssuedAtUnix <= 0 || !events.ValidStreamIdentity(decoded.StreamIdentity) {
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
+	}
+	issuedAt := time.Unix(decoded.IssuedAtUnix, 0)
+	if issuedAt.After(now.Add(realtimeCursorFutureSkew)) {
+		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
+	}
+	if now.Sub(issuedAt) > realtimeCursorLifetime {
+		return realtimeCursorPayload{}, ErrRealtimeCursorExpired
 	}
 	return decoded, nil
 }

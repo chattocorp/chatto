@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -15,15 +16,16 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	userID := "cursor-viewer"
-	cursor, err := chatto.encodeRealtimeCursor(userID, identity, 42)
+	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
+	cursor, err := chatto.encodeRealtimeCursorAt(userID, identity, 42, now)
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursor: %v", err)
 	}
-	decoded, err := chatto.decodeRealtimeCursor(userID, cursor)
+	decoded, err := chatto.decodeRealtimeCursorAt(userID, cursor, now)
 	if err != nil {
 		t.Fatalf("decodeRealtimeCursor: %v", err)
 	}
-	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.UserID != userID {
+	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.UserID != userID || decoded.IssuedAtUnix != now.Unix() {
 		t.Fatalf("decoded cursor = %+v", decoded)
 	}
 	if _, err := chatto.decodeRealtimeCursor(userID, "not-a-cursor"); !errors.Is(err, ErrRealtimeCursorInvalid) {
@@ -41,7 +43,7 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 			t.Fatalf("cursor envelope exposes internal payload %q", secret)
 		}
 	}
-	second, err := chatto.encodeRealtimeCursor(userID, identity, 42)
+	second, err := chatto.encodeRealtimeCursorAt(userID, identity, 42, now)
 	if err != nil {
 		t.Fatalf("encode second cursor: %v", err)
 	}
@@ -52,6 +54,57 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	tampered[len(tampered)-1] ^= 1
 	if _, err := chatto.decodeRealtimeCursor(userID, string(tampered)); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("tampered cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}
+
+func TestRealtimeCursorExpiresAfterPublicLifetime(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	userID := "cursor-viewer"
+	issuedAt := time.Date(2026, time.July, 16, 12, 0, 0, 0, time.UTC)
+	cursor, err := chatto.encodeRealtimeCursorAt(userID, identity, 42, issuedAt)
+	if err != nil {
+		t.Fatalf("encodeRealtimeCursorAt: %v", err)
+	}
+	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime)); err != nil {
+		t.Fatalf("cursor expired at inclusive lifetime: %v", err)
+	}
+	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime+time.Second)); !errors.Is(err, ErrRealtimeCursorExpired) {
+		t.Fatalf("expired cursor error = %v, want ErrRealtimeCursorExpired", err)
+	}
+}
+
+func TestRealtimeCursorRejectsImplausibleFutureIssueTime(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	userID := "cursor-viewer"
+	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
+	cursor, err := chatto.encodeRealtimeCursorAt(userID, identity, 42, now.Add(realtimeCursorFutureSkew+time.Second))
+	if err != nil {
+		t.Fatalf("encodeRealtimeCursorAt: %v", err)
+	}
+	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
+		t.Fatalf("future cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}
+
+func TestPlanRealtimeReplayResetsForExpiredPublicCursor(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	identity, err := events.StreamIdentity(chatto.storage.serverEvtStream)
+	if err != nil {
+		t.Fatalf("StreamIdentity: %v", err)
+	}
+	cursor, err := chatto.encodeRealtimeCursorAt("cursor-viewer", identity, 0, time.Now().Add(-realtimeCursorLifetime-time.Second))
+	if err != nil {
+		t.Fatalf("encodeRealtimeCursorAt: %v", err)
+	}
+	plan, err := chatto.PlanRealtimeReplay(ctx, "cursor-viewer", cursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
+		t.Fatalf("expired cursor plan = %+v, want compacted reset", plan)
 	}
 }
 

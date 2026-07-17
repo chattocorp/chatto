@@ -60,6 +60,9 @@ the sealed payload and are never disclosed as public API facts. Tampering,
 cross-user reuse, secret rotation, and foreign stream incarnation select a
 compacted reset. Room-timeline pagination cursors follow the same confidentiality
 and integrity invariant; legacy plaintext `seq:` cursors are rejected.
+Realtime resume cursors carry a sealed issue time and expire after 24 hours.
+Expiry selects compacted current state, so clients converge without retaining
+an indefinitely reusable replay credential.
 
 The server creates no new JetStream stream and no per-client consumer. For a
 valid short gap it captures an EVT cutoff, performs bounded point reads by
@@ -68,6 +71,14 @@ current read models. It subscribes the connection to the process-wide
 `MyEventsHub` first, then discards buffered duplicates through the cutoff before
 continuing live. A gap is limited to 10,000 EVT sequences and 2,000 delivered
 facts; exceeding either bound selects compacted reset instead.
+
+Replay and compacted bootstrap use the same process-local capacity guard. Each
+replica admits at most eight catch-ups globally and one per authenticated user,
+with a per-user burst of three attempts and one restored token every 20
+seconds. A catch-up has a 30-second whole-operation deadline. Rejected clients
+receive explicit reconnect guidance. These controls bound replica work but do
+not participate in correctness, authorization, replay position, or any
+cross-replica invariant.
 
 Projection hydration reuses the public ConnectRPC assemblers. PII is decrypted
 only at this authenticated response boundary. Message retractions and account
@@ -147,7 +158,9 @@ rendering concern even after live rows have rolled through the capped window.
 The stream is a convergence feed, not an audit log. Replay uses current
 authorization, deletion, and erasure state; it may reset rather than reproduce
 historical public shapes. Clients must apply operations in order and persist a
-cursor only after all preceding operations have succeeded.
+cursor only after all preceding operations have succeeded. Integrators offline
+for more than 24 hours still converge through compacted state, but cannot
+recover every historical transition from the expired interval.
 
 No new durable projection or NATS resource is introduced. EVT remains the
 source of durable facts, existing read models remain the source of public

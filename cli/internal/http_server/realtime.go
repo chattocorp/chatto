@@ -47,6 +47,9 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	if s.metrics == nil {
 		s.metrics = newProcessMetrics()
 	}
+	if s.realtimeCatchUps == nil {
+		s.realtimeCatchUps = newRealtimeCatchUpAdmission()
+	}
 
 	writeBufferPool := &sync.Pool{}
 	upgrader := websocket.Upgrader{
@@ -194,14 +197,63 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
+	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id)
+	if admissionErr != nil {
+		s.metrics.realtimeCatchUpRejected(admissionErr.code)
+		retryAfterMs := uint32(admissionErr.retryAfter.Milliseconds())
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{Code: admissionErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+		}})
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
+		return
+	}
+	s.metrics.realtimeCatchUpStarted()
+	var finishCatchUpOnce sync.Once
+	finishCatchUp := func() {
+		finishCatchUpOnce.Do(func() {
+			releaseCatchUp()
+			s.metrics.realtimeCatchUpFinished()
+		})
+	}
+	defer finishCatchUp()
+	catchUpCtx, cancelCatchUp := context.WithTimeout(ctx, s.realtimeCatchUps.timeout)
+	defer cancelCatchUp()
+	writeCatchUpFrame := func(frame *realtimev1.RealtimeServerFrame) error {
+		if err := catchUpCtx.Err(); err != nil {
+			return err
+		}
+		return writeFrame(frame)
+	}
+	failCatchUp := func(logMessage string, err error) {
+		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
+			s.metrics.realtimeCatchUpTimedOut()
+			s.logger.Warn("Realtime catch-up timed out", "error", err)
+			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+				Close: &realtimev1.RealtimeClose{Code: "catch_up_timeout", Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfterMs: 1000},
+			}})
+			return
+		}
+		s.logger.Warn(logMessage, "error", err)
+		writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
+	}
+	handleCatchUpWriteError := func(err error) {
+		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
+			failCatchUp("Realtime catch-up delivery timed out", err)
+		}
+	}
+
 	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
 		writeError("subscribe_failed", "failed to start realtime event stream", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
-	replayPlan, err := s.core.PlanRealtimeReplay(ctx, user.Id, subscribeEvents.GetResumeCursor())
+	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribeEvents.GetResumeCursor())
 	if err != nil {
+		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
+			failCatchUp("Realtime replay planning timed out", err)
+			return
+		}
 		code, message := realtimeReplayError(err)
 		writeError(code, message, true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
@@ -209,31 +261,31 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 
 	subscribed := &realtimev1.RealtimeSubscribed{StartCursor: &replayPlan.StartCursor}
-	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
+	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
 		Subscribed: subscribed,
 	}}); err != nil {
+		handleCatchUpWriteError(err)
 		return
 	}
 
 	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
 	if replayPlan.Reset {
-		frames, err := s.realtimeProjectionSnapshotFrames(ctx, user.Id)
+		frames, err := s.realtimeProjectionSnapshotFrames(catchUpCtx, user.Id)
 		if err != nil {
-			s.logger.Warn("Realtime compacted projection replay failed", "error", err)
-			writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
+			failCatchUp("Realtime compacted projection replay failed", err)
 			return
 		}
 		for _, frame := range frames {
-			if err := writeFrame(frame); err != nil {
+			if err := writeCatchUpFrame(frame); err != nil {
+				handleCatchUpWriteError(err)
 				return
 			}
 		}
 	}
 	for _, event := range replayPlan.Events {
-		frame, handled, err := s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
+		frame, handled, err := s.realtimeProjectionFrameForEvent(catchUpCtx, user.Id, event)
 		if err != nil {
-			s.logger.Warn("Realtime replay mapping failed", "event_id", event.ID(), "error", err)
-			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+			failCatchUp("Realtime replay mapping failed", err)
 			return
 		}
 		if !handled {
@@ -241,32 +293,36 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
 			return
 		}
-		if err := writeFrame(frame); err != nil {
+		if err := writeCatchUpFrame(frame); err != nil {
+			handleCatchUpWriteError(err)
 			return
 		}
 	}
 	if !replayPlan.Reset {
-		notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, user.Id)
+		notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(catchUpCtx, user.Id)
 		if err != nil {
-			s.logger.Warn("Realtime notification reconciliation failed", "error", err)
-			writeError("replay_unavailable", "realtime notification reconciliation is temporarily unavailable", true)
+			failCatchUp("Realtime notification reconciliation failed", err)
 			return
 		}
-		if err := writeFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
+		if err := writeCatchUpFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
 			Id:        core.NewEventID(),
 			CreatedAt: timestamppb.Now(),
 			Operations: []*realtimev1.RealtimeProjectionOperation{{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: realtimeProjectionNotifications(notifications),
 			}}},
 		})); err != nil {
+			handleCatchUpWriteError(err)
 			return
 		}
 	}
-	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
+	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
 		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},
 	}}); err != nil {
+		handleCatchUpWriteError(err)
 		return
 	}
+	cancelCatchUp()
+	finishCatchUp()
 
 	for {
 		select {

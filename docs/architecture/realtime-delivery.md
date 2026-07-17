@@ -64,8 +64,10 @@ viewer binding. XChaCha20-Poly1305 protects it with a purpose-separated key
 derived from `core.secret_key`; random nonces prevent equal payloads producing
 equal tokens. NATS and JetStream coordinates are never public API facts.
 Tampering, cross-user reuse, secret rotation, or foreign stream incarnation
-selects a compacted reset. The browser retains a cursor only with its
-corresponding in-memory projection. Socket
+selects a compacted reset. Every cursor also carries a sealed issue time and
+expires after 24 hours; expiry selects the same safe reset, limiting captured
+cursor reuse while still allowing ordinary reconnect gaps. The browser retains
+a cursor only with its corresponding in-memory projection. Socket
 reconnects can resume; page reloads and recreated stores omit it and receive a
 new compacted prefix.
 
@@ -86,6 +88,22 @@ Replay scans at most 10,000 EVT sequences and emits at most 2,000 durable
 facts. Missing, malformed, expired, foreign-incarnation, oversized, or
 authorization-sensitive gaps select the compacted prefix instead of failing
 the subscription.
+
+Incremental replay and compacted bootstrap share one process-local catch-up
+admission guard. Each replica admits at most eight catch-ups at once and one at
+a time per authenticated user. A per-user token bucket allows a burst of three
+catch-ups and restores one token every 20 seconds. Every admitted catch-up has
+a 30-second whole-operation deadline. Capacity rejection sends
+`catch_up_in_progress`, `catch_up_rate_limited`, or `catch_up_server_busy` with
+reconnect guidance; deadline exhaustion sends `catch_up_timeout`. These limits
+bound work and protect availability only. They are deliberately process-local,
+and no correctness or authorization decision depends on them.
+
+The metrics endpoint exposes active and total admitted catch-ups, timeouts, and
+capacity rejections through `chatto_realtime_catch_ups`,
+`chatto_realtime_catch_ups_started_total`,
+`chatto_realtime_catch_ups_timed_out_total`, and
+`chatto_realtime_catch_ups_rejected_total`.
 
 Reaction facts produce a timeline-event upsert containing the current
 aggregate reaction state and a `reaction_change` describing the exact actor,
