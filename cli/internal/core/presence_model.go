@@ -35,6 +35,11 @@ func (s *PresenceModel) Subscribe(ctx context.Context) (*PresenceSubscription, e
 	return s.hub.Subscribe(ctx)
 }
 
+// GetUserPresences returns watcher-backed presence for bulk read hydration.
+func (s *PresenceModel) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
+	return s.hub.GetUserPresences(ctx, userIDs)
+}
+
 func (s *PresenceModel) Unsubscribe(sub *PresenceSubscription) {
 	s.hub.Unsubscribe(sub)
 }
