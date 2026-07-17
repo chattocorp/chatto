@@ -1092,6 +1092,128 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	}
 }
 
+func TestRealtimeProjectionReplayAdvancesPastAlreadyHiddenEchoCreation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-hidden-echo-replay", "Hidden Echo Replay", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-hidden-echo-replay", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	before, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected channel echo")
+	}
+	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("DeleteMessage echo: %v", err)
+	}
+
+	replay, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	seenHiddenCreation := false
+	seenRemoval := false
+	for _, event := range replay.Events {
+		if posted := event.EVTEvent().GetMessagePosted(); posted != nil && event.ID() == echoID {
+			seenHiddenCreation = true
+		}
+		frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, user.Id, event)
+		if err != nil {
+			t.Fatalf("map replay event %q (%T): %v", event.ID(), event.EVTEvent().GetEvent(), err)
+		}
+		if !handled || frame.GetProjectionEvent() == nil {
+			continue
+		}
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			remove := operation.GetRoomTimelineEventRemove()
+			if remove.GetRoomId() == room.Id && remove.GetEventId() == echoID {
+				seenRemoval = true
+			}
+		}
+	}
+	if !seenHiddenCreation || !seenRemoval {
+		t.Fatalf("hidden echo replay creation/removal = %v/%v, want both", seenHiddenCreation, seenRemoval)
+	}
+}
+
+func TestRealtimeProjectionReplayMapsAssetLifecycleToCurrentMessage(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-asset-replay", "Asset Replay", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-asset-replay", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "replay.txt", "text/plain", strings.NewReader("asset"))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "asset lifecycle", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	before, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, message.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetProcessingStarted: %v", err)
+	}
+	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+		t.Fatalf("RecordAssetProcessingFailed: %v", err)
+	}
+	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	replay, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if len(replay.Events) != 3 {
+		t.Fatalf("asset replay events = %d, want 3", len(replay.Events))
+	}
+	for _, event := range replay.Events {
+		frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, user.Id, event)
+		if err != nil {
+			t.Fatalf("map asset replay event %q (%T): %v", event.ID(), event.EVTEvent().GetEvent(), err)
+		}
+		if !handled || frame.GetProjectionEvent() == nil {
+			t.Fatalf("asset replay event %q (%T) was not projected", event.ID(), event.EVTEvent().GetEvent())
+		}
+		operations := frame.GetProjectionEvent().GetOperations()
+		if len(operations) != 1 || operations[0].GetRoomTimelineEventUpsert().GetEvent().GetId() != message.Id {
+			t.Fatalf("asset replay operations = %+v, want message %q upsert", operations, message.Id)
+		}
+		if frame.GetProjectionEvent().GetResumeCursor() == "" {
+			t.Fatal("asset replay projection has no resume cursor")
+		}
+	}
+}
+
 func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-replay-member", "RT Replay Member", "password123")

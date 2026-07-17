@@ -51,7 +51,7 @@ type RealtimeReplayPlan struct {
 	BoundaryCursor string
 	// BoundarySequence is the EVT cutoff used to suppress buffered duplicates.
 	BoundarySequence uint64
-	// Events contains authorized durable room events in global EVT order.
+	// Events contains authorized deliverable durable events in global EVT order.
 	Events []EventEnvelope
 }
 
@@ -65,10 +65,10 @@ func (c *ChattoCore) RealtimeCursorForSequence(sequence uint64) (string, error) 
 	return encodeRealtimeCursor(identity, sequence)
 }
 
-// PlanRealtimeReplay builds a caller-wide replay of public, durable room
-// events after resumeCursor. An empty cursor starts at the current EVT boundary
-// and returns no history. Authorization uses the caller's current room
-// visibility; transient live.sync events are intentionally not replayed.
+// PlanRealtimeReplay builds a caller-wide replay of public durable events after
+// resumeCursor. An empty cursor starts at the current EVT boundary and returns
+// no history. Authorization uses the caller's current room visibility;
+// transient live.sync events are intentionally not replayed.
 //
 // This initial implementation scans a bounded global sequence range directly.
 // It is suitable for reconnect gaps, not bulk event-log export.
@@ -160,10 +160,15 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return plan, nil
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
+		assetID, assetSubject := events.ParseAssetSubject(msg.Subject)
 		_, userSubject := events.ParseUserSubject(msg.Subject)
 		switch {
 		case roomSubject:
-			if roomIDOfEvent(&event) != roomID || !isDeliverableLiveEVTRoomEvent(&event) {
+			if !isDeliverableLiveEVTRoomEvent(&event) {
+				continue
+			}
+			legacyAssetEvent := isAssetLifecycleEvent(&event)
+			if !legacyAssetEvent && roomIDOfEvent(&event) != roomID {
 				continue
 			}
 			if _, authorized := memberRooms[roomID]; !authorized {
@@ -183,6 +188,29 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
+			}
+			if legacyAssetEvent {
+				assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetIDOfLifecycleEvent(&event))
+				if !ok || assetRoomID != roomID {
+					continue
+				}
+			}
+		case assetSubject:
+			if assetIDOfLifecycleEvent(&event) != assetID || !isDeliverableLiveEVTAssetEvent(&event) {
+				continue
+			}
+			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+			err = c.myEvents().waitForLiveEVTAssetEvent(waitCtx, msg.Subject, seq)
+			cancel()
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
+			}
+			assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetID)
+			if !ok {
+				continue
+			}
+			if _, authorized := memberRooms[assetRoomID]; !authorized {
+				continue
 			}
 		case userSubject:
 			if !isDeliverableLiveEVTUserEvent(&event) {

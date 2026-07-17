@@ -66,10 +66,10 @@ new compacted prefix.
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, and performs bounded JetStream point reads for the
 sequences after the cursor. It does not create a JetStream consumer. Each
-deliverable fact waits for its owning projection and is converted to current
-public resource operations. The handler sends `caught_up` at the cutoff,
-discards buffered live duplicates through that sequence, and continues with
-the hub stream.
+deliverable room, asset, or user fact waits for its owning projection and is
+converted to current public resource operations. The handler sends `caught_up`
+at the cutoff, discards buffered live duplicates through that sequence, and
+continues with the hub stream.
 
 Because pending notifications live in `RUNTIME_STATE`, every valid resume also
 emits a current `notifications_replace` operation before `caught_up`. Buffered
@@ -129,6 +129,11 @@ viewer-state replacements therefore cannot undo DM sorting.
 A durable projection hydration or mapping failure closes the v2 session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a
 compacted reset, so a later cursor cannot make a dropped mutation permanent.
+Historical message creation for an echo that is hidden in current projection
+state maps to an idempotent timeline removal. Asset processing and deletion
+facts map to authoritative upserts of their owning message and any visible
+channel echo, so replay never advances beyond a durable attachment mutation
+without applying its current render state.
 
 Transient/latest-value signals such as presence, typing, notification
 create/dismiss hints, and call signalling can continue as

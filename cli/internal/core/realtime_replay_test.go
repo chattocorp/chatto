@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
@@ -78,6 +79,128 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 		if event.EVTEvent().GetReactionAdded() != nil || event.EVTEvent().GetReactionRemoved() != nil {
 			t.Fatalf("outsider replayed unauthorized reaction event: %T", event.EVTEvent().GetEvent())
 		}
+	}
+}
+
+func TestPlanRealtimeReplayReplaysAuthorizedAssetLifecycleGap(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, _ := setupReactionTest(t, chatto, ctx)
+	attachment, err := chatto.UploadAttachment(ctx, user.Id, room.Id, "replay-asset.txt", "text/plain", bytes.NewReader([]byte("asset")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "asset lifecycle", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	before, err := chatto.PlanRealtimeReplay(ctx, user.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if err := chatto.RecordAssetProcessingStarted(ctx, SystemActorID, KindChannel, room.Id, message.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetProcessingStarted: %v", err)
+	}
+	if err := chatto.RecordAssetProcessingFailed(ctx, SystemActorID, KindChannel, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+		t.Fatalf("RecordAssetProcessingFailed: %v", err)
+	}
+	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	replay, err := chatto.PlanRealtimeReplay(ctx, user.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if replay.Reset || len(replay.Events) != 3 {
+		t.Fatalf("asset replay plan = %+v, want three incremental events", replay)
+	}
+	if replay.Events[0].EVTEvent().GetAssetProcessingStarted() == nil || replay.Events[1].EVTEvent().GetAssetProcessingFailed() == nil || replay.Events[2].EVTEvent().GetAssetDeleted() == nil {
+		t.Fatalf("asset replay events = %T, %T, %T", replay.Events[0].EVTEvent().GetEvent(), replay.Events[1].EVTEvent().GetEvent(), replay.Events[2].EVTEvent().GetEvent())
+	}
+	for i, event := range replay.Events {
+		if event.DeliverySeq() == 0 || event.DeliverySeq() > replay.BoundarySequence {
+			t.Fatalf("asset replay event %d sequence = %d through %d", i, event.DeliverySeq(), replay.BoundarySequence)
+		}
+	}
+
+	outsider, err := chatto.CreateUser(ctx, SystemActorID, "asset-replay-outsider", "Asset Replay Outsider", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	outsiderReplay, err := chatto.PlanRealtimeReplay(ctx, outsider.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("outsider PlanRealtimeReplay: %v", err)
+	}
+	for _, event := range outsiderReplay.Events {
+		if isAssetLifecycleEvent(event.EVTEvent()) {
+			t.Fatalf("outsider replayed unauthorized asset event: %T", event.EVTEvent().GetEvent())
+		}
+	}
+}
+
+func TestPlanRealtimeReplayReplaysLegacyRoomScopedAssetLifecycleGap(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, _ := setupReactionTest(t, chatto, ctx)
+	attachment, err := chatto.UploadAttachment(ctx, user.Id, room.Id, "legacy-replay.txt", "text/plain", bytes.NewReader([]byte("asset")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "legacy asset lifecycle", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	before, err := chatto.PlanRealtimeReplay(ctx, user.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	legacy := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_AssetProcessingStarted{
+		AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: attachment.Id, MessageEventId: message.Id},
+	}})
+	legacySubject := events.RoomAggregate(room.Id).SubjectFor(legacy)
+	if _, err := chatto.EventPublisher.AppendEventually(ctx, legacySubject, legacy); err != nil {
+		t.Fatalf("append legacy asset event: %v", err)
+	}
+
+	replay, err := chatto.PlanRealtimeReplay(ctx, user.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if replay.Reset || len(replay.Events) != 1 || replay.Events[0].EVTEvent().GetAssetProcessingStarted() == nil {
+		t.Fatalf("legacy asset replay plan = %+v, want one processing-started event", replay)
+	}
+}
+
+func TestAssetEventTimelineTargetResolvesDeletedProcessedDerivative(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, _ := setupReactionTest(t, chatto, ctx)
+	original, err := chatto.UploadAttachment(ctx, user.Id, room.Id, "original.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("UploadAttachment original: %v", err)
+	}
+	thumbnail, err := chatto.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumbnail.bin", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "processed video", []string{original.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chatto.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, message.Id, original.Id, 1000, 640, 360, thumbnail, nil); err != nil {
+		t.Fatalf("RecordAssetProcessed: %v", err)
+	}
+	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, thumbnail.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted thumbnail: %v", err)
+	}
+
+	roomID, messageEventID, ok := chatto.AssetEventTimelineTarget(&corev1.Event{
+		Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{AssetId: thumbnail.Id}},
+	})
+	if !ok || roomID != room.Id || messageEventID != message.Id {
+		t.Fatalf("AssetEventTimelineTarget = %q, %q, %v; want %q, %q, true", roomID, messageEventID, ok, room.Id, message.Id)
 	}
 }
 

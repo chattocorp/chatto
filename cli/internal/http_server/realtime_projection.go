@@ -156,6 +156,12 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return realtimeProjectionServerFrame(projection), true, nil
 	}
 	appendTimeline := func(roomID, messageEventID string, reaction *realtimev1.RealtimeProjectionReactionChange, retainDeletedRow ...bool) error {
+		if s.core.IsHiddenChannelEcho(messageEventID) {
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventRemove{
+				RoomTimelineEventRemove: &realtimev1.RealtimeProjectionRoomTimelineEventRemove{RoomId: roomID, EventId: messageEventID},
+			}})
+			return nil
+		}
 		timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, roomID, messageEventID)
 		if err != nil {
 			return err
@@ -297,6 +303,22 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		}
 		if echoID, ok := s.core.ChannelEchoEventID(messageID); ok {
 			if err := appendTimeline(reaction.GetRoomId(), echoID, nil); err != nil {
+				return nil, false, err
+			}
+		}
+	case *corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted:
+		roomID, messageEventID, ok := s.core.AssetEventTimelineTarget(evt)
+		if !ok {
+			return nil, false, nil
+		}
+		if err := appendTimeline(roomID, messageEventID, nil); err != nil {
+			return nil, false, err
+		}
+		if echoID, ok := s.core.ChannelEchoEventID(messageEventID); ok {
+			if err := appendTimeline(roomID, echoID, nil); err != nil {
 				return nil, false, err
 			}
 		}

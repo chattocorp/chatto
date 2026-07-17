@@ -165,6 +165,52 @@ func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID st
 	return c.assetLifecycle().RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 }
 
+// AssetEventTimelineTarget resolves the current room timeline row affected by
+// a durable asset lifecycle event. Processing events carry their owning
+// message directly. Deletions recover ownership from the room timeline's
+// durable message-to-asset index, including a processed derivative referenced
+// by an original message asset's manifest.
+func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, messageEventID string, ok bool) {
+	assetID := assetIDOfLifecycleEvent(event)
+	if assetID == "" {
+		return "", "", false
+	}
+	roomID, ok = c.Assets.AssetRoomID(assetID)
+	if !ok {
+		return "", "", false
+	}
+	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_AssetProcessingStarted:
+		messageEventID = payload.AssetProcessingStarted.GetMessageEventId()
+	case *corev1.Event_AssetProcessingSucceeded:
+		messageEventID = payload.AssetProcessingSucceeded.GetMessageEventId()
+	case *corev1.Event_AssetProcessingFailed:
+		messageEventID = payload.AssetProcessingFailed.GetMessageEventId()
+	case *corev1.Event_AssetDeleted:
+		if ownerRoomID, ownerMessageEventID, found := c.RoomTimeline.AssetMessageOwner(assetID); found {
+			return ownerRoomID, ownerMessageEventID, true
+		}
+		for _, owner := range c.RoomTimeline.MessageAssetOwners() {
+			manifest, found := c.Assets.VideoAttachmentManifest(owner.AssetID)
+			if !found || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo() == nil {
+				continue
+			}
+			video := manifest.Succeeded.GetVideo()
+			if video.GetThumbnailAssetId() == assetID {
+				return owner.RoomID, owner.MessageEventID, true
+			}
+			for _, variant := range video.GetVariants() {
+				if variant.GetAssetId() == assetID {
+					return owner.RoomID, owner.MessageEventID, true
+				}
+			}
+		}
+	default:
+		return "", "", false
+	}
+	return roomID, messageEventID, messageEventID != ""
+}
+
 func (c *ChattoCore) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {
 	return c.media().stableAttachmentPathWithAccess(assetID, userID, path, params, expiresAt)
 }
