@@ -3,6 +3,28 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.13](https://github.com/chattocorp/chatto/compare/v0.4.12...v0.4.13) (2026-07-17)
+
+
+### Features
+
+* **calls:** share browser tab audio ([#1578](https://github.com/chattocorp/chatto/issues/1578)) ([8deb1d8](https://github.com/chattocorp/chatto/commit/8deb1d88a64ce98912aa56724acd0c90048b5c70))
+
+
+### Bug Fixes
+
+* **api:** batch presence hydration ([#1594](https://github.com/chattocorp/chatto/issues/1594)) ([d23d420](https://github.com/chattocorp/chatto/commit/d23d420346b16ab77331d3b743ec8643536f2f75))
+* **core:** forbid threads in direct messages ([#1583](https://github.com/chattocorp/chatto/issues/1583)) ([fd551a8](https://github.com/chattocorp/chatto/commit/fd551a84526badabc830e95435ed28044ad6d374))
+* **core:** retry link previews across validated IPs ([#1577](https://github.com/chattocorp/chatto/issues/1577)) ([8c4cd57](https://github.com/chattocorp/chatto/commit/8c4cd5750989341da7785e7714551b1b0a39f369))
+* **e2e:** preserve thread from room list clicks ([6de0b5d](https://github.com/chattocorp/chatto/commit/6de0b5d7b36ae2808f49c5638007b600dad56fa1))
+* **frontend:** add notifications return navigation ([#1570](https://github.com/chattocorp/chatto/issues/1570)) ([5cc9e90](https://github.com/chattocorp/chatto/commit/5cc9e90bcd9fbdf81e12173b7ba54996e82a092b))
+* **frontend:** scope thread click-outside dismissal ([#1592](https://github.com/chattocorp/chatto/issues/1592)) ([6bde913](https://github.com/chattocorp/chatto/commit/6bde91357f707d5a9c9718a380f3477005b484aa))
+
+
+### Miscellaneous Chores
+
+* **release:** keep release-0.4 on patch line ([e4ff20a](https://github.com/chattocorp/chatto/commit/e4ff20a933e453a3d94b782da0fca110724faaf5))
+
 ## [0.4.12](https://github.com/chattocorp/chatto/compare/v0.4.11...v0.4.12) (2026-07-15)
 
 
