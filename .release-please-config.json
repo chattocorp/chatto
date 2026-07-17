@@ -5,7 +5,7 @@
   "bump-patch-for-minor-pre-major": false,
   "versioning": "prerelease",
   "prerelease": true,
-  "prerelease-type": "beta.1",
+  "prerelease-type": "alpha.1",
   "always-update": true,
   "draft": true,
   "force-tag-creation": true,
