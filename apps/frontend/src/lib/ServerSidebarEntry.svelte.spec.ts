@@ -353,6 +353,10 @@ describe('ServerSidebarEntry', () => {
       .toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect.element(icon).toHaveAttribute(
+      'title',
+      'Loaded Remote — This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+    );
     icon.dispatchEvent(
       new MouseEvent('contextmenu', {
         bubbles: true,

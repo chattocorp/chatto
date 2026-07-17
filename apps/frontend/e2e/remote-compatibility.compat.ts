@@ -216,10 +216,9 @@ test.describe('unsupported release boundary', () => {
       await expect(
         remoteIcon.locator('xpath=..').getByTestId('server-compatibility-warning')
       ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-
-      await remoteIcon.click({ button: 'right' });
-      await expect(page.getByTestId('server-compatibility-message')).toContainText(
-        'This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+      await expect(remoteIcon).toHaveAttribute(
+        'title',
+        /This server must be upgraded to Chatto 0\.5 or newer before this app can connect\./
       );
       expect(remoteRealtimeConnections).toBe(0);
     } finally {

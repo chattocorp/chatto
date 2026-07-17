@@ -79,10 +79,10 @@
   const iconTitle = $derived(
     needsReauth
       ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
-      : iconDimmed
-        ? `${iconServer.name} (connection unavailable)`
-        : compatibilityWarning && compatibilityMessage
-          ? `${iconServer.name} — ${compatibilityMessage}`
+      : compatibilityWarning && compatibilityMessage
+        ? `${iconServer.name} — ${compatibilityMessage}`
+        : iconDimmed
+          ? `${iconServer.name} (connection unavailable)`
           : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
