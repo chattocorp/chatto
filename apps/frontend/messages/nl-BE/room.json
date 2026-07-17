@@ -95,6 +95,8 @@
         "edit": "Bericht bewerken",
         "more": "Meer acties",
         "edit_short": "Bewerken",
+        "copy_text": "Kopieer tekst",
+        "copy_text_failed": "Tekst kopiëren mislukt",
         "copy_link": "Kopieer link"
       },
       "meta": {

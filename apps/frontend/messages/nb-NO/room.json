@@ -95,6 +95,8 @@
         "edit": "Rediger melding",
         "more": "Flere handlinger",
         "edit_short": "Rediger",
+        "copy_text": "Kopier tekst",
+        "copy_text_failed": "Kunne ikke kopiere teksten",
         "copy_link": "Kopier lenken"
       },
       "meta": {
