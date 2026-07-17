@@ -50,6 +50,7 @@ export class ServerProjectionStore {
         case 'activeCallsReplace':
         case 'presencesReplace':
         case 'threadViewerStatesReplace':
+        case 'roomActivity':
           break;
         case undefined:
           throw new Error('unsupported realtime projection operation');
@@ -212,10 +213,30 @@ export class ServerProjectionStore {
           }
           break;
         }
+        case 'roomActivity':
+          this.bumpRoom(operation.operation.value.roomId);
+          break;
         case undefined:
           throw new Error('unsupported realtime projection operation');
       }
     }
+  }
+
+  /** Drop one LRU timeline and optionally demote eager channel membership. */
+  evictRoomTimeline(roomId: string, clearMembership: boolean): void {
+    this.timelines.delete(roomId);
+    this.timelineEventCursors.delete(roomId);
+    if (!clearMembership) return;
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    this.rooms.set(
+      roomId,
+      new RealtimeProjectionRoom({
+        room: room.room,
+        memberUserIds: [],
+        viewerNotificationCount: room.viewerNotificationCount
+      })
+    );
   }
 
   reset(): void {

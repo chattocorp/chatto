@@ -71,7 +71,8 @@ const { mocks } = vi.hoisted(() => {
       },
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
-      projectedMembersForRoom: vi.fn(() => [])
+      projectedMembersForRoom: vi.fn(() => []),
+      hasCompleteProjectedRoomMembership: vi.fn(() => true)
     }
   };
 });
@@ -191,7 +192,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       rooms: mocks.rooms,
       messagesForRoom: mocks.messagesForRoom,
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
-      projectedMembersForRoom: mocks.projectedMembersForRoom
+      projectedMembersForRoom: mocks.projectedMembersForRoom,
+      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
     }),
     originServer: { id: 'server-1', url: 'https://chat.example.test' },
     getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })

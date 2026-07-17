@@ -8,6 +8,9 @@ The protobuf realtime API is mounted at `GET /api/realtime` and upgrades to a
 binary WebSocket. The first client frame must be `hello`; the server accepts
 only protocol version 2 and authenticates either the hello bearer token or an
 existing cookie session. The second client frame must be `subscribe_events`.
+It may name room timelines already retained with the projection. After
+subscription, `hydrate_room` materialises another joined room over the same
+ordered stream.
 
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
 behavioural protocol version. Protocol 2 is the server-scoped projection stream. It uses
@@ -42,9 +45,10 @@ idempotent operations:
 - current public server profile, authenticated server presentation/runtime
   state, and authenticated viewer state;
 - every public server directory user;
-- every room visible to the viewer, its complete membership as references into
-  the server user directory, and the complete visible room-group layout;
-- the latest 50 renderable timeline events for every joined room;
+- lightweight state for every room visible to the viewer and the complete
+  visible room-group layout; DM participant references remain eager;
+- complete channel membership and the latest 50 renderable timeline events only
+  for rooms named as retained by the subscribing client;
 - the newest finite pending-notification page and complete per-room counts;
 - every active call visible to the viewer; and
 - a complete latest-value presence map for the projected user directory.
@@ -52,8 +56,9 @@ idempotent operations:
 The snapshot builder uses the same ConnectRPC assemblers as public reads. It
 decrypts PII only at the authenticated response boundary and resolves messages
 through current deletion and key-shredding projections. Deleted or
-crypto-erased bodies therefore appear only as normal tombstones. Timeline
-windows are assembled concurrently with bounded concurrency.
+crypto-erased bodies therefore appear only as normal tombstones. Requested
+timeline windows are assembled concurrently with bounded concurrency.
+Never-viewed room bodies are not decrypted during bootstrap.
 
 The projection's room set is exhaustive rather than sidebar-policy-filtered:
 it includes joined DMs that do not yet contain a message. Public directory
@@ -64,15 +69,19 @@ navigated immediately and its first message can arrive through the stream.
 The frontend applies this prefix and every later event through the same
 `ServerProjectionStore` reducer. Server profile, MOTD, and runtime capability
 changes replace canonical projection state instead of causing a ConnectRPC
-refresh. Canonical timeline pages evict rows beyond their newest 50, while
-heavier message stores are created lazily only for rooms the UI selects.
+refresh. Canonical timeline pages evict rows beyond their newest 50. Heavier
+message stores are created lazily, and selecting a cold room sends
+`hydrate_room`. The response atomically replaces its full room membership and
+current timeline through the normal projection reducer; it is not a ConnectRPC
+bootstrap.
 Timeline replacements carry an opaque cursor for every retained row, and later
 row upserts carry that row's cursor. The reducer can therefore advance its
 pagination boundary using only the projection stream.
-Changing the route selects retained state for rendering and does not initiate
-initial room hydration. Room-member lists and DM labels resolve those membership
-references through the already-warm user projection instead of issuing a
-second bootstrap query. Server chrome and gutter entries likewise select
+Changing the route selects retained state immediately after a room's first
+hydration. A cold route briefly renders its timeline loading state while the
+same WebSocket materialises it. DM labels resolve eager participant references,
+while selected channel-member lists resolve hydrated membership through the
+already-warm user projection. Server chrome and gutter entries likewise select
 projected branding, viewer capabilities, notification preferences, and unread
 state instead of independently fetching server/viewer/room snapshots.
 
@@ -80,7 +89,8 @@ Projection readiness distinguishes cold data from transport freshness. Known
 rooms in `ready` or `stale` projections render immediately, including after a
 server switch. Absence in a stale projection is not authoritative until the
 activation catch-up reaches `caught_up`. Loading placeholders remain for a cold
-projection and for separately lazy history, threads, previews, and media.
+projection, a room's first timeline hydration, and separately lazy history,
+threads, previews, and media.
 
 ## Resume and live handoff
 
@@ -103,6 +113,20 @@ deliverable room, asset, or user fact waits for its owning projection and is
 converted to current public resource operations. The handler sends `caught_up`
 at the cutoff, discards buffered live duplicates through that sequence, and
 continues with the hub stream.
+
+The connection retains only a set of hydrated room IDs. Projection mapping
+omits room-timeline assembly for every other room, avoiding message-body
+decryption and transfer. Recognized durable facts that have no remaining
+operation are still emitted as empty projection envelopes with their sealed
+cursor, so one global resume position can advance without making unhydrated
+timeline history part of client state. On reconnect the client resends retained
+IDs; a compacted reset includes only those room windows.
+The browser advertises a room as retained only after applying its timeline
+replacement. Desired rooms with lost or unavailable hydration responses remain
+pending and are requested again on the next socket. Both client and server cap
+retention at 1,024 room IDs, and the server ignores duplicate hydration work.
+At the bound, the browser evicts its least-recent inactive timeline and replaces
+the socket before materialising the newly selected room.
 
 Every subscription emits one finite latest-value reconciliation before
 `caught_up`. It replaces the viewer resource; every visible room's read and
@@ -174,19 +198,21 @@ hydrate only room existence, archive state, and visibility permissions.
 Administrative membership facts replace the complete current member-reference
 list for existing viewers.
 
-Message facts carry a lightweight replacement of the affected room's viewer
-state alongside timeline mutations. Notification counts converge through
-notification signals and the finite resume replacement. Message delivery does
-not scan notification state or reassemble and retransmit room metadata and
-complete membership. Echo tombstone upserts explicitly distinguish
+Message facts carry lightweight replacements of the affected room summary and
+viewer state alongside timeline mutations. Root messages also carry a
+content-free `room_activity` operation, allowing unretained DMs to reorder
+without exposing or materialising their message. Notification counts converge
+through notification signals and the finite resume replacement. Message
+delivery does not reassemble or retransmit complete channel membership. Echo
+tombstone upserts explicitly distinguish
 canonical-reply deletion from direct echo removal.
 
 Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
 finite `NotificationsReplace`. This keeps the retained canonical room row,
 pending-notification state, and both sidebar indicators in step, so a later
-mutation cannot restore stale unread or mention state. Root-message timeline
-upserts also advance the affected room in the retained activity order; later
-viewer-state replacements therefore cannot undo DM sorting.
+mutation cannot restore stale unread or mention state. Root-message activity
+operations advance the affected room even when its timeline is not retained;
+later viewer-state replacements therefore cannot undo DM sorting.
 
 A durable projection hydration or mapping failure closes the session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a

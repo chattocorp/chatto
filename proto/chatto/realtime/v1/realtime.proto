@@ -21,7 +21,6 @@ import "google/protobuf/timestamp.proto";
 // be `hello`; after the server replies with `hello`, clients send
 // `subscribe_events` to start the authenticated live event stream.
 message RealtimeClientFrame {
-  reserved 4;
   reserved "ack";
 
   oneof frame {
@@ -31,6 +30,8 @@ message RealtimeClientFrame {
     RealtimeSubscribeEvents subscribe_events = 2;
     // Application-level ping. The server replies with `pong`.
     RealtimePing ping = 3;
+    // Adds one joined room's recent timeline to the retained projection.
+    RealtimeHydrateRoom hydrate_room = 4;
   }
 }
 
@@ -96,6 +97,25 @@ message RealtimeSubscribeEvents {
   // expire 24 hours after issue; an expired cursor also receives a compacted
   // reset rather than historical replay.
   optional string resume_cursor = 1;
+  // Joined rooms whose timeline windows the client already retains. A fresh
+  // compacted projection includes only these timelines, and resumed delivery
+  // emits timeline mutations only for these rooms. Lightweight room, unread,
+  // notification, and call state remains server-wide. At most 1,024 room IDs
+  // may be supplied in one subscription.
+  repeated string retained_room_ids = 2;
+}
+
+// Requests lazy materialisation of one joined room's recent timeline.
+//
+// The server replies on the same ordered projection stream with a
+// `room_timeline_replace` operation. Once hydrated, later timeline mutations
+// for the room are included for the lifetime of this connection. Clients send
+// all still-retained room IDs again in their next subscription. A connection
+// may retain at most 1,024 distinct room IDs; excess requests receive a
+// non-fatal `too_many_retained_rooms` error.
+message RealtimeHydrateRoom {
+  // Joined room to materialise. Repeating a retained room is idempotent.
+  string room_id = 1;
 }
 
 // Confirms event streaming has started.
@@ -154,13 +174,14 @@ message RealtimeProjectionOperation {
     chatto.api.v1.DirectoryMember user_upsert = 4;
     // Removes one server directory member.
     RealtimeProjectionUserRemove user_remove = 5;
-    // Adds or replaces one room, its viewer state, and current membership.
+    // Adds or replaces one room and its viewer state. Channel membership is
+    // complete only after that room's timeline has been materialised.
     RealtimeProjectionRoom room_upsert = 6;
     // Removes one room and all locally retained room state.
     RealtimeProjectionRoomRemove room_remove = 7;
     // Replaces the complete visible room-group layout.
     RealtimeProjectionRoomGroupsReplace room_groups_replace = 8;
-    // Replaces the retained recent timeline window for one joined room.
+    // Replaces the lazily retained recent timeline window for one joined room.
     RealtimeProjectionRoomTimelineReplace room_timeline_replace = 9;
     // Adds or replaces one renderable event in a retained room timeline.
     RealtimeProjectionRoomTimelineEventUpsert room_timeline_event_upsert = 10;
@@ -185,6 +206,9 @@ message RealtimeProjectionOperation {
     // thread. Missing entries authoritatively mean not followed and not
     // unread for retained thread roots.
     RealtimeProjectionThreadViewerStatesReplace thread_viewer_states_replace = 17;
+    // Signals root-message activity for lightweight room ordering even when
+    // that room's timeline is not retained.
+    RealtimeProjectionRoomActivity room_activity = 18;
   }
 }
 
@@ -199,15 +223,26 @@ message RealtimeProjectionServerState {
   chatto.api.v1.ServerRuntimeConfig runtime = 2;
 }
 
-// Canonical room state retained by a server-scoped client projection.
+// Canonical lightweight room state retained by a server-scoped projection.
 message RealtimeProjectionRoom {
   // Public room metadata and viewer-specific state.
   chatto.api.v1.RoomWithViewerState room = 1;
-  // Complete current room membership expressed as references into the
-  // projection's server-wide user directory.
+  // Current room membership expressed as references into the projection's
+  // server-wide user directory. DM participants are always present. Channel
+  // membership is empty in a cold room summary and complete after that room's
+  // timeline has been materialised.
   repeated string member_user_ids = 2;
   // Current pending notifications targeting this room for the viewer.
   uint32 viewer_notification_count = 3;
+}
+
+// Root-message activity that affects lightweight room navigation state.
+//
+// This deliberately carries no message content. Retained rooms receive the
+// corresponding timeline mutation separately; unretained rooms still use this
+// operation to keep DM ordering current without materialising their timeline.
+message RealtimeProjectionRoomActivity {
+  string room_id = 1;
 }
 
 // Removes one user from the client projection.

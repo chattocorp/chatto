@@ -48,6 +48,7 @@ be `hello`; after the server replies with `hello`, clients send
 | `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
 | `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized live-event stream. |
 | `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
+| `frame.hydrate_room` | [`RealtimeHydrateRoom`](#chatto-realtime-v1-RealtimeHydrateRoom) | Adds one joined room's recent timeline to the retained projection. |
 
 <a id="chatto-realtime-v1-RealtimeClientHello"></a>
 
@@ -125,6 +126,23 @@ Application-level heartbeat.
 | --- | --- | --- |
 | `id` | `string` | Stable event ID for this heartbeat. |
 | `created_at` | `google.protobuf.Timestamp` | Time the heartbeat was emitted. |
+
+<a id="chatto-realtime-v1-RealtimeHydrateRoom"></a>
+
+### RealtimeHydrateRoom
+
+Requests lazy materialisation of one joined room's recent timeline.
+
+The server replies on the same ordered projection stream with a
+`room_timeline_replace` operation. Once hydrated, later timeline mutations
+for the room are included for the lifetime of this connection. Clients send
+all still-retained room IDs again in their next subscription. A connection
+may retain at most 1,024 distinct room IDs; excess requests receive a
+non-fatal `too_many_retained_rooms` error.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Joined room to materialise. Repeating a retained room is idempotent. |
 
 <a id="chatto-realtime-v1-RealtimeMentionNotificationEvent"></a>
 
@@ -298,10 +316,10 @@ One mutation of a server-scoped client projection.
 | `operation.viewer_upsert` | `chatto.api.v1.GetViewerResponse` | Replaces the authenticated viewer resource. |
 | `operation.user_upsert` | `chatto.api.v1.DirectoryMember` | Adds or replaces one server directory member. |
 | `operation.user_remove` | [`RealtimeProjectionUserRemove`](#chatto-realtime-v1-RealtimeProjectionUserRemove) | Removes one server directory member. |
-| `operation.room_upsert` | [`RealtimeProjectionRoom`](#chatto-realtime-v1-RealtimeProjectionRoom) | Adds or replaces one room, its viewer state, and current membership. |
+| `operation.room_upsert` | [`RealtimeProjectionRoom`](#chatto-realtime-v1-RealtimeProjectionRoom) | Adds or replaces one room and its viewer state. Channel membership is complete only after that room's timeline has been materialised. |
 | `operation.room_remove` | [`RealtimeProjectionRoomRemove`](#chatto-realtime-v1-RealtimeProjectionRoomRemove) | Removes one room and all locally retained room state. |
 | `operation.room_groups_replace` | [`RealtimeProjectionRoomGroupsReplace`](#chatto-realtime-v1-RealtimeProjectionRoomGroupsReplace) | Replaces the complete visible room-group layout. |
-| `operation.room_timeline_replace` | [`RealtimeProjectionRoomTimelineReplace`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineReplace) | Replaces the retained recent timeline window for one joined room. |
+| `operation.room_timeline_replace` | [`RealtimeProjectionRoomTimelineReplace`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineReplace) | Replaces the lazily retained recent timeline window for one joined room. |
 | `operation.room_timeline_event_upsert` | [`RealtimeProjectionRoomTimelineEventUpsert`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineEventUpsert) | Adds or replaces one renderable event in a retained room timeline. |
 | `operation.server_state_upsert` | [`RealtimeProjectionServerState`](#chatto-realtime-v1-RealtimeProjectionServerState) | Replaces authenticated server-wide presentation and runtime state. |
 | `operation.room_timeline_event_remove` | [`RealtimeProjectionRoomTimelineEventRemove`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineEventRemove) | Removes one event from a retained room timeline. This is distinct from a message tombstone: projection-only channel echoes disappear when the underlying thread reply is no longer echoed into the room. |
@@ -310,6 +328,7 @@ One mutation of a server-scoped client projection.
 | `operation.active_calls_replace` | [`RealtimeProjectionActiveCallsReplace`](#chatto-realtime-v1-RealtimeProjectionActiveCallsReplace) | Replaces every active call visible to the caller. |
 | `operation.presences_replace` | [`RealtimeProjectionPresencesReplace`](#chatto-realtime-v1-RealtimeProjectionPresencesReplace) | Replaces the latest presence status for every server member. Presence is transient and not replayed from EVT, so every subscription emits this reconciliation before caught_up. |
 | `operation.thread_viewer_states_replace` | [`RealtimeProjectionThreadViewerStatesReplace`](#chatto-realtime-v1-RealtimeProjectionThreadViewerStatesReplace) | Replaces viewer-specific follow and unread state for every followed thread. Missing entries authoritatively mean not followed and not unread for retained thread roots. |
+| `operation.room_activity` | [`RealtimeProjectionRoomActivity`](#chatto-realtime-v1-RealtimeProjectionRoomActivity) | Signals root-message activity for lightweight room ordering even when that room's timeline is not retained. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionPresencesReplace"></a>
 
@@ -347,13 +366,27 @@ Reset marker for a compacted projection replay.
 
 ### RealtimeProjectionRoom
 
-Canonical room state retained by a server-scoped client projection.
+Canonical lightweight room state retained by a server-scoped projection.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | `chatto.api.v1.RoomWithViewerState` | Public room metadata and viewer-specific state. |
-| `member_user_ids` | `repeated string` | Complete current room membership expressed as references into the projection's server-wide user directory. |
+| `member_user_ids` | `repeated string` | Current room membership expressed as references into the projection's server-wide user directory. DM participants are always present. Channel membership is empty in a cold room summary and complete after that room's timeline has been materialised. |
 | `viewer_notification_count` | `uint32` | Current pending notifications targeting this room for the viewer. |
+
+<a id="chatto-realtime-v1-RealtimeProjectionRoomActivity"></a>
+
+### RealtimeProjectionRoomActivity
+
+Root-message activity that affects lightweight room navigation state.
+
+This deliberately carries no message content. Retained rooms receive the
+corresponding timeline mutation separately; unretained rooms still use this
+operation to keep DM ordering current without materialising their timeline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionRoomGroupsReplace"></a>
 
@@ -592,6 +625,7 @@ Request to start the caller's authorized live event stream.
 | Field | Type | Description |
 | --- | --- | --- |
 | `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or caught-up frame. The server replays authorized durable projection changes after this cursor before continuing with live delivery. Omit it to receive a compacted reset of the current authorised server projection. Cursors expire 24 hours after issue; an expired cursor also receives a compacted reset rather than historical replay. |
+| `retained_room_ids` | `repeated string` | Joined rooms whose timeline windows the client already retains. A fresh compacted projection includes only these timelines, and resumed delivery emits timeline mutations only for these rooms. Lightweight room, unread, notification, and call state remains server-wide. At most 1,024 room IDs may be supplied in one subscription. |
 
 <a id="chatto-realtime-v1-RealtimeSubscribed"></a>
 

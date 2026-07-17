@@ -319,6 +319,20 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
+  it('distinguishes pending projection membership from a complete empty roster', () => {
+    const store = new RoomMembersStore(null);
+
+    store.awaitProjection('room-1');
+    expect(store.isInitialLoading).toBe(true);
+    expect(store.hasFirstPage).toBe(false);
+    expect(store.hasLoadedAll).toBe(false);
+
+    store.replaceProjection('room-1', []);
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.hasFirstPage).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
+  });
+
   it('refreshes from room membership events using local event kind', async () => {
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'initial')], false, 1),

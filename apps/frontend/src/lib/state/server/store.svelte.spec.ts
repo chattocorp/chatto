@@ -15,10 +15,12 @@ import {
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
+  RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
   RealtimeProjectionServerState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
 
 const { soundMocks, apiMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -478,6 +480,42 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore live server updates', () => {
+  it('keeps a first-view room timeline loading while requesting it from realtime', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const hydrateRoom = vi.spyOn(eventBusManager, 'hydrateRoom');
+
+    const messages = store.messagesForRoom('R-cold');
+    store.restoreProjectedRoomWindow('R-cold');
+
+    expect(messages.isInitialLoading).toBe(true);
+    expect(store.projection.timelines.has('R-cold')).toBe(false);
+    expect(store.realtimeSync.desiredRoomIds).toEqual(['R-cold']);
+    expect(store.realtimeSync.retainedRoomIds).toEqual([]);
+    expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-cold');
+  });
+
+  it('evicts an inactive timeline before hydrating a room beyond the retention limit', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const hydrateRoom = vi.spyOn(eventBusManager, 'hydrateRoom');
+    for (let index = 0; index < MAX_RETAINED_ROOM_TIMELINES; index++) {
+      const roomId = `R${index}`;
+      store.realtimeSync.retainRoom(roomId);
+      store.realtimeSync.confirmRoom(roomId);
+    }
+    store.projection.timelines.set('R0', new RoomTimelinePage());
+
+    const messages = store.messagesForRoom('R-overflow');
+    store.restoreProjectedRoomWindow('R-overflow');
+
+    expect(store.projection.timelines.has('R0')).toBe(false);
+    expect(store.realtimeSync.desiredRoomIds).not.toContain('R0');
+    expect(store.realtimeSync.desiredRoomIds).toContain('R-overflow');
+    expect(messages.isInitialLoading).toBe(true);
+    expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-overflow');
+  });
+
   it('applies public and authenticated server state from projection operations', async () => {
     const fake = new FakeServerConnection([roomDirectoryResult(), adminRoomLayoutResult()]);
     const publicServerInfoLoader = vi.fn<(baseUrl: string) => Promise<PublicServerInfo>>();
@@ -620,6 +658,34 @@ describe('ServerStateStore live server updates', () => {
     expect(messages.events).toHaveLength(50);
     expect(messages.events.some(({ id }) => id === 'OLD-ROOT')).toBe(false);
     expect(bumpRoom).not.toHaveBeenCalled();
+  });
+
+  it('bumps an unretained room when lightweight activity arrives', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const bumpRoom = vi.spyOn(store.rooms, 'bumpRoom');
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomActivity',
+                value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(bumpRoom).toHaveBeenCalledWith('R2');
+    expect(store.projection.timelines.has('R2')).toBe(false);
   });
 
   it('forwards RoomGroupsUpdatedEvent to public room-state stores by default', async () => {

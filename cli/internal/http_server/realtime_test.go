@@ -164,24 +164,30 @@ func realtimePingRoundTrip(conn *websocket.Conn, nonce string) error {
 	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return fmt.Errorf("set pong deadline: %w", err)
 	}
-	messageType, data, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("read pong: %w", err)
+	for {
+		messageType, data, err := conn.ReadMessage()
+		if err != nil {
+			return fmt.Errorf("read pong: %w", err)
+		}
+		if messageType != websocket.BinaryMessage {
+			return fmt.Errorf("pong message type = %d, want binary", messageType)
+		}
+		var frame realtimev1.RealtimeServerFrame
+		if err := proto.Unmarshal(data, &frame); err != nil {
+			return fmt.Errorf("unmarshal pong: %w", err)
+		}
+		pong := frame.GetPong()
+		if pong == nil {
+			continue
+		}
+		if pong.Nonce != nonce {
+			return fmt.Errorf("pong nonce length = %d, want %d", len(pong.GetNonce()), len(nonce))
+		}
+		return nil
 	}
-	if messageType != websocket.BinaryMessage {
-		return fmt.Errorf("pong message type = %d, want binary", messageType)
-	}
-	var frame realtimev1.RealtimeServerFrame
-	if err := proto.Unmarshal(data, &frame); err != nil {
-		return fmt.Errorf("unmarshal pong: %w", err)
-	}
-	if pong := frame.GetPong(); pong == nil || pong.Nonce != nonce {
-		return fmt.Errorf("pong nonce length = %d, want %d", len(pong.GetNonce()), len(nonce))
-	}
-	return nil
 }
 
-func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
+func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retainedRoomIDs ...string) {
 	t.Helper()
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
 		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
@@ -201,7 +207,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
 	}
 
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{RetainedRoomIds: retainedRoomIDs},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -646,7 +652,7 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	frames, err := env.httpServer.realtimeProjectionSnapshotFrames(env.ctx, viewer.Id)
+	frames, err := env.httpServer.realtimeProjectionSnapshotFrames(env.ctx, viewer.Id, []string{room.Id})
 	if err != nil {
 		t.Fatalf("realtimeProjectionSnapshotFrames: %v", err)
 	}
@@ -683,6 +689,391 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 	}
 	if !hasServer || !hasServerState || !hasViewer || !hasViewerUser || !hasRoom || !hasGroups || !hasNotifications || !hasTimeline {
 		t.Fatalf("snapshot coverage: server=%v server_state=%v viewer=%v user=%v room=%v groups=%v notifications=%v timeline=%v", hasServer, hasServerState, hasViewer, hasViewerUser, hasRoom, hasGroups, hasNotifications, hasTimeline)
+	}
+}
+
+func TestRealtimeProjectionSnapshotFramesKeepTimelinesAndChannelMembershipLazy(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-snapshot", "RT Lazy Snapshot", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-lazy-snapshot-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "lazy snapshot message", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	frames, err := env.httpServer.realtimeProjectionSnapshotFrames(env.ctx, viewer.Id, nil)
+	if err != nil {
+		t.Fatalf("realtimeProjectionSnapshotFrames: %v", err)
+	}
+	for _, frame := range frames {
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			if timeline := operation.GetRoomTimelineReplace(); timeline != nil {
+				t.Fatalf("cold snapshot unexpectedly hydrated timeline %q", timeline.GetRoomId())
+			}
+			if projectedRoom := operation.GetRoomUpsert(); projectedRoom.GetRoom().GetRoom().GetId() == room.Id && len(projectedRoom.GetMemberUserIds()) != 0 {
+				t.Fatalf("cold channel membership = %v, want lazy empty membership", projectedRoom.GetMemberUserIds())
+			}
+		}
+	}
+}
+
+func TestRealtimeRetainedRoomSetIsBoundedAndValidated(t *testing.T) {
+	rooms, err := realtimeRetainedRoomSet([]string{"R1", "R1", " R2 "})
+	if err != nil {
+		t.Fatalf("realtimeRetainedRoomSet: %v", err)
+	}
+	if len(rooms) != 2 {
+		t.Fatalf("deduplicated retained rooms = %v, want R1 and R2", rooms)
+	}
+	if _, ok := rooms["R2"]; !ok {
+		t.Fatalf("trimmed retained rooms = %v, want R2", rooms)
+	}
+	if _, err := realtimeRetainedRoomSet([]string{""}); err == nil {
+		t.Fatal("empty retained room ID was accepted")
+	}
+	if _, err := realtimeRetainedRoomSet(make([]string, realtimeMaxRetainedRooms+1)); err == nil {
+		t.Fatal("oversized retained room set was accepted")
+	}
+}
+
+func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-room", "RT Lazy Room", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	retainedRoom, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-lazy-retained", "")
+	if err != nil {
+		t.Fatalf("CreateRoom retained: %v", err)
+	}
+	otherRoom, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-lazy-other", "")
+	if err != nil {
+		t.Fatalf("CreateRoom other: %v", err)
+	}
+	for _, room := range []*corev1.Room{retainedRoom, otherRoom} {
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", room.Id, err)
+		}
+	}
+	beforeHydration, err := env.core.PostMessage(env.ctx, core.KindChannel, retainedRoom.Id, viewer.Id, "before hydration", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage before hydration: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.dialRealtime(t)
+	t.Cleanup(func() { conn.Close() })
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive realtime hello")
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatal("did not receive realtime subscribed")
+	}
+	readRealtimeCaughtUp(t, conn)
+
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
+		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: retainedRoom.Id},
+	}})
+	hydratedFrame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || hydratedFrame.GetProjectionEvent() == nil {
+		t.Fatalf("room hydration frame = %+v", hydratedFrame)
+	}
+	var hydratedTimeline *realtimev1.RealtimeProjectionRoomTimelineReplace
+	var hydratedRoom *realtimev1.RealtimeProjectionRoom
+	for _, operation := range hydratedFrame.GetProjectionEvent().GetOperations() {
+		if operation.GetRoomTimelineReplace().GetRoomId() == retainedRoom.Id {
+			hydratedTimeline = operation.GetRoomTimelineReplace()
+		}
+		if operation.GetRoomUpsert().GetRoom().GetRoom().GetId() == retainedRoom.Id {
+			hydratedRoom = operation.GetRoomUpsert()
+		}
+	}
+	hasBeforeHydration := false
+	for _, event := range hydratedTimeline.GetPage().GetEvents() {
+		hasBeforeHydration = hasBeforeHydration || event.GetId() == beforeHydration.Id
+	}
+	if hydratedTimeline == nil || !hasBeforeHydration {
+		t.Fatalf("hydrated timeline = %+v, want message %q", hydratedTimeline, beforeHydration.Id)
+	}
+	if hydratedRoom == nil || !slices.Contains(hydratedRoom.GetMemberUserIds(), viewer.Id) {
+		t.Fatalf("hydrated room membership = %+v, want viewer", hydratedRoom)
+	}
+
+	afterHydration, err := env.core.PostMessage(env.ctx, core.KindChannel, retainedRoom.Id, viewer.Id, "after hydration", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage after hydration: %v", err)
+	}
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for retained room update")
+		}
+		projection := frame.GetProjectionEvent()
+		if projection == nil {
+			continue
+		}
+		found := false
+		for _, operation := range projection.GetOperations() {
+			upsert := operation.GetRoomTimelineEventUpsert()
+			found = found || (upsert.GetRoomId() == retainedRoom.Id && upsert.GetEvent().GetId() == afterHydration.Id)
+		}
+		if found {
+			break
+		}
+	}
+
+	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, otherRoom.Id, viewer.Id, "unretained update", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage unretained: %v", err)
+	}
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for unretained cursor advance")
+		}
+		projection := frame.GetProjectionEvent()
+		if projection == nil || projection.GetResumeCursor() == "" {
+			continue
+		}
+		foundRoomSummary := false
+		foundRoomActivity := false
+		for _, operation := range projection.GetOperations() {
+			if operation.GetRoomTimelineEventUpsert() != nil || operation.GetRoomTimelineEventRemove() != nil || operation.GetRoomTimelineReplace() != nil {
+				t.Fatalf("unretained projection leaked timeline operation: %+v", operation)
+			}
+			room := operation.GetRoomUpsert().GetRoom().GetRoom()
+			foundRoomSummary = foundRoomSummary || room.GetId() == otherRoom.Id
+			foundRoomActivity = foundRoomActivity || operation.GetRoomActivity().GetRoomId() == otherRoom.Id
+		}
+		if !foundRoomSummary {
+			t.Fatal("unretained message did not refresh its lightweight room summary")
+		}
+		if !foundRoomActivity {
+			t.Fatal("unretained root message did not emit lightweight room activity")
+		}
+		break
+	}
+
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
+		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: retainedRoom.Id},
+	}})
+	if duplicate, ok := readRealtimeServerFrame(t, conn, 200*time.Millisecond); ok {
+		t.Fatalf("duplicate hydration unexpectedly rebuilt the room: %+v", duplicate)
+	}
+}
+
+func TestRealtimeWebSocketMaterializesRetainedRoomAfterViewerGainsAccess(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-owner", "RT Lazy Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-future-member", "RT Lazy Future Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.Id, core.KindChannel, "", "rt-lazy-future-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, owner.Id, core.KindChannel, owner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom owner: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, owner.Id, "visible after joining", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	viewerToken, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, viewerToken)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
+		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: room.Id},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetError().GetCode() != "room_unavailable" || frame.GetError().GetFatal() {
+		t.Fatalf("pre-membership hydration frame = %+v, want non-fatal room_unavailable", frame)
+	}
+
+	if _, err := env.core.AddMember(env.ctx, owner.Id, core.KindChannel, room.Id, viewer.Id); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			break
+		}
+		projection := frame.GetProjectionEvent()
+		if projection == nil {
+			continue
+		}
+		var hasRoom, hasMessage bool
+		for _, operation := range projection.GetOperations() {
+			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+				hasRoom = slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
+			}
+			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+				for _, event := range timeline.GetPage().GetEvents() {
+					hasMessage = hasMessage || event.GetId() == message.Id
+				}
+			}
+		}
+		if hasRoom && hasMessage {
+			return
+		}
+	}
+	t.Fatal("retained room did not materialize after the viewer gained access")
+}
+
+func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-retained-unarchive", "RT Retained Unarchive", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-retained-unarchive-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "survives archive", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, token, room.Id)
+
+	if _, err := env.core.ArchiveRoom(env.ctx, viewer.Id, core.KindChannel, room.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	removed := false
+	for !removed && time.Now().Before(deadline) {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			break
+		}
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			removed = removed || operation.GetRoomRemove().GetRoomId() == room.Id
+		}
+	}
+	if !removed {
+		t.Fatal("archive did not remove retained room state")
+	}
+
+	if _, err := env.core.UnarchiveRoom(env.ctx, viewer.Id, core.KindChannel, room.Id); err != nil {
+		t.Fatalf("UnarchiveRoom: %v", err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			break
+		}
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			timeline := operation.GetRoomTimelineReplace()
+			if timeline.GetRoomId() != room.Id {
+				continue
+			}
+			for _, event := range timeline.GetPage().GetEvents() {
+				if event.GetId() == message.Id {
+					return
+				}
+			}
+		}
+	}
+	t.Fatal("unarchive did not restore the retained room timeline")
+}
+
+func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-unarchive-owner", "RT Unarchive Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-unarchive-nonmember", "RT Unarchive Nonmember", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.Id, core.KindChannel, "", "rt-unarchive-nonmember-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{owner.Id, viewer.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, token, room.Id)
+
+	if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+	left := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+		return upsert.GetRoom().GetRoom().GetId() == room.Id && !upsert.GetRoom().GetViewerState().GetIsMember()
+	})
+	if left == nil {
+		t.Fatal("viewer did not receive non-member room state after leaving")
+	}
+	if _, err := env.core.ArchiveRoom(env.ctx, owner.Id, core.KindChannel, room.Id); err != nil {
+		t.Fatalf("ArchiveRoom: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			break
+		}
+		removed := false
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			removed = removed || operation.GetRoomRemove().GetRoomId() == room.Id
+		}
+		if removed {
+			break
+		}
+	}
+	if _, err := env.core.UnarchiveRoom(env.ctx, owner.Id, core.KindChannel, room.Id); err != nil {
+		t.Fatalf("UnarchiveRoom: %v", err)
+	}
+	unarchived := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+		return upsert.GetRoom().GetRoom().GetId() == room.Id && !upsert.GetRoom().GetRoom().GetArchived() && !upsert.GetRoom().GetViewerState().GetIsMember()
+	})
+	if unarchived == nil {
+		t.Fatal("non-member did not receive unarchived room summary")
+	}
+	if err := realtimePingRoundTrip(conn, "after-nonmember-unarchive"); err != nil {
+		t.Fatalf("realtime stream did not continue after non-member unarchive: %v", err)
 	}
 }
 
@@ -788,7 +1179,7 @@ func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 		t.Fatal("did not receive hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{RetainedRoomIds: []string{room.Id}},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive subscribed")
@@ -885,7 +1276,7 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 	}
 
 	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, token)
+	subscribeRealtime(t, conn, token, room.Id)
 
 	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "hello realtime", nil, "", "", nil, false)
 	if err != nil {
@@ -959,7 +1350,7 @@ func TestRealtimeWebSocketConvergesDirectoryRoomsAndAdministrativeMembership(t *
 		t.Fatalf("CreateAuthToken owner: %v", err)
 	}
 	ownerConn := env.connectRealtime(t)
-	subscribeRealtime(t, ownerConn, ownerToken)
+	subscribeRealtime(t, ownerConn, ownerToken, room.Id)
 	if _, err := env.core.AddMember(env.ctx, owner.Id, core.KindChannel, room.Id, viewer.Id); err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
@@ -993,7 +1384,7 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, token)
+	subscribeRealtime(t, conn, token, room.Id)
 
 	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "reply", nil, root.Id, root.Id, nil, false)
 	if err != nil {
@@ -1033,7 +1424,7 @@ func TestRealtimeWebSocketMessageRetractionUpsertsDeletedRow(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, token)
+	subscribeRealtime(t, conn, token, room.Id)
 
 	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, message.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
@@ -1080,7 +1471,7 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, token)
+	subscribeRealtime(t, conn, token, room.Id)
 
 	if added, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, reply.Id, "thumbsup", user.Id); err != nil || !added {
 		t.Fatalf("AddReaction: added=%v err=%v", added, err)
@@ -1303,7 +1694,7 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 		t.Fatal("did not receive resumed hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	if !ok || subscribed.GetSubscribed() == nil || subscribed.GetSubscribed().GetStartCursor() != resumeCursor {
@@ -1416,7 +1807,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 		t.Fatal("did not receive resumed hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	if !ok || subscribed.GetSubscribed() == nil || subscribed.GetSubscribed().GetStartCursor() != resumeCursor {
@@ -1578,7 +1969,7 @@ func TestRealtimeWebSocketDoesNotDeliverRoomMessageToOutsider(t *testing.T) {
 	}
 
 	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, token)
+	subscribeRealtime(t, conn, token, outsiderRoom.Id)
 
 	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, member.Id, "hidden from outsider", nil, "", "", nil, false)
 	if err != nil {

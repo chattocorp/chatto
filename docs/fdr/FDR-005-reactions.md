@@ -49,9 +49,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ### 6. Web reconnect catch-up resumes the server projection
 
-**Decision:** The web client retains current message windows for every joined room in its server-scoped projection. Realtime reaction changes upsert the current message row, including aggregate reaction state, and carry the exact add/remove transition. A short socket gap resumes from the last in-memory cursor through the same projection reducer; a fresh or unsafe resume resets and rebuilds current state.
-**Why:** Reactions mutate existing message rows in active and inactive rooms. A server projection keeps both current aggregate state and transition-sensitive integrations correct without a separate reaction-history query or visible-room-only refetch path.
-**Tradeoff:** A compacted reset transmits the latest 50 timeline events for every joined room. Reactions on older messages remain available when those messages are loaded through ordinary timeline pagination, but their historical transitions are not recreated by a reset because the stream is a convergence feed rather than an audit log.
+**Decision:** The web client retains current message windows for rooms after they are first viewed. Realtime reaction changes upsert the current message row, including aggregate reaction state, and carry the exact add/remove transition for retained rooms. A short socket gap resumes from the last in-memory cursor through the same projection reducer; a fresh or unsafe resume resets lightweight server state plus only the room windows the client still retains.
+**Why:** Reactions mutate existing message rows, but eagerly hydrating every historical DM is disproportionate. A retained room still provides exact transition catch-up without a separate reaction-history query, while a never-viewed room starts from authoritative aggregate state when first opened.
+**Tradeoff:** Integrators receive exact add/remove transitions only for room timelines they ask the stream to retain. A compacted reset and first hydration transmit current aggregate state rather than recreating historical transitions. Reactions on older messages remain available through ordinary timeline pagination because the stream is a convergence feed rather than an audit log.
 
 For an echoed thread reply, the server emits authoritative upserts for both the
 canonical reply and the visible channel echo. This keeps both renderings in

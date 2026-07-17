@@ -27,18 +27,24 @@ later changes:
 
 1. A fresh client receives `reset`, the current public server profile,
    authenticated server runtime state, viewer resource, every public directory
-   user, every room visible to the viewer with membership references into that
-   user directory, the complete visible room-group layout, and the latest 50
-   timeline events for every room the viewer has joined, the current finite
-   pending-notification page and complete room notification counts, and every
-   active call visible to the viewer.
+   user, lightweight state for every room visible to the viewer, the complete
+   visible room-group layout, the current finite pending-notification page and
+   complete room notification counts, and every active call visible to the
+   viewer. DM participant references remain eager because they define the
+   conversation label; channel membership and timeline windows are lazy.
 
 “Every room” includes joined DMs with no message yet. The public directory's
 conversation-list policy may hide those rows, but the realtime projection and
 live authorization capture are exhaustive so the room can receive its first
 message and be opened directly.
-2. The client applies later projection operations to those resources and room
-   timelines regardless of which room is being rendered.
+2. The subscription names timeline rooms already retained by the client. On a
+   room's first view, the client sends `hydrate_room` on the same WebSocket and
+   receives an atomic room-membership upsert plus the latest 50 timeline events
+   as normal projection operations. Later timeline mutations are emitted only
+   for retained rooms. Unretained room facts still update lightweight room and
+   viewer state; root messages carry a content-free room-activity operation so
+   DM ordering, unread, notification, and call state remain current while the
+   single resume cursor advances.
 3. A cursor is issued only at EVT boundaries. A socket reconnect in the same
    in-memory client session supplies its last applied cursor and receives
    projection operations derived from later EVT facts before `caught_up`.
@@ -61,6 +67,14 @@ being applied to an empty client store.
 The browser retains one projection store for every authenticated server for the
 lifetime of the tab. Each store owns an explicit `empty`, `hydrating`, `ready`,
 or `stale` phase and its own cursor. Socket teardown does not discard either.
+Room timeline retention belongs to that projection state: every reconnect and
+inactive poll sends its retained room IDs with the cursor.
+The client distinguishes desired rooms from confirmed materialised windows. A
+room enters the resumable retained set only after its timeline replacement was
+applied, so a dropped hydration response is retried instead of being mistaken
+for cached state. Desired retention is capped at the wire limit of 1,024 rooms;
+selecting another room evicts the least-recent inactive timeline and replaces
+the socket so the server and client retention sets stay aligned.
 The URL-active server has the only persistent realtime WebSocket. Inactive
 servers periodically open short-lived connections, resume through `caught_up`,
 and close; these catch-ups are serialized across the browser and use the same
@@ -95,7 +109,8 @@ not participate in correctness, authorization, replay position, or any
 cross-replica invariant.
 
 Projection hydration reuses the public ConnectRPC assemblers. PII is decrypted
-only at this authenticated response boundary. Message retractions and account
+only at this authenticated response boundary and only for requested timeline
+rooms. Message retractions and account
 key shredding are resolved to their current tombstone form, so replay never
 re-emits an obsolete plaintext body. Room and RBAC visibility changes either
 emit explicit resource removal or force a reset from current authorization.
@@ -137,9 +152,10 @@ use existing live envelopes on the same WebSocket; presence additionally has
 the finite convergence operation described above. Active call state is canonical and uses
 `active_calls_replace` in the compacted prefix and after durable call
 transitions. These transient values do not
-define the durable client projection and are not replayed. This does not create
-a separate bootstrap/feed path: all canonical server resources and room
-timelines converge through projection operations.
+define the durable client projection and are not replayed. Lazy room hydration
+does not create a separate bootstrap/feed path: it is a control request on the
+same WebSocket, and its atomic room/timeline replacement is applied by the same
+projection reducer as compacted reset, resumed replay, and live delivery.
 
 Version 2 is the sole bundled 0.5.0 client/server contract and is intentionally a
 breaking semantic change for clients that previously treated every realtime
@@ -157,22 +173,23 @@ preferences, and session termination.
 
 ## Consequences
 
-Room switching is a rendering selection over server-owned data. Temporary
+Room switching among retained rooms is a rendering selection over server-owned data. Temporary
 historical/permalink windows are discarded when their room is deselected, so
 late query responses cannot replace that room's retained latest projection.
-Server chrome, sidebar branding, permissions, unread state, room membership,
-and DM labels are selectors over the same projection; they do not run a second
-authenticated bootstrap query when a server becomes visible.
-Reactions, edits, retractions, channel-echo additions/removals, and new
-messages received while a room is inactive remain
-current, and reconnect can recover exact reaction transitions for integrations
-while also transmitting the authoritative aggregate message row.
+Server chrome, sidebar branding, permissions, unread state, and DM labels are
+selectors over the same projection; they do not run a second authenticated
+bootstrap query when a server becomes visible. The first visit to a cold room
+shows its timeline loading state until the stream emits its replacement.
+Reactions, edits, retractions, channel-echo additions/removals, and new messages
+remain current for retained rooms. A never-viewed room begins from current
+aggregate state when hydrated instead of replaying timeline transitions the
+client never retained.
 
-Switching among already-hydrated servers also renders retained state
+Switching among already-hydrated rooms and servers also renders retained state
 immediately, then resumes it in the background. Known rooms do not return to a
 loading skeleton merely because their transport was dormant. A room absent from
 a stale projection is not treated as authoritatively missing until activation
-reaches `caught_up`. Cold server hydration, thread/history windows, non-member
+reaches `caught_up`. Cold server and first-room hydration, thread/history windows, non-member
 previews, and media remain independently loadable and may still show loading
 states.
 
@@ -185,23 +202,27 @@ typing, presence transitions, and similar transient frames are intentionally
 not reconstructed while a server is dormant; activation observes current
 latest-value state and later transitions according to their owning subsystem.
 
-Initial connection payload and server hydration work grow with server users,
-visible rooms, and joined-room timeline windows. Timeline hydration is bounded
-to 50 events per joined room and concurrent server-side assembly. If unusually
-large servers emerge, room-window hydration may become lazy only if it keeps the
-single projection stream and reducer contract.
+Initial connection payload and server hydration work grow with server users and
+visible room summaries, not with every joined-room timeline. A first room view
+materialises at most 50 events plus complete channel membership. Compacted
+resets hydrate only timelines the client already retained, with bounded
+concurrent server-side assembly.
 
-Retained canonical timeline windows remain capped at 50 rows per joined room.
+Retained canonical timeline windows remain capped at 50 rows per hydrated room.
 Replacement operations include opaque cursors for every retained row and live
 upserts include the canonical row cursor, so the client advances its oldest
 pagination boundary without a separate refresh read.
-The frontend creates heavier render/message stores lazily when a room is first
-selected; inactive server projection rows do not accumulate without bound.
+The frontend creates heavier render/message stores and asks for channel
+membership/timeline hydration lazily when a room is first selected; never-viewed
+DM histories therefore do not accumulate in the client projection.
+Duplicate hydration controls are ignored once a room is retained, preventing
+clients from repeatedly forcing timeline assembly and PII decryption.
 Ordinary message delivery refreshes only the room's lightweight viewer state
 (including unread state), not its notification count, metadata, or complete
 membership list. Notification counts converge independently through
 notification signals and resume reconciliation. Room selection remains a pure
-rendering concern even after live rows have rolled through the capped window.
+rendering concern after that room's first hydration, even after live rows have
+rolled through the capped window.
 
 The stream is a convergence feed, not an audit log. Replay uses current
 authorization, deletion, and erasure state; it may reset rather than reproduce

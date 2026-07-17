@@ -3,11 +3,13 @@ import { test, expect } from './setup';
 import { DMPage } from './pages';
 import { createAndLoginTestUser, type TestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 import {
   RealtimeClientFrame,
   RealtimeClientHello,
   RealtimeEventEnvelope,
+  RealtimeHydrateRoom,
   RealtimeServerFrame,
   RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -166,6 +168,54 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
+  test('materialises a cold room timeline through the projection stream', async ({
+    page,
+    chatPage,
+    serverURL
+  }) => {
+    const viewer = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const messageId = await postMessageViaConnect(page, roomId, `lazy realtime ${Date.now()}`);
+    const token = await loginForBearerToken(page, viewer);
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+
+    try {
+      await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+      realtime.send(
+        new RealtimeClientFrame({
+          frame: {
+            case: 'hydrateRoom',
+            value: new RealtimeHydrateRoom({ roomId })
+          }
+        })
+      );
+
+      const hydrated = await realtime.waitForFrame((frame) => {
+        if (frame.frame.case !== 'projectionEvent') return false;
+        return frame.frame.value.operations.some((operation) => {
+          if (operation.operation.case !== 'roomTimelineReplace') return false;
+          return (
+            operation.operation.value.roomId === roomId &&
+            operation.operation.value.page?.events.some((event) => event.id === messageId)
+          );
+        });
+      });
+      expect(hydrated.frame.case).toBe('projectionEvent');
+      if (hydrated.frame.case !== 'projectionEvent') throw new Error('expected projection event');
+      expect(
+        hydrated.frame.value.operations.some(
+          (operation) =>
+            operation.operation.case === 'roomUpsert' &&
+            operation.operation.value.room?.room?.id === roomId &&
+            operation.operation.value.memberUserIds.includes(viewer.id)
+        )
+      ).toBe(true);
+    } finally {
+      realtime.close();
+    }
+  });
+
   test('delivers mention and DM display payloads over /api/realtime', async ({
     page,
     browser,

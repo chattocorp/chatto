@@ -39,9 +39,10 @@ type RealtimeProjectionServerState struct {
 	Runtime *apiv1.ServerRuntimeConfig
 }
 
-// RealtimeProjectionRoom is the complete room resource retained by clients.
-// Membership is represented by IDs because the same snapshot already carries
-// every public directory user exactly once.
+// RealtimeProjectionRoom is lightweight room state retained for every visible
+// room. Membership is represented by IDs because the same snapshot already
+// carries every public directory user exactly once; timelines are hydrated
+// independently when first viewed.
 type RealtimeProjectionRoom struct {
 	Room                    *apiv1.RoomWithViewerState
 	MemberUserIDs           []string
@@ -162,8 +163,12 @@ func (a *API) BuildRealtimeProjectionThreadViewerStates(ctx context.Context, use
 // fresh projection stream. It deliberately shares the same public assemblers
 // as ConnectRPC so deletion, crypto-shredding, attachment tickets, and viewer
 // authorization have one implementation.
-func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string) (*RealtimeProjectionSnapshot, error) {
+func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string, timelineRoomIDs []string) (*RealtimeProjectionSnapshot, error) {
 	ctx = core.WithDEKRequestCache(ctx)
+	retainedRoomIDs := make(map[string]struct{}, len(timelineRoomIDs))
+	for _, roomID := range timelineRoomIDs {
+		retainedRoomIDs[roomID] = struct{}{}
+	}
 
 	server, err := a.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
@@ -202,15 +207,16 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 		notificationCounts[count.GetRoomId()] = uint32(max(count.GetTotalCount(), 0))
 	}
 	apiRooms := make([]*RealtimeProjectionRoom, 0, len(rooms))
-	memberRooms := make([]*core.DirectoryRoom, 0, len(rooms))
+	memberRooms := make(map[string]*core.DirectoryRoom, len(rooms))
 	for _, room := range rooms {
-		apiRoom, err := a.realtimeProjectionRoom(ctx, userID, room, notificationCounts[room.Room.GetId()])
+		_, includeMembership := retainedRoomIDs[room.Room.GetId()]
+		apiRoom, err := a.realtimeProjectionRoom(ctx, userID, room, notificationCounts[room.Room.GetId()], includeMembership)
 		if err != nil {
 			return nil, fmt.Errorf("assemble realtime room %q: %w", room.Room.GetId(), err)
 		}
 		apiRooms = append(apiRooms, apiRoom)
 		if room != nil && room.ViewerState.IsMember {
-			memberRooms = append(memberRooms, room)
+			memberRooms[room.Room.GetId()] = room
 		}
 	}
 
@@ -223,7 +229,18 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 		apiGroups = append(apiGroups, apiRoomGroup(group))
 	}
 
-	timelines, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, memberRooms, func(ctx context.Context, _ int, room *core.DirectoryRoom) (*RealtimeProjectionRoomTimeline, error) {
+	requestedRooms := make([]*core.DirectoryRoom, 0, len(timelineRoomIDs))
+	seenTimelineRooms := make(map[string]struct{}, len(timelineRoomIDs))
+	for _, roomID := range timelineRoomIDs {
+		if _, seen := seenTimelineRooms[roomID]; seen {
+			continue
+		}
+		seenTimelineRooms[roomID] = struct{}{}
+		if room := memberRooms[roomID]; room != nil {
+			requestedRooms = append(requestedRooms, room)
+		}
+	}
+	timelines, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, requestedRooms, func(ctx context.Context, _ int, room *core.DirectoryRoom) (*RealtimeProjectionRoomTimeline, error) {
 		return a.BuildRealtimeProjectionRoomTimeline(ctx, userID, room.Room.GetId())
 	})
 	if err != nil {
@@ -347,6 +364,17 @@ func (a *API) realtimeProjectionUsers(ctx context.Context) ([]*apiv1.DirectoryMe
 // BuildRealtimeProjectionRoom returns current viewer-authorized room state.
 // Inaccessible and deleted rooms return the same domain errors as ConnectRPC.
 func (a *API) BuildRealtimeProjectionRoom(ctx context.Context, userID, roomID string) (*RealtimeProjectionRoom, error) {
+	return a.buildRealtimeProjectionRoom(ctx, userID, roomID, true)
+}
+
+// BuildRealtimeProjectionRoomSummary returns sidebar/rendering state without
+// eagerly materialising channel membership. DM participant IDs remain eager
+// because they define the conversation identity shown in navigation.
+func (a *API) BuildRealtimeProjectionRoomSummary(ctx context.Context, userID, roomID string) (*RealtimeProjectionRoom, error) {
+	return a.buildRealtimeProjectionRoom(ctx, userID, roomID, false)
+}
+
+func (a *API) buildRealtimeProjectionRoom(ctx context.Context, userID, roomID string, includeChannelMembership bool) (*RealtimeProjectionRoom, error) {
 	room, err := a.core.RoomDirectoryReads().GetRoom(ctx, userID, roomID)
 	if err != nil {
 		return nil, err
@@ -355,10 +383,10 @@ func (a *API) BuildRealtimeProjectionRoom(ctx context.Context, userID, roomID st
 	if err != nil {
 		return nil, err
 	}
-	return a.realtimeProjectionRoom(ctx, userID, room, counts[roomID])
+	return a.realtimeProjectionRoom(ctx, userID, room, counts[roomID], includeChannelMembership)
 }
 
-func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *core.DirectoryRoom, notificationCount uint32) (*RealtimeProjectionRoom, error) {
+func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *core.DirectoryRoom, notificationCount uint32, includeChannelMembership bool) (*RealtimeProjectionRoom, error) {
 	if room == nil || room.Room == nil {
 		return nil, core.ErrNotFound
 	}
@@ -366,6 +394,9 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 	// the viewer joins. Their member list is not authorized at that point and
 	// is not needed until the room becomes a joined-room projection.
 	if !room.ViewerState.IsMember {
+		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount}, nil
+	}
+	if room.Room.GetKind() != corev1.RoomKind_ROOM_KIND_DM && !includeChannelMembership {
 		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount}, nil
 	}
 	members, err := a.core.ListRoomMemberReferencesForList(ctx, userID, room.Room.GetId())

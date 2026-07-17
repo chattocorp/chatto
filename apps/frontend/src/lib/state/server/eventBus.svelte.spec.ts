@@ -1,5 +1,6 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import {
@@ -16,7 +17,8 @@ import {
   RealtimeSubscribed,
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
-  RealtimeProjectionReset
+  RealtimeProjectionReset,
+  RealtimeProjectionRoomTimelineReplace
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
   eventBusManager,
@@ -24,7 +26,10 @@ import {
   setRealtimeSocketFactoryForTests
 } from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
-import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
+import {
+  MAX_RETAINED_ROOM_TIMELINES,
+  RealtimeProjectionSyncState
+} from './realtimeSync.svelte';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -141,6 +146,25 @@ function projectionFrame(cursor = 'cursor-1'): RealtimeServerFrame {
       operations: [
         new RealtimeProjectionOperation({
           operation: { case: 'reset', value: new RealtimeProjectionReset() }
+        })
+      ]
+    })
+  });
+}
+
+function roomTimelineFrame(roomId: string): RealtimeServerFrame {
+  return serverFrame({
+    case: 'projectionEvent',
+    value: new RealtimeProjectionEvent({
+      operations: [
+        new RealtimeProjectionOperation({
+          operation: {
+            case: 'roomTimelineReplace',
+            value: new RealtimeProjectionRoomTimelineReplace({
+              roomId,
+              page: new RoomTimelinePage()
+            })
+          }
         })
       ]
     })
@@ -264,6 +288,152 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets[0].sent).toHaveLength(2);
     await sockets[0].receive(subscribedFrame());
     expect(fake.status).toBe('connected');
+  });
+
+  it('requests a room timeline lazily and retains it across reconnect subscriptions', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-lazy');
+
+    expect(socket.sent).toHaveLength(3);
+    const hydration = RealtimeClientFrame.fromBinary(socket.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('room-lazy');
+    expect(sync.desiredRoomIds).toEqual(['room-lazy']);
+    expect(sync.retainedRoomIds).toEqual([]);
+
+    // Repeated selectors do not ask the server to rebuild the same timeline.
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-lazy');
+    expect(socket.sent).toHaveLength(3);
+
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(roomTimelineFrame('room-lazy'));
+    expect(sync.retainedRoomIds).toEqual(['room-lazy']);
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'cursor-lazy' }) })
+    );
+    socket.serverClose();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const resumed = sockets.at(-1)!;
+    resumed.open();
+    await resumed.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(resumed.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.resumeCursor).toBe('cursor-lazy');
+    expect(subscribe.frame.value.retainedRoomIds).toEqual(['room-lazy']);
+  });
+
+  it('includes materialized rooms in the first subscription', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.retainRoom('room-from-route');
+    sync.confirmRoom('room-from-route');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+
+    const subscribe = RealtimeClientFrame.fromBinary(socket.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.retainedRoomIds).toEqual(['room-from-route']);
+  });
+
+  it('flushes a room retained between subscribe and subscribed', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-during-handshake');
+    expect(socket.sent).toHaveLength(2);
+
+    await socket.receive(subscribedFrame());
+    expect(socket.sent).toHaveLength(3);
+    const hydration = RealtimeClientFrame.fromBinary(socket.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('room-during-handshake');
+  });
+
+  it('retries a desired room after reconnect when its hydration response was lost', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-lost-response');
+    expect(sync.desiredRoomIds).toEqual(['room-lost-response']);
+    expect(sync.retainedRoomIds).toEqual([]);
+    socket.serverClose();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const resumed = sockets.at(-1)!;
+    resumed.open();
+    await resumed.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(resumed.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.retainedRoomIds).toEqual([]);
+
+    await resumed.receive(subscribedFrame());
+    const hydration = RealtimeClientFrame.fromBinary(resumed.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('room-lost-response');
+  });
+
+  it('rolls the socket when LRU retention makes room for another timeline', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    for (let index = 0; index < MAX_RETAINED_ROOM_TIMELINES; index++) {
+      const roomId = `R${index}`;
+      sync.retainRoom(roomId);
+      sync.confirmRoom(roomId);
+    }
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const original = sockets[0];
+    original.open();
+    await original.receive(helloFrame());
+    await original.receive(subscribedFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'R-overflow');
+
+    expect(original.closeCalls.at(-1)?.reason).toBe('room retention rollover');
+    expect(sockets).toHaveLength(2);
+    const replacement = sockets[1];
+    replacement.open();
+    await replacement.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(replacement.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.retainedRoomIds).not.toContain('R0');
+    expect(subscribe.frame.value.retainedRoomIds).not.toContain('R-overflow');
+    expect(subscribe.frame.value.retainedRoomIds).toHaveLength(
+      MAX_RETAINED_ROOM_TIMELINES - 1
+    );
+
+    await replacement.receive(subscribedFrame());
+    const hydration = RealtimeClientFrame.fromBinary(replacement.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('R-overflow');
   });
 
   it('registers the bus but defers the socket until projection support is confirmed', () => {

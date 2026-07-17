@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,8 @@ const (
 	realtimeCompressionMinBytes      = 1024
 	realtimeHandshakeTimeout         = 10 * time.Second
 	realtimeWriteTimeout             = 10 * time.Second
+	realtimeMaxRetainedRooms         = 1024
+	realtimeMaxRoomIDBytes           = 256
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
 )
 
@@ -195,6 +198,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
+	retainedRooms, err := realtimeRetainedRoomSet(subscribeEvents.GetRetainedRoomIds())
+	if err != nil {
+		writeError("bad_subscribe", err.Error(), true)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
+		return
+	}
 
 	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id)
 	if admissionErr != nil {
@@ -267,9 +276,15 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
+	hydrateRooms := make(chan string, 16)
+	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame, hydrateRooms)
 	if replayPlan.Reset {
-		frames, err := s.realtimeProjectionSnapshotFrames(catchUpCtx, user.Id)
+		retainedRoomIDs := make([]string, 0, len(retainedRooms))
+		for roomID := range retainedRooms {
+			retainedRoomIDs = append(retainedRoomIDs, roomID)
+		}
+		slices.Sort(retainedRoomIDs)
+		frames, err := s.realtimeProjectionSnapshotFrames(catchUpCtx, user.Id, retainedRoomIDs)
 		if err != nil {
 			failCatchUp("Realtime compacted projection replay failed", err)
 			return
@@ -282,7 +297,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}
 	}
 	for _, event := range replayPlan.Events {
-		frame, handled, err := s.realtimeProjectionFrameForEvent(catchUpCtx, user.Id, event)
+		frame, handled, err := s.realtimeProjectionFrameForEventWithRooms(catchUpCtx, user.Id, event, retainedRooms)
 		if err != nil {
 			failCatchUp("Realtime replay mapping failed", err)
 			return
@@ -319,6 +334,33 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		select {
 		case <-ctx.Done():
 			return
+		case roomID := <-hydrateRooms:
+			if _, retained := retainedRooms[roomID]; retained {
+				continue
+			}
+			if len(retainedRooms) >= realtimeMaxRetainedRooms {
+				writeError("too_many_retained_rooms", "too many retained room timelines", false)
+				continue
+			}
+			// Retain the request even if authorization currently fails. If this
+			// viewer joins later on the same socket, that membership fact can
+			// atomically materialise the room without a second client mechanism.
+			retainedRooms[roomID] = struct{}{}
+			frame, hydrateErr := s.realtimeProjectionRoomTimelineFrame(ctx, user.Id, roomID)
+			if hydrateErr != nil {
+				if errors.Is(hydrateErr, core.ErrNotFound) || errors.Is(hydrateErr, core.ErrPermissionDenied) || errors.Is(hydrateErr, core.ErrNotRoomMember) {
+					writeError("room_unavailable", "room timeline is unavailable", false)
+					continue
+				}
+				s.logger.Warn("Realtime room hydration failed", "error", hydrateErr)
+				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+					Close: &realtimev1.RealtimeClose{Code: "room_hydration_failed", Message: "room timeline hydration failed", Reconnect: true},
+				}})
+				return
+			}
+			if err := writeFrame(frame); err != nil {
+				return
+			}
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
@@ -332,7 +374,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			var frame *realtimev1.RealtimeServerFrame
 			var handled bool
 			var mapErr error
-			frame, handled, mapErr = s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
+			frame, handled, mapErr = s.realtimeProjectionFrameForEventWithRooms(ctx, user.Id, event, retainedRooms)
 			if mapErr == nil && !handled {
 				if event.DeliverySeq() > 0 {
 					mapErr = errors.New("durable event has no projection mapping")
@@ -398,7 +440,7 @@ func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*real
 	return &frame, nil
 }
 
-func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
+func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error, hydrateRooms chan<- string) {
 	defer cancel()
 	for {
 		select {
@@ -428,6 +470,19 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Pong{
 				Pong: &realtimev1.RealtimePong{Nonce: payload.Ping.GetNonce()},
 			}})
+		case *realtimev1.RealtimeClientFrame_HydrateRoom:
+			roomID := strings.TrimSpace(payload.HydrateRoom.GetRoomId())
+			if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
+				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
+					Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "invalid room hydration request", Fatal: true},
+				}})
+				return
+			}
+			select {
+			case hydrateRooms <- roomID:
+			case <-ctx.Done():
+				return
+			}
 		default:
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
 				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
@@ -435,6 +490,21 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			return
 		}
 	}
+}
+
+func realtimeRetainedRoomSet(roomIDs []string) (map[string]struct{}, error) {
+	if len(roomIDs) > realtimeMaxRetainedRooms {
+		return nil, errors.New("too many retained room timelines")
+	}
+	rooms := make(map[string]struct{}, len(roomIDs))
+	for _, rawRoomID := range roomIDs {
+		roomID := strings.TrimSpace(rawRoomID)
+		if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
+			return nil, errors.New("invalid retained room ID")
+		}
+		rooms[roomID] = struct{}{}
+	}
+	return rooms, nil
 }
 
 func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *corev1.User, error) {

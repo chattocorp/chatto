@@ -198,7 +198,11 @@
   });
 
   $effect(() => {
-    roomMembersStore.replaceProjection(roomId, stores.projectedMembersForRoom(roomId));
+    if (stores.hasCompleteProjectedRoomMembership(roomId)) {
+      roomMembersStore.replaceProjection(roomId, stores.projectedMembersForRoom(roomId));
+    } else {
+      roomMembersStore.awaitProjection(roomId);
+    }
   });
 
   // Room permissions — derived reactively, no $effect needed

@@ -88,6 +88,14 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
      */
     value: RealtimePing;
     case: "ping";
+  } | {
+    /**
+     * Adds one joined room's recent timeline to the retained projection.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeHydrateRoom hydrate_room = 4;
+     */
+    value: RealtimeHydrateRoom;
+    case: "hydrateRoom";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeClientFrame>) {
@@ -101,6 +109,7 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     { no: 1, name: "hello", kind: "message", T: RealtimeClientHello, oneof: "frame" },
     { no: 2, name: "subscribe_events", kind: "message", T: RealtimeSubscribeEvents, oneof: "frame" },
     { no: 3, name: "ping", kind: "message", T: RealtimePing, oneof: "frame" },
+    { no: 4, name: "hydrate_room", kind: "message", T: RealtimeHydrateRoom, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientFrame {
@@ -374,6 +383,17 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
    */
   resumeCursor?: string;
 
+  /**
+   * Joined rooms whose timeline windows the client already retains. A fresh
+   * compacted projection includes only these timelines, and resumed delivery
+   * emits timeline mutations only for these rooms. Lightweight room, unread,
+   * notification, and call state remains server-wide. At most 1,024 room IDs
+   * may be supplied in one subscription.
+   *
+   * @generated from field: repeated string retained_room_ids = 2;
+   */
+  retainedRoomIds: string[] = [];
+
   constructor(data?: PartialMessage<RealtimeSubscribeEvents>) {
     super();
     proto3.util.initPartial(data, this);
@@ -383,6 +403,7 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   static readonly typeName = "chatto.realtime.v1.RealtimeSubscribeEvents";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "retained_room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribeEvents {
@@ -399,6 +420,54 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
 
   static equals(a: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined, b: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined): boolean {
     return proto3.util.equals(RealtimeSubscribeEvents, a, b);
+  }
+}
+
+/**
+ * Requests lazy materialisation of one joined room's recent timeline.
+ *
+ * The server replies on the same ordered projection stream with a
+ * `room_timeline_replace` operation. Once hydrated, later timeline mutations
+ * for the room are included for the lifetime of this connection. Clients send
+ * all still-retained room IDs again in their next subscription. A connection
+ * may retain at most 1,024 distinct room IDs; excess requests receive a
+ * non-fatal `too_many_retained_rooms` error.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeHydrateRoom
+ */
+export class RealtimeHydrateRoom extends Message<RealtimeHydrateRoom> {
+  /**
+   * Joined room to materialise. Repeating a retained room is idempotent.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<RealtimeHydrateRoom>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeHydrateRoom";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeHydrateRoom {
+    return new RealtimeHydrateRoom().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeHydrateRoom {
+    return new RealtimeHydrateRoom().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeHydrateRoom {
+    return new RealtimeHydrateRoom().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeHydrateRoom | PlainMessage<RealtimeHydrateRoom> | undefined, b: RealtimeHydrateRoom | PlainMessage<RealtimeHydrateRoom> | undefined): boolean {
+    return proto3.util.equals(RealtimeHydrateRoom, a, b);
   }
 }
 
@@ -622,7 +691,8 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     case: "userRemove";
   } | {
     /**
-     * Adds or replaces one room, its viewer state, and current membership.
+     * Adds or replaces one room and its viewer state. Channel membership is
+     * complete only after that room's timeline has been materialised.
      *
      * @generated from field: chatto.realtime.v1.RealtimeProjectionRoom room_upsert = 6;
      */
@@ -646,7 +716,7 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     case: "roomGroupsReplace";
   } | {
     /**
-     * Replaces the retained recent timeline window for one joined room.
+     * Replaces the lazily retained recent timeline window for one joined room.
      *
      * @generated from field: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace room_timeline_replace = 9;
      */
@@ -723,6 +793,15 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
      */
     value: RealtimeProjectionThreadViewerStatesReplace;
     case: "threadViewerStatesReplace";
+  } | {
+    /**
+     * Signals root-message activity for lightweight room ordering even when
+     * that room's timeline is not retained.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionRoomActivity room_activity = 18;
+     */
+    value: RealtimeProjectionRoomActivity;
+    case: "roomActivity";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeProjectionOperation>) {
@@ -750,6 +829,7 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     { no: 15, name: "active_calls_replace", kind: "message", T: RealtimeProjectionActiveCallsReplace, oneof: "operation" },
     { no: 16, name: "presences_replace", kind: "message", T: RealtimeProjectionPresencesReplace, oneof: "operation" },
     { no: 17, name: "thread_viewer_states_replace", kind: "message", T: RealtimeProjectionThreadViewerStatesReplace, oneof: "operation" },
+    { no: 18, name: "room_activity", kind: "message", T: RealtimeProjectionRoomActivity, oneof: "operation" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionOperation {
@@ -852,7 +932,7 @@ export class RealtimeProjectionServerState extends Message<RealtimeProjectionSer
 }
 
 /**
- * Canonical room state retained by a server-scoped client projection.
+ * Canonical lightweight room state retained by a server-scoped projection.
  *
  * @generated from message chatto.realtime.v1.RealtimeProjectionRoom
  */
@@ -865,8 +945,10 @@ export class RealtimeProjectionRoom extends Message<RealtimeProjectionRoom> {
   room?: RoomWithViewerState;
 
   /**
-   * Complete current room membership expressed as references into the
-   * projection's server-wide user directory.
+   * Current room membership expressed as references into the projection's
+   * server-wide user directory. DM participants are always present. Channel
+   * membership is empty in a cold room summary and complete after that room's
+   * timeline has been materialised.
    *
    * @generated from field: repeated string member_user_ids = 2;
    */
@@ -906,6 +988,49 @@ export class RealtimeProjectionRoom extends Message<RealtimeProjectionRoom> {
 
   static equals(a: RealtimeProjectionRoom | PlainMessage<RealtimeProjectionRoom> | undefined, b: RealtimeProjectionRoom | PlainMessage<RealtimeProjectionRoom> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionRoom, a, b);
+  }
+}
+
+/**
+ * Root-message activity that affects lightweight room navigation state.
+ *
+ * This deliberately carries no message content. Retained rooms receive the
+ * corresponding timeline mutation separately; unretained rooms still use this
+ * operation to keep DM ordering current without materialising their timeline.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionRoomActivity
+ */
+export class RealtimeProjectionRoomActivity extends Message<RealtimeProjectionRoomActivity> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<RealtimeProjectionRoomActivity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionRoomActivity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionRoomActivity {
+    return new RealtimeProjectionRoomActivity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionRoomActivity {
+    return new RealtimeProjectionRoomActivity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionRoomActivity {
+    return new RealtimeProjectionRoomActivity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionRoomActivity | PlainMessage<RealtimeProjectionRoomActivity> | undefined, b: RealtimeProjectionRoomActivity | PlainMessage<RealtimeProjectionRoomActivity> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionRoomActivity, a, b);
   }
 }
 

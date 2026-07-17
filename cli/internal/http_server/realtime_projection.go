@@ -13,11 +13,11 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userID string) ([]*realtimev1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userID string, timelineRoomIDs []string) ([]*realtimev1.RealtimeServerFrame, error) {
 	if s.connectAPI == nil {
 		return nil, errors.New("Connect API is unavailable")
 	}
-	snapshot, err := s.connectAPI.BuildRealtimeProjectionSnapshot(ctx, userID)
+	snapshot, err := s.connectAPI.BuildRealtimeProjectionSnapshot(ctx, userID, timelineRoomIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +67,32 @@ func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userI
 
 func realtimeProjectionServerFrame(event *realtimev1.RealtimeProjectionEvent) *realtimev1.RealtimeServerFrame {
 	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_ProjectionEvent{ProjectionEvent: event}}
+}
+
+func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, viewerID, roomID string) (*realtimev1.RealtimeServerFrame, error) {
+	room, err := s.connectAPI.BuildRealtimeProjectionRoom(ctx, viewerID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if !room.Room.GetViewerState().GetIsMember() {
+		return nil, core.ErrNotRoomMember
+	}
+	timeline, err := s.connectAPI.BuildRealtimeProjectionRoomTimeline(ctx, viewerID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
+		Id:        core.NewEventID(),
+		CreatedAt: timestamppb.Now(),
+		Operations: []*realtimev1.RealtimeProjectionOperation{
+			{Operation: &realtimev1.RealtimeProjectionOperation_RoomUpsert{RoomUpsert: realtimeProjectionRoom(room)}},
+			{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineReplace{
+				RoomTimelineReplace: &realtimev1.RealtimeProjectionRoomTimelineReplace{
+					RoomId: roomID, Page: timeline.Page, EventCursors: timeline.EventCursors,
+				},
+			}},
+		},
+	}), nil
 }
 
 // realtimeProjectionReconciliationFrame captures latest-value viewer state
@@ -124,6 +150,14 @@ func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, 
 }
 
 func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, bool, error) {
+	return s.realtimeProjectionFrameForEventWithRooms(ctx, viewerID, event, nil)
+}
+
+// realtimeProjectionFrameForEventWithRooms maps every durable fact so its
+// cursor can advance, but only materialises timeline payloads for rooms the
+// connection says it retains. A nil set preserves the unfiltered test/helper
+// behavior; a non-nil empty set means no timeline is retained.
+func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Context, viewerID string, event core.EventEnvelope, retainedRooms map[string]struct{}) (*realtimev1.RealtimeServerFrame, bool, error) {
 	evt := event.EVTEvent()
 	if core.IsRBACEvent(evt) {
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
@@ -147,6 +181,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 
 	appendOperation := func(operation *realtimev1.RealtimeProjectionOperation) {
 		projection.Operations = append(projection.Operations, operation)
+	}
+	retainsTimeline := func(roomID string) bool {
+		if retainedRooms == nil {
+			return true
+		}
+		_, ok := retainedRooms[roomID]
+		return ok
 	}
 	if evt == nil {
 		live := event.LiveEvent()
@@ -209,6 +250,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
+			if !retainsTimeline(thread.GetRoomId()) {
+				break
+			}
 			timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
 			if err != nil {
 				return nil, false, err
@@ -224,6 +268,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return realtimeProjectionServerFrame(projection), true, nil
 	}
 	appendTimeline := func(roomID, messageEventID string, reaction *realtimev1.RealtimeProjectionReactionChange, retainDeletedRow ...bool) error {
+		if !retainsTimeline(roomID) {
+			return nil
+		}
 		if s.core.IsHiddenChannelEcho(messageEventID) {
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventRemove{
 				RoomTimelineEventRemove: &realtimev1.RealtimeProjectionRoomTimelineEventRemove{RoomId: roomID, EventId: messageEventID},
@@ -243,6 +290,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return nil
 	}
 	appendTimelineRemove := func(roomID, eventID string) {
+		if !retainsTimeline(roomID) {
+			return
+		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventRemove{
 			RoomTimelineEventRemove: &realtimev1.RealtimeProjectionRoomTimelineEventRemove{RoomId: roomID, EventId: eventID},
 		}})
@@ -260,7 +310,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return nil
 	}
 	appendRoom := func(roomID string) error {
-		room, err := s.connectAPI.BuildRealtimeProjectionRoom(ctx, viewerID, roomID)
+		var room *connectapi.RealtimeProjectionRoom
+		var err error
+		if retainsTimeline(roomID) {
+			room, err = s.connectAPI.BuildRealtimeProjectionRoom(ctx, viewerID, roomID)
+		} else {
+			room, err = s.connectAPI.BuildRealtimeProjectionRoomSummary(ctx, viewerID, roomID)
+		}
 		if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) || room == nil {
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomRemove{
 				RoomRemove: &realtimev1.RealtimeProjectionRoomRemove{RoomId: roomID},
@@ -274,6 +330,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return nil
 	}
 	appendRoomTimeline := func(roomID string) error {
+		if !retainsTimeline(roomID) {
+			return nil
+		}
 		timeline, err := s.connectAPI.BuildRealtimeProjectionRoomTimeline(ctx, viewerID, roomID)
 		if err != nil {
 			return fmt.Errorf("hydrate realtime room timeline %q: %w", roomID, err)
@@ -283,12 +342,34 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		}})
 		return nil
 	}
+	appendRoomTimelineIfMember := func(roomID string) error {
+		if !retainsTimeline(roomID) {
+			return nil
+		}
+		viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+		if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if !viewerState.GetIsMember() {
+			return nil
+		}
+		return appendRoomTimeline(roomID)
+	}
 	appendRoomTimelineClear := func(roomID string) {
+		if !retainsTimeline(roomID) {
+			return
+		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineReplace{
 			RoomTimelineReplace: &realtimev1.RealtimeProjectionRoomTimelineReplace{RoomId: roomID, Page: &apiv1.RoomTimelinePage{}},
 		}})
 	}
 	appendSourceTimeline := func(roomID string) error {
+		if !retainsTimeline(roomID) {
+			return nil
+		}
 		timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionSourceTimelineEvent(ctx, viewerID, roomID, evt)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
@@ -307,17 +388,30 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 
 	switch payload := evt.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
-		if err := appendRoomViewerState(payload.MessagePosted.GetRoomId()); err != nil {
+		roomID := payload.MessagePosted.GetRoomId()
+		// Refresh lightweight room state when no timeline is retained. Retained
+		// rooms already carry their activity through the timeline mutation.
+		if !retainsTimeline(roomID) {
+			if err := appendRoom(roomID); err != nil {
+				return nil, false, err
+			}
+		}
+		if err := appendRoomViewerState(roomID); err != nil {
 			return nil, false, err
 		}
-		if err := appendTimeline(payload.MessagePosted.GetRoomId(), evt.GetId(), nil); err != nil {
+		if payload.MessagePosted.GetInThread() == "" {
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomActivity{
+				RoomActivity: &realtimev1.RealtimeProjectionRoomActivity{RoomId: roomID},
+			}})
+		}
+		if err := appendTimeline(roomID, evt.GetId(), nil); err != nil {
 			return nil, false, err
 		}
 		// Deliver the reply before the authoritative root summary. Existing
 		// reducers optimistically increment a root when ingesting a reply; the
 		// following root upsert then converges that count instead of doubling it.
 		if rootID := payload.MessagePosted.GetInThread(); rootID != "" {
-			if err := appendTimeline(payload.MessagePosted.GetRoomId(), rootID, nil); err != nil {
+			if err := appendTimeline(roomID, rootID, nil); err != nil {
 				return nil, false, err
 			}
 		}
@@ -431,6 +525,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
 		}
+		if err := appendRoomTimelineIfMember(roomID); err != nil {
+			return nil, false, err
+		}
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
@@ -530,9 +627,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		return nil, false, nil
 	}
 
-	if len(projection.Operations) == 0 {
-		return nil, false, nil
-	}
+	// Recognized durable facts may intentionally produce no operations when
+	// they only affect a room timeline this connection has not materialised.
+	// Keep the empty envelope so the client can safely advance its one cursor.
 	return realtimeProjectionServerFrame(projection), true, nil
 }
 

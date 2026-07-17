@@ -135,6 +135,14 @@ export class RoomMembersStore {
     void this.loadInitial();
   }
 
+  /** Keep membership explicitly pending until the projection materializes it. */
+  awaitProjection(roomId: string): void {
+    if (this.roomId === roomId && this.isInitialLoading && !this.hasFirstPage) return;
+    if (this.roomId !== roomId) this.roomId = roomId;
+    this.reset();
+    this.isInitialLoading = true;
+  }
+
   /** Replace membership from the canonical server projection. */
   replaceProjection(roomId: string, members: RoomMember[]): void {
     if (this.roomId !== roomId) {

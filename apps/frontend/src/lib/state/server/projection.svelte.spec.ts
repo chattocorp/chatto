@@ -35,6 +35,7 @@ import {
   RealtimeProjectionThreadViewerStatesReplace,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
+  RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomGroupsReplace,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionRoomRemove,
@@ -301,6 +302,35 @@ describe('ServerProjectionStore', () => {
     expect(store.timelines.get('R1')?.events.map(({ id }) => id)).toEqual(['M2']);
   });
 
+  it('evicts an LRU timeline and demotes hydrated channel membership', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) }),
+            memberUserIds: ['U1', 'U2']
+          })
+        }),
+        operation({
+          case: 'roomTimelineReplace',
+          value: new RealtimeProjectionRoomTimelineReplace({
+            roomId: 'R1',
+            page: new RoomTimelinePage({
+              events: [timelineEvent('M1', '2026-01-01T00:00:00Z')]
+            })
+          })
+        })
+      )
+    );
+
+    store.evictRoomTimeline('R1', true);
+
+    expect(store.timelines.has('R1')).toBe(false);
+    expect(store.rooms.get('R1')?.memberUserIds).toEqual([]);
+  });
+
   it('purges room state on authorization loss and clears all state on reset', () => {
     const store = new ServerProjectionStore();
     store.apply(
@@ -451,6 +481,38 @@ describe('ServerProjectionStore', () => {
     );
 
     expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+  });
+
+  it('bumps an unretained room through lightweight room activity', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+          })
+        }),
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) })
+          })
+        })
+      )
+    );
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomActivity',
+          value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
+        })
+      )
+    );
+
+    expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+    expect(store.timelines.has('R2')).toBe(false);
   });
 
   it('advances a compacted timeline cursor using only streamed row cursors', () => {

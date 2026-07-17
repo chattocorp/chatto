@@ -26,17 +26,18 @@ Notes and TODOs:
 		- [ ] New typing indicators
 		- [ ] Find a new name for "room groups"
 	- **Refactor room data loading**
-		- [ ] Keep all room state, not just the one you're viewing currently
-		- [ ] Switching rooms should just render a different part of the store
-		- [ ] Event-based; catchup mechanism should be able to just ask the server for all events since datetime/sequence/event ID, etc.
+		- [x] Keep lightweight state for all rooms and lazily retain viewed room timelines
+		- [x] Switching previously hydrated rooms should just render a different part of the store
+		- [x] Event-based catch-up through an opaque resumable cursor
 	- **Make it fully instance agnostic**
 		- [ ] We must be able to ship it as a desktop and native app
 		- [ ] **This implicitly conflicts with our plans for "Chatto Neighbors", so we need to figure out how we can cut this so there's no more conflict**
-		- [ ] Only connect websocket to the currently active instance; periodically poll other instances
+		- [x] Only connect websocket to the currently active instance; periodically poll other instances
 	- **Server Sidebar Refresh**
-		- [ ] Context menu (right click/long-tap)
+		- [x] Context menu (right click/long-tap)
 			- [x] Server Version (with warning icon if incompatible?)
-			- [ ] Leave Server
+			- [ ] Fully manage compatibility matrix (we know our previous versions!)
+			- [x] Leave Server
 	- **Room Sidebar Refresh**
 		- [ ] Have a tabbed interface, where members, calls and files can be visible at the same time (expanding/collapsing sections)
 		- [ ] Rework room members

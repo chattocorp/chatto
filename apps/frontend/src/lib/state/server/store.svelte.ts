@@ -39,7 +39,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore } from '$lib/state/room';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
+import { mapDirectoryRoom, mapRoomGroup, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState, type ViewerState } from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
@@ -274,8 +274,26 @@ export class ServerStateStore {
 
   /** Restore the canonical latest window when a route selects this room. */
   restoreProjectedRoomWindow(roomId: string): void {
+    const evictedRoomId = this.realtimeSync.retainRoom(roomId);
+    if (evictedRoomId) this.evictRetainedRoom(evictedRoomId);
     const page = this.projection.timelines.get(roomId);
     if (page) this.messagesForRoom(roomId).replaceRoomProjectionPage(roomId, page);
+    else eventBusManager.hydrateRoom(this.serverId, roomId);
+  }
+
+  private evictRetainedRoom(roomId: string): void {
+    const room = this.projection.rooms.get(roomId)?.room;
+    const clearMembership = room ? mapDirectoryRoom(room)?.kind !== RoomKind.DM : false;
+    this.projection.evictRoomTimeline(roomId, clearMembership);
+    const viewer = this.projection.viewer;
+    if (viewer) this.synchronizeProjectedNavigation(viewerResponseToState(viewer));
+    this.#roomMessages[roomId]?.dispose();
+    delete this.#roomMessages[roomId];
+    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+      if (!key.startsWith(`${roomId}\u0000`)) continue;
+      threadStore.dispose();
+      delete this.#threadMessages[key];
+    }
   }
 
   /** Stable lazy thread timeline owner fed by the server projection once opened. */
@@ -456,6 +474,9 @@ export class ServerStateStore {
           }
           break;
         }
+        case 'roomActivity':
+          this.rooms.bumpRoom(operation.operation.value.roomId);
+          break;
         case undefined:
           // ServerProjectionStore validates the whole event before either
           // reducer mutates state, so this is unreachable for accepted input.
@@ -503,6 +524,13 @@ export class ServerStateStore {
       const user = this.projection.users.get(userId);
       return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
     });
+  }
+
+  /** Whether membership references are authoritative for this projected room. */
+  hasCompleteProjectedRoomMembership(roomId: string): boolean {
+    if (this.projection.timelines.has(roomId)) return true;
+    const room = this.projection.rooms.get(roomId)?.room;
+    return room ? mapDirectoryRoom(room)?.kind === RoomKind.DM : false;
   }
 
   /**

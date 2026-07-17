@@ -6442,7 +6442,7 @@ func TestRealtimeProjectionSnapshotHonorsMessageDeletionAndCryptoErasure(t *test
 		t.Fatalf("DeleteUser author: %v", err)
 	}
 
-	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id)
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id, []string{room.Id})
 	if err != nil {
 		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
 	}
@@ -6512,7 +6512,7 @@ func TestRealtimeProjectionSnapshotIncludesEmptyJoinedDM(t *testing.T) {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
 
-	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id)
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id, nil)
 	if err != nil {
 		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
 	}
