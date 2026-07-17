@@ -22,7 +22,7 @@ const (
 	initNATSEmbedded   initNATSMode = "embedded"
 	initNATSExternal   initNATSMode = "external"
 	initFormMinWidth                = 20
-	initSplashDuration              = 850 * time.Millisecond
+	initSplashDuration              = 950 * time.Millisecond
 )
 
 type initAnswers struct {
@@ -104,7 +104,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 
 func runInitSplash(opts initWizardOptions) error {
 	return huhspinner.New().
-		Type(huhspinner.Type{Frames: initSplashFrames(), FPS: 110 * time.Millisecond}).
+		Type(huhspinner.Type{Frames: initSplashFrames(), FPS: 100 * time.Millisecond}).
 		Title("").
 		WithInput(opts.input).
 		WithOutput(opts.output).
@@ -123,12 +123,28 @@ func runInitSplash(opts initWizardOptions) error {
 }
 
 func initSplashFrames() []string {
-	dots := []string{"·    ", "··   ", "···  ", " ··· ", "  ···", "   ··", "    ·"}
-	frames := make([]string, 0, len(dots))
-	for _, dot := range dots {
+	type beat struct {
+		signal string
+		reply  string
+	}
+	beats := []beat{
+		{signal: "·                   "},
+		{signal: "   ·                "},
+		{signal: "      ·             "},
+		{signal: "         ·          "},
+		{signal: "            ·       "},
+		{signal: "               ·    "},
+		{signal: "                  · "},
+		{signal: "                    ", reply: "oh hi!"},
+		{signal: "                    ", reply: "oh hi!"},
+		{signal: "                    ", reply: "oh hi!"},
+	}
+	frames := make([]string, 0, len(beats))
+	for _, beat := range beats {
 		frames = append(frames, fmt.Sprintf(
-			"╭────────────────────────────────╮\n│  chatto  tuning the vibes %s│\n╰────────────────╮  ╭────────────╯\n                 ╰──╯",
-			dot,
+			"╭────────╮                        ╭────────╮\n│ psst!  │  %s  │ %-6s │\n╰─────╮  │                        │  ╭─────╯\n      ╰──╯                        ╰──╯      \n                                            \n          █▀▀ █ █ ▄▀█ ▀█▀ ▀█▀ █▀█           \n          █▄▄ █▀█ █▀█  █   █  █▄█           ",
+			beat.signal,
+			beat.reply,
 		))
 	}
 	return frames

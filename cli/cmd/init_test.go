@@ -537,12 +537,12 @@ func TestInitSplashFramesKeepSpeechBubbleGeometry(t *testing.T) {
 	}
 	for frameIndex, frame := range frames {
 		lines := strings.Split(frame, "\n")
-		if len(lines) != 4 {
-			t.Fatalf("frame %d has %d lines, want 4", frameIndex, len(lines))
+		if len(lines) != 7 {
+			t.Fatalf("frame %d has %d lines, want 7", frameIndex, len(lines))
 		}
-		for lineIndex, line := range lines[:3] {
-			if width := utf8.RuneCountInString(line); width != 34 {
-				t.Errorf("frame %d line %d width = %d, want 34: %q", frameIndex, lineIndex, width, line)
+		for lineIndex, line := range lines {
+			if width := utf8.RuneCountInString(line); width != 44 {
+				t.Errorf("frame %d line %d width = %d, want 44: %q", frameIndex, lineIndex, width, line)
 			}
 		}
 	}
