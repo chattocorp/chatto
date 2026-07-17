@@ -137,6 +137,28 @@ func TestPlanRealtimeReplayResetsAfterUserKeyShredding(t *testing.T) {
 	}
 }
 
+func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, room, _ := setupReactionTest(t, chatto, ctx)
+
+	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if err := chatto.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, boundary.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want compacted authorization reset", plan)
+	}
+}
+
 func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) {
 	for _, subject := range []string{
 		"evt.config.server.server_name_changed",

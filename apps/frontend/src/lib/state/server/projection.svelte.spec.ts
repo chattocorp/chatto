@@ -1,7 +1,13 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, expect, it } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomGroup,
+  RoomViewerState,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -18,13 +24,15 @@ import {
   RealtimeProjectionOperation,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
+  RealtimeProjectionRoomGroupsReplace,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionRoomRemove,
   RealtimeProjectionRoomTimelineEventRemove,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
   RealtimeProjectionNotificationsReplace,
-  RealtimeProjectionServerState
+  RealtimeProjectionServerState,
+  RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 
@@ -32,9 +40,7 @@ function event(...operations: RealtimeProjectionOperation[]): RealtimeProjection
   return new RealtimeProjectionEvent({ operations });
 }
 
-function operation(
-  value: RealtimeProjectionOperation['operation']
-): RealtimeProjectionOperation {
+function operation(value: RealtimeProjectionOperation['operation']): RealtimeProjectionOperation {
   return new RealtimeProjectionOperation({ operation: value });
 }
 
@@ -47,6 +53,65 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
 }
 
 describe('ServerProjectionStore', () => {
+  it('applies canonical resources, replacements, and removals', () => {
+    const store = new ServerProjectionStore();
+    const server = new ServerPublicProfile({ name: 'Projection Server' });
+    const viewer = new GetViewerResponse();
+    const user = new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Ada' }) });
+    const room = new RealtimeProjectionRoom({
+      room: new RoomWithViewerState({
+        room: new Room({ id: 'R1' }),
+        viewerState: new RoomViewerState({ isMember: true })
+      }),
+      memberUserIds: ['U1'],
+      viewerNotificationCount: 3
+    });
+    const group = new RoomGroup({ id: 'G1', name: 'General' });
+
+    store.apply(
+      event(
+        operation({ case: 'serverUpsert', value: server }),
+        operation({ case: 'viewerUpsert', value: viewer }),
+        operation({ case: 'userUpsert', value: user }),
+        operation({ case: 'roomUpsert', value: room }),
+        operation({
+          case: 'roomGroupsReplace',
+          value: new RealtimeProjectionRoomGroupsReplace({ groups: [group] })
+        }),
+        operation({
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: false })
+          })
+        })
+      )
+    );
+
+    expect(store.server).toBe(server);
+    expect(store.viewer).toBe(viewer);
+    expect(store.users.get('U1')).toBe(user);
+    expect(store.roomGroups).toEqual([group]);
+    expect(store.rooms.get('R1')?.room?.viewerState?.isMember).toBe(false);
+    expect(store.rooms.get('R1')?.memberUserIds).toEqual(['U1']);
+    expect(store.rooms.get('R1')?.viewerNotificationCount).toBe(3);
+
+    store.apply(
+      event(
+        operation({
+          case: 'userRemove',
+          value: new RealtimeProjectionUserRemove({ userId: 'U1' })
+        }),
+        operation({
+          case: 'roomGroupsReplace',
+          value: new RealtimeProjectionRoomGroupsReplace()
+        })
+      )
+    );
+    expect(store.users.has('U1')).toBe(false);
+    expect(store.roomGroups).toEqual([]);
+  });
+
   it('applies idempotent resource and timeline mutations across every room', () => {
     const store = new ServerProjectionStore();
     const user = new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Ada' }) });
@@ -171,7 +236,10 @@ describe('ServerProjectionStore', () => {
             case: 'roomTimelineEventUpsert',
             value: new RealtimeProjectionRoomTimelineEventUpsert({
               roomId: 'R1',
-              event: timelineEvent(`M${index}`, `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`),
+              event: timelineEvent(
+                `M${index}`,
+                `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`
+              ),
               eventCursor: `cursor-${index}`
             })
           })

@@ -636,6 +636,81 @@ func TestRealtimeWebSocketPreservesVersionOneLiveOnlyFlow(t *testing.T) {
 	}
 }
 
+func TestRealtimeWebSocketRejectsUnknownProtocolVersion(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	conn := env.connectRealtime(t)
+
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion + 1},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for unsupported protocol error")
+	}
+	errFrame := frame.GetError()
+	if errFrame == nil || errFrame.GetCode() != "unsupported_protocol" || !errFrame.GetFatal() {
+		t.Fatalf("unsupported protocol frame = %+v, want fatal unsupported_protocol", frame)
+	}
+}
+
+func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResources(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-snapshot", "RT Snapshot", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-snapshot-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "snapshot message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	frames, err := env.httpServer.realtimeProjectionSnapshotFrames(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("realtimeProjectionSnapshotFrames: %v", err)
+	}
+	if len(frames) == 0 {
+		t.Fatal("snapshot frames are empty, want reset prefix")
+	}
+	first := frames[0].GetProjectionEvent()
+	if first == nil || len(first.GetOperations()) != 1 || first.GetOperations()[0].GetReset_() == nil {
+		t.Fatalf("first snapshot frame = %+v, want reset", frames)
+	}
+
+	var hasServer, hasServerState, hasViewer, hasViewerUser, hasRoom bool
+	var hasGroups, hasNotifications, hasTimeline bool
+	for _, frame := range frames {
+		projection := frame.GetProjectionEvent()
+		if projection == nil || len(projection.GetOperations()) != 1 {
+			t.Fatalf("snapshot frame = %+v, want exactly one projection operation", frame)
+		}
+		operation := projection.GetOperations()[0]
+		hasServer = hasServer || operation.GetServerUpsert() != nil
+		hasServerState = hasServerState || operation.GetServerStateUpsert() != nil
+		hasViewer = hasViewer || operation.GetViewerUpsert() != nil
+		if user := operation.GetUserUpsert(); user.GetUser().GetId() == viewer.Id {
+			hasViewerUser = true
+		}
+		if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+			hasRoom = slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
+		}
+		hasGroups = hasGroups || operation.GetRoomGroupsReplace() != nil
+		hasNotifications = hasNotifications || operation.GetNotificationsReplace() != nil
+		if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+			hasTimeline = timeline.GetEventCursors()[message.Id] != ""
+		}
+	}
+	if !hasServer || !hasServerState || !hasViewer || !hasViewerUser || !hasRoom || !hasGroups || !hasNotifications || !hasTimeline {
+		t.Fatalf("snapshot coverage: server=%v server_state=%v viewer=%v user=%v room=%v groups=%v notifications=%v timeline=%v", hasServer, hasServerState, hasViewer, hasViewerUser, hasRoom, hasGroups, hasNotifications, hasTimeline)
+	}
+}
+
 func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie", "RT Cookie", "password123"); err != nil {
