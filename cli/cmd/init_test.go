@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"charm.land/huh/v2"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
@@ -102,6 +105,10 @@ func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
 }
 
 func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
+	validNKeySeed, _, err := natsauth.GenerateUserNKey()
+	if err != nil {
+		t.Fatalf("generate test NKey: %v", err)
+	}
 	tests := []struct {
 		name       string
 		configure  func(*initAnswers)
@@ -148,10 +155,10 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 			name: "nkey",
 			configure: func(a *initAnswers) {
 				a.NATSAuthMethod = config.NATSAuthNKey
-				a.NATSNKeySeed = "SUABC"
+				a.NATSNKeySeed = validNKeySeed
 			},
 			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
-				if c.NKeySeed != "SUABC" {
+				if c.NKeySeed != validNKeySeed {
 					t.Fatalf("NKey seed = %q", c.NKeySeed)
 				}
 			},
@@ -177,6 +184,11 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 					answers.NATSMode = initNATSExternal
 					answers.ExternalNATSURL = "nats://nats-1:4222,nats://nats-2:4222"
 					answers.NATSReplicas = 3
+					answers.NATSToken = "abandoned-token"
+					answers.NATSUsername = "abandoned-user"
+					answers.NATSPassword = "abandoned-password"
+					answers.NATSCredentialsFile = "/abandoned.creds"
+					answers.NATSNKeySeed = validNKeySeed
 					tt.configure(answers)
 					answers.Confirmed = true
 					return nil
@@ -198,6 +210,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 			if cfg.NATS.Client.AuthMethod != ttAuthMethod(tt.name) {
 				t.Fatalf("auth method = %q", cfg.NATS.Client.AuthMethod)
 			}
+			assertOnlySelectedNATSCredentials(t, cfg.NATS.Client)
 			tt.assertNATS(t, cfg.NATS.Client)
 
 			raw, err := os.ReadFile(configPath)
@@ -208,6 +221,22 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 				t.Fatalf("external NATS client table was not activated:\n%s", raw)
 			}
 		})
+	}
+}
+
+func assertOnlySelectedNATSCredentials(t *testing.T, client config.NATSClientConfig) {
+	t.Helper()
+	if client.AuthMethod != config.NATSAuthToken && client.Token != "" {
+		t.Errorf("unselected token was retained")
+	}
+	if client.AuthMethod != config.NATSAuthUserPass && (client.Username != "" || client.Password != "") {
+		t.Errorf("unselected username/password was retained")
+	}
+	if client.AuthMethod != config.NATSAuthCredentials && client.CredentialsFile != "" {
+		t.Errorf("unselected credentials file was retained")
+	}
+	if client.AuthMethod != config.NATSAuthNKey && client.NKeySeed != "" {
+		t.Errorf("unselected NKey seed was retained")
 	}
 }
 
@@ -248,6 +277,76 @@ func TestRunInitCommandCancellationWritesNothing(t *testing.T) {
 		if _, err := os.Stat(configPath); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("config exists after cancellation: %v", err)
 		}
+	}
+}
+
+func TestRunInitCommandRejectsInvalidAnswersBeforeWriting(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(*initAnswers)
+	}{
+		{name: "public URL", configure: func(a *initAnswers) { a.PublicURL = "/chat" }},
+		{name: "listen port", configure: func(a *initAnswers) { a.ListenPort = "70000" }},
+		{name: "NATS mode", configure: func(a *initAnswers) { a.NATSMode = "mystery" }},
+		{name: "embedded data directory", configure: func(a *initAnswers) { a.EmbeddedDataDir = " " }},
+		{name: "external URL", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.ExternalNATSURL = "https://nats.example.com"
+		}},
+		{name: "external replicas", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSReplicas = 2
+		}},
+		{name: "missing credentials file", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSCredentialsFile = ""
+		}},
+		{name: "missing token", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthToken
+		}},
+		{name: "missing username", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSPassword = "secret"
+		}},
+		{name: "missing password", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSUsername = "chatto"
+		}},
+		{name: "invalid NKey seed", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthNKey
+			a.NATSNKeySeed = "not-a-seed"
+		}},
+		{name: "unknown auth method", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = "mystery"
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "chatto.toml")
+			err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+				in:      strings.NewReader(""),
+				out:     ioDiscard{},
+				entropy: panicReader{},
+				getenv:  func(string) string { return "" },
+				wizard: func(answers *initAnswers, _ initWizardOptions) error {
+					tt.configure(answers)
+					answers.Confirmed = true
+					return nil
+				},
+			})
+			if err == nil {
+				t.Fatal("runInitCommand() succeeded")
+			}
+			if _, statErr := os.Stat(configPath); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("config exists after validation error: %v", statErr)
+			}
+		})
 	}
 }
 
@@ -333,6 +432,50 @@ func TestInitWizardAccessibleReviewIncludesSummary(t *testing.T) {
 	}
 }
 
+func TestRunInitWizardAccessibleAcceptsDisplayedDefaults(t *testing.T) {
+	reader, writer := io.Pipe()
+	t.Cleanup(func() {
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+	output := newAccessibleScriptWriter(writer, []accessiblePromptResponse{
+		{prompt: "Where will people open Chatto?", response: "\n"},
+		{prompt: "Which local port should Chatto listen on?", response: "\n"},
+		{prompt: "Where should Chatto remember everything?", response: "1\n"},
+		{prompt: "Where should embedded NATS keep its data?", response: "\n"},
+		{prompt: "Create this configuration?", response: "\n"},
+	})
+	answers := defaultInitAnswers()
+	err := runInitWizard(&answers, initWizardOptions{
+		input:      reader,
+		output:     output,
+		accessible: true,
+		configPath: "/etc/chatto/chatto.toml",
+	})
+	if err != nil {
+		t.Fatalf("runInitWizard() error = %v", err)
+	}
+	if answers.PublicURL != "http://localhost:4000" || answers.ListenPort != "4000" ||
+		answers.NATSMode != initNATSEmbedded || answers.EmbeddedDataDir != "./data" || !answers.Confirmed {
+		t.Fatalf("answers = %+v", answers)
+	}
+	text := output.String()
+	for _, want := range []string{
+		"[default: http://localhost:4000]",
+		"[default: 4000]",
+		"[default: ./data]",
+		"Launch card",
+		"/etc/chatto/chatto.toml",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("accessible output missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "How can Chatto reach NATS?") {
+		t.Fatalf("embedded flow asked external NATS questions:\n%s", text)
+	}
+}
+
 func TestInitWizardValidators(t *testing.T) {
 	valid := []struct {
 		name string
@@ -386,3 +529,47 @@ func assertHexSecret(t *testing.T, name, value string) {
 type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
+
+type panicReader struct{}
+
+func (panicReader) Read([]byte) (int, error) { panic("entropy read before answer validation") }
+
+type accessiblePromptResponse struct {
+	prompt   string
+	response string
+}
+
+type accessibleScriptWriter struct {
+	mu     sync.Mutex
+	output bytes.Buffer
+	input  *io.PipeWriter
+	steps  []accessiblePromptResponse
+	next   int
+}
+
+func newAccessibleScriptWriter(input *io.PipeWriter, steps []accessiblePromptResponse) *accessibleScriptWriter {
+	return &accessibleScriptWriter{input: input, steps: steps}
+}
+
+func (w *accessibleScriptWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n, err := w.output.Write(p)
+	if err != nil || w.next >= len(w.steps) {
+		return n, err
+	}
+	step := w.steps[w.next]
+	if strings.Contains(w.output.String(), step.prompt) {
+		w.next++
+		go func() {
+			_, _ = io.WriteString(w.input, step.response)
+		}()
+	}
+	return n, nil
+}
+
+func (w *accessibleScriptWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.output.String()
+}

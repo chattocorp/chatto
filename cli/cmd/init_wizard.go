@@ -10,6 +10,7 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 type initNATSMode string
@@ -60,10 +61,10 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		return runAccessibleInitWizard(answers, opts)
 	}
 
-	embedded := initEmbeddedNATSGroup(answers).WithHideFunc(func() bool {
+	embedded := initEmbeddedNATSGroup(answers, false).WithHideFunc(func() bool {
 		return answers.NATSMode != initNATSEmbedded
 	})
-	external := initExternalNATSGroup(answers).WithHideFunc(func() bool {
+	external := initExternalNATSGroup(answers, false).WithHideFunc(func() bool {
 		return answers.NATSMode != initNATSExternal
 	})
 	credentials := initNATSCredentialsGroup(answers, config.NATSAuthCredentials).WithHideFunc(func() bool {
@@ -81,7 +82,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 
 	return newInitForm(opts,
 		initWelcomeGroup(),
-		initFrontDoorGroup(answers),
+		initFrontDoorGroup(answers, false),
 		initNATSModeGroup(answers),
 		embedded,
 		external,
@@ -96,18 +97,18 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error {
 	if err := newInitForm(opts,
 		initWelcomeGroup(),
-		initFrontDoorGroup(answers),
+		initFrontDoorGroup(answers, true),
 		initNATSModeGroup(answers),
 	).Run(); err != nil {
 		return err
 	}
 
 	if answers.NATSMode == initNATSEmbedded {
-		if err := newInitForm(opts, initEmbeddedNATSGroup(answers)).Run(); err != nil {
+		if err := newInitForm(opts, initEmbeddedNATSGroup(answers, true)).Run(); err != nil {
 			return err
 		}
 	} else {
-		if err := newInitForm(opts, initExternalNATSGroup(answers)).Run(); err != nil {
+		if err := newInitForm(opts, initExternalNATSGroup(answers, true)).Run(); err != nil {
 			return err
 		}
 		if answers.NATSAuthMethod != config.NATSAuthNone {
@@ -140,19 +141,19 @@ func initWelcomeGroup() *huh.Group {
 	).Title("Welcome")
 }
 
-func initFrontDoorGroup(answers *initAnswers) *huh.Group {
+func initFrontDoorGroup(answers *initAnswers, accessible bool) *huh.Group {
 	return huh.NewGroup(
 		huh.NewInput().
-			Title("Where will people open Chatto?").
+			Title(initInputTitle("Where will people open Chatto?", answers.PublicURL, accessible)).
 			Description("The public URL used in links and browser connections.").
 			Placeholder("https://chat.example.com").
 			Value(&answers.PublicURL).
-			Validate(validatePublicURL),
+			Validate(validateAccessibleDefault(accessible, &answers.PublicURL, validatePublicURL)),
 		huh.NewInput().
-			Title("Which local port should Chatto listen on?").
+			Title(initInputTitle("Which local port should Chatto listen on?", answers.ListenPort, accessible)).
 			Description("A reverse proxy may expose a different public port.").
 			Value(&answers.ListenPort).
-			Validate(validatePort),
+			Validate(validateAccessibleDefault(accessible, &answers.ListenPort, validatePort)),
 	).Title("The front door").Description("Give browsers an address and the server a place to listen.")
 }
 
@@ -169,24 +170,24 @@ func initNATSModeGroup(answers *initAnswers) *huh.Group {
 	).Title("The engine room").Description("Every conversation needs somewhere to remember itself.")
 }
 
-func initEmbeddedNATSGroup(answers *initAnswers) *huh.Group {
+func initEmbeddedNATSGroup(answers *initAnswers, accessible bool) *huh.Group {
 	return huh.NewGroup(
 		huh.NewInput().
-			Title("Where should embedded NATS keep its data?").
+			Title(initInputTitle("Where should embedded NATS keep its data?", answers.EmbeddedDataDir, accessible)).
 			Description("Use a persistent path in production.").
 			Value(&answers.EmbeddedDataDir).
-			Validate(validateNotBlank("data directory")),
+			Validate(validateAccessibleDefault(accessible, &answers.EmbeddedDataDir, validateNotBlank("data directory"))),
 	).Title("A room for the memories")
 }
 
-func initExternalNATSGroup(answers *initAnswers) *huh.Group {
+func initExternalNATSGroup(answers *initAnswers, accessible bool) *huh.Group {
 	return huh.NewGroup(
 		huh.NewInput().
-			Title("How can Chatto reach NATS?").
+			Title(initInputTitle("How can Chatto reach NATS?", answers.ExternalNATSURL, accessible)).
 			Description("Comma-separated URLs are accepted for cluster failover.").
 			Placeholder("nats://nats-1:4222,nats://nats-2:4222").
 			Value(&answers.ExternalNATSURL).
-			Validate(validateNATSURLs),
+			Validate(validateAccessibleDefault(accessible, &answers.ExternalNATSURL, validateNATSURLs)),
 		huh.NewSelect[int]().
 			Title("How many JetStream replicas?").
 			Description("This must fit the size of your NATS cluster.").
@@ -244,7 +245,7 @@ func initNATSCredentialsGroup(answers *initAnswers, method config.NATSAuthMethod
 			Description("The seed is written to chatto.toml, which is created with mode 0600.").
 			Password(true).
 			Value(&answers.NATSNKeySeed).
-			Validate(validateNotBlank("NKey seed")))
+			Validate(validateNKeySeed))
 	}
 	return huh.NewGroup(fields...).Title("NATS credentials")
 }
@@ -326,6 +327,84 @@ func validateNotBlank(name string) func(string) error {
 		}
 		return nil
 	}
+}
+
+func validateNKeySeed(value string) error {
+	seed := strings.TrimSpace(value)
+	if seed == "" {
+		return fmt.Errorf("NKey seed cannot be empty")
+	}
+	if _, err := natsauth.PublicKeyFromSeed(seed); err != nil {
+		return fmt.Errorf("enter a valid NKey seed: %w", err)
+	}
+	return nil
+}
+
+func initInputTitle(title, defaultValue string, accessible bool) string {
+	if !accessible || strings.TrimSpace(defaultValue) == "" {
+		return title
+	}
+	return fmt.Sprintf("%s [default: %s]", title, defaultValue)
+}
+
+func validateAccessibleDefault(accessible bool, current *string, validate func(string) error) func(string) error {
+	return func(value string) error {
+		if accessible && strings.TrimSpace(value) == "" && strings.TrimSpace(*current) != "" {
+			return nil
+		}
+		return validate(value)
+	}
+}
+
+func validateInitAnswers(answers initAnswers) error {
+	if err := validatePublicURL(answers.PublicURL); err != nil {
+		return fmt.Errorf("public URL: %w", err)
+	}
+	if err := validatePort(answers.ListenPort); err != nil {
+		return fmt.Errorf("listen port: %w", err)
+	}
+
+	switch answers.NATSMode {
+	case initNATSEmbedded:
+		if err := validateNotBlank("embedded NATS data directory")(answers.EmbeddedDataDir); err != nil {
+			return err
+		}
+	case initNATSExternal:
+		if err := validateNATSURLs(answers.ExternalNATSURL); err != nil {
+			return fmt.Errorf("external NATS URL: %w", err)
+		}
+		if answers.NATSReplicas != 1 && answers.NATSReplicas != 3 && answers.NATSReplicas != 5 {
+			return fmt.Errorf("NATS replicas must be 1, 3, or 5")
+		}
+		switch answers.NATSAuthMethod {
+		case config.NATSAuthCredentials:
+			if err := validateNotBlank("NATS credentials file")(answers.NATSCredentialsFile); err != nil {
+				return err
+			}
+		case config.NATSAuthToken:
+			if err := validateNotBlank("NATS token")(answers.NATSToken); err != nil {
+				return err
+			}
+		case config.NATSAuthUserPass:
+			if err := validateNotBlank("NATS username")(answers.NATSUsername); err != nil {
+				return err
+			}
+			if err := validateNotBlank("NATS password")(answers.NATSPassword); err != nil {
+				return err
+			}
+		case config.NATSAuthNKey:
+			if err := validateNKeySeed(answers.NATSNKeySeed); err != nil {
+				return fmt.Errorf("NATS NKey seed: %w", err)
+			}
+		case config.NATSAuthNone:
+		default:
+			return fmt.Errorf("unsupported NATS authentication method %q", answers.NATSAuthMethod)
+		}
+	default:
+		return fmt.Errorf("unsupported NATS mode %q", answers.NATSMode)
+	}
+
+	return nil
 }
 
 type chattoInitTheme struct{}

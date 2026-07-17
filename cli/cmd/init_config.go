@@ -14,9 +14,13 @@ import (
 )
 
 func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoConfig, error) {
+	if err := validateInitAnswers(answers); err != nil {
+		return config.ChattoConfig{}, err
+	}
+
 	port, err := strconv.Atoi(answers.ListenPort)
-	if err != nil || port < 1 || port > 65535 {
-		return config.ChattoConfig{}, fmt.Errorf("listen port must be between 1 and 65535")
+	if err != nil {
+		return config.ChattoConfig{}, fmt.Errorf("parse validated listen port: %w", err)
 	}
 
 	sessionSecret, err := randomHex(entropy, 32)
@@ -42,6 +46,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 
 	directRegistration := true
 	unlimited := -1
+	client := selectedExternalNATSClient(answers)
 	cfg := config.ChattoConfig{
 		General: config.GeneralConfig{LogLevel: "info", LogFormat: "auto"},
 		Auth: config.AuthConfig{
@@ -72,15 +77,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 		SMTP: config.SMTPConfig{Enabled: false, Port: 587, TLS: config.SMTPTLSMandatory},
 		NATS: config.NATSConfig{
 			Replicas: answers.NATSReplicas,
-			Client: config.NATSClientConfig{
-				URL:             strings.TrimSpace(answers.ExternalNATSURL),
-				AuthMethod:      answers.NATSAuthMethod,
-				Token:           answers.NATSToken,
-				Username:        answers.NATSUsername,
-				Password:        answers.NATSPassword,
-				CredentialsFile: answers.NATSCredentialsFile,
-				NKeySeed:        answers.NATSNKeySeed,
-			},
+			Client:   client,
 			Embedded: config.EmbeddedNATSConfig{
 				Enabled:     answers.NATSMode == initNATSEmbedded,
 				Port:        4222,
@@ -100,6 +97,25 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 		}
 	}
 	return cfg, nil
+}
+
+func selectedExternalNATSClient(answers initAnswers) config.NATSClientConfig {
+	client := config.NATSClientConfig{
+		URL:        strings.TrimSpace(answers.ExternalNATSURL),
+		AuthMethod: answers.NATSAuthMethod,
+	}
+	switch answers.NATSAuthMethod {
+	case config.NATSAuthCredentials:
+		client.CredentialsFile = strings.TrimSpace(answers.NATSCredentialsFile)
+	case config.NATSAuthToken:
+		client.Token = answers.NATSToken
+	case config.NATSAuthUserPass:
+		client.Username = answers.NATSUsername
+		client.Password = answers.NATSPassword
+	case config.NATSAuthNKey:
+		client.NKeySeed = strings.TrimSpace(answers.NATSNKeySeed)
+	}
+	return client
 }
 
 func randomHex(source io.Reader, size int) (string, error) {
