@@ -1198,7 +1198,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadRouteClosed();
   });
 
-  test('clicking outside thread pane closes it (sidebar area)', async ({
+  test('clicking the room list keeps the thread open', async ({
     page,
     chatPage,
     roomPage
@@ -1218,9 +1218,9 @@ test.describe('Message Threading', () => {
     const sidebar = page.locator('.room-list');
     await sidebar.click({ position: { x: 10, y: 10 } });
 
-    // Thread should close
-    await roomPage.expectThreadRouteClosed();
-    await expect(page.getByRole('heading', { name: /^Thread in #/ })).not.toBeVisible();
+    // App navigation is outside the thread's dimmed room dismissal surface.
+    await roomPage.expectThreadRouteActive();
+    await roomPage.expectThreadPaneVisible();
   });
 
   test('thread reply does not scroll main chat to bottom', async ({ page, chatPage, roomPage }) => {
