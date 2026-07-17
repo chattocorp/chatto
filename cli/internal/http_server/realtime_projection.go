@@ -132,6 +132,17 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
+		case *corev1.LiveEvent_RoomMarkedAsRead:
+			roomID := payload.RoomMarkedAsRead.GetRoomId()
+			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+				RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
+					RoomId: roomID, ViewerState: viewerState,
+				},
+			}})
 		default:
 			return nil, false, nil
 		}

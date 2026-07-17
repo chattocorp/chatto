@@ -711,6 +711,56 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 	}
 }
 
+func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-read-viewer", "RT Read Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-read-author", "RT Read Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.Id, author.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "read me", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, viewer.Id, room.Id, message.Id); err != nil {
+		t.Fatalf("MarkRoomAsRead: %v", err)
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "room-read-1",
+		ActorId: viewer.Id,
+		Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
+			RoomId: room.Id,
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled {
+		t.Fatal("room-read event was not handled as a projection mutation")
+	}
+	operations := frame.GetProjectionEvent().GetOperations()
+	if len(operations) != 1 {
+		t.Fatalf("room-read operations = %d, want 1", len(operations))
+	}
+	replacement := operations[0].GetRoomViewerStateReplace()
+	if replacement.GetRoomId() != room.Id || replacement.GetViewerState().GetHasUnread() {
+		t.Fatalf("room-read replacement = %+v, want room %q with has_unread=false", replacement, room.Id)
+	}
+}
+
 func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie", "RT Cookie", "password123"); err != nil {
