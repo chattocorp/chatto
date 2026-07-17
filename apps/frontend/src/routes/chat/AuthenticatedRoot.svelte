@@ -28,28 +28,30 @@
   } = $props();
 
   function synchronizeRealtimeTransports() {
+    const registrations = serverRegistry.servers.flatMap((server) => {
+      const store = serverRegistry.tryGetStore(server.id);
+      return store?.isAuthenticated
+        ? [
+            {
+              serverId: server.id,
+              connection: serverConnectionManager.getClient(server.id),
+              projectionSupported: store.serverInfo.supportsRealtimeProjection,
+              sync: store.realtimeSync
+            }
+          ]
+        : [];
+    });
+    eventBusManager.synchronizeAuthenticatedServers(
+      registrations,
+      getActiveServer() || null
+    );
+
     if (shouldPauseLiveEventsForStoredPresence()) {
       eventBusManager.pauseAll();
       return;
     }
 
     eventBusManager.resumeAll();
-    eventBusManager.synchronizeAuthenticatedServers(
-      serverRegistry.servers.flatMap((server) => {
-        const store = serverRegistry.tryGetStore(server.id);
-        return store?.isAuthenticated
-          ? [
-              {
-                serverId: server.id,
-                connection: serverConnectionManager.getClient(server.id),
-                projectionSupported: store.serverInfo.supportsRealtimeProjection,
-                sync: store.realtimeSync
-              }
-            ]
-          : [];
-      }),
-      getActiveServer() || null
-    );
   }
 
   // Run synchronously so child route layouts can provide an already-registered

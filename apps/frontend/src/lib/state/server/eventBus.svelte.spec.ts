@@ -801,4 +801,40 @@ describe('eventBusManager realtime transport', () => {
     if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
     expect(subscribe.frame.value.resumeCursor).toBe('periodic-cursor');
   });
+
+  it('remembers servers registered while paused and activates them on resume', () => {
+    const active = new FakeServerConnection();
+    const inactive = new FakeServerConnection();
+    inactive.realtimeUrl = 'ws://paused-inactive.test/api/realtime';
+    eventBusManager.pauseAll();
+
+    eventBusManager.synchronizeAuthenticatedServers(
+      [
+        {
+          serverId: 'paused-active',
+          connection: active as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: new RealtimeProjectionSyncState()
+        },
+        {
+          serverId: 'paused-inactive',
+          connection: inactive as unknown as ServerConnection,
+          projectionSupported: true,
+          sync: new RealtimeProjectionSyncState()
+        }
+      ],
+      'paused-active'
+    );
+
+    expect(eventBusManager.getBus('paused-active')).toBeDefined();
+    expect(eventBusManager.getBus('paused-inactive')).toBeDefined();
+    expect(sockets).toHaveLength(0);
+
+    eventBusManager.resumeAll();
+
+    expect(sockets.map((socket) => socket.url)).toEqual([
+      active.realtimeUrl,
+      inactive.realtimeUrl
+    ]);
+  });
 });
