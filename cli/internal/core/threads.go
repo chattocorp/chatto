@@ -459,6 +459,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
 				}
 				c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
+				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 				return previousTime, nil
 			}
 			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
@@ -480,6 +481,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 		}
 
 		c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
+		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -510,6 +512,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
 				}
 				c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
+				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 				return previousTime, nil
 			}
 			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
@@ -532,6 +535,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
 		}
 		c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
+		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -688,8 +692,9 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 	return c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, true)
 }
 
-// publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
-// User-scoped: only delivered to the user who changed their follow state.
+// publishThreadFollowChangedEvent publishes a user-scoped thread viewer-state
+// invalidation. It fires for follow changes and read-marker advances; projection
+// transports hydrate the complete current root row from its identifiers.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
 	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ThreadFollowChanged{
@@ -854,6 +859,55 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 		})
 	}
 
+	return result, nil
+}
+
+// listFollowedThreadViewerStates is the strict counterpart used by complete
+// realtime replacement operations. Any uncertain lookup fails the whole read;
+// only confirmed missing/inaccessible/non-followed threads are omitted.
+func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string) ([]*FollowedThread, error) {
+	refs := c.rooms().followedThreadsForUser(userID)
+	result := make([]*FollowedThread, 0, len(refs))
+	for _, ref := range refs {
+		room, err := c.FindRoomByID(ctx, ref.roomID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+				continue
+			}
+			return nil, fmt.Errorf("read followed thread room %s: %w", ref.roomID, err)
+		}
+		kind := KindOfRoom(room)
+		if kind != KindChannel {
+			continue
+		}
+		following, err := c.IsFollowingThread(ctx, kind, userID, ref.roomID, ref.threadRootEventID)
+		if err != nil {
+			return nil, fmt.Errorf("read followed thread state %s: %w", ref.threadRootEventID, err)
+		}
+		if !following {
+			continue
+		}
+		isMember, err := c.RoomMembershipExists(ctx, kind, userID, ref.roomID)
+		if err != nil {
+			return nil, fmt.Errorf("read followed thread membership %s: %w", ref.threadRootEventID, err)
+		}
+		if !isMember {
+			continue
+		}
+		metadata, err := c.GetThreadMetadata(ctx, kind, ref.roomID, ref.threadRootEventID)
+		if err != nil {
+			return nil, fmt.Errorf("read followed thread metadata %s: %w", ref.threadRootEventID, err)
+		}
+		lastOpened, err := c.GetThreadLastOpened(ctx, kind, userID, ref.roomID, ref.threadRootEventID)
+		if err != nil {
+			return nil, fmt.Errorf("read followed thread marker %s: %w", ref.threadRootEventID, err)
+		}
+		hasUnread := metadata.LastReplyAt != nil && (lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened))
+		result = append(result, &FollowedThread{
+			SpaceID: LegacySpaceIDForRoomKind(kind), RoomID: ref.roomID,
+			ThreadRootEventID: ref.threadRootEventID, HasUnread: hasUnread,
+		})
+	}
 	return result, nil
 }
 

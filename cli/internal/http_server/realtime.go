@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
@@ -298,22 +297,14 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		}
 	}
-	if !replayPlan.Reset {
-		notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(catchUpCtx, user.Id)
-		if err != nil {
-			failCatchUp("Realtime notification reconciliation failed", err)
-			return
-		}
-		if err := writeCatchUpFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
-			Id:        core.NewEventID(),
-			CreatedAt: timestamppb.Now(),
-			Operations: []*realtimev1.RealtimeProjectionOperation{{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-				NotificationsReplace: realtimeProjectionNotifications(notifications),
-			}}},
-		})); err != nil {
-			handleCatchUpWriteError(err)
-			return
-		}
+	reconciliation, err := s.realtimeProjectionReconciliationFrame(catchUpCtx, user.Id)
+	if err != nil {
+		failCatchUp("Realtime latest-value reconciliation failed", err)
+		return
+	}
+	if err := writeCatchUpFrame(reconciliation); err != nil {
+		handleCatchUpWriteError(err)
+		return
 	}
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
 		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},

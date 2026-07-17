@@ -1,6 +1,6 @@
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
-import { useConnection } from '$lib/state/server/connection.svelte';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type RoomData = {
@@ -42,11 +42,9 @@ export type DMData = {
  * ready projection contains no visible room, and an object is renderable data.
  */
 export function useRoomData(getProps: () => { roomId: string }) {
-  const connection = useConnection();
-  const store = $derived.by(() => {
-    const serverId = connection().serverId;
-    return serverId ? serverRegistry.tryGetStore(serverId) : undefined;
-  });
+  // The registry is keyed by the frontend registration ID (the URL segment),
+  // not by the backend identity advertised through ServerConnection.
+  const store = $derived(serverRegistry.tryGetStore(getActiveServer()));
 
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;

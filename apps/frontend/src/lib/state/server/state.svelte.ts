@@ -15,6 +15,7 @@ import {
 export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
+  #initializing: Promise<void> | null = null;
 
   name = $state('Chatto');
   version = $state('');
@@ -81,17 +82,27 @@ export class ServerInfoState {
    * `chat/[serverId]/+page.svelte`).
    */
   async init(): Promise<void> {
-    this.loading = true;
-    this.error = null;
+    if (this.#initializing) return this.#initializing;
+
+    const initializing = (async () => {
+      this.loading = true;
+      this.error = null;
+      try {
+        await this.refreshProfile();
+      } catch (err) {
+        // Defensive: anything thrown during the query or above .then body.
+        // Don't re-throw — failure is isolated to this server.
+        this.error = err instanceof Error ? err.message : String(err);
+        console.error(`[server:${this.#label}] failed to load server info`, err);
+      } finally {
+        this.loading = false;
+      }
+    })();
+    this.#initializing = initializing;
     try {
-      await this.refreshProfile();
-    } catch (err) {
-      // Defensive: anything thrown during the query or above .then body.
-      // Don't re-throw — failure is isolated to this server.
-      this.error = err instanceof Error ? err.message : String(err);
-      console.error(`[server:${this.#label}] failed to load server info`, err);
+      await initializing;
     } finally {
-      this.loading = false;
+      if (this.#initializing === initializing) this.#initializing = null;
     }
   }
 

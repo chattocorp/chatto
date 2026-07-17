@@ -157,8 +157,10 @@ ADR-027 — only user-facing copy says "server".
     connecting = true;
 
     try {
-      await startServerOAuthFlow(probedUrl, probedInfo);
-      handleClose();
+      // Close before navigation starts. The destination can wait for its
+      // server projection, so waiting for goto() before dismissing this modal
+      // would leave stale blocking UI over that hydration boundary.
+      await startServerOAuthFlow(probedUrl, probedInfo, handleClose);
     } catch {
       connecting = false;
       formError = m['add_server.start_failed']();

@@ -736,6 +736,7 @@ func (h *MyEventsHub) captureVisibleRooms(ctx context.Context, userID string) (m
 	rooms, err := h.model.core.RoomDirectoryReads().ListRooms(ctx, userID, RoomDirectoryListOptions{
 		IncludeChannels: true,
 		IncludeDMs:      true,
+		IncludeEmptyDMs: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("capture visible rooms: %w", err)

@@ -360,11 +360,17 @@ export class ServerStateStore {
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
           if (update.event) {
+            const retainedByProjection = Boolean(
+              this.projection.timelines
+                .get(update.roomId)
+                ?.events.some((candidate) => candidate.id === update.event?.id)
+            );
             this.#roomMessages[update.roomId]?.upsertRoomProjectionEvent(
               update.roomId,
               update.event,
               update.includes,
-              update.retainDeletedRow
+              update.retainDeletedRow,
+              retainedByProjection
             );
             for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
               if (!key.startsWith(`${update.roomId}\u0000`)) continue;
@@ -376,6 +382,7 @@ export class ServerStateStore {
               );
             }
             if (
+              event.id === update.event.id &&
               update.event.event.case === 'messagePosted' &&
               !update.event.event.value.message?.threadRootEventId
             ) {
@@ -408,6 +415,35 @@ export class ServerStateStore {
           this.callParticipants.replaceProjection(calls);
           break;
         }
+        case 'presencesReplace': {
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse) {
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          }
+          break;
+        }
+        case 'threadViewerStatesReplace': {
+          for (const [roomId, page] of this.projection.timelines) {
+            for (const projectedEvent of page.events) {
+              if (
+                projectedEvent.event.case !== 'messagePosted' ||
+                !projectedEvent.event.value.message?.thread
+              ) {
+                continue;
+              }
+              this.#roomMessages[roomId]?.upsertRoomProjectionEvent(
+                roomId,
+                projectedEvent,
+                page.includes
+              );
+              for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+                if (!key.startsWith(`${roomId}\u0000`)) continue;
+                threadStore.upsertRoomProjectionEvent(roomId, projectedEvent, page.includes);
+              }
+            }
+          }
+          break;
+        }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
@@ -421,7 +457,9 @@ export class ServerStateStore {
           break;
         }
         case undefined:
-          break;
+          // ServerProjectionStore validates the whole event before either
+          // reducer mutates state, so this is unreachable for accepted input.
+          throw new Error('unsupported realtime projection operation');
       }
     }
   }

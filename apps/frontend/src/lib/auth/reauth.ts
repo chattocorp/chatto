@@ -30,7 +30,8 @@ class OAuthPopupError extends Error {}
 
 export async function startServerOAuthFlow(
   serverUrl: string,
-  serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>
+  serverInfo: Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>,
+  beforeNavigate?: () => void
 ): Promise<void> {
   if (!serverInfo.authorizeUrl) {
     throw new Error('This server does not support OAuth sign-in.');
@@ -92,6 +93,7 @@ export async function startServerOAuthFlow(
 
     const serverId = await completeServerOAuthFlow(flow, response.code, redirectUri);
     loadAndClearFlowState();
+    beforeNavigate?.();
     await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
   } catch (err) {
     loadAndClearFlowState();
@@ -211,6 +213,7 @@ export async function completeServerOAuthFlow(
       userAvatarUrl: result.user?.avatarUrl ?? null,
       reauthRequiredAt: null
     });
+    await serverRegistry.getStore(existing.id).serverInfo.init();
     return existing.id;
   }
 
@@ -231,6 +234,11 @@ export async function completeServerOAuthFlow(
     reauthRequiredAt: null,
     addedAt: Date.now()
   });
+  // Registration creates the retained store immediately, but discovery is
+  // otherwise fire-and-forget. Complete capability discovery before routing
+  // to the new server so the transport coordinator can deterministically
+  // include its required projection stream on the first route transition.
+  await serverRegistry.getStore(id).serverInfo.init();
   return id;
 }
 

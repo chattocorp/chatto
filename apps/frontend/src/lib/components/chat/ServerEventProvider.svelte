@@ -1,6 +1,7 @@
 <script lang="ts">
   import { provideEventBus } from '$lib/eventBus.svelte';
-  import { usePresenceChange, useReconnectCallback } from '$lib/hooks';
+  import { usePresenceChange, useProjectionEvent, useReconnectCallback } from '$lib/hooks';
+  import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { presencePreference } from '$lib/state/presencePreference.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import {
@@ -44,6 +45,24 @@
   // (including newly-mounted ones like popovers) sees the latest presence.
   usePresenceChange((userId, status) => {
     presenceCache.update({ serverId: getActiveServer(), userId }, status);
+  });
+
+  // Presence is transient rather than EVT-backed. Every subscription sends a
+  // complete latest-value reconciliation before caught_up so returning to a
+  // retained server cannot display transitions missed while it was dormant.
+  useProjectionEvent((event) => {
+    for (const operation of event.operations) {
+      if (operation.operation.case !== 'presencesReplace') continue;
+      presenceCache.replaceServer(
+        getActiveServer(),
+        new Map(
+          Object.entries(operation.operation.value.statuses).map(([userId, status]) => [
+            userId,
+            apiPresenceStatus(status)
+          ])
+        )
+      );
+    }
   });
 
   function currentUserPresenceStores() {

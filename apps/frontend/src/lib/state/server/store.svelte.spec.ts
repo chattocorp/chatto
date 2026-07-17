@@ -1,3 +1,4 @@
+import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -5,9 +6,17 @@ import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import {
+  RoomMessagePosted,
+  RoomTimelineEvent,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
+  RealtimeProjectionRoomTimelineEventUpsert,
+  RealtimeProjectionRoomTimelineReplace,
   RealtimeProjectionServerState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -235,6 +244,8 @@ import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 
 class FakeServerConnection {
+  serverId = 'store-event-test';
+  connectBaseUrl = 'https://store-event.test';
   reconnectCount = $state(0);
   realtimeUrl = 'ws://store-event.test/api/realtime';
   bearerToken: string | null = 'remote-token';
@@ -305,6 +316,26 @@ function roomDirectoryResult(rooms: unknown[] = []) {
 
 function adminRoomLayoutResult(rooms: unknown[] = [], roomGroups: unknown[] = []) {
   return { server: { rooms, roomGroups } };
+}
+
+function projectedMessage(id: string, createdAt: Date): RoomTimelineEvent {
+  return new RoomTimelineEvent({
+    id,
+    actorId: 'U1',
+    createdAt: Timestamp.fromDate(createdAt),
+    event: {
+      case: 'messagePosted',
+      value: new RoomMessagePosted({
+        message: new Message({
+          id,
+          roomId: 'R1',
+          actorId: 'U1',
+          body: id,
+          createdAt: Timestamp.fromDate(createdAt)
+        })
+      })
+    }
+  });
 }
 
 beforeEach(() => {
@@ -524,6 +555,71 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.motd).toBe('Fresh MOTD');
     expect(store.serverInfo.pushNotificationsEnabled).toBe(true);
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit');
+  });
+
+  it('does not inject an old mutation outside the retained room window or bump the room', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const messages = store.messagesForRoom('R1');
+    const bumpRoom = vi.spyOn(store.rooms, 'bumpRoom');
+    const retained = Array.from({ length: 50 }, (_, index) =>
+      projectedMessage(`M${index}`, new Date(Date.UTC(2026, 0, 1, 0, 0, index)))
+    );
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'SNAPSHOT',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomTimelineReplace',
+                value: new RealtimeProjectionRoomTimelineReplace({
+                  roomId: 'R1',
+                  page: new RoomTimelinePage({ events: retained }),
+                  eventCursors: Object.fromEntries(
+                    retained.map((event, index) => [event.id, `cursor-${index}`])
+                  )
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    const oldRoot = projectedMessage('OLD-ROOT', new Date(Date.UTC(2025, 0, 1)));
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'REACTION-1',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomTimelineEventUpsert',
+                value: new RealtimeProjectionRoomTimelineEventUpsert({
+                  roomId: 'R1',
+                  event: oldRoot,
+                  eventCursor: 'cursor-old'
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(store.projection.timelines.get('R1')?.events).toHaveLength(50);
+    expect(store.projection.timelines.get('R1')?.events.some(({ id }) => id === 'OLD-ROOT')).toBe(
+      false
+    );
+    expect(messages.events).toHaveLength(50);
+    expect(messages.events.some(({ id }) => id === 'OLD-ROOT')).toBe(false);
+    expect(bumpRoom).not.toHaveBeenCalled();
   });
 
   it('forwards RoomGroupsUpdatedEvent to public room-state stores by default', async () => {

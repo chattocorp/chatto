@@ -62,6 +62,102 @@ type RealtimeProjectionNotifications struct {
 	RoomCounts []*apiv1.RoomNotificationCount
 }
 
+// RealtimeProjectionRoomViewerState is one latest-value room read/permission
+// row reconciled on every subscription.
+type RealtimeProjectionRoomViewerState struct {
+	RoomID      string
+	ViewerState *apiv1.RoomViewerState
+}
+
+// RealtimeProjectionThreadViewerState is one followed thread's current
+// viewer-specific state. Absence from the complete replacement means false.
+type RealtimeProjectionThreadViewerState struct {
+	RoomID            string
+	ThreadRootEventID string
+	ViewerState       *apiv1.ThreadViewerState
+}
+
+// BuildRealtimeProjectionPresences returns complete latest-value presence for
+// the server directory. Presence is transient, so realtime subscriptions use
+// this to reconcile state that cannot be recovered from EVT replay.
+func (a *API) BuildRealtimeProjectionPresences(ctx context.Context) (map[string]apiv1.PresenceStatus, error) {
+	statuses := make(map[string]apiv1.PresenceStatus)
+	for offset := 0; ; offset += realtimeProjectionUserPageSize {
+		members, total, err := a.core.GetServerMembers(ctx, "", realtimeProjectionUserPageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		userIDs := make([]string, 0, len(members))
+		for _, member := range members {
+			if member.UserID != "" {
+				userIDs = append(userIDs, member.UserID)
+			}
+		}
+		presences, err := a.core.GetUserPresences(ctx, userIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, userID := range userIDs {
+			statuses[userID] = corePresenceStatusToAPI(presences[userID])
+		}
+		if offset+len(members) >= total || len(members) == 0 {
+			return statuses, nil
+		}
+	}
+}
+
+// BuildRealtimeProjectionRoomViewerStates returns current per-room read and
+// permission state. Read markers live outside EVT, so durable replay alone
+// cannot reconstruct changes made by another client during a disconnect.
+func (a *API) BuildRealtimeProjectionRoomViewerStates(ctx context.Context, userID string) ([]*RealtimeProjectionRoomViewerState, error) {
+	rooms, err := a.core.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{
+		IncludeChannels: true,
+		IncludeDMs:      true,
+		IncludeEmptyDMs: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	states := make([]*RealtimeProjectionRoomViewerState, 0, len(rooms))
+	for _, room := range rooms {
+		apiRoom := apiRoomWithViewerState(room)
+		if apiRoom.GetRoom().GetId() == "" {
+			continue
+		}
+		states = append(states, &RealtimeProjectionRoomViewerState{
+			RoomID:      apiRoom.GetRoom().GetId(),
+			ViewerState: apiRoom.GetViewerState(),
+		})
+	}
+	return states, nil
+}
+
+// BuildRealtimeProjectionThreadViewerStates returns the complete followed
+// thread set, including RUNTIME_STATE-backed unread markers.
+func (a *API) BuildRealtimeProjectionThreadViewerStates(ctx context.Context, userID string) ([]*RealtimeProjectionThreadViewerState, error) {
+	threads, err := a.core.ThreadFollows().ListFollowedThreadViewerStates(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	states := make([]*RealtimeProjectionThreadViewerState, 0, len(threads))
+	for _, thread := range threads {
+		if thread == nil || thread.RoomID == "" || thread.ThreadRootEventID == "" {
+			continue
+		}
+		following := true
+		hasUnread := thread.HasUnread
+		states = append(states, &RealtimeProjectionThreadViewerState{
+			RoomID:            thread.RoomID,
+			ThreadRootEventID: thread.ThreadRootEventID,
+			ViewerState: &apiv1.ThreadViewerState{
+				IsFollowing: &following,
+				HasUnread:   &hasUnread,
+			},
+		})
+	}
+	return states, nil
+}
+
 // BuildRealtimeProjectionSnapshot assembles the finite current state used by a
 // fresh projection stream. It deliberately shares the same public assemblers
 // as ConnectRPC so deletion, crypto-shredding, attachment tickets, and viewer
@@ -88,6 +184,7 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	rooms, err := a.core.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{
 		IncludeChannels: true,
 		IncludeDMs:      true,
+		IncludeEmptyDMs: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime rooms: %w", err)

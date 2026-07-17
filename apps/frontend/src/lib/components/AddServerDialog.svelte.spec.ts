@@ -153,6 +153,9 @@ describe('AddServerDialog', () => {
 
   it('starts the shared OAuth flow from the preview stage', async () => {
     const onclose = vi.fn();
+    startServerOAuthFlowMock.mockImplementationOnce(
+      async (_serverUrl, _serverInfo, beforeNavigate?: () => void) => beforeNavigate?.()
+    );
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({
         profile: {
@@ -191,7 +194,8 @@ describe('AddServerDialog', () => {
         expect.objectContaining({
           name: 'Remote Chatto',
           authorizeUrl: '/oauth/authorize'
-        })
+        }),
+        expect.any(Function)
       );
     });
     expect(onclose).toHaveBeenCalledOnce();

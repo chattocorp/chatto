@@ -69,6 +69,60 @@ func realtimeProjectionServerFrame(event *realtimev1.RealtimeProjectionEvent) *r
 	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_ProjectionEvent{ProjectionEvent: event}}
 }
 
+// realtimeProjectionReconciliationFrame captures latest-value viewer state
+// that is not fully represented by an EVT gap: room/thread read markers,
+// pending notifications, and presence. Viewer config is included as a cheap
+// authoritative replacement so all self-only fields converge together.
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string) (*realtimev1.RealtimeServerFrame, error) {
+	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
+	}
+	roomStates, err := s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+	}
+	threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("assemble thread viewer-state reconciliation: %w", err)
+	}
+	notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("assemble notification reconciliation: %w", err)
+	}
+	presences, err := s.connectAPI.BuildRealtimeProjectionPresences(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("assemble presence reconciliation: %w", err)
+	}
+
+	operations := make([]*realtimev1.RealtimeProjectionOperation, 0, 4+len(roomStates))
+	operations = append(operations, &realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{
+		ViewerUpsert: viewer,
+	}})
+	for _, state := range roomStates {
+		operations = append(operations, &realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+			RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
+				RoomId: state.RoomID, ViewerState: state.ViewerState,
+			},
+		}})
+	}
+	operations = append(operations,
+		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+			ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+		}},
+		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+			NotificationsReplace: realtimeProjectionNotifications(notifications),
+		}},
+		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_PresencesReplace{
+			PresencesReplace: &realtimev1.RealtimeProjectionPresencesReplace{Statuses: presences},
+		}},
+	)
+
+	return realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
+		Id: core.NewEventID(), CreatedAt: timestamppb.Now(), Operations: operations,
+	}), nil
+}
+
 func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, bool, error) {
 	evt := event.EVTEvent()
 	if core.IsRBACEvent(evt) {
@@ -152,6 +206,17 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: realtimeProjectionNotifications(notifications),
+			}})
+		case *corev1.LiveEvent_ThreadFollowChanged:
+			thread := payload.ThreadFollowChanged
+			timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
+				RoomTimelineEventUpsert: &realtimev1.RealtimeProjectionRoomTimelineEventUpsert{
+					RoomId: thread.GetRoomId(), Event: timelineEvent, Includes: includes, EventCursor: eventCursor,
+				},
 			}})
 		default:
 			return nil, false, nil
@@ -501,6 +566,19 @@ func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectio
 		Page:       notifications.Page,
 		RoomCounts: notifications.RoomCounts,
 	}
+}
+
+func realtimeProjectionThreadViewerStates(states []*connectapi.RealtimeProjectionThreadViewerState) *realtimev1.RealtimeProjectionThreadViewerStatesReplace {
+	out := &realtimev1.RealtimeProjectionThreadViewerStatesReplace{States: make([]*realtimev1.RealtimeProjectionThreadViewerState, 0, len(states))}
+	for _, state := range states {
+		if state == nil {
+			continue
+		}
+		out.States = append(out.States, &realtimev1.RealtimeProjectionThreadViewerState{
+			RoomId: state.RoomID, ThreadRootEventId: state.ThreadRootEventID, ViewerState: state.ViewerState,
+		})
+	}
+	return out
 }
 
 func (s *HTTPServer) appendRealtimeProjectionUser(

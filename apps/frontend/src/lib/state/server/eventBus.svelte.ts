@@ -26,7 +26,7 @@ import {
   RealtimeSubscribeEvents,
   type RealtimeProjectionEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { ServerConnection } from './serverConnection.svelte';
+import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
@@ -176,6 +176,7 @@ class EventBusManager {
     let reconnectAttempts = 0;
     let generation = 0;
     let socket: RealtimeSocket | null = null;
+    let socketSubscribed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
@@ -236,6 +237,7 @@ class EventBusManager {
     const detachSocket = (close = true, reason = 'replaced') => {
       const current = socket;
       socket = null;
+      socketSubscribed = false;
       if (!current) return;
       current.onopen = null;
       current.onmessage = null;
@@ -244,14 +246,14 @@ class EventBusManager {
       if (close) current.close(1000, reason);
     };
 
-    const becomeDormant = (markStale: boolean) => {
+    const becomeDormant = (markStale: boolean, status: ConnectionStatus = 'dormant') => {
       const wasPolling = mode === 'polling';
       mode = 'dormant';
       clearReconnectTimer();
       detachSocket(true, 'dormant');
       if (markStale) sync.markStale();
       if (wasPolling) resolvePoll(false);
-      serverConnection.setRealtimeConnectionStatus('disconnected');
+      serverConnection.setRealtimeConnectionStatus(status);
     };
 
     const stopForAuthenticationRequired = (current: RealtimeSocket, reason: string) => {
@@ -321,6 +323,7 @@ class EventBusManager {
       });
 
       const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
+      socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
 
@@ -337,6 +340,10 @@ class EventBusManager {
             frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
           } catch (error) {
             console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
+            // Never continue past a frame we could not understand: a later
+            // caught_up boundary would otherwise make the missing mutation
+            // permanent in the retained projection.
+            nextSocket.close(1003, 'invalid realtime frame');
             return;
           }
 
@@ -349,6 +356,7 @@ class EventBusManager {
               nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
               return;
             case 'subscribed':
+              socketSubscribed = true;
               reconnectAttempts = 0;
               if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
@@ -384,6 +392,10 @@ class EventBusManager {
               if (mode === 'polling') {
                 mode = 'dormant';
                 detachSocket(true, 'caught_up');
+                // The projection is usable, but the closed transport means
+                // absence stops being authoritative immediately.
+                sync.markStale();
+                serverConnection.setRealtimeConnectionStatus('dormant');
               } else if (completedPoll && mode === 'live') {
                 serverConnection.setRealtimeConnectionStatus('connected');
               }
@@ -423,11 +435,17 @@ class EventBusManager {
                 );
               } else {
                 resolvePoll(false);
-                if (mode === 'polling') mode = 'dormant';
+                if (mode === 'polling') {
+                  mode = 'dormant';
+                  serverConnection.setRealtimeConnectionStatus('disconnected');
+                }
               }
               return;
             case 'pong':
+              return;
             case undefined:
+              console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
+              nextSocket.close(1003, 'unsupported realtime frame');
               return;
           }
         })();
@@ -440,6 +458,7 @@ class EventBusManager {
       nextSocket.onclose = (event) => {
         if (stopped || socket !== nextSocket) return;
         socket = null;
+        socketSubscribed = false;
         console.warn(`[eventBus:${serverId}] realtime socket closed`, {
           code: event.code,
           reason: event.reason,
@@ -450,6 +469,7 @@ class EventBusManager {
         } else {
           mode = 'dormant';
           resolvePoll(false);
+          serverConnection.setRealtimeConnectionStatus('disconnected');
         }
       };
     };
@@ -509,7 +529,12 @@ class EventBusManager {
           return;
         }
         if (mode === 'live') return;
+        // Promotion transfers the existing socket to live ownership. Settle
+        // the old polling promise and cancel its timeout so it cannot later
+        // demote this active controller or close a replacement socket.
+        resolvePoll(false);
         mode = 'live';
+        serverConnection.setRealtimeConnectionStatus(socketSubscribed ? 'connected' : 'connecting');
         connect('server became active');
       },
       suspend() {
@@ -523,7 +548,10 @@ class EventBusManager {
         mode = 'polling';
         return new Promise<boolean>((resolve) => {
           pollResolution = resolve;
-          pollTimeout = setTimeout(() => becomeDormant(true), INACTIVE_POLL_TIMEOUT_MS);
+          pollTimeout = setTimeout(
+            () => becomeDormant(true, 'disconnected'),
+            INACTIVE_POLL_TIMEOUT_MS
+          );
           connect('inactive server catch-up');
         });
       },

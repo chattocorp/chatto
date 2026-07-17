@@ -29,6 +29,16 @@ func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorI
 	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)})
 }
 
+// ListFollowedThreadViewerStates returns an exhaustive, authoritative set for
+// realtime replacement semantics. Unlike the user-facing directory list, it
+// fails on uncertain rows instead of silently omitting them.
+func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, actorID string) ([]*FollowedThread, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	return s.core.listFollowedThreadViewerStates(ctx, actorID)
+}
+
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {

@@ -63,6 +63,27 @@ describe('ServerInfoState.init()', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  it('coalesces concurrent discovery requests', async () => {
+    let resolve!: (info: PublicServerInfo) => void;
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
+    );
+    const state = new ServerInfoState('https://acme.test', loader);
+
+    const first = state.init();
+    const second = state.init();
+    expect(loader).toHaveBeenCalledTimes(1);
+
+    resolve(publicServerInfo());
+    await Promise.all([first, second]);
+
+    expect(state.name).toBe('Acme');
+    expect(state.loading).toBe(false);
+  });
+
   it('refreshes profile fields without toggling initial loading state', async () => {
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({

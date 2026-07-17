@@ -308,6 +308,20 @@ One mutation of a server-scoped client projection.
 | `operation.notifications_replace` | [`RealtimeProjectionNotificationsReplace`](#chatto-realtime-v1-RealtimeProjectionNotificationsReplace) | Replaces the viewer's current pending-notification page and room counts. |
 | `operation.room_viewer_state_replace` | [`RealtimeProjectionRoomViewerStateReplace`](#chatto-realtime-v1-RealtimeProjectionRoomViewerStateReplace) | Replaces one room's current viewer state without retransmitting room metadata or membership. |
 | `operation.active_calls_replace` | [`RealtimeProjectionActiveCallsReplace`](#chatto-realtime-v1-RealtimeProjectionActiveCallsReplace) | Replaces every active call visible to the caller. |
+| `operation.presences_replace` | [`RealtimeProjectionPresencesReplace`](#chatto-realtime-v1-RealtimeProjectionPresencesReplace) | Replaces the latest presence status for every server member. Presence is transient and not replayed from EVT, so every subscription emits this reconciliation before caught_up. |
+| `operation.thread_viewer_states_replace` | [`RealtimeProjectionThreadViewerStatesReplace`](#chatto-realtime-v1-RealtimeProjectionThreadViewerStatesReplace) | Replaces viewer-specific follow and unread state for every followed thread. Missing entries authoritatively mean not followed and not unread for retained thread roots. |
+
+<a id="chatto-realtime-v1-RealtimeProjectionPresencesReplace"></a>
+
+### RealtimeProjectionPresencesReplace
+
+Complete latest-value presence state for the projected user directory.
+Missing map entries are offline; the server normally includes every member
+explicitly so reducers can converge without retaining an older value.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `statuses` | map&lt;`string`, `chatto.api.v1.PresenceStatus`&gt; | No field description provided. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionReactionChange"></a>
 
@@ -420,6 +434,30 @@ Authenticated server state required by every signed-in client.
 | --- | --- | --- |
 | `motd` | `optional string` | Optional message of the day shown to authenticated members. |
 | `runtime` | `chatto.api.v1.ServerRuntimeConfig` | Runtime capabilities and limits advertised to the client. |
+
+<a id="chatto-realtime-v1-RealtimeProjectionThreadViewerState"></a>
+
+### RealtimeProjectionThreadViewerState
+
+Viewer-specific state for one followed thread root.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `viewer_state` | `chatto.api.v1.ThreadViewerState` | No field description provided. |
+
+<a id="chatto-realtime-v1-RealtimeProjectionThreadViewerStatesReplace"></a>
+
+### RealtimeProjectionThreadViewerStatesReplace
+
+Complete current viewer state for followed threads. This reconciles durable
+follow changes and RUNTIME_STATE read markers that may change while a client
+is dormant without retransmitting room timelines.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`RealtimeProjectionThreadViewerState`](#chatto-realtime-v1-RealtimeProjectionThreadViewerState) | No field description provided. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionUserRemove"></a>
 

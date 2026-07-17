@@ -27,3 +27,7 @@ protocol used at `/api/realtime`.
 - Resume cursors have a bounded public lifetime (currently 24 hours). Expired
   cursors must converge through compacted current state, never through a
   partially trusted replay position.
+- A client must never advance its resume cursor across an undecodable frame,
+  unknown top-level frame, or unknown projection operation. Protocol evolution must preserve that
+  fail-closed invariant and provide an explicit negotiation/migration path for
+  newly required operations.

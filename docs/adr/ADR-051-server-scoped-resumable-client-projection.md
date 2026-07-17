@@ -32,6 +32,11 @@ later changes:
    timeline events for every room the viewer has joined, the current finite
    pending-notification page and complete room notification counts, and every
    active call visible to the viewer.
+
+“Every room” includes joined DMs with no message yet. The public directory's
+conversation-list policy may hide those rows, but the realtime projection and
+live authorization capture are exhaustive so the room can receive its first
+message and be opened directly.
 2. The client applies later projection operations to those resources and room
    timelines regardless of which room is being rendered.
 3. A cursor is issued only at EVT boundaries. A socket reconnect in the same
@@ -101,21 +106,35 @@ message tombstone. Canonical reply deletion marks the corresponding echo
 upsert as a retained deleted row so it remains a tombstone rather than taking
 the direct-echo deletion path.
 
-Notification records live in `RUNTIME_STATE`, not EVT. Their finite current
-page and room counts are therefore re-emitted inside the projection stream on
-every valid resume before `caught_up`; transient create/dismiss signals buffered
-during the handoff then converge any concurrent changes. Directory metadata
+Notification records and room/thread read markers include latest-value state
+outside EVT. Every subscription therefore re-emits the viewer resource, every
+visible room's viewer state, the complete followed-thread viewer-state set,
+pending notification page/counts, and directory presence before `caught_up`.
+Missing followed-thread entries clear retained follow/unread flags. Transient
+signals buffered during the handoff converge concurrent changes. Thread follow
+and read-marker mutations share a user-scoped viewer-state invalidation, which
+is remapped to the current root row after reconciliation. The authoritative
+followed-thread replacement fails the catch-up on an uncertain membership,
+metadata, follow, or read-marker read instead of silently omitting that row.
+Directory metadata
 facts are fanned to sessions when the viewer has
 not joined the room. The shared hub caches each projection user's authorized
 directory rooms, suppresses facts for rooms the user has never been able to
 see, and emits removal after visibility loss only for previously visible rooms.
 
+Presence is likewise latest-value state and cannot be reconstructed from EVT.
+The reconciliation includes complete `presences_replace` state from the
+process-wide `PresenceHub`; later transitions use the existing transient live
+envelope. This keeps the one-stream/one-reducer contract while allowing a
+dormant server to converge on activation.
+
 Authenticated server presentation and runtime settings are canonical client
 state. They are therefore included in the compacted prefix and replaced by a
 projection operation after server updates; the client does not bootstrap or
-refresh them through a separate ConnectRPC read. Transient latest-value state
-such as presence, typing, and notification hints can continue to use existing
-live envelopes on the same WebSocket. Active call state is canonical and uses
+refresh them through a separate ConnectRPC read. Transient latest-value
+transitions such as presence, typing, and notification hints can continue to
+use existing live envelopes on the same WebSocket; presence additionally has
+the finite convergence operation described above. Active call state is canonical and uses
 `active_calls_replace` in the compacted prefix and after durable call
 transitions. These transient values do not
 define the durable client projection and are not replayed. This does not create
@@ -141,6 +160,9 @@ preferences, and session termination.
 Room switching is a rendering selection over server-owned data. Temporary
 historical/permalink windows are discarded when their room is deselected, so
 late query responses cannot replace that room's retained latest projection.
+Server chrome, sidebar branding, permissions, unread state, room membership,
+and DM labels are selectors over the same projection; they do not run a second
+authenticated bootstrap query when a server becomes visible.
 Reactions, edits, retractions, channel-echo additions/removals, and new
 messages received while a room is inactive remain
 current, and reconnect can recover exact reaction transitions for integrations
@@ -156,7 +178,9 @@ states.
 
 At most one background catch-up socket exists alongside the active persistent
 socket. Inactive polls are jittered and serialized, and a stalled poll is
-abandoned after 30 seconds so one server cannot block the rest. Non-replayable
+abandoned after 30 seconds so one server cannot block the rest. Intentional
+dormancy is a distinct healthy transport status, not a connection failure.
+Non-replayable
 typing, presence transitions, and similar transient frames are intentionally
 not reconstructed while a server is dormant; activation observes current
 latest-value state and later transitions according to their owning subsystem.
@@ -185,6 +209,13 @@ historical public shapes. Clients must apply operations in order and persist a
 cursor only after all preceding operations have succeeded. Integrators offline
 for more than 24 hours still converge through compacted state, but cannot
 recover every historical transition from the expired interval.
+
+Clients fail closed on an undecodable frame or unknown projection operation.
+They validate an entire projection event before mutating state and do not
+accept a later cursor across input they did not understand. Completed inactive
+polls are immediately marked stale after closing: known retained resources stay
+renderable, while missing resources remain non-authoritative until activation
+catches up.
 
 No new durable projection or NATS resource is introduced. EVT remains the
 source of durable facts, existing read models remain the source of public

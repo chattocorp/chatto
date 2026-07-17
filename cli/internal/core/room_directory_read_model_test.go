@@ -91,3 +91,36 @@ func directoryRoomsContain(rooms []*DirectoryRoom, roomID string) bool {
 	}
 	return false
 }
+
+func TestRoomDirectoryReadModelCanIncludeEmptyDMsForExhaustiveProjection(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-empty-dm-actor", "Directory Empty DM Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	other, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-empty-dm-other", "Directory Empty DM Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	dm, _, err := chattoCore.FindOrCreateDM(ctx, actor.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	publicRooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, actor.Id, RoomDirectoryListOptions{IncludeDMs: true})
+	if err != nil {
+		t.Fatalf("ListRooms public policy: %v", err)
+	}
+	if directoryRoomsContain(publicRooms, dm.Id) {
+		t.Fatalf("empty DM %s appeared without IncludeEmptyDMs", dm.Id)
+	}
+
+	projectedRooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, actor.Id, RoomDirectoryListOptions{IncludeDMs: true, IncludeEmptyDMs: true})
+	if err != nil {
+		t.Fatalf("ListRooms exhaustive projection: %v", err)
+	}
+	if !directoryRoomsContain(projectedRooms, dm.Id) {
+		t.Fatalf("empty DM %s missing with IncludeEmptyDMs", dm.Id)
+	}
+}

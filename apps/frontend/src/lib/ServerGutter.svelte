@@ -46,7 +46,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
           <!-- Authentication changes replace the per-server store. Remount the
                entry so its one-time private-data load follows the new state. -->
           {#key store.isAuthenticated}
-            <ServerSidebarEntry serverId={server.id} currentUserId={store.currentUser.user?.id} />
+            <ServerSidebarEntry serverId={server.id} />
           {/key}
         {/if}
       {/each}

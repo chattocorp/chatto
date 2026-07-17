@@ -5,6 +5,7 @@ package chatto.realtime.v1;
 import "chatto/api/v1/notification_preferences.proto";
 import "chatto/api/v1/notifications.proto";
 import "chatto/api/v1/member_directory.proto";
+import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/room_timeline.proto";
@@ -176,6 +177,14 @@ message RealtimeProjectionOperation {
     RealtimeProjectionRoomViewerStateReplace room_viewer_state_replace = 14;
     // Replaces every active call visible to the caller.
     RealtimeProjectionActiveCallsReplace active_calls_replace = 15;
+    // Replaces the latest presence status for every server member. Presence
+    // is transient and not replayed from EVT, so every subscription emits
+    // this reconciliation before caught_up.
+    RealtimeProjectionPresencesReplace presences_replace = 16;
+    // Replaces viewer-specific follow and unread state for every followed
+    // thread. Missing entries authoritatively mean not followed and not
+    // unread for retained thread roots.
+    RealtimeProjectionThreadViewerStatesReplace thread_viewer_states_replace = 17;
   }
 }
 
@@ -205,6 +214,27 @@ message RealtimeProjectionRoom {
 message RealtimeProjectionUserRemove {
   // Stable user ID to remove.
   string user_id = 1;
+}
+
+// Complete latest-value presence state for the projected user directory.
+// Missing map entries are offline; the server normally includes every member
+// explicitly so reducers can converge without retaining an older value.
+message RealtimeProjectionPresencesReplace {
+  map<string, chatto.api.v1.PresenceStatus> statuses = 1;
+}
+
+// Complete current viewer state for followed threads. This reconciles durable
+// follow changes and RUNTIME_STATE read markers that may change while a client
+// is dormant without retransmitting room timelines.
+message RealtimeProjectionThreadViewerStatesReplace {
+  repeated RealtimeProjectionThreadViewerState states = 1;
+}
+
+// Viewer-specific state for one followed thread root.
+message RealtimeProjectionThreadViewerState {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  chatto.api.v1.ThreadViewerState viewer_state = 3;
 }
 
 // Removes one room from the client projection.

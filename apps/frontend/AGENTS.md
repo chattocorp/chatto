@@ -66,6 +66,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
+- Treat an intentionally dormant inactive-server transport as healthy retained
+  state, not as a failed connection. Only actual transport/auth/protocol
+  failures should dim its server-gutter entry.
 - `$lib/render/types` is a hand-owned temporary render DTO compatibility layer,
   not generated API output. Do not add documents or generated calls for the
   retired legacy API.
@@ -161,6 +164,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Keep a realtime resume cursor RAM-only and owned by the exact per-server
   projection it advances. Socket teardown must not discard either one, and a
   recreated projection must resume without a cursor so it receives a reset.
+- Treat undecodable realtime frames and unknown projection operations as fatal
+  for that socket. Validate each projection event before mutation and never
+  advance a cursor across input the reducer did not fully understand.
 - Application code must leave realtime transport ownership to the central
   coordinator: only the URL-active server keeps a persistent WebSocket, while
   inactive servers use serialized short-lived catch-ups over the same stream.

@@ -53,6 +53,17 @@ function switcherResults(dialog: Locator): Locator {
   return dialog.locator('button.sidebar-item');
 }
 
+async function navigateWithinClient(page: Page, href: string): Promise<void> {
+  await page.evaluate((target) => {
+    const link = document.createElement('a');
+    link.href = target;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }, href);
+  await page.waitForURL((url) => url.pathname === href);
+}
+
 /**
  * Cross-instance dot indicator coverage.
  *
@@ -102,6 +113,7 @@ test.describe('Cross-instance dots', () => {
     // remote server). This is the cold-load timing window where the bus has to
     // be ready and consumers have to attach reactively.
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
+    await navigateWithinClient(page, routes.chat);
     await page.waitForLoadState('networkidle');
 
     // Sanity: no dot on the remote server icon yet. Issue #330: home and
@@ -166,7 +178,7 @@ test.describe('Cross-instance dots', () => {
     );
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
-    await page.goto(routes.room(homeGeneralRoomId));
+    await navigateWithinClient(page, routes.room(homeGeneralRoomId));
     await waitForRoomReady(page, 'general');
     await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
@@ -236,7 +248,7 @@ test.describe('Cross-instance dots', () => {
     await postMessageOnRemote(baseURL, sender.token, remoteGeneralRoomId, remoteRoomBody);
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
-    await page.goto(routes.room(homeGeneralRoomId));
+    await navigateWithinClient(page, routes.room(homeGeneralRoomId));
     await waitForRoomReady(page, 'general');
     await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 

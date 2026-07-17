@@ -1,6 +1,12 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, expect, it } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import {
+  Message,
+  ThreadSummary,
+  ThreadViewerState
+} from '@chatto/api-types/api/v1/message_types_pb';
 import {
   RoomGroup,
   RoomViewerState,
@@ -24,6 +30,9 @@ import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
+  RealtimeProjectionPresencesReplace,
+  RealtimeProjectionThreadViewerState,
+  RealtimeProjectionThreadViewerStatesReplace,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
   RealtimeProjectionRoomGroupsReplace,
@@ -42,6 +51,13 @@ function event(...operations: RealtimeProjectionOperation[]): RealtimeProjection
   return new RealtimeProjectionEvent({ operations });
 }
 
+function eventWithId(
+  id: string,
+  ...operations: RealtimeProjectionOperation[]
+): RealtimeProjectionEvent {
+  return new RealtimeProjectionEvent({ id, operations });
+}
+
 function operation(value: RealtimeProjectionOperation['operation']): RealtimeProjectionOperation {
   return new RealtimeProjectionOperation({ operation: value });
 }
@@ -55,6 +71,107 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
 }
 
 describe('ServerProjectionStore', () => {
+  it('reconciles followed-thread state and clears entries absent from the replacement', () => {
+    const store = new ServerProjectionStore();
+    const root = new RoomTimelineEvent({
+      id: 'ROOT',
+      event: {
+        case: 'messagePosted',
+        value: new RoomMessagePosted({
+          message: new Message({
+            id: 'ROOT',
+            thread: new ThreadSummary({
+              threadRootEventId: 'ROOT',
+              viewerState: new ThreadViewerState({ isFollowing: false, hasUnread: false })
+            })
+          })
+        })
+      }
+    });
+    store.apply(
+      event(
+        operation({
+          case: 'roomTimelineReplace',
+          value: new RealtimeProjectionRoomTimelineReplace({
+            roomId: 'R1',
+            page: new RoomTimelinePage({ events: [root] })
+          })
+        }),
+        operation({
+          case: 'threadViewerStatesReplace',
+          value: new RealtimeProjectionThreadViewerStatesReplace({
+            states: [
+              new RealtimeProjectionThreadViewerState({
+                roomId: 'R1',
+                threadRootEventId: 'ROOT',
+                viewerState: new ThreadViewerState({ isFollowing: true, hasUnread: true })
+              })
+            ]
+          })
+        })
+      )
+    );
+
+    const viewerState = () => {
+      const projected = store.timelines.get('R1')?.events[0];
+      return projected?.event.case === 'messagePosted'
+        ? projected.event.value.message?.thread?.viewerState
+        : undefined;
+    };
+    expect(viewerState()?.isFollowing).toBe(true);
+    expect(viewerState()?.hasUnread).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'threadViewerStatesReplace',
+          value: new RealtimeProjectionThreadViewerStatesReplace()
+        })
+      )
+    );
+    expect(viewerState()?.isFollowing).toBe(false);
+    expect(viewerState()?.hasUnread).toBe(false);
+  });
+
+  it('reconciles complete transient presence without changing user profiles', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'userUpsert',
+          value: new DirectoryMember({
+            user: new User({ id: 'U1', displayName: 'Ada', presenceStatus: PresenceStatus.ONLINE })
+          })
+        }),
+        operation({
+          case: 'presencesReplace',
+          value: new RealtimeProjectionPresencesReplace({
+            statuses: { U1: PresenceStatus.AWAY }
+          })
+        })
+      )
+    );
+
+    expect(store.users.get('U1')?.user?.displayName).toBe('Ada');
+    expect(store.users.get('U1')?.user?.presenceStatus).toBe(PresenceStatus.AWAY);
+  });
+
+  it('rejects an unknown operation before atomically applying known operations', () => {
+    const store = new ServerProjectionStore();
+    expect(() =>
+      store.apply(
+        event(
+          operation({
+            case: 'serverUpsert',
+            value: new ServerPublicProfile({ name: 'must not apply' })
+          }),
+          new RealtimeProjectionOperation()
+        )
+      )
+    ).toThrow('unsupported realtime projection operation');
+    expect(store.server).toBeNull();
+  });
+
   it('applies canonical resources, replacements, and removals', () => {
     const store = new ServerProjectionStore();
     const server = new ServerPublicProfile({ name: 'Projection Server' });
@@ -287,7 +404,8 @@ describe('ServerProjectionStore', () => {
   it('retains root-message room activity order across viewer-state replacements', () => {
     const store = new ServerProjectionStore();
     store.apply(
-      event(
+      eventWithId(
+        'M1',
         operation({
           case: 'roomUpsert',
           value: new RealtimeProjectionRoom({
@@ -312,6 +430,21 @@ describe('ServerProjectionStore', () => {
           value: new RealtimeProjectionRoomViewerStateReplace({
             roomId: 'R2',
             viewerState: new RoomViewerState({ hasUnread: false })
+          })
+        })
+      )
+    );
+
+    expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+
+    store.apply(
+      eventWithId(
+        'REACTION-1',
+        operation({
+          case: 'roomTimelineEventUpsert',
+          value: new RealtimeProjectionRoomTimelineEventUpsert({
+            roomId: 'R1',
+            event: timelineEvent('OLD-ROOT', '2025-01-01T00:00:00Z')
           })
         })
       )

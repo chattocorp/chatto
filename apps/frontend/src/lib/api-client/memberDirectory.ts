@@ -171,7 +171,7 @@ export function mapDirectoryMember(
   };
 }
 
-function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
+export function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
   switch (status) {
     case APIPresenceStatus.AWAY:
       return PresenceStatus.Away;

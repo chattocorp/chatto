@@ -748,6 +748,65 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 	}
 }
 
+func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-thread-read-viewer", "RT Thread Read Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-thread-read-author", "RT Thread Read Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-thread-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.Id, author.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "unread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	t.Cleanup(func() { conn.Close() })
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive hello")
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatal("did not receive subscribed")
+	}
+	readRealtimeCaughtUp(t, conn)
+
+	if _, err := env.core.SetThreadLastReadEventID(env.ctx, core.KindChannel, viewer.Id, room.Id, root.Id, reply.Id); err != nil {
+		t.Fatalf("SetThreadLastReadEventID: %v", err)
+	}
+	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == root.Id
+	})
+	thread := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread()
+	if !thread.GetViewerState().GetIsFollowing() || thread.GetViewerState().GetHasUnread() {
+		t.Fatalf("thread viewer state after marker advance = %+v, want following and read", thread.GetViewerState())
+	}
+}
+
 func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie", "RT Cookie", "password123"); err != nil {
@@ -1262,9 +1321,15 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	if replayed.GetProjectionEvent().GetResumeCursor() == "" {
 		t.Fatal("replayed reaction has no resume cursor")
 	}
-	notifications, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
-	if !ok || notifications.GetProjectionEvent() == nil || len(notifications.GetProjectionEvent().GetOperations()) != 1 || notifications.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace() == nil {
-		t.Fatalf("post-replay frame = %+v, want notification reconciliation", notifications)
+	reconciliation, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	foundNotifications := false
+	if ok && reconciliation.GetProjectionEvent() != nil {
+		for _, operation := range reconciliation.GetProjectionEvent().GetOperations() {
+			foundNotifications = foundNotifications || operation.GetNotificationsReplace() != nil
+		}
+	}
+	if !foundNotifications {
+		t.Fatalf("post-replay frame = %+v, want latest-value reconciliation", reconciliation)
 	}
 	readRealtimeCaughtUp(t, resumed)
 }
@@ -1362,6 +1427,10 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	echoRemovals := 0
 	replyUpserts := 0
 	notificationReconciliations := 0
+	presenceReconciliations := 0
+	viewerReconciliations := 0
+	roomViewerReconciliations := 0
+	threadViewerReconciliations := 0
 	var caughtUpCursor string
 	for caughtUpCursor == "" {
 		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
@@ -1375,9 +1444,6 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 		projection := frame.GetProjectionEvent()
 		if projection == nil {
 			t.Fatalf("replay frame = %T, want projection_event or caught_up", frame.GetFrame())
-		}
-		if notificationReconciliations != 0 {
-			t.Fatal("received another projection event after notification reconciliation instead of caught_up")
 		}
 		for _, operation := range projection.GetOperations() {
 			if operation.GetReset_() != nil {
@@ -1409,6 +1475,18 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 			if operation.GetNotificationsReplace() != nil {
 				notificationReconciliations++
 			}
+			if operation.GetPresencesReplace() != nil {
+				presenceReconciliations++
+			}
+			if operation.GetViewerUpsert() != nil {
+				viewerReconciliations++
+			}
+			if operation.GetRoomViewerStateReplace() != nil {
+				roomViewerReconciliations++
+			}
+			if operation.GetThreadViewerStatesReplace() != nil {
+				threadViewerReconciliations++
+			}
 		}
 	}
 	if caughtUpCursor == "" {
@@ -1417,8 +1495,8 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	if caughtUpCursor == resumeCursor {
 		t.Fatal("caught_up cursor did not advance across durable replay gap")
 	}
-	if replyUpserts != 1 || echoRemovals != 2 || assetUpserts != 3 || notificationReconciliations != 1 {
-		t.Fatalf("replay reply/echo/asset/notifications = %d/%d/%d/%d, want 1/2/3/1", replyUpserts, echoRemovals, assetUpserts, notificationReconciliations)
+	if replyUpserts != 1 || echoRemovals != 2 || assetUpserts != 3 || notificationReconciliations != 1 || presenceReconciliations != 1 || viewerReconciliations != 1 || roomViewerReconciliations == 0 || threadViewerReconciliations != 1 {
+		t.Fatalf("replay reply/echo/asset/notifications/presence/viewer/room-viewer/thread-viewer = %d/%d/%d/%d/%d/%d/%d/%d, want 1/2/3/1/1/1/>0/1", replyUpserts, echoRemovals, assetUpserts, notificationReconciliations, presenceReconciliations, viewerReconciliations, roomViewerReconciliations, threadViewerReconciliations)
 	}
 
 	liveMessage, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "after caught up", nil, "", "", nil, false)

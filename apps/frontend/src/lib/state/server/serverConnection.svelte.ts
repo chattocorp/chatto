@@ -1,7 +1,7 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { serverRegistry } from './registry.svelte';
 
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
 
 export interface ServerConnectionConfig {
   /** Server base URL (relative for origin, absolute for remote). */
@@ -153,6 +153,12 @@ export class ServerConnection {
         console.log('[ws:%s] Reconnected (count: %d)', this.#host, this.reconnectCount);
       }
       this.status = 'connected';
+      this.#failedAttempts = 0;
+      return;
+    }
+
+    if (status === 'dormant') {
+      this.status = 'dormant';
       this.#failedAttempts = 0;
       return;
     }

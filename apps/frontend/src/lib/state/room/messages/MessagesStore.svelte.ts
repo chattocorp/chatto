@@ -452,7 +452,8 @@ export class MessagesStore {
     roomId: string,
     event: RoomTimelineEvent,
     includes: RoomTimelineIncludes | undefined,
-    retainDeletedRow = false
+    retainDeletedRow = false,
+    insertIfMissing = true
   ): void {
     if (this.roomId !== roomId) return;
     this.isInitialLoading = false;
@@ -470,6 +471,7 @@ export class MessagesStore {
 
     const existingIndex = this.events.findIndex((candidate) => candidate.id === projected.id);
     if (existingIndex === -1) {
+      if (!insertIfMissing) return;
       this.ingestEvent(projected);
       return;
     }

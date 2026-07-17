@@ -45,14 +45,21 @@ idempotent operations:
 - every room visible to the viewer, its complete membership as references into
   the server user directory, and the complete visible room-group layout;
 - the latest 50 renderable timeline events for every joined room;
-- the newest finite pending-notification page and complete per-room counts.
-- every active call visible to the viewer.
+- the newest finite pending-notification page and complete per-room counts;
+- every active call visible to the viewer; and
+- a complete latest-value presence map for the projected user directory.
 
 The snapshot builder uses the same ConnectRPC assemblers as public reads. It
 decrypts PII only at the authenticated response boundary and resolves messages
 through current deletion and key-shredding projections. Deleted or
 crypto-erased bodies therefore appear only as normal tombstones. Timeline
 windows are assembled concurrently with bounded concurrency.
+
+The projection's room set is exhaustive rather than sidebar-policy-filtered:
+it includes joined DMs that do not yet contain a message. Public directory
+lists may continue hiding those empty conversations, but the projection and
+live-hub authorization capture retain them so a `StartDM` response can be
+navigated immediately and its first message can arrive through the stream.
 
 The frontend applies this prefix and every later event through the same
 `ServerProjectionStore` reducer. Server profile, MOTD, and runtime capability
@@ -65,7 +72,9 @@ pagination boundary using only the projection stream.
 Changing the route selects retained state for rendering and does not initiate
 initial room hydration. Room-member lists and DM labels resolve those membership
 references through the already-warm user projection instead of issuing a
-second bootstrap query.
+second bootstrap query. Server chrome and gutter entries likewise select
+projected branding, viewer capabilities, notification preferences, and unread
+state instead of independently fetching server/viewer/room snapshots.
 
 Projection readiness distinguishes cold data from transport freshness. Known
 rooms in `ready` or `stale` projections render immediately, including after a
@@ -95,10 +104,24 @@ converted to current public resource operations. The handler sends `caught_up`
 at the cutoff, discards buffered live duplicates through that sequence, and
 continues with the hub stream.
 
-Because pending notifications live in `RUNTIME_STATE`, every valid resume also
-emits a current `notifications_replace` operation before `caught_up`. Buffered
-notification create/dismiss signals cover mutations concurrent with that
-finite reconciliation.
+Every subscription emits one finite latest-value reconciliation before
+`caught_up`. It replaces the viewer resource; every visible room's read and
+permission state; the complete followed-thread viewer-state set, including
+RUNTIME_STATE unread markers; pending notifications and room counts; and the
+server directory's current presence. Missing followed-thread entries
+authoritatively clear follow/unread state on retained thread roots. Buffered
+live signals cover mutations concurrent with this reconciliation. Thread
+follow/unfollow and read-marker advances publish the same user-scoped
+viewer-state invalidation; after the finite replacement, a buffered signal is
+mapped to the current root timeline row. The complete followed-thread reader
+returns an error for uncertain membership, room metadata, follow, or read-marker
+state, so catch-up retries rather than converging to a lossy replacement.
+
+This operation set closes the parts of client state that an EVT gap alone
+cannot reconstruct, without a ConnectRPC side read or a second bootstrap
+mechanism. Presence and later room/thread read transitions use buffered live
+signals on this same stream; durable config changes that affect viewer permissions or
+preferences select a compacted reset through their EVT subjects.
 
 Replay scans at most 10,000 EVT sequences and emits at most 2,000 durable
 facts. Missing, malformed, expired, foreign-incarnation, oversized, or
@@ -174,14 +197,21 @@ facts map to authoritative upserts of their owning message and any visible
 channel echo, so replay never advances beyond a durable attachment mutation
 without applying its current render state.
 
-Transient/latest-value signals such as presence, typing, and notification
+The browser applies the same fail-closed rule. An undecodable frame or unknown
+projection operation closes the socket, leaves the preceding cursor intact,
+and retries from that position. A projection event is validated in full before
+either reducer mutates state, preventing partial application of an atomic
+event. A completed inactive poll becomes `stale` as soon as its socket closes:
+known resources remain renderable, but absence is not authoritative while the
+transport is dormant.
+
+Transient/latest-value signals such as presence transitions, typing, and notification
 create/dismiss hints continue as `RealtimeEventEnvelope` frames on the same
 WebSocket. Active calls instead converge through `active_calls_replace` in the
 compacted prefix and after every durable call transition. Transient frames have no durable
-cursor; finite pending-notification state is reconciled explicitly on resume,
-while other transient values are not part of canonical projection replay. The
-process-wide PresenceHub retains current presence and fans out later
-transitions.
+cursor; finite pending-notification and presence state are reconciled
+explicitly on every subscription. The process-wide PresenceHub retains current
+presence and fans out later transitions.
 
 Process-wide ingress loss or projection-readiness failure quarantines the hub
 and closes every session. A slow session that exceeds its queue limits is
@@ -192,6 +222,6 @@ WebSocket connections use small read/write buffers and share a write-buffer
 pool. When compression is enabled, the server uses Huffman-only DEFLATE and
 compresses frames of at least 1 KiB.
 
-| Endpoint | Frame schema | Authorization | Description |
-| --- | --- | --- | --- |
+| Endpoint        | Frame schema                                          | Authorization                                                                                                               | Description                                                       |
+| --------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer token in hello or cookie auth; current per-resource and room visibility is applied before public projection mapping. | Protocol 2 server-scoped compacted/resumable projection delivery. |

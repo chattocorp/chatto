@@ -10,10 +10,11 @@ import { GetViewerResponse, TimeFormat } from "../../api/v1/viewer_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ServerRuntimeConfig } from "../../api/v1/server_state_pb.js";
 import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
+import { PresenceStatus } from "../../api/v1/presence_pb.js";
+import { ThreadViewerState } from "../../api/v1/message_types_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
 import { ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/notifications_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { PresenceStatus } from "../../api/v1/presence_pb.js";
 import { NotificationLevel } from "../../api/v1/notification_preferences_pb.js";
 
 /**
@@ -702,6 +703,26 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
      */
     value: RealtimeProjectionActiveCallsReplace;
     case: "activeCallsReplace";
+  } | {
+    /**
+     * Replaces the latest presence status for every server member. Presence
+     * is transient and not replayed from EVT, so every subscription emits
+     * this reconciliation before caught_up.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionPresencesReplace presences_replace = 16;
+     */
+    value: RealtimeProjectionPresencesReplace;
+    case: "presencesReplace";
+  } | {
+    /**
+     * Replaces viewer-specific follow and unread state for every followed
+     * thread. Missing entries authoritatively mean not followed and not
+     * unread for retained thread roots.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionThreadViewerStatesReplace thread_viewer_states_replace = 17;
+     */
+    value: RealtimeProjectionThreadViewerStatesReplace;
+    case: "threadViewerStatesReplace";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeProjectionOperation>) {
@@ -727,6 +748,8 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     { no: 13, name: "notifications_replace", kind: "message", T: RealtimeProjectionNotificationsReplace, oneof: "operation" },
     { no: 14, name: "room_viewer_state_replace", kind: "message", T: RealtimeProjectionRoomViewerStateReplace, oneof: "operation" },
     { no: 15, name: "active_calls_replace", kind: "message", T: RealtimeProjectionActiveCallsReplace, oneof: "operation" },
+    { no: 16, name: "presences_replace", kind: "message", T: RealtimeProjectionPresencesReplace, oneof: "operation" },
+    { no: 17, name: "thread_viewer_states_replace", kind: "message", T: RealtimeProjectionThreadViewerStatesReplace, oneof: "operation" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionOperation {
@@ -924,6 +947,139 @@ export class RealtimeProjectionUserRemove extends Message<RealtimeProjectionUser
 
   static equals(a: RealtimeProjectionUserRemove | PlainMessage<RealtimeProjectionUserRemove> | undefined, b: RealtimeProjectionUserRemove | PlainMessage<RealtimeProjectionUserRemove> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionUserRemove, a, b);
+  }
+}
+
+/**
+ * Complete latest-value presence state for the projected user directory.
+ * Missing map entries are offline; the server normally includes every member
+ * explicitly so reducers can converge without retaining an older value.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionPresencesReplace
+ */
+export class RealtimeProjectionPresencesReplace extends Message<RealtimeProjectionPresencesReplace> {
+  /**
+   * @generated from field: map<string, chatto.api.v1.PresenceStatus> statuses = 1;
+   */
+  statuses: { [key: string]: PresenceStatus } = {};
+
+  constructor(data?: PartialMessage<RealtimeProjectionPresencesReplace>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionPresencesReplace";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "statuses", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "enum", T: proto3.getEnumType(PresenceStatus)} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionPresencesReplace {
+    return new RealtimeProjectionPresencesReplace().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionPresencesReplace {
+    return new RealtimeProjectionPresencesReplace().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionPresencesReplace {
+    return new RealtimeProjectionPresencesReplace().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionPresencesReplace | PlainMessage<RealtimeProjectionPresencesReplace> | undefined, b: RealtimeProjectionPresencesReplace | PlainMessage<RealtimeProjectionPresencesReplace> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionPresencesReplace, a, b);
+  }
+}
+
+/**
+ * Complete current viewer state for followed threads. This reconciles durable
+ * follow changes and RUNTIME_STATE read markers that may change while a client
+ * is dormant without retransmitting room timelines.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionThreadViewerStatesReplace
+ */
+export class RealtimeProjectionThreadViewerStatesReplace extends Message<RealtimeProjectionThreadViewerStatesReplace> {
+  /**
+   * @generated from field: repeated chatto.realtime.v1.RealtimeProjectionThreadViewerState states = 1;
+   */
+  states: RealtimeProjectionThreadViewerState[] = [];
+
+  constructor(data?: PartialMessage<RealtimeProjectionThreadViewerStatesReplace>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionThreadViewerStatesReplace";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "states", kind: "message", T: RealtimeProjectionThreadViewerState, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionThreadViewerStatesReplace {
+    return new RealtimeProjectionThreadViewerStatesReplace().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionThreadViewerStatesReplace {
+    return new RealtimeProjectionThreadViewerStatesReplace().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionThreadViewerStatesReplace {
+    return new RealtimeProjectionThreadViewerStatesReplace().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionThreadViewerStatesReplace | PlainMessage<RealtimeProjectionThreadViewerStatesReplace> | undefined, b: RealtimeProjectionThreadViewerStatesReplace | PlainMessage<RealtimeProjectionThreadViewerStatesReplace> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionThreadViewerStatesReplace, a, b);
+  }
+}
+
+/**
+ * Viewer-specific state for one followed thread root.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionThreadViewerState
+ */
+export class RealtimeProjectionThreadViewerState extends Message<RealtimeProjectionThreadViewerState> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * @generated from field: chatto.api.v1.ThreadViewerState viewer_state = 3;
+   */
+  viewerState?: ThreadViewerState;
+
+  constructor(data?: PartialMessage<RealtimeProjectionThreadViewerState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionThreadViewerState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "viewer_state", kind: "message", T: ThreadViewerState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionThreadViewerState {
+    return new RealtimeProjectionThreadViewerState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionThreadViewerState {
+    return new RealtimeProjectionThreadViewerState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionThreadViewerState {
+    return new RealtimeProjectionThreadViewerState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionThreadViewerState | PlainMessage<RealtimeProjectionThreadViewerState> | undefined, b: RealtimeProjectionThreadViewerState | PlainMessage<RealtimeProjectionThreadViewerState> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionThreadViewerState, a, b);
   }
 }
 

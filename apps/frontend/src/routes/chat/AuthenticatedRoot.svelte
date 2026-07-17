@@ -27,8 +27,8 @@
     children: Snippet;
   } = $props();
 
-  function synchronizeRealtimeTransports() {
-    const registrations = serverRegistry.servers.flatMap((server) => {
+  function realtimeRegistrations() {
+    return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
       return store?.isAuthenticated
         ? [
@@ -41,21 +41,33 @@
           ]
         : [];
     });
+  }
+
+  function synchronizeRealtimeTransports(
+    registrations: ReturnType<typeof realtimeRegistrations>,
+    activeServerId: string
+  ) {
     const shouldPause = shouldPauseLiveEventsForStoredPresence();
     if (shouldPause) {
       eventBusManager.pauseAll();
     }
-    eventBusManager.synchronizeAuthenticatedServers(registrations, getActiveServer() || null);
+    eventBusManager.synchronizeAuthenticatedServers(registrations, activeServerId || null);
 
     if (!shouldPause) eventBusManager.resumeAll();
   }
 
   // Run synchronously so child route layouts can provide an already-registered
   // event bus during their own initialization.
-  synchronizeRealtimeTransports();
+  synchronizeRealtimeTransports(realtimeRegistrations(), getActiveServer());
+
+  // Materialize the complete registration inputs as derived state. In
+  // particular, a late discovery-capability update on a newly added remote
+  // server must retrigger ownership even when no route or auth field changes.
+  const registrations = $derived.by(realtimeRegistrations);
+  const activeServerId = $derived(getActiveServer());
 
   $effect(() => {
-    synchronizeRealtimeTransports();
+    synchronizeRealtimeTransports(registrations, activeServerId);
   });
 </script>
 

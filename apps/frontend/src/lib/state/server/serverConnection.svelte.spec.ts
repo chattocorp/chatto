@@ -97,6 +97,18 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('does not present intentional dormant transport as a connection failure', () => {
+    const client = new ServerConnection(makeConfig());
+
+    client.setRealtimeConnectionStatus('dormant');
+
+    expect(client.status).toBe('dormant');
+    expect(client.isConnected).toBe(false);
+    expect(client.showConnectionLostIcon).toBe(false);
+    expect(client.showConnectionLostBanner).toBe(false);
+    client.dispose();
+  });
+
   it('forces reconnect through the registered realtime handler', () => {
     const client = new ServerConnection(makeConfig());
     const reconnect = vi.fn();

@@ -1,6 +1,8 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { RoomTimelineIncludes, RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
-import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { ThreadViewerState } from '@chatto/api-types/api/v1/message_types_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
@@ -26,6 +28,33 @@ export class ServerProjectionStore {
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
 
   apply(event: RealtimeProjectionEvent): void {
+    // Validate the entire atomic event before mutating anything. An unknown
+    // operation must fail the subscription without partially applying state
+    // or advancing its cursor.
+    for (const operation of event.operations) {
+      switch (operation.operation.case) {
+        case 'reset':
+        case 'serverUpsert':
+        case 'serverStateUpsert':
+        case 'viewerUpsert':
+        case 'userUpsert':
+        case 'userRemove':
+        case 'roomUpsert':
+        case 'roomRemove':
+        case 'roomGroupsReplace':
+        case 'roomTimelineReplace':
+        case 'roomTimelineEventUpsert':
+        case 'roomTimelineEventRemove':
+        case 'notificationsReplace':
+        case 'roomViewerStateReplace':
+        case 'activeCallsReplace':
+        case 'presencesReplace':
+        case 'threadViewerStatesReplace':
+          break;
+        case undefined:
+          throw new Error('unsupported realtime projection operation');
+      }
+    }
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
@@ -79,6 +108,7 @@ export class ServerProjectionStore {
           const update = operation.operation.value;
           this.upsertTimelineEvent(update);
           if (
+            event.id === update.event?.id &&
             update.event?.event.case === 'messagePosted' &&
             !update.event.event.value.message?.threadRootEventId
           ) {
@@ -131,8 +161,59 @@ export class ServerProjectionStore {
         case 'activeCallsReplace':
           this.activeCalls = [...operation.operation.value.calls];
           break;
-        case undefined:
+        case 'presencesReplace':
+          for (const [userId, member] of this.users) {
+            if (!member.user) continue;
+            const user = member.user.clone();
+            user.presenceStatus =
+              operation.operation.value.statuses[userId] ?? PresenceStatus.OFFLINE;
+            this.users.set(
+              userId,
+              new DirectoryMember({ user, roles: [...member.roles], createdAt: member.createdAt })
+            );
+          }
           break;
+        case 'threadViewerStatesReplace': {
+          const states = new SvelteMap(
+            operation.operation.value.states.map((state) => [
+              `${state.roomId}\u0000${state.threadRootEventId}`,
+              state.viewerState
+            ])
+          );
+          for (const [roomId, page] of this.timelines) {
+            let changed = false;
+            const events = page.events.map((event) => {
+              if (event.event.case !== 'messagePosted') return event;
+              const thread = event.event.value.message?.thread;
+              if (!thread?.threadRootEventId) return event;
+              const next = event.clone();
+              const nextThread =
+                next.event.case === 'messagePosted' ? next.event.value.message?.thread : undefined;
+              if (!nextThread) return event;
+              nextThread.viewerState =
+                states.get(`${roomId}\u0000${thread.threadRootEventId}`)?.clone() ??
+                new ThreadViewerState({ isFollowing: false, hasUnread: false });
+              changed = true;
+              return next;
+            });
+            if (changed) {
+              this.timelines.set(
+                roomId,
+                new RoomTimelinePage({
+                  events,
+                  startCursor: page.startCursor,
+                  endCursor: page.endCursor,
+                  hasOlder: page.hasOlder,
+                  hasNewer: page.hasNewer,
+                  includes: page.includes
+                })
+              );
+            }
+          }
+          break;
+        }
+        case undefined:
+          throw new Error('unsupported realtime projection operation');
       }
     }
   }

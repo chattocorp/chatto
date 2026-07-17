@@ -4,6 +4,7 @@ const {
   addServerMock,
   clearOriginAuthenticationMock,
   generateServerIdMock,
+  initServerInfoMock,
   gotoMock,
   replaceServerAuthenticationMock,
   updateServerMock
@@ -11,6 +12,7 @@ const {
   addServerMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
   generateServerIdMock: vi.fn(() => 'remote-example'),
+  initServerInfoMock: vi.fn(() => Promise.resolve()),
   gotoMock: vi.fn(() => Promise.resolve()),
   replaceServerAuthenticationMock: vi.fn(),
   updateServerMock: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     servers: [],
     addServer: addServerMock,
+    getStore: vi.fn(() => ({ serverInfo: { init: initServerInfoMock } })),
     updateServer: updateServerMock,
     replaceServerAuthentication: replaceServerAuthenticationMock,
     clearOriginAuthentication: clearOriginAuthenticationMock
@@ -133,11 +136,12 @@ describe('remote server OAuth popup', () => {
     );
 
     const { startServerOAuthFlow } = await import('./reauth');
+    const beforeNavigate = vi.fn();
     const completion = startServerOAuthFlow('https://remote.example', {
       name: 'Remote',
       authorizeUrl: '/oauth/authorize',
       iconUrl: null
-    });
+    }, beforeNavigate);
 
     // window.open happens before the first asynchronous PKCE operation, so it
     // remains associated with the user's click and avoids popup blocking.
@@ -183,6 +187,11 @@ describe('remote server OAuth popup', () => {
         token: 'cht_ATtoken',
         userId: 'user-1'
       })
+    );
+    expect(initServerInfoMock).toHaveBeenCalledOnce();
+    expect(beforeNavigate).toHaveBeenCalledOnce();
+    expect(beforeNavigate.mock.invocationCallOrder[0]).toBeLessThan(
+      gotoMock.mock.invocationCallOrder[0]!
     );
     expect(gotoMock).toHaveBeenCalledWith('/chat/remote-example');
     expect(popup.close).toHaveBeenCalledOnce();

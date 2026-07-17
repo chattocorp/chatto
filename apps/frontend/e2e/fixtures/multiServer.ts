@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
@@ -517,4 +517,16 @@ export async function connectRemoteInstance(
   // in (typically "127.0.0.1").
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
   await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
+
+  // URL mutation happens before SvelteKit's navigation promise and the new
+  // server projection have necessarily settled. Wait for projected private
+  // sidebar state so callers can safely initiate another client navigation
+  // without cancelling the OAuth route transition mid-hydration.
+  const serverIcon = page
+    .locator(`a[data-testid="server-icon"][href*="/chat/${hostname.split(':')[0]}"]`)
+    .first();
+  await expect(serverIcon).toBeVisible({ timeout: 30_000 });
+  await expect(serverIcon).not.toHaveAttribute('title', /connection unavailable/, {
+    timeout: 30_000
+  });
 }

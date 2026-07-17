@@ -219,9 +219,9 @@ message NotificationDismissedEvent {
 // THREAD FOLLOW EVENTS (user-scoped)
 // ============================================================================
 
-// ThreadFollowChangedEvent is published when a user's thread follow state changes
-// (follow or unfollow, including auto-follow on posting). User-scoped: delivered
-// only to the user whose follow state changed, for multi-tab/multi-device sync.
+// ThreadFollowChangedEvent invalidates one user's viewer-specific thread state.
+// It is published for follow/unfollow and read-marker changes and is user-scoped
+// for multi-tab/multi-device projection convergence.
 message ThreadFollowChangedEvent {
   reserved 1;
   reserved "space_id";
