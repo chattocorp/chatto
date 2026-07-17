@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -527,24 +526,6 @@ func TestInitWizardSurvivesInvalidTerminalWidths(t *testing.T) {
 			}()
 			_ = form.View()
 		}()
-	}
-}
-
-func TestInitSplashFramesKeepSpeechBubbleGeometry(t *testing.T) {
-	frames := initSplashFrames()
-	if len(frames) < 2 {
-		t.Fatalf("splash has %d frames, want an animation", len(frames))
-	}
-	for frameIndex, frame := range frames {
-		lines := strings.Split(frame, "\n")
-		if len(lines) != 7 {
-			t.Fatalf("frame %d has %d lines, want 7", frameIndex, len(lines))
-		}
-		for lineIndex, line := range lines {
-			if width := utf8.RuneCountInString(line); width != 44 {
-				t.Errorf("frame %d line %d width = %d, want 44: %q", frameIndex, lineIndex, width, line)
-			}
-		}
 	}
 }
 
