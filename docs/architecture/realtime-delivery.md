@@ -154,9 +154,15 @@ the subscription.
 
 Incremental replay and compacted bootstrap share one process-local catch-up
 admission guard. Each replica admits at most eight catch-ups at once and one at
-a time per authenticated user. A per-user token bucket allows a burst of three
-catch-ups and restores one token every 20 seconds. Every admitted catch-up has
-a 30-second whole-operation deadline. Capacity rejection sends
+a time per authenticated user. Explicit stale-cursor replay attempts use a
+per-user token bucket with a burst of three and one token restored every 20
+seconds. Cursorless compacted bootstraps cannot request historical events, and
+current-boundary reconnects have no gap, so both use a separate general catch-up
+bucket with a burst of 20 and one token restored each second. If EVT advances
+between boundary classification and replay planning, the server charges a
+replay token before emitting any replay frames, in addition to its general
+token. Every admitted catch-up
+has a 30-second whole-operation deadline. Capacity rejection sends
 `catch_up_in_progress`, `catch_up_rate_limited`, or `catch_up_server_busy` with
 reconnect guidance; deadline exhaustion sends `catch_up_timeout`. These limits
 bound work and protect availability only. They are deliberately process-local,

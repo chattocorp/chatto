@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -85,6 +87,91 @@ func TestRealtimeCursorRejectsImplausibleFutureIssueTime(t *testing.T) {
 	}
 	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("future cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}
+
+func TestRealtimeCursorAtCurrentBoundary(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const userID = "cursor-boundary-viewer"
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, userID, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	current, err := chatto.RealtimeCursorAtCurrentBoundary(ctx, userID, plan.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("RealtimeCursorAtCurrentBoundary: %v", err)
+	}
+	if !current {
+		t.Fatal("boundary cursor reported stale")
+	}
+
+	if _, err := chatto.CreateUser(ctx, SystemActorID, "cursor-boundary-new-user", "Cursor Boundary User", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	current, err = chatto.RealtimeCursorAtCurrentBoundary(ctx, userID, plan.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("RealtimeCursorAtCurrentBoundary after event: %v", err)
+	}
+	if current {
+		t.Fatal("cursor before a durable event reported current")
+	}
+	replay, err := chatto.PlanRealtimeReplay(ctx, userID, plan.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay after boundary advanced: %v", err)
+	}
+	if !replay.HadSequenceGap {
+		t.Fatal("replay did not report the gap that appeared after boundary classification")
+	}
+
+	for name, cursor := range map[string]string{
+		"empty":      "",
+		"invalid":    "not-a-cursor",
+		"cross-user": plan.BoundaryCursor,
+	} {
+		viewer := userID
+		if name == "cross-user" {
+			viewer = "different-viewer"
+		}
+		current, err := chatto.RealtimeCursorAtCurrentBoundary(ctx, viewer, cursor)
+		if err != nil {
+			t.Fatalf("%s cursor classification: %v", name, err)
+		}
+		if current {
+			t.Fatalf("%s cursor reported current", name)
+		}
+	}
+}
+
+func TestPlanRealtimeReplayReportsRetentionResetGap(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const userID = "cursor-retention-viewer"
+
+	before, err := chatto.PlanRealtimeReplay(ctx, userID, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	for index := 0; index < 2; index++ {
+		if _, err := chatto.CreateUser(ctx, SystemActorID, fmt.Sprintf("cursor-retention-%d", index), "Cursor Retention", "password123"); err != nil {
+			t.Fatalf("CreateUser %d: %v", index, err)
+		}
+	}
+	info, err := chatto.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		t.Fatalf("read EVT info: %v", err)
+	}
+	if err := chatto.storage.serverEvtStream.Purge(ctx, jetstream.WithPurgeSequence(info.State.LastSeq)); err != nil {
+		t.Fatalf("purge retained EVT prefix: %v", err)
+	}
+
+	replay, err := chatto.PlanRealtimeReplay(ctx, userID, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay after retention truncation: %v", err)
+	}
+	if !replay.Reset || !replay.HadSequenceGap {
+		t.Fatalf("retention replay = %+v, want reset with reported sequence gap", replay)
 	}
 }
 

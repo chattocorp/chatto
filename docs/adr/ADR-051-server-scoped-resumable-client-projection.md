@@ -102,8 +102,14 @@ facts; exceeding either bound selects compacted reset instead.
 
 Replay and compacted bootstrap use the same process-local capacity guard. Each
 replica admits at most eight catch-ups globally and one per authenticated user,
-with a per-user burst of three attempts and one restored token every 20
-seconds. A catch-up has a 30-second whole-operation deadline. Rejected clients
+with a per-user burst of three stale-cursor replay attempts and one restored
+token every 20 seconds. Cursorless compacted bootstraps and current-boundary
+reconnects use a separate general catch-up bucket with a burst of 20 and one
+token restored each second because neither can request historical events at
+classification time. If EVT advances before planning completes, the server
+also consumes a replay token before delivery. All classes remain subject to
+the concurrency guard. A catch-up has a
+30-second whole-operation deadline. Rejected clients
 receive explicit reconnect guidance. These controls bound replica work but do
 not participate in correctness, authorization, replay position, or any
 cross-replica invariant.

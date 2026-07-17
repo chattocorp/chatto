@@ -414,9 +414,16 @@ export class MessagesStore {
 
   /** Replace this room's recent retained window from the realtime projection stream. */
   replaceRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    // A message deep-link may start its around-window read while the lazy
+    // latest-page hydration is still in flight. Install the useful fallback
+    // page, but do not let its late delivery cancel the newer navigation intent.
+    const preservePendingJump =
+      this.#pendingJumpId !== null && this.scope === 'room' && this.roomId === roomId;
     this.startLoad();
-    this.#jumpId++;
-    this.#pendingJumpId = null;
+    if (!preservePendingJump) {
+      this.#jumpId++;
+      this.#pendingJumpId = null;
+    }
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
@@ -427,7 +434,7 @@ export class MessagesStore {
     // and its later arrival must not erase read-your-writes.
     this.replaceWithFetchedAndUpdateCursors(connection);
     this.hasReachedStart = !connection.hasOlder;
-    this.isInitialLoading = false;
+    this.isInitialLoading = preservePendingJump;
   }
 
   /** Purge retained rows without changing this store's identity for mounted consumers. */
@@ -457,7 +464,8 @@ export class MessagesStore {
   ): void {
     if (this.roomId !== roomId) return;
     this.isInitialLoading = false;
-    const projectedMessage = event.event.case === 'messagePosted' ? event.event.value.message : null;
+    const projectedMessage =
+      event.event.case === 'messagePosted' ? event.event.value.message : null;
     if (projectedMessage?.deletedAt) {
       const deletedAt = projectedMessage.deletedAt.toDate().toISOString();
       if (retainDeletedRow) this.applyRetainedDeletion(event.id, deletedAt);
@@ -788,6 +796,10 @@ export class MessagesStore {
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
       if (!parsed.some((event) => event.id === eventId)) {
+        if (this.events.some((event) => event.id === eventId)) {
+          jumpState.scrollToEventId = eventId;
+          return true;
+        }
         jumpState.scrollToEventId = null;
         jumpState.isJumpedMode = false;
         jumpState.hasReachedEnd = false;
@@ -814,6 +826,10 @@ export class MessagesStore {
       return true;
     } catch (error) {
       if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.events.some((event) => event.id === eventId)) {
+        jumpState.scrollToEventId = eventId;
+        return true;
+      }
       console.error('MessagesStore: jumpToMessage failed:', error);
       jumpState.scrollToEventId = null;
       jumpState.isJumpedMode = false;

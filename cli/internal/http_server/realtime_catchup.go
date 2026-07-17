@@ -6,11 +6,13 @@ import (
 )
 
 const (
-	realtimeCatchUpMaxConcurrent        = 8
-	realtimeCatchUpRateBurst            = 3
-	realtimeCatchUpRateRefillInterval   = 20 * time.Second
-	realtimeCatchUpLimiterStateLifetime = 24 * time.Hour
-	realtimeCatchUpDefaultTimeout       = 30 * time.Second
+	realtimeCatchUpMaxConcurrent         = 8
+	realtimeCatchUpRateBurst             = 3
+	realtimeCatchUpRateRefillInterval    = 20 * time.Second
+	realtimeCatchUpGeneralRateBurst      = 20
+	realtimeCatchUpGeneralRefillInterval = time.Second
+	realtimeCatchUpLimiterStateLifetime  = 24 * time.Hour
+	realtimeCatchUpDefaultTimeout        = 30 * time.Second
 )
 
 type realtimeCatchUpAdmissionError struct {
@@ -19,10 +21,12 @@ type realtimeCatchUpAdmissionError struct {
 }
 
 type realtimeCatchUpUserState struct {
-	active     bool
-	tokens     float64
-	lastRefill time.Time
-	lastSeen   time.Time
+	active            bool
+	tokens            float64
+	lastRefill        time.Time
+	generalTokens     float64
+	generalLastRefill time.Time
+	lastSeen          time.Time
 }
 
 // realtimeCatchUpAdmission bounds expensive projection catch-up work per
@@ -59,10 +63,13 @@ func newRealtimeCatchUpAdmissionWithLimits(maxConcurrent, burst int, refillInter
 	}
 }
 
-// acquire admits at most one catch-up per authenticated user on this replica,
-// consumes one per-user rate token, and reserves one global slot. The returned
-// release function is idempotent.
-func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatchUpAdmissionError) {
+// acquire admits at most one catch-up per authenticated user on this replica
+// and reserves one global slot. Metered stale-cursor replay attempts consume a
+// per-user replay token. Cursorless compacted bootstraps cannot request history,
+// and a cursor already at the current EVT boundary cannot request replay work,
+// so both use a separate, more permissive general catch-up token bucket. The
+// returned release function is idempotent.
+func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(), *realtimeCatchUpAdmissionError) {
 	now := a.now()
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -75,9 +82,11 @@ func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatc
 	state := a.users[userID]
 	if state == nil {
 		state = &realtimeCatchUpUserState{
-			tokens:     float64(a.burst),
-			lastRefill: now,
-			lastSeen:   now,
+			tokens:            float64(a.burst),
+			lastRefill:        now,
+			generalTokens:     realtimeCatchUpGeneralRateBurst,
+			generalLastRefill: now,
+			lastSeen:          now,
 		}
 		a.users[userID] = state
 	}
@@ -85,17 +94,17 @@ func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatc
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_in_progress", retryAfter: time.Second}
 	}
 
-	elapsed := now.Sub(state.lastRefill)
-	if elapsed > 0 {
-		state.tokens += float64(elapsed) / float64(a.refillInterval)
-		if state.tokens > float64(a.burst) {
-			state.tokens = float64(a.burst)
-		}
-		state.lastRefill = now
-	}
+	a.refill(state, now)
+	a.refillGeneral(state, now)
 	state.lastSeen = now
-	if state.tokens < 1 {
-		retryAfter := time.Duration((1 - state.tokens) * float64(a.refillInterval))
+	availableTokens := state.generalTokens
+	retryInterval := realtimeCatchUpGeneralRefillInterval
+	if metered {
+		availableTokens = state.tokens
+		retryInterval = a.refillInterval
+	}
+	if availableTokens < 1 {
+		retryAfter := time.Duration((1 - availableTokens) * float64(retryInterval))
 		if retryAfter < time.Second {
 			retryAfter = time.Second
 		}
@@ -108,7 +117,11 @@ func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatc
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_server_busy", retryAfter: time.Second}
 	}
 
-	state.tokens--
+	if metered {
+		state.tokens--
+	} else {
+		state.generalTokens--
+	}
 	state.active = true
 	var once sync.Once
 	return func() {
@@ -120,6 +133,56 @@ func (a *realtimeCatchUpAdmission) acquire(userID string) (func(), *realtimeCatc
 			a.mu.Unlock()
 		})
 	}, nil
+}
+
+// consumeReplayToken charges an already-active unmetered admission when EVT
+// advanced after current-boundary classification but before replay planning.
+// The caller must reject the catch-up before delivery when this returns an
+// error, so every actual cursor gap remains rate-bounded despite that race.
+func (a *realtimeCatchUpAdmission) consumeReplayToken(userID string) *realtimeCatchUpAdmissionError {
+	now := a.now()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	state := a.users[userID]
+	if state == nil || !state.active {
+		return &realtimeCatchUpAdmissionError{code: "catch_up_in_progress", retryAfter: time.Second}
+	}
+	a.refill(state, now)
+	state.lastSeen = now
+	if state.tokens < 1 {
+		retryAfter := time.Duration((1 - state.tokens) * float64(a.refillInterval))
+		if retryAfter < time.Second {
+			retryAfter = time.Second
+		}
+		return &realtimeCatchUpAdmissionError{code: "catch_up_rate_limited", retryAfter: retryAfter}
+	}
+	state.tokens--
+	return nil
+}
+
+func (a *realtimeCatchUpAdmission) refill(state *realtimeCatchUpUserState, now time.Time) {
+	elapsed := now.Sub(state.lastRefill)
+	if elapsed <= 0 {
+		return
+	}
+	state.tokens += float64(elapsed) / float64(a.refillInterval)
+	if state.tokens > float64(a.burst) {
+		state.tokens = float64(a.burst)
+	}
+	state.lastRefill = now
+}
+
+func (a *realtimeCatchUpAdmission) refillGeneral(state *realtimeCatchUpUserState, now time.Time) {
+	elapsed := now.Sub(state.generalLastRefill)
+	if elapsed <= 0 {
+		return
+	}
+	state.generalTokens += float64(elapsed) / float64(realtimeCatchUpGeneralRefillInterval)
+	if state.generalTokens > realtimeCatchUpGeneralRateBurst {
+		state.generalTokens = realtimeCatchUpGeneralRateBurst
+	}
+	state.generalLastRefill = now
 }
 
 func (a *realtimeCatchUpAdmission) removeStaleUsers(now time.Time) {

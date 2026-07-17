@@ -60,6 +60,9 @@ type RealtimeReplayPlan struct {
 	BoundarySequence uint64
 	// Events contains authorized deliverable durable events in global EVT order.
 	Events []EventEnvelope
+	// HadSequenceGap records that the validated request cursor preceded the
+	// captured boundary, including gaps that ultimately require a reset.
+	HadSequenceGap bool
 }
 
 // RealtimeCursorForSequence returns the opaque public cursor for one durable
@@ -70,6 +73,35 @@ func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (
 		return "", fmt.Errorf("read EVT stream identity: %w", err)
 	}
 	return c.encodeRealtimeCursor(userID, identity, sequence)
+}
+
+// RealtimeCursorAtCurrentBoundary reports whether cursor already names the
+// current EVT boundary for userID. It lets transport admission distinguish a
+// cheap, no-gap reconnect from a replay attempt without exposing the internal
+// stream sequence carried by the opaque cursor.
+func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID, cursor string) (bool, error) {
+	if strings.TrimSpace(cursor) == "" {
+		return false, nil
+	}
+	decoded, err := c.decodeRealtimeCursor(userID, cursor)
+	if err != nil {
+		// Invalid, expired, cross-user, and old-incarnation cursors all take the
+		// normal metered path. PlanRealtimeReplay will later turn them into a
+		// safe compacted reset.
+		return false, nil
+	}
+	identity, err := events.StreamIdentity(c.storage.serverEvtStream)
+	if err != nil {
+		return false, fmt.Errorf("read EVT stream identity: %w", err)
+	}
+	if decoded.StreamIdentity != identity {
+		return false, nil
+	}
+	info, err := c.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		return false, fmt.Errorf("read EVT stream info: %w", err)
+	}
+	return decoded.Sequence == info.State.LastSeq, nil
 }
 
 // PlanRealtimeReplay builds a caller-wide replay of public durable events after
@@ -114,6 +146,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		plan.Reset = true
 		return plan, nil
 	}
+	plan.HadSequenceGap = cursor.Sequence < boundarySeq
 	if info.State.FirstSeq > 0 && cursor.Sequence < info.State.FirstSeq-1 {
 		plan.Reset = true
 		return plan, nil

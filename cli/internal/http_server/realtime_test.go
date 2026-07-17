@@ -187,7 +187,7 @@ func realtimePingRoundTrip(conn *websocket.Conn, nonce string) error {
 	}
 }
 
-func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retainedRoomIDs ...string) {
+func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retainedRoomIDs ...string) string {
 	t.Helper()
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
 		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
@@ -222,7 +222,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
 		if frame.GetCaughtUp() != nil {
-			break
+			return frame.GetCaughtUp().GetCursor()
 		}
 		if frame.GetProjectionEvent() == nil {
 			t.Fatalf("realtime bootstrap frame = %T, want projection_event or caught_up", frame.GetFrame())
@@ -571,7 +571,7 @@ func TestRealtimeWebSocketBoundsWholeCatchUpDuration(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketRateLimitsCompactedCatchUp(t *testing.T) {
+func TestRealtimeWebSocketRateLimitsStaleCursorReuse(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.realtimeCatchUps = newRealtimeCatchUpAdmissionWithLimits(2, 1, time.Hour, time.Now)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-catch-up-rate", "RT Catch Up Rate", "password123")
@@ -584,9 +584,35 @@ func TestRealtimeWebSocketRateLimitsCompactedCatchUp(t *testing.T) {
 	}
 
 	first := env.connectRealtime(t)
-	subscribeRealtime(t, first, token)
+	staleCursor := subscribeRealtime(t, first, token)
 	if err := first.Close(); err != nil {
 		t.Fatalf("close first realtime connection: %v", err)
+	}
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-catch-up-rate-event", "RT Catch Up Rate Event", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	replay := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, replay, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, replay, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatalf("replay hello response = %+v, want server hello", frame)
+	}
+	sendRealtimeClientFrame(t, replay, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
+	}})
+	for {
+		frame, ok := readRealtimeServerFrame(t, replay, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for stale-cursor replay caught_up")
+		}
+		if frame.GetCaughtUp() != nil {
+			break
+		}
+	}
+	if err := replay.Close(); err != nil {
+		t.Fatalf("close replay connection: %v", err)
 	}
 
 	limited := env.connectRealtime(t)
@@ -597,11 +623,61 @@ func TestRealtimeWebSocketRateLimitsCompactedCatchUp(t *testing.T) {
 		t.Fatalf("hello response = %+v, want server hello", frame)
 	}
 	sendRealtimeClientFrame(t, limited, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
 	}})
 	frame, ok := readRealtimeServerFrame(t, limited, 5*time.Second)
 	if !ok || frame.GetClose().GetCode() != "catch_up_rate_limited" || !frame.GetClose().GetReconnect() || frame.GetClose().GetRetryAfterMs() == 0 {
-		t.Fatalf("rate-limit response = %+v, want reconnectable catch_up_rate_limited", frame)
+		t.Fatalf("stale-cursor reuse response = %+v, want reconnectable catch_up_rate_limited", frame)
+	}
+}
+
+func TestRealtimeWebSocketAllowsCurrentBoundaryReconnectAfterRateLimitBurst(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.realtimeCatchUps = newRealtimeCatchUpAdmissionWithLimits(2, 1, time.Hour, time.Now)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-current-reconnect", "RT Current Reconnect", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	first := env.connectRealtime(t)
+	resumeCursor := subscribeRealtime(t, first, token)
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first realtime connection: %v", err)
+	}
+	release, admissionErr := env.httpServer.realtimeCatchUps.acquire(user.Id, true)
+	if admissionErr != nil {
+		t.Fatalf("consume replay rate token: %+v", admissionErr)
+	}
+	release()
+
+	reconnected := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, reconnected, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatalf("hello response = %+v, want server hello", frame)
+	}
+	sendRealtimeClientFrame(t, reconnected, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatalf("current-boundary reconnect response = %+v, want subscribed", frame)
+	}
+	for {
+		frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for current-boundary reconnect caught_up")
+		}
+		if frame.GetCaughtUp() != nil {
+			break
+		}
+		if frame.GetProjectionEvent() == nil {
+			t.Fatalf("reconnect frame = %T, want projection_event or caught_up", frame.GetFrame())
+		}
 	}
 }
 

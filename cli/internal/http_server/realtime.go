@@ -205,7 +205,17 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id)
+	resumeCursor := strings.TrimSpace(subscribeEvents.GetResumeCursor())
+	cursorAtBoundary, err := s.core.RealtimeCursorAtCurrentBoundary(ctx, user.Id, resumeCursor)
+	if err != nil {
+		writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+		return
+	}
+	// A cursorless compacted bootstrap cannot request historical events. Bound
+	// it by catch-up concurrency and timeout, while reserving the per-user rate
+	// budget for explicit stale-cursor replay attempts (including cursor reuse).
+	meteredReplay := resumeCursor != "" && !cursorAtBoundary
+	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id, meteredReplay)
 	if admissionErr != nil {
 		s.metrics.realtimeCatchUpRejected(admissionErr.code)
 		retryAfterMs := uint32(admissionErr.retryAfter.Milliseconds())
@@ -266,6 +276,18 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		writeError(code, message, true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
 		return
+	}
+	if resumeCursor != "" && !meteredReplay && replayPlan.HadSequenceGap {
+		// EVT advanced after the current-boundary check. Charge the newly-real
+		// replay gap before emitting subscribed or projection frames.
+		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
+			s.metrics.realtimeCatchUpRejected(chargeErr.code)
+			retryAfterMs := uint32(chargeErr.retryAfter.Milliseconds())
+			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+				Close: &realtimev1.RealtimeClose{Code: chargeErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+			}})
+			return
+		}
 	}
 
 	subscribed := &realtimev1.RealtimeSubscribed{StartCursor: &replayPlan.StartCursor}

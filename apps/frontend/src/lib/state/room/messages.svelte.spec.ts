@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import { Timestamp } from '@bufbuild/protobuf';
+import {
+  RoomMessagePosted,
+  RoomTimelineEvent,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import type { EventConnectionPage } from './messages/helpers';
 import { MessagesStore } from './messages.svelte';
@@ -258,6 +265,30 @@ function pageFromEvent(event: unknown): EventConnectionPage {
   };
 }
 
+function projectedMessagePage(id: string): RoomTimelinePage {
+  return new RoomTimelinePage({
+    events: [
+      new RoomTimelineEvent({
+        id,
+        actorId: 'u1',
+        createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+        event: {
+          case: 'messagePosted',
+          value: new RoomMessagePosted({
+            message: new Message({
+              id,
+              roomId: 'room-1',
+              actorId: 'u1',
+              createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+              body: id
+            })
+          })
+        }
+      })
+    ]
+  });
+}
+
 async function resolveFakeResult(
   fake: FakeQueryClient,
   label: string,
@@ -370,6 +401,134 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(jumpState.hasOlderMessages).toBe(true);
     expect(jumpState.scrollToEventId).toBe('m2');
     expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('keeps an in-flight message jump when lazy latest-page hydration arrives', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround: ((value: AroundPage) => void) | undefined;
+    const aroundPage = new Promise<AroundPage>((resolve) => {
+      resolveAround = resolve;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.awaitRoomProjection('room-1');
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('historical-target', jumpState);
+    store.replaceRoomProjectionPage('room-1', new RoomTimelinePage());
+    expect(store.isInitialLoading).toBe(true);
+    resolveAround?.({
+      events: [threadMessageEvent('historical-target') as never],
+      startCursor: 'tl:historical',
+      endCursor: 'tl:historical',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    await expect(jumping).resolves.toBe(true);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['historical-target']);
+    expect(jumpState.scrollToEventId).toBe('historical-target');
+    expect(jumpState.isJumpedMode).toBe(true);
+    store.dispose();
+  });
+
+  it('keeps the late latest-page fallback when an in-flight jump omits its target', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround: ((value: AroundPage) => void) | undefined;
+    const aroundPage = new Promise<AroundPage>((resolve) => {
+      resolveAround = resolve;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.awaitRoomProjection('room-1');
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('missing-target', jumpState);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    resolveAround?.({
+      events: [threadMessageEvent('other-message') as never],
+      startCursor: null,
+      endCursor: null,
+      hasOlder: false,
+      hasNewer: false
+    });
+
+    await expect(jumping).resolves.toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('keeps the late latest-page fallback when an in-flight jump fails', async () => {
+    const fake = new FakeQueryClient();
+    let rejectAround: ((reason: Error) => void) | undefined;
+    const aroundPage = new Promise<never>((_resolve, reject) => {
+      rejectAround = reject;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.awaitRoomProjection('room-1');
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('failed-target', jumpState);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    rejectAround?.(new Error('network failed'));
+
+    await expect(jumping).resolves.toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('completes a jump when late hydration contains a target omitted by the around page', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround: ((value: AroundPage) => void) | undefined;
+    const aroundPage = new Promise<AroundPage>((resolve) => {
+      resolveAround = resolve;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.awaitRoomProjection('room-1');
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('hydrated-target', jumpState);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('hydrated-target'));
+    resolveAround?.({
+      events: [threadMessageEvent('other-message') as never],
+      startCursor: null,
+      endCursor: null,
+      hasOlder: false,
+      hasNewer: false
+    });
+
+    await expect(jumping).resolves.toBe(true);
+    expect(jumpState.scrollToEventId).toBe('hydrated-target');
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['hydrated-target']);
+    store.dispose();
+  });
+
+  it('completes a jump when late hydration contains the target after the around read fails', async () => {
+    const fake = new FakeQueryClient();
+    let rejectAround: ((reason: Error) => void) | undefined;
+    const aroundPage = new Promise<never>((_resolve, reject) => {
+      rejectAround = reject;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.awaitRoomProjection('room-1');
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('hydrated-target', jumpState);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('hydrated-target'));
+    rejectAround?.(new Error('network failed'));
+
+    await expect(jumping).resolves.toBe(true);
+    expect(jumpState.scrollToEventId).toBe('hydrated-target');
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['hydrated-target']);
     store.dispose();
   });
 
