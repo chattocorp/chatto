@@ -1294,6 +1294,169 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	readRealtimeCaughtUp(t, resumed)
 }
 
+func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-complete-replay", "Complete Replay", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-complete-replay", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "replay.txt", "text/plain", strings.NewReader("asset"))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	assetMessage, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "asset lifecycle", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage asset: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	boundaryConn := env.dialRealtime(t)
+	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive boundary hello")
+	}
+	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatal("did not receive boundary subscribed")
+	}
+	boundary := readRealtimeCaughtUp(t, boundaryConn)
+	resumeCursor := boundary.GetCursor()
+	if resumeCursor == "" {
+		t.Fatal("boundary caught_up has no cursor")
+	}
+	if err := boundaryConn.Close(); err != nil {
+		t.Fatalf("close boundary connection: %v", err)
+	}
+
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "hidden echo reply", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected channel echo")
+	}
+	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, echoID); err != nil {
+		t.Fatalf("DeleteMessage echo: %v", err)
+	}
+	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, assetMessage.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetProcessingStarted: %v", err)
+	}
+	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, assetMessage.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+		t.Fatalf("RecordAssetProcessingFailed: %v", err)
+	}
+	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	resumed := env.dialRealtime(t)
+	t.Cleanup(func() { resumed.Close() })
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive resumed hello")
+	}
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+	}})
+	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	if !ok || subscribed.GetSubscribed() == nil || subscribed.GetSubscribed().GetStartCursor() != resumeCursor {
+		t.Fatalf("resumed subscribed = %+v", subscribed)
+	}
+
+	assetUpserts := 0
+	echoRemovals := 0
+	replyUpserts := 0
+	notificationReconciliations := 0
+	var caughtUpCursor string
+	for caughtUpCursor == "" {
+		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for resumed caught_up")
+		}
+		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+			caughtUpCursor = caughtUp.GetCursor()
+			break
+		}
+		projection := frame.GetProjectionEvent()
+		if projection == nil {
+			t.Fatalf("replay frame = %T, want projection_event or caught_up", frame.GetFrame())
+		}
+		if notificationReconciliations != 0 {
+			t.Fatal("received another projection event after notification reconciliation instead of caught_up")
+		}
+		for _, operation := range projection.GetOperations() {
+			if operation.GetReset_() != nil {
+				t.Fatal("valid resume unexpectedly emitted a compacted reset")
+			}
+			if remove := operation.GetRoomTimelineEventRemove(); remove != nil && remove.GetRoomId() == room.Id && remove.GetEventId() == echoID {
+				echoRemovals++
+				if projection.GetResumeCursor() == "" {
+					t.Fatal("replayed echo removal has no resume cursor")
+				}
+			}
+			if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetRoomId() == room.Id {
+				switch upsert.GetEvent().GetId() {
+				case reply.Id:
+					replyUpserts++
+					if projection.GetResumeCursor() == "" {
+						t.Fatal("replayed reply upsert has no resume cursor")
+					}
+				case assetMessage.Id:
+					assetUpserts++
+					if projection.GetResumeCursor() == "" {
+						t.Fatal("replayed asset upsert has no resume cursor")
+					}
+					if attachments := upsert.GetEvent().GetMessagePosted().GetMessage().GetAttachments(); len(attachments) != 0 {
+						t.Fatalf("replayed asset message attachments = %d, want current deleted state", len(attachments))
+					}
+				}
+			}
+			if operation.GetNotificationsReplace() != nil {
+				notificationReconciliations++
+			}
+		}
+	}
+	if caughtUpCursor == "" {
+		t.Fatal("resumed caught_up has no cursor")
+	}
+	if caughtUpCursor == resumeCursor {
+		t.Fatal("caught_up cursor did not advance across durable replay gap")
+	}
+	if replyUpserts != 1 || echoRemovals != 2 || assetUpserts != 3 || notificationReconciliations != 1 {
+		t.Fatalf("replay reply/echo/asset/notifications = %d/%d/%d/%d, want 1/2/3/1", replyUpserts, echoRemovals, assetUpserts, notificationReconciliations)
+	}
+
+	liveMessage, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "after caught up", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage live: %v", err)
+	}
+	if upsert := waitRealtimeTimelineUpsert(t, resumed, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == liveMessage.Id
+	}); upsert == nil {
+		t.Fatal("resumed socket did not continue with live delivery after caught_up")
+	}
+}
+
 func TestRealtimeWebSocketDeliversPresenceUpdateToOtherUser(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-presence-actor", "RT Presence Actor", "password123")
