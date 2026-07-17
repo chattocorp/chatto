@@ -484,7 +484,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </span>
       <!-- Unread Indicator (subtle) -->
     {:else if isJoined && hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
-      <UnreadDot color="action" testid="room-unread-dot" />
+      <UnreadDot color="neutral" testid="room-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
@@ -532,7 +532,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {m['room_list.new_direct_messages']({ count: room.viewerNotificationCount })}
       </span>
     {:else if hasUnread}
-      <UnreadDot color="action" testid="dm-unread-dot" />
+      <UnreadDot color="neutral" testid="dm-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
