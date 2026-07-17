@@ -22,8 +22,18 @@ func newNotificationAssembler(api *API) *notificationAssembler {
 func (a *notificationAssembler) pageFromList(ctx context.Context, notifications []*corev1.Notification, pageRequest *apiv1.PageRequest) (*apiv1.ListNotificationsResponse, error) {
 	limitVal, offsetVal := apiPagination(pageRequest, defaultNotificationLimit, maxNotificationLimit)
 	page, totalCount, hasMore := paginateNotifications(notifications, limitVal, offsetVal)
+	actorIDs := make([]string, 0, len(page))
+	for _, notification := range page {
+		if actorID := notification.GetActorId(); actorID != "" {
+			actorIDs = append(actorIDs, actorID)
+		}
+	}
+	presences, err := a.api.core.GetUserPresences(ctx, actorIDs)
+	if err != nil {
+		return nil, err
+	}
 	hydrated, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, page, func(ctx context.Context, _ int, notification *corev1.Notification) (*apiv1.NotificationItem, error) {
-		return a.item(ctx, notification)
+		return a.itemWithPresence(ctx, notification, presences[notification.GetActorId()])
 	})
 	if err != nil {
 		return nil, err
@@ -45,8 +55,19 @@ func (a *notificationAssembler) item(ctx context.Context, notification *corev1.N
 	if notification == nil {
 		return nil, nil
 	}
+	presence, err := a.api.core.GetUserPresence(ctx, notification.GetActorId())
+	if err != nil {
+		return nil, err
+	}
+	return a.itemWithPresence(ctx, notification, presence)
+}
 
-	actor, err := a.actor(ctx, notification.GetActorId())
+func (a *notificationAssembler) itemWithPresence(ctx context.Context, notification *corev1.Notification, presence string) (*apiv1.NotificationItem, error) {
+	if notification == nil {
+		return nil, nil
+	}
+
+	actor, err := a.actor(ctx, notification.GetActorId(), presence)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +134,7 @@ func (a *notificationAssembler) item(ctx context.Context, notification *corev1.N
 	return item, nil
 }
 
-func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv1.User, error) {
+func (a *notificationAssembler) actor(ctx context.Context, userID, presence string) (*apiv1.User, error) {
 	if userID == "" {
 		return nil, nil
 	}
@@ -124,7 +145,7 @@ func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv
 		}
 		return nil, err
 	}
-	actor, err := (&userService{api: a.api}).userSummary(ctx, user, nil)
+	actor, err := (&userService{api: a.api}).userSummaryWithPresence(ctx, user, nil, presence)
 	if err != nil {
 		return nil, err
 	}
