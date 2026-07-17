@@ -78,7 +78,13 @@ const { mocks } = vi.hoisted(() => {
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
           name: 'Chatto',
-          iconUrl: null as string | null
+          iconUrl: null as string | null,
+          version: '0.5.0',
+          compatibility: {
+            status: 'supported',
+            reason: 'capabilities-confirmed',
+            missingCapabilities: [] as string[]
+          }
         },
         setPermissions: vi.fn(),
         serverIndicator: vi.fn().mockReturnValue(null)
@@ -269,6 +275,12 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverIndicator.mockReturnValue(null);
     mocks.store.serverInfo.name = 'Chatto';
     mocks.store.serverInfo.iconUrl = null;
+    mocks.store.serverInfo.version = '0.5.0';
+    mocks.store.serverInfo.compatibility = {
+      status: 'supported',
+      reason: 'capabilities-confirmed',
+      missingCapabilities: []
+    };
   });
 
   afterEach(() => {
@@ -320,7 +332,14 @@ describe('ServerSidebarEntry', () => {
       props: { serverId: 'remote', currentUserId: 'user-1' }
     });
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
-    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
     await vi.waitFor(() => expect(document.body.textContent).toContain('Remove server'));
 
     const leave = Array.from(document.querySelectorAll('button')).find(
@@ -332,6 +351,47 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.pushState).toHaveBeenCalledWith('', {
       modal: { type: 'removeServer', serverId: 'remote', spaceName: 'Loaded Remote' }
     });
+  });
+
+  it('shows the server version and warns when the server is too old', async () => {
+    mocks.store.serverInfo.version = '0.4.12';
+    mocks.store.serverInfo.compatibility = {
+      status: 'degraded',
+      reason: 'server-too-old',
+      missingCapabilities: []
+    };
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'This server is running an older version. Some features may not work as expected.'
+      )
+    );
+    expect(document.body.textContent).toContain('Version 0.4.12');
+
+    const compatibilitySection = q(
+      document.body,
+      '[data-testid="server-compatibility-section"]'
+    );
+    expect(compatibilitySection!.classList).toContain('text-sm');
+    expect(compatibilitySection!.querySelector('.text-xs')).toBeNull();
+    expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
   });
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {

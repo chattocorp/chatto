@@ -237,13 +237,14 @@ and decompressed representations separately. This is a guardrail against
 restart-loop memory amplification, not a final production storage budget;
 projections that outgrow it cold-replay and log the failed generation attempt.
 
-### One elected worker creates snapshots
+### Each snapshot pass is elected
 
 Snapshot generation is background work owned by one replica at a time through
-the existing distributed lease mechanism backed by `MEMORY_CACHE`. The worker
-starts only after normal projection startup is complete, refreshes its lease
-while building, and rechecks ownership before publishing a completed manifest.
-Loss of the lease abandons the in-progress generation.
+the existing distributed lease mechanism backed by `MEMORY_CACHE`. Every
+replica schedules checks, but each pass attempts the lease only once. The
+winner refreshes the lease while building, rechecks ownership before publishing
+a completed manifest, and releases the lease before waiting for the next
+hourly check. Loss of the lease abandons the in-progress generation.
 
 The lease reduces duplicate work but is not the correctness boundary.
 Immutable generation bundles, current/previous fallback, and validation keep
@@ -263,9 +264,11 @@ it even when its cutoff is unchanged, ensuring quiet projections receive a new
 storage timestamp before retention expiry without turning restarts into writes.
 A lower cutoff for the same EVT history and contract is rejected. A
 failure for one projection is logged and does not prevent the remaining jobs
-from running. On S3, the same elected worker runs bounded expiry when it gains
-leadership and at most daily while that leadership tenure continues. Expiry
-failure does not stop publication checks.
+from running. On S3, the elected pass also attempts a cluster-wide daily expiry
+cooldown claim in `MEMORY_CACHE`. A successful bounded expiry retains that claim
+for 24 hours; a failed expiry releases it so the next hourly publication pass
+can retry. Losing or failing to acquire the publication lease does not consume
+the expiry cooldown. Expiry failure does not stop publication checks.
 
 ### Each projection owns its replay frontier
 

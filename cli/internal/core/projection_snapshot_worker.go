@@ -13,7 +13,10 @@ import (
 
 // Keep the original lease name so mixed-version replicas coordinate snapshot
 // publication during rollout.
-const projectionSnapshotLeaseName = "projection-snapshot-threads"
+const (
+	projectionSnapshotLeaseName       = "projection-snapshot-threads"
+	projectionSnapshotExpiryLeaseName = "projection-snapshot-expiry"
+)
 
 const (
 	projectionSnapshotRefreshAge           = 23 * time.Hour
@@ -34,23 +37,27 @@ type projectionSnapshotJob struct {
 }
 
 type projectionSnapshotWorker struct {
-	jobs           []projectionSnapshotJob
-	lease          projectionSnapshotLease
-	expirer        projectionSnapshotExpirer
-	retention      time.Duration
-	logger         events.Logger
-	done           chan struct{}
-	doneOnce       sync.Once
-	wait           func(context.Context, time.Duration) error
-	nextInterval   func() time.Duration
-	expiryTimeout  time.Duration
-	expiryInterval time.Duration
-	now            func() time.Time
+	jobs          []projectionSnapshotJob
+	lease         projectionSnapshotLease
+	expiryLease   projectionSnapshotExpiryLease
+	expirer       projectionSnapshotExpirer
+	retention     time.Duration
+	logger        events.Logger
+	done          chan struct{}
+	doneOnce      sync.Once
+	wait          func(context.Context, time.Duration) error
+	nextInterval  func() time.Duration
+	expiryTimeout time.Duration
+	now           func() time.Time
 }
 
 type projectionSnapshotLease interface {
-	Run(context.Context, func(context.Context) error) error
+	TryRun(context.Context, func(context.Context) error) (bool, error)
 	CheckOwnership(context.Context) error
+}
+
+type projectionSnapshotExpiryLease interface {
+	TryRunWithCooldown(context.Context, func(context.Context) error) (bool, error)
 }
 
 type projectionSnapshotExpirer interface {
@@ -65,20 +72,6 @@ func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan stru
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	w.logger.Debug("Projection snapshot worker waiting for lease",
-		"projections", len(w.jobs),
-		"stage", "lease_acquire")
-	err := w.lease.Run(ctx, w.runLeader)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		w.logger.Warn("Projection snapshot worker stopped without publishing all projections",
-			"projections", len(w.jobs),
-			"stage", "worker",
-			"error", err)
-	}
-	return err
-}
-
-func (w *projectionSnapshotWorker) runLeader(ctx context.Context) error {
 	wait := w.wait
 	if wait == nil {
 		wait = waitForProjectionSnapshotPass
@@ -91,21 +84,27 @@ func (w *projectionSnapshotWorker) runLeader(ctx context.Context) error {
 	if now == nil {
 		now = time.Now
 	}
-	expiryInterval := w.expiryInterval
-	if expiryInterval <= 0 {
-		expiryInterval = projectionSnapshotExpiryInterval
-	}
-	var nextExpiry time.Time
 	bootPass := true
 	for {
 		started := now()
-		if err := w.generate(ctx, bootPass); err != nil {
-			return err
+		acquired, err := w.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+			if err := w.generate(leaderCtx, bootPass); err != nil {
+				return err
+			}
+			w.expireIfDue(leaderCtx)
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			w.logger.Warn("Projection snapshot pass failed",
+				"projections", len(w.jobs),
+				"stage", "worker",
+				"error", err)
 		}
-		bootPass = false
-		if nextExpiry.IsZero() || !now().Before(nextExpiry) {
-			w.expire(ctx)
-			nextExpiry = now().Add(expiryInterval)
+		if acquired && err == nil {
+			bootPass = false
 		}
 		w.signalFirstPass()
 		delay := max(started.Add(nextInterval()).Sub(now()), 0)
@@ -137,10 +136,18 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context, publishReplayDe
 	return nil
 }
 
-func (w *projectionSnapshotWorker) expire(ctx context.Context) {
-	if w.expirer == nil {
+func (w *projectionSnapshotWorker) expireIfDue(ctx context.Context) {
+	if w.expirer == nil || w.expiryLease == nil {
 		return
 	}
+	acquired, err := w.expiryLease.TryRunWithCooldown(ctx, w.expire)
+	if err != nil && !acquired && !errors.Is(err, context.Canceled) {
+		w.logger.Warn("Projection snapshot S3 expiry claim failed",
+			"backend", w.expirer.Backend(), "stage", "expire_claim", "error", err)
+	}
+}
+
+func (w *projectionSnapshotWorker) expire(ctx context.Context) error {
 	timeout := w.expiryTimeout
 	if timeout <= 0 {
 		timeout = projectionSnapshotExpiryTimeout
@@ -155,7 +162,7 @@ func (w *projectionSnapshotWorker) expire(ctx context.Context) {
 			"backend", w.expirer.Backend(), "stage", "expire", "error", err,
 			"scanned_objects", result.ScannedObjects, "eligible_objects", result.EligibleObjects,
 			"deleted_objects", result.DeletedObjects, "deleted_bytes", result.DeletedBytes)
-		return
+		return err
 	}
 	w.logger.Info("Projection snapshot S3 expiry pass complete",
 		"backend", w.expirer.Backend(), "stage", "expire", "error", nil,
@@ -164,6 +171,7 @@ func (w *projectionSnapshotWorker) expire(ctx context.Context) {
 		"eligible_objects", result.EligibleObjects, "eligible_bytes", result.EligibleBytes,
 		"ignored_objects", result.IgnoredObjects, "deleted_objects", result.DeletedObjects,
 		"deleted_bytes", result.DeletedBytes, "delete_limit_hit", result.DeleteLimitHit)
+	return nil
 }
 
 func waitForProjectionSnapshotPass(ctx context.Context, delay time.Duration) error {

@@ -27,6 +27,12 @@ func connectError(err error) error {
 	if connect.CodeOf(err) != connect.CodeUnknown {
 		return err
 	}
+	if errors.Is(err, context.Canceled) {
+		return connect.NewError(connect.CodeCanceled, err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
+	}
 	if errors.Is(err, core.ErrNotAuthenticated) {
 		return connect.NewError(connect.CodeUnauthenticated, err)
 	}
@@ -52,6 +58,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrCustomStatusTextTooLong) ||
 		errors.Is(err, core.ErrCustomStatusExpiryInPast) ||
 		errors.Is(err, core.ErrCannotBanDMRoomMember) ||
+		errors.Is(err, core.ErrDMThreadsUnsupported) ||
 		errors.Is(err, core.ErrExternalIdentityFlowWrongKind) ||
 		errors.Is(err, core.ErrExternalIdentityFlowUserBound) ||
 		errors.Is(err, core.ErrCurrentPasswordRequired) ||

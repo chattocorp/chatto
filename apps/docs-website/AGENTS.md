@@ -14,6 +14,10 @@ Starlight.
 
 ## Keep Docs In Sync
 
+- Public API stability, protocol capability, version-skew, or minimum bundled
+  client changes: update `guides/integrations/api-compatibility.mdx` and the API
+  overview generator in `tools/split-connectrpc-docs.mjs` when its summary
+  changes.
 - New or changed environment variables/TOML options: update
   `src/content/docs/reference/environment-variables.mdx`.
 - New or changed user-facing features: update the relevant guide.

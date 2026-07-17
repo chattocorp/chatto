@@ -472,7 +472,11 @@ describe('ServerStateStore live server updates', () => {
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
       clientSyncEnabled: false,
-      authProviders: []
+      authProviders: [],
+      compatibility: {
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        minimumWebClientVersion: null
+      }
     });
     const store = makeStore(fake, registered, publicServerInfoLoader);
     store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;

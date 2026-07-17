@@ -96,6 +96,7 @@ export default defineConfig({
           label: "Integrations",
           items: [
             "guides/integrations/chatto-api",
+            "guides/integrations/api-compatibility",
             "guides/integrations/external-login-providers",
             "guides/integrations/community-shields",
             "guides/integrations/pocket-id",

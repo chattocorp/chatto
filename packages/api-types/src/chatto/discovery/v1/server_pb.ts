@@ -106,9 +106,16 @@ export class GetServerResponse extends Message<GetServerResponse> {
   login?: ServerLogin;
 
   /**
+   * Protocol support and bundled-web-client compatibility metadata.
+   *
+   * @generated from field: chatto.discovery.v1.ServerCompatibility compatibility = 3;
+   */
+  compatibility?: ServerCompatibility;
+
+  /**
    * Optional functionality enabled by this server's operator.
    *
-   * @generated from field: chatto.discovery.v1.ServerFeatures features = 3;
+   * @generated from field: chatto.discovery.v1.ServerFeatures features = 4;
    */
   features?: ServerFeatures;
 
@@ -122,7 +129,8 @@ export class GetServerResponse extends Message<GetServerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
     { no: 2, name: "login", kind: "message", T: ServerLogin },
-    { no: 3, name: "features", kind: "message", T: ServerFeatures },
+    { no: 3, name: "compatibility", kind: "message", T: ServerCompatibility },
+    { no: 4, name: "features", kind: "message", T: ServerFeatures },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {
@@ -139,5 +147,63 @@ export class GetServerResponse extends Message<GetServerResponse> {
 
   static equals(a: GetServerResponse | PlainMessage<GetServerResponse> | undefined, b: GetServerResponse | PlainMessage<GetServerResponse> | undefined): boolean {
     return proto3.util.equals(GetServerResponse, a, b);
+  }
+}
+
+/**
+ * Machine-readable compatibility metadata for clients connecting to this
+ * server.
+ *
+ * Capability keys describe protocol contracts rather than server
+ * configuration or the authenticated viewer's permissions. Clients should
+ * ignore unknown keys. An absent minimum web-client version means the server
+ * has not declared a lower bound for the bundled Chatto web client.
+ *
+ * @generated from message chatto.discovery.v1.ServerCompatibility
+ */
+export class ServerCompatibility extends Message<ServerCompatibility> {
+  /**
+   * Stable protocol capability keys supported by this server. Current keys:
+   * `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
+   * `chatto.admin.v1`, and `chatto.realtime.v1`.
+   *
+   * @generated from field: repeated string protocol_capabilities = 1;
+   */
+  protocolCapabilities: string[] = [];
+
+  /**
+   * Oldest bundled Chatto web-client version this server supports, when a
+   * lower bound is required. Third-party clients should use capabilities.
+   *
+   * @generated from field: optional string minimum_web_client_version = 2;
+   */
+  minimumWebClientVersion?: string;
+
+  constructor(data?: PartialMessage<ServerCompatibility>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ServerCompatibility";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "protocol_capabilities", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "minimum_web_client_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerCompatibility {
+    return new ServerCompatibility().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerCompatibility {
+    return new ServerCompatibility().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerCompatibility {
+    return new ServerCompatibility().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined, b: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined): boolean {
+    return proto3.util.equals(ServerCompatibility, a, b);
   }
 }

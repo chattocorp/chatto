@@ -18,6 +18,14 @@ import (
 
 const discoveryCacheControl = "public, no-cache"
 
+var discoveryProtocolCapabilities = []string{
+	"chatto.discovery.v1",
+	"chatto.auth.v1",
+	"chatto.api.v1",
+	"chatto.admin.v1",
+	"chatto.realtime.v1",
+}
+
 type serverDiscoveryService struct {
 	api *API
 }
@@ -40,6 +48,9 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		},
 		Features: &discoveryv1.ServerFeatures{
 			ClientSync: s.api.config.ClientSync.Enabled,
+		},
+		Compatibility: &discoveryv1.ServerCompatibility{
+			ProtocolCapabilities: discoveryProtocolCapabilities,
 		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {

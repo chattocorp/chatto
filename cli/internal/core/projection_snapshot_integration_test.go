@@ -287,8 +287,14 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := first.projectionSnapshotWorker.generate(ctx, true); err != nil {
+	acquired, err := first.projectionSnapshotWorker.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+		return first.projectionSnapshotWorker.generate(leaderCtx, true)
+	})
+	if err != nil {
 		t.Fatalf("generate updated user snapshot: %v", err)
+	}
+	if !acquired {
+		t.Fatal("updated user snapshot pass did not acquire the lease")
 	}
 	stopFirst()
 	stopPersistentSnapshotNATS(ns, nc)
@@ -511,7 +517,7 @@ func TestProjectionSnapshotNATSStoreUsesConfiguredRetention(t *testing.T) {
 	if status.TTL() != retention.Duration() {
 		t.Fatalf("snapshot Object Store TTL = %s, want %s", status.TTL(), retention.Duration())
 	}
-	if core.projectionSnapshotWorker == nil || core.projectionSnapshotWorker.expirer != nil {
+	if core.projectionSnapshotWorker == nil || core.projectionSnapshotWorker.expirer != nil || core.projectionSnapshotWorker.expiryLease != nil {
 		t.Fatal("NATS snapshot worker should use Object Store TTL without application expiry")
 	}
 }
@@ -539,6 +545,9 @@ func TestProjectionSnapshotS3CleanupCanBeDisabledForExternalLifecycle(t *testing
 			}
 			if got := core.projectionSnapshotWorker.expirer != nil; got != enabled {
 				t.Fatalf("application S3 expiry enabled = %t, want %t", got, enabled)
+			}
+			if got := core.projectionSnapshotWorker.expiryLease != nil; got != enabled {
+				t.Fatalf("application S3 expiry cooldown enabled = %t, want %t", got, enabled)
 			}
 		})
 	}

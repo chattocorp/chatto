@@ -129,7 +129,11 @@ function renderLayout() {
     iconUrl: null,
     bannerUrl: null,
     clientSyncEnabled: false,
-    authProviders: []
+    authProviders: [],
+    compatibility: {
+      protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+      minimumWebClientVersion: null
+    }
   };
 
   return render(Layout, {

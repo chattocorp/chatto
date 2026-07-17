@@ -117,8 +117,10 @@ type GetServerResponse struct {
 	Profile *v1.ServerPublicProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Login and registration options.
 	Login *v1.ServerLogin `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Protocol support and bundled-web-client compatibility metadata.
+	Compatibility *ServerCompatibility `protobuf:"bytes,3,opt,name=compatibility,proto3" json:"compatibility,omitempty"`
 	// Optional functionality enabled by this server's operator.
-	Features      *ServerFeatures `protobuf:"bytes,3,opt,name=features,proto3" json:"features,omitempty"`
+	Features      *ServerFeatures `protobuf:"bytes,4,opt,name=features,proto3" json:"features,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,11 +169,82 @@ func (x *GetServerResponse) GetLogin() *v1.ServerLogin {
 	return nil
 }
 
+func (x *GetServerResponse) GetCompatibility() *ServerCompatibility {
+	if x != nil {
+		return x.Compatibility
+	}
+	return nil
+}
+
 func (x *GetServerResponse) GetFeatures() *ServerFeatures {
 	if x != nil {
 		return x.Features
 	}
 	return nil
+}
+
+// Machine-readable compatibility metadata for clients connecting to this
+// server.
+//
+// Capability keys describe protocol contracts rather than server
+// configuration or the authenticated viewer's permissions. Clients should
+// ignore unknown keys. An absent minimum web-client version means the server
+// has not declared a lower bound for the bundled Chatto web client.
+type ServerCompatibility struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable protocol capability keys supported by this server. Current keys:
+	// `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
+	// `chatto.admin.v1`, and `chatto.realtime.v1`.
+	ProtocolCapabilities []string `protobuf:"bytes,1,rep,name=protocol_capabilities,json=protocolCapabilities,proto3" json:"protocol_capabilities,omitempty"`
+	// Oldest bundled Chatto web-client version this server supports, when a
+	// lower bound is required. Third-party clients should use capabilities.
+	MinimumWebClientVersion *string `protobuf:"bytes,2,opt,name=minimum_web_client_version,json=minimumWebClientVersion,proto3,oneof" json:"minimum_web_client_version,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ServerCompatibility) Reset() {
+	*x = ServerCompatibility{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerCompatibility) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerCompatibility) ProtoMessage() {}
+
+func (x *ServerCompatibility) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerCompatibility.ProtoReflect.Descriptor instead.
+func (*ServerCompatibility) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServerCompatibility) GetProtocolCapabilities() []string {
+	if x != nil {
+		return x.ProtocolCapabilities
+	}
+	return nil
+}
+
+func (x *ServerCompatibility) GetMinimumWebClientVersion() string {
+	if x != nil && x.MinimumWebClientVersion != nil {
+		return *x.MinimumWebClientVersion
+	}
+	return ""
 }
 
 var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
@@ -182,11 +255,16 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x10GetServerRequest\"1\n" +
 	"\x0eServerFeatures\x12\x1f\n" +
 	"\vclient_sync\x18\x01 \x01(\bR\n" +
-	"clientSync\"\xc4\x01\n" +
+	"clientSync\"\x94\x02\n" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
-	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12?\n" +
-	"\bfeatures\x18\x03 \x01(\v2#.chatto.discovery.v1.ServerFeaturesR\bfeatures2y\n" +
+	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12N\n" +
+	"\rcompatibility\x18\x03 \x01(\v2(.chatto.discovery.v1.ServerCompatibilityR\rcompatibility\x12?\n" +
+	"\bfeatures\x18\x04 \x01(\v2#.chatto.discovery.v1.ServerFeaturesR\bfeatures\"\xab\x01\n" +
+	"\x13ServerCompatibility\x123\n" +
+	"\x15protocol_capabilities\x18\x01 \x03(\tR\x14protocolCapabilities\x12@\n" +
+	"\x1aminimum_web_client_version\x18\x02 \x01(\tH\x00R\x17minimumWebClientVersion\x88\x01\x01B\x1d\n" +
+	"\x1b_minimum_web_client_version2y\n" +
 	"\x16ServerDiscoveryService\x12_\n" +
 	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x17com.chatto.discovery.v1B\vServerProtoP\x01Z;hmans.de/chatto/internal/pb/chatto/discovery/v1;discoveryv1\xa2\x02\x03CDX\xaa\x02\x13Chatto.Discovery.V1\xca\x02\x13Chatto\\Discovery\\V1\xe2\x02\x1fChatto\\Discovery\\V1\\GPBMetadata\xea\x02\x15Chatto::Discovery::V1b\x06proto3"
@@ -203,25 +281,27 @@ func file_chatto_discovery_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_discovery_v1_server_proto_rawDescData
 }
 
-var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_discovery_v1_server_proto_goTypes = []any{
 	(*GetServerRequest)(nil),       // 0: chatto.discovery.v1.GetServerRequest
 	(*ServerFeatures)(nil),         // 1: chatto.discovery.v1.ServerFeatures
 	(*GetServerResponse)(nil),      // 2: chatto.discovery.v1.GetServerResponse
-	(*v1.ServerPublicProfile)(nil), // 3: chatto.api.v1.ServerPublicProfile
-	(*v1.ServerLogin)(nil),         // 4: chatto.api.v1.ServerLogin
+	(*ServerCompatibility)(nil),    // 3: chatto.discovery.v1.ServerCompatibility
+	(*v1.ServerPublicProfile)(nil), // 4: chatto.api.v1.ServerPublicProfile
+	(*v1.ServerLogin)(nil),         // 5: chatto.api.v1.ServerLogin
 }
 var file_chatto_discovery_v1_server_proto_depIdxs = []int32{
-	3, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	4, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
-	1, // 2: chatto.discovery.v1.GetServerResponse.features:type_name -> chatto.discovery.v1.ServerFeatures
-	0, // 3: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
-	2, // 4: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	5, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
+	3, // 2: chatto.discovery.v1.GetServerResponse.compatibility:type_name -> chatto.discovery.v1.ServerCompatibility
+	1, // 3: chatto.discovery.v1.GetServerResponse.features:type_name -> chatto.discovery.v1.ServerFeatures
+	0, // 4: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
+	2, // 5: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_discovery_v1_server_proto_init() }
@@ -229,13 +309,14 @@ func file_chatto_discovery_v1_server_proto_init() {
 	if File_chatto_discovery_v1_server_proto != nil {
 		return
 	}
+	file_chatto_discovery_v1_server_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_discovery_v1_server_proto_rawDesc), len(file_chatto_discovery_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

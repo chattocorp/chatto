@@ -17,7 +17,8 @@
     title,
     dimmed = false,
     home = false,
-    homeLabel
+    homeLabel,
+    compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -40,6 +41,8 @@
     home?: boolean;
     /** Accessible label for the home-server marker. */
     homeLabel?: string;
+    /** Show a non-interactive compatibility warning marker. */
+    compatibilityWarning?: boolean;
   } = $props();
 </script>
 
@@ -63,6 +66,16 @@
     {/if}
   </a>
   <!-- eslint-enable svelte/no-navigation-without-resolve -->
+
+  {#if compatibilityWarning}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-compatibility-warning"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs uil--exclamation-circle"></span>
+    </span>
+  {/if}
 
   {#if indicator}
     {#if onIndicatorClick}

@@ -565,6 +565,15 @@ const msg_chat_server_nav_administration = (): LocalizedString => messages().cha
 const msg_chat_user_menu_profile = (): LocalizedString => messages().chat_user_menu_profile(empty());
 const msg_chat_user_menu_send_message = (): LocalizedString => messages().chat_user_menu_send_message(empty());
 const msg_chat_server_gutter_add_server = (): LocalizedString => messages().chat_server_gutter_add_server(empty());
+const msg_chat_server_gutter_version = (
+  inputs: Parameters<LocaleMessages['chat_server_gutter_version']>[0]
+): LocalizedString => messages().chat_server_gutter_version(inputs);
+const msg_chat_server_gutter_version_unknown = (): LocalizedString => messages().chat_server_gutter_version_unknown(empty());
+const msg_chat_server_gutter_compatibility_degraded = (): LocalizedString => messages().chat_server_gutter_compatibility_degraded(empty());
+const msg_chat_server_gutter_compatibility_server_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_server_too_old(empty());
+const msg_chat_server_gutter_compatibility_client_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_client_too_old(empty());
+const msg_chat_server_gutter_compatibility_unsupported = (): LocalizedString => messages().chat_server_gutter_compatibility_unsupported(empty());
+const msg_chat_server_gutter_compatibility_unknown = (): LocalizedString => messages().chat_server_gutter_compatibility_unknown(empty());
 const msg_chat_threads_title = (): LocalizedString => messages().chat_threads_title(empty());
 const msg_chat_threads_subtitle = (): LocalizedString => messages().chat_threads_subtitle(empty());
 const msg_chat_threads_filter_label = (): LocalizedString => messages().chat_threads_filter_label(empty());
@@ -887,6 +896,9 @@ const msg_ui_expiry_error_required = (): LocalizedString => messages().ui_expiry
 const msg_ui_expiry_error_invalid = (): LocalizedString => messages().ui_expiry_error_invalid(empty());
 const msg_ui_expiry_error_future = (): LocalizedString => messages().ui_expiry_error_future(empty());
 const msg_ui_form_required = (): LocalizedString => messages().ui_form_required(empty());
+const msg_ui_form_max_bytes = (
+  inputs: Parameters<LocaleMessages['ui_form_max_bytes']>[0]
+): LocalizedString => messages().ui_form_max_bytes(inputs);
 const msg_ui_dates_today = (): LocalizedString => messages().ui_dates_today(empty());
 const msg_ui_dates_yesterday = (): LocalizedString => messages().ui_dates_yesterday(empty());
 const msg_ui_dates_this_week = (): LocalizedString => messages().ui_dates_this_week(empty());
@@ -2049,6 +2061,13 @@ export { msg_chat_server_nav_administration as 'chat.server_nav.administration' 
 export { msg_chat_user_menu_profile as 'chat.user_menu.profile' };
 export { msg_chat_user_menu_send_message as 'chat.user_menu.send_message' };
 export { msg_chat_server_gutter_add_server as 'chat.server_gutter.add_server' };
+export { msg_chat_server_gutter_version as 'chat.server_gutter.version' };
+export { msg_chat_server_gutter_version_unknown as 'chat.server_gutter.version_unknown' };
+export { msg_chat_server_gutter_compatibility_degraded as 'chat.server_gutter.compatibility_degraded' };
+export { msg_chat_server_gutter_compatibility_server_too_old as 'chat.server_gutter.compatibility_server_too_old' };
+export { msg_chat_server_gutter_compatibility_client_too_old as 'chat.server_gutter.compatibility_client_too_old' };
+export { msg_chat_server_gutter_compatibility_unsupported as 'chat.server_gutter.compatibility_unsupported' };
+export { msg_chat_server_gutter_compatibility_unknown as 'chat.server_gutter.compatibility_unknown' };
 export { msg_chat_threads_title as 'chat.threads.title' };
 export { msg_chat_threads_subtitle as 'chat.threads.subtitle' };
 export { msg_chat_threads_filter_label as 'chat.threads.filter_label' };
@@ -2301,6 +2320,7 @@ export { msg_ui_expiry_error_required as 'ui.expiry.error_required' };
 export { msg_ui_expiry_error_invalid as 'ui.expiry.error_invalid' };
 export { msg_ui_expiry_error_future as 'ui.expiry.error_future' };
 export { msg_ui_form_required as 'ui.form.required' };
+export { msg_ui_form_max_bytes as 'ui.form.max_bytes' };
 export { msg_ui_dates_today as 'ui.dates.today' };
 export { msg_ui_dates_yesterday as 'ui.dates.yesterday' };
 export { msg_ui_dates_this_week as 'ui.dates.this_week' };

@@ -68,6 +68,13 @@ authorization, live events, backup/restore, and backend tests.
   external side effect, that fact must provide a durable recovery path. Verify
   crash recovery, multi-replica discovery, lease handover, and bounded
   request-path cost.
+- Match distributed lease ownership to the work lifecycle. Continuous polling
+  workers may hold and renew a lease while running; periodic workers should
+  attempt one lease acquisition per pass and wait outside the lease. Treat the
+  lease as duplicate-work reduction rather than fencing, and log ownership
+  changes or failures rather than every successful renewal. Enforce a
+  cluster-wide periodic rate with shared expiring state, not a per-replica
+  timer; retain cooldowns only after successful work so failures can retry.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key

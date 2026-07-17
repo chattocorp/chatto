@@ -1,4 +1,4 @@
-# FDR-031: Personal Settings and Home Server
+# FDR-032: Personal Settings and Home Server
 
 **Status:** Active
 **Last reviewed:** 2026-07-15

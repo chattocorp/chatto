@@ -52,6 +52,14 @@ bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
+The discovery response includes the server software version, stable protocol
+capability keys for the mounted public packages, and an optional minimum
+bundled-web-client version. This metadata is public pre-authentication state.
+It describes wire support, not enabled server features or the authenticated
+viewer's permission-derived capabilities. Multi-server clients refresh it per
+server and use version comparison only when an older server omits capability
+metadata.
+
 Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol
 headers are not implicitly trusted. `webserver.trusted_proxies` affects client

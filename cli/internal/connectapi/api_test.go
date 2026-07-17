@@ -598,6 +598,19 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if msg.GetProfile().GetVersion() != "9.8.7" {
 		t.Fatalf("profile version = %q, want 9.8.7", msg.GetProfile().GetVersion())
 	}
+	wantCapabilities := []string{
+		"chatto.discovery.v1",
+		"chatto.auth.v1",
+		"chatto.api.v1",
+		"chatto.admin.v1",
+		"chatto.realtime.v1",
+	}
+	if got := msg.GetCompatibility().GetProtocolCapabilities(); !slices.Equal(got, wantCapabilities) {
+		t.Fatalf("protocol capabilities = %v, want %v", got, wantCapabilities)
+	}
+	if msg.GetCompatibility().MinimumWebClientVersion != nil {
+		t.Fatalf("minimum web client version = %q, want absent", msg.GetCompatibility().GetMinimumWebClientVersion())
+	}
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}
@@ -3488,7 +3501,7 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateMessage root: %v", err)
 	}
-	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "private reply", nil, root.Id, "", nil, false)
+	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "private reply", nil, "", root.Id, nil, false)
 	if err != nil {
 		t.Fatalf("CreateMessage reply: %v", err)
 	}
@@ -3667,7 +3680,10 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if !apiRoomPermissionGranted(dmRoom, core.PermRoomList) {
 		t.Fatalf("DM CanListRoom = false, want true")
 	}
-	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) || apiRoomPermissionGranted(dmRoom, core.PermRoomManage) || apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) {
+	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) ||
+		apiRoomPermissionGranted(dmRoom, core.PermRoomManage) ||
+		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) ||
+		apiRoomPermissionGranted(dmRoom, core.PermMessagePostInThread) {
 		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
 	}
 	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
@@ -3695,6 +3711,17 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	}
 	if len(outsiderBatchResp.Msg.GetRooms()) != 0 {
 		t.Fatalf("outsider BatchGetRooms DM len = %d, want 0", len(outsiderBatchResp.Msg.GetRooms()))
+	}
+
+	if err := env.core.AssignOwnerRole(env.ctx, caller.Id); err != nil {
+		t.Fatalf("AssignOwnerRole caller: %v", err)
+	}
+	ownerResp, err := env.directory.GetRoom(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomRequest{RoomId: dm.Id}))
+	if err != nil {
+		t.Fatalf("owner GetRoom DM: %v", err)
+	}
+	if apiRoomPermissionGranted(ownerResp.Msg.GetRoom(), core.PermMessagePostInThread) {
+		t.Fatal("owner DM viewer state grants message.post-in-thread")
 	}
 }
 
@@ -5063,6 +5090,47 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 	}
 	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
+func TestMessageServiceRejectsDMThreads(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-dm-thread-participant", "DM Thread Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	root, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: dm.Id,
+		Body:   "DM root",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage root: %v", err)
+	}
+	rootID := root.Msg.GetMessage().GetId()
+
+	_, err = env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:            dm.Id,
+		Body:              "forbidden thread reply",
+		ThreadRootEventId: rootID,
+	}))
+	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+		t.Fatalf("CreateMessage DM thread code = %v, want invalid argument", got)
+	}
+
+	flat, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:    dm.Id,
+		Body:      "allowed flat reply",
+		InReplyTo: rootID,
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage flat DM reply: %v", err)
+	}
+	if got := flat.Msg.GetMessage(); got.GetThreadRootEventId() != "" || got.GetInReplyTo() != rootID {
+		t.Fatalf("flat DM reply = %+v, want reply attribution without thread", got)
 	}
 }
 
@@ -7528,9 +7596,6 @@ func TestThreadServiceListFollowedThreadsFiltersOtherRoomKinds(t *testing.T) {
 	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "root body", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
-	}
-	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "reply body", nil, root.Id, "", nil, false); err != nil {
-		t.Fatalf("PostMessage reply: %v", err)
 	}
 	if err := env.core.FollowThread(env.ctx, core.KindDM, env.viewer.Id, dm.Id, root.Id); err != nil {
 		t.Fatalf("FollowThread: %v", err)

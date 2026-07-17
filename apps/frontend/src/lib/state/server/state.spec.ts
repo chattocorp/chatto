@@ -14,6 +14,10 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     bannerUrl: 'https://banner',
     clientSyncEnabled: false,
     authProviders: [],
+    compatibility: {
+      protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+      minimumWebClientVersion: null
+    },
     ...overrides
   };
 }
@@ -39,6 +43,10 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
+    expect(state.version).toBe('test');
+    expect(state.protocolCapabilities).toEqual(['chatto.api.v1', 'chatto.realtime.v1']);
+    expect(state.lastDiscoveredAt).not.toBeNull();
+    expect(state.compatibility.status).toBe('supported');
     expect(state.welcomeMessage).toBe('welcome');
     expect(state.description).toBe('a server for acme');
     expect(state.directRegistrationEnabled).toBe(false);
@@ -118,6 +126,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBe('[Network] Failed to fetch');
     expect(state.name).toBe('Chatto'); // default unchanged
+    expect(state.compatibility.status).toBe('unreachable');
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
@@ -167,5 +176,20 @@ describe('ServerInfoState.init()', () => {
     expect(state.description).toBe('protobuf path');
     expect(state.iconUrl).toBe('https://cdn/icon.webp');
     expect(state.bannerUrl).toBe('https://cdn/banner.webp');
+  });
+
+  it('warns about a legacy pre-0.5 server as degraded', async () => {
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
+      publicServerInfo({ version: '0.4.12', compatibility: null })
+    );
+    const state = new ServerInfoState('https://legacy.test', loader);
+
+    await state.init();
+
+    expect(state.protocolCapabilities).toBeNull();
+    expect(state.compatibility).toMatchObject({
+      status: 'degraded',
+      reason: 'server-too-old'
+    });
   });
 });

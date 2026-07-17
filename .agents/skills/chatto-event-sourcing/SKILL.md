@@ -164,6 +164,12 @@ object-store, webhook, or other external side effect as a crash boundary.
   only way to discover unfinished work.
 - An elected worker must discover facts committed later by non-holder replicas;
   a one-time startup scan is not sufficient on a stable multi-replica cluster.
+- Match lease tenure to the worker lifecycle. Continuous recovery loops may
+  retain leadership, while periodic passes should attempt the lease once,
+  release it after the pass, and wait without ownership. Leases reduce
+  duplicate work but do not fence durable writes. When work must run at most
+  once per interval across the cluster, use a shared cooldown and retain it
+  only after success; per-process clocks do not provide a global throttle.
 - Use an incremental stream cursor or durable consumer for ongoing recovery.
   Do not repeatedly materialize unbounded event history.
 - Before a destructive external action based on projected state, wait for the

@@ -104,6 +104,11 @@ var (
 	// ErrMessageTooLong is returned when a message body exceeds the maximum length.
 	ErrMessageTooLong = errors.New("message body exceeds maximum length")
 
+	// ErrDMThreadsUnsupported is returned when a caller tries to create or
+	// extend a thread in a direct-message room. DMs support flat reply
+	// attribution, but thread containment is a channel-room-only capability.
+	ErrDMThreadsUnsupported = errors.New("threads are not supported in direct messages")
+
 	// ErrDisplayNameTooLong is returned when a display name exceeds the maximum length.
 	ErrDisplayNameTooLong = errors.New("display name exceeds maximum length")
 

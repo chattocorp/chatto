@@ -1480,7 +1480,18 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 				retention: cfg.ProjectionSnapshotRetentionOrDefault(),
 			}
 			if snapshotRepository.Backend() == "s3" && cfg.ProjectionSnapshotS3CleanupOrDefault() {
-				core.projectionSnapshotWorker.expirer = snapshotRepository
+				expiryLease, expiryLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
+					Name: projectionSnapshotExpiryLeaseName, Bucket: "MEMORY_CACHE",
+					TTL:    projectionSnapshotExpiryInterval,
+					Logger: logger.WithPrefix("core.ProjectionSnapshotExpiryLease"),
+				})
+				if expiryLeaseErr != nil {
+					logger.Warn("Projection snapshot S3 expiry disabled after cooldown initialization failure",
+						"backend", snapshotRepository.Backend(), "stage", "expiry_initialize", "error", expiryLeaseErr)
+				} else {
+					core.projectionSnapshotWorker.expirer = snapshotRepository
+					core.projectionSnapshotWorker.expiryLease = expiryLease
+				}
 			}
 		}
 	}

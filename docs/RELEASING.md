@@ -1,6 +1,6 @@
 # Releasing Chatto
 
-Chatto uses release-please to prepare beta releases from `main`. Stable releases
+Chatto uses release-please to prepare alpha releases from `main`. Stable releases
 and maintenance patches come from `release-x.y` branches. Each branch uses the
 same `.release-please-config.json` and `.release-please-manifest.json` paths; the
 configuration committed to that branch determines whether it produces
@@ -32,7 +32,7 @@ existing `vX.Y.Z` image.
 
 The release-please configuration on `main` uses prerelease versioning. Feature
 work merges into `main`, and release-please prepares versions such as
-`0.5.0-beta.1`, `0.5.0-beta.2`, and so on. Prereleases publish the `next`
+`0.5.0-alpha.1`, `0.5.0-alpha.2`, and so on. Prereleases publish the `next`
 container tags.
 
 When development moves to a new version series, force its first version with a
@@ -42,7 +42,7 @@ When development moves to a new version series, force its first version with a
 git switch -c begin-0.6 origin/main
 git commit --allow-empty \
   -m "chore(release): begin 0.6 prereleases" \
-  -m "Release-As: 0.6.0-beta.1"
+  -m "Release-As: 0.6.0-alpha.1"
 git push -u origin begin-0.6
 ```
 
