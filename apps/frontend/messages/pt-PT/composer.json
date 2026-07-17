@@ -22,6 +22,26 @@
     "drop_files_subtitle": "As imagens e vídeos serão adicionados à sua mensagem",
     "send_failed": "Falha ao enviar mensagem",
     "edit_failed": "Falha ao editar mensagem",
+    "format": {
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "inline_code": "Código em linha",
+      "heading": "Cabeçalho",
+      "bullet_list": "Lista com marcas",
+      "ordered_list": "Lista numerada",
+      "blockquote": "Citação",
+      "code_block": "Bloco de código"
+    },
+    "timestamp": {
+      "title": "Inserir carimbo de data/hora",
+      "insert_label": "Inserir carimbo de data/hora",
+      "date_time": "Data e hora",
+      "timezone": "Fuso horário",
+      "insert": "Inserir",
+      "error_required": "Escolha uma data e hora.",
+      "error_timezone": "Escolha um fuso horário IANA válido.",
+      "error_invalid": "Escolha uma data e hora válidas para este fuso horário."
+    },
     "mention": {
       "all_room_members": "Todos os elementos da sala",
       "members_here": "Membros atualmente aqui",

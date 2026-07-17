@@ -76,7 +76,8 @@
       "error_future": "De vervaldatum moet in de toekomst liggen."
     },
     "form": {
-      "required": "Vereist"
+      "required": "Vereist",
+      "max_bytes": "Maximaal {max} bytes; sommige tekens gebruiken meer dan één byte."
     },
     "dates": {
       "today": "Vandaag",

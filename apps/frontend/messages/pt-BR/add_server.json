@@ -4,7 +4,7 @@
     "title": "Adicionar servidor",
     "sign_in": "Faça login",
     "connect": "Conectar",
-    "redirecting": "Redirecionando...",
+    "redirecting": "Aguardando login...",
     "connecting": "Conectando...",
     "start_failed": "Falha ao iniciar o login.",
     "invalid_url": "Insira um URL válido.",
@@ -16,7 +16,7 @@
     "connect_failed": "Falha ao conectar.",
     "edit_url": "Servidor errado? Editar URL",
     "description_url": "Chatto é distribuído - seu cliente se conecta diretamente a cada servidor. Insira um URL para adicionar outro.",
-    "description_preview": "Você está prestes a fazer login neste servidor. Você será direcionado para a página de login para autenticação.",
+    "description_preview": "Uma janela separada será aberta para você entrar diretamente neste servidor.",
     "url_label": "Servidor URL",
     "url_placeholder": "chat.example.com"
   }

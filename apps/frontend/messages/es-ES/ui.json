@@ -76,7 +76,8 @@
       "error_future": "El vencimiento debe ser en el futuro."
     },
     "form": {
-      "required": "Requerido"
+      "required": "Requerido",
+      "max_bytes": "Máximo {max} bytes; algunos caracteres usan más de un byte."
     },
     "dates": {
       "today": "Hoy",

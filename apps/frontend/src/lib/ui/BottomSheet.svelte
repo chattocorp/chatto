@@ -6,9 +6,11 @@
   let {
     children,
     visible = $bindable(false),
+    ariaLabel,
     onclose
   }: {
     visible?: boolean;
+    ariaLabel?: string;
     children: Snippet;
     onclose?: () => void;
   } = $props();
@@ -101,6 +103,7 @@
     // the sheet open regardless of what the synthesized click event reports.
     if (!pointerDownInsideContent) close();
   }}
+  aria-label={ariaLabel}
   class="bottom-sheet m-0 mt-auto w-full max-w-full bg-transparent p-0 backdrop:bg-black/50"
   class:closing
 >

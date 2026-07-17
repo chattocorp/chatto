@@ -425,6 +425,33 @@ describe('ModalContainer sign out modal', () => {
   });
 });
 
+describe('ModalContainer remove server modal', () => {
+  it('removes an inactive selected server without navigating away from the active server', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'token'
+    };
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.modal = { type: 'removeServer', serverId: 'remote', spaceName: 'Remote' };
+
+    const { container } = render(ModalContainer);
+    await expect
+      .element(q(container, '[href="/chat/remote.example.test/settings/account"]'))
+      .toHaveTextContent('Account Settings');
+    expect(container.textContent).toContain('Your account and data on the server will not be deleted.');
+    clickButton(container, 'Remove Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
+      expect(mocks.removeServer).toHaveBeenCalledWith('remote');
+      expect(window.history.back).toHaveBeenCalledOnce();
+    });
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+});
+
 describe('ModalContainer message mutation modals', () => {
   it('notifies the visible room after link preview deletion succeeds', async () => {
     mocks.modal = {

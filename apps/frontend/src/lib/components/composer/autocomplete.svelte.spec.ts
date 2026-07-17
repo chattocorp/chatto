@@ -40,6 +40,11 @@ function editor(
         text = text.slice(0, cursor - charCount) + replacement + text.slice(cursor);
         cursor = cursor - charCount + replacement.length;
       },
+      insertText: (inserted) => {
+        text = text.slice(0, cursor) + inserted + text.slice(cursor);
+        cursor += inserted.length;
+      },
+      toggleFormatting: () => {},
       insertBlockBreak: () => {},
       insertQuote: () => {}
     },

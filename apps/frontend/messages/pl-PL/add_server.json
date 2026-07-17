@@ -4,7 +4,7 @@
     "title": "Dodaj serwer",
     "sign_in": "Zaloguj się",
     "connect": "Połącz",
-    "redirecting": "Przekierowywanie...",
+    "redirecting": "Oczekiwanie na logowanie...",
     "connecting": "Łączę...",
     "start_failed": "Nie udało się rozpocząć logowania.",
     "invalid_url": "Proszę wprowadzić prawidłowy kod URL.",
@@ -16,7 +16,7 @@
     "connect_failed": "Nie udało się połączyć.",
     "edit_url": "Zły serwer? Edytuj URL",
     "description_url": "Chatto jest rozproszony - Twój klient łączy się bezpośrednio z każdym serwerem. Wprowadź URL, aby dodać kolejny.",
-    "description_preview": "Zaraz zalogujesz się na tym serwerze. Zostaniesz przekierowany na stronę logowania w celu uwierzytelnienia.",
+    "description_preview": "Otworzy się osobne okno, w którym możesz zalogować się bezpośrednio na tym serwerze.",
     "url_label": "Serwer URL",
     "url_placeholder": "chat.example.com"
   }

@@ -127,16 +127,16 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
-      - name: Check storage and internal protobuf breaking changes
+      - name: Check storage, internal, and Operator protobuf breaking changes
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
             --exclude-imports \
+            --exclude-path chatto/auth/v1 \
             --exclude-path chatto/discovery/v1 \
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
-            --exclude-path chatto/operator/v1 \
             --exclude-path chatto/realtime/v1
 
       - name: Check public API protobuf breaking changes
@@ -145,16 +145,16 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --path chatto/auth/v1 \
             --path chatto/discovery/v1 \
             --path chatto/api/v1 \
             --path chatto/admin/v1 \
-            --path chatto/operator/v1 \
             --path chatto/realtime/v1
 
       - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
-          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage/internal protobuf breaking checks and codegen drift are still checked."
+          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
       - name: Regenerate protobuf bindings
         run: mise codegen-proto

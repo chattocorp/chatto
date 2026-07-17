@@ -69,9 +69,12 @@
       "leave_confirm": "#{room} を退会してもよろしいですか?"
     },
     "server": {
-      "leave_title": "サーバーを離れる",
-      "leave_action": "サーバーを離れる",
-      "leave_prompt": "{server} から退会してもよろしいですか?あなたはそのルームにアクセスできなくなり、クライアントはこのサーバーのことを忘れてしまいます。後でサイドバーから再度追加できます。"
+      "remove_title": "サーバーを削除",
+      "remove_action": "サーバーを削除",
+      "remove_prompt": "{server} をこのサイドバーから削除しますか？この操作では、この端末からサーバーが削除されるだけです。サーバー上のアカウントとデータは削除されません。",
+      "remove_account_prefix": "アカウントを完全に削除するには、サーバーを削除する前にこのサーバーの",
+      "remove_account_link": "アカウント設定",
+      "remove_account_suffix": "を開いてください。"
     },
     "timeline": {
       "beginning": "ここから会話が始まります。"
@@ -110,6 +113,11 @@
         "in_reply_to": "への返信",
         "reply_preview_fallback": "メッセージ",
         "deleted": "このメッセージは削除されました。"
+      },
+      "timestamp": {
+        "details_title": "日付と時刻",
+        "local_time": "ローカル",
+        "relative_time": "相対"
       }
     },
     "system_events": {

@@ -6,11 +6,11 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore`
 registers each top-level projector once with a stable machine-readable key, such
 as `content_keys`, and a human display name, such as `Content Keys`.
 
-`ChattoCore.Run` replays `evt.>` through one process-local ordered consumer. It
-decodes each event once, dispatches it to projections whose logical subject
-filters match, records initial replay duration, and waits for projections to
-become current at boot. Writers wait for the relevant projector sequence before
-returning read-your-writes.
+`ChattoCore.Run` starts one process-local ordered EVT consumer per registered
+projection. Each projector owns its physical filters, replay progress, failure
+state, and readiness. Chatto still waits for every registered projection to
+become current before completing boot. Writers wait for the relevant projector
+sequence before returning read-your-writes.
 
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
@@ -29,55 +29,65 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 
 ## Snapshot support
 
-`core.projection_snapshots` enables the ADR-050 Thread snapshot canary. The
-projector framework atomically captures projection state with its applied EVT
-sequence. It can restore one projection while the shared `evt.>` consumer still
-replays from the beginning for all others.
+`core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
+Every eligible projection owns one opaque, projection-scoped contract ID and
+generation prefix. The contract covers serialized state, replay semantics,
+consumed event families, and cutoff meaning. Most contracts currently use
+`v1`; the user profile contract uses `v2`.
 
-`ThreadProjection` uses the `threads-v1` protobuf codec. Its encrypted
-generation bundle contains no message bodies or decrypted PII, and it rebuilds
-derived indexes on restore. After boot, one replica is elected through a
-`MEMORY_CACHE` lease to publish a generation whenever Threads has advanced.
+Snapshot loads and replay frontiers are projection-local. A successful restore
+starts that projection's ordered consumer at one greater than its cutoff. A
+missing, invalid, or unavailable snapshot cold-replays only its owning
+projection. Projections without matching EVT history have no state to
+accelerate and do not publish zero-cutoff generations. Credential-bearing user
+state is owned by `UserAuthProjection` and cold-replays from eight focused user
+event families.
+
+The projector framework atomically captures each projection's explicit
+protobuf state with its latest applied logical EVT sequence. Room Timeline
+retains encrypted body envelopes and rebuilds derived indexes. Mentionables
+retains encrypted login source events and wrapped DEK records rather than
+plaintext handles or lookup digests. The Users codec retains encrypted login,
+display-name, and verified-email values, lookup digests, wrapped DEK records,
+and non-secret profile metadata. Its schema has no fields for password verifiers,
+authentication generations, external identity subjects, or OAuth consent.
+
+Every replica checks snapshot eligibility immediately after boot and hourly.
+Each scheduled pass attempts the `MEMORY_CACHE` lease once; a winner runs jobs
+sequentially and releases the lease before the hourly wait. The worker publishes
+after cold or delta replay and refreshes unchanged generations once they reach
+23 hours old. Repository OCC remains the correctness boundary for staggered or
+stale writers.
+
+S3 expiry uses a separate `MEMORY_CACHE` cooldown claim shared by all replicas.
+The first elected pass after the cooldown expires runs bounded cleanup and keeps
+the claim for 24 hours on success. Failures release it for an hourly retry.
 
 Generations are compressed and authenticated with XChaCha20-Poly1305 under an
-HKDF key derived from `core.secret_key`. They are stored under a secret-derived
-opaque epoch in either the NATS `PROJECTION_SNAPSHOTS` Object Store or the
-configured S3 bucket.
+HKDF key derived from `core.secret_key`, then stored under
+`internal/projection-snapshots/{projection}/{contract}/objects/{opaqueEpoch}/{generationId}`
+in the dedicated NATS `PROJECTION_SNAPSHOTS` Object Store or configured S3
+bucket. Their encrypted current/previous pointers live in `RUNTIME_STATE` and
+use KV revision OCC regardless of payload backend. The opaque pointer locator
+is scoped by projection and contract, so deployments using different contracts
+cannot read, rotate, or compare each other's generations.
 
-The encrypted current/previous pointer lives in `RUNTIME_STATE` and uses KV
-revision OCC for either payload backend. It carries cutoff, EVT incarnation,
-and projection compatibility metadata, so publication rejects both an obsolete
-revision and a causally older capture.
+A new secret uses a different generation epoch and pointer locator. EVT carries
+a versioned opaque incarnation ID so snapshot validation survives process
+reconstruction and backup restore but changes when EVT is recreated.
 
-A new secret uses a different generation epoch. This prevents its cleaner from
-deleting generations still used by old-secret replicas during a rolling
-change. Namespace `v1` is permanently limited to Threads, and the repository
-rejects other keys. Adding another snapshotted projection requires a new
-namespace version so older cleaners remain safe during mixed-version rollouts.
+`core.projection_snapshot_retention` defaults to seven days. NATS applies it as
+the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication
+unless `core.projection_snapshot_s3_cleanup` is disabled for an external
+lifecycle policy. S3 deletion requires the exact generation-key grammar,
+expected snapshot content type, and private object-purpose marker. Snapshot and
+expiry failures are logged and never affect core readiness or EVT-backed
+reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
-EVT carries a versioned opaque incarnation ID in stream metadata. Snapshot
-compatibility therefore survives process reconstruction and backup restore but
-changes when EVT is recreated. Missing IDs are deterministically derived once
-from stream creation time so concurrent replicas converge, then persisted.
-Runtime snapshot paths use the captured immutable value rather than refreshing
-NATS client metadata concurrently.
-
-A separately elected cleanup worker starts 5-10 minutes after boot and
-inventories only its private key epoch every six hours. Each pass deletes at
-most 100 objects or 1 GiB, and only when unreferenced generations are at least
-24 hours old. The worker collects the bounded batch during one complete
-read-only inventory, checks lease ownership once before deletion, and retries
-failed or deletion-limited passes after 30 minutes.
-
-Snapshot storage, EVT identity, projector configuration, load, validation,
-pointer publication, lease, inventory, and cleanup failures are logged. They
-disable only snapshot functionality where necessary and never affect core
-readiness or EVT-backed reconstruction. Pre-epoch canary objects are outside
-this cleaner and require provider lifecycle or later migration tooling.
-
-| Projection | Namespace | Codec | Payload store | Pointer store | Publication |
-| ---------- | --------- | ----- | ------------- | ------------- | ----------- |
-| Threads | `v1` | `threads-v1` protobuf | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher after boot when the projection advances |
+| Projection | Contract | Payload store | Pointer store | Publication |
+| ---------- | -------- | ------------- | ------------- | ----------- |
+| Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
 
@@ -91,7 +101,8 @@ this cleaner and require provider lifecycle or later migration tooling.
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
-| Users              | Users                | `evt.user.>`                                               | Account/profile/custom-status/auth lookup state, verified emails, external identity links, encrypted user PII |
+| Users              | Users                | `evt.user.>`                                               | Account/profile/custom-status state, verified emails, lookup digests, and encrypted user PII |
+| User authentication | User Auth            | Focused account, password, external-identity, consent, deletion, and key-shredding user facts | Password verifiers, auth generations, external identity links, and OAuth consent; always cold-replayed |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | Active and shredded user DEK epochs for message bodies and user PII                        |
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | Roles, role order, assignments, scoped allow/deny decisions                                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
@@ -100,10 +111,10 @@ Registered projector keys are used by metrics and automation. Registered names
 match the admin projection diagnostics. Composite projections expose nested
 read models, but only their parent projector is started by `ChattoCore.Run`.
 
-The shared replay fanout reduces duplicate delivery and protobuf decoding while
-keeping each projection's status, lag, failure, and read-your-writes waiters
-independent. `Subjects()` is the logical consumption and readiness contract;
-optional replay subjects are only the physical consumer filter.
+Independent consumers isolate snapshot availability, replay cost, status, lag,
+failure, and read-your-writes waiters per projection. `Subjects()` is the
+logical consumption and readiness contract; optional replay subjects are the
+projection-owned physical consumer filters.
 
 Focused logical filters suit stable derived indexes such as Threads. Broad
 filters remain intentional for projections whose snapshots expose room-tail
@@ -117,3 +128,7 @@ while applying events to derive in-memory lookup digests; neither plaintext nor
 the digests are persisted in `EVT`. Read hydration decrypts profile PII with
 request-scoped DEK reuse. KMS and decryption failures remain operational errors
 rather than appearing as missing or deleted users.
+`UserAuthProjection` is independently locked, registered, and replay-guarded.
+The `UserProjection` facade delegates credential and external-identity reads to
+it so API callers keep one user boundary while snapshot serialization cannot
+reach authentication state.

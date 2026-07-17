@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -37,38 +38,37 @@ const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
-	nc                              *nats.Conn
-	js                              jetstream.JetStream
-	logger                          *log.Logger
-	storage                         *storage
-	config                          config.CoreConfig
-	encryption                      *encryptionManager
-	dekResolver                     *unwrappedDEKResolver
-	configManager                   *ConfigManager
-	roomModel                       *RoomModel
-	roomCommands                    *RoomCommandModel
-	roomDirectoryReads              *RoomDirectoryReadModel
-	messageModel                    *MessageModel
-	notificationPrefs               *NotificationPreferencesModel
-	roomTimelineReads               *RoomTimelineReadModel
-	readStateModel                  *ReadStateModel
-	threadFollows                   *ThreadFollowModel
-	reactionModel                   *ReactionModel
-	userModel                       *UserModel
-	rbacModel                       *RBACModel
-	mentionables                    *MentionablesModel
-	myEventsModel                   *MyEventsModel
-	presenceModel                   *PresenceModel
-	mediaModel                      *MediaModel
-	callModel                       *CallModel
-	assetModel                      *AssetModel
-	models                          []modelRegistration
-	s3Client                        *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver              *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache                *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher              *linkpreview.Fetcher // Fetcher for link preview metadata
-	projectionSnapshotWorker        *projectionSnapshotWorker
-	projectionSnapshotCleanupWorker *projectionSnapshotCleanupWorker
+	nc                       *nats.Conn
+	js                       jetstream.JetStream
+	logger                   *log.Logger
+	storage                  *storage
+	config                   config.CoreConfig
+	encryption               *encryptionManager
+	dekResolver              *unwrappedDEKResolver
+	configManager            *ConfigManager
+	roomModel                *RoomModel
+	roomCommands             *RoomCommandModel
+	roomDirectoryReads       *RoomDirectoryReadModel
+	messageModel             *MessageModel
+	notificationPrefs        *NotificationPreferencesModel
+	roomTimelineReads        *RoomTimelineReadModel
+	readStateModel           *ReadStateModel
+	threadFollows            *ThreadFollowModel
+	reactionModel            *ReactionModel
+	userModel                *UserModel
+	rbacModel                *RBACModel
+	mentionables             *MentionablesModel
+	myEventsModel            *MyEventsModel
+	presenceModel            *PresenceModel
+	mediaModel               *MediaModel
+	callModel                *CallModel
+	assetModel               *AssetModel
+	models                   []modelRegistration
+	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
+	projectionSnapshotWorker *projectionSnapshotWorker
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -203,6 +203,10 @@ type ChattoCore struct {
 	// WaitFor from user/account writers.
 	UsersProjector *events.Projector
 
+	// UserAuthProjector cold-replays the credential-bearing companion state.
+	// It is intentionally never included in projection snapshots.
+	UserAuthProjector *events.Projector
+
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
 	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
@@ -255,14 +259,14 @@ type ChattoCore struct {
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
 
-	for _, group := range projectionRunGroups(c.projections) {
-		group := group
+	for _, projection := range c.projections {
+		projection := projection
 		g.Go(func() error {
-			if err := events.RunProjectorsOnSubjects(gctx, group.replaySubjects, group.projectors...); err != nil {
+			if err := projection.projector.Run(gctx); err != nil {
 				if errors.Is(err, context.Canceled) {
 					return err
 				}
-				return fmt.Errorf("%s projections: %w", strings.Join(group.names, ", "), err)
+				return fmt.Errorf("%s projection: %w", projection.name, err)
 			}
 			return nil
 		})
@@ -320,42 +324,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return nil
 		})
 	}
-	if c.projectionSnapshotCleanupWorker != nil {
-		g.Go(func() error {
-			err := c.projectionSnapshotCleanupWorker.Run(gctx, c.bootDone)
-			if errors.Is(err, context.Canceled) {
-				return err
-			}
-			// Cleanup is optional housekeeping for disposable snapshots. It must
-			// never make core unavailable.
-			return nil
-		})
-	}
-
 	return g.Wait()
-}
-
-type projectionRunGroup struct {
-	names          []string
-	replaySubjects []string
-	projectors     []*events.Projector
-}
-
-func projectionRunGroups(projections []projectionRegistration) []projectionRunGroup {
-	if len(projections) == 0 {
-		return nil
-	}
-
-	group := projectionRunGroup{
-		names:          make([]string, 0, len(projections)),
-		replaySubjects: []string{events.EventSubjectFilter()},
-		projectors:     make([]*events.Projector, 0, len(projections)),
-	}
-	for _, projection := range projections {
-		group.names = append(group.names, projection.name)
-		group.projectors = append(group.projectors, projection.projector)
-	}
-	return []projectionRunGroup{group}
 }
 
 // AllProjectorsStarted reports whether every registered projector
@@ -609,6 +578,11 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	}
 
 	preview := result.ToProto(url)
+	if err := validateLinkPreview(preview); err != nil {
+		_ = c.linkPreviewCache.SetFailure(ctx, url, err.Error())
+		c.logger.Warn("Discarding invalid fetched link preview", "url", url, "error", err)
+		return nil, nil
+	}
 
 	// Cache the result
 	if err := c.linkPreviewCache.Set(ctx, url, preview); err != nil {
@@ -1213,6 +1187,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	var snapshotRepository *projectionsnapshot.Repository
+	var snapshotJobs []projectionSnapshotJob
 	var snapshotStreamIdentity string
 	if cfg.ProjectionSnapshots {
 		var snapshotBlobs projectionsnapshot.BlobStore
@@ -1226,6 +1201,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					Storage:     jetstream.FileStorage,
 					Compression: true,
 					Replicas:    cfg.Replicas,
+					TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
 				})
 			})
 			if snapshotStoreErr != nil {
@@ -1249,7 +1225,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 					"stage", "initialize",
 					"error", err)
 				snapshotRepository = nil
-			} else {
+			}
+			if snapshotRepository != nil {
 				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
 				if err != nil {
 					logger.Warn("Projection snapshots disabled after EVT identity read failure",
@@ -1257,9 +1234,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 						"error", err)
 					snapshotRepository = nil
 				} else {
-					logger.Info("Projection snapshots enabled",
-						"projection", projectionsnapshot.ProjectionV1ThreadsKey,
-						"compatibility_id", threadSnapshotCompatibilityID,
+					logger.Info("Projection snapshot storage initialized",
 						"backend", snapshotRepository.Backend())
 				}
 			}
@@ -1283,6 +1258,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 			key:       key,
 			name:      name,
 			projector: pr,
+			subjects:  slices.Clone(p.Subjects()),
 			estimate:  estimate,
 		})
 		return pr
@@ -1318,16 +1294,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	threads := NewThreadProjection()
 	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
-	if snapshotRepository != nil {
-		if err := threadsProjector.ConfigureSnapshots(projectionsnapshot.ProjectionV1ThreadsKey, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
-			logger.Warn("Projection snapshots disabled after projector configuration failure",
-				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
-				"stage", "projector_configure",
-				"error", err)
-			snapshotRepository = nil
-			snapshotStreamIdentity = ""
-		}
-	}
 
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
@@ -1336,6 +1302,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	users := newUserProjectionWithDEKResolver(dekResolver)
 	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
+	userAuth := users.AuthProjection()
+	userAuthProjector := newProjector(userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
@@ -1345,6 +1313,40 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
+
+	if snapshotRepository != nil {
+		streamName := storage.serverEvtStream.CachedInfo().Config.Name
+		type snapshotSpec struct {
+			key       string
+			projector *events.Projector
+		}
+		specs := []snapshotSpec{
+			{projectionsnapshot.ProjectionThreadsKey, threadsProjector},
+			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectoryProjector},
+			{projectionsnapshot.ProjectionServerConfigKey, serverConfigProjector},
+			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutProjector},
+			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineProjector},
+			{projectionsnapshot.ProjectionCallStateKey, callStateProjector},
+			{projectionsnapshot.ProjectionAssetsKey, assetProjector},
+			{projectionsnapshot.ProjectionReactionsKey, reactionsProjector},
+			{projectionsnapshot.ProjectionContentKeysKey, contentKeysProjector},
+			{projectionsnapshot.ProjectionRBACKey, rbacProjector},
+			{projectionsnapshot.ProjectionMentionablesKey, mentionablesProjector},
+			{projectionsnapshot.ProjectionUsersKey, usersProjector},
+		}
+		for _, spec := range specs {
+			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
+				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
+			}
+			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, streamName: streamName, streamIdentity: snapshotStreamIdentity})
+			for i := range projections {
+				if projections[i].key == spec.key {
+					projections[i].snapshotEnabled = true
+					break
+				}
+			}
+		}
+	}
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
 	configMgr := NewConfigManager(configModel, serverConfigProjection)
@@ -1360,7 +1362,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		reactions,
 		reactionsProjector,
 	)
-	userMgr := newUserModel(eventPublisher, users, usersProjector, contentKeys, contentKeysProjector)
+	userMgr := newUserModel(eventPublisher, users, usersProjector, userAuthProjector, contentKeys, contentKeysProjector)
 	rbacMgr := newRBACModel(rbac, rbacProjector)
 	mentionablesMgr := newMentionablesModel(mentionables, mentionablesProjector)
 
@@ -1402,6 +1404,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		ReactionsProjector:       reactionsProjector,
 		Users:                    users,
 		UsersProjector:           usersProjector,
+		UserAuthProjector:        userAuthProjector,
 		ContentKeys:              contentKeys,
 		ContentKeysProjector:     contentKeysProjector,
 		RBAC:                     rbac,
@@ -1434,7 +1437,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
 	}
-	if snapshotRepository != nil {
+	if len(snapshotJobs) > 0 {
 		snapshotLease, snapshotLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
 			Name:   projectionSnapshotLeaseName,
 			Bucket: "MEMORY_CACHE",
@@ -1442,37 +1445,28 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		})
 		if snapshotLeaseErr != nil {
 			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
-				"projection", projectionsnapshot.ProjectionV1ThreadsKey,
+				"projection", projectionsnapshot.ProjectionThreadsKey,
 				"stage", "lease_initialize",
 				"error", snapshotLeaseErr)
 		} else {
 			core.projectionSnapshotWorker = &projectionSnapshotWorker{
-				projector:      threadsProjector,
-				repository:     snapshotRepository,
-				lease:          snapshotLease,
-				projectionKey:  projectionsnapshot.ProjectionV1ThreadsKey,
-				compatibility:  threadSnapshotCompatibilityID,
-				streamName:     storage.serverEvtStream.CachedInfo().Config.Name,
-				streamIdentity: snapshotStreamIdentity,
-				logger:         logger.WithPrefix("core.ProjectionSnapshotWorker"),
-				done:           make(chan struct{}),
+				jobs: snapshotJobs, lease: snapshotLease,
+				logger: logger.WithPrefix("core.ProjectionSnapshotWorker"), done: make(chan struct{}),
+				retention: cfg.ProjectionSnapshotRetentionOrDefault(),
 			}
-		}
-		cleanupLease, cleanupLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
-			Name:   projectionSnapshotCleanupLeaseName,
-			Bucket: "MEMORY_CACHE",
-			Logger: logger.WithPrefix("core.ProjectionSnapshotCleanupLease"),
-		})
-		if cleanupLeaseErr != nil {
-			logger.Warn("Projection snapshot cleanup disabled after lease initialization failure",
-				"stage", "cleanup_lease_initialize",
-				"error", cleanupLeaseErr)
-		} else {
-			core.projectionSnapshotCleanupWorker = &projectionSnapshotCleanupWorker{
-				repository: snapshotRepository,
-				lease:      cleanupLease,
-				logger:     logger.WithPrefix("core.ProjectionSnapshotCleanupWorker"),
-				done:       make(chan struct{}),
+			if snapshotRepository.Backend() == "s3" && cfg.ProjectionSnapshotS3CleanupOrDefault() {
+				expiryLease, expiryLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
+					Name: projectionSnapshotExpiryLeaseName, Bucket: "MEMORY_CACHE",
+					TTL:    projectionSnapshotExpiryInterval,
+					Logger: logger.WithPrefix("core.ProjectionSnapshotExpiryLease"),
+				})
+				if expiryLeaseErr != nil {
+					logger.Warn("Projection snapshot S3 expiry disabled after cooldown initialization failure",
+						"backend", snapshotRepository.Backend(), "stage", "expiry_initialize", "error", expiryLeaseErr)
+				} else {
+					core.projectionSnapshotWorker.expirer = snapshotRepository
+					core.projectionSnapshotWorker.expiryLease = expiryLease
+				}
 			}
 		}
 	}

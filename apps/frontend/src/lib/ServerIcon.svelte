@@ -4,6 +4,7 @@
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
   import type { ServerIndicator } from './state/server/store.svelte';
+  import type { Attachment } from 'svelte/attachments';
 
   let {
     server,
@@ -13,8 +14,10 @@
     indicator = null,
     notificationCount = 0,
     onIndicatorClick,
+    contextMenuTrigger,
     title,
-    dimmed = false
+    dimmed = false,
+    compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -28,13 +31,17 @@
     notificationCount?: number;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
+    /** Optional right-click/long-press behavior for the server link. */
+    contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
+    /** Show a non-interactive compatibility warning marker. */
+    compatibilityWarning?: boolean;
   } = $props();
 </script>
 
-<div class="server-icon-wrapper relative">
+<div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
     {href}
     {title}
@@ -52,6 +59,16 @@
       <span class={icon}></span>
     {/if}
   </a>
+
+  {#if compatibilityWarning}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-compatibility-warning"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs uil--exclamation-circle"></span>
+    </span>
+  {/if}
 
   {#if indicator}
     {#if onIndicatorClick}

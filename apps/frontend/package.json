@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules --silent && node scripts/generate-i18n-facade.mjs",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --no-emit-ts-declarations --output-structure locale-modules --silent && node scripts/generate-i18n-facade.mjs",
     "prepare": "svelte-kit sync || echo ''",
     "check": "pnpm run check:design-system && pnpm run paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:design-system": "node scripts/check-design-system.mjs",
@@ -56,6 +56,7 @@
     "@types/linkify-it": "^5.0.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.19.19",
+    "@types/semver": "^7.7.1",
     "@vitest/browser": "^4.1.6",
     "@vitest/browser-playwright": "^4.1.6",
     "eslint": "^9.39.4",
@@ -96,6 +97,7 @@
     "js-sha256": "^0.11.1",
     "linkify-it": "^5.0.0",
     "livekit-client": "^2.18.10",
+    "semver": "^7.8.5",
     "tlds": "^1.261.0",
     "vidstack": "^1.12.13"
   }

@@ -5,6 +5,8 @@
     "delete": "Delete preview",
     "open_link": "Open link",
     "copy_url": "Copy URL",
+    "show_content": "Show content",
+    "hide_content": "Hide content",
     "youtube_title": "YouTube video",
     "youtube_dismiss": "Dismiss video",
     "youtube_delete": "Delete video",

@@ -15,6 +15,8 @@ import * as m from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+export type TimeFormatSettings = Pick<UserSettingsState, 'effectiveTimezone' | 'effectiveHour12'>;
+
 function toDate(date: Date | string): Date {
   return typeof date === 'string' ? new Date(date) : date;
 }
@@ -151,7 +153,7 @@ function startOfWeekSerial(parts: DateParts, firstDay: number): number {
  */
 export function formatMessageTime(
   date: Date | string,
-  settings: Pick<UserSettingsState, 'effectiveTimezone' | 'effectiveHour12'>,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
   return formatVisibleDateTime(toDate(date), locale, {
@@ -167,7 +169,7 @@ export function formatMessageTime(
  */
 export function formatDate(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
   return formatVisibleDateTime(toDate(date), locale, {
@@ -183,7 +185,7 @@ export function formatDate(
  */
 export function formatDateTime(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
   return formatVisibleDateTime(toDate(date), locale, {

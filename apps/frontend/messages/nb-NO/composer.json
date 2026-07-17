@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Bilder og videoer vil bli lagt til meldingen din",
     "send_failed": "Kunne ikke sende melding",
     "edit_failed": "Kunne ikke redigere meldingen",
+    "format": {
+      "bold": "Fet",
+      "italic": "Kursiv",
+      "inline_code": "Innebygd kode",
+      "heading": "Overskrift",
+      "bullet_list": "Punktliste",
+      "ordered_list": "Nummerert liste",
+      "blockquote": "Sitat",
+      "code_block": "Kodeblokk"
+    },
+    "timestamp": {
+      "title": "Sett inn tidsstempel",
+      "insert_label": "Sett inn tidsstempel",
+      "date_time": "Dato og klokkeslett",
+      "timezone": "Tidssone",
+      "insert": "Sett inn",
+      "error_required": "Velg dato og klokkeslett.",
+      "error_timezone": "Velg en gyldig IANA-tidssone.",
+      "error_invalid": "Velg en gyldig dato og et gyldig klokkeslett for denne tidssonen."
+    },
     "mention": {
       "all_room_members": "Alle medlemmer av rommet",
       "members_here": "Medlemmer her for øyeblikket",

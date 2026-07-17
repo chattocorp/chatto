@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
     "send_failed": "No se pudo enviar el mensaje",
     "edit_failed": "No se pudo editar el mensaje",
+    "format": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "inline_code": "Código en línea",
+      "heading": "Encabezado",
+      "bullet_list": "Lista con viñetas",
+      "ordered_list": "Lista numerada",
+      "blockquote": "Cita",
+      "code_block": "Bloque de código"
+    },
+    "timestamp": {
+      "title": "Insertar marca de tiempo",
+      "insert_label": "Insertar marca de tiempo",
+      "date_time": "Fecha y hora",
+      "timezone": "Zona horaria",
+      "insert": "Insertar",
+      "error_required": "Elige una fecha y una hora.",
+      "error_timezone": "Elige una zona horaria IANA válida.",
+      "error_invalid": "Elige una fecha y una hora válidas para esta zona horaria."
+    },
     "mention": {
       "all_room_members": "Todos los miembros de la sala",
       "members_here": "Miembros actualmente aquí",

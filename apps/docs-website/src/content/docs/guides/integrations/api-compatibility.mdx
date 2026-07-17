@@ -1,0 +1,63 @@
+---
+title: API Compatibility
+description: Plan for breaking API changes while Chatto is pre-1.0.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Chatto's API is experimental. Until the project publishes a stable API policy,
+any release may change RPCs, protobuf messages, error behaviour, authentication,
+or the realtime protocol in ways that require client changes.
+
+The `v1` in package names such as `chatto.api.v1` is part of the current wire
+name. It does not mean that every Chatto release exposes the same API.
+
+<Aside type="caution">
+  Pin an exact Chatto version for any deployment used by an integration. Test
+  your integration against a new version before upgrading that deployment.
+</Aside>
+
+## Target a server release
+
+Use the protobuf definitions and API reference from the same Chatto release as
+the server you target. Do not assume that a client generated from the latest
+source works with an older server, or that an older client works unchanged with
+a newer server.
+
+Release notes can call out important API changes, but they are not a complete
+compatibility report. When an integration matters in production, test its main
+workflows against the exact upgrade candidate.
+
+## Inspect advertised protocols
+
+Call `chatto.discovery.v1.ServerDiscoveryService.GetServer` to inspect the
+server before authentication. The response may include
+`compatibility.protocolCapabilities`, with values such as:
+
+- `chatto.discovery.v1`
+- `chatto.auth.v1`
+- `chatto.api.v1`
+- `chatto.admin.v1`
+- `chatto.realtime.v1`
+
+These values tell you which broad protocol surfaces the server advertises. They
+do not negotiate an API version, guarantee a particular method or field, or say
+that the signed-in user has permission to use a feature.
+
+Ignore capability values you do not recognise. If a capability you need is
+absent, treat that protocol as unavailable. Older servers may omit compatibility
+metadata entirely, so decide explicitly whether to reject those servers or
+support a known range of releases through your own tests.
+
+`compatibility.minimumWebClientVersion`, when present, applies only to Chatto's
+bundled web client. Third-party clients must not use it as their compatibility
+range.
+
+## Before upgrading
+
+1. Check the release's data-migration and rollback constraints, and prepare a
+   tested recovery plan.
+2. Regenerate or update your client from the candidate release's protobufs.
+3. Test authentication, required RPCs, error handling, pagination, and realtime
+   reconnect behaviour that your integration depends on.
+4. Deploy the server and client changes together when the API changed.

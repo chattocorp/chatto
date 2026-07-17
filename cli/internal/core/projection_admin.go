@@ -616,9 +616,6 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		if user.avatar != nil {
 			userBytes += int64(proto.Size(user.avatar))
 		}
-		if len(user.passwordHash) > 0 {
-			userBytes += projectionSliceEntryOverhead + int64(len(user.passwordHash))
-		}
 		for hash, email := range user.verifiedEmail {
 			verifiedEmails++
 			userBytes += projectionMapEntryOverhead + int64(len(hash)) + 8
@@ -639,20 +636,60 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for hash, userID := range p.emailIndex {
 		emailBytes += int64(len(hash) + len(userID))
 	}
-	oidcBytes := int64(len(p.identityIndex)) * projectionMapEntryOverhead
-	for hash, userID := range p.identityIndex {
-		oidcBytes += int64(len(hash) + len(userID))
-	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	seenBytes := estimateStringSetBytes(retainedEventIDs)
-	bytes += loginBytes + emailBytes + oidcBytes + seenBytes
+	bytes += loginBytes + emailBytes + seenBytes
 	return users, bytes, []ProjectionAdminMetric{
 		{Name: "users", Value: users, Bytes: 0},
 		{Name: "deleted_users", Value: deleted, Bytes: 0},
 		{Name: "verified_emails", Value: verifiedEmails, Bytes: 0},
 		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
 		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
-		{Name: "external_identity_index", Value: int64(len(p.identityIndex)), Bytes: oidcBytes},
+		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
+	}
+}
+
+func (p *UserAuthProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
+	p.RLock()
+	defer p.RUnlock()
+	var active, credentials, identities, consents, bytes int64
+	for userID, user := range p.users {
+		userBytes := projectionMapEntryOverhead + int64(len(userID))
+		if user == nil {
+			bytes += userBytes
+			continue
+		}
+		if !user.deleted {
+			active++
+		}
+		if len(user.passwordHash) > 0 {
+			credentials++
+			userBytes += projectionSliceEntryOverhead + int64(len(user.passwordHash))
+		}
+		for hash, identity := range user.externalIdentities {
+			identities++
+			userBytes += projectionMapEntryOverhead + int64(len(hash)+len(identity.ProviderID)+len(identity.ProviderType)+len(identity.Issuer)+len(identity.Subject)+len(identity.SubjectHash))
+		}
+		for origin := range user.oauthConsent {
+			consents++
+			userBytes += projectionMapEntryOverhead + int64(len(origin))
+		}
+		bytes += userBytes
+	}
+	indexBytes := int64(len(p.identityIndex)) * projectionMapEntryOverhead
+	for hash, userID := range p.identityIndex {
+		indexBytes += int64(len(hash) + len(userID))
+	}
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	seenBytes := estimateStringSetBytes(retainedEventIDs)
+	bytes += indexBytes + seenBytes
+	return active, bytes, []ProjectionAdminMetric{
+		{Name: "active_accounts", Value: active, Bytes: 0},
+		{Name: "password_credentials", Value: credentials, Bytes: 0},
+		{Name: "external_identities", Value: identities, Bytes: 0},
+		{Name: "oauth_consents", Value: consents, Bytes: 0},
+		{Name: "external_identity_index", Value: int64(len(p.identityIndex)), Bytes: indexBytes},
 		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}

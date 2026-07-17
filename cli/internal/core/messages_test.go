@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -687,6 +688,103 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 			assertStringLengthError(t, err, tt.field, tt.max)
 		})
 	}
+}
+
+func TestValidateLinkPreviewSocialPost(t *testing.T) {
+	valid := func() *corev1.LinkPreview {
+		return &corev1.LinkPreview{
+			SocialPost: &corev1.SocialPostPreview{
+				Provider: "bluesky",
+				Author: &corev1.SocialPostAuthor{
+					DisplayName: "Bluesky",
+					Handle:      "bsky.app",
+				},
+				Text: "A post rendered by Chatto.",
+			},
+		}
+	}
+
+	require.NoError(t, validateLinkPreview(valid()))
+
+	tests := []struct {
+		name   string
+		mutate func(*corev1.SocialPostPreview)
+		match  string
+	}{
+		{
+			name:   "provider required",
+			mutate: func(post *corev1.SocialPostPreview) { post.Provider = "" },
+			match:  "provider is required",
+		},
+		{
+			name:   "author required",
+			mutate: func(post *corev1.SocialPostPreview) { post.Author = nil },
+			match:  "author is required",
+		},
+		{
+			name: "external URL required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.ExternalLink = &corev1.SocialPostExternalLink{Title: "Missing URL"}
+			},
+			match: "external URL is required",
+		},
+		{
+			name: "image asset required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.Images = []*corev1.SocialPostImage{{Alt: "Missing asset"}}
+			},
+			match: "image asset is required",
+		},
+		{
+			name: "image count bounded",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.Images = make([]*corev1.SocialPostImage, 5)
+			},
+			match: "more than 4 images",
+		},
+		{
+			name: "quoted post URL required",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.QuotedPost = &corev1.SocialPostPreview{
+					Provider: "bluesky",
+					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+				}
+			},
+			match: "quoted social post URL is required",
+		},
+		{
+			name: "quote nesting bounded",
+			mutate: func(post *corev1.SocialPostPreview) {
+				post.QuotedPost = &corev1.SocialPostPreview{
+					Provider: "bluesky",
+					Url:      "https://bsky.app/profile/quoted.example/post/one",
+					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+					QuotedPost: &corev1.SocialPostPreview{
+						Provider: "bluesky",
+						Url:      "https://bsky.app/profile/nested.example/post/two",
+						Author:   &corev1.SocialPostAuthor{Handle: "nested.example"},
+					},
+				}
+			},
+			match: "quote nesting exceeds 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			preview := valid()
+			tt.mutate(preview.SocialPost)
+			require.ErrorContains(t, validateLinkPreview(preview), tt.match)
+		})
+	}
+}
+
+func TestLinkPreviewSocialPostFieldNumbers(t *testing.T) {
+	fields := (&corev1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
+	require.EqualValues(t, 9, fields.ByName("social_post").Number())
+	socialFields := (&corev1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
+	require.EqualValues(t, 8, socialFields.ByName("url").Number())
+	require.EqualValues(t, 9, socialFields.ByName("quoted_post").Number())
 }
 
 // TestChattoCore_PostMessage_InvisibleChars tests that messages with only invisible Unicode

@@ -87,6 +87,12 @@ describe('MessageActionSheet', () => {
     expect(actionLabels(container)).toEqual(['Reply in thread', 'Open thread', 'Copy link']);
   });
 
+  it('keeps flat replies while omitting the thread action when threading is unavailable', () => {
+    const { container } = renderSheet({ onReplyInRoom: vi.fn() });
+
+    expect(actionLabels(container)).toEqual(['Reply', 'Copy link']);
+  });
+
   it('closes after invoking sheet actions', async () => {
     const onReplyInRoom = vi.fn();
     const onReply = vi.fn();

@@ -66,9 +66,12 @@
       "leave_confirm": "Er du sikker på at du vil forlate #{room}?"
     },
     "server": {
-      "leave_title": "Forlat serveren",
-      "leave_action": "Forlat serveren",
-      "leave_prompt": "Er du sikker på at du vil forlate {server}? Du mister tilgangen til rommene, og klienten din vil glemme denne serveren. Du kan legge den til på nytt senere fra sidefeltet."
+      "remove_title": "Fjern server",
+      "remove_action": "Fjern server",
+      "remove_prompt": "Vil du fjerne {server} fra dette sidefeltet? Dette fjerner bare serveren fra denne enheten. Kontoen og dataene dine på serveren blir ikke slettet.",
+      "remove_account_prefix": "For å slette kontoen permanent, åpne ",
+      "remove_account_link": "Kontoinnstillinger",
+      "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
       "beginning": "Dette er begynnelsen på denne samtalen."
@@ -107,6 +110,11 @@
         "in_reply_to": "som svar på",
         "reply_preview_fallback": "Melding",
         "deleted": "Denne meldingen er slettet."
+      },
+      "timestamp": {
+        "details_title": "Dato og klokkeslett",
+        "local_time": "Lokal",
+        "relative_time": "Relativ"
       }
     },
     "system_events": {

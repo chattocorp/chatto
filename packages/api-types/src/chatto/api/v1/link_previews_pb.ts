@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * Request to fetch server-side link preview metadata for a URL.
@@ -114,6 +114,13 @@ export class LinkPreview extends Message<LinkPreview> {
    */
   embedId?: string;
 
+  /**
+   * Structured, provider-neutral social-post data for native rendering.
+   *
+   * @generated from field: chatto.api.v1.SocialPostPreview social_post = 9;
+   */
+  socialPost?: SocialPostPreview;
+
   constructor(data?: PartialMessage<LinkPreview>) {
     super();
     proto3.util.initPartial(data, this);
@@ -130,6 +137,7 @@ export class LinkPreview extends Message<LinkPreview> {
     { no: 6, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 7, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 8, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 9, name: "social_post", kind: "message", T: SocialPostPreview },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkPreview {
@@ -146,6 +154,324 @@ export class LinkPreview extends Message<LinkPreview> {
 
   static equals(a: LinkPreview | PlainMessage<LinkPreview> | undefined, b: LinkPreview | PlainMessage<LinkPreview> | undefined): boolean {
     return proto3.util.equals(LinkPreview, a, b);
+  }
+}
+
+/**
+ * Bounded, provider-neutral social-post data used for native preview cards.
+ *
+ * @generated from message chatto.api.v1.SocialPostPreview
+ */
+export class SocialPostPreview extends Message<SocialPostPreview> {
+  /**
+   * Stable lowercase provider identifier, such as "bluesky".
+   *
+   * @generated from field: string provider = 1;
+   */
+  provider = "";
+
+  /**
+   * Author shown on the post.
+   *
+   * @generated from field: chatto.api.v1.SocialPostAuthor author = 2;
+   */
+  author?: SocialPostAuthor;
+
+  /**
+   * Plain-text post body.
+   *
+   * @generated from field: string text = 3;
+   */
+  text = "";
+
+  /**
+   * Post publication time.
+   *
+   * @generated from field: google.protobuf.Timestamp published_at = 4;
+   */
+  publishedAt?: Timestamp;
+
+  /**
+   * Images attached directly to the post, in display order.
+   *
+   * @generated from field: repeated chatto.api.v1.SocialPostImage images = 5;
+   */
+  images: SocialPostImage[] = [];
+
+  /**
+   * Website card embedded in the post, when present.
+   *
+   * @generated from field: chatto.api.v1.SocialPostExternalLink external_link = 6;
+   */
+  externalLink?: SocialPostExternalLink;
+
+  /**
+   * Provider-supplied content warning, when present.
+   *
+   * @generated from field: optional string content_warning = 7;
+   */
+  contentWarning?: string;
+
+  /**
+   * Canonical URL for this post. Always set for quoted posts; the outer post
+   * may also use LinkPreview.url.
+   *
+   * @generated from field: string url = 8;
+   */
+  url = "";
+
+  /**
+   * Post quoted by this post, when present. Quotes inside this snapshot are
+   * omitted so preview size and rendering depth remain bounded.
+   *
+   * @generated from field: chatto.api.v1.SocialPostPreview quoted_post = 9;
+   */
+  quotedPost?: SocialPostPreview;
+
+  constructor(data?: PartialMessage<SocialPostPreview>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SocialPostPreview";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "provider", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "author", kind: "message", T: SocialPostAuthor },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "published_at", kind: "message", T: Timestamp },
+    { no: 5, name: "images", kind: "message", T: SocialPostImage, repeated: true },
+    { no: 6, name: "external_link", kind: "message", T: SocialPostExternalLink },
+    { no: 7, name: "content_warning", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "quoted_post", kind: "message", T: SocialPostPreview },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SocialPostPreview {
+    return new SocialPostPreview().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SocialPostPreview {
+    return new SocialPostPreview().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SocialPostPreview {
+    return new SocialPostPreview().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SocialPostPreview | PlainMessage<SocialPostPreview> | undefined, b: SocialPostPreview | PlainMessage<SocialPostPreview> | undefined): boolean {
+    return proto3.util.equals(SocialPostPreview, a, b);
+  }
+}
+
+/**
+ * Author shown on a social-post preview.
+ *
+ * @generated from message chatto.api.v1.SocialPostAuthor
+ */
+export class SocialPostAuthor extends Message<SocialPostAuthor> {
+  /**
+   * Author display name.
+   *
+   * @generated from field: string display_name = 1;
+   */
+  displayName = "";
+
+  /**
+   * Provider-native handle without a leading at-sign when applicable.
+   *
+   * @generated from field: string handle = 2;
+   */
+  handle = "";
+
+  /**
+   * Locally served author avatar URL, when available.
+   *
+   * @generated from field: optional string avatar_url = 3;
+   */
+  avatarUrl?: string;
+
+  /**
+   * Locally stored author avatar asset ID, when available.
+   *
+   * @generated from field: optional string avatar_asset_id = 4;
+   */
+  avatarAssetId?: string;
+
+  constructor(data?: PartialMessage<SocialPostAuthor>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SocialPostAuthor";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "handle", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "avatar_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SocialPostAuthor {
+    return new SocialPostAuthor().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SocialPostAuthor {
+    return new SocialPostAuthor().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SocialPostAuthor {
+    return new SocialPostAuthor().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SocialPostAuthor | PlainMessage<SocialPostAuthor> | undefined, b: SocialPostAuthor | PlainMessage<SocialPostAuthor> | undefined): boolean {
+    return proto3.util.equals(SocialPostAuthor, a, b);
+  }
+}
+
+/**
+ * One image attached directly to a social post.
+ *
+ * @generated from message chatto.api.v1.SocialPostImage
+ */
+export class SocialPostImage extends Message<SocialPostImage> {
+  /**
+   * Locally served image URL.
+   *
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * Locally stored image asset ID.
+   *
+   * @generated from field: string asset_id = 2;
+   */
+  assetId = "";
+
+  /**
+   * Author-provided alternative text.
+   *
+   * @generated from field: optional string alt = 3;
+   */
+  alt?: string;
+
+  /**
+   * Source aspect-ratio width, when known.
+   *
+   * @generated from field: optional uint32 width = 4;
+   */
+  width?: number;
+
+  /**
+   * Source aspect-ratio height, when known.
+   *
+   * @generated from field: optional uint32 height = 5;
+   */
+  height?: number;
+
+  constructor(data?: PartialMessage<SocialPostImage>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SocialPostImage";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "alt", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "width", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 5, name: "height", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SocialPostImage {
+    return new SocialPostImage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SocialPostImage {
+    return new SocialPostImage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SocialPostImage {
+    return new SocialPostImage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SocialPostImage | PlainMessage<SocialPostImage> | undefined, b: SocialPostImage | PlainMessage<SocialPostImage> | undefined): boolean {
+    return proto3.util.equals(SocialPostImage, a, b);
+  }
+}
+
+/**
+ * Website card embedded in a social post.
+ *
+ * @generated from message chatto.api.v1.SocialPostExternalLink
+ */
+export class SocialPostExternalLink extends Message<SocialPostExternalLink> {
+  /**
+   * Destination URL.
+   *
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * Card title, when available.
+   *
+   * @generated from field: optional string title = 2;
+   */
+  title?: string;
+
+  /**
+   * Card description, when available.
+   *
+   * @generated from field: optional string description = 3;
+   */
+  description?: string;
+
+  /**
+   * Locally served card image URL, when available.
+   *
+   * @generated from field: optional string image_url = 4;
+   */
+  imageUrl?: string;
+
+  /**
+   * Locally stored card image asset ID, when available.
+   *
+   * @generated from field: optional string image_asset_id = 5;
+   */
+  imageAssetId?: string;
+
+  constructor(data?: PartialMessage<SocialPostExternalLink>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SocialPostExternalLink";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "image_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SocialPostExternalLink {
+    return new SocialPostExternalLink().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SocialPostExternalLink {
+    return new SocialPostExternalLink().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SocialPostExternalLink {
+    return new SocialPostExternalLink().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SocialPostExternalLink | PlainMessage<SocialPostExternalLink> | undefined, b: SocialPostExternalLink | PlainMessage<SocialPostExternalLink> | undefined): boolean {
+    return proto3.util.equals(SocialPostExternalLink, a, b);
   }
 }
 

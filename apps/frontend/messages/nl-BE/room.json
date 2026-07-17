@@ -66,9 +66,12 @@
       "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?"
     },
     "server": {
-      "leave_title": "Verlaat de server",
-      "leave_action": "Verlaat de server",
-      "leave_prompt": "Weet je zeker dat je {server} wilt verlaten? U verliest de toegang tot de kamers en uw klant zal deze server vergeten. Je kunt het later opnieuw toevoegen via de zijbalk."
+      "remove_title": "Server verwijderen",
+      "remove_action": "Server verwijderen",
+      "remove_prompt": "Wil je {server} uit deze zijbalk verwijderen? Hiermee verwijder je de server alleen van dit apparaat. Je account en gegevens op de server worden niet verwijderd.",
+      "remove_account_prefix": "Om je account permanent te verwijderen, open je eerst de ",
+      "remove_account_link": "Accountinstellingen",
+      "remove_account_suffix": " van deze server."
     },
     "timeline": {
       "beginning": "Dit is het begin van dit gesprek."
@@ -107,6 +110,11 @@
         "in_reply_to": "als antwoord op",
         "reply_preview_fallback": "Bericht",
         "deleted": "Dit bericht is verwijderd."
+      },
+      "timestamp": {
+        "details_title": "Datum en tijd",
+        "local_time": "Lokaal",
+        "relative_time": "Relatief"
       }
     },
     "system_events": {

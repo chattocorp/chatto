@@ -35,10 +35,13 @@ type mentionableOwner struct {
 // separate claim record.
 type MentionablesProjection struct {
 	events.MemoryProjection
-	owners      map[string]map[mentionableOwner]struct{}
-	userLogins  map[string]string
-	dekResolver *unwrappedDEKResolver
-	dekEvents   map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
+	owners     map[string]map[mentionableOwner]struct{}
+	userLogins map[string]string
+	// userLoginSources retains only the latest encrypted login event per user.
+	// Snapshot codecs use it instead of persisting the decrypted handle index.
+	userLoginSources map[string]*corev1.Event
+	dekResolver      *unwrappedDEKResolver
+	dekEvents        map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 }
 
 // NewMentionablesProjection creates the global mentionable-handle read model.
@@ -50,10 +53,11 @@ func NewMentionablesProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Read
 
 func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *MentionablesProjection {
 	p := &MentionablesProjection{
-		owners:      make(map[string]map[mentionableOwner]struct{}),
-		userLogins:  make(map[string]string),
-		dekResolver: dekResolver,
-		dekEvents:   make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
+		owners:           make(map[string]map[mentionableOwner]struct{}),
+		userLogins:       make(map[string]string),
+		userLoginSources: make(map[string]*corev1.Event),
+		dekResolver:      dekResolver,
+		dekEvents:        make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
 	p.addOwner(MentionHandleAll, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleAll})
 	p.addOwner(MentionHandleHere, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleHere})
@@ -75,13 +79,25 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_UserDekGenerated:
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
-		return p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated)
+		if err := p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated); err != nil {
+			return err
+		}
+		if p.userLogins[e.UserAccountCreated.GetUserId()] != "" {
+			p.userLoginSources[e.UserAccountCreated.GetUserId()] = proto.Clone(event).(*corev1.Event)
+		}
 	case *corev1.Event_UserLoginChanged:
-		return p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged)
+		if err := p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged); err != nil {
+			return err
+		}
+		if p.userLogins[e.UserLoginChanged.GetUserId()] != "" {
+			p.userLoginSources[e.UserLoginChanged.GetUserId()] = proto.Clone(event).(*corev1.Event)
+		}
 	case *corev1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
+		delete(p.userLoginSources, e.UserAccountDeleted.GetUserId())
 	case *corev1.Event_UserKeyShredded:
 		p.applyUserKeyShredded(e.UserKeyShredded)
+		delete(p.userLoginSources, e.UserKeyShredded.GetUserId())
 	case *corev1.Event_RbacRoleCreated:
 		p.addOwner(e.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(e.RbacRoleCreated.GetRoleName())})
 	case *corev1.Event_RbacRoleDeleted:

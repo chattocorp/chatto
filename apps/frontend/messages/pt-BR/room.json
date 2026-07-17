@@ -66,9 +66,12 @@
       "leave_confirm": "Tem certeza de que deseja sair de #{room}?"
     },
     "server": {
-      "leave_title": "Sair do servidor",
-      "leave_action": "Sair do servidor",
-      "leave_prompt": "Tem certeza de que deseja sair de {server}? Você perderá o acesso às salas e seu cliente esquecerá este servidor. Você pode adicioná-lo novamente mais tarde na barra lateral."
+      "remove_title": "Remover servidor",
+      "remove_action": "Remover servidor",
+      "remove_prompt": "Remover {server} desta barra lateral? Isso remove o servidor apenas deste dispositivo. Sua conta e seus dados no servidor não serão excluídos.",
+      "remove_account_prefix": "Para excluir sua conta permanentemente, abra as ",
+      "remove_account_link": "Configurações da conta",
+      "remove_account_suffix": " deste servidor antes de removê-lo."
     },
     "timeline": {
       "beginning": "Este é o início desta conversa."
@@ -107,6 +110,11 @@
         "in_reply_to": "em resposta a",
         "reply_preview_fallback": "Mensagem",
         "deleted": "Esta mensagem foi excluída."
+      },
+      "timestamp": {
+        "details_title": "Data e hora",
+        "local_time": "Local",
+        "relative_time": "Relativo"
       }
     },
     "system_events": {

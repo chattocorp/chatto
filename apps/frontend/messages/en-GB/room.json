@@ -69,9 +69,12 @@
       "leave_confirm": "Are you sure you want to leave #{room}?"
     },
     "server": {
-      "leave_title": "Leave Server",
-      "leave_action": "Leave Server",
-      "leave_prompt": "Are you sure you want to leave {server}? You'll lose access to its rooms, and your client will forget about this server. You can re-add it later from the sidebar."
+      "remove_title": "Remove Server",
+      "remove_action": "Remove Server",
+      "remove_prompt": "Remove {server} from this sidebar? This only removes it from this device. Your account and data on the server will not be deleted.",
+      "remove_account_prefix": "To permanently delete your account, open ",
+      "remove_account_link": "Account Settings",
+      "remove_account_suffix": " for this server before removing it."
     },
     "timeline": {
       "beginning": "This is the beginning of this conversation."
@@ -110,6 +113,11 @@
         "in_reply_to": "in reply to",
         "reply_preview_fallback": "Message",
         "deleted": "This message has been deleted."
+      },
+        "timestamp": {
+          "details_title": "Date and time",
+          "local_time": "Local",
+          "relative_time": "Relative"
       }
     },
     "system_events": {

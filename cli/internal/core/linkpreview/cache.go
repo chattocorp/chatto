@@ -29,6 +29,8 @@ const (
 
 	// FailureTTL is how long failed previews are cached.
 	FailureTTL = 1 * time.Hour
+
+	currentCacheSchemaVersion uint32 = 1
 )
 
 // Cache provides caching for link preview results.
@@ -77,11 +79,25 @@ func (c *Cache) Get(ctx context.Context, url string) (*corev1.LinkPreview, error
 		return nil, nil // Stale entry
 	}
 
+	// Schema version 1 added validated multi-address dialing and structured
+	// discovery for federated Mastodon proxy URLs. Refresh old negative entries
+	// once, plus old Mastodon-shaped generic entries. Old structured Mastodon
+	// snapshots are already complete, while newly written failures and generic
+	// fallbacks carry the current version and retain their normal TTL.
+	if cached.SchemaVersion < currentCacheSchemaVersion {
+		if cached.FetchFailed {
+			return nil, nil
+		}
+		if _, _, isMastodonURL := ParseMastodonStatusURL(url); isMastodonURL &&
+			cached.GetPreview().GetSocialPost().GetProvider() != "mastodon" {
+			return nil, nil
+		}
+	}
+
 	// Signal negative cache hit so callers can distinguish from a cache miss
 	if cached.FetchFailed {
 		return nil, ErrCachedFailure
 	}
-
 	return cached.Preview, nil
 }
 
@@ -92,6 +108,7 @@ func (c *Cache) Set(ctx context.Context, url string, preview *corev1.LinkPreview
 		Preview:       preview,
 		FetchFailed:   false,
 		FetchedAtUnix: time.Now().Unix(),
+		SchemaVersion: currentCacheSchemaVersion,
 	}
 
 	data, err := proto.Marshal(cached)
@@ -110,6 +127,7 @@ func (c *Cache) SetFailure(ctx context.Context, url string, reason string) error
 		FetchFailed:   true,
 		ErrorReason:   reason,
 		FetchedAtUnix: time.Now().Unix(),
+		SchemaVersion: currentCacheSchemaVersion,
 	}
 
 	data, err := proto.Marshal(cached)

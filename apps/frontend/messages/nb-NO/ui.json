@@ -76,7 +76,8 @@
       "error_future": "Utløpet må være i fremtiden."
     },
     "form": {
-      "required": "Obligatorisk"
+      "required": "Obligatorisk",
+      "max_bytes": "Maksimalt {max} byte; noen tegn bruker mer enn én byte."
     },
     "dates": {
       "today": "I dag",

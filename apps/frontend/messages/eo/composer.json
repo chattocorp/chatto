@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
     "send_failed": "Malsukcesis sendi mesaĝon",
     "edit_failed": "Malsukcesis redakti mesaĝon",
+    "format": {
+      "bold": "Grasa",
+      "italic": "Kursiva",
+      "inline_code": "Enlinia kodo",
+      "heading": "Titolo",
+      "bullet_list": "Bulleta listo",
+      "ordered_list": "Numerita listo",
+      "blockquote": "Citaĵo",
+      "code_block": "Kodbloko"
+    },
+    "timestamp": {
+      "title": "Enmeti tempomarkon",
+      "insert_label": "Enmeti tempomarkon",
+      "date_time": "Dato kaj horo",
+      "timezone": "Horzono",
+      "insert": "Enmeti",
+      "error_required": "Elektu daton kaj horon.",
+      "error_timezone": "Elektu validan IANA-horzonon.",
+      "error_invalid": "Elektu validajn daton kaj horon por ĉi tiu horzono."
+    },
     "mention": {
       "all_room_members": "Ĉiuj ĉambromembroj",
       "members_here": "Membroj nuntempe ĉi tie",

@@ -46,18 +46,20 @@
       <span class="iconify text-xl uil--bars"></span>
     </button>
 
-    <!-- Notification bell - 44px tap target for mobile accessibility -->
-    <a
-      href={resolve('/chat/notifications')}
-      aria-label={m['ui.notifications']()}
-      title={m['ui.notifications']()}
-      class="relative app-header-icon"
-    >
-      <span class="iconify text-lg uil--bell"></span>
-      {#if totalNotificationCount > 0}
-        <UnreadDot class="absolute top-2 right-2" testid="notifications-unread-dot" />
-      {/if}
-    </a>
+    {#if hasInstances}
+      <!-- Notification bell - 44px tap target for mobile accessibility -->
+      <a
+        href={resolve('/chat/notifications')}
+        aria-label={m['ui.notifications']()}
+        title={m['ui.notifications']()}
+        class="relative app-header-icon"
+      >
+        <span class="iconify text-lg uil--bell"></span>
+        {#if totalNotificationCount > 0}
+          <UnreadDot class="absolute top-2 right-2" testid="notifications-unread-dot" />
+        {/if}
+      </a>
+    {/if}
 
     <!-- Quick switcher trigger -->
     {#if hasInstances}

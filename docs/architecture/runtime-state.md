@@ -13,7 +13,7 @@ Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, short-lived leader leases, reconciliation counters, and worker health heartbeats |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
@@ -53,7 +53,7 @@ survives restart but is not content/domain history. See
 | `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. The endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. A record is deliverable only while its revision matches the endpoint's active owner claim. |
 | `push_endpoint_owner.{sha256(endpoint)}` | JSON Web Push endpoint owner claim containing the active user ID and exact `push_subscription` KV revision. Saves transfer the claim with KV OCC; revision-matched deletes prevent stale logout, expiry cleanup, and subscription rotation races from releasing a newer claim. Legacy subscription records without a claim remain inert until the browser re-registers. |
 | `asset_upload.{uploadId}` | JSON room-scoped attachment upload session with actor, declared size/SHA-256, committed offset, chunk keys, status, and expiry. Open sessions use a 15-minute TTL; completed sessions expire with the 24-hour pending-attachment claim window. |
-| `projection_snapshot_pointer.{opaqueLocator}` | Encrypted current/previous generation IDs for one snapshot projection and key epoch. Uses KV revision OCC so stale snapshot writers cannot regress newer history. |
+| `projection_snapshot_pointer.{opaqueLocator}` | Encrypted current/previous generation IDs for one projection and snapshot contract. The opaque locator is derived from both, so different contracts cannot read or overwrite each other. Uses KV revision OCC so stale writers cannot regress newer history within one contract. |
 | `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification. Uses per-key 15-minute TTL. |
@@ -66,7 +66,7 @@ survives restart but is not content/domain history. See
 | `external_identity_create.{hmac}` | Pending account-creation confirmation JSON containing provider identity and optional verified-email/profile hints. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL. |
 | `external_identity_link.{hmac}` | Pending link confirmation JSON containing provider identity and optional verified-email/profile hints, bound to the authenticated user. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL. |
 | `external_identity_link_start.{hmac}` | One-time browser handoff JSON containing the provider ID, redirect path, and bound user ID. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL and is deleted when consumed. |
-| `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
+| `link_preview.{urlHash}` | Versioned cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. Pre-v1 negative entries refresh once after validated multi-address dialing was added; pre-v1 Mastodon-shaped generic entries also refresh for federated proxy discovery. Current failures and generic fallbacks retain their normal TTL. |
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 
@@ -77,7 +77,7 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Short-lived leader lease. Current names are `livekit_reconciler`, `asset_cleanup`, `projection-snapshot-threads`, and `projection-snapshot-cleanup`; only the current owner runs the corresponding worker. |
+| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `asset_cleanup`, `projection-snapshot-threads`, and `projection-snapshot-expiry`. The expiry record is retained as a 24-hour cooldown after successful S3 cleanup; the others identify active worker ownership. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
@@ -85,15 +85,17 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 
 Presence uses per-key TTL with a 30-second client refresh and `LimitMarkerTTL`,
 so NATS emits delete markers on expiry. A single per-process **PresenceHub**
-watches `presence.>` and emits `PresenceChanged` only when a user's status
-changes. Clients refresh through `MyAccountService.UpdatePresence`; disconnect
-and "look offline" stop refreshing instead of writing `OFFLINE`.
+watches `presence.>`, retains the current snapshot for bulk API response
+hydration, and emits `PresenceChanged` only when a user's status changes.
+Singular mutation responses still read KV directly when they require
+read-your-writes. Clients refresh through `MyAccountService.UpdatePresence`;
+disconnect and "look offline" stop refreshing instead of writing `OFFLINE`.
 
-Short-lived `lease.{name}` records coordinate singleton background work across
-replicas without adding durable state. Active voice call participants come from
-the call-state projection over durable room EVT facts and are reconciled
-against LiveKit by the elected reconciler. Per-call LiveKit E2EE keys remain
-behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
+Ephemeral `lease.{name}` records coordinate singleton background work and
+periodic cooldowns across replicas without adding durable state. Active voice
+call participants come from the call-state projection over durable room EVT
+facts and are reconciled against LiveKit by the elected reconciler. Per-call
+LiveKit E2EE keys remain behind the KMS boundary in `ENCRYPTION_KEYS`; the retired `CALL_STATE` bucket is
 no longer imported.
 
 ## Object Store buckets
@@ -101,7 +103,7 @@ no longer imported.
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `PROJECTION_SNAPSHOTS`      | Encrypted projection snapshots (optional)         |
+| `PROJECTION_SNAPSHOTS`      | Encrypted projection snapshots with configurable TTL (optional) |
 | `SERVER_ASSETS`             | NATS-backed persisted asset binaries              |
 
 **ASSET_CACHE keys:**
@@ -117,7 +119,7 @@ Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL fo
 
 | Key | Description |
 | --- | --- |
-| `internal/projection-snapshots/v1/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation. The secret-derived epoch isolates generations across secret changes; generation IDs are random and referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by the NATS Object Store and configured S3 backend. |
+| `internal/projection-snapshots/{projection}/{contract}/objects/{opaqueEpoch}/{generationId}` | Encrypted and compressed snapshot generation. Contract IDs are projection-scoped, the secret-derived epoch isolates generations across secret changes, and random generation IDs are referenced by the encrypted `RUNTIME_STATE` pointer. The same logical key shape is used by NATS and S3. |
 
 **SERVER\_ASSETS keys:**
 
@@ -154,9 +156,12 @@ the event as `message`, `derivative`, `user_avatar`, or `server_branding`, not
 inside `Asset`. New message bodies reference message-owned assets by ID.
 
 Link preview images are server-scoped persisted assets embedded in message
-bodies as `LinkPreview.image_asset` (`AssetRecord`). The body records whether
-the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for older
-clients and stored previews.
+bodies as `AssetRecord` values. Generic previews use `LinkPreview.image_asset`;
+structured social-post snapshots can also carry an author avatar, website-card
+image, up to four post images, and one quoted post with the same media fields.
+Provider adapters populate the same bounded snapshot shape, and all media in
+the outer and quoted posts shares one fetch budget. Each record identifies whether its image lives in S3 or
+`SERVER_ASSETS`; `image_asset_id` remains for older generic previews.
 
 ### Asset lifecycle and compatibility
 

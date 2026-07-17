@@ -69,9 +69,12 @@
       "leave_confirm": "Möchtest du #{room} wirklich verlassen?"
     },
     "server": {
-      "leave_title": "Server verlassen",
-      "leave_action": "Server verlassen",
-      "leave_prompt": "Möchtest du {server} wirklich verlassen? Du verlierst den Zugriff auf seine Räume und dein Client vergisst diesen Server. Du kannst ihn später über die Seitenleiste erneut hinzufügen."
+      "remove_title": "Server entfernen",
+      "remove_action": "Server entfernen",
+      "remove_prompt": "Möchtest du {server} aus dieser Seitenleiste entfernen? Dadurch wird der Server nur von diesem Gerät entfernt. Dein Konto und deine Daten auf dem Server werden nicht gelöscht.",
+      "remove_account_prefix": "Um dein Konto dauerhaft zu löschen, öffne vor dem Entfernen die ",
+      "remove_account_link": "Kontoeinstellungen",
+      "remove_account_suffix": " dieses Servers."
     },
     "timeline": {
       "beginning": "Dies ist der Anfang dieser Unterhaltung."
@@ -110,6 +113,11 @@
         "in_reply_to": "als Antwort auf",
         "reply_preview_fallback": "Nachricht",
         "deleted": "Diese Nachricht wurde gelöscht."
+      },
+      "timestamp": {
+        "details_title": "Datum und Uhrzeit",
+        "local_time": "Lokal",
+        "relative_time": "Relativ"
       }
     },
     "system_events": {

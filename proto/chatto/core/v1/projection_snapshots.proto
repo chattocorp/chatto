@@ -3,6 +3,13 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/asset_events.proto";
+import "chatto/core/v1/event.proto";
+import "chatto/core/v1/models.proto";
+import "chatto/core/v1/rbac_events.proto";
+import "chatto/core/v1/room_events.proto";
+import "chatto/core/v1/user_events.proto";
+import "chatto/core/v1/user_preferences.proto";
 
 // ProjectionSnapshotGeneration is the encrypted, immutable unit published by
 // the projection snapshot repository. It is derived cache data,
@@ -12,6 +19,7 @@ message ProjectionSnapshotGeneration {
   string stream_name = 2;
   uint64 cutoff_sequence = 3;
   string projection_key = 4;
+  // Snapshot contract ID. The field name is retained for wire compatibility.
   string compatibility_id = 5;
   string producer_version = 6;
   google.protobuf.Timestamp created_at = 7;
@@ -29,14 +37,19 @@ message ProjectionSnapshotPointer {
   string previous_generation_id = 2;
   uint64 current_cutoff_sequence = 3;
   string current_stream_identity = 4;
+  // Current generation's snapshot contract ID.
   string current_compatibility_id = 5;
   uint64 previous_cutoff_sequence = 6;
   string previous_stream_identity = 7;
+  // Previous generation's snapshot contract ID.
   string previous_compatibility_id = 8;
+  // Authenticated publication times used to coordinate refreshes across replicas.
+  google.protobuf.Timestamp current_created_at = 9;
+  google.protobuf.Timestamp previous_created_at = 10;
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// threads-v1 projection compatibility contract. Repeated fields are emitted in
+// Threads v1 projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 message ThreadProjectionSnapshot {
   repeated ThreadSnapshot threads = 1;
@@ -76,4 +89,244 @@ message ProjectionReplayGuardSnapshot {
   bool compatibility_mode = 2;
   repeated string event_ids = 3;
   bool replay_complete = 4;
+}
+
+message RoomDirectoryProjectionSnapshot {
+  repeated Room rooms = 1;
+  repeated RoomMembershipSnapshot memberships = 2;
+  repeated RoomBanSnapshot bans = 3;
+  uint64 catalog_sequence = 4;
+}
+
+message RoomMembershipSnapshot {
+  string room_id = 1;
+  repeated string user_ids = 2;
+}
+
+message RoomBanSnapshot {
+  string event_id = 1;
+  string room_id = 2;
+  string user_id = 3;
+  string moderator_id = 4;
+  string reason = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+}
+
+message RoomGroupLayoutProjectionSnapshot {
+  repeated RoomGroupStateSnapshot groups = 1;
+  repeated string group_ids = 2;
+  uint64 sequence = 3;
+}
+
+message RoomGroupStateSnapshot {
+  RoomGroup group = 1;
+}
+
+message CallStateProjectionSnapshot {
+  repeated CallRoomStateSnapshot rooms = 1;
+}
+
+message CallRoomStateSnapshot {
+  string room_id = 1;
+  uint64 sequence = 2;
+  CallSessionSnapshot call = 3;
+  repeated CallParticipantSnapshot participants = 4;
+}
+
+message CallSessionSnapshot {
+  string call_id = 1;
+  string e2ee_key_ref = 2;
+  int64 started_at = 3;
+  CallParticipantEventSource source = 4;
+}
+
+message CallParticipantSnapshot {
+  string user_id = 1;
+  string call_id = 2;
+  int64 joined_at = 3;
+  CallParticipantEventSource source = 4;
+}
+
+message ContentKeyProjectionSnapshot {
+  repeated UserDEKGeneratedEvent keys = 1;
+  ProjectionReplayGuardSnapshot replay_guard = 2;
+}
+
+message RBACProjectionSnapshot {
+  repeated Role roles = 1;
+  repeated RBACAssignmentSnapshot assignments = 2;
+  repeated RBACDecisionSnapshot decisions = 3;
+  ProjectionReplayGuardSnapshot replay_guard = 4;
+}
+
+message RBACAssignmentSnapshot {
+  string user_id = 1;
+  repeated string role_names = 2;
+}
+
+message RBACDecisionSnapshot {
+  string scope = 1;
+  string scope_id = 2;
+  RbacPermissionSubjectKind subject_kind = 3;
+  string subject = 4;
+  string permission = 5;
+  string decision = 6;
+}
+
+message ConfigProjectionSnapshot {
+  string server_name = 1;
+  string description = 2;
+  string welcome_message = 3;
+  string motd = 4;
+  optional string blocked_usernames = 5;
+  AssetRecord logo = 6;
+  AssetRecord banner = 7;
+  repeated UserConfigSnapshot users = 8;
+}
+
+message UserConfigSnapshot {
+  string user_id = 1;
+  optional string timezone = 2;
+  optional TimeFormat time_format = 3;
+  optional NotificationLevel server_notification_level = 4;
+  repeated RoomNotificationLevelSnapshot room_notification_levels = 5;
+}
+
+message RoomNotificationLevelSnapshot {
+  string room_id = 1;
+  NotificationLevel level = 2;
+}
+
+message AssetProjectionSnapshot {
+  repeated AssetCreatedEvent creations = 1;
+  repeated AssetChildrenSnapshot children = 2;
+  repeated AssetManifestSnapshot manifests = 3;
+  repeated DeletedAssetSnapshot deleted_assets = 4;
+  ProjectionReplayGuardSnapshot replay_guard = 5;
+}
+
+message AssetChildrenSnapshot {
+  string parent_asset_id = 1;
+  repeated string child_asset_ids = 2;
+}
+
+message AssetManifestSnapshot {
+  string asset_id = 1;
+  AssetProcessingStartedEvent started = 2;
+  AssetProcessingSucceededEvent succeeded = 3;
+  AssetProcessingFailedEvent failed = 4;
+}
+
+message DeletedAssetSnapshot {
+  string asset_id = 1;
+  string room_id = 2;
+}
+
+message ReactionProjectionSnapshot {
+  repeated MessageReactionsSnapshot messages = 1;
+  repeated StringUint64Snapshot room_sequences = 2;
+  repeated StringStringSnapshot message_rooms = 3;
+  repeated StringStringSnapshot echo_originals = 4;
+  repeated StringStringSnapshot asset_rooms = 5;
+  ProjectionReplayGuardSnapshot replay_guard = 6;
+}
+
+message MessageReactionsSnapshot {
+  string message_event_id = 1;
+  repeated EmojiReactionsSnapshot emojis = 2;
+}
+
+message EmojiReactionsSnapshot {
+  string emoji = 1;
+  repeated UserReactionSnapshot users = 2;
+}
+
+message UserReactionSnapshot {
+  string user_id = 1;
+  int64 added_at_nanos = 2;
+}
+
+message StringUint64Snapshot { string key = 1; uint64 value = 2; }
+message StringStringSnapshot { string key = 1; string value = 2; }
+
+message MentionablesProjectionSnapshot {
+  repeated Event user_login_sources = 1;
+  repeated UserDEKGeneratedEvent keys = 2;
+  repeated string role_names = 3;
+}
+
+// UserProfileProjectionSnapshot contains only profile/read-model state. Auth
+// credentials, external identity subjects, and OAuth consent are owned by the
+// separate cold-replay UserAuthProjection and have no fields in this schema.
+message UserProfileProjectionSnapshot {
+  repeated ProjectedUserProfileSnapshot users = 1;
+  repeated UserDEKGeneratedEvent keys = 2;
+  ProjectionReplayGuardSnapshot replay_guard = 3;
+  repeated StringStringSnapshot login_index = 4;
+  repeated StringStringSnapshot email_index = 5;
+}
+
+message ProjectedUserProfileSnapshot {
+  string user_id = 1;
+  User user = 2;
+  ProjectedEncryptedUserStringSnapshot login = 3;
+  string login_hash = 4;
+  ProjectedEncryptedUserStringSnapshot display_name = 5;
+  bool deleted = 6;
+  bool shredded = 7;
+  AssetRecord avatar = 8;
+  repeated ProjectedVerifiedEmailSnapshot verified_emails = 9;
+  ServerUserPreferences preferences = 10;
+  google.protobuf.Timestamp login_changed_at = 11;
+}
+
+message ProjectedEncryptedUserStringSnapshot {
+  string event_id = 1;
+  string event_type = 2;
+  string purpose = 3;
+  EncryptedUserString encrypted = 4;
+}
+
+message ProjectedVerifiedEmailSnapshot {
+  string digest = 1;
+  ProjectedEncryptedUserStringSnapshot value = 2;
+  google.protobuf.Timestamp verified_at = 3;
+}
+
+message RoomTimelineProjectionSnapshot {
+  repeated TimelineEntrySnapshot entries = 1;
+  repeated TimelineBodySnapshot bodies = 2;
+  repeated StringTimestampSnapshot tombstoned_at = 3;
+  repeated StringTimestampSnapshot shredded_at = 4;
+  repeated string retracted_event_ids = 5;
+  repeated string hidden_echo_event_ids = 6;
+  repeated string shredded_user_ids = 7;
+  AssetProjectionSnapshot legacy_assets = 8;
+  repeated AssetMessageOwnerSnapshot asset_message_owners = 9;
+  repeated string public_link_preview_asset_ids = 10;
+  ProjectionReplayGuardSnapshot replay_guard = 11;
+}
+
+message TimelineEntrySnapshot {
+  uint64 stream_sequence = 1;
+  Event event = 2;
+}
+
+message TimelineBodySnapshot {
+  string message_event_id = 1;
+  MessageBody body = 2;
+  repeated uint64 body_event_sequences = 3;
+  uint64 current_body_sequence = 4;
+}
+
+message StringTimestampSnapshot {
+  string key = 1;
+  google.protobuf.Timestamp value = 2;
+}
+
+message AssetMessageOwnerSnapshot {
+  string asset_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
 }

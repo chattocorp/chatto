@@ -854,6 +854,8 @@
               {members}
               roleHandles={mentionRoleHandles}
               edited={isEdited}
+              timestampSettings={userSettings}
+              timestampLocale={activeLocale}
               onMentionClick={showPopoverForMember}
             />
           </div>

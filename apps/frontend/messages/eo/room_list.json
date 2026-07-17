@@ -12,6 +12,11 @@
     "empty_title": "Ankoraŭ neniuj ĉambroj",
     "empty_prefix": "Vi aliĝis al neniuj ĉambroj en ĉi tiu servilo. Kapu al la",
     "empty_overview": "Superrigardo",
-    "empty_suffix": "por foliumi la dosierujon kaj aliĝi al tiuj, pri kiuj vi interesiĝas."
+    "empty_suffix": "por foliumi la dosierujon kaj aliĝi al tiuj, pri kiuj vi interesiĝas.",
+    "mark_as_read": "Marki kiel legitan",
+    "remove_server": "Forigi servilon",
+    "leave_room": "Forlasi ĉambron",
+    "server_actions": "Agoj por {server}",
+    "room_actions": "Agoj por #{room}"
   }
 }

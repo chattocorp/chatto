@@ -68,6 +68,13 @@ authorization, live events, backup/restore, and backend tests.
   external side effect, that fact must provide a durable recovery path. Verify
   crash recovery, multi-replica discovery, lease handover, and bounded
   request-path cost.
+- Match distributed lease ownership to the work lifecycle. Continuous polling
+  workers may hold and renew a lease while running; periodic workers should
+  attempt one lease acquisition per pass and wait outside the lease. Treat the
+  lease as duplicate-work reduction rather than fencing, and log ownership
+  changes or failures rather than every successful renewal. Enforce a
+  cluster-wide periodic rate with shared expiring state, not a per-replica
+  timer; retain cooldowns only after successful work so failures can retry.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
@@ -81,16 +88,37 @@ authorization, live events, backup/restore, and backend tests.
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
   unwrapped keys, or state that would weaken crypto-shredding.
-- Treat the set of projection keys inside a shipped snapshot namespace as
-  immutable. Adding a snapshotted projection requires a new namespace version
-  so older replicas cannot delete the newer projection's referenced generations
-  during a mixed-version rollout. Keep snapshot pointers on a durable
-  revisioned store and publish them with OCC; a process lease is not fencing.
-  Carry cutoff, EVT incarnation, and compatibility metadata in the pointer and
-  reject non-advancing captures; pointer revision OCC alone cannot detect state
-  captured before the latest pointer read.
-  Scope generation object paths by encryption-key epoch so cleanup cannot cross
-  secrets during a rolling key change.
+- Give every snapshotted projection one opaque, projection-scoped contract ID.
+  The contract covers serialized state, replay semantics, consumed event
+  families, and cutoff meaning. If restoring an existing snapshot would no
+  longer equal replaying EVT through its cutoff, bump the contract ID. Treat
+  IDs only as bounded path-safe equality tokens, never as ordered versions.
+  Scope both generation paths and pointer keys by projection and contract so
+  different contracts never read or overwrite each other. Keep pointers on a
+  durable revisioned store and publish them with OCC; a process lease is not
+  fencing. Capture the contract once during projector configuration and use
+  that same value for restore and publication; do not duplicate it in wiring.
+  Carry cutoff, creation time, EVT incarnation, and contract metadata in
+  the pointer.
+  Allow same-cutoff refreshes for retention, but do not republish a fresh,
+  unchanged generation merely because a process restarted. Reject regressing
+  captures, and use pointer revision OCC to prevent concurrent writers from
+  replacing newer history.
+  Scope generation object paths by encryption-key epoch. NATS Object Store TTL
+  and marker-verified S3 age expiry may remove referenced generations; loaders
+  must treat absence as a normal cold-replay condition.
+- Most current snapshot contracts use projection-local ID `v1`;
+  the user profile projection uses `v2`. Keep password
+  verifiers, auth generations, external identity subjects, and OAuth consent in
+  the independently cold-replayed `UserAuthProjection`; never add them to a
+  profile snapshot schema or codec.
+- Every projection owns its ordered EVT consumer, snapshot restore, and replay
+  frontier. A usable snapshot starts only that consumer after its cutoff; a
+  missing snapshot cold-replays only its owning projection. Keep global boot
+  readiness gated on every required projection becoming current. Release
+  boot-time sequence waiters when installing a restored cutoff, and test
+  all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
+  waiter interleavings.
 
 ## Live Events
 

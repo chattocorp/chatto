@@ -15,6 +15,8 @@ const { mocks } = vi.hoisted(() => {
       createRoomDirectoryAPI: vi.fn(),
       listRooms: vi.fn(),
       goto: vi.fn(),
+      pushState: vi.fn(),
+      markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
       appUi: {
         disableRoomCallWideFor: vi.fn()
       },
@@ -56,6 +58,7 @@ const { mocks } = vi.hoisted(() => {
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
+          hasAnyUnread: true,
           captureSnapshotRevision: vi.fn().mockReturnValue(0),
           clear: vi.fn(),
           initRooms: vi.fn(),
@@ -74,7 +77,13 @@ const { mocks } = vi.hoisted(() => {
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
           name: 'Chatto',
-          iconUrl: null as string | null
+          iconUrl: null as string | null,
+          version: '0.5.0',
+          compatibility: {
+            status: 'supported',
+            reason: 'capabilities-confirmed',
+            missingCapabilities: [] as string[]
+          }
         },
         setPermissions: vi.fn(),
         serverIndicator: vi.fn().mockReturnValue(null)
@@ -93,7 +102,8 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto
+  goto: mocks.goto,
+  pushState: mocks.pushState
 }));
 
 vi.mock('$app/paths', () => ({
@@ -154,6 +164,10 @@ vi.mock('$lib/api-client/roomDirectory', () => ({
     DM: 2
   },
   createRoomDirectoryAPI: mocks.createRoomDirectoryAPI
+}));
+
+vi.mock('$lib/navigation/readActions', () => ({
+  markNavigationServerAsRead: mocks.markNavigationServerAsRead
 }));
 
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
@@ -221,6 +235,9 @@ describe('ServerSidebarEntry', () => {
     mocks.createRoomDirectoryAPI.mockReset();
     mocks.listRooms.mockReset();
     mocks.goto.mockClear();
+    mocks.pushState.mockClear();
+    mocks.markNavigationServerAsRead.mockClear();
+    mocks.markNavigationServerAsRead.mockResolvedValue(true);
     mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.eventHandlers.length = 0;
     mocks.registrar.onEvent.mockClear();
@@ -253,11 +270,123 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverIndicator.mockReturnValue(null);
     mocks.store.serverInfo.name = 'Chatto';
     mocks.store.serverInfo.iconUrl = null;
+    mocks.store.serverInfo.version = '0.5.0';
+    mocks.store.serverInfo.compatibility = {
+      status: 'supported',
+      reason: 'capabilities-confirmed',
+      missingCapabilities: []
+    };
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  it('opens server actions on right-click and marks the server as read', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
+    );
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    const markRead = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Mark as read'
+    );
+    await expect.element(markRead ?? null).toBeInTheDocument();
+    await expect.element(markRead ?? null).toBeEnabled();
+    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
+    markRead!.click();
+
+    expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
+  });
+
+  it('opens server actions from the overlaid unread badge', async () => {
+    mocks.store.serverIndicator.mockReturnValue('unread');
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const badge = q(container, '[data-testid="server-unread-dot"]')?.closest(
+      'button'
+    ) as HTMLButtonElement;
+
+    badge.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+    await expect
+      .element(q(document.body, '[role="menu"]'))
+      .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
+  });
+
+  it('opens the remove-server confirmation for the selected server', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Remove server'));
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Remove server'
+    );
+    await expect.element(leave ?? null).toBeInTheDocument();
+    leave!.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'removeServer', serverId: 'remote', spaceName: 'Loaded Remote' }
+    });
+  });
+
+  it('shows the server version and warns when the server is too old', async () => {
+    mocks.store.serverInfo.version = '0.4.12';
+    mocks.store.serverInfo.compatibility = {
+      status: 'degraded',
+      reason: 'server-too-old',
+      missingCapabilities: []
+    };
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'This server is running an older version. Some features may not work as expected.'
+      )
+    );
+    expect(document.body.textContent).toContain('Version 0.4.12');
+
+    const compatibilitySection = q(
+      document.body,
+      '[data-testid="server-compatibility-section"]'
+    );
+    expect(compatibilitySection!.classList).toContain('text-sm');
+    expect(compatibilitySection!.querySelector('.text-xs')).toBeNull();
+    expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
   });
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {

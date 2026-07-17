@@ -141,6 +141,17 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => () => 'test-instance'
 }));
 
+vi.mock('$lib/state/userSettings.svelte', () => ({
+  getUserSettings: () => ({
+    get effectiveTimezone() {
+      return 'UTC';
+    },
+    get effectiveHour12() {
+      return false;
+    }
+  })
+}));
+
 vi.mock('$lib/state/room', () => ({
   getRoomMembers: () => roomStateMock.members,
   getRoomMembersStore: () => ({
@@ -401,6 +412,29 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[title="Attach file"]')).toBeInTheDocument();
+    });
+
+    it('renders the timestamp insertion button', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      await findEditor(container);
+      await expect
+        .element(q(container, 'button[aria-label="Insert timestamp"]'))
+        .toBeInTheDocument();
+    });
+
+    it('keeps editor input above the compact action toolbar', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      const editor = await findEditor(container);
+      const editorRow = q(container, '[data-testid="composer-editor-row"]');
+      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+
+      expect(editorRow?.contains(editor)).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Bold"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
     });
 
     it('hides attachment controls when uploads are not allowed', async () => {
@@ -1243,6 +1277,35 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
+    it('inserts a raw timestamp token from the picker before sending', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'Call');
+      await userEvent.click(q(container, 'button[aria-label="Insert timestamp"]')!);
+      const dateTimeInput = document.querySelector(
+        'input[type="datetime-local"]'
+      ) as HTMLInputElement;
+      const timezoneInput = document.querySelector(
+        `input[list^="timestamp-timezones-"]`
+      ) as HTMLInputElement;
+      expect(dateTimeInput).toBeTruthy();
+      expect(timezoneInput).toBeTruthy();
+      await vi.waitFor(() => expect(document.activeElement).toBe(dateTimeInput));
+
+      await changeInputValue(dateTimeInput, '2025-04-27T14:30');
+      await changeInputValue(timezoneInput, 'UTC');
+      await userEvent.click(document.querySelector('button[type="submit"]')!);
+
+      await vi.waitFor(() => expect(editor.textContent).toContain('<t:1745764200:F>'));
+      await pressEditorKey(editor, 'Enter');
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalled());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'Call <t:1745764200:F>'
+      });
+    });
+
     it('uses Enter to complete an active mention before plain Enter can send', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
@@ -1439,6 +1502,24 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorKeys(editor, '**bold**');
+      await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '**bold**'
+      });
+    });
+
+    it('posts markdown after composer formatting buttons are applied', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const boldButton = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
+
+      await userEvent.click(boldButton);
+      await expect.element(boldButton).toHaveAttribute('aria-pressed', 'true');
+      await insertEditorLiteralText(editor, 'bold');
       await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 

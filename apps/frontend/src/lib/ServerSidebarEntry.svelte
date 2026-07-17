@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -21,6 +21,13 @@
   import ServerIcon from './ServerIcon.svelte';
   import { onMount } from 'svelte';
   import * as m from '$lib/i18n/messages';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
+  import {
+    contextMenuTrigger,
+    type ContextMenuTriggerDetails
+  } from '$lib/ui/contextMenuTrigger.svelte';
+  import { markNavigationServerAsRead } from '$lib/navigation/readActions';
 
   let {
     serverId,
@@ -77,14 +84,60 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const compatibility = $derived(stores.serverInfo.compatibility);
+  const compatibilityMessage = $derived.by(() => {
+    switch (compatibility.reason) {
+      case 'missing-recommended-capabilities':
+        return m['chat.server_gutter.compatibility_degraded']();
+      case 'server-too-old':
+        return m['chat.server_gutter.compatibility_server_too_old']();
+      case 'web-client-too-old':
+        return m['chat.server_gutter.compatibility_client_too_old']();
+      case 'missing-required-capabilities':
+        return m['chat.server_gutter.compatibility_unsupported']();
+      case 'legacy-server':
+        return m['chat.server_gutter.compatibility_unknown']();
+      default:
+        return null;
+    }
+  });
+  const compatibilityWarning = $derived(
+    compatibility.status === 'degraded' || compatibility.status === 'unsupported'
+  );
   const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
   const iconTitle = $derived(
     needsReauth
       ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
       : iconDimmed
         ? `${iconServer.name} (connection unavailable)`
-        : iconServer.name
+        : compatibilityWarning && compatibilityMessage
+          ? `${iconServer.name} — ${compatibilityMessage}`
+          : iconServer.name
   );
+  let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
+  const serverContextMenuTrigger = contextMenuTrigger((details) => {
+    contextMenu = details;
+  });
+
+  function closeContextMenu(): void {
+    contextMenu = null;
+  }
+
+  function handleMarkServerRead(): void {
+    closeContextMenu();
+    void markNavigationServerAsRead(serverId);
+  }
+
+  function handleRemoveServer(): void {
+    closeContextMenu();
+    pushState('', {
+      modal: {
+        type: 'removeServer',
+        serverId,
+        spaceName: iconServer.name
+      }
+    });
+  }
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()
   // so the two paths can't drift out of sync with what was rendered.
@@ -269,6 +322,50 @@
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}
   onIndicatorClick={handleServerIndicatorClick}
+  contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   dimmed={iconDimmed}
+  {compatibilityWarning}
 />
+
+{#if contextMenu}
+  <ContextMenu
+    position={contextMenu.position}
+    presentation={contextMenu.presentation}
+    ariaLabel={m['room_list.server_actions']({ server: iconServer.name })}
+    class="w-80 max-w-[calc(100vw-1rem)]"
+    onclose={closeContextMenu}
+  >
+    <div
+      class="menu-section px-3 py-2 text-sm"
+      role="presentation"
+      data-testid="server-compatibility-section"
+    >
+      <div class="text-muted">
+        {stores.serverInfo.version
+          ? m['chat.server_gutter.version']({ version: stores.serverInfo.version })
+          : m['chat.server_gutter.version_unknown']()}
+      </div>
+      {#if compatibilityMessage}
+        <div
+          class={[
+            'mt-1 flex items-start gap-1.5 whitespace-normal',
+            compatibilityWarning ? 'text-warning' : 'text-muted'
+          ]}
+          data-testid="server-compatibility-message"
+        >
+          {#if compatibilityWarning}
+            <span class="iconify mt-0.5 shrink-0 uil--exclamation-circle" aria-hidden="true"></span>
+          {/if}
+          <span>{compatibilityMessage}</span>
+        </div>
+      {/if}
+    </div>
+    <NavigationContextMenu
+      kind="server"
+      canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
+      onMarkRead={handleMarkServerRead}
+      onLeave={handleRemoveServer}
+    />
+  </ContextMenu>
+{/if}

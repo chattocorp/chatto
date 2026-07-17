@@ -22,6 +22,26 @@
     "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
     "send_failed": "Échec de l'envoi du message",
     "edit_failed": "Échec de la modification du message",
+    "format": {
+      "bold": "Gras",
+      "italic": "Italique",
+      "inline_code": "Code en ligne",
+      "heading": "Titre",
+      "bullet_list": "Liste à puces",
+      "ordered_list": "Liste numérotée",
+      "blockquote": "Citation",
+      "code_block": "Bloc de code"
+    },
+    "timestamp": {
+      "title": "Insérer un horodatage",
+      "insert_label": "Insérer un horodatage",
+      "date_time": "Date et heure",
+      "timezone": "Fuseau horaire",
+      "insert": "Insérer",
+      "error_required": "Choisissez une date et une heure.",
+      "error_timezone": "Choisissez un fuseau horaire IANA valide.",
+      "error_invalid": "Choisissez une date et une heure valides pour ce fuseau horaire."
+    },
     "mention": {
       "all_room_members": "Tous les membres du salon",
       "members_here": "Membres actuellement ici",

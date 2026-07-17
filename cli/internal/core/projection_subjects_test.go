@@ -91,6 +91,20 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			},
 		},
 		{
+			name: "user auth remains focused",
+			got:  newUserAuthProjection().Subjects(),
+			want: []string{
+				events.UserEventTypeFilter(events.EventUserAccountCreated),
+				events.UserEventTypeFilter(events.EventUserPasswordHashChanged),
+				events.UserEventTypeFilter(events.EventUserOIDCSubjectLinked),
+				events.UserEventTypeFilter(events.EventUserExternalIdentityLinked),
+				events.UserEventTypeFilter(events.EventUserExternalIdentityUnlinked),
+				events.UserEventTypeFilter(events.EventOAuthConsentGranted),
+				events.UserEventTypeFilter(events.EventUserAccountDeleted),
+				events.UserEventTypeFilter(events.EventUserKeyShredded),
+			},
+		},
+		{
 			name: "mentionables uses stream-wide namespace",
 			got:  NewMentionablesProjection(nil, nil).Subjects(),
 			want: []string{events.EventSubjectFilter()},
@@ -110,6 +124,7 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	for name, subjects := range map[string][]string{
 		"content keys": NewContentKeyProjection().Subjects(),
 		"threads":      NewThreadProjection().Subjects(),
+		"user auth":    newUserAuthProjection().Subjects(),
 	} {
 		t.Run(name, func(t *testing.T) {
 			for _, broad := range []string{events.RoomSubjectFilter(), events.UserSubjectFilter(), events.ConfigSubjectFilter()} {

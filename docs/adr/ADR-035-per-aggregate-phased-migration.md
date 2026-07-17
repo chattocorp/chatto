@@ -141,8 +141,8 @@ If we hit a migration where this turns out to be the wrong call, we add the shad
 ## Out of scope for this ADR
 
 - The specific protobuf event additions for each aggregate — decided per-aggregate at migration time.
-- Snapshot support beyond the initial `ThreadProjection` canary in
-  [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) — deferred.
+- Projection snapshot behavior, which is governed by
+  [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md).
 - Long-term retention of the legacy `SERVER_EVENTS` stream after the last aggregate migrates — now handled by the 2026-06-12 cleanup.
 - A general "framework readiness" gate before starting aggregate two. We start the next aggregate when the previous direct-cutover path has enough test and rollout confidence; no separate framework-quality checkpoint.
 

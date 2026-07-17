@@ -240,6 +240,12 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 	return c.presenceModel.GetUserPresence(ctx, userID)
 }
 
+// GetUserPresences returns watcher-backed presence for bulk read hydration.
+// Singular reads remain KV-backed so mutation responses retain read-your-writes.
+func (c *ChattoCore) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
+	return c.presenceModel.GetUserPresences(ctx, userIDs)
+}
+
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
 func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {

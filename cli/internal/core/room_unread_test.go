@@ -59,11 +59,13 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	// This test only exercises the RUNTIME_STATE read marker. Using fresh IDs
+	// keeps it independent of room/user creation and projection timing.
+	roomID := NewRoomID()
+	userID := NewUserID()
 
 	// Initially: empty (never read)
-	id, err := core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err := core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id: %v", err)
 	}
@@ -72,10 +74,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Set and read back
-	if err := core.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Eabcdefghij012"); err != nil {
+	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Eabcdefghij012"); err != nil {
 		t.Fatalf("Failed to set last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after set: %v", err)
 	}
@@ -84,10 +86,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Overwrite
-	if err := core.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Exyzxyzxyzxyz9"); err != nil {
+	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Exyzxyzxyzxyz9"); err != nil {
 		t.Fatalf("Failed to update last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after update: %v", err)
 	}

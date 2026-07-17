@@ -5,7 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -43,6 +43,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroupItem
   } from '$lib/state/server/rooms.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
+  import {
+    contextMenuTrigger,
+    type ContextMenuTriggerDetails
+  } from '$lib/ui/contextMenuTrigger.svelte';
+  import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -66,6 +73,35 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const roomUnreadStore = $derived(stores.roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
+  let roomContextMenu = $state<
+    (ContextMenuTriggerDetails & { room: RoomsListItem }) | null
+  >(null);
+
+  function roomMenuTrigger(room: RoomsListItem) {
+    return contextMenuTrigger((details) => {
+      roomContextMenu = { ...details, room };
+    });
+  }
+
+  function closeRoomContextMenu(): void {
+    roomContextMenu = null;
+  }
+
+  function handleMarkRoomRead(room: RoomsListItem): void {
+    closeRoomContextMenu();
+    void markNavigationRoomAsRead(activeServerId, room.id);
+  }
+
+  function handleLeaveRoom(room: RoomsListItem): void {
+    closeRoomContextMenu();
+    pushState('', {
+      modal: {
+        type: 'leaveRoom',
+        roomId: room.id,
+        roomName: room.name
+      }
+    });
+  }
 
   function eventRoomId(event: EventEnvelope['event']): string | null {
     if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
@@ -416,6 +452,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
+    {@attach isJoined && roomMenuTrigger(room)}
   >
     {#if isJoined}
       <span class={['sidebar-icon', hasUnreadAttention ? 'text-text-top' : 'text-muted']}>#</span>
@@ -467,6 +504,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
+    {@attach roomMenuTrigger(room)}
   >
     <div class="flex shrink-0 -space-x-1">
       {#each dmAvatarParticipants(room) as participant (participant.id)}
@@ -567,4 +605,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       />
     {/if}
   </nav>
+{/if}
+
+{#if roomContextMenu}
+  {@const contextRoom = roomContextMenu.room}
+  <ContextMenu
+    position={roomContextMenu.position}
+    presentation={roomContextMenu.presentation}
+    ariaLabel={m['room_list.room_actions']({ room: contextRoom.name })}
+    onclose={closeRoomContextMenu}
+  >
+    <NavigationContextMenu
+      kind="room"
+      canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
+        contextRoom.viewerNotificationCount > 0}
+      canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
+      onMarkRead={() => handleMarkRoomRead(contextRoom)}
+      onLeave={() => handleLeaveRoom(contextRoom)}
+    />
+  </ContextMenu>
 {/if}

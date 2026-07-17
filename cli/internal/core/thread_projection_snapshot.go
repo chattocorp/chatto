@@ -12,10 +12,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const threadSnapshotCompatibilityID = "threads-v1"
+const threadSnapshotContractID = "v1"
 
-func (*ThreadProjection) SnapshotCompatibilityID() string {
-	return threadSnapshotCompatibilityID
+func (*ThreadProjection) SnapshotContractID() string {
+	return threadSnapshotContractID
 }
 
 func (p *ThreadProjection) Snapshot() ([]byte, error) {

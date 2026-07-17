@@ -71,8 +71,14 @@ ignored (the BottomSheet handles its own positioning).
 <svelte:window onkeydown={handleKeydown} />
 
 {#if useSheet}
-  <BottomSheet bind:visible={sheetVisible} {onclose}>
-    {@render children()}
+  <BottomSheet bind:visible={sheetVisible} {ariaLabel} {onclose}>
+    {#if role === 'menu'}
+      <div role="menu" aria-label={ariaLabel}>
+        {@render children()}
+      </div>
+    {:else}
+      {@render children()}
+    {/if}
   </BottomSheet>
 {:else}
   <FloatingPopover

@@ -417,6 +417,7 @@ const msg_auth_login_title = (): LocalizedString => messages().auth_login_title(
 const msg_auth_login_welcome_title = (): LocalizedString => messages().auth_login_welcome_title(empty());
 const msg_auth_login_welcome_page_title = (): LocalizedString => messages().auth_login_welcome_page_title(empty());
 const msg_auth_login_welcome_description = (): LocalizedString => messages().auth_login_welcome_description(empty());
+const msg_auth_login_welcome_sign_in_hint = (): LocalizedString => messages().auth_login_welcome_sign_in_hint(empty());
 const msg_auth_login_add_server = (): LocalizedString => messages().auth_login_add_server(empty());
 const msg_auth_login_password_reset_success = (): LocalizedString => messages().auth_login_password_reset_success(empty());
 const msg_auth_login_continue_with_provider = (
@@ -551,6 +552,15 @@ const msg_chat_server_nav_administration = (): LocalizedString => messages().cha
 const msg_chat_user_menu_profile = (): LocalizedString => messages().chat_user_menu_profile(empty());
 const msg_chat_user_menu_send_message = (): LocalizedString => messages().chat_user_menu_send_message(empty());
 const msg_chat_server_gutter_add_server = (): LocalizedString => messages().chat_server_gutter_add_server(empty());
+const msg_chat_server_gutter_version = (
+  inputs: Parameters<LocaleMessages['chat_server_gutter_version']>[0]
+): LocalizedString => messages().chat_server_gutter_version(inputs);
+const msg_chat_server_gutter_version_unknown = (): LocalizedString => messages().chat_server_gutter_version_unknown(empty());
+const msg_chat_server_gutter_compatibility_degraded = (): LocalizedString => messages().chat_server_gutter_compatibility_degraded(empty());
+const msg_chat_server_gutter_compatibility_server_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_server_too_old(empty());
+const msg_chat_server_gutter_compatibility_client_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_client_too_old(empty());
+const msg_chat_server_gutter_compatibility_unsupported = (): LocalizedString => messages().chat_server_gutter_compatibility_unsupported(empty());
+const msg_chat_server_gutter_compatibility_unknown = (): LocalizedString => messages().chat_server_gutter_compatibility_unknown(empty());
 const msg_chat_threads_title = (): LocalizedString => messages().chat_threads_title(empty());
 const msg_chat_threads_subtitle = (): LocalizedString => messages().chat_threads_subtitle(empty());
 const msg_chat_threads_filter_label = (): LocalizedString => messages().chat_threads_filter_label(empty());
@@ -640,11 +650,14 @@ const msg_room_directory_left_generic = (): LocalizedString => messages().room_d
 const msg_room_directory_leave_confirm = (
   inputs: Parameters<LocaleMessages['room_directory_leave_confirm']>[0]
 ): LocalizedString => messages().room_directory_leave_confirm(inputs);
-const msg_room_server_leave_title = (): LocalizedString => messages().room_server_leave_title(empty());
-const msg_room_server_leave_action = (): LocalizedString => messages().room_server_leave_action(empty());
-const msg_room_server_leave_prompt = (
-  inputs: Parameters<LocaleMessages['room_server_leave_prompt']>[0]
-): LocalizedString => messages().room_server_leave_prompt(inputs);
+const msg_room_server_remove_title = (): LocalizedString => messages().room_server_remove_title(empty());
+const msg_room_server_remove_action = (): LocalizedString => messages().room_server_remove_action(empty());
+const msg_room_server_remove_prompt = (
+  inputs: Parameters<LocaleMessages['room_server_remove_prompt']>[0]
+): LocalizedString => messages().room_server_remove_prompt(inputs);
+const msg_room_server_remove_account_prefix = (): LocalizedString => messages().room_server_remove_account_prefix(empty());
+const msg_room_server_remove_account_link = (): LocalizedString => messages().room_server_remove_account_link(empty());
+const msg_room_server_remove_account_suffix = (): LocalizedString => messages().room_server_remove_account_suffix(empty());
 const msg_room_timeline_beginning = (): LocalizedString => messages().room_timeline_beginning(empty());
 const msg_room_message_empty = (): LocalizedString => messages().room_message_empty(empty());
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
@@ -688,6 +701,9 @@ const msg_room_message_meta_copy_link_title = (): LocalizedString => messages().
 const msg_room_message_meta_in_reply_to = (): LocalizedString => messages().room_message_meta_in_reply_to(empty());
 const msg_room_message_meta_reply_preview_fallback = (): LocalizedString => messages().room_message_meta_reply_preview_fallback(empty());
 const msg_room_message_meta_deleted = (): LocalizedString => messages().room_message_meta_deleted(empty());
+const msg_room_message_timestamp_details_title = (): LocalizedString => messages().room_message_timestamp_details_title(empty());
+const msg_room_message_timestamp_local_time = (): LocalizedString => messages().room_message_timestamp_local_time(empty());
+const msg_room_message_timestamp_relative_time = (): LocalizedString => messages().room_message_timestamp_relative_time(empty());
 const msg_room_system_events_joined = (
   inputs: Parameters<LocaleMessages['room_system_events_joined']>[0]
 ): LocalizedString => messages().room_system_events_joined(inputs);
@@ -867,6 +883,9 @@ const msg_ui_expiry_error_required = (): LocalizedString => messages().ui_expiry
 const msg_ui_expiry_error_invalid = (): LocalizedString => messages().ui_expiry_error_invalid(empty());
 const msg_ui_expiry_error_future = (): LocalizedString => messages().ui_expiry_error_future(empty());
 const msg_ui_form_required = (): LocalizedString => messages().ui_form_required(empty());
+const msg_ui_form_max_bytes = (
+  inputs: Parameters<LocaleMessages['ui_form_max_bytes']>[0]
+): LocalizedString => messages().ui_form_max_bytes(inputs);
 const msg_ui_dates_today = (): LocalizedString => messages().ui_dates_today(empty());
 const msg_ui_dates_yesterday = (): LocalizedString => messages().ui_dates_yesterday(empty());
 const msg_ui_dates_this_week = (): LocalizedString => messages().ui_dates_this_week(empty());
@@ -883,6 +902,8 @@ const msg_preview_dismiss = (): LocalizedString => messages().preview_dismiss(em
 const msg_preview_delete = (): LocalizedString => messages().preview_delete(empty());
 const msg_preview_open_link = (): LocalizedString => messages().preview_open_link(empty());
 const msg_preview_copy_url = (): LocalizedString => messages().preview_copy_url(empty());
+const msg_preview_show_content = (): LocalizedString => messages().preview_show_content(empty());
+const msg_preview_hide_content = (): LocalizedString => messages().preview_hide_content(empty());
 const msg_preview_youtube_title = (): LocalizedString => messages().preview_youtube_title(empty());
 const msg_preview_youtube_dismiss = (): LocalizedString => messages().preview_youtube_dismiss(empty());
 const msg_preview_youtube_delete = (): LocalizedString => messages().preview_youtube_delete(empty());
@@ -918,6 +939,15 @@ const msg_room_list_empty_title = (): LocalizedString => messages().room_list_em
 const msg_room_list_empty_prefix = (): LocalizedString => messages().room_list_empty_prefix(empty());
 const msg_room_list_empty_overview = (): LocalizedString => messages().room_list_empty_overview(empty());
 const msg_room_list_empty_suffix = (): LocalizedString => messages().room_list_empty_suffix(empty());
+const msg_room_list_mark_as_read = (): LocalizedString => messages().room_list_mark_as_read(empty());
+const msg_room_list_remove_server = (): LocalizedString => messages().room_list_remove_server(empty());
+const msg_room_list_leave_room = (): LocalizedString => messages().room_list_leave_room(empty());
+const msg_room_list_server_actions = (
+  inputs: Parameters<LocaleMessages['room_list_server_actions']>[0]
+): LocalizedString => messages().room_list_server_actions(inputs);
+const msg_room_list_room_actions = (
+  inputs: Parameters<LocaleMessages['room_list_room_actions']>[0]
+): LocalizedString => messages().room_list_room_actions(inputs);
 const msg_voice_connecting = (): LocalizedString => messages().voice_connecting(empty());
 const msg_voice_joining = (): LocalizedString => messages().voice_joining(empty());
 const msg_voice_starting = (): LocalizedString => messages().voice_starting(empty());
@@ -995,6 +1025,22 @@ const msg_composer_drop_files_title = (): LocalizedString => messages().composer
 const msg_composer_drop_files_subtitle = (): LocalizedString => messages().composer_drop_files_subtitle(empty());
 const msg_composer_send_failed = (): LocalizedString => messages().composer_send_failed(empty());
 const msg_composer_edit_failed = (): LocalizedString => messages().composer_edit_failed(empty());
+const msg_composer_format_bold = (): LocalizedString => messages().composer_format_bold(empty());
+const msg_composer_format_italic = (): LocalizedString => messages().composer_format_italic(empty());
+const msg_composer_format_inline_code = (): LocalizedString => messages().composer_format_inline_code(empty());
+const msg_composer_format_heading = (): LocalizedString => messages().composer_format_heading(empty());
+const msg_composer_format_bullet_list = (): LocalizedString => messages().composer_format_bullet_list(empty());
+const msg_composer_format_ordered_list = (): LocalizedString => messages().composer_format_ordered_list(empty());
+const msg_composer_format_blockquote = (): LocalizedString => messages().composer_format_blockquote(empty());
+const msg_composer_format_code_block = (): LocalizedString => messages().composer_format_code_block(empty());
+const msg_composer_timestamp_title = (): LocalizedString => messages().composer_timestamp_title(empty());
+const msg_composer_timestamp_insert_label = (): LocalizedString => messages().composer_timestamp_insert_label(empty());
+const msg_composer_timestamp_date_time = (): LocalizedString => messages().composer_timestamp_date_time(empty());
+const msg_composer_timestamp_timezone = (): LocalizedString => messages().composer_timestamp_timezone(empty());
+const msg_composer_timestamp_insert = (): LocalizedString => messages().composer_timestamp_insert(empty());
+const msg_composer_timestamp_error_required = (): LocalizedString => messages().composer_timestamp_error_required(empty());
+const msg_composer_timestamp_error_timezone = (): LocalizedString => messages().composer_timestamp_error_timezone(empty());
+const msg_composer_timestamp_error_invalid = (): LocalizedString => messages().composer_timestamp_error_invalid(empty());
 const msg_composer_mention_all_room_members = (): LocalizedString => messages().composer_mention_all_room_members(empty());
 const msg_composer_mention_members_here = (): LocalizedString => messages().composer_mention_members_here(empty());
 const msg_composer_mention_role = (): LocalizedString => messages().composer_mention_role(empty());
@@ -1872,6 +1918,7 @@ export { msg_auth_login_title as 'auth.login.title' };
 export { msg_auth_login_welcome_title as 'auth.login.welcome_title' };
 export { msg_auth_login_welcome_page_title as 'auth.login.welcome_page_title' };
 export { msg_auth_login_welcome_description as 'auth.login.welcome_description' };
+export { msg_auth_login_welcome_sign_in_hint as 'auth.login.welcome_sign_in_hint' };
 export { msg_auth_login_add_server as 'auth.login.add_server' };
 export { msg_auth_login_password_reset_success as 'auth.login.password_reset_success' };
 export { msg_auth_login_continue_with_provider as 'auth.login.continue_with_provider' };
@@ -1988,6 +2035,13 @@ export { msg_chat_server_nav_administration as 'chat.server_nav.administration' 
 export { msg_chat_user_menu_profile as 'chat.user_menu.profile' };
 export { msg_chat_user_menu_send_message as 'chat.user_menu.send_message' };
 export { msg_chat_server_gutter_add_server as 'chat.server_gutter.add_server' };
+export { msg_chat_server_gutter_version as 'chat.server_gutter.version' };
+export { msg_chat_server_gutter_version_unknown as 'chat.server_gutter.version_unknown' };
+export { msg_chat_server_gutter_compatibility_degraded as 'chat.server_gutter.compatibility_degraded' };
+export { msg_chat_server_gutter_compatibility_server_too_old as 'chat.server_gutter.compatibility_server_too_old' };
+export { msg_chat_server_gutter_compatibility_client_too_old as 'chat.server_gutter.compatibility_client_too_old' };
+export { msg_chat_server_gutter_compatibility_unsupported as 'chat.server_gutter.compatibility_unsupported' };
+export { msg_chat_server_gutter_compatibility_unknown as 'chat.server_gutter.compatibility_unknown' };
 export { msg_chat_threads_title as 'chat.threads.title' };
 export { msg_chat_threads_subtitle as 'chat.threads.subtitle' };
 export { msg_chat_threads_filter_label as 'chat.threads.filter_label' };
@@ -2053,9 +2107,12 @@ export { msg_room_directory_join_group_failed as 'room.directory.join_group_fail
 export { msg_room_directory_left as 'room.directory.left' };
 export { msg_room_directory_left_generic as 'room.directory.left_generic' };
 export { msg_room_directory_leave_confirm as 'room.directory.leave_confirm' };
-export { msg_room_server_leave_title as 'room.server.leave_title' };
-export { msg_room_server_leave_action as 'room.server.leave_action' };
-export { msg_room_server_leave_prompt as 'room.server.leave_prompt' };
+export { msg_room_server_remove_title as 'room.server.remove_title' };
+export { msg_room_server_remove_action as 'room.server.remove_action' };
+export { msg_room_server_remove_prompt as 'room.server.remove_prompt' };
+export { msg_room_server_remove_account_prefix as 'room.server.remove_account_prefix' };
+export { msg_room_server_remove_account_link as 'room.server.remove_account_link' };
+export { msg_room_server_remove_account_suffix as 'room.server.remove_account_suffix' };
 export { msg_room_timeline_beginning as 'room.timeline.beginning' };
 export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
@@ -2087,6 +2144,9 @@ export { msg_room_message_meta_copy_link_title as 'room.message.meta.copy_link_t
 export { msg_room_message_meta_in_reply_to as 'room.message.meta.in_reply_to' };
 export { msg_room_message_meta_reply_preview_fallback as 'room.message.meta.reply_preview_fallback' };
 export { msg_room_message_meta_deleted as 'room.message.meta.deleted' };
+export { msg_room_message_timestamp_details_title as 'room.message.timestamp.details_title' };
+export { msg_room_message_timestamp_local_time as 'room.message.timestamp.local_time' };
+export { msg_room_message_timestamp_relative_time as 'room.message.timestamp.relative_time' };
 export { msg_room_system_events_joined as 'room.system_events.joined' };
 export { msg_room_system_events_left as 'room.system_events.left' };
 export { msg_room_system_events_archived as 'room.system_events.archived' };
@@ -2234,6 +2294,7 @@ export { msg_ui_expiry_error_required as 'ui.expiry.error_required' };
 export { msg_ui_expiry_error_invalid as 'ui.expiry.error_invalid' };
 export { msg_ui_expiry_error_future as 'ui.expiry.error_future' };
 export { msg_ui_form_required as 'ui.form.required' };
+export { msg_ui_form_max_bytes as 'ui.form.max_bytes' };
 export { msg_ui_dates_today as 'ui.dates.today' };
 export { msg_ui_dates_yesterday as 'ui.dates.yesterday' };
 export { msg_ui_dates_this_week as 'ui.dates.this_week' };
@@ -2250,6 +2311,8 @@ export { msg_preview_dismiss as 'preview.dismiss' };
 export { msg_preview_delete as 'preview.delete' };
 export { msg_preview_open_link as 'preview.open_link' };
 export { msg_preview_copy_url as 'preview.copy_url' };
+export { msg_preview_show_content as 'preview.show_content' };
+export { msg_preview_hide_content as 'preview.hide_content' };
 export { msg_preview_youtube_title as 'preview.youtube_title' };
 export { msg_preview_youtube_dismiss as 'preview.youtube_dismiss' };
 export { msg_preview_youtube_delete as 'preview.youtube_delete' };
@@ -2273,6 +2336,11 @@ export { msg_room_list_empty_title as 'room_list.empty_title' };
 export { msg_room_list_empty_prefix as 'room_list.empty_prefix' };
 export { msg_room_list_empty_overview as 'room_list.empty_overview' };
 export { msg_room_list_empty_suffix as 'room_list.empty_suffix' };
+export { msg_room_list_mark_as_read as 'room_list.mark_as_read' };
+export { msg_room_list_remove_server as 'room_list.remove_server' };
+export { msg_room_list_leave_room as 'room_list.leave_room' };
+export { msg_room_list_server_actions as 'room_list.server_actions' };
+export { msg_room_list_room_actions as 'room_list.room_actions' };
 export { msg_voice_connecting as 'voice.connecting' };
 export { msg_voice_joining as 'voice.joining' };
 export { msg_voice_starting as 'voice.starting' };
@@ -2348,6 +2416,22 @@ export { msg_composer_drop_files_title as 'composer.drop_files_title' };
 export { msg_composer_drop_files_subtitle as 'composer.drop_files_subtitle' };
 export { msg_composer_send_failed as 'composer.send_failed' };
 export { msg_composer_edit_failed as 'composer.edit_failed' };
+export { msg_composer_format_bold as 'composer.format.bold' };
+export { msg_composer_format_italic as 'composer.format.italic' };
+export { msg_composer_format_inline_code as 'composer.format.inline_code' };
+export { msg_composer_format_heading as 'composer.format.heading' };
+export { msg_composer_format_bullet_list as 'composer.format.bullet_list' };
+export { msg_composer_format_ordered_list as 'composer.format.ordered_list' };
+export { msg_composer_format_blockquote as 'composer.format.blockquote' };
+export { msg_composer_format_code_block as 'composer.format.code_block' };
+export { msg_composer_timestamp_title as 'composer.timestamp.title' };
+export { msg_composer_timestamp_insert_label as 'composer.timestamp.insert_label' };
+export { msg_composer_timestamp_date_time as 'composer.timestamp.date_time' };
+export { msg_composer_timestamp_timezone as 'composer.timestamp.timezone' };
+export { msg_composer_timestamp_insert as 'composer.timestamp.insert' };
+export { msg_composer_timestamp_error_required as 'composer.timestamp.error_required' };
+export { msg_composer_timestamp_error_timezone as 'composer.timestamp.error_timezone' };
+export { msg_composer_timestamp_error_invalid as 'composer.timestamp.error_invalid' };
 export { msg_composer_mention_all_room_members as 'composer.mention.all_room_members' };
 export { msg_composer_mention_members_here as 'composer.mention.members_here' };
 export { msg_composer_mention_role as 'composer.mention.role' };

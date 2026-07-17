@@ -76,7 +76,8 @@
       "error_future": "A expiração deve ser no futuro."
     },
     "form": {
-      "required": "Obrigatório"
+      "required": "Obrigatório",
+      "max_bytes": "Máximo de {max} bytes; alguns caracteres utilizam mais de um byte."
     },
     "dates": {
       "today": "Hoje",

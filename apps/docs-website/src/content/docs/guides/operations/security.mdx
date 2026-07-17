@@ -51,7 +51,7 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 ### Chatto frontend OAuth redirects
 
-When a Chatto frontend connects to another Chatto server, it uses `/oauth/authorize` with PKCE to mint a bearer token for that remote server. The remote server only redirects authorization codes back to trusted frontend origins.
+When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the trusted frontend origin; the main client exchanges the code and stores the resulting token.
 
 For a known hosted frontend, list the exact callback origin:
 

@@ -329,10 +329,50 @@ message LinkPreview {
 
   // Preview image content metadata and storage pointer.
   AssetRecord image_asset = 8;
+
+  // Structured provider-neutral social-post snapshot for native rendering.
+  SocialPostPreview social_post = 9;
+}
+
+// SocialPostPreview is a bounded, provider-neutral snapshot of a public post.
+message SocialPostPreview {
+  string provider = 1;
+  SocialPostAuthor author = 2;
+  string text = 3;
+  google.protobuf.Timestamp published_at = 4;
+  repeated SocialPostImage images = 5;
+  SocialPostExternalLink external_link = 6;
+  optional string content_warning = 7;
+  string url = 8;
+  // One quoted post. Nested quotes inside this snapshot are omitted.
+  SocialPostPreview quoted_post = 9;
+}
+
+// SocialPostAuthor identifies the author shown on a social-post preview.
+message SocialPostAuthor {
+  string display_name = 1;
+  string handle = 2;
+  AssetRecord avatar_asset = 3;
+}
+
+// SocialPostImage is one locally persisted image attached to a social post.
+message SocialPostImage {
+  AssetRecord asset = 1;
+  string alt = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+// SocialPostExternalLink is a website card attached to a social post.
+message SocialPostExternalLink {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  AssetRecord image_asset = 4;
 }
 
 // CachedLinkPreview wraps LinkPreview with cache metadata.
-// Stored in LINK_PREVIEW_CACHE KV bucket.
+// Stored under link_preview.* keys in the RUNTIME_STATE KV bucket.
 message CachedLinkPreview {
   // The original URL (for verification)
   string url = 1;
@@ -348,6 +388,9 @@ message CachedLinkPreview {
 
   // When this cache entry was created (Unix timestamp)
   int64 fetched_at_unix = 5;
+
+  // Cache interpretation version used for bounded compatibility refreshes.
+  uint32 schema_version = 6;
 }
 
 // Visual + permission organization of channel rooms (see ADR-031).

@@ -338,8 +338,9 @@ var dmBoundaryDeniedPermissions = map[Permission]bool{
 	PermRoomMemberBan: true,
 	PermMessageManage: true,
 	PermMessageEcho:   true,
-	// DMs have their own creation / membership APIs.
-	PermRoomCreate: true,
+	// DMs have their own creation / membership APIs and do not support threads.
+	PermRoomCreate:          true,
+	PermMessagePostInThread: true,
 }
 
 func dmBoundaryDenies(perm Permission) bool {
@@ -347,11 +348,10 @@ func dmBoundaryDenies(perm Permission) bool {
 }
 
 var dmDefaultAllowedPermissions = map[Permission]bool{
-	PermRoomJoin:            true,
-	PermMessagePost:         true,
-	PermMessagePostInThread: true,
-	PermMessageAttach:       true,
-	PermMessageReact:        true,
+	PermRoomJoin:      true,
+	PermMessagePost:   true,
+	PermMessageAttach: true,
+	PermMessageReact:  true,
 }
 
 func dmDefaultAllows(perm Permission) bool {

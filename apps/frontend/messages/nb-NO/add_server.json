@@ -4,7 +4,7 @@
     "title": "Legg til server",
     "sign_in": "Logg på",
     "connect": "Koble til",
-    "redirecting": "Omdirigerer...",
+    "redirecting": "Venter på pålogging...",
     "connecting": "Kobler til...",
     "start_failed": "Kunne ikke starte pålogging.",
     "invalid_url": "Vennligst skriv inn en gyldig URL.",
@@ -16,7 +16,7 @@
     "connect_failed": "Kunne ikke koble til.",
     "edit_url": "Feil server? Rediger URL",
     "description_url": "Chatto er distribuert - klienten din kobles direkte til hver server. Skriv inn en URL for å legge til en annen.",
-    "description_preview": "Du er i ferd med å logge på denne serveren. Du vil bli sendt til påloggingssiden for å autentisere.",
+    "description_preview": "Et eget vindu åpnes slik at du kan logge på denne serveren direkte.",
     "url_label": "Server URL",
     "url_placeholder": "chat.example.com"
   }

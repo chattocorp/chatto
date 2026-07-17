@@ -111,6 +111,29 @@ Projection implementations should be boring and replay-safe:
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
+
+### Snapshot Evolution Checklist
+
+A projection's opaque snapshot contract ID is its complete restore-equivalence
+boundary. Review the contract whenever changing projection state, `Apply`,
+`Snapshot`, `Restore`, `Subjects`, `ReplaySubjects`, consumer construction, or
+cutoff handling.
+
+- Keep the existing contract only when restoring its snapshot still produces
+  the same state as replaying EVT through the recorded cutoff.
+- Bump the projection's contract ID when that equivalence can change. Contract
+  IDs are bounded path-safe, projection-local equality tokens, not Chatto
+  versions or ordered schema versions.
+- Scope pointers and generation objects by projection plus contract. Different
+  contracts must never read, rotate, delete, or apply no-regression checks to
+  each other's generations.
+- Capture the contract once when configuring the projector and use that value
+  for both restore and publication. Do not restate contract IDs in worker or
+  application wiring.
+- Test forward deployment and rollback when changing a contract: both old and
+  new contracts must remain independently loadable, and either may safely fall
+  back to cold EVT replay.
+
 When optimizing projection replay or retained memory, follow the projection
 benchmark workflow in `cli/AGENTS.md`: capture repeated before/after results
 with `mise bench-projections`, use `mise bench-projections-profile` for exact
@@ -141,6 +164,12 @@ object-store, webhook, or other external side effect as a crash boundary.
   only way to discover unfinished work.
 - An elected worker must discover facts committed later by non-holder replicas;
   a one-time startup scan is not sufficient on a stable multi-replica cluster.
+- Match lease tenure to the worker lifecycle. Continuous recovery loops may
+  retain leadership, while periodic passes should attempt the lease once,
+  release it after the pass, and wait without ownership. Leases reduce
+  duplicate work but do not fence durable writes. When work must run at most
+  once per interval across the cluster, use a shared cooldown and retain it
+  only after success; per-process clocks do not provide a global throttle.
 - Use an incremental stream cursor or durable consumer for ongoing recovery.
   Do not repeatedly materialize unbounded event history.
 - Before a destructive external action based on projected state, wait for the

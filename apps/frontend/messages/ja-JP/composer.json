@@ -22,6 +22,26 @@
     "drop_files_subtitle": "画像と動画がメッセージに追加されます",
     "send_failed": "メッセージの送信に失敗しました",
     "edit_failed": "メッセージの編集に失敗しました",
+    "format": {
+      "bold": "太字",
+      "italic": "斜体",
+      "inline_code": "インラインコード",
+      "heading": "見出し",
+      "bullet_list": "箇条書きリスト",
+      "ordered_list": "番号付きリスト",
+      "blockquote": "引用",
+      "code_block": "コードブロック"
+    },
+    "timestamp": {
+      "title": "タイムスタンプを挿入",
+      "insert_label": "タイムスタンプを挿入",
+      "date_time": "日付と時刻",
+      "timezone": "タイムゾーン",
+      "insert": "挿入",
+      "error_required": "日付と時刻を選択してください。",
+      "error_timezone": "有効な IANA タイムゾーンを選択してください。",
+      "error_invalid": "このタイムゾーンで有効な日付と時刻を選択してください。"
+    },
     "mention": {
       "all_room_members": "ルームメンバー全員",
       "members_here": "現在いるメンバー",

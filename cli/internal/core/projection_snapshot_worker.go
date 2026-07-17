@@ -4,104 +4,244 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"hmans.de/chatto/internal/events"
-	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
-const projectionSnapshotLeaseName = "projection-snapshot-threads"
+// Keep the original lease name so mixed-version replicas coordinate snapshot
+// publication during rollout.
+const (
+	projectionSnapshotLeaseName       = "projection-snapshot-threads"
+	projectionSnapshotExpiryLeaseName = "projection-snapshot-expiry"
+)
 
-type projectionSnapshotWorker struct {
+const (
+	projectionSnapshotRefreshAge           = 23 * time.Hour
+	projectionSnapshotRefreshCheckInterval = time.Hour
+	projectionSnapshotClockSkewTolerance   = 5 * time.Minute
+	projectionSnapshotExpiryInterval       = 24 * time.Hour
+	projectionSnapshotExpiryTimeout        = 5 * time.Minute
+	projectionSnapshotExpiryMaxDeletes     = 100
+	projectionSnapshotExpiryMaxBytes       = 1 << 30
+)
+
+type projectionSnapshotJob struct {
 	projector      *events.Projector
 	repository     *projectionsnapshot.Repository
-	lease          *lease.Lease
 	projectionKey  string
-	compatibility  string
 	streamName     string
 	streamIdentity string
-	logger         events.Logger
-	done           chan struct{}
+}
+
+type projectionSnapshotWorker struct {
+	jobs          []projectionSnapshotJob
+	lease         projectionSnapshotLease
+	expiryLease   projectionSnapshotExpiryLease
+	expirer       projectionSnapshotExpirer
+	retention     time.Duration
+	logger        events.Logger
+	done          chan struct{}
+	doneOnce      sync.Once
+	wait          func(context.Context, time.Duration) error
+	nextInterval  func() time.Duration
+	expiryTimeout time.Duration
+	now           func() time.Time
+}
+
+type projectionSnapshotLease interface {
+	TryRun(context.Context, func(context.Context) error) (bool, error)
+	CheckOwnership(context.Context) error
+}
+
+type projectionSnapshotExpiryLease interface {
+	TryRunWithCooldown(context.Context, func(context.Context) error) (bool, error)
+}
+
+type projectionSnapshotExpirer interface {
+	Backend() string
+	Expire(context.Context, projectionsnapshot.ExpireOptions) (projectionsnapshot.ExpireResult, error)
 }
 
 func (w *projectionSnapshotWorker) Run(ctx context.Context, bootDone <-chan struct{}) error {
-	if w.done != nil {
-		defer close(w.done)
-	}
+	defer w.signalFirstPass()
 	select {
 	case <-bootDone:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	w.logger.Debug("Projection snapshot worker waiting for lease",
-		"projection", w.projectionKey,
-		"backend", w.repository.Backend(),
-		"stage", "lease_acquire")
-	err := w.lease.Run(ctx, w.generate)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		w.logger.Warn("Projection snapshot worker stopped without publishing",
-			"projection", w.projectionKey,
-			"backend", w.repository.Backend(),
-			"stage", "worker",
-			"error", err)
+	wait := w.wait
+	if wait == nil {
+		wait = waitForProjectionSnapshotPass
 	}
-	return err
+	nextInterval := w.nextInterval
+	if nextInterval == nil {
+		nextInterval = func() time.Duration { return projectionSnapshotRefreshCheckInterval }
+	}
+	now := w.now
+	if now == nil {
+		now = time.Now
+	}
+	bootPass := true
+	for {
+		started := now()
+		acquired, err := w.lease.TryRun(ctx, func(leaderCtx context.Context) error {
+			if err := w.generate(leaderCtx, bootPass); err != nil {
+				return err
+			}
+			w.expireIfDue(leaderCtx)
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			w.logger.Warn("Projection snapshot pass failed",
+				"projections", len(w.jobs),
+				"stage", "worker",
+				"error", err)
+		}
+		if acquired && err == nil {
+			bootPass = false
+		}
+		w.signalFirstPass()
+		delay := max(started.Add(nextInterval()).Sub(now()), 0)
+		if err := wait(ctx, delay); err != nil {
+			return err
+		}
+	}
 }
 
-func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
-	started := time.Now()
-	status := w.projector.Status()
+func (w *projectionSnapshotWorker) signalFirstPass() {
+	if w.done != nil {
+		w.doneOnce.Do(func() { close(w.done) })
+	}
+}
+
+func (w *projectionSnapshotWorker) generate(ctx context.Context, publishReplayDelta bool) error {
+	for _, job := range w.jobs {
+		if err := w.generateJob(ctx, job, publishReplayDelta); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			w.logger.Warn("Projection snapshot generation failed",
+				"projection", job.projectionKey,
+				"backend", job.repository.Backend(),
+				"stage", "generate",
+				"error", err)
+		}
+	}
+	return nil
+}
+
+func (w *projectionSnapshotWorker) expireIfDue(ctx context.Context) {
+	if w.expirer == nil || w.expiryLease == nil {
+		return
+	}
+	acquired, err := w.expiryLease.TryRunWithCooldown(ctx, w.expire)
+	if err != nil && !acquired && !errors.Is(err, context.Canceled) {
+		w.logger.Warn("Projection snapshot S3 expiry claim failed",
+			"backend", w.expirer.Backend(), "stage", "expire_claim", "error", err)
+	}
+}
+
+func (w *projectionSnapshotWorker) expire(ctx context.Context) error {
+	timeout := w.expiryTimeout
+	if timeout <= 0 {
+		timeout = projectionSnapshotExpiryTimeout
+	}
+	expireCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	result, err := w.expirer.Expire(expireCtx, projectionsnapshot.ExpireOptions{
+		Retention: w.retention, MaxDeletes: projectionSnapshotExpiryMaxDeletes, MaxDeleteBytes: projectionSnapshotExpiryMaxBytes,
+	})
+	if err != nil {
+		w.logger.Warn("Projection snapshot S3 expiry pass failed",
+			"backend", w.expirer.Backend(), "stage", "expire", "error", err,
+			"scanned_objects", result.ScannedObjects, "eligible_objects", result.EligibleObjects,
+			"deleted_objects", result.DeletedObjects, "deleted_bytes", result.DeletedBytes)
+		return err
+	}
+	w.logger.Info("Projection snapshot S3 expiry pass complete",
+		"backend", w.expirer.Backend(), "stage", "expire", "error", nil,
+		"retention", w.retention, "scanned_objects", result.ScannedObjects,
+		"scanned_bytes", result.ScannedBytes, "recent_objects", result.RecentObjects,
+		"eligible_objects", result.EligibleObjects, "eligible_bytes", result.EligibleBytes,
+		"ignored_objects", result.IgnoredObjects, "deleted_objects", result.DeletedObjects,
+		"deleted_bytes", result.DeletedBytes, "delete_limit_hit", result.DeleteLimitHit)
+	return nil
+}
+
+func waitForProjectionSnapshotPass(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projectionSnapshotJob, publishReplayDelta bool) error {
+	now := w.now
+	if now == nil {
+		now = time.Now
+	}
+	started := now()
+	status := job.projector.Status()
 	if !status.StartupComplete {
 		return fmt.Errorf("projection startup is not complete")
 	}
 	if status.LastSeq == 0 {
 		w.logger.Debug("Projection snapshot generation skipped for empty EVT stream",
-			"projection", w.projectionKey,
-			"backend", w.repository.Backend(),
+			"projection", job.projectionKey,
+			"backend", job.repository.Backend(),
 			"stage", "generate_skip")
 		return nil
 	}
-	current, err := w.repository.Load(ctx, w.projectionKey, w.compatibility, w.streamName, w.streamIdentity, status.LastSeq)
-	if err == nil && current.CutoffSequence >= status.LastSeq {
-		w.logger.Debug("Projection snapshot already current",
-			"projection", w.projectionKey,
-			"backend", w.repository.Backend(),
+	if !projectionSnapshotRefreshDue(status, started, publishReplayDelta) {
+		w.logger.Debug("Projection snapshot generation skipped for fresh restored state",
+			"projection", job.projectionKey,
+			"backend", job.repository.Backend(),
 			"stage", "generate_skip",
-			"generation_id", current.GenerationID,
-			"cutoff_seq", current.CutoffSequence)
+			"cutoff_seq", status.LatestSnapshotSeq,
+			"snapshot_age", max(started.Sub(status.LatestSnapshotAt), 0),
+			"refresh_age", projectionSnapshotRefreshAge)
 		return nil
 	}
-	if err != nil && !errors.Is(err, projectionsnapshot.ErrSnapshotNotFound) {
-		w.logger.Warn("Projection snapshot current generation could not be checked; rebuilding",
-			"projection", w.projectionKey,
-			"backend", w.repository.Backend(),
-			"stage", "generate_check",
-			"error", err)
-	}
-
-	captured, err := w.projector.CaptureSnapshot()
+	captured, err := job.projector.CaptureSnapshot()
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
-	}
-	if len(captured.Payload) == 0 {
-		return fmt.Errorf("projection returned an empty snapshot")
 	}
 	if err := w.lease.CheckOwnership(ctx); err != nil {
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
 	}
-	loaded, err := w.repository.Save(ctx, projectionsnapshot.SaveInput{
-		ProjectionKey:   w.projectionKey,
-		CompatibilityID: w.compatibility,
-		StreamName:      w.streamName,
-		StreamIdentity:  w.streamIdentity,
-		CutoffSequence:  captured.CutoffSequence,
-		Payload:         captured.Payload,
+	loaded, err := job.repository.Save(ctx, projectionsnapshot.SaveInput{
+		ProjectionKey:  job.projectionKey,
+		ContractID:     job.projector.SnapshotContractID(),
+		StreamName:     job.streamName,
+		StreamIdentity: job.streamIdentity,
+		CutoffSequence: captured.CutoffSequence,
+		Payload:        captured.Payload,
+		RefreshAge:     projectionSnapshotRefreshAge,
+		ClockSkew:      projectionSnapshotClockSkewTolerance,
 	})
-	if errors.Is(err, projectionsnapshot.ErrSnapshotNotAdvanced) {
+	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
+		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+		w.logger.Debug("Projection snapshot generation skipped after a fresh publication",
+			"projection", job.projectionKey,
+			"backend", job.repository.Backend(),
+			"stage", "generate_skip",
+			"cutoff_seq", loaded.CutoffSequence)
+		return nil
+	}
+	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
 		w.logger.Debug("Projection snapshot generation skipped after a newer publication",
-			"projection", w.projectionKey,
-			"backend", w.repository.Backend(),
+			"projection", job.projectionKey,
+			"backend", job.repository.Backend(),
 			"stage", "generate_skip",
 			"cutoff_seq", captured.CutoffSequence)
 		return nil
@@ -109,13 +249,27 @@ func (w *projectionSnapshotWorker) generate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
 	w.logger.Info("Projection snapshot generation complete",
-		"projection", w.projectionKey,
-		"backend", w.repository.Backend(),
+		"projection", job.projectionKey,
+		"backend", job.repository.Backend(),
 		"stage", "generate",
 		"generation_id", loaded.GenerationID,
 		"cutoff_seq", loaded.CutoffSequence,
 		"payload_bytes", len(loaded.Payload),
-		"duration", time.Since(started))
+		"duration", now().Sub(started))
 	return nil
+}
+
+func projectionSnapshotRefreshDue(status events.ProjectorStatus, now time.Time, publishReplayDelta bool) bool {
+	if status.LatestSnapshotAt.IsZero() {
+		return true
+	}
+	if status.LatestSnapshotAt.After(now.Add(projectionSnapshotClockSkewTolerance)) {
+		return true
+	}
+	if !status.LatestSnapshotAt.After(now.Add(-projectionSnapshotRefreshAge)) {
+		return true
+	}
+	return publishReplayDelta && status.LastSeq != status.LatestSnapshotSeq
 }
