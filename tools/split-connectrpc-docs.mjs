@@ -468,7 +468,7 @@ function renderLanding() {
     '',
     'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.',
     '',
-    'Chatto is still pre-1.0, so the public API is experimental and may change between releases. The `v1` suffix does not yet constitute a long-term compatibility guarantee. Pin the server version used by production integrations and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.',
+    'Chatto is still pre-1.0, so any release may change the public API in ways that require client changes. The `v1` suffix is part of the current wire name, not a compatibility guarantee. Pin an exact server version, test integrations against the exact upgrade candidate, and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.',
     '',
     'Use `ServerDiscoveryService.GetServer` protocol capabilities for feature discovery. If you call the API directly, ignore unknown fields and enum values when possible. Treat documented error codes and permission requirements as part of the experimental integration contract.',
     '',
