@@ -41,17 +41,13 @@
           ]
         : [];
     });
-    eventBusManager.synchronizeAuthenticatedServers(
-      registrations,
-      getActiveServer() || null
-    );
-
-    if (shouldPauseLiveEventsForStoredPresence()) {
+    const shouldPause = shouldPauseLiveEventsForStoredPresence();
+    if (shouldPause) {
       eventBusManager.pauseAll();
-      return;
     }
+    eventBusManager.synchronizeAuthenticatedServers(registrations, getActiveServer() || null);
 
-    eventBusManager.resumeAll();
+    if (!shouldPause) eventBusManager.resumeAll();
   }
 
   // Run synchronously so child route layouts can provide an already-registered
