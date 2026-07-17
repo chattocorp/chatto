@@ -378,14 +378,17 @@ func TestRunInitCommandRefusesOverwriteBeforeWizard(t *testing.T) {
 
 func TestRunInitCommandAccessibleMode(t *testing.T) {
 	tests := []struct {
-		name     string
-		flag     bool
-		env      string
-		wantMode bool
+		name          string
+		flag          bool
+		accessibleEnv string
+		term          string
+		wantMode      bool
 	}{
 		{name: "default"},
 		{name: "flag", flag: true, wantMode: true},
-		{name: "environment", env: "1", wantMode: true},
+		{name: "environment", accessibleEnv: "1", wantMode: true},
+		{name: "dumb terminal", term: "dumb", wantMode: true},
+		{name: "case-insensitive dumb terminal", term: " DUMB ", wantMode: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -395,7 +398,16 @@ func TestRunInitCommandAccessibleMode(t *testing.T) {
 				in:      strings.NewReader(""),
 				out:     ioDiscard{},
 				entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
-				getenv:  func(string) string { return tt.env },
+				getenv: func(name string) string {
+					switch name {
+					case "CHATTO_ACCESSIBLE":
+						return tt.accessibleEnv
+					case "TERM":
+						return tt.term
+					default:
+						return ""
+					}
+				},
 				wizard: func(answers *initAnswers, opts initWizardOptions) error {
 					gotAccessible = opts.accessible
 					answers.Confirmed = true
@@ -409,6 +421,28 @@ func TestRunInitCommandAccessibleMode(t *testing.T) {
 				t.Fatalf("accessible = %v, want %v", gotAccessible, tt.wantMode)
 			}
 		})
+	}
+}
+
+func TestRunInitCommandDumbTerminalEOFWritesNothing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: panicReader{},
+		getenv: func(name string) string {
+			if name == "TERM" {
+				return "dumb"
+			}
+			return ""
+		},
+		wizard: runInitWizard,
+	})
+	if err == nil || !strings.Contains(err.Error(), "nothing was written") {
+		t.Fatalf("runInitCommand() error = %v", err)
+	}
+	if _, statErr := os.Stat(configPath); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("config exists after EOF: %v", statErr)
 	}
 }
 
@@ -445,7 +479,7 @@ func TestRunInitWizardAccessibleAcceptsDisplayedDefaults(t *testing.T) {
 		{prompt: "Which local port should Chatto listen on?", response: "\n"},
 		{prompt: "Where should Chatto remember everything?", response: "1\n"},
 		{prompt: "Where should embedded NATS keep its data?", response: "\n"},
-		{prompt: "Create this configuration?", response: "\n"},
+		{prompt: "Create this configuration?", response: "y\n"},
 	})
 	answers := defaultInitAnswers()
 	err := runInitWizard(&answers, initWizardOptions{

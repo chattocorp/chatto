@@ -119,6 +119,9 @@ func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error
 		}
 	}
 
+	// Huh's accessible renderer treats EOF as the default confirmation. Require
+	// an explicit yes so redirected or disconnected input can never write a file.
+	answers.Confirmed = false
 	return newInitForm(opts, initReviewGroup(answers, opts.configPath, false)).Run()
 }
 

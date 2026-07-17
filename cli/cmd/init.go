@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
@@ -63,7 +64,9 @@ func runInitCommand(opts initCommandOptions, deps initCommandDependencies) error
 	}
 
 	answers := defaultInitAnswers()
-	accessible := opts.accessible || deps.getenv("CHATTO_ACCESSIBLE") != ""
+	accessible := opts.accessible ||
+		deps.getenv("CHATTO_ACCESSIBLE") != "" ||
+		strings.EqualFold(strings.TrimSpace(deps.getenv("TERM")), "dumb")
 	if err := deps.wizard(&answers, initWizardOptions{
 		input:      deps.in,
 		output:     deps.out,
