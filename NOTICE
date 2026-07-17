@@ -17,7 +17,8 @@ Server and CLI Go Components:
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
-- Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
+- Charmbracelet Huh, Bubble Tea, Bubbles, Lip Gloss, and log
+  (https://charm.land/) - MIT License
 - ConnectRPC, Connect Authn, Connect validation, and Connect gRPC reflection packages
   (https://connectrpc.com/) - Apache License 2.0
 - Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0

@@ -2,199 +2,132 @@ package cmd
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/c2h5oh/datasize"
-	"github.com/charmbracelet/log"
-	"github.com/pelletier/go-toml/v2"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
-	"hmans.de/chatto/internal/config"
 )
 
-var initConfigFile string
+var (
+	initConfigFile string
+	initAccessible bool
+)
+
+type initCommandOptions struct {
+	configPath string
+	accessible bool
+}
+
+type initCommandDependencies struct {
+	in      io.Reader
+	out     io.Writer
+	entropy io.Reader
+	getenv  func(string) string
+	wizard  func(*initAnswers, initWizardOptions) error
+}
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initializes the chatto server and generates a configuration file",
+	Short: "Create a new Chatto server configuration",
+	Long: `Create a new Chatto server configuration with an interactive setup wizard.
 
-	Run: func(cmd *cobra.Command, args []string) {
+The wizard chooses the public address and NATS topology, generates fresh
+secrets, and writes a private chatto.toml without overwriting existing files.`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		configPath := initConfigFile
 		if configPath == "" {
 			configPath = "chatto.toml"
 		}
-
-		// Check if config file already exists
-		if _, err := os.Stat(configPath); err == nil {
-			log.Error("Config file already exists, aborting to prevent overwrite", "path", configPath)
-			os.Exit(1)
-		}
-
-		// Generate a random session signing secret (32 bytes = 256 bits)
-		sessionSecret := make([]byte, 32)
-		if _, err := rand.Read(sessionSecret); err != nil {
-			log.Fatal("Failed to generate session secret", "error", err)
-		}
-		sessionSecretString := hex.EncodeToString(sessionSecret)
-
-		// Generate a random session encryption secret (32 bytes = AES-256).
-		// Decoded back to raw bytes at server startup.
-		cookieEncryptionSecret := make([]byte, 32)
-		if _, err := rand.Read(cookieEncryptionSecret); err != nil {
-			log.Fatal("Failed to generate cookie encryption secret", "error", err)
-		}
-		cookieEncryptionSecretString := hex.EncodeToString(cookieEncryptionSecret)
-
-		// Generate a random signing secret for assets (32 bytes = 256 bits)
-		signingSecret := make([]byte, 32)
-		if _, err := rand.Read(signingSecret); err != nil {
-			log.Fatal("Failed to generate signing secret", "error", err)
-		}
-		signingSecretString := hex.EncodeToString(signingSecret)
-
-		// Generate a random server-wide core secret for token verifiers.
-		coreSecret := make([]byte, 32)
-		if _, err := rand.Read(coreSecret); err != nil {
-			log.Fatal("Failed to generate core secret", "error", err)
-		}
-		coreSecretString := hex.EncodeToString(coreSecret)
-
-		// Generate a random auth token for NATS connections (32 bytes = 256 bits)
-		authToken := make([]byte, 32)
-		if _, err := rand.Read(authToken); err != nil {
-			log.Fatal("Failed to generate auth token", "error", err)
-		}
-		authTokenString := hex.EncodeToString(authToken)
-
-		// Build configuration
-		directRegistration := true
-		unlimited := -1
-		cfg := config.ChattoConfig{
-			General: config.GeneralConfig{
-				LogLevel:  "info",
-				LogFormat: "auto",
-			},
-			Auth: config.AuthConfig{
-				DirectRegistration: &directRegistration,
-				EmailOTP: config.EmailOTPConfig{
-					ThrottlingEnabled: &directRegistration,
-					TTL:               config.Duration(15 * time.Minute),
-					MaxDeliveredCodes: 10,
-					MaxWrongAttempts:  5,
-				},
-			},
-			Limits: config.LimitsConfig{
-				MaxUsers: &unlimited,
-			},
-			Webserver: config.WebserverConfig{
-				Port:                   4000,
-				URL:                    "http://localhost:4000",
-				AllowedOrigins:         []string{"*"},
-				CookieSigningSecret:    sessionSecretString,
-				CookieEncryptionSecret: cookieEncryptionSecretString,
-			},
-			Core: config.CoreConfig{
-				SecretKey: coreSecretString,
-				Assets: config.AssetsConfig{
-					SigningSecret:  signingSecretString,
-					MaxUploadSize:  25 * datasize.MB,
-					StorageBackend: config.StorageBackendNATS,
-				},
-			},
-			SMTP: config.SMTPConfig{
-				Enabled: false,
-				Port:    587,
-				TLS:     config.SMTPTLSMandatory,
-			},
-			NATS: config.NATSConfig{
-				Replicas: 1,
-				Client: config.NATSClientConfig{
-					URL:        "nats://nats.example.com:4222",
-					AuthMethod: config.NATSAuthToken,
-					Token:      "replace-me",
-				},
-				Embedded: config.EmbeddedNATSConfig{
-					Enabled:     true,
-					Port:        4222,
-					BindAddress: "127.0.0.1",
-					HTTPPort:    8222,
-					DataDir:     "./data",
-					AuthToken:   authTokenString,
-				},
-			},
-		}
-
-		// Write config file
-		log.Info("Writing configuration", "path", configPath)
-		b, err := toml.Marshal(cfg)
-		if err != nil {
-			log.Fatal("Failed to marshal config", "error", err)
-		}
-		text := addAuthProviderExamples(string(b))
-		text = addEmailOTPDefaults(text)
-
-		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
-			log.Fatal("Failed to write config file", "error", err)
-		}
-		fmt.Printf("Configuration written to %s\n", configPath)
+		return runInitCommand(initCommandOptions{
+			configPath: configPath,
+			accessible: initAccessible,
+		}, initCommandDependencies{
+			in:      cmd.InOrStdin(),
+			out:     cmd.OutOrStdout(),
+			entropy: rand.Reader,
+			getenv:  os.Getenv,
+			wizard:  runInitWizard,
+		})
 	},
 }
 
-func addAuthProviderExamples(tomlText string) string {
-	const generatedEmptyProviders = "# External login providers. Configure as repeated [[auth.providers]] tables.\nproviders = []"
-	const providerExamples = `# External login providers. Uncomment and adapt one or more [[auth.providers]] tables.
-#
-# [[auth.providers]]
-# id = 'chatto-hub'
-# type = 'oidc'
-# label = 'Chatto Hub'
-# issuer_url = 'https://id.example.com/realms/chatto'
-# client_id = 'chatto'
-# client_secret = 'replace-me'
-# request_email = true
-#
-# [[auth.providers]]
-# id = 'github'
-# type = 'github'
-# client_id = 'replace-me'
-# client_secret = 'replace-me'`
+func runInitCommand(opts initCommandOptions, deps initCommandDependencies) error {
+	if _, err := os.Stat(opts.configPath); err == nil {
+		return fmt.Errorf("configuration already exists at %s; refusing to overwrite it", opts.configPath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect configuration path %s: %w", opts.configPath, err)
+	}
 
-	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
+	answers := defaultInitAnswers()
+	accessible := opts.accessible || deps.getenv("CHATTO_ACCESSIBLE") != ""
+	if err := deps.wizard(&answers, initWizardOptions{
+		input:      deps.in,
+		output:     deps.out,
+		accessible: accessible,
+		configPath: opts.configPath,
+	}); err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			return errors.New("setup cancelled; nothing was written")
+		}
+		return fmt.Errorf("run setup wizard: %w", err)
+	}
+	if !answers.Confirmed {
+		return errors.New("setup cancelled; nothing was written")
+	}
+
+	cfg, err := buildInitialConfig(answers, deps.entropy)
+	if err != nil {
+		return fmt.Errorf("build configuration: %w", err)
+	}
+	contents, err := renderInitialConfig(cfg, answers.NATSMode)
+	if err != nil {
+		return fmt.Errorf("render configuration: %w", err)
+	}
+	if err := writeNewPrivateFile(opts.configPath, []byte(contents)); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(deps.out, "\nConfiguration written to %s\n", opts.configPath)
+	fmt.Fprintln(deps.out, "The lights are on. Start the conversation with:")
+	fmt.Fprintf(deps.out, "  chatto run --config %s\n", opts.configPath)
+	return nil
 }
 
-func addEmailOTPDefaults(tomlText string) string {
-	const marker = "# Email OTP guardrails for registration and email verification."
-	start := strings.Index(tomlText, marker)
-	if start == -1 {
-		return tomlText
+func writeNewPrivateFile(path string, contents []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("configuration already exists at %s; refusing to overwrite it", path)
+		}
+		return fmt.Errorf("create configuration %s: %w", path, err)
 	}
+	removeOnFailure := true
+	defer func() {
+		_ = file.Close()
+		if removeOnFailure {
+			_ = os.Remove(path)
+		}
+	}()
 
-	endMarker := "\n# Instance-wide resource limits."
-	end := strings.Index(tomlText[start:], endMarker)
-	if end == -1 {
-		return tomlText
+	if _, err := file.Write(contents); err != nil {
+		return fmt.Errorf("write configuration %s: %w", path, err)
 	}
-	end += start
-
-	const emailOTPDefaults = `# Email OTP guardrails for registration and email verification.
-[auth.email_otp]
-# Enable email OTP throttling for registration and email verification. Default: true.
-throttling_enabled = true
-# How long registration and email-verification codes stay valid. Default: 15m.
-# ttl = '15m'
-# Maximum successfully delivered codes per email challenge before throttling. Default: 10.
-# max_delivered_codes = 10
-# Maximum wrong-code attempts per email challenge before throttling. Default: 5.
-# max_wrong_attempts = 5
-`
-
-	return tomlText[:start] + emailOTPDefaults + tomlText[end:]
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("sync configuration %s: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close configuration %s: %w", path, err)
+	}
+	removeOnFailure = false
+	return nil
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().StringVarP(&initConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
+	initCmd.Flags().BoolVar(&initAccessible, "accessible", false, "use screen-reader-friendly prompts (also enabled by CHATTO_ACCESSIBLE)")
 }
