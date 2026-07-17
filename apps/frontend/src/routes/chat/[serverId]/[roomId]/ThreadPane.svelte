@@ -219,13 +219,12 @@
   });
 
   // -- Thread follow state --
-  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
-  // If one fires for this thread before the initial query resolves we must not
-  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
-  // so that switching to a different thread starts fresh.
+  // The lazy thread root and later projection upserts both carry the current
+  // viewer follow state. Observe each new authoritative row version so a
+  // follow change after the initial thread query updates the pane as well.
   let isFollowingThread = $state(false);
-  let _followSeededForThread = '';
-  let _followSubFiredForThread = '';
+  let _observedFollowThread = '';
+  let _observedFollowValue: boolean | undefined;
   let threadFollowRequestId = 0;
   let isThreadFollowPending = $state(false);
 
@@ -237,28 +236,21 @@
 
   $effect(() => {
     const threadId = threadRootEventId;
-
-    if (threadId !== _followSeededForThread) {
+    if (threadId !== _observedFollowThread) {
       threadFollowRequestId += 1;
       isThreadFollowPending = false;
-      // Only reset if the subscription hasn't already authoritatively set the
-      // state for this thread (auto-follow can fire before the initial query
-      // resolves).
-      if (_followSubFiredForThread !== threadId) {
-        setAuthoritativeThreadFollowState(false);
-      }
-
-      // Wait until data has loaded before reading follow state
-      if (!store.isInitialLoading) {
-        _followSeededForThread = threadId;
-        if (_followSubFiredForThread !== threadId) {
-          const rootEvent = threadEvents.find((e) => e.id === threadId);
-          if (isMessagePostedEvent(rootEvent?.event)) {
-            setAuthoritativeThreadFollowState(rootEvent.event.viewerIsFollowingThread ?? false);
-          }
-        }
-      }
+      isFollowingThread = false;
+      _observedFollowThread = threadId;
+      _observedFollowValue = undefined;
     }
+
+    if (store.isInitialLoading || isThreadFollowPending) return;
+    const rootEvent = threadEvents.find((event) => event.id === threadId);
+    if (!isMessagePostedEvent(rootEvent?.event)) return;
+    const nextFollowing = rootEvent.event.viewerIsFollowingThread ?? false;
+    if (_observedFollowValue === nextFollowing) return;
+    _observedFollowValue = nextFollowing;
+    setAuthoritativeThreadFollowState(nextFollowing);
   });
 
   async function toggleThreadFollow() {
@@ -292,9 +284,9 @@
   // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
   $effect(() =>
     onThreadFollowChanged((update) => {
-      if (update.threadRootEventId === threadRootEventId) {
+      if (update.roomId === roomId && update.threadRootEventId === threadRootEventId) {
+        store.setThreadRootFollowState(update.threadRootEventId, update.isFollowing);
         setAuthoritativeThreadFollowState(update.isFollowing);
-        _followSubFiredForThread = update.threadRootEventId;
       }
     })
   );

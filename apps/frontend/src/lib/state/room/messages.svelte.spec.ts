@@ -434,6 +434,34 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('cancels an in-flight historical jump at a room lifecycle boundary', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround: ((value: AroundPage) => void) | undefined;
+    const aroundPage = new Promise<AroundPage>((resolve) => {
+      resolveAround = resolve;
+    });
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => aroundPage) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+
+    const jumpState = new JumpToMessageState();
+    const jumping = store.jumpToMessage('historical-target', jumpState);
+    store.restoreRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    resolveAround?.({
+      events: [threadMessageEvent('historical-target') as never],
+      startCursor: 'tl:historical',
+      endCursor: 'tl:historical',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    await expect(jumping).resolves.toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
+    expect(jumpState.isJumpedMode).toBe(false);
+    store.dispose();
+  });
+
   it('keeps the late latest-page fallback when an in-flight jump omits its target', async () => {
     const fake = new FakeQueryClient();
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
@@ -710,6 +738,45 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.rootEvents.map((event) => event.id)).toEqual(['second-target']);
     expect(jumpState.scrollToEventId).toBe('second-target');
     expect(jumpState.isLoadingNewer).toBe(false);
+    store.dispose();
+  });
+
+  it('discards load-newer results after a room lifecycle restoration', async () => {
+    const fake = new FakeQueryClient();
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    let resolveNewer!: (value: RoomPage) => void;
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi.fn(
+        () =>
+          new Promise<RoomPage>((resolve) => {
+            resolveNewer = resolve;
+          })
+      ),
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('historical-target') as never],
+        startCursor: 'tl:historical',
+        endCursor: 'tl:historical',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+
+    const jumpState = new JumpToMessageState();
+    await store.jumpToMessage('historical-target', jumpState);
+    const loadingNewer = store.loadNewer(jumpState);
+    store.restoreRoomProjectionPage('room-1', projectedMessagePage('latest-message'));
+    resolveNewer({
+      events: [threadMessageEvent('stale-newer') as never],
+      startCursor: 'tl:stale',
+      endCursor: 'tl:stale',
+      hasOlder: false,
+      hasNewer: false
+    });
+    await loadingNewer;
+
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
     store.dispose();
   });
 
@@ -2100,6 +2167,78 @@ describe('MessagesStore — room lifecycle ownership', () => {
       limit: 50
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('keeps a projection-updated thread root over an older in-flight query row', async () => {
+    const fake = new FakeQueryClient();
+    type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
+    let resolveThread!: (value: ThreadPage) => void;
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(
+        () =>
+          new Promise<ThreadPage>((resolve) => {
+            resolveThread = resolve;
+          })
+      )
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+
+    store.setThread('room-1', 't1');
+    const root = threadMessageEvent('t1');
+    const updatedRoot = {
+      ...root,
+      event: { ...root.event, viewerIsFollowingThread: true }
+    };
+    store.events = [updatedRoot as never];
+    resolveThread({
+      events: [threadMessageEvent('t1') as never],
+      startCursor: 'tl:t1',
+      endCursor: 'tl:t1',
+      hasOlder: false,
+      hasNewer: false
+    });
+    await settle();
+
+    expect(store.threadEvents[0].event).toMatchObject({ viewerIsFollowingThread: true });
+    store.dispose();
+  });
+
+  it('keeps a changed thread root over an older in-flight refresh row', async () => {
+    const fake = new FakeQueryClient();
+    type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEventsAround']>>;
+    let resolveRefresh!: (value: ThreadPage) => void;
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi.fn(async () => ({
+        events: [threadMessageEvent('t1') as never],
+        startCursor: 'tl:t1',
+        endCursor: 'tl:t1',
+        hasOlder: false,
+        hasNewer: false
+      })),
+      getThreadEventsAround: vi.fn(
+        () =>
+          new Promise<ThreadPage>((resolve) => {
+            resolveRefresh = resolve;
+          })
+      )
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setThread('room-1', 't1');
+    await settle();
+
+    const refreshing = store.refreshCurrentWindow('t1');
+    store.setThreadRootFollowState('t1', true);
+    resolveRefresh({
+      events: [threadMessageEvent('t1') as never],
+      startCursor: 'tl:t1',
+      endCursor: 'tl:t1',
+      hasOlder: false,
+      hasNewer: false
+    });
+    await refreshing;
+
+    expect(store.threadEvents[0].event).toMatchObject({ viewerIsFollowingThread: true });
     store.dispose();
   });
 

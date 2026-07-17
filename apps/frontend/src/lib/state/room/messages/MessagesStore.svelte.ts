@@ -106,6 +106,10 @@ function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[])
   return true;
 }
 
+function snapshotEventFingerprints(events: readonly RoomEventView[]): SvelteMap<string, string> {
+  return new SvelteMap(events.map((event) => [event.id, eventFingerprint(event)]));
+}
+
 function isContinuityEvent(
   event: RoomEventView,
   scope: MessageScope | null,
@@ -435,6 +439,32 @@ export class MessagesStore {
     this.replaceWithFetchedAndUpdateCursors(connection);
     this.hasReachedStart = !connection.hasOlder;
     this.isInitialLoading = preservePendingJump;
+  }
+
+  /** Supersede a historical jump when this room crosses a route boundary. */
+  cancelPendingHistoricalJump(): void {
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+  }
+
+  /** Restore this retained room's canonical latest projection at a route boundary. */
+  restoreRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    this.cancelPendingHistoricalJump();
+    this.startLoad();
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    const projected = unmask(connection.events);
+    for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
+    this.events = sortRoomEventList(projected);
+    this.seenIds = new SvelteSet(projected.map((event) => event.id));
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = false;
   }
 
   /** Purge retained rows without changing this store's identity for mounted consumers. */
@@ -862,7 +892,7 @@ export class MessagesStore {
     if (!this.scope || !this.roomId) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
-    const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
     console.debug('[room-refresh] store refresh started', {
       roomId: this.roomId,
       scope: this.scope,
@@ -1245,12 +1275,13 @@ export class MessagesStore {
       endCursor?: string | null;
       hasOlder?: boolean;
     },
-    existingBeforeFetch: ReadonlySet<string>,
+    existingBeforeFetch: ReadonlyMap<string, string>,
     options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
   ): boolean {
     const fetched = unmask(connection.events);
     const newSeen = new SvelteSet<string>();
     const merged: RoomEventView[] = [];
+    const mergedIndexByID = new SvelteMap<string, number>();
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
@@ -1275,6 +1306,7 @@ export class MessagesStore {
       if (newSeen.has(e.id)) continue;
       this.clearOptimisticVersionForEvent(e.id);
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
@@ -1283,6 +1315,17 @@ export class MessagesStore {
     // fetched window so returning from another tab does not visually collapse a
     // long scrolled buffer.
     for (const e of this.events) {
+      const priorFingerprint = existingBeforeFetch.get(e.id);
+      const changedDuringFetch =
+        priorFingerprint === undefined || priorFingerprint !== eventFingerprint(e);
+      const fetchedIndex = mergedIndexByID.get(e.id);
+      if (changedDuringFetch && fetchedIndex !== undefined) {
+        // A projection upsert can refresh an existing row while the snapshot
+        // query is in flight (for example, thread follow state on the root).
+        // The later local version is authoritative over the older query row.
+        merged[fetchedIndex] = e;
+        continue;
+      }
       if (
         (!options.preserveExistingWindow || discontinuousLatestSnapshot) &&
         existingBeforeFetch.has(e.id)
@@ -1291,6 +1334,7 @@ export class MessagesStore {
       }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
@@ -1332,7 +1376,7 @@ export class MessagesStore {
 
   private async refreshRoomLatest(
     thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlyMap<string, string>
   ): Promise<RefreshCurrentWindowResult> {
     const page = await this.roomTimeline.getRoomEvents({
       roomId: this.roomId,
@@ -1350,7 +1394,7 @@ export class MessagesStore {
   private async refreshRoomAround(
     thisLoad: number,
     anchorEventId: string,
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlyMap<string, string>
   ): Promise<RefreshCurrentWindowResult | null> {
     const page = await this.roomTimeline.getRoomEventsAround({
       roomId: this.roomId,
@@ -1367,7 +1411,7 @@ export class MessagesStore {
 
   private async refreshThreadWindow(
     thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>,
+    existingBeforeFetch: ReadonlyMap<string, string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
     const page = anchorEventId
@@ -1427,6 +1471,7 @@ export class MessagesStore {
   }
 
   private fetchThread(thisLoad: number): void {
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
     const promise = this.roomTimeline.getThreadEvents({
       roomId: this.roomId,
       threadRootEventId: this.threadRootEventId,
@@ -1439,11 +1484,7 @@ export class MessagesStore {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
-        this.replaceMergingExisting(page.events);
-        this.sortThreadEvents();
-        this.oldestCursor = page.startCursor ?? undefined;
-        this.newestCursor = page.endCursor ?? undefined;
-        this.hasReachedStart = !page.hasOlder;
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {

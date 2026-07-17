@@ -276,9 +276,15 @@ export class ServerStateStore {
   restoreProjectedRoomWindow(roomId: string): void {
     const evictedRoomId = this.realtimeSync.retainRoom(roomId);
     if (evictedRoomId) this.evictRetainedRoom(evictedRoomId);
+    const messages = this.messagesForRoom(roomId);
+    // Route entry and cleanup both supersede an in-flight historical jump,
+    // even when this room's first projection page has not arrived yet.
     const page = this.projection.timelines.get(roomId);
-    if (page) this.messagesForRoom(roomId).replaceRoomProjectionPage(roomId, page);
-    else eventBusManager.hydrateRoom(this.serverId, roomId);
+    if (page) messages.restoreRoomProjectionPage(roomId, page);
+    else {
+      messages.cancelPendingHistoricalJump();
+      eventBusManager.hydrateRoom(this.serverId, roomId);
+    }
   }
 
   private evictRetainedRoom(roomId: string): void {
