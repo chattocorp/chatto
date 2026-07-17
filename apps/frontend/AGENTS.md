@@ -158,6 +158,12 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
+- Keep a realtime resume cursor RAM-only and owned by the exact per-server
+  projection it advances. Socket teardown must not discard either one, and a
+  recreated projection must resume without a cursor so it receives a reset.
+- Application code must leave realtime transport ownership to the central
+  coordinator: only the URL-active server keeps a persistent WebSocket, while
+  inactive servers use serialized short-lived catch-ups over the same stream.
 - Guard subscription creation on authentication/server availability to avoid
   reconnect loops.
 - For virtualized lists (`virtua`), use real wheel interaction in e2e tests; raw
