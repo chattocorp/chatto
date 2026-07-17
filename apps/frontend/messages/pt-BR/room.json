@@ -95,6 +95,8 @@
         "edit": "Editar mensagem",
         "more": "Mais ações",
         "edit_short": "Editar",
+        "copy_text": "Copiar texto",
+        "copy_text_failed": "Falha ao copiar o texto",
         "copy_link": "Copiar link"
       },
       "meta": {

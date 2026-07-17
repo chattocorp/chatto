@@ -98,6 +98,8 @@
         "edit": "Nachricht bearbeiten",
         "more": "Weitere Aktionen",
         "edit_short": "Bearbeiten",
+        "copy_text": "Text kopieren",
+        "copy_text_failed": "Text konnte nicht kopiert werden",
         "copy_link": "Link kopieren"
       },
       "meta": {

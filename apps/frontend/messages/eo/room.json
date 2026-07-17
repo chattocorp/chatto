@@ -95,6 +95,8 @@
         "edit": "Redaktu mesaĝon",
         "more": "Pli da agoj",
         "edit_short": "Redaktu",
+        "copy_text": "Kopiu tekston",
+        "copy_text_failed": "Malsukcesis kopii tekston",
         "copy_link": "Kopiu ligilon"
       },
       "meta": {

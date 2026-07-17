@@ -98,6 +98,8 @@
         "edit": "Edit message",
         "more": "More actions",
         "edit_short": "Edit",
+        "copy_text": "Copy text",
+        "copy_text_failed": "Failed to copy text",
         "copy_link": "Copy link"
       },
       "meta": {

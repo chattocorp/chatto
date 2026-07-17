@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     toggleReaction: vi.fn(),
     startEdit: vi.fn(),
     openDeleteConfirmation: vi.fn(),
+    copyMessageText: vi.fn(),
     copyMessageLink: vi.fn()
   }
 }));
@@ -65,8 +66,20 @@ describe('MessageContextMenu', () => {
     expect(container.textContent).toContain('Reply');
     expect(container.textContent).toContain('Reply in thread');
     expect(container.textContent).toContain('Edit');
+    expect(container.textContent).toContain('Copy text');
     expect(container.textContent).toContain('Copy link');
     expect(container.textContent).toContain('Delete');
+    expect(
+      Array.from(container.querySelectorAll('.menu-section')).map((section) =>
+        Array.from(section.querySelectorAll('[role="menuitem"]')).map((button) =>
+          button.textContent?.trim()
+        )
+      )
+    ).toEqual([
+      ['Reply', 'Reply in thread', 'Edit'],
+      ['Copy text', 'Copy link'],
+      ['Delete']
+    ]);
   });
 
   it('uses custom reply action labels when provided', () => {
@@ -83,10 +96,10 @@ describe('MessageContextMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy link']);
+    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy link']);
   });
 
-  it('orders copy link between edit and delete', () => {
+  it('orders clipboard actions between edit and delete', () => {
     const { container } = renderMenu({
       canEdit: true,
       canDelete: true
@@ -98,7 +111,7 @@ describe('MessageContextMenu', () => {
       .map((button) => button.textContent?.trim())
       .filter(Boolean);
 
-    expect(actionLabels).toEqual(['Edit', 'Copy link', 'Delete']);
+    expect(actionLabels).toEqual(['Edit', 'Copy text', 'Copy link', 'Delete']);
   });
 
   it('renders no empty actions section for a non-author thread reply', () => {
@@ -111,11 +124,23 @@ describe('MessageContextMenu', () => {
     expect(container.textContent).not.toContain('Reply in thread');
     expect(container.textContent).not.toContain('Edit');
     expect(container.textContent).not.toContain('Delete');
-    expect(container.querySelectorAll('.menu-section')).toHaveLength(2);
+    expect(container.querySelectorAll('.menu-section')).toHaveLength(3);
   });
 
-  it('renders copy link as the only action when no permissions are granted', () => {
+  it('renders clipboard actions when no permissions are granted', () => {
     const { container } = renderMenu();
+
+    const actionLabels = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    )
+      .map((button) => button.textContent?.trim())
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(['Copy text', 'Copy link']);
+  });
+
+  it('omits copy text when the message has no text body', () => {
+    const { container } = renderMenu({ messageBody: '' });
 
     const actionLabels = Array.from(
       container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
@@ -164,6 +189,17 @@ describe('MessageContextMenu', () => {
       expect.objectContaining({ eventId: 'event-1', messageBody: 'Hello' })
     );
     expect(baseProps.onClose).toHaveBeenCalledOnce();
+
+    baseProps.onClose.mockClear();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+      .find((button) => button.textContent?.includes('Copy text'))!
+      .click();
+    expect(mocks.actions.copyMessageText).toHaveBeenCalledWith(
+      expect.objectContaining({ messageBody: 'Hello' })
+    );
+    await vi.waitFor(() => {
+      expect(baseProps.onClose).toHaveBeenCalledOnce();
+    });
 
     baseProps.onClose.mockClear();
     Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))

@@ -680,6 +680,8 @@ const msg_room_message_actions_open_thread = (): LocalizedString => messages().r
 const msg_room_message_actions_edit = (): LocalizedString => messages().room_message_actions_edit(empty());
 const msg_room_message_actions_more = (): LocalizedString => messages().room_message_actions_more(empty());
 const msg_room_message_actions_edit_short = (): LocalizedString => messages().room_message_actions_edit_short(empty());
+const msg_room_message_actions_copy_text = (): LocalizedString => messages().room_message_actions_copy_text(empty());
+const msg_room_message_actions_copy_text_failed = (): LocalizedString => messages().room_message_actions_copy_text_failed(empty());
 const msg_room_message_actions_copy_link = (): LocalizedString => messages().room_message_actions_copy_link(empty());
 const msg_room_message_meta_thread = (): LocalizedString => messages().room_message_meta_thread(empty());
 const msg_room_message_meta_reply_count_one = (): LocalizedString => messages().room_message_meta_reply_count_one(empty());
@@ -2131,6 +2133,8 @@ export { msg_room_message_actions_open_thread as 'room.message.actions.open_thre
 export { msg_room_message_actions_edit as 'room.message.actions.edit' };
 export { msg_room_message_actions_more as 'room.message.actions.more' };
 export { msg_room_message_actions_edit_short as 'room.message.actions.edit_short' };
+export { msg_room_message_actions_copy_text as 'room.message.actions.copy_text' };
+export { msg_room_message_actions_copy_text_failed as 'room.message.actions.copy_text_failed' };
 export { msg_room_message_actions_copy_link as 'room.message.actions.copy_link' };
 export { msg_room_message_meta_thread as 'room.message.meta.thread' };
 export { msg_room_message_meta_reply_count_one as 'room.message.meta.reply_count_one' };

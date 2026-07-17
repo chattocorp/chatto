@@ -95,6 +95,8 @@
         "edit": "Redigera meddelande",
         "more": "Fler åtgärder",
         "edit_short": "Redigera",
+        "copy_text": "Kopiera text",
+        "copy_text_failed": "Det gick inte att kopiera texten",
         "copy_link": "Kopiera länk"
       },
       "meta": {
