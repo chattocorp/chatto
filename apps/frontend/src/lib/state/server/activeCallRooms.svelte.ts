@@ -11,6 +11,7 @@
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
 import type {
   ActiveVoiceCall,
@@ -127,6 +128,32 @@ export class ActiveCallRoomsState {
     for (const call of calls) {
       this.applyActiveCall(call);
     }
+  }
+
+  /** Replace server-observed calls from the canonical realtime projection. */
+  replaceProjection(calls: readonly ActiveCall[]): void {
+    const activeRoomIds = new SvelteSet(calls.flatMap((call) => (call.room?.id ? [call.room.id] : [])));
+    for (const roomId of this.serverRooms.keys()) {
+      if (!activeRoomIds.has(roomId)) this.serverRooms.delete(roomId);
+    }
+    for (const call of calls) {
+      const roomId = call.room?.id;
+      if (!roomId) continue;
+      this.serverRooms.set(roomId, {
+        callId: call.callId || null,
+        participants: call.participants.flatMap((participant) => {
+          const user = participant.user;
+          if (!user?.id) return [];
+          return [{
+            userId: user.id,
+            displayName: user.displayName,
+            login: user.login,
+            avatarUrl: user.avatarUrl ?? null
+          }];
+        })
+      });
+    }
+    this.pendingCallIds.clear();
   }
 
   private applyActiveCall(call: ActiveVoiceCall): void {

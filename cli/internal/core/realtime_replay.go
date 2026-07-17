@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +11,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/publiccursor"
 )
 
 const (
 	realtimeCursorVersion         = 1
+	realtimeCursorPurpose         = "realtime-resume-v1"
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
 )
@@ -35,6 +36,7 @@ type realtimeCursorPayload struct {
 	Version        int    `json:"v"`
 	StreamIdentity string `json:"i"`
 	Sequence       uint64 `json:"s"`
+	UserID         string `json:"u"`
 }
 
 // RealtimeReplayPlan is a bounded, authorized durable replay ending at one
@@ -57,12 +59,12 @@ type RealtimeReplayPlan struct {
 
 // RealtimeCursorForSequence returns the opaque public cursor for one durable
 // EVT delivery sequence.
-func (c *ChattoCore) RealtimeCursorForSequence(sequence uint64) (string, error) {
+func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (string, error) {
 	identity, err := events.StreamIdentity(c.storage.serverEvtStream)
 	if err != nil {
 		return "", fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	return encodeRealtimeCursor(identity, sequence)
+	return c.encodeRealtimeCursor(userID, identity, sequence)
 }
 
 // PlanRealtimeReplay builds a caller-wide replay of public durable events after
@@ -83,7 +85,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream info: %w", err)
 	}
 	boundarySeq := info.State.LastSeq
-	boundaryCursor, err := encodeRealtimeCursor(identity, boundarySeq)
+	boundaryCursor, err := c.encodeRealtimeCursor(userID, identity, boundarySeq)
 	if err != nil {
 		return RealtimeReplayPlan{}, err
 	}
@@ -98,7 +100,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return plan, nil
 	}
 
-	cursor, err := decodeRealtimeCursor(resumeCursor)
+	cursor, err := c.decodeRealtimeCursor(userID, resumeCursor)
 	if err != nil {
 		plan.Reset = true
 		return plan, nil
@@ -258,28 +260,33 @@ func realtimeReplayRoomSubject(subject string) (string, bool) {
 	return parts[2], true
 }
 
-func encodeRealtimeCursor(streamIdentity string, sequence uint64) (string, error) {
-	if !events.ValidStreamIdentity(streamIdentity) {
+func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequence uint64) (string, error) {
+	if userID == "" || !events.ValidStreamIdentity(streamIdentity) {
 		return "", ErrRealtimeCursorInvalid
 	}
 	payload, err := json.Marshal(realtimeCursorPayload{
 		Version:        realtimeCursorVersion,
 		StreamIdentity: streamIdentity,
 		Sequence:       sequence,
+		UserID:         userID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("encode realtime cursor: %w", err)
 	}
-	return base64.RawURLEncoding.EncodeToString(payload), nil
+	token, err := publiccursor.Seal(c.config.SecretKey, realtimeCursorPurpose, userID, payload)
+	if err != nil {
+		return "", fmt.Errorf("seal realtime cursor: %w", err)
+	}
+	return token, nil
 }
 
-func decodeRealtimeCursor(cursor string) (realtimeCursorPayload, error) {
-	payload, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(cursor))
+func (c *ChattoCore) decodeRealtimeCursor(userID, cursor string) (realtimeCursorPayload, error) {
+	payload, err := publiccursor.Open(c.config.SecretKey, realtimeCursorPurpose, userID, cursor)
 	if err != nil {
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
 	}
 	var decoded realtimeCursorPayload
-	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || !events.ValidStreamIdentity(decoded.StreamIdentity) {
+	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || !events.ValidStreamIdentity(decoded.StreamIdentity) {
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
 	}
 	return decoded, nil

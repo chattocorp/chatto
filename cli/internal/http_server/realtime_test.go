@@ -196,7 +196,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
 		t.Fatalf("unexpected realtime hello: %+v", got)
 	} else if got.HeartbeatIntervalSeconds != uint32(core.MyEventsHeartbeatInterval/time.Second) {
 		t.Fatalf("heartbeat interval = %d, want %d", got.HeartbeatIntervalSeconds, core.MyEventsHeartbeatInterval/time.Second)
-	} else if want := append(append([]string(nil), realtimeServerCapabilities...), realtimeReplayCapability, realtimeProjectionCapability); !slices.Equal(got.GetCapabilities(), want) {
+	} else if want := realtimeServerCapabilities; !slices.Equal(got.GetCapabilities(), want) {
 		t.Fatalf("realtime capabilities = %v, want %v", got.GetCapabilities(), want)
 	}
 
@@ -208,7 +208,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
 		t.Fatal("timed out waiting for realtime subscribed")
 	}
 	if subscribed.GetSubscribed() == nil {
-		t.Fatalf("second realtime frame = %T, want subscribed", subscribed.GetFrame())
+		t.Fatalf("second realtime frame = %T (%+v), want subscribed", subscribed.GetFrame(), subscribed)
 	}
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
@@ -338,88 +338,39 @@ func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
 	}
 }
 
-func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
-	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
-		Id:      "thread-created-1",
-		ActorId: "U1",
+func TestRealtimeTransientMapperRejectsDurableEvents(t *testing.T) {
+	_, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
+		Id: "thread-created-1",
 		Event: &corev1.Event_ThreadCreated{ThreadCreated: &corev1.ThreadCreatedEvent{
 			RoomId: "R1", ThreadRootEventId: "M1",
 		}},
 	}))
-	if err != nil {
-		t.Fatalf("realtimeEventEnvelope: %v", err)
-	}
-	thread := frame.GetThreadCreated()
-	if thread == nil {
-		t.Fatalf("event = %T, want thread_created", frame.GetEvent())
-	}
-	if thread.RoomId != "R1" || thread.ThreadRootEventId != "M1" {
-		t.Fatalf("thread_created = %+v, want room R1 root M1", thread)
+	if err == nil {
+		t.Fatal("durable event was accepted by transient mapper")
 	}
 }
 
-func TestRealtimeMapperCanonicalizesEchoReactionMessageID(t *testing.T) {
-	timeline := core.NewRoomTimelineProjection()
-	if err := timeline.Apply(&corev1.Event{
-		Id: "M1",
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
-			RoomId:   "R1",
-			InThread: "ROOT1",
-		}},
-	}, 1); err != nil {
-		t.Fatalf("apply original message: %v", err)
-	}
-	if err := timeline.Apply(&corev1.Event{
-		Id: "ECHO1",
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
-			RoomId:        "R1",
-			EchoOfEventId: "M1",
-		}},
-	}, 2); err != nil {
-		t.Fatalf("apply echo message: %v", err)
-	}
-
-	server := &HTTPServer{core: &core.ChattoCore{RoomTimeline: timeline}}
-	frame, err := server.realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
-		Id:      "reaction-1",
-		ActorId: "U1",
-		Event: &corev1.Event_ReactionAdded{ReactionAdded: &corev1.ReactionAddedEvent{
-			RoomId:         "R1",
-			MessageEventId: "ECHO1",
-			Emoji:          "thumbsup",
-		}},
-	}))
+func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-projection", "RT Call Projection", "password123")
 	if err != nil {
-		t.Fatalf("realtimeEventEnvelope: %v", err)
+		t.Fatalf("CreateUser: %v", err)
 	}
-	reaction := frame.GetReactionAdded()
-	if reaction == nil {
-		t.Fatalf("event = %T, want reaction_added", frame.GetEvent())
-	}
-	if reaction.MessageEventId != "M1" {
-		t.Fatalf("reaction message_event_id = %q, want M1", reaction.MessageEventId)
-	}
-}
-
-func TestRealtimeMapperMapsCallEventSource(t *testing.T) {
-	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
-		Id:      "call-joined-1",
-		ActorId: "U1",
-		Event: &corev1.Event_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
-			RoomId: "R1",
-			CallId: "call-1",
-			Source: corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT,
+	event := core.NewEVTEventEnvelope(&corev1.Event{
+		Id: "call-started-1",
+		Event: &corev1.Event_VoiceCallStarted{VoiceCallStarted: &corev1.CallStartedEvent{
+			RoomId: "R1", CallId: "call-1",
 		}},
-	}))
+	})
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, event)
 	if err != nil {
-		t.Fatalf("realtimeEventEnvelope: %v", err)
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	call := frame.GetCallParticipantJoined()
-	if call == nil {
-		t.Fatalf("event = %T, want call_participant_joined", frame.GetEvent())
+	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
+		t.Fatalf("call projection frame = %+v, handled=%v", frame, handled)
 	}
-	if call.Source != realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT {
-		t.Fatalf("call source = %v, want LIVEKIT", call.Source)
+	if frame.GetProjectionEvent().GetOperations()[0].GetActiveCallsReplace() == nil {
+		t.Fatalf("call projection operation = %T, want active_calls_replace", frame.GetProjectionEvent().GetOperations()[0].GetOperation())
 	}
 }
 
@@ -586,53 +537,15 @@ func TestRealtimeWebSocketAuthenticatesWithBearerHello(t *testing.T) {
 	subscribeRealtime(t, conn, token)
 }
 
-func TestRealtimeWebSocketPreservesVersionOneLiveOnlyFlow(t *testing.T) {
+func TestRealtimeWebSocketRejectsVersionOne(t *testing.T) {
 	env := setupWebSocketTestServer(t)
-	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-v1", "RT V1", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-v1-room", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
-	if err != nil {
-		t.Fatalf("CreateAuthToken: %v", err)
-	}
-
 	conn := env.connectRealtime(t)
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeLegacyProtocolVersion, BearerToken: proto.String(token)},
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: 1},
 	}})
-	hello, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || hello.GetHello() == nil || hello.GetHello().GetProtocolVersion() != realtimeLegacyProtocolVersion {
-		t.Fatalf("v1 hello = %+v", hello)
-	}
-	if slices.Contains(hello.GetHello().GetCapabilities(), realtimeReplayCapability) {
-		t.Fatalf("v1 capabilities advertise replay: %v", hello.GetHello().GetCapabilities())
-	}
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
-	}})
-	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
-		t.Fatalf("v1 subscribed = %+v", frame)
-	}
-	// UserAccountCreated is intentionally unsupported by the v1 wire shape.
-	// Dropping it must not poison subsequent loop iterations.
-	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-v1-later-user", "RT V1 Later", "password123"); err != nil {
-		t.Fatalf("CreateUser after subscription: %v", err)
-	}
-	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "v1 remains live-only", nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetEvent() == nil || frame.GetEvent().GetMessagePosted().GetMessageEventId() != posted.Id {
-		t.Fatalf("first v1 live frame after subscribed = %+v", frame)
+	if !ok || frame.GetError().GetCode() != "unsupported_protocol" || !frame.GetError().GetFatal() {
+		t.Fatalf("v1 response = %+v, want fatal unsupported_protocol", frame)
 	}
 }
 

@@ -54,15 +54,12 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 	return s.hub.Run(ctx)
 }
 
-// StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
+// StreamMyEventsOptions controls process-local behavior for a myEvents stream.
 type StreamMyEventsOptions struct {
 	// TouchPresence preserves the legacy behavior where opening myEvents marks
 	// the user online and refreshes the current presence value. New clients that
 	// refresh presence through ConnectRPC set this to false.
 	TouchPresence bool
-	// ServerProjection opts this session into server-directory invalidations
-	// that legacy member-only realtime clients must not receive.
-	ServerProjection bool
 }
 
 func (c *ChattoCore) myEvents() *MyEventsModel {
@@ -138,7 +135,7 @@ func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID strin
 func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
 	c := s.core
 
-	hubSub, err := s.hub.SubscribeWithOptions(ctx, userID, options.ServerProjection)
+	hubSub, err := s.hub.Subscribe(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to myEvents hub: %w", err)
 	}

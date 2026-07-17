@@ -15,12 +15,14 @@ import {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
   ListNotificationsResponse,
   RoomNotificationCount
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   RealtimeProjectionEvent,
+  RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
@@ -75,6 +77,12 @@ describe('ServerProjectionStore', () => {
         operation({ case: 'userUpsert', value: user }),
         operation({ case: 'roomUpsert', value: room }),
         operation({
+          case: 'activeCallsReplace',
+          value: new RealtimeProjectionActiveCallsReplace({
+            calls: [new ActiveCall({ callId: 'call-1' })]
+          })
+        }),
+        operation({
           case: 'roomGroupsReplace',
           value: new RealtimeProjectionRoomGroupsReplace({ groups: [group] })
         }),
@@ -87,6 +95,8 @@ describe('ServerProjectionStore', () => {
         })
       )
     );
+
+    expect(store.activeCalls.map((call) => call.callId)).toEqual(['call-1']);
 
     expect(store.server).toBe(server);
     expect(store.viewer).toBe(viewer);

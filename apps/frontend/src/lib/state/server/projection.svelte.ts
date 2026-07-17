@@ -5,6 +5,7 @@ import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/ro
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ListNotificationsResponse } from '@chatto/api-types/api/v1/notifications_pb';
+import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   RealtimeProjectionEvent,
@@ -20,6 +21,7 @@ export class ServerProjectionStore {
   rooms = new SvelteMap<string, RealtimeProjectionRoom>();
   roomGroups = $state.raw<RoomGroup[]>([]);
   notifications = $state.raw<ListNotificationsResponse | null>(null);
+  activeCalls = $state.raw<ActiveCall[]>([]);
   timelines = new SvelteMap<string, RoomTimelinePage>();
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
 
@@ -126,6 +128,9 @@ export class ServerProjectionStore {
           }
           break;
         }
+        case 'activeCallsReplace':
+          this.activeCalls = [...operation.operation.value.calls];
+          break;
         case undefined:
           break;
       }
@@ -140,6 +145,7 @@ export class ServerProjectionStore {
     this.rooms.clear();
     this.roomGroups = [];
     this.notifications = null;
+    this.activeCalls = [];
     this.timelines.clear();
     this.timelineEventCursors.clear();
   }

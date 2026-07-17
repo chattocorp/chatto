@@ -54,7 +54,9 @@ The discovery response includes the server software version, stable protocol
 capability keys for mounted public packages and negotiated contracts, and an
 optional minimum bundled-web-client version. The
 `chatto.realtime.projection.v1` capability is the bundled 0.5 client's gate for
-opening protocol-v2 realtime. This metadata is public pre-authentication state.
+opening realtime protocol 2, the only accepted behavioral version. The
+`chatto.realtime.v1` suffix is the protobuf namespace. This metadata is public
+pre-authentication state.
 It describes wire support, not enabled server features or the authenticated
 viewer's permission-derived capabilities. Multi-server clients refresh it per
 server and use version comparison only to classify older servers that omit

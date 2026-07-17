@@ -29,6 +29,9 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
 - Third-party clients can use the public discovery response to inspect protocol
   capability keys. The minimum web-client version applies only to Chatto's
   bundled web client.
+- The `chatto.realtime.v1` protobuf namespace implements only behavioural
+  protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
+  handshakes; clients must discover `chatto.realtime.projection.v1` first.
 
 ## Design Decisions
 
@@ -74,5 +77,5 @@ breaks without prematurely freezing the API.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection)
 - **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA Shell & Service Worker)

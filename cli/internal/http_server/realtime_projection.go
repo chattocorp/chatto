@@ -54,6 +54,9 @@ func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userI
 	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 		NotificationsReplace: realtimeProjectionNotifications(snapshot.Notifications),
 	}})
+	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ActiveCallsReplace{
+		ActiveCallsReplace: &realtimev1.RealtimeProjectionActiveCallsReplace{Calls: snapshot.ActiveCalls},
+	}})
 	for _, timeline := range snapshot.Timelines {
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineReplace{
 			RoomTimelineReplace: &realtimev1.RealtimeProjectionRoomTimelineReplace{RoomId: timeline.RoomID, Page: timeline.Page, EventCursors: timeline.EventCursors},
@@ -81,7 +84,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 		ActorId:   optionalRealtimeString(event.ActorID()),
 	}
 	if event.DeliverySeq() > 0 {
-		cursor, err := s.core.RealtimeCursorForSequence(event.DeliverySeq())
+		cursor, err := s.core.RealtimeCursorForSequence(viewerID, event.DeliverySeq())
 		if err != nil {
 			return nil, false, err
 		}
@@ -322,6 +325,17 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 				return nil, false, err
 			}
 		}
+	case *corev1.Event_VoiceCallStarted,
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft,
+		*corev1.Event_VoiceCallEnded:
+		calls, err := s.connectAPI.BuildRealtimeProjectionActiveCalls(ctx, viewerID)
+		if err != nil {
+			return nil, false, err
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ActiveCallsReplace{
+			ActiveCallsReplace: &realtimev1.RealtimeProjectionActiveCallsReplace{Calls: calls},
+		}})
 	case *corev1.Event_RoomDeleted:
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomRemove{
 			RoomRemove: &realtimev1.RealtimeProjectionRoomRemove{RoomId: payload.RoomDeleted.GetRoomId()},

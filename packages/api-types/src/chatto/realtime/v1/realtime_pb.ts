@@ -12,6 +12,7 @@ import { ServerRuntimeConfig } from "../../api/v1/server_state_pb.js";
 import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
 import { ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/notifications_pb.js";
+import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
 import { NotificationLevel } from "../../api/v1/notification_preferences_pb.js";
 
@@ -47,48 +48,6 @@ proto3.util.setEnumType(RealtimeProjectionReactionAction, "chatto.realtime.v1.Re
   { no: 0, name: "REALTIME_PROJECTION_REACTION_ACTION_UNSPECIFIED" },
   { no: 1, name: "REALTIME_PROJECTION_REACTION_ACTION_ADDED" },
   { no: 2, name: "REALTIME_PROJECTION_REACTION_ACTION_REMOVED" },
-]);
-
-/**
- * Source that produced a realtime voice-call transition.
- *
- * @generated from enum chatto.realtime.v1.RealtimeCallEventSource
- */
-export enum RealtimeCallEventSource {
-  /**
-   * No call event source was specified.
-   *
-   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The user explicitly requested the transition through Chatto.
-   *
-   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_USER = 1;
-   */
-  USER = 1,
-
-  /**
-   * LiveKit reported the transition through a webhook.
-   *
-   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_LIVEKIT = 2;
-   */
-  LIVEKIT = 2,
-
-  /**
-   * Chatto reconciled its local state against LiveKit's current room state.
-   *
-   * @generated from enum value: REALTIME_CALL_EVENT_SOURCE_RECONCILIATION = 3;
-   */
-  RECONCILIATION = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeCallEventSource)
-proto3.util.setEnumType(RealtimeCallEventSource, "chatto.realtime.v1.RealtimeCallEventSource", [
-  { no: 0, name: "REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_CALL_EVENT_SOURCE_USER" },
-  { no: 2, name: "REALTIME_CALL_EVENT_SOURCE_LIVEKIT" },
-  { no: 3, name: "REALTIME_CALL_EVENT_SOURCE_RECONCILIATION" },
 ]);
 
 /**
@@ -286,8 +245,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
  */
 export class RealtimeClientHello extends Message<RealtimeClientHello> {
   /**
-   * Protocol version requested by the client. The current version is 2;
-   * version 1 remains available as a live-only compatibility mode.
+   * Protocol version requested by the client. The only supported version is 2.
    *
    * @generated from field: uint32 protocol_version = 1;
    */
@@ -359,8 +317,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
   /**
    * Stable protocol capability keys supported by this server. Current keys:
    * `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
-   * `chatto.realtime.ping.v1`. Protocol version 2 also advertises
-   * `chatto.realtime.events.resume.v1` and
+   * `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
    * `chatto.realtime.projection.v1`.
    *
    * @generated from field: repeated string capabilities = 5;
@@ -406,7 +363,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
 export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   /**
    * Opaque cursor from a previously received durable event or caught-up
-   * frame. Protocol version 2 replays authorized durable room events after
+   * frame. The server replays authorized durable projection changes after
    * this cursor before continuing with live delivery. Omit it to receive a
    * compacted reset of the current authorised server projection.
    *
@@ -451,7 +408,7 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   /**
    * Opaque cursor from which this subscription starts. When the request
    * supplied a resume cursor, this is that validated cursor. Otherwise it is
-   * the current live boundary. Only present for protocol version 2.
+   * the current live boundary.
    *
    * @generated from field: optional string start_cursor = 2;
    */
@@ -734,6 +691,14 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
      */
     value: RealtimeProjectionRoomViewerStateReplace;
     case: "roomViewerStateReplace";
+  } | {
+    /**
+     * Replaces every active call visible to the caller.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace active_calls_replace = 15;
+     */
+    value: RealtimeProjectionActiveCallsReplace;
+    case: "activeCallsReplace";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeProjectionOperation>) {
@@ -758,6 +723,7 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     { no: 12, name: "room_timeline_event_remove", kind: "message", T: RealtimeProjectionRoomTimelineEventRemove, oneof: "operation" },
     { no: 13, name: "notifications_replace", kind: "message", T: RealtimeProjectionNotificationsReplace, oneof: "operation" },
     { no: 14, name: "room_viewer_state_replace", kind: "message", T: RealtimeProjectionRoomViewerStateReplace, oneof: "operation" },
+    { no: 15, name: "active_calls_replace", kind: "message", T: RealtimeProjectionActiveCallsReplace, oneof: "operation" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionOperation {
@@ -1325,6 +1291,45 @@ export class RealtimeProjectionRoomViewerStateReplace extends Message<RealtimePr
 }
 
 /**
+ * Finite current active-call state visible to the caller.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionActiveCallsReplace
+ */
+export class RealtimeProjectionActiveCallsReplace extends Message<RealtimeProjectionActiveCallsReplace> {
+  /**
+   * @generated from field: repeated chatto.api.v1.ActiveCall calls = 1;
+   */
+  calls: ActiveCall[] = [];
+
+  constructor(data?: PartialMessage<RealtimeProjectionActiveCallsReplace>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionActiveCallsReplace";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "calls", kind: "message", T: ActiveCall, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionActiveCallsReplace {
+    return new RealtimeProjectionActiveCallsReplace().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionActiveCallsReplace {
+    return new RealtimeProjectionActiveCallsReplace().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionActiveCallsReplace {
+    return new RealtimeProjectionActiveCallsReplace().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionActiveCallsReplace | PlainMessage<RealtimeProjectionActiveCallsReplace> | undefined, b: RealtimeProjectionActiveCallsReplace | PlainMessage<RealtimeProjectionActiveCallsReplace> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionActiveCallsReplace, a, b);
+  }
+}
+
+/**
  * Reaction transition retained for integrations while the containing timeline
  * row carries the authoritative aggregate reaction state.
  *
@@ -1644,12 +1649,10 @@ export class RealtimeClose extends Message<RealtimeClose> {
 }
 
 /**
- * One authorized live event delivered over the realtime WebSocket.
+ * One authorized transient event delivered over the realtime WebSocket.
  *
- * Realtime events are invalidation signals first: payloads carry stable IDs and
- * small inline hints, while durable resource state is hydrated through
- * chatto.api.v1 ConnectRPC services. Event-specific messages document the
- * intended hydration path when a referenced resource may need refreshing.
+ * These events have no resume cursor and are never replayed. Durable state is
+ * delivered only as RealtimeProjectionEvent operations.
  *
  * @generated from message chatto.realtime.v1.RealtimeEventEnvelope
  */
@@ -1676,58 +1679,9 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
   actorId?: string;
 
   /**
-   * Opaque resume cursor for this durable event. Absent for transient events.
-   * Protocol version 2 clients can retain this with their resulting state
-   * after applying the event.
-   *
-   * @generated from field: optional string resume_cursor = 5;
-   */
-  resumeCursor?: string;
-
-  /**
    * @generated from oneof chatto.realtime.v1.RealtimeEventEnvelope.event
    */
   event: {
-    /**
-     * A message was posted in a room or thread.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeMessagePostedEvent message_posted = 10;
-     */
-    value: RealtimeMessagePostedEvent;
-    case: "messagePosted";
-  } | {
-    /**
-     * A message body or renderable metadata changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeMessageEditedEvent message_edited = 11;
-     */
-    value: RealtimeMessageEditedEvent;
-    case: "messageEdited";
-  } | {
-    /**
-     * A message was retracted.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeMessageRetractedEvent message_retracted = 12;
-     */
-    value: RealtimeMessageRetractedEvent;
-    case: "messageRetracted";
-  } | {
-    /**
-     * A user added a reaction to a message.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeReactionEvent reaction_added = 20;
-     */
-    value: RealtimeReactionEvent;
-    case: "reactionAdded";
-  } | {
-    /**
-     * A user removed a reaction from a message.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeReactionEvent reaction_removed = 21;
-     */
-    value: RealtimeReactionEvent;
-    case: "reactionRemoved";
-  } | {
     /**
      * A user is typing in a room or thread.
      *
@@ -1743,70 +1697,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
      */
     value: RealtimePresenceChangedEvent;
     case: "presenceChanged";
-  } | {
-    /**
-     * A room was created.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent room_created = 40;
-     */
-    value: RealtimeRoomEvent;
-    case: "roomCreated";
-  } | {
-    /**
-     * A room's profile or settings changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent room_updated = 41;
-     */
-    value: RealtimeRoomEvent;
-    case: "roomUpdated";
-  } | {
-    /**
-     * A room was deleted.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent room_deleted = 42;
-     */
-    value: RealtimeRoomEvent;
-    case: "roomDeleted";
-  } | {
-    /**
-     * A room was archived.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent room_archived = 43;
-     */
-    value: RealtimeRoomEvent;
-    case: "roomArchived";
-  } | {
-    /**
-     * A room was restored from the archive.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent room_unarchived = 44;
-     */
-    value: RealtimeRoomEvent;
-    case: "roomUnarchived";
-  } | {
-    /**
-     * A user joined a room visible to the current user.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent user_joined_room = 45;
-     */
-    value: RealtimeRoomEvent;
-    case: "userJoinedRoom";
-  } | {
-    /**
-     * A user left a room visible to the current user.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomEvent user_left_room = 46;
-     */
-    value: RealtimeRoomEvent;
-    case: "userLeftRoom";
-  } | {
-    /**
-     * A room's universal visibility flag changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomUniversalChangedEvent room_universal_changed = 47;
-     */
-    value: RealtimeRoomUniversalChangedEvent;
-    case: "roomUniversalChanged";
   } | {
     /**
      * A notification was created for the current user.
@@ -1849,14 +1739,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "roomMarkedAsRead";
   } | {
     /**
-     * A thread was created in a room visible to the current user.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeThreadCreatedEvent thread_created = 65;
-     */
-    value: RealtimeThreadCreatedEvent;
-    case: "threadCreated";
-  } | {
-    /**
      * The server profile/config changed.
      *
      * @generated from field: chatto.realtime.v1.RealtimeServerUpdatedEvent server_updated = 70;
@@ -1871,22 +1753,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
      */
     value: RealtimeUserProfileUpdatedEvent;
     case: "userProfileUpdated";
-  } | {
-    /**
-     * A user's custom status was set or changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeUserCustomStatusSetEvent user_custom_status_set = 72;
-     */
-    value: RealtimeUserCustomStatusSetEvent;
-    case: "userCustomStatusSet";
-  } | {
-    /**
-     * A user's custom status was cleared.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeUserCustomStatusClearedEvent user_custom_status_cleared = 73;
-     */
-    value: RealtimeUserCustomStatusClearedEvent;
-    case: "userCustomStatusCleared";
   } | {
     /**
      * The current user's display preferences changed.
@@ -1911,70 +1777,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
      */
     value: RealtimeServerMemberDeletedEvent;
     case: "serverMemberDeleted";
-  } | {
-    /**
-     * Asset processing started for a message attachment.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeAssetProcessingEvent asset_processing_started = 80;
-     */
-    value: RealtimeAssetProcessingEvent;
-    case: "assetProcessingStarted";
-  } | {
-    /**
-     * Asset processing completed successfully for a message attachment.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeAssetProcessingEvent asset_processing_succeeded = 81;
-     */
-    value: RealtimeAssetProcessingEvent;
-    case: "assetProcessingSucceeded";
-  } | {
-    /**
-     * Asset processing failed for a message attachment.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeAssetProcessingEvent asset_processing_failed = 82;
-     */
-    value: RealtimeAssetProcessingEvent;
-    case: "assetProcessingFailed";
-  } | {
-    /**
-     * An asset attached to a message was deleted.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeAssetDeletedEvent asset_deleted = 83;
-     */
-    value: RealtimeAssetDeletedEvent;
-    case: "assetDeleted";
-  } | {
-    /**
-     * A voice call started in a room.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeCallEvent call_started = 84;
-     */
-    value: RealtimeCallEvent;
-    case: "callStarted";
-  } | {
-    /**
-     * A participant joined a voice call.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeCallEvent call_participant_joined = 85;
-     */
-    value: RealtimeCallEvent;
-    case: "callParticipantJoined";
-  } | {
-    /**
-     * A participant left a voice call.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeCallEvent call_participant_left = 86;
-     */
-    value: RealtimeCallEvent;
-    case: "callParticipantLeft";
-  } | {
-    /**
-     * A voice call ended.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeCallEvent call_ended = 87;
-     */
-    value: RealtimeCallEvent;
-    case: "callEnded";
   } | {
     /**
      * The current user was mentioned in a room.
@@ -2012,43 +1814,18 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 5, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 10, name: "message_posted", kind: "message", T: RealtimeMessagePostedEvent, oneof: "event" },
-    { no: 11, name: "message_edited", kind: "message", T: RealtimeMessageEditedEvent, oneof: "event" },
-    { no: 12, name: "message_retracted", kind: "message", T: RealtimeMessageRetractedEvent, oneof: "event" },
-    { no: 20, name: "reaction_added", kind: "message", T: RealtimeReactionEvent, oneof: "event" },
-    { no: 21, name: "reaction_removed", kind: "message", T: RealtimeReactionEvent, oneof: "event" },
     { no: 30, name: "user_typing", kind: "message", T: RealtimeTypingEvent, oneof: "event" },
     { no: 31, name: "presence_changed", kind: "message", T: RealtimePresenceChangedEvent, oneof: "event" },
-    { no: 40, name: "room_created", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 41, name: "room_updated", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 42, name: "room_deleted", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 43, name: "room_archived", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 44, name: "room_unarchived", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 45, name: "user_joined_room", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 46, name: "user_left_room", kind: "message", T: RealtimeRoomEvent, oneof: "event" },
-    { no: 47, name: "room_universal_changed", kind: "message", T: RealtimeRoomUniversalChangedEvent, oneof: "event" },
     { no: 60, name: "notification_created", kind: "message", T: RealtimeNotificationCreatedEvent, oneof: "event" },
     { no: 61, name: "notification_dismissed", kind: "message", T: RealtimeNotificationDismissedEvent, oneof: "event" },
     { no: 62, name: "notification_level_changed", kind: "message", T: RealtimeNotificationLevelChangedEvent, oneof: "event" },
     { no: 63, name: "thread_follow_changed", kind: "message", T: RealtimeThreadFollowChangedEvent, oneof: "event" },
     { no: 64, name: "room_marked_as_read", kind: "message", T: RealtimeRoomMarkedAsReadEvent, oneof: "event" },
-    { no: 65, name: "thread_created", kind: "message", T: RealtimeThreadCreatedEvent, oneof: "event" },
     { no: 70, name: "server_updated", kind: "message", T: RealtimeServerUpdatedEvent, oneof: "event" },
     { no: 71, name: "user_profile_updated", kind: "message", T: RealtimeUserProfileUpdatedEvent, oneof: "event" },
-    { no: 72, name: "user_custom_status_set", kind: "message", T: RealtimeUserCustomStatusSetEvent, oneof: "event" },
-    { no: 73, name: "user_custom_status_cleared", kind: "message", T: RealtimeUserCustomStatusClearedEvent, oneof: "event" },
     { no: 74, name: "server_user_preferences_updated", kind: "message", T: RealtimeServerUserPreferencesUpdatedEvent, oneof: "event" },
     { no: 75, name: "room_groups_updated", kind: "message", T: RealtimeRoomGroupsUpdatedEvent, oneof: "event" },
     { no: 76, name: "server_member_deleted", kind: "message", T: RealtimeServerMemberDeletedEvent, oneof: "event" },
-    { no: 80, name: "asset_processing_started", kind: "message", T: RealtimeAssetProcessingEvent, oneof: "event" },
-    { no: 81, name: "asset_processing_succeeded", kind: "message", T: RealtimeAssetProcessingEvent, oneof: "event" },
-    { no: 82, name: "asset_processing_failed", kind: "message", T: RealtimeAssetProcessingEvent, oneof: "event" },
-    { no: 83, name: "asset_deleted", kind: "message", T: RealtimeAssetDeletedEvent, oneof: "event" },
-    { no: 84, name: "call_started", kind: "message", T: RealtimeCallEvent, oneof: "event" },
-    { no: 85, name: "call_participant_joined", kind: "message", T: RealtimeCallEvent, oneof: "event" },
-    { no: 86, name: "call_participant_left", kind: "message", T: RealtimeCallEvent, oneof: "event" },
-    { no: 87, name: "call_ended", kind: "message", T: RealtimeCallEvent, oneof: "event" },
     { no: 88, name: "mention_notification", kind: "message", T: RealtimeMentionNotificationEvent, oneof: "event" },
     { no: 89, name: "new_direct_message_notification", kind: "message", T: RealtimeNewDirectMessageNotificationEvent, oneof: "event" },
     { no: 90, name: "session_terminated", kind: "message", T: RealtimeSessionTerminatedEvent, oneof: "event" },
@@ -2068,248 +1845,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
 
   static equals(a: RealtimeEventEnvelope | PlainMessage<RealtimeEventEnvelope> | undefined, b: RealtimeEventEnvelope | PlainMessage<RealtimeEventEnvelope> | undefined): boolean {
     return proto3.util.equals(RealtimeEventEnvelope, a, b);
-  }
-}
-
-/**
- * Message-posted signal.
- *
- * Hydrate the affected timeline with `RoomService.GetRoomEventsAround`
- * for room messages, or `ThreadService.GetThreadEventsAround` when
- * `thread_root_event_id` is set.
- *
- * @generated from message chatto.realtime.v1.RealtimeMessagePostedEvent
- */
-export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEvent> {
-  /**
-   * Room containing the message.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Event ID of the posted message.
-   *
-   * @generated from field: string message_event_id = 2;
-   */
-  messageEventId = "";
-
-  /**
-   * Root message event ID when the message was posted in a thread.
-   *
-   * @generated from field: optional string thread_root_event_id = 3;
-   */
-  threadRootEventId?: string;
-
-  constructor(data?: PartialMessage<RealtimeMessagePostedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeMessagePostedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMessagePostedEvent {
-    return new RealtimeMessagePostedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeMessagePostedEvent {
-    return new RealtimeMessagePostedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeMessagePostedEvent {
-    return new RealtimeMessagePostedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeMessagePostedEvent | PlainMessage<RealtimeMessagePostedEvent> | undefined, b: RealtimeMessagePostedEvent | PlainMessage<RealtimeMessagePostedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeMessagePostedEvent, a, b);
-  }
-}
-
-/**
- * Message-edited signal.
- *
- * Refresh the affected timeline window with
- * `RoomService.GetRoomEventsAround` for room messages, or
- * `ThreadService.GetThreadEventsAround` when the local message belongs to
- * a thread.
- *
- * @generated from message chatto.realtime.v1.RealtimeMessageEditedEvent
- */
-export class RealtimeMessageEditedEvent extends Message<RealtimeMessageEditedEvent> {
-  /**
-   * Room containing the message.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Event ID of the edited message.
-   *
-   * @generated from field: string message_event_id = 2;
-   */
-  messageEventId = "";
-
-  constructor(data?: PartialMessage<RealtimeMessageEditedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeMessageEditedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMessageEditedEvent {
-    return new RealtimeMessageEditedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeMessageEditedEvent {
-    return new RealtimeMessageEditedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeMessageEditedEvent {
-    return new RealtimeMessageEditedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeMessageEditedEvent | PlainMessage<RealtimeMessageEditedEvent> | undefined, b: RealtimeMessageEditedEvent | PlainMessage<RealtimeMessageEditedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeMessageEditedEvent, a, b);
-  }
-}
-
-/**
- * Message-retracted signal.
- *
- * Refresh or patch the affected timeline window with
- * `RoomService.GetRoomEventsAround` for room messages, or
- * `ThreadService.GetThreadEventsAround` when the local message belongs to
- * a thread.
- *
- * @generated from message chatto.realtime.v1.RealtimeMessageRetractedEvent
- */
-export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetractedEvent> {
-  /**
-   * Room containing the message.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Event ID of the retracted message.
-   *
-   * @generated from field: string message_event_id = 2;
-   */
-  messageEventId = "";
-
-  /**
-   * Retraction reason, when one was supplied.
-   *
-   * @generated from field: optional string reason = 3;
-   */
-  reason?: string;
-
-  constructor(data?: PartialMessage<RealtimeMessageRetractedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeMessageRetractedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeMessageRetractedEvent {
-    return new RealtimeMessageRetractedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeMessageRetractedEvent {
-    return new RealtimeMessageRetractedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeMessageRetractedEvent {
-    return new RealtimeMessageRetractedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeMessageRetractedEvent | PlainMessage<RealtimeMessageRetractedEvent> | undefined, b: RealtimeMessageRetractedEvent | PlainMessage<RealtimeMessageRetractedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeMessageRetractedEvent, a, b);
-  }
-}
-
-/**
- * Reaction signal.
- *
- * Refresh or patch the affected message in its timeline window. Use
- * `RoomService.GetRoomEventsAround` for room messages, or
- * `ThreadService.GetThreadEventsAround` when the local message belongs to
- * a thread. `message_event_id` is canonical: reactions made through a channel
- * echo of a thread reply report the original reply event ID. Clients that show
- * channel echoes should also refresh or patch visible echo rows whose
- * `echo_of_event_id` matches this ID.
- *
- * @generated from message chatto.realtime.v1.RealtimeReactionEvent
- */
-export class RealtimeReactionEvent extends Message<RealtimeReactionEvent> {
-  /**
-   * Room containing the reacted-to message.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Canonical event ID of the reacted-to message.
-   *
-   * @generated from field: string message_event_id = 2;
-   */
-  messageEventId = "";
-
-  /**
-   * Reaction emoji.
-   *
-   * @generated from field: string emoji = 3;
-   */
-  emoji = "";
-
-  constructor(data?: PartialMessage<RealtimeReactionEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeReactionEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeReactionEvent {
-    return new RealtimeReactionEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeReactionEvent {
-    return new RealtimeReactionEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeReactionEvent {
-    return new RealtimeReactionEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeReactionEvent | PlainMessage<RealtimeReactionEvent> | undefined, b: RealtimeReactionEvent | PlainMessage<RealtimeReactionEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeReactionEvent, a, b);
   }
 }
 
@@ -2414,104 +1949,6 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
 
   static equals(a: RealtimePresenceChangedEvent | PlainMessage<RealtimePresenceChangedEvent> | undefined, b: RealtimePresenceChangedEvent | PlainMessage<RealtimePresenceChangedEvent> | undefined): boolean {
     return proto3.util.equals(RealtimePresenceChangedEvent, a, b);
-  }
-}
-
-/**
- * Room lifecycle or membership signal.
- *
- * Hydrate visible room state with `RoomDirectoryService.GetRoom` or
- * `RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
- * `NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
- * batch reads omit unknown, deleted, hidden, and inaccessible rooms.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomEvent
- */
-export class RealtimeRoomEvent extends Message<RealtimeRoomEvent> {
-  /**
-   * Room affected by the event.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RealtimeRoomEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomEvent {
-    return new RealtimeRoomEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomEvent {
-    return new RealtimeRoomEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomEvent {
-    return new RealtimeRoomEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomEvent | PlainMessage<RealtimeRoomEvent> | undefined, b: RealtimeRoomEvent | PlainMessage<RealtimeRoomEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomEvent, a, b);
-  }
-}
-
-/**
- * Room universal-visibility signal.
- *
- * The latest universal flag is inline. Hydrate the rest of the visible room with
- * `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomUniversalChangedEvent
- */
-export class RealtimeRoomUniversalChangedEvent extends Message<RealtimeRoomUniversalChangedEvent> {
-  /**
-   * Room whose universal setting changed.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Latest universal setting.
-   *
-   * @generated from field: bool universal = 2;
-   */
-  universal = false;
-
-  constructor(data?: PartialMessage<RealtimeRoomUniversalChangedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomUniversalChangedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomUniversalChangedEvent {
-    return new RealtimeRoomUniversalChangedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomUniversalChangedEvent {
-    return new RealtimeRoomUniversalChangedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomUniversalChangedEvent {
-    return new RealtimeRoomUniversalChangedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomUniversalChangedEvent | PlainMessage<RealtimeRoomUniversalChangedEvent> | undefined, b: RealtimeRoomUniversalChangedEvent | PlainMessage<RealtimeRoomUniversalChangedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomUniversalChangedEvent, a, b);
   }
 }
 
@@ -2760,58 +2197,6 @@ export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFoll
 }
 
 /**
- * Thread-created signal.
- *
- * Hydrate the new thread with `ThreadService.GetThreadEventsAround` using
- * `thread_root_event_id` as the anchor.
- *
- * @generated from message chatto.realtime.v1.RealtimeThreadCreatedEvent
- */
-export class RealtimeThreadCreatedEvent extends Message<RealtimeThreadCreatedEvent> {
-  /**
-   * Room containing the thread.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Root message event ID that identifies the thread.
-   *
-   * @generated from field: string thread_root_event_id = 2;
-   */
-  threadRootEventId = "";
-
-  constructor(data?: PartialMessage<RealtimeThreadCreatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeThreadCreatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeThreadCreatedEvent {
-    return new RealtimeThreadCreatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeThreadCreatedEvent {
-    return new RealtimeThreadCreatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeThreadCreatedEvent {
-    return new RealtimeThreadCreatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeThreadCreatedEvent | PlainMessage<RealtimeThreadCreatedEvent> | undefined, b: RealtimeThreadCreatedEvent | PlainMessage<RealtimeThreadCreatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeThreadCreatedEvent, a, b);
-  }
-}
-
-/**
  * Room-read signal for the connected user.
  *
  * This is a current-user read-state invalidation signal. Clients can patch local
@@ -2856,12 +2241,12 @@ export class RealtimeRoomMarkedAsReadEvent extends Message<RealtimeRoomMarkedAsR
 }
 
 /**
- * Legacy protocol-v1 server-profile signal.
+ * Transient server-profile signal.
  *
  * Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
  * for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
- * Protocol v2 carries both public and authenticated server state as projection
- * operations instead.
+ * Canonical public and authenticated server state also converges through
+ * projection operations.
  *
  * @generated from message chatto.realtime.v1.RealtimeServerUpdatedEvent
  */
@@ -2990,118 +2375,6 @@ export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfile
 
   static equals(a: RealtimeUserProfileUpdatedEvent | PlainMessage<RealtimeUserProfileUpdatedEvent> | undefined, b: RealtimeUserProfileUpdatedEvent | PlainMessage<RealtimeUserProfileUpdatedEvent> | undefined): boolean {
     return proto3.util.equals(RealtimeUserProfileUpdatedEvent, a, b);
-  }
-}
-
-/**
- * User-custom-status set signal.
- *
- * The latest custom status is inline. Use `UserService.GetUser` when
- * clients need to refresh the complete user profile.
- *
- * @generated from message chatto.realtime.v1.RealtimeUserCustomStatusSetEvent
- */
-export class RealtimeUserCustomStatusSetEvent extends Message<RealtimeUserCustomStatusSetEvent> {
-  /**
-   * User whose status changed.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  /**
-   * Emoji part of the status.
-   *
-   * @generated from field: string emoji = 2;
-   */
-  emoji = "";
-
-  /**
-   * Text part of the status.
-   *
-   * @generated from field: string text = 3;
-   */
-  text = "";
-
-  /**
-   * Expiration time, when the status expires automatically.
-   *
-   * @generated from field: google.protobuf.Timestamp expires_at = 4;
-   */
-  expiresAt?: Timestamp;
-
-  constructor(data?: PartialMessage<RealtimeUserCustomStatusSetEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeUserCustomStatusSetEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "expires_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUserCustomStatusSetEvent {
-    return new RealtimeUserCustomStatusSetEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUserCustomStatusSetEvent {
-    return new RealtimeUserCustomStatusSetEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUserCustomStatusSetEvent {
-    return new RealtimeUserCustomStatusSetEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeUserCustomStatusSetEvent | PlainMessage<RealtimeUserCustomStatusSetEvent> | undefined, b: RealtimeUserCustomStatusSetEvent | PlainMessage<RealtimeUserCustomStatusSetEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeUserCustomStatusSetEvent, a, b);
-  }
-}
-
-/**
- * User-custom-status cleared signal.
- *
- * Clear local custom status for `user_id`. Use `UserService.GetUser`
- * when clients need to refresh the complete user profile.
- *
- * @generated from message chatto.realtime.v1.RealtimeUserCustomStatusClearedEvent
- */
-export class RealtimeUserCustomStatusClearedEvent extends Message<RealtimeUserCustomStatusClearedEvent> {
-  /**
-   * User whose status was cleared.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  constructor(data?: PartialMessage<RealtimeUserCustomStatusClearedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeUserCustomStatusClearedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUserCustomStatusClearedEvent {
-    return new RealtimeUserCustomStatusClearedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUserCustomStatusClearedEvent {
-    return new RealtimeUserCustomStatusClearedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUserCustomStatusClearedEvent {
-    return new RealtimeUserCustomStatusClearedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeUserCustomStatusClearedEvent | PlainMessage<RealtimeUserCustomStatusClearedEvent> | undefined, b: RealtimeUserCustomStatusClearedEvent | PlainMessage<RealtimeUserCustomStatusClearedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeUserCustomStatusClearedEvent, a, b);
   }
 }
 
@@ -3244,182 +2517,6 @@ export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemb
 
   static equals(a: RealtimeServerMemberDeletedEvent | PlainMessage<RealtimeServerMemberDeletedEvent> | undefined, b: RealtimeServerMemberDeletedEvent | PlainMessage<RealtimeServerMemberDeletedEvent> | undefined): boolean {
     return proto3.util.equals(RealtimeServerMemberDeletedEvent, a, b);
-  }
-}
-
-/**
- * Asset-processing signal.
- *
- * Message attachments are message-owned subresources. When
- * `message_event_id` is known, refetch message state with
- * `MessageService.GetMessage` or `MessageService.BatchGetMessages`; otherwise
- * refetch the affected attachment list or timeline window.
- *
- * @generated from message chatto.realtime.v1.RealtimeAssetProcessingEvent
- */
-export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessingEvent> {
-  /**
-   * Room containing the message that owns the asset, when known.
-   *
-   * @generated from field: optional string room_id = 1;
-   */
-  roomId?: string;
-
-  /**
-   * Asset ID.
-   *
-   * @generated from field: string asset_id = 2;
-   */
-  assetId = "";
-
-  /**
-   * Event ID of the message that owns the asset, when known.
-   *
-   * @generated from field: optional string message_event_id = 3;
-   */
-  messageEventId?: string;
-
-  constructor(data?: PartialMessage<RealtimeAssetProcessingEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeAssetProcessingEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeAssetProcessingEvent {
-    return new RealtimeAssetProcessingEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeAssetProcessingEvent {
-    return new RealtimeAssetProcessingEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeAssetProcessingEvent {
-    return new RealtimeAssetProcessingEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeAssetProcessingEvent | PlainMessage<RealtimeAssetProcessingEvent> | undefined, b: RealtimeAssetProcessingEvent | PlainMessage<RealtimeAssetProcessingEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeAssetProcessingEvent, a, b);
-  }
-}
-
-/**
- * Asset-deleted signal.
- *
- * Remove local attachment state by `asset_id`. When the owning message is known,
- * clients can refetch that message through `MessageService.GetMessage` or
- * refetch the timeline window.
- *
- * @generated from message chatto.realtime.v1.RealtimeAssetDeletedEvent
- */
-export class RealtimeAssetDeletedEvent extends Message<RealtimeAssetDeletedEvent> {
-  /**
-   * Room containing the message that owned the asset, when known.
-   *
-   * @generated from field: optional string room_id = 1;
-   */
-  roomId?: string;
-
-  /**
-   * Asset ID.
-   *
-   * @generated from field: string asset_id = 2;
-   */
-  assetId = "";
-
-  constructor(data?: PartialMessage<RealtimeAssetDeletedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeAssetDeletedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeAssetDeletedEvent {
-    return new RealtimeAssetDeletedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeAssetDeletedEvent {
-    return new RealtimeAssetDeletedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeAssetDeletedEvent {
-    return new RealtimeAssetDeletedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeAssetDeletedEvent | PlainMessage<RealtimeAssetDeletedEvent> | undefined, b: RealtimeAssetDeletedEvent | PlainMessage<RealtimeAssetDeletedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeAssetDeletedEvent, a, b);
-  }
-}
-
-/**
- * Voice-call state signal.
- *
- * Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
- * or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
- * transitions from a previous call in the same room.
- *
- * @generated from message chatto.realtime.v1.RealtimeCallEvent
- */
-export class RealtimeCallEvent extends Message<RealtimeCallEvent> {
-  /**
-   * Room containing the call.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Call ID.
-   *
-   * @generated from field: string call_id = 2;
-   */
-  callId = "";
-
-  /**
-   * Source that produced the call transition.
-   *
-   * @generated from field: chatto.realtime.v1.RealtimeCallEventSource source = 3;
-   */
-  source = RealtimeCallEventSource.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<RealtimeCallEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeCallEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "source", kind: "enum", T: proto3.getEnumType(RealtimeCallEventSource) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeCallEvent {
-    return new RealtimeCallEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeCallEvent {
-    return new RealtimeCallEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeCallEvent {
-    return new RealtimeCallEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeCallEvent | PlainMessage<RealtimeCallEvent> | undefined, b: RealtimeCallEvent | PlainMessage<RealtimeCallEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeCallEvent, a, b);
   }
 }
 

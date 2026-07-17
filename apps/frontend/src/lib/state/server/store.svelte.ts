@@ -399,6 +399,12 @@ export class ServerStateStore {
           }
           break;
         }
+        case 'activeCallsReplace': {
+          const calls = operation.operation.value.calls;
+          this.activeCallRooms.replaceProjection(calls);
+          this.callParticipants.replaceProjection(calls);
+          break;
+        }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(

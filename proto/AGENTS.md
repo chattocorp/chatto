@@ -48,6 +48,14 @@ For public API packages:
 - For new client behaviour, prefer stable discovery or realtime protocol
   capability keys over software-version checks. Keep protocol support distinct
   from server feature configuration and viewer authorization.
+- Public cursor fields are confidential, integrity-protected tokens. Never
+  serialize raw or reversibly encoded NATS/JetStream stream identities,
+  subjects, sequences, revisions, or consumer positions into them. Explicit,
+  owner-only broker diagnostics and event-log inspection messages may expose
+  clearly named operational details; do not reuse those shapes as client or
+  integration contracts.
+- The `chatto.realtime.v1` package suffix is a protobuf namespace. It currently
+  implements only behavioural protocol version 2; older handshakes are rejected.
 
 ## Presence And API Shape
 

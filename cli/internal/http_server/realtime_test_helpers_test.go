@@ -40,6 +40,7 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	t.Cleanup(cancel)
 
 	coreConfig := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

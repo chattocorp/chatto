@@ -11,6 +11,7 @@ import "chatto/api/v1/room_timeline.proto";
 import "chatto/api/v1/server.proto";
 import "chatto/api/v1/server_state.proto";
 import "chatto/api/v1/viewer.proto";
+import "chatto/api/v1/voice_calls.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -61,8 +62,7 @@ message RealtimeClientHello {
   reserved 3;
   reserved "resume_cursor";
 
-  // Protocol version requested by the client. The current version is 2;
-  // version 1 remains available as a live-only compatibility mode.
+  // Protocol version requested by the client. The only supported version is 2.
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
@@ -81,8 +81,7 @@ message RealtimeServerHello {
   uint32 heartbeat_interval_seconds = 4;
   // Stable protocol capability keys supported by this server. Current keys:
   // `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
-  // `chatto.realtime.ping.v1`. Protocol version 2 also advertises
-  // `chatto.realtime.events.resume.v1` and
+  // `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
   // `chatto.realtime.projection.v1`.
   repeated string capabilities = 5;
 }
@@ -90,7 +89,7 @@ message RealtimeServerHello {
 // Request to start the caller's authorized live event stream.
 message RealtimeSubscribeEvents {
   // Opaque cursor from a previously received durable event or caught-up
-  // frame. Protocol version 2 replays authorized durable room events after
+  // frame. The server replays authorized durable projection changes after
   // this cursor before continuing with live delivery. Omit it to receive a
   // compacted reset of the current authorised server projection.
   optional string resume_cursor = 1;
@@ -103,7 +102,7 @@ message RealtimeSubscribed {
 
   // Opaque cursor from which this subscription starts. When the request
   // supplied a resume cursor, this is that validated cursor. Otherwise it is
-  // the current live boundary. Only present for protocol version 2.
+  // the current live boundary.
   optional string start_cursor = 2;
 }
 
@@ -172,6 +171,8 @@ message RealtimeProjectionOperation {
     // Replaces one room's current viewer state without
     // retransmitting room metadata or membership.
     RealtimeProjectionRoomViewerStateReplace room_viewer_state_replace = 14;
+    // Replaces every active call visible to the caller.
+    RealtimeProjectionActiveCallsReplace active_calls_replace = 15;
   }
 }
 
@@ -266,6 +267,11 @@ message RealtimeProjectionRoomViewerStateReplace {
   chatto.api.v1.RoomViewerState viewer_state = 2;
 }
 
+// Finite current active-call state visible to the caller.
+message RealtimeProjectionActiveCallsReplace {
+  repeated chatto.api.v1.ActiveCall calls = 1;
+}
+
 // Reaction transition retained for integrations while the containing timeline
 // row carries the authoritative aggregate reaction state.
 message RealtimeProjectionReactionChange {
@@ -331,15 +337,13 @@ message RealtimeClose {
   uint32 retry_after_ms = 4;
 }
 
-// One authorized live event delivered over the realtime WebSocket.
+// One authorized transient event delivered over the realtime WebSocket.
 //
-// Realtime events are invalidation signals first: payloads carry stable IDs and
-// small inline hints, while durable resource state is hydrated through
-// chatto.api.v1 ConnectRPC services. Event-specific messages document the
-// intended hydration path when a referenced resource may need refreshing.
+// These events have no resume cursor and are never replayed. Durable state is
+// delivered only as RealtimeProjectionEvent operations.
 message RealtimeEventEnvelope {
-  reserved 4;
-  reserved "cursor";
+  reserved 4, 5, 10 to 12, 20 to 21, 40 to 47, 65, 72 to 73, 80 to 87;
+  reserved "cursor", "resume_cursor", "message_posted", "message_edited", "message_retracted", "reaction_added", "reaction_removed", "room_created", "room_updated", "room_deleted", "room_archived", "room_unarchived", "user_joined_room", "user_left_room", "room_universal_changed", "thread_created", "user_custom_status_set", "user_custom_status_cleared", "asset_processing_started", "asset_processing_succeeded", "asset_processing_failed", "asset_deleted", "call_started", "call_participant_joined", "call_participant_left", "call_ended";
 
   // Stable event ID.
   string id = 1;
@@ -347,42 +351,11 @@ message RealtimeEventEnvelope {
   google.protobuf.Timestamp created_at = 2;
   // User or system actor that caused the event, when known.
   optional string actor_id = 3;
-  // Opaque resume cursor for this durable event. Absent for transient events.
-  // Protocol version 2 clients can retain this with their resulting state
-  // after applying the event.
-  optional string resume_cursor = 5;
-
   oneof event {
-    // A message was posted in a room or thread.
-    RealtimeMessagePostedEvent message_posted = 10;
-    // A message body or renderable metadata changed.
-    RealtimeMessageEditedEvent message_edited = 11;
-    // A message was retracted.
-    RealtimeMessageRetractedEvent message_retracted = 12;
-    // A user added a reaction to a message.
-    RealtimeReactionEvent reaction_added = 20;
-    // A user removed a reaction from a message.
-    RealtimeReactionEvent reaction_removed = 21;
     // A user is typing in a room or thread.
     RealtimeTypingEvent user_typing = 30;
     // A user's live presence changed.
     RealtimePresenceChangedEvent presence_changed = 31;
-    // A room was created.
-    RealtimeRoomEvent room_created = 40;
-    // A room's profile or settings changed.
-    RealtimeRoomEvent room_updated = 41;
-    // A room was deleted.
-    RealtimeRoomEvent room_deleted = 42;
-    // A room was archived.
-    RealtimeRoomEvent room_archived = 43;
-    // A room was restored from the archive.
-    RealtimeRoomEvent room_unarchived = 44;
-    // A user joined a room visible to the current user.
-    RealtimeRoomEvent user_joined_room = 45;
-    // A user left a room visible to the current user.
-    RealtimeRoomEvent user_left_room = 46;
-    // A room's universal visibility flag changed.
-    RealtimeRoomUniversalChangedEvent room_universal_changed = 47;
     // A notification was created for the current user.
     RealtimeNotificationCreatedEvent notification_created = 60;
     // A notification was dismissed for the current user.
@@ -393,38 +366,16 @@ message RealtimeEventEnvelope {
     RealtimeThreadFollowChangedEvent thread_follow_changed = 63;
     // The current user's room read state changed.
     RealtimeRoomMarkedAsReadEvent room_marked_as_read = 64;
-    // A thread was created in a room visible to the current user.
-    RealtimeThreadCreatedEvent thread_created = 65;
     // The server profile/config changed.
     RealtimeServerUpdatedEvent server_updated = 70;
     // A user profile changed.
     RealtimeUserProfileUpdatedEvent user_profile_updated = 71;
-    // A user's custom status was set or changed.
-    RealtimeUserCustomStatusSetEvent user_custom_status_set = 72;
-    // A user's custom status was cleared.
-    RealtimeUserCustomStatusClearedEvent user_custom_status_cleared = 73;
     // The current user's display preferences changed.
     RealtimeServerUserPreferencesUpdatedEvent server_user_preferences_updated = 74;
     // Room-group layout changed.
     RealtimeRoomGroupsUpdatedEvent room_groups_updated = 75;
     // A server member was deleted.
     RealtimeServerMemberDeletedEvent server_member_deleted = 76;
-    // Asset processing started for a message attachment.
-    RealtimeAssetProcessingEvent asset_processing_started = 80;
-    // Asset processing completed successfully for a message attachment.
-    RealtimeAssetProcessingEvent asset_processing_succeeded = 81;
-    // Asset processing failed for a message attachment.
-    RealtimeAssetProcessingEvent asset_processing_failed = 82;
-    // An asset attached to a message was deleted.
-    RealtimeAssetDeletedEvent asset_deleted = 83;
-    // A voice call started in a room.
-    RealtimeCallEvent call_started = 84;
-    // A participant joined a voice call.
-    RealtimeCallEvent call_participant_joined = 85;
-    // A participant left a voice call.
-    RealtimeCallEvent call_participant_left = 86;
-    // A voice call ended.
-    RealtimeCallEvent call_ended = 87;
     // The current user was mentioned in a room.
     RealtimeMentionNotificationEvent mention_notification = 88;
     // The current user received a new direct message.
@@ -432,66 +383,6 @@ message RealtimeEventEnvelope {
     // The current user's session was terminated.
     RealtimeSessionTerminatedEvent session_terminated = 90;
   }
-}
-
-// Message-posted signal.
-//
-// Hydrate the affected timeline with `RoomService.GetRoomEventsAround`
-// for room messages, or `ThreadService.GetThreadEventsAround` when
-// `thread_root_event_id` is set.
-message RealtimeMessagePostedEvent {
-  // Room containing the message.
-  string room_id = 1;
-  // Event ID of the posted message.
-  string message_event_id = 2;
-  // Root message event ID when the message was posted in a thread.
-  optional string thread_root_event_id = 3;
-}
-
-// Message-edited signal.
-//
-// Refresh the affected timeline window with
-// `RoomService.GetRoomEventsAround` for room messages, or
-// `ThreadService.GetThreadEventsAround` when the local message belongs to
-// a thread.
-message RealtimeMessageEditedEvent {
-  // Room containing the message.
-  string room_id = 1;
-  // Event ID of the edited message.
-  string message_event_id = 2;
-}
-
-// Message-retracted signal.
-//
-// Refresh or patch the affected timeline window with
-// `RoomService.GetRoomEventsAround` for room messages, or
-// `ThreadService.GetThreadEventsAround` when the local message belongs to
-// a thread.
-message RealtimeMessageRetractedEvent {
-  // Room containing the message.
-  string room_id = 1;
-  // Event ID of the retracted message.
-  string message_event_id = 2;
-  // Retraction reason, when one was supplied.
-  optional string reason = 3;
-}
-
-// Reaction signal.
-//
-// Refresh or patch the affected message in its timeline window. Use
-// `RoomService.GetRoomEventsAround` for room messages, or
-// `ThreadService.GetThreadEventsAround` when the local message belongs to
-// a thread. `message_event_id` is canonical: reactions made through a channel
-// echo of a thread reply report the original reply event ID. Clients that show
-// channel echoes should also refresh or patch visible echo rows whose
-// `echo_of_event_id` matches this ID.
-message RealtimeReactionEvent {
-  // Room containing the reacted-to message.
-  string room_id = 1;
-  // Canonical event ID of the reacted-to message.
-  string message_event_id = 2;
-  // Reaction emoji.
-  string emoji = 3;
 }
 
 // Typing signal.
@@ -514,28 +405,6 @@ message RealtimePresenceChangedEvent {
   string user_id = 1;
   // Latest presence status.
   chatto.api.v1.PresenceStatus status = 2;
-}
-
-// Room lifecycle or membership signal.
-//
-// Hydrate visible room state with `RoomDirectoryService.GetRoom` or
-// `RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
-// `NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
-// batch reads omit unknown, deleted, hidden, and inaccessible rooms.
-message RealtimeRoomEvent {
-  // Room affected by the event.
-  string room_id = 1;
-}
-
-// Room universal-visibility signal.
-//
-// The latest universal flag is inline. Hydrate the rest of the visible room with
-// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
-message RealtimeRoomUniversalChangedEvent {
-  // Room whose universal setting changed.
-  string room_id = 1;
-  // Latest universal setting.
-  bool universal = 2;
 }
 
 // Notification-created signal for the connected user.
@@ -594,17 +463,6 @@ message RealtimeThreadFollowChangedEvent {
   bool following = 3;
 }
 
-// Thread-created signal.
-//
-// Hydrate the new thread with `ThreadService.GetThreadEventsAround` using
-// `thread_root_event_id` as the anchor.
-message RealtimeThreadCreatedEvent {
-  // Room containing the thread.
-  string room_id = 1;
-  // Root message event ID that identifies the thread.
-  string thread_root_event_id = 2;
-}
-
 // Room-read signal for the connected user.
 //
 // This is a current-user read-state invalidation signal. Clients can patch local
@@ -614,12 +472,12 @@ message RealtimeRoomMarkedAsReadEvent {
   string room_id = 1;
 }
 
-// Legacy protocol-v1 server-profile signal.
+// Transient server-profile signal.
 //
 // Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
 // for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
-// Protocol v2 carries both public and authenticated server state as projection
-// operations instead.
+// Canonical public and authenticated server state also converges through
+// projection operations.
 message RealtimeServerUpdatedEvent {
   // Server display name.
   string name = 1;
@@ -644,30 +502,6 @@ message RealtimeUserProfileUpdatedEvent {
   string display_name = 3;
   // Avatar URL, when the user has an avatar.
   optional string avatar_url = 4;
-}
-
-// User-custom-status set signal.
-//
-// The latest custom status is inline. Use `UserService.GetUser` when
-// clients need to refresh the complete user profile.
-message RealtimeUserCustomStatusSetEvent {
-  // User whose status changed.
-  string user_id = 1;
-  // Emoji part of the status.
-  string emoji = 2;
-  // Text part of the status.
-  string text = 3;
-  // Expiration time, when the status expires automatically.
-  google.protobuf.Timestamp expires_at = 4;
-}
-
-// User-custom-status cleared signal.
-//
-// Clear local custom status for `user_id`. Use `UserService.GetUser`
-// when clients need to refresh the complete user profile.
-message RealtimeUserCustomStatusClearedEvent {
-  // User whose status was cleared.
-  string user_id = 1;
 }
 
 // User display-preferences signal for the connected user.
@@ -699,59 +533,6 @@ message RealtimeRoomGroupsUpdatedEvent {
 message RealtimeServerMemberDeletedEvent {
   // Deleted user ID.
   string user_id = 1;
-}
-
-// Asset-processing signal.
-//
-// Message attachments are message-owned subresources. When
-// `message_event_id` is known, refetch message state with
-// `MessageService.GetMessage` or `MessageService.BatchGetMessages`; otherwise
-// refetch the affected attachment list or timeline window.
-message RealtimeAssetProcessingEvent {
-  // Room containing the message that owns the asset, when known.
-  optional string room_id = 1;
-  // Asset ID.
-  string asset_id = 2;
-  // Event ID of the message that owns the asset, when known.
-  optional string message_event_id = 3;
-}
-
-// Asset-deleted signal.
-//
-// Remove local attachment state by `asset_id`. When the owning message is known,
-// clients can refetch that message through `MessageService.GetMessage` or
-// refetch the timeline window.
-message RealtimeAssetDeletedEvent {
-  // Room containing the message that owned the asset, when known.
-  optional string room_id = 1;
-  // Asset ID.
-  string asset_id = 2;
-}
-
-// Voice-call state signal.
-//
-// Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
-// or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
-// transitions from a previous call in the same room.
-message RealtimeCallEvent {
-  // Room containing the call.
-  string room_id = 1;
-  // Call ID.
-  string call_id = 2;
-  // Source that produced the call transition.
-  RealtimeCallEventSource source = 3;
-}
-
-// Source that produced a realtime voice-call transition.
-enum RealtimeCallEventSource {
-  // No call event source was specified.
-  REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED = 0;
-  // The user explicitly requested the transition through Chatto.
-  REALTIME_CALL_EVENT_SOURCE_USER = 1;
-  // LiveKit reported the transition through a webhook.
-  REALTIME_CALL_EVENT_SOURCE_LIVEKIT = 2;
-  // Chatto reconciled its local state against LiveKit's current room state.
-  REALTIME_CALL_EVENT_SOURCE_RECONCILIATION = 3;
 }
 
 // Mention attention signal for the connected user.

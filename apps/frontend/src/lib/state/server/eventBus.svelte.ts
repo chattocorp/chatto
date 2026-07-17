@@ -299,7 +299,6 @@ class EventBusManager {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
               if (event) {
                 dispatchEvent(attachRealtimeEventEnvelope(event, frame.frame.value));
-                persistCursor(frame.frame.value.resumeCursor);
               }
               return;
             }

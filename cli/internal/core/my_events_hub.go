@@ -31,13 +31,12 @@ type myEventsDelivery struct {
 }
 
 type myEventsSubscription struct {
-	C                <-chan myEventsDelivery
-	ch               chan myEventsDelivery
-	Done             <-chan struct{}
-	done             chan struct{}
-	id               uint64
-	userID           string
-	serverProjection bool
+	C      <-chan myEventsDelivery
+	ch     chan myEventsDelivery
+	Done   <-chan struct{}
+	done   chan struct{}
+	id     uint64
+	userID string
 
 	queuedBytes atomic.Int64
 }
@@ -191,10 +190,6 @@ func (h *MyEventsHub) runGeneration(
 }
 
 func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSubscription, error) {
-	return h.SubscribeWithOptions(ctx, userID, false)
-}
-
-func (h *MyEventsHub) SubscribeWithOptions(ctx context.Context, userID string, serverProjection bool) (*myEventsSubscription, error) {
 	select {
 	case <-h.ready:
 	case <-ctx.Done():
@@ -205,7 +200,7 @@ func (h *MyEventsHub) SubscribeWithOptions(ctx context.Context, userID string, s
 		h.mu.Lock()
 		visibilityVersion := h.visibilityVersion
 		state, existingUser := h.users[userID]
-		needsVisibleRooms := serverProjection && (state == nil || state.visibleRooms == nil)
+		needsVisibleRooms := state == nil || state.visibleRooms == nil
 		h.mu.Unlock()
 		if existingUser {
 			var visibleRooms map[string]struct{}
@@ -216,7 +211,7 @@ func (h *MyEventsHub) SubscribeWithOptions(ctx context.Context, userID string, s
 					return nil, err
 				}
 			}
-			sub := newMyEventsSubscription(userID, serverProjection)
+			sub := newMyEventsSubscription(userID)
 			if err := h.registerAtIngressBoundary(ctx, sub, nil, visibleRooms, 0, visibilityVersion); err != nil {
 				if errors.Is(err, errMyEventsIngressChanged) {
 					continue
@@ -229,14 +224,11 @@ func (h *MyEventsHub) SubscribeWithOptions(ctx context.Context, userID string, s
 		if err != nil {
 			return nil, err
 		}
-		var visibleRooms map[string]struct{}
-		if serverProjection {
-			visibleRooms, err = h.captureVisibleRooms(ctx, userID)
-			if err != nil {
-				return nil, err
-			}
+		visibleRooms, err := h.captureVisibleRooms(ctx, userID)
+		if err != nil {
+			return nil, err
 		}
-		sub := newMyEventsSubscription(userID, serverProjection)
+		sub := newMyEventsSubscription(userID)
 		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, visibleRooms, roomSnapshotSeq, visibilityVersion); err != nil {
 			if errors.Is(err, errMyEventsIngressChanged) {
 				continue
@@ -247,10 +239,10 @@ func (h *MyEventsHub) SubscribeWithOptions(ctx context.Context, userID string, s
 	}
 }
 
-func newMyEventsSubscription(userID string, serverProjection bool) *myEventsSubscription {
+func newMyEventsSubscription(userID string) *myEventsSubscription {
 	ch := make(chan myEventsDelivery, myEventsSubscriberBuffer)
 	done := make(chan struct{})
-	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID, serverProjection: serverProjection}
+	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
 }
 
 func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms, visibleRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
@@ -540,16 +532,6 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 			continue
 		}
 
-		// Legacy delivery remains membership-based. Projection delivery below
-		// independently applies current directory visibility, including for a
-		// membership transition that is intentionally delivered one last time.
-		if ok {
-			for _, sub := range state.subscribers {
-				if !sub.serverProjection {
-					h.enqueueSubscriberLocked(sub, envelope, bytes)
-				}
-			}
-		}
 		if state.visibleRooms == nil {
 			continue
 		}
@@ -590,12 +572,9 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 			delete(state.visibleRooms, roomID)
 		default:
 			// An uncertain visibility decision must never disclose a room fact.
-			// Reconnect only projection sessions; any legacy member delivery was
-			// already governed by the membership filter above.
+			// Reconnect this user's sessions rather than risk disclosing a room.
 			for _, sub := range state.subscribers {
-				if sub.serverProjection {
-					h.removeSubscriberLocked(sub)
-				}
+				h.removeSubscriberLocked(sub)
 			}
 			continue
 		}
@@ -605,9 +584,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 			envelope = NewEVTEventEnvelopeWithDeliverySeq(event, seq)
 		}
 		for _, sub := range state.subscribers {
-			if sub.serverProjection {
-				h.enqueueSubscriberLocked(sub, envelope, bytes)
-			}
+			h.enqueueSubscriberLocked(sub, envelope, bytes)
 		}
 	}
 }

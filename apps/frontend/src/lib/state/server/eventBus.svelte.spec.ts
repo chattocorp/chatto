@@ -112,7 +112,7 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   return serverFrame({
     case: 'hello',
     value: new RealtimeServerHello({
-      protocolVersion: 1,
+      protocolVersion: 2,
       serverVersion: 'test',
       heartbeatIntervalSeconds
     })
@@ -556,29 +556,6 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(heartbeatFrame());
 
     expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('treats room universal changes as room layout updates', async () => {
-    const { socket } = await startAndSubscribe();
-    const handler = vi.fn();
-    const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
-
-    await socket.receive(
-      serverFrame({
-        case: 'event',
-        value: new RealtimeEventEnvelope({
-          id: 'evt-room',
-          createdAt: Timestamp.now(),
-          event: {
-            case: 'roomUniversalChanged',
-            value: { roomId: 'room-1', universal: false }
-          }
-        })
-      })
-    );
-
-    expect(handler).toHaveBeenCalledWith({ roomId: 'room-1', universal: false });
-    unsubscribe();
   });
 
   it('matches direct room layout handlers by local event kind', async () => {

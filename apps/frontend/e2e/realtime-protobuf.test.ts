@@ -66,7 +66,7 @@ class RealtimeProtobufClient {
       new RealtimeClientFrame({
         frame: {
           case: 'hello',
-          value: new RealtimeClientHello({ protocolVersion: 1, bearerToken })
+          value: new RealtimeClientHello({ protocolVersion: 2, bearerToken })
         }
       })
     );

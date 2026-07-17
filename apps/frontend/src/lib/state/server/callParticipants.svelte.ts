@@ -6,10 +6,11 @@
  *
  * Data sources:
  * - Initial load: Connect voice-call API (from the call-state projection)
- * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
+ * - Real-time updates: canonical server-scoped active-call replacements
  */
 
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 
 /** Participant info stored in observer mode. */
 export type ObserverParticipant = {
@@ -69,6 +70,31 @@ export class CallParticipantsState {
       this.currentCallId = participants[0]?.callId ?? null;
       this.participants = participants.map(toObserverParticipant);
     }
+  }
+
+  /** Apply the canonical server-scoped call projection to the open observer panel. */
+  replaceProjection(calls: readonly ActiveCall[]): void {
+    if (!this.currentRoomId) return;
+
+    const call = calls.find((candidate) => candidate.room?.id === this.currentRoomId);
+    this.bumpVersion();
+    if (!call) {
+      this.currentCallId = null;
+      this.participants = [];
+      return;
+    }
+
+    this.currentCallId = call.callId || null;
+    this.participants = call.participants.flatMap((participant) => {
+      const user = participant.user;
+      if (!user?.id) return [];
+      return [{
+        userId: user.id,
+        displayName: user.displayName,
+        login: user.login,
+        avatarUrl: user.avatarUrl ?? null
+      }];
+    });
   }
 
   /**

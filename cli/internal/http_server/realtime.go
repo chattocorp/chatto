@@ -26,7 +26,6 @@ import (
 const (
 	realtimePath                     = "/api/realtime"
 	realtimeProtocolVersion          = 2
-	realtimeLegacyProtocolVersion    = 1
 	realtimeReadLimitBytes           = 64 << 10
 	realtimeReadBufferBytes          = 256
 	realtimeWriteBufferBytes         = 512
@@ -40,10 +39,9 @@ var realtimeServerCapabilities = []string{
 	"chatto.realtime.events.live.v1",
 	"chatto.realtime.heartbeat.v1",
 	"chatto.realtime.ping.v1",
+	"chatto.realtime.events.resume.v1",
+	"chatto.realtime.projection.v1",
 }
-
-const realtimeReplayCapability = "chatto.realtime.events.resume.v1"
-const realtimeProjectionCapability = "chatto.realtime.projection.v1"
 
 func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	if s.metrics == nil {
@@ -152,11 +150,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
 		return
 	}
-	protocolVersion := clientHello.ProtocolVersion
-	if protocolVersion == 0 {
-		protocolVersion = realtimeLegacyProtocolVersion
-	}
-	if protocolVersion != realtimeLegacyProtocolVersion && protocolVersion != realtimeProtocolVersion {
+	if clientHello.ProtocolVersion != realtimeProtocolVersion {
 		writeError("unsupported_protocol", "unsupported realtime protocol version", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
@@ -173,16 +167,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	capabilities := append([]string(nil), realtimeServerCapabilities...)
-	if protocolVersion >= realtimeProtocolVersion {
-		capabilities = append(capabilities, realtimeReplayCapability, realtimeProjectionCapability)
-	}
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
 		Hello: &realtimev1.RealtimeServerHello{
-			ProtocolVersion:          protocolVersion,
+			ProtocolVersion:          realtimeProtocolVersion,
 			ServerVersion:            s.version,
 			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
-			Capabilities:             capabilities,
+			Capabilities:             append([]string(nil), realtimeServerCapabilities...),
 		},
 	}}); err != nil {
 		return
@@ -204,29 +194,21 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{
-		TouchPresence: false, ServerProjection: protocolVersion >= realtimeProtocolVersion,
-	})
+	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
 		writeError("subscribe_failed", "failed to start realtime event stream", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
-	var replayPlan core.RealtimeReplayPlan
-	if protocolVersion >= realtimeProtocolVersion {
-		replayPlan, err = s.core.PlanRealtimeReplay(ctx, user.Id, subscribeEvents.GetResumeCursor())
-		if err != nil {
-			code, message := realtimeReplayError(err)
-			writeError(code, message, true)
-			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
-			return
-		}
+	replayPlan, err := s.core.PlanRealtimeReplay(ctx, user.Id, subscribeEvents.GetResumeCursor())
+	if err != nil {
+		code, message := realtimeReplayError(err)
+		writeError(code, message, true)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
+		return
 	}
 
-	subscribed := &realtimev1.RealtimeSubscribed{}
-	if protocolVersion >= realtimeProtocolVersion {
-		subscribed.StartCursor = &replayPlan.StartCursor
-	}
+	subscribed := &realtimev1.RealtimeSubscribed{StartCursor: &replayPlan.StartCursor}
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
 		Subscribed: subscribed,
 	}}); err != nil {
@@ -234,61 +216,56 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 
 	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
-	if protocolVersion >= realtimeProtocolVersion {
-		if replayPlan.Reset {
-			frames, err := s.realtimeProjectionSnapshotFrames(ctx, user.Id)
-			if err != nil {
-				s.logger.Warn("Realtime compacted projection replay failed", "error", err)
-				writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
-				return
-			}
-			for _, frame := range frames {
-				if err := writeFrame(frame); err != nil {
-					return
-				}
-			}
+	if replayPlan.Reset {
+		frames, err := s.realtimeProjectionSnapshotFrames(ctx, user.Id)
+		if err != nil {
+			s.logger.Warn("Realtime compacted projection replay failed", "error", err)
+			writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
+			return
 		}
-		for _, event := range replayPlan.Events {
-			frame, handled, err := s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
-			if err != nil {
-				s.logger.Warn("Realtime replay mapping failed", "event_id", event.ID(), "error", err)
-				writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
-				return
-			}
-			if !handled {
-				frame, err = s.realtimeServerFrameForEvent(ctx, user.Id, event, true)
-				if err != nil {
-					s.logger.Warn("Realtime replay fallback mapping failed", "event_id", event.ID(), "error", err)
-					writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
-					return
-				}
-			}
+		for _, frame := range frames {
 			if err := writeFrame(frame); err != nil {
 				return
 			}
 		}
-		if !replayPlan.Reset {
-			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, user.Id)
-			if err != nil {
-				s.logger.Warn("Realtime notification reconciliation failed", "error", err)
-				writeError("replay_unavailable", "realtime notification reconciliation is temporarily unavailable", true)
-				return
-			}
-			if err := writeFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
-				Id:        core.NewEventID(),
-				CreatedAt: timestamppb.Now(),
-				Operations: []*realtimev1.RealtimeProjectionOperation{{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-					NotificationsReplace: realtimeProjectionNotifications(notifications),
-				}}},
-			})); err != nil {
-				return
-			}
-		}
-		if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
-			CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},
-		}}); err != nil {
+	}
+	for _, event := range replayPlan.Events {
+		frame, handled, err := s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
+		if err != nil {
+			s.logger.Warn("Realtime replay mapping failed", "event_id", event.ID(), "error", err)
+			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
 			return
 		}
+		if !handled {
+			s.logger.Warn("Realtime durable event has no projection mapping", "event_id", event.ID())
+			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+			return
+		}
+		if err := writeFrame(frame); err != nil {
+			return
+		}
+	}
+	if !replayPlan.Reset {
+		notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, user.Id)
+		if err != nil {
+			s.logger.Warn("Realtime notification reconciliation failed", "error", err)
+			writeError("replay_unavailable", "realtime notification reconciliation is temporarily unavailable", true)
+			return
+		}
+		if err := writeFrame(realtimeProjectionServerFrame(&realtimev1.RealtimeProjectionEvent{
+			Id:        core.NewEventID(),
+			CreatedAt: timestamppb.Now(),
+			Operations: []*realtimev1.RealtimeProjectionOperation{{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+				NotificationsReplace: realtimeProjectionNotifications(notifications),
+			}}},
+		})); err != nil {
+			return
+		}
+	}
+	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
+		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},
+	}}); err != nil {
+		return
 	}
 
 	for {
@@ -302,21 +279,23 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}})
 				return
 			}
-			if protocolVersion >= realtimeProtocolVersion && event.DeliverySeq() > 0 && event.DeliverySeq() <= replayPlan.BoundarySequence {
+			if event.DeliverySeq() > 0 && event.DeliverySeq() <= replayPlan.BoundarySequence {
 				continue
 			}
 			var frame *realtimev1.RealtimeServerFrame
 			var handled bool
 			var mapErr error
-			if protocolVersion >= realtimeProtocolVersion {
-				frame, handled, mapErr = s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
-			}
+			frame, handled, mapErr = s.realtimeProjectionFrameForEvent(ctx, user.Id, event)
 			if mapErr == nil && !handled {
-				frame, mapErr = s.realtimeServerFrameForEvent(ctx, user.Id, event, protocolVersion >= realtimeProtocolVersion)
+				if event.DeliverySeq() > 0 {
+					mapErr = errors.New("durable event has no projection mapping")
+				} else {
+					frame, mapErr = s.realtimeServerFrameForEvent(ctx, user.Id, event)
+				}
 			}
 			if mapErr != nil {
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
-				if protocolVersion >= realtimeProtocolVersion && event.DeliverySeq() > 0 {
+				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 						Close: &realtimev1.RealtimeClose{Code: "projection_mapping_failed", Message: "durable projection mapping failed", Reconnect: true},
 					}})
@@ -433,7 +412,7 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 	return ctx, nil, core.ErrNotAuthenticated
 }
 
-func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope, includeCursor bool) (*realtimev1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, error) {
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
@@ -446,13 +425,6 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 	if err != nil {
 		return nil, err
 	}
-	if includeCursor && event.DeliverySeq() > 0 {
-		cursor, err := s.core.RealtimeCursorForSequence(event.DeliverySeq())
-		if err != nil {
-			return nil, err
-		}
-		envelope.ResumeCursor = &cursor
-	}
 	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: envelope}}, nil
 }
 
@@ -463,11 +435,8 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 		ActorId:   optionalRealtimeString(event.ActorID()),
 	}
 
-	if evt := event.EVTEvent(); evt != nil {
-		if err := s.mapRealtimeEVT(envelope, evt); err != nil {
-			return nil, err
-		}
-		return envelope, nil
+	if event.EVTEvent() != nil {
+		return nil, errors.New("durable events must use projection operations")
 	}
 	if live := event.LiveEvent(); live != nil {
 		if err := s.mapRealtimeLive(ctx, viewerID, envelope, live); err != nil {
@@ -476,112 +445,6 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 		return envelope, nil
 	}
 	return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
-}
-
-func (s *HTTPServer) mapRealtimeEVT(envelope *realtimev1.RealtimeEventEnvelope, event *corev1.Event) error {
-	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
-		msg := payload.MessagePosted
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_MessagePosted{MessagePosted: &realtimev1.RealtimeMessagePostedEvent{
-			RoomId:            msg.GetRoomId(),
-			MessageEventId:    event.GetId(),
-			ThreadRootEventId: optionalRealtimeString(msg.GetInThread()),
-		}}
-	case *corev1.Event_MessageEdited:
-		msg := payload.MessageEdited
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_MessageEdited{MessageEdited: &realtimev1.RealtimeMessageEditedEvent{
-			RoomId: msg.GetRoomId(), MessageEventId: msg.GetEventId(),
-		}}
-	case *corev1.Event_MessageRetracted:
-		msg := payload.MessageRetracted
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_MessageRetracted{MessageRetracted: &realtimev1.RealtimeMessageRetractedEvent{
-			RoomId: msg.GetRoomId(), MessageEventId: msg.GetEventId(), Reason: optionalRealtimeString(msg.GetReason()),
-		}}
-	case *corev1.Event_ReactionAdded:
-		reaction := payload.ReactionAdded
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ReactionAdded{ReactionAdded: &realtimev1.RealtimeReactionEvent{
-			RoomId:         reaction.GetRoomId(),
-			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()),
-			Emoji:          reaction.GetEmoji(),
-		}}
-	case *corev1.Event_ReactionRemoved:
-		reaction := payload.ReactionRemoved
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ReactionRemoved{ReactionRemoved: &realtimev1.RealtimeReactionEvent{
-			RoomId:         reaction.GetRoomId(),
-			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()),
-			Emoji:          reaction.GetEmoji(),
-		}}
-	case *corev1.Event_RoomCreated:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomCreated{RoomCreated: realtimeRoomEvent(payload.RoomCreated.GetRoomId())}
-	case *corev1.Event_RoomUpdated:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomUpdated{RoomUpdated: realtimeRoomEvent(payload.RoomUpdated.GetRoomId())}
-	case *corev1.Event_RoomDeleted:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomDeleted{RoomDeleted: realtimeRoomEvent(payload.RoomDeleted.GetRoomId())}
-	case *corev1.Event_RoomArchived:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomArchived{RoomArchived: realtimeRoomEvent(payload.RoomArchived.GetRoomId())}
-	case *corev1.Event_RoomUnarchived:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomUnarchived{RoomUnarchived: realtimeRoomEvent(payload.RoomUnarchived.GetRoomId())}
-	case *corev1.Event_UserJoinedRoom:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserJoinedRoom{UserJoinedRoom: realtimeRoomEvent(payload.UserJoinedRoom.GetRoomId())}
-	case *corev1.Event_UserLeftRoom:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserLeftRoom{UserLeftRoom: realtimeRoomEvent(payload.UserLeftRoom.GetRoomId())}
-	case *corev1.Event_ThreadCreated:
-		thread := payload.ThreadCreated
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ThreadCreated{ThreadCreated: &realtimev1.RealtimeThreadCreatedEvent{
-			RoomId: thread.GetRoomId(), ThreadRootEventId: thread.GetThreadRootEventId(),
-		}}
-	case *corev1.Event_RoomUniversalChanged:
-		room := payload.RoomUniversalChanged
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomUniversalChanged{RoomUniversalChanged: &realtimev1.RealtimeRoomUniversalChangedEvent{
-			RoomId: room.GetRoomId(), Universal: room.GetUniversal(),
-		}}
-	case *corev1.Event_ServerMemberDeleted:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ServerMemberDeleted{ServerMemberDeleted: &realtimev1.RealtimeServerMemberDeletedEvent{
-			UserId: payload.ServerMemberDeleted.GetUserId(),
-		}}
-	case *corev1.Event_VoiceCallStarted:
-		call := payload.VoiceCallStarted
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_CallStarted{CallStarted: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
-	case *corev1.Event_VoiceCallParticipantJoined:
-		call := payload.VoiceCallParticipantJoined
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_CallParticipantJoined{CallParticipantJoined: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
-	case *corev1.Event_VoiceCallParticipantLeft:
-		call := payload.VoiceCallParticipantLeft
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_CallParticipantLeft{CallParticipantLeft: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
-	case *corev1.Event_VoiceCallEnded:
-		call := payload.VoiceCallEnded
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_CallEnded{CallEnded: realtimeCallEvent(call.GetRoomId(), call.GetCallId(), call.GetSource())}
-	case *corev1.Event_AssetProcessingStarted:
-		asset := payload.AssetProcessingStarted
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_AssetProcessingStarted{AssetProcessingStarted: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
-	case *corev1.Event_AssetProcessingSucceeded:
-		asset := payload.AssetProcessingSucceeded
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_AssetProcessingSucceeded{AssetProcessingSucceeded: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
-	case *corev1.Event_AssetProcessingFailed:
-		asset := payload.AssetProcessingFailed
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_AssetProcessingFailed{AssetProcessingFailed: realtimeAssetProcessingEvent(s, asset.GetAssetId(), asset.GetMessageEventId())}
-	case *corev1.Event_AssetDeleted:
-		assetID := payload.AssetDeleted.GetAssetId()
-		roomID, _ := s.core.Assets.AssetRoomID(assetID)
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_AssetDeleted{AssetDeleted: &realtimev1.RealtimeAssetDeletedEvent{
-			RoomId: optionalRealtimeString(roomID), AssetId: assetID,
-		}}
-	case *corev1.Event_UserCustomStatusSet:
-		status := payload.UserCustomStatusSet.GetStatus()
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserCustomStatusSet{UserCustomStatusSet: &realtimev1.RealtimeUserCustomStatusSetEvent{
-			UserId:    payload.UserCustomStatusSet.GetUserId(),
-			Emoji:     status.GetEmoji(),
-			Text:      status.GetText(),
-			ExpiresAt: status.GetExpiresAt(),
-		}}
-	case *corev1.Event_UserCustomStatusCleared:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserCustomStatusCleared{UserCustomStatusCleared: &realtimev1.RealtimeUserCustomStatusClearedEvent{
-			UserId: payload.UserCustomStatusCleared.GetUserId(),
-		}}
-	default:
-		return fmt.Errorf("unsupported EVT event %T", payload)
-	}
-	return nil
 }
 
 func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *realtimev1.RealtimeEventEnvelope, event *corev1.LiveEvent) error {
@@ -661,23 +524,6 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 	return nil
 }
 
-func realtimeRoomEvent(roomID string) *realtimev1.RealtimeRoomEvent {
-	return &realtimev1.RealtimeRoomEvent{RoomId: roomID}
-}
-
-func realtimeCallEvent(roomID, callID string, source corev1.CallParticipantEventSource) *realtimev1.RealtimeCallEvent {
-	return &realtimev1.RealtimeCallEvent{RoomId: roomID, CallId: callID, Source: apiRealtimeCallEventSource(source)}
-}
-
-func realtimeAssetProcessingEvent(s *HTTPServer, assetID, messageEventID string) *realtimev1.RealtimeAssetProcessingEvent {
-	roomID, _ := s.core.Assets.AssetRoomID(assetID)
-	return &realtimev1.RealtimeAssetProcessingEvent{
-		RoomId:         optionalRealtimeString(roomID),
-		AssetId:        assetID,
-		MessageEventId: optionalRealtimeString(messageEventID),
-	}
-}
-
 func optionalRealtimeString(value string) *string {
 	if value == "" {
 		return nil
@@ -749,19 +595,6 @@ func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, r
 		return "Direct Message"
 	}
 	return strings.Join(names, ", ")
-}
-
-func apiRealtimeCallEventSource(source corev1.CallParticipantEventSource) realtimev1.RealtimeCallEventSource {
-	switch source {
-	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
-		return realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_USER
-	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT:
-		return realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT
-	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
-		return realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_RECONCILIATION
-	default:
-		return realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_UNSPECIFIED
-	}
 }
 
 func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *corev1.Room) bool {

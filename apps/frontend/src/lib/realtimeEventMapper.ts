@@ -17,10 +17,6 @@ function timestampToISO(value: { toDate(): Date } | undefined): string {
   return value?.toDate().toISOString() ?? new Date().toISOString();
 }
 
-function optionalTimestampToISO(value: { toDate(): Date } | undefined): string | null {
-  return value ? timestampToISO(value) : null;
-}
-
 function notificationLevel(level: ApiNotificationLevel): GqlNotificationLevel {
   switch (level) {
     case ApiNotificationLevel.MUTED:
@@ -83,58 +79,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
   };
 
   switch (frame.event.case) {
-    case 'messagePosted': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.MessagePosted,
-          roomId: value.roomId,
-          messageEventId: value.messageEventId,
-          threadRootEventId: value.threadRootEventId ?? null
-        }
-      } as unknown as EventEnvelope;
-    }
-    case 'messageEdited': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.MessageEdited,
-          roomId: value.roomId,
-          messageEventId: value.messageEventId
-        }
-      } as unknown as EventEnvelope;
-    }
-    case 'messageRetracted': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.MessageRetracted,
-          roomId: value.roomId,
-          messageEventId: value.messageEventId,
-          retractedReason: value.reason ?? ''
-        }
-      } as unknown as EventEnvelope;
-    }
-    case 'reactionAdded':
-    case 'reactionRemoved': {
-      const value = frame.event.value;
-      const kind =
-        frame.event.case === 'reactionAdded'
-          ? RoomEventKind.ReactionAdded
-          : RoomEventKind.ReactionRemoved;
-      return {
-        ...base,
-        event: {
-          kind,
-          roomId: value.roomId,
-          messageEventId: value.messageEventId,
-          emoji: value.emoji
-        }
-      } as unknown as EventEnvelope;
-    }
     case 'userTyping': {
       const value = frame.event.value;
       return {
@@ -153,71 +97,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         event: {
           kind: RoomEventKind.PresenceChanged,
           status: presenceStatus(frame.event.value.status)
-        }
-      } as unknown as EventEnvelope;
-    case 'roomCreated':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomCreated,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'roomUpdated':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomUpdated,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'roomDeleted':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomDeleted,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'roomArchived':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomArchived,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'roomUnarchived':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomUnarchived,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'userJoinedRoom':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.UserJoinedRoom,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'userLeftRoom':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.UserLeftRoom,
-          roomId: frame.event.value.roomId
-        }
-      } as unknown as EventEnvelope;
-    case 'roomUniversalChanged':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.RoomUniversalChanged,
-          roomId: frame.event.value.roomId,
-          universal: frame.event.value.universal
         }
       } as unknown as EventEnvelope;
     case 'notificationCreated': {
@@ -262,15 +141,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           isFollowing: frame.event.value.following
         }
       } as unknown as EventEnvelope;
-    case 'threadCreated':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.ThreadCreated,
-          roomId: frame.event.value.roomId,
-          threadRootEventId: frame.event.value.threadRootEventId
-        }
-      } as unknown as EventEnvelope;
     case 'roomMarkedAsRead':
       return {
         ...base,
@@ -305,29 +175,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         }
       } as unknown as EventEnvelope;
     }
-    case 'userCustomStatusSet': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.UserCustomStatusSet,
-          userId: value.userId,
-          setCustomStatus: {
-            emoji: value.emoji,
-            text: value.text,
-            expiresAt: optionalTimestampToISO(value.expiresAt)
-          }
-        }
-      } as unknown as EventEnvelope;
-    }
-    case 'userCustomStatusCleared':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.UserCustomStatusCleared,
-          userId: frame.event.value.userId
-        }
-      } as unknown as EventEnvelope;
     case 'serverUserPreferencesUpdated':
       return {
         ...base,
@@ -353,53 +200,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
           userId: frame.event.value.userId
         }
       } as unknown as EventEnvelope;
-    case 'assetProcessingStarted':
-    case 'assetProcessingSucceeded':
-    case 'assetProcessingFailed': {
-      const value = frame.event.value;
-      const kind =
-        frame.event.case === 'assetProcessingStarted'
-          ? RoomEventKind.AssetProcessingStarted
-          : frame.event.case === 'assetProcessingSucceeded'
-            ? RoomEventKind.AssetProcessingSucceeded
-            : RoomEventKind.AssetProcessingFailed;
-      return {
-        ...base,
-        event: {
-          kind,
-          processingRoomId: value.roomId ?? null,
-          assetId: value.assetId,
-          processingMessageEventId: value.messageEventId ?? null
-        }
-      } as unknown as EventEnvelope;
-    }
-    case 'assetDeleted':
-      return {
-        ...base,
-        event: {
-          kind: RoomEventKind.AssetDeleted,
-          deletedRoomId: frame.event.value.roomId ?? null,
-          assetId: frame.event.value.assetId
-        }
-      } as unknown as EventEnvelope;
-    case 'callStarted':
-    case 'callParticipantJoined':
-    case 'callParticipantLeft':
-    case 'callEnded': {
-      const value = frame.event.value;
-      const kind =
-        frame.event.case === 'callStarted'
-          ? RoomEventKind.CallStarted
-          : frame.event.case === 'callParticipantJoined'
-            ? RoomEventKind.CallParticipantJoined
-            : frame.event.case === 'callParticipantLeft'
-              ? RoomEventKind.CallParticipantLeft
-              : RoomEventKind.CallEnded;
-      return {
-        ...base,
-        event: { kind, roomId: value.roomId, callId: value.callId }
-      } as unknown as EventEnvelope;
-    }
     case 'mentionNotification': {
       const value = frame.event.value;
       return {

@@ -29,8 +29,9 @@ later changes:
    authenticated server runtime state, viewer resource, every public directory
    user, every room visible to the viewer with membership references into that
    user directory, the complete visible room-group layout, and the latest 50
-   timeline events for every room the viewer has joined, and the current
-   finite pending-notification page and complete room notification counts.
+   timeline events for every room the viewer has joined, the current finite
+   pending-notification page and complete room notification counts, and every
+   active call visible to the viewer.
 2. The client applies later projection operations to those resources and room
    timelines regardless of which room is being rendered.
 3. A cursor is issued only at EVT boundaries. A socket reconnect in the same
@@ -42,14 +43,23 @@ later changes:
 The 0.5 bundled client requires the discovery capability
 `chatto.realtime.projection.v1` and does not retain the 0.4 ConnectRPC bootstrap
 as a fallback. A 0.4 server is therefore an explicit unsupported target for the
-0.5 client. The 0.5 server continues accepting protocol v1 from older clients,
-but this one-way compatibility does not weaken the v2 client projection
-contract.
+0.5 client. The 0.5 server accepts only protocol version 2 and rejects omitted,
+version-1, and unknown handshakes with `unsupported_protocol`. The protobuf
+package remains `chatto.realtime.v1`; that suffix is an API namespace, not the
+accepted behavioural protocol version.
 
 The browser does not persist a cursor independently of its in-memory
 projection. Reloading the page or recreating a server store omits the cursor and
 therefore rebuilds the complete projection. This prevents a valid cursor from
 being applied to an empty client store.
+
+Resume cursors are encrypted and authenticated with a purpose-separated key
+derived from `core.secret_key`, use a random nonce, and are bound to the
+authenticated viewer. EVT stream incarnation and global sequence remain inside
+the sealed payload and are never disclosed as public API facts. Tampering,
+cross-user reuse, secret rotation, and foreign stream incarnation select a
+compacted reset. Room-timeline pagination cursors follow the same confidentiality
+and integrity invariant; legacy plaintext `seq:` cursors are rejected.
 
 The server creates no new JetStream stream and no per-client consumer. For a
 valid short gap it captures an EVT cutoff, performs bounded point reads by
@@ -75,29 +85,36 @@ Notification records live in `RUNTIME_STATE`, not EVT. Their finite current
 page and room counts are therefore re-emitted inside the projection stream on
 every valid resume before `caught_up`; transient create/dismiss signals buffered
 during the handoff then converge any concurrent changes. Directory metadata
-facts are fanned only to protocol-v2 projection sessions when the viewer has
+facts are fanned to sessions when the viewer has
 not joined the room. The shared hub caches each projection user's authorized
 directory rooms, suppresses facts for rooms the user has never been able to
 see, and emits removal after visibility loss only for previously visible rooms.
-Protocol v1 keeps member-only delivery.
 
 Authenticated server presentation and runtime settings are canonical client
 state. They are therefore included in the compacted prefix and replaced by a
 projection operation after server updates; the client does not bootstrap or
 refresh them through a separate ConnectRPC read. Transient latest-value state
-such as presence, typing, notification hints, and call signalling can continue
-to use existing live envelopes on the same WebSocket. These values do not
+such as presence, typing, and notification hints can continue to use existing
+live envelopes on the same WebSocket. Active call state is canonical and uses
+`active_calls_replace` in the compacted prefix and after durable call
+transitions. These transient values do not
 define the durable client projection and are not replayed. This does not create
 a separate bootstrap/feed path: all canonical server resources and room
 timelines converge through projection operations.
 
-Protocol version 1 remains temporarily available as a live-only compatibility
-mode. Version 2 is the bundled 0.5.0 client contract and is intentionally a
+Version 2 is the sole bundled 0.5.0 client/server contract and is intentionally a
 breaking semantic change for clients that previously treated every realtime
 frame as a domain-event notification. The bundled 0.5 frontend requires a 0.5
 server because a 0.4 server cannot provide its canonical bootstrap projection;
 remote frontend/server compatibility CI therefore starts a new patch-series
 baseline when the first stable 0.5 release exists.
+
+The transient `RealtimeEventEnvelope` no longer declares durable message,
+reaction, room, thread-creation, custom-status, asset, or call alternatives;
+their former field numbers and names are reserved. Integrators migrate those
+handlers to `RealtimeProjectionEvent` operations and retain the envelope only
+for non-replayable signals such as typing, presence, attention hints,
+preferences, and session termination.
 
 ## Consequences
 

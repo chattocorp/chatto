@@ -2,7 +2,9 @@ package core
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
+	"strings"
 	"testing"
 
 	"hmans.de/chatto/internal/events"
@@ -10,20 +12,46 @@ import (
 )
 
 func TestRealtimeCursorRoundTrip(t *testing.T) {
+	chatto, _ := setupTestCore(t)
 	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	cursor, err := encodeRealtimeCursor(identity, 42)
+	userID := "cursor-viewer"
+	cursor, err := chatto.encodeRealtimeCursor(userID, identity, 42)
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursor: %v", err)
 	}
-	decoded, err := decodeRealtimeCursor(cursor)
+	decoded, err := chatto.decodeRealtimeCursor(userID, cursor)
 	if err != nil {
 		t.Fatalf("decodeRealtimeCursor: %v", err)
 	}
-	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 {
+	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.UserID != userID {
 		t.Fatalf("decoded cursor = %+v", decoded)
 	}
-	if _, err := decodeRealtimeCursor("not-a-cursor"); !errors.Is(err, ErrRealtimeCursorInvalid) {
+	if _, err := chatto.decodeRealtimeCursor(userID, "not-a-cursor"); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("invalid cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+	if _, err := chatto.decodeRealtimeCursor("another-user", cursor); !errors.Is(err, ErrRealtimeCursorInvalid) {
+		t.Fatalf("cross-user cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		t.Fatalf("decode cursor envelope: %v", err)
+	}
+	for _, secret := range []string{identity, userID, `"s":42`, "42"} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("cursor envelope exposes internal payload %q", secret)
+		}
+	}
+	second, err := chatto.encodeRealtimeCursor(userID, identity, 42)
+	if err != nil {
+		t.Fatalf("encode second cursor: %v", err)
+	}
+	if second == cursor {
+		t.Fatal("identical cursor payloads produced identical ciphertext")
+	}
+	tampered := []byte(cursor)
+	tampered[len(tampered)-1] ^= 1
+	if _, err := chatto.decodeRealtimeCursor(userID, string(tampered)); !errors.Is(err, ErrRealtimeCursorInvalid) {
+		t.Fatalf("tampered cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
 }
 
@@ -74,6 +102,9 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 	outsiderReplay, err := chatto.PlanRealtimeReplay(ctx, outsider.Id, before.BoundaryCursor)
 	if err != nil {
 		t.Fatalf("outsider PlanRealtimeReplay: %v", err)
+	}
+	if !outsiderReplay.Reset || outsiderReplay.StartCursor != outsiderReplay.BoundaryCursor {
+		t.Fatalf("cross-user cursor plan = %+v, want compacted reset", outsiderReplay)
 	}
 	for _, event := range outsiderReplay.Events {
 		if event.EVTEvent().GetReactionAdded() != nil || event.EVTEvent().GetReactionRemoved() != nil {
@@ -207,7 +238,7 @@ func TestAssetEventTimelineTargetResolvesDeletedProcessedDerivative(t *testing.T
 func TestPlanRealtimeReplayResetsForDifferentStreamIncarnation(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
-	cursor, err := encodeRealtimeCursor("evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 0)
+	cursor, err := chatto.encodeRealtimeCursor("user", "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 0)
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursor: %v", err)
 	}

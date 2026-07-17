@@ -6,14 +6,14 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md) 
 
 The protobuf realtime API is mounted at `GET /api/realtime` and upgrades to a
 binary WebSocket. The first client frame must be `hello`; the server accepts
-protocol versions 1 and 2 and authenticates either the hello bearer token or an
+only protocol version 2 and authenticates either the hello bearer token or an
 existing cookie session. The second client frame must be `subscribe_events`.
 
-Protocol v1 preserves the live-only `RealtimeEventEnvelope` contract. Protocol
-v2 is the bundled client's server-scoped projection stream. It adds
+The `chatto.realtime.v1` package name is the protobuf namespace, not the
+behavioural protocol version. Protocol 2 is the server-scoped projection stream. It uses
 `RealtimeProjectionEvent`, an optional resume cursor on `subscribe_events`, and
-`caught_up` at the replay-to-live boundary. Application heartbeats and
-client `ping`/server `pong` remain common to both versions.
+`caught_up` at the replay-to-live boundary. Application heartbeats and client
+`ping`/server `pong` share the same connection.
 
 The bundled client creates its event-bus reducer before discovery completes so
 consumers can register synchronously, but it opens the WebSocket only after
@@ -25,7 +25,7 @@ the reconnect loop.
 
 ## Compacted projection prefix
 
-A v2 subscription without a usable cursor emits one ordered stream of
+A subscription without a usable cursor emits one ordered stream of
 idempotent operations:
 
 - `reset`;
@@ -36,6 +36,7 @@ idempotent operations:
   the server user directory, and the complete visible room-group layout;
 - the latest 50 renderable timeline events for every joined room;
 - the newest finite pending-notification page and complete per-room counts.
+- every active call visible to the viewer.
 
 The snapshot builder uses the same ConnectRPC assemblers as public reads. It
 decrypts PII only at the authenticated response boundary and resolves messages
@@ -58,8 +59,13 @@ second bootstrap query.
 
 ## Resume and live handoff
 
-The cursor identifies an EVT stream incarnation and global sequence. The
-browser retains it only with the corresponding in-memory projection. Socket
+The sealed cursor contains an EVT stream incarnation, global sequence, and
+viewer binding. XChaCha20-Poly1305 protects it with a purpose-separated key
+derived from `core.secret_key`; random nonces prevent equal payloads producing
+equal tokens. NATS and JetStream coordinates are never public API facts.
+Tampering, cross-user reuse, secret rotation, or foreign stream incarnation
+selects a compacted reset. The browser retains a cursor only with its
+corresponding in-memory projection. Socket
 reconnects can resume; page reloads and recreated stores omit it and receive a
 new compacted prefix.
 
@@ -90,10 +96,9 @@ canonical reply and its echo row. A direct retraction that disables only the
 echo emits `room_timeline_event_remove`; ordinary deleted messages remain
 renderable tombstone upserts.
 
-RBAC facts are fanned through the shared hub. A v2 mapper responds with a
+RBAC facts are fanned through the shared hub. The mapper responds with a
 reconnecting `projection_reset_required` close so the next subscription starts
-from current authorization. The v1 compatibility mapper ignores the
-projection-only invalidation and keeps its live-only connection open.
+from current authorization.
 
 ## Process-wide live ingress
 
@@ -103,10 +108,10 @@ for projections once, and fans immutable decoded events into count- and
 byte-bounded session queues. Sessions for one user share room-visibility state.
 There are no per-client NATS or JetStream consumers.
 Directory metadata facts for visible nonmember rooms are additionally fanned
-only to protocol-v2 projection sessions. The hub maintains a per-user cache of
+to sessions. The hub maintains a per-user cache of
 currently authorized directory rooms: facts for a room never seen by that user
 are suppressed, while loss of visibility emits removal only when the room was
-previously visible. Legacy sessions retain member-only room delivery.
+previously visible.
 Directory visibility reads use bounded concurrency outside the hub mutex and
 hydrate only room existence, archive state, and visibility permissions.
 Administrative membership facts replace the complete current member-reference
@@ -126,7 +131,7 @@ mutation cannot restore stale unread or mention state. Root-message timeline
 upserts also advance the affected room in the retained activity order; later
 viewer-state replacements therefore cannot undo DM sorting.
 
-A durable projection hydration or mapping failure closes the v2 session
+A durable projection hydration or mapping failure closes the session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a
 compacted reset, so a later cursor cannot make a dropped mutation permanent.
 Historical message creation for an echo that is hidden in current projection
@@ -135,9 +140,10 @@ facts map to authoritative upserts of their owning message and any visible
 channel echo, so replay never advances beyond a durable attachment mutation
 without applying its current render state.
 
-Transient/latest-value signals such as presence, typing, notification
-create/dismiss hints, and call signalling can continue as
-`RealtimeEventEnvelope` frames on the same v2 WebSocket. They have no durable
+Transient/latest-value signals such as presence, typing, and notification
+create/dismiss hints continue as `RealtimeEventEnvelope` frames on the same
+WebSocket. Active calls instead converge through `active_calls_replace` in the
+compacted prefix and after every durable call transition. Transient frames have no durable
 cursor; finite pending-notification state is reconciled explicitly on resume,
 while other transient values are not part of canonical projection replay. The
 process-wide PresenceHub retains current presence and fans out later
@@ -154,4 +160,4 @@ compresses frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer token in hello or cookie auth; current per-resource and room visibility is applied before public projection mapping. | v1 live-only compatibility and v2 server-scoped compacted/resumable projection delivery. |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer token in hello or cookie auth; current per-resource and room visibility is applied before public projection mapping. | Protocol 2 server-scoped compacted/resumable projection delivery. |

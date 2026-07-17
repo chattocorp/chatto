@@ -106,8 +106,14 @@ func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID st
 	if err != nil {
 		return nil, err
 	}
-	page.StartCursor = formatRoomTimelineCursor(replies.StartCursorSeq)
-	page.EndCursor = formatRoomTimelineCursor(replies.EndCursorSeq)
+	page.StartCursor, err = a.api.formatRoomTimelineCursor(replies.StartCursorSeq)
+	if err != nil {
+		return nil, err
+	}
+	page.EndCursor, err = a.api.formatRoomTimelineCursor(replies.EndCursorSeq)
+	if err != nil {
+		return nil, err
+	}
 	return page, nil
 }
 

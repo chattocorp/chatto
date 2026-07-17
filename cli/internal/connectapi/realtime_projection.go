@@ -29,6 +29,7 @@ type RealtimeProjectionSnapshot struct {
 	RoomGroups    []*apiv1.RoomGroup
 	Timelines     []*RealtimeProjectionRoomTimeline
 	Notifications *RealtimeProjectionNotifications
+	ActiveCalls   []*apiv1.ActiveCall
 }
 
 // RealtimeProjectionServerState is authenticated server state carried by the
@@ -95,6 +96,10 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime notifications: %w", err)
 	}
+	activeCalls, err := a.BuildRealtimeProjectionActiveCalls(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("assemble realtime active calls: %w", err)
+	}
 	notificationCounts := make(map[string]uint32, len(notifications.RoomCounts))
 	for _, count := range notifications.RoomCounts {
 		notificationCounts[count.GetRoomId()] = uint32(max(count.GetTotalCount(), 0))
@@ -137,7 +142,33 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 		RoomGroups:    apiGroups,
 		Timelines:     timelines,
 		Notifications: notifications,
+		ActiveCalls:   activeCalls,
 	}, nil
+}
+
+// BuildRealtimeProjectionActiveCalls returns the complete current call state
+// visible to one viewer.
+func (a *API) BuildRealtimeProjectionActiveCalls(ctx context.Context, userID string) ([]*apiv1.ActiveCall, error) {
+	if !a.config.LiveKit.IsConfigured() {
+		return nil, nil
+	}
+	roomIDs, err := a.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
+	if err != nil {
+		return nil, err
+	}
+	service := &voiceCallService{api: a}
+	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
+	for _, roomID := range roomIDs {
+		call, err := service.activeCall(ctx, userID, roomID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
+				continue
+			}
+			return nil, err
+		}
+		calls = append(calls, call)
+	}
+	return calls, nil
 }
 
 // BuildRealtimeProjectionRoomTimeline returns the current recent window for a
@@ -157,12 +188,22 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 	if err != nil {
 		return nil, err
 	}
-	apiPage.StartCursor = formatRoomTimelineCursor(page.StartCursorSeq)
-	apiPage.EndCursor = formatRoomTimelineCursor(page.EndCursorSeq)
+	apiPage.StartCursor, err = a.formatRoomTimelineCursor(page.StartCursorSeq)
+	if err != nil {
+		return nil, err
+	}
+	apiPage.EndCursor, err = a.formatRoomTimelineCursor(page.EndCursorSeq)
+	if err != nil {
+		return nil, err
+	}
 	eventCursors := make(map[string]string, len(page.Events))
 	for _, event := range page.Events {
 		if event != nil && event.Event != nil {
-			eventCursors[event.Event.Id] = formatRoomTimelineCursor(event.Sequence)
+			cursor, err := a.formatRoomTimelineCursor(event.Sequence)
+			if err != nil {
+				return nil, err
+			}
+			eventCursors[event.Event.Id] = cursor
 		}
 	}
 	return &RealtimeProjectionRoomTimeline{RoomID: roomID, Page: apiPage, EventCursors: eventCursors}, nil
@@ -346,7 +387,11 @@ func (a *API) BuildRealtimeProjectionTimelineEvent(ctx context.Context, userID, 
 	if err != nil {
 		return nil, nil, "", err
 	}
-	return event, includes, formatRoomTimelineCursor(seq), nil
+	cursor, err := a.formatRoomTimelineCursor(seq)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return event, includes, cursor, nil
 }
 
 // BuildRealtimeProjectionSourceTimelineEvent hydrates a source EVT fact that
@@ -365,5 +410,9 @@ func (a *API) BuildRealtimeProjectionSourceTimelineEvent(ctx context.Context, us
 	if err != nil {
 		return nil, nil, "", err
 	}
-	return timelineEvent, includes, formatRoomTimelineCursor(seq), nil
+	cursor, err := a.formatRoomTimelineCursor(seq)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return timelineEvent, includes, cursor, nil
 }

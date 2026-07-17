@@ -113,11 +113,13 @@ ergonomics but must still tolerate reasonable bundled client/server skew. It
 uses additive protobuf evolution where feasible, preserves auth and error
 semantics for deployed clients, and documents any intentional skew boundary.
 
-The realtime protocol is versioned by protocol behavior, not by ConnectRPC
-method shape. Version 1 is live-only and does not provide replay cursors or
-acknowledgements. Future frame additions must be additive where possible, and
-new required client behavior must be negotiated through hello/capability fields
-or a new protocol version.
+The realtime protocol is versioned by protocol behavior, not by its protobuf
+package suffix. The `chatto.realtime.v1` namespace currently accepts only
+protocol version 2 and provides compacted projection bootstrap plus bounded
+resume. Public cursors are encrypted, authenticated capabilities and never
+expose NATS/JetStream coordinates. Future frame additions must be additive where
+possible, and new required client behavior must be negotiated through
+hello/capability fields or a new protocol version.
 
 Generated API reference documentation is split by domain instead of presented
 as one large mixed page. ConnectRPC service pages, shared ConnectRPC types, and

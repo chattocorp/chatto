@@ -180,24 +180,34 @@ func TestMyEventsHubVisibilityTailIgnoresOrdinaryRoomTraffic(t *testing.T) {
 }
 
 func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
-	core := &ChattoCore{logger: testCoreLogger()}
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "snapshot-visibility-viewer", "Snapshot Visibility Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, viewer.Id, KindChannel, "", "snapshot-visibility", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
 	hub := NewMyEventsModel(core).hub
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: "viewer"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: viewer.Id}
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
+		visibleRooms:    map[string]struct{}{room.Id: {}},
 		roomSnapshotSeq: 42,
 		subscribers:     map[uint64]*myEventsSubscription{1: sub},
 	}
 	hub.users[sub.userID] = state
 	hub.subscribers[sub.id] = sub
 	join := newEvent(sub.userID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "room-1"}},
+		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.Id}},
 	})
 
-	hub.fanoutReadyRoomEvent(context.Background(), "room-1", join, 42, 1)
-	if _, ok := state.memberRooms["room-1"]; ok {
+	hub.fanoutReadyRoomEvent(context.Background(), room.Id, join, 42, 1)
+	if _, ok := state.memberRooms[room.Id]; ok {
 		t.Fatal("late pre-snapshot join re-granted room visibility")
 	}
 	select {
@@ -206,8 +216,8 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 	default:
 	}
 
-	hub.fanoutReadyRoomEvent(context.Background(), "room-1", join, 43, 1)
-	if _, ok := state.memberRooms["room-1"]; !ok {
+	hub.fanoutReadyRoomEvent(context.Background(), room.Id, join, 43, 1)
+	if _, ok := state.memberRooms[room.Id]; !ok {
 		t.Fatal("post-snapshot join did not grant room visibility")
 	}
 	select {
@@ -401,17 +411,14 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 	}
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	legacy := newMyEventsSubscription(viewer.Id, false)
-	legacy.id = 1
-	projection := newMyEventsSubscription(viewer.Id, true)
-	projection.id = 2
+	projection := newMyEventsSubscription(viewer.Id)
+	projection.id = 1
 	hub.users[viewer.Id] = &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
-		subscribers:     map[uint64]*myEventsSubscription{legacy.id: legacy, projection.id: projection},
+		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
 		roomSnapshotSeq: 1,
 	}
-	hub.subscribers[legacy.id] = legacy
 	hub.subscribers[projection.id] = projection
 
 	event := &corev1.Event{Id: "room-update-1", Event: &corev1.Event_RoomUpdated{
@@ -426,11 +433,6 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 		}
 	default:
 		t.Fatal("projection session did not receive directory invalidation")
-	}
-	select {
-	case delivery := <-legacy.C:
-		t.Fatalf("legacy session received directory invalidation %q", delivery.event.ID())
-	default:
 	}
 }
 
@@ -455,7 +457,7 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	projection := newMyEventsSubscription(viewer.Id, true)
+	projection := newMyEventsSubscription(viewer.Id)
 	projection.id = 1
 	hub.users[viewer.Id] = &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
@@ -504,26 +506,26 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	legacy := newMyEventsSubscription(viewer.Id, false)
-	legacy.id = 1
-	projection := newMyEventsSubscription(viewer.Id, true)
-	projection.id = 2
+	first := newMyEventsSubscription(viewer.Id)
+	first.id = 1
+	second := newMyEventsSubscription(viewer.Id)
+	second.id = 2
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{room.Id: {}},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
-		subscribers:     map[uint64]*myEventsSubscription{legacy.id: legacy, projection.id: projection},
+		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
 	hub.users[viewer.Id] = state
-	hub.subscribers[legacy.id] = legacy
-	hub.subscribers[projection.id] = projection
+	hub.subscribers[first.id] = first
+	hub.subscribers[second.id] = second
 	event := &corev1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &corev1.Event_RoomUniversalChanged{
 		RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: room.Id, Universal: false},
 	}}
 
 	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
 
-	for name, sub := range map[string]*myEventsSubscription{"legacy": legacy, "projection": projection} {
+	for name, sub := range map[string]*myEventsSubscription{"first": first, "second": second} {
 		select {
 		case delivery := <-sub.C:
 			if delivery.event.ID() != event.Id {
@@ -568,25 +570,25 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 
 	model := NewMyEventsModel(core)
 	hub := model.hub
-	legacy := newMyEventsSubscription(viewer.Id, false)
-	legacy.id = 1
-	projection := newMyEventsSubscription(viewer.Id, true)
-	projection.id = 2
+	first := newMyEventsSubscription(viewer.Id)
+	first.id = 1
+	second := newMyEventsSubscription(viewer.Id)
+	second.id = 2
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{room.Id: {}},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
-		subscribers:     map[uint64]*myEventsSubscription{legacy.id: legacy, projection.id: projection},
+		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
 	hub.users[viewer.Id] = state
-	hub.subscribers[legacy.id] = legacy
-	hub.subscribers[projection.id] = projection
+	hub.subscribers[first.id] = first
+	hub.subscribers[second.id] = second
 	leave := &corev1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &corev1.Event_UserLeftRoom{
 		UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
 	}}
 
 	hub.fanoutReadyRoomEvent(ctx, room.Id, leave, 2, 1)
-	for name, sub := range map[string]*myEventsSubscription{"legacy": legacy, "projection": projection} {
+	for name, sub := range map[string]*myEventsSubscription{"first": first, "second": second} {
 		select {
 		case <-sub.C:
 		default:
@@ -602,7 +604,7 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 	}}
 	hub.fanoutReadyRoomEvent(ctx, room.Id, updated, 3, 1)
 	select {
-	case delivery := <-projection.C:
+	case delivery := <-second.C:
 		t.Fatalf("post-leave room fact leaked as %q", delivery.event.ID())
 	default:
 	}

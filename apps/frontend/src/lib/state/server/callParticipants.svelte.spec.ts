@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api-client/voiceCalls';
 import { CallParticipantsState } from './callParticipants.svelte';
+import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -43,6 +46,31 @@ function makeVoiceCallAPI(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
 }
 
 describe('CallParticipantsState', () => {
+  it('replaces the open observer room from the canonical server projection', async () => {
+    const state = new CallParticipantsState(makeVoiceCallAPI());
+    await state.load('R1');
+
+    state.replaceProjection([
+      new ActiveCall({
+        room: new RoomSummary({ id: 'R1' }),
+        callId: 'call-1',
+        participants: [
+          new CallParticipant({
+            user: new User({ id: 'U2', displayName: 'Bob', login: 'bob' }),
+            callId: 'call-1'
+          })
+        ]
+      })
+    ]);
+
+    expect(state.participants).toEqual([
+      { userId: 'U2', displayName: 'Bob', login: 'bob', avatarUrl: null }
+    ]);
+
+    state.replaceProjection([]);
+    expect(state.participants).toEqual([]);
+  });
+
   it('removes a failed local participant from observer participants', async () => {
     const state = new CallParticipantsState(makeVoiceCallAPI());
 

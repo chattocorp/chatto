@@ -19,4 +19,8 @@ protocol used at `/api/realtime`.
 - Realtime compatibility includes protocol behavior, not just protobuf field
   tags. New required client behavior must be negotiated through hello/capability
   fields or a new protocol version.
-- Version 1 is live-only and has no acknowledgement or replay cursor contract.
+- `chatto.realtime.v1` is the protobuf namespace; protocol version 2 is the
+  only accepted handshake. Do not reintroduce protocol-v1 compatibility paths.
+- Resume cursors are encrypted, authenticated, and viewer-bound. They may use
+  EVT coordinates internally but must never disclose NATS/JetStream identities,
+  sequences, subjects, or other persistence details on the wire.

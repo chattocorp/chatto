@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -6041,7 +6043,7 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 	if page.StartCursor == "" || page.EndCursor == "" {
 		t.Fatalf("cursors = %q/%q, want non-empty cursors", page.StartCursor, page.EndCursor)
 	}
-	if strings.HasPrefix(page.StartCursor, roomTimelineCursorSeqPrefix) || strings.HasPrefix(page.EndCursor, roomTimelineCursorSeqPrefix) {
+	if !strings.HasPrefix(page.StartCursor, roomTimelineCursorOpaquePrefix) || !strings.HasPrefix(page.EndCursor, roomTimelineCursorOpaquePrefix) {
 		t.Fatalf("cursors = %q/%q, want opaque cursors", page.StartCursor, page.EndCursor)
 	}
 
@@ -6060,47 +6062,57 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 		t.Fatalf("older page HasNewer = false, want true")
 	}
 
-	startSeq, err := parseRoomTimelineCursor(page.StartCursor)
+	startSeq, err := env.api.parseRoomTimelineCursor(page.StartCursor)
 	if err != nil {
 		t.Fatalf("parse emitted start cursor: %v", err)
 	}
-	legacyResp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
-		RoomId: room.Id,
-		Limit:  10,
-		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomTimelineCursorSeqPrefix + strconv.FormatUint(startSeq, 10)},
-	}))
-	if err != nil {
-		t.Fatalf("GetRoomEvents before legacy cursor: %v", err)
-	}
-	if !timelinePageContains(legacyResp.Msg.GetPage(), m1.Id) {
-		t.Fatalf("legacy cursor page does not contain first message %s", m1.Id)
+	if startSeq == 0 {
+		t.Fatal("decoded emitted cursor has zero internal position")
 	}
 }
 
 func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
-	cursor := formatRoomTimelineCursor(42)
+	env := newConnectAPITestEnv(t)
+	cursor, err := env.api.formatRoomTimelineCursor(42)
+	if err != nil {
+		t.Fatalf("formatRoomTimelineCursor: %v", err)
+	}
 	if cursor == "" {
 		t.Fatal("formatRoomTimelineCursor returned empty cursor")
 	}
-	if strings.HasPrefix(cursor, roomTimelineCursorSeqPrefix) || strings.Contains(cursor, "42") {
+	if !strings.HasPrefix(cursor, roomTimelineCursorOpaquePrefix) || strings.Contains(cursor, "42") {
 		t.Fatalf("cursor %q exposes raw sequence", cursor)
 	}
-	seq, err := parseRoomTimelineCursor(cursor)
+	seq, err := env.api.parseRoomTimelineCursor(cursor)
 	if err != nil {
 		t.Fatalf("parse opaque cursor: %v", err)
 	}
 	if seq != 42 {
 		t.Fatalf("opaque cursor seq = %d, want 42", seq)
 	}
-	legacySeq, err := parseRoomTimelineCursor("seq:42")
+	second, err := env.api.formatRoomTimelineCursor(42)
 	if err != nil {
-		t.Fatalf("parse legacy cursor: %v", err)
+		t.Fatalf("format second cursor: %v", err)
 	}
-	if legacySeq != 42 {
-		t.Fatalf("legacy cursor seq = %d, want 42", legacySeq)
+	if second == cursor {
+		t.Fatal("identical timeline positions produced identical ciphertext")
 	}
-	for _, invalid := range []string{"bad", "tl:not-base64", "tl:AQ"} {
-		if _, err := parseRoomTimelineCursor(invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	envelope, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(cursor, roomTimelineCursorOpaquePrefix))
+	if err != nil {
+		t.Fatalf("decode cursor envelope: %v", err)
+	}
+	sequenceBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(sequenceBytes, 42)
+	if bytes.Contains(envelope, sequenceBytes) {
+		t.Fatal("cursor envelope exposes raw JetStream sequence bytes")
+	}
+	tampered := []byte(cursor)
+	tampered[len(tampered)-1] ^= 1
+	if _, err := env.api.parseRoomTimelineCursor(string(tampered)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("tampered cursor code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	for _, invalid := range []string{"bad", "seq:42", "tl:not-base64", "tl:AQ"} {
+		if _, err := env.api.parseRoomTimelineCursor(invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("parse invalid cursor %q code = %v, want invalid_argument", invalid, connect.CodeOf(err))
 		}
 	}
