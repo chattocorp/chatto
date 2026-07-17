@@ -49,6 +49,10 @@ describe('getPublicServerInfo', () => {
             loginUrl: '/auth/providers/hub'
           }
         ]
+      },
+      compatibility: {
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        minimumWebClientVersion: '0.5.0-beta.2'
       }
     });
 
@@ -75,7 +79,11 @@ describe('getPublicServerInfo', () => {
           label: 'Chatto Hub',
           loginUrl: '/auth/providers/hub'
         }
-      ]
+      ],
+      compatibility: {
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        minimumWebClientVersion: '0.5.0-beta.2'
+      }
     });
   });
 
@@ -93,7 +101,8 @@ describe('getPublicServerInfo', () => {
       welcomeMessage: null,
       description: null,
       iconUrl: null,
-      bannerUrl: null
+      bannerUrl: null,
+      compatibility: null
     });
   });
 });

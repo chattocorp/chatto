@@ -60,6 +60,38 @@ func NewPresenceHub(memoryCacheKV jetstream.KeyValue, logger *log.Logger) *Prese
 	}
 }
 
+// GetUserPresences returns the current status for each requested user from the
+// process-wide watcher snapshot. Missing and invalid users are reported as
+// offline. The returned map is detached from the hub's internal state.
+//
+// This is intended for bulk read hydration. Mutation responses that require
+// read-your-writes should continue to read the backing KV directly.
+func (h *PresenceHub) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
+	statuses := make(map[string]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return statuses, nil
+	}
+
+	select {
+	case <-h.ready:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, userID := range userIDs {
+		status := PresenceStatusOffline
+		if validPresenceUserID(userID) {
+			if current, ok := h.snapshot[userID]; ok {
+				status = current
+			}
+		}
+		statuses[userID] = status
+	}
+	return statuses, nil
+}
+
 // Run starts the KV watcher and fans out updates to subscribers.
 // Blocks until ctx is cancelled. Should be started in an errgroup.
 func (h *PresenceHub) Run(ctx context.Context) error {

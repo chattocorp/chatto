@@ -76,7 +76,8 @@
       "error_future": "Eksvalidiĝo devas esti estonte."
     },
     "form": {
-      "required": "Bezonata"
+      "required": "Bezonata",
+      "max_bytes": "Maksimume {max} bajtoj; iuj signoj uzas pli ol unu bajton."
     },
     "dates": {
       "today": "Hodiaŭ",

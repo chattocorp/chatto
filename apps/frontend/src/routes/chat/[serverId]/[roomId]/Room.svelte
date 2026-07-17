@@ -16,7 +16,7 @@
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
-  import { appState, sidebarNav } from '$lib/state/globals.svelte';
+  import { appState } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import {
     createComposerContext,
@@ -505,7 +505,11 @@
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
-    if (sidebarNav.isMobile && target.closest('[data-app-sidebar]')) return;
+    // A thread is an overlay over the room view, so only the dimmed room
+    // surface behind it should behave as a click-outside dismissal target.
+    // Controls elsewhere in the app (such as the room extras sidebar) manage
+    // their own state and must not close the thread as a side effect.
+    if (!target.closest('[data-thread-dismiss-surface]')) return;
     closeThread();
   }}
 />
@@ -531,6 +535,7 @@
         isDesktopCallMaximized ? 'lg:hidden' : ''
       ]}
       data-testid="room-view-region"
+      data-thread-dismiss-surface
     >
       <div
         class={[

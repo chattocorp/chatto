@@ -35,7 +35,7 @@ Notes and TODOs:
 		- [ ] Only connect websocket to the currently active instance; periodically poll other instances
 	- **Server Sidebar Refresh**
 		- [ ] Context menu (right click/long-tap)
-			- [ ] Server Version (with warning icon if incompatible?)
+			- [x] Server Version (with warning icon if incompatible?)
 			- [ ] Leave Server
 	- **Room Sidebar Refresh**
 		- [ ] Have a tabbed interface, where members, calls and files can be visible at the same time (expanding/collapsing sections)

@@ -57,6 +57,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## ConnectRPC And Generated Types
 
+- Use the per-server compatibility state under `src/lib/state/server/` for
+  protocol feature gating and version-skew warnings. Prefer discovery protocol
+  capabilities; compare software versions only for legacy servers without
+  compatibility metadata. Do not conflate protocol support with enabled server
+  features or viewer permissions.
 - Use the app's connection surface from
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
@@ -84,6 +89,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   missing component variants; extend the component and its story instead.
 - Svelte files use tabs; match local style.
 - Use base text size by default. Reserve smaller text for metadata.
+- Keep one text size within a compact surface such as a menu, popover, control,
+  or nested row. Do not mix smaller metadata text with base-sized actions in
+  the same surface; express hierarchy with color, weight, spacing, and icons.
 - Use browser/platform default text rendering. Do not apply global font
   smoothing such as Tailwind `antialiased`, `-webkit-font-smoothing`, or
   `-moz-osx-font-smoothing`.

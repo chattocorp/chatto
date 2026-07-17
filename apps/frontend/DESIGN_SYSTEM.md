@@ -153,6 +153,9 @@ matches the action.
 - Nested rounded surfaces should be concentric when their padding is small.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
   metadata, timestamps, and terse labels.
+- A compact surface uses one text size throughout. Menus, popovers, controls,
+  and nested rows must not mix smaller metadata text with base-sized actions;
+  express hierarchy with color, weight, spacing, and icons instead.
 - Headings use balanced wrapping; short body copy uses pretty wrapping.
 - Updating numeric columns and counters use `tabular-nums`.
 - Interactive transitions must name their properties. Never use Tailwind's

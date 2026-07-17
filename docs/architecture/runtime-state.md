@@ -85,9 +85,11 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 
 Presence uses per-key TTL with a 30-second client refresh and `LimitMarkerTTL`,
 so NATS emits delete markers on expiry. A single per-process **PresenceHub**
-watches `presence.>` and emits `PresenceChanged` only when a user's status
-changes. Clients refresh through `MyAccountService.UpdatePresence`; disconnect
-and "look offline" stop refreshing instead of writing `OFFLINE`.
+watches `presence.>`, retains the current snapshot for bulk API response
+hydration, and emits `PresenceChanged` only when a user's status changes.
+Singular mutation responses still read KV directly when they require
+read-your-writes. Clients refresh through `MyAccountService.UpdatePresence`;
+disconnect and "look offline" stop refreshing instead of writing `OFFLINE`.
 
 Ephemeral `lease.{name}` records coordinate singleton background work and
 periodic cooldowns across replicas without adding durable state. Active voice

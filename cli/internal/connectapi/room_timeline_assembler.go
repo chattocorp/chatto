@@ -420,6 +420,10 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	presences, err := h.api.core.GetUserPresences(h.ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 
 	result := make(map[string]*apiv1.User, len(ids))
 	avatarWidth, avatarHeight := 96, 96
@@ -428,11 +432,11 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 		if user == nil {
 			user = core.DeletedUserReference(id)
 		}
-		summary, err := (&userService{api: h.api}).userSummary(h.ctx, user, &apiv1.ImageTransformOptions{
+		summary, err := (&userService{api: h.api}).userSummaryWithPresence(h.ctx, user, &apiv1.ImageTransformOptions{
 			Width:  int32(avatarWidth),
 			Height: int32(avatarHeight),
 			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
-		})
+		}, presences[id])
 		if err != nil {
 			return nil, err
 		}

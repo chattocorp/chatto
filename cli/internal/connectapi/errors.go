@@ -27,6 +27,12 @@ func connectError(err error) error {
 	if connect.CodeOf(err) != connect.CodeUnknown {
 		return err
 	}
+	if errors.Is(err, context.Canceled) {
+		return connect.NewError(connect.CodeCanceled, err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
+	}
 	if errors.Is(err, core.ErrNotAuthenticated) {
 		return connect.NewError(connect.CodeUnauthenticated, err)
 	}

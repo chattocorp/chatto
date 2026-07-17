@@ -489,6 +489,19 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if msg.GetProfile().GetVersion() != "9.8.7" {
 		t.Fatalf("profile version = %q, want 9.8.7", msg.GetProfile().GetVersion())
 	}
+	wantCapabilities := []string{
+		"chatto.discovery.v1",
+		"chatto.auth.v1",
+		"chatto.api.v1",
+		"chatto.admin.v1",
+		"chatto.realtime.v1",
+	}
+	if got := msg.GetCompatibility().GetProtocolCapabilities(); !slices.Equal(got, wantCapabilities) {
+		t.Fatalf("protocol capabilities = %v, want %v", got, wantCapabilities)
+	}
+	if msg.GetCompatibility().MinimumWebClientVersion != nil {
+		t.Fatalf("minimum web client version = %q, want absent", msg.GetCompatibility().GetMinimumWebClientVersion())
+	}
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}

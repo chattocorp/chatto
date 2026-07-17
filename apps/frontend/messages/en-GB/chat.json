@@ -31,7 +31,14 @@
       "send_message": "Send Message"
     },
     "server_gutter": {
-      "add_server": "Add Server"
+      "add_server": "Add Server",
+      "version": "Version {version}",
+      "version_unknown": "Version unknown",
+      "compatibility_degraded": "Some live features are unavailable on this server.",
+      "compatibility_server_too_old": "This server is running an older version. Some features may not work as expected.",
+      "compatibility_client_too_old": "This app is too old for this server. Refresh or update it.",
+      "compatibility_unsupported": "This server does not support the protocols required by this app.",
+      "compatibility_unknown": "This server does not report compatibility information."
     },
     "threads": {
       "title": "My Threads",

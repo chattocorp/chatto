@@ -10,6 +10,11 @@ import {
 } from '$lib/api-client/serverState';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  evaluateServerCompatibility,
+  hasProtocolCapability,
+  type ServerCompatibilityResult
+} from './compatibility';
 
 export class ServerInfoState {
   #label: string;
@@ -18,6 +23,10 @@ export class ServerInfoState {
   #getAuthenticatedServerState: (config: ServerStateAPIConfig) => Promise<AuthenticatedServerState>;
 
   name = $state('Chatto');
+  version = $state('');
+  protocolCapabilities = $state<string[] | null>(null);
+  minimumWebClientVersion = $state<string | null>(null);
+  lastDiscoveredAt = $state<number | null>(null);
   motd = $state<string | null>(null);
   welcomeMessage = $state<string | null>(null);
   description = $state<string | null>(null);
@@ -40,6 +49,19 @@ export class ServerInfoState {
    * for that server without taking down the rest of the app.
    */
   error = $state<string | null>(null);
+
+  get compatibility(): ServerCompatibilityResult {
+    return evaluateServerCompatibility({
+      serverVersion: this.version,
+      protocolCapabilities: this.protocolCapabilities,
+      minimumWebClientVersion: this.minimumWebClientVersion,
+      unreachable: this.error !== null
+    });
+  }
+
+  supportsProtocolCapability(capability: string): boolean | null {
+    return hasProtocolCapability(this.protocolCapabilities, capability);
+  }
 
   /**
    * Human-readable label for this server, used in log messages so console
@@ -86,6 +108,10 @@ export class ServerInfoState {
       const info = await this.#getPublicServerInfo(this.#label);
       this.error = null;
       this.name = info.name;
+      this.version = info.version;
+      this.protocolCapabilities = info.compatibility?.protocolCapabilities ?? null;
+      this.minimumWebClientVersion = info.compatibility?.minimumWebClientVersion ?? null;
+      this.lastDiscoveredAt = Date.now();
       this.welcomeMessage = info.welcomeMessage;
       this.description = info.description;
       this.iconUrl = info.iconUrl;
@@ -100,6 +126,7 @@ export class ServerInfoState {
   /** Apply the public profile carried by the realtime projection stream. */
   applyProjectionProfile(profile: ServerPublicProfile): void {
     this.name = profile.name;
+    this.version = profile.version;
     this.welcomeMessage = profile.welcomeMessage ?? null;
     this.description = profile.description ?? null;
     this.iconUrl = profile.logoUrl ?? null;
