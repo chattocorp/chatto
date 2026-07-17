@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -55,5 +56,25 @@ func TestInternalErrorLoggingIncludesProcedureWithoutExposingCause(t *testing.T)
 	}
 	if strings.Contains(gotLogs, "person@example.test") || !strings.Contains(gotLogs, "[redacted]") {
 		t.Fatalf("internal error log did not preserve redaction: %q", gotLogs)
+	}
+}
+
+func TestConnectErrorMapsContextTermination(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want connect.Code
+	}{
+		{name: "canceled", err: context.Canceled, want: connect.CodeCanceled},
+		{name: "wrapped canceled", err: fmt.Errorf("operation: %w", context.Canceled), want: connect.CodeCanceled},
+		{name: "deadline exceeded", err: context.DeadlineExceeded, want: connect.CodeDeadlineExceeded},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := connect.CodeOf(connectError(tt.err)); got != tt.want {
+				t.Fatalf("connectError code = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -16,6 +16,10 @@ func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar
 	if err != nil {
 		return nil, connectError(err)
 	}
+	return s.userSummaryWithPresence(ctx, user, avatar, presence)
+}
+
+func (s *userService) userSummaryWithPresence(ctx context.Context, user *corev1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
