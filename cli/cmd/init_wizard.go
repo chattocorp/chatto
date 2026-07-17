@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/huh/v2"
+	huhspinner "charm.land/huh/v2/spinner"
 	"charm.land/lipgloss/v2"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/pkg/natsauth"
@@ -16,9 +19,10 @@ import (
 type initNATSMode string
 
 const (
-	initNATSEmbedded initNATSMode = "embedded"
-	initNATSExternal initNATSMode = "external"
-	initFormMinWidth              = 20
+	initNATSEmbedded   initNATSMode = "embedded"
+	initNATSExternal   initNATSMode = "external"
+	initFormMinWidth                = 20
+	initSplashDuration              = 850 * time.Millisecond
 )
 
 type initAnswers struct {
@@ -61,6 +65,9 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 	if opts.accessible {
 		return runAccessibleInitWizard(answers, opts)
 	}
+	if err := runInitSplash(opts); err != nil {
+		return err
+	}
 
 	embedded := initEmbeddedNATSGroup(answers, false).WithHideFunc(func() bool {
 		return answers.NATSMode != initNATSEmbedded
@@ -93,6 +100,38 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		nkey,
 		initReviewGroup(answers, opts.configPath, true),
 	).Run()
+}
+
+func runInitSplash(opts initWizardOptions) error {
+	return huhspinner.New().
+		Type(huhspinner.Type{Frames: initSplashFrames(), FPS: 110 * time.Millisecond}).
+		Title("").
+		WithInput(opts.input).
+		WithOutput(opts.output).
+		WithTheme(chattoInitSpinnerTheme{}).
+		ActionWithErr(func(ctx context.Context) error {
+			timer := time.NewTimer(initSplashDuration)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-timer.C:
+				return nil
+			}
+		}).
+		Run()
+}
+
+func initSplashFrames() []string {
+	dots := []string{"·    ", "··   ", "···  ", " ··· ", "  ···", "   ··", "    ·"}
+	frames := make([]string, 0, len(dots))
+	for _, dot := range dots {
+		frames = append(frames, fmt.Sprintf(
+			"╭────────────────────────────────╮\n│  chatto  tuning the vibes %s│\n╰────────────────╮  ╭────────────╯\n                 ╰──╯",
+			dot,
+		))
+	}
+	return frames
 }
 
 func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error {
@@ -152,7 +191,7 @@ func (initWizardLayout) GroupWidth(_ *huh.Form, _ *huh.Group, width int) int {
 func initWelcomeGroup() *huh.Group {
 	return huh.NewGroup(
 		huh.NewNote().
-			Title("╭─ chatto init ─╮\n╰─ a new conversation starts here").
+			Title("A new conversation starts here").
 			Description("Let’s find the front door, tune the engine room, and mint the secrets.\nNothing is written until you approve the launch card.").
 			Next(true).
 			NextLabel("Let’s do this →"),
@@ -426,6 +465,17 @@ func validateInitAnswers(answers initAnswers) error {
 }
 
 type chattoInitTheme struct{}
+
+type chattoInitSpinnerTheme struct{}
+
+func (chattoInitSpinnerTheme) Theme(isDark bool) *huhspinner.Styles {
+	choose := lipgloss.LightDark(isDark)
+	violet := choose(lipgloss.Color("#7C3AED"), lipgloss.Color("#C4B5FD"))
+	return &huhspinner.Styles{
+		Spinner: lipgloss.NewStyle().Foreground(violet).Bold(true),
+		Title:   lipgloss.NewStyle().Foreground(violet),
+	}
+}
 
 func (chattoInitTheme) Theme(isDark bool) *huh.Styles {
 	styles := huh.ThemeBase(isDark)
