@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/pkg/natsauth"
@@ -474,6 +475,23 @@ func TestRunInitWizardAccessibleAcceptsDisplayedDefaults(t *testing.T) {
 	}
 	if strings.Contains(text, "How can Chatto reach NATS?") {
 		t.Fatalf("embedded flow asked external NATS questions:\n%s", text)
+	}
+}
+
+func TestInitWizardSurvivesInvalidTerminalWidths(t *testing.T) {
+	answers := defaultInitAnswers()
+	form := newInitForm(initWizardOptions{}, initFrontDoorGroup(&answers, false))
+	for _, width := range []int{0, -1, -80} {
+		model, _ := form.Update(tea.WindowSizeMsg{Width: width, Height: 24})
+		form = model.(*huh.Form)
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("form panicked at terminal width %d: %v", width, recovered)
+				}
+			}()
+			_ = form.View()
+		}()
 	}
 }
 
