@@ -47,6 +47,10 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 	directRegistration := true
 	unlimited := -1
 	client := selectedExternalNATSClient(answers)
+	replicas := answers.NATSReplicas
+	if answers.NATSMode == initNATSEmbedded {
+		replicas = 1
+	}
 	cfg := config.ChattoConfig{
 		General: config.GeneralConfig{LogLevel: "info", LogFormat: "auto"},
 		Auth: config.AuthConfig{
@@ -76,7 +80,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 		},
 		SMTP: config.SMTPConfig{Enabled: false, Port: 587, TLS: config.SMTPTLSMandatory},
 		NATS: config.NATSConfig{
-			Replicas: answers.NATSReplicas,
+			Replicas: replicas,
 			Client:   client,
 			Embedded: config.EmbeddedNATSConfig{
 				Enabled:     answers.NATSMode == initNATSEmbedded,

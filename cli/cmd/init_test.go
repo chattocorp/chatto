@@ -31,6 +31,7 @@ func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
 			answers.PublicURL = "https://chat.example.com"
 			answers.ListenPort = "4444"
 			answers.EmbeddedDataDir = "/var/lib/chatto"
+			answers.NATSReplicas = 5 // Stale external-mode answer must not leak through.
 			answers.Confirmed = true
 			return nil
 		},
