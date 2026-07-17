@@ -143,6 +143,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 					RoomId: roomID, ViewerState: viewerState,
 				},
 			}})
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+				NotificationsReplace: realtimeProjectionNotifications(notifications),
+			}})
 		default:
 			return nil, false, nil
 		}

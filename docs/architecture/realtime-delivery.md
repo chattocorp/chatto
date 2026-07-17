@@ -119,10 +119,12 @@ not scan notification state or reassemble and retransmit room metadata and
 complete membership. Echo tombstone upserts explicitly distinguish
 canonical-reply deletion from direct echo removal.
 
-Room-read signals are translated into a `RoomViewerStateReplace` projection
-operation for the affected room. This keeps the retained canonical room row in
-step with the visible unread store, so a later mutation in another room cannot
-restore stale unread state.
+Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
+finite `NotificationsReplace`. This keeps the retained canonical room row,
+pending-notification state, and both sidebar indicators in step, so a later
+mutation cannot restore stale unread or mention state. Root-message timeline
+upserts also advance the affected room in the retained activity order; later
+viewer-state replacements therefore cannot undo DM sorting.
 
 A durable projection hydration or mapping failure closes the v2 session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a

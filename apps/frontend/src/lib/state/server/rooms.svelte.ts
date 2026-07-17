@@ -322,7 +322,8 @@ export class RoomsStore {
       visibleRooms.map((room) => ({
         ...this.roomListItem(room, membersByRoomId.get(room.id) ?? []),
         viewerNotificationCount: notificationCountsByRoomId.get(room.id) ?? 0
-      }))
+      })),
+      false
     );
     this.roomUnread.initRooms(visibleRooms);
     this.roomGroups = roomGroups.map((group) => ({
@@ -348,14 +349,16 @@ export class RoomsStore {
     };
   }
 
-  private applyRooms(nextRooms: RoomsListItem[]): void {
+  private applyRooms(nextRooms: RoomsListItem[], preserveNotificationCounts = true): void {
     const previousById = new SvelteMap(this.rooms.map((room) => [room.id, room]));
     let changed = this.rooms.length !== nextRooms.length;
     const merged = nextRooms.map((room, index) => {
       const previous = previousById.get(room.id);
       const next = {
         ...room,
-        viewerNotificationCount: previous?.viewerNotificationCount ?? room.viewerNotificationCount
+        viewerNotificationCount: preserveNotificationCounts
+          ? (previous?.viewerNotificationCount ?? room.viewerNotificationCount)
+          : room.viewerNotificationCount
       };
       if (!previous) {
         changed = true;

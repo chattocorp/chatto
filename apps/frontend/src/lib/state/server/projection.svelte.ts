@@ -73,9 +73,17 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'roomTimelineEventUpsert':
-          this.upsertTimelineEvent(operation.operation.value);
+        case 'roomTimelineEventUpsert': {
+          const update = operation.operation.value;
+          this.upsertTimelineEvent(update);
+          if (
+            update.event?.event.case === 'messagePosted' &&
+            !update.event.event.value.message?.threadRootEventId
+          ) {
+            this.bumpRoom(update.roomId);
+          }
           break;
+        }
         case 'roomTimelineEventRemove':
           this.removeTimelineEvent(
             operation.operation.value.roomId,
@@ -198,6 +206,16 @@ export class ServerProjectionStore {
         includes: current.includes
       })
     );
+  }
+
+  /** Retain newest-activity-first DM ordering across later room-state replacements. */
+  private bumpRoom(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room || this.rooms.keys().next().value === roomId) return;
+    const remaining = [...this.rooms.entries()].filter(([id]) => id !== roomId);
+    this.rooms.clear();
+    this.rooms.set(roomId, room);
+    for (const [id, entry] of remaining) this.rooms.set(id, entry);
   }
 
   private seedTimelineEventCursors(

@@ -495,6 +495,17 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms[1]).toMatchObject({ id: 'random', viewerNotificationCount: 3 });
   });
 
+  it('treats projected notification counts as authoritative replacements', () => {
+    const store = makeStore();
+    const room = makeRoom('general');
+
+    store.replaceProjection(makeViewer(), [room], [], new Map(), new Map([['general', 1]]));
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 1 }]);
+
+    store.replaceProjection(makeViewer(), [room], [], new Map(), new Map());
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
+  });
+
   it('discards out-of-order notification count refresh responses', async () => {
     let countQueries = 0;
     let resolveOlder!: (value: Record<string, number>) => void;

@@ -274,6 +274,42 @@ describe('ServerProjectionStore', () => {
     expect(store.rooms.get('R1')?.viewerNotificationCount).toBe(2);
   });
 
+  it('retains root-message room activity order across viewer-state replacements', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+          })
+        }),
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) })
+          })
+        }),
+        operation({
+          case: 'roomTimelineEventUpsert',
+          value: new RealtimeProjectionRoomTimelineEventUpsert({
+            roomId: 'R2',
+            event: timelineEvent('M1', '2026-01-01T00:00:00Z')
+          })
+        }),
+        operation({
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R2',
+            viewerState: new RoomViewerState({ hasUnread: false })
+          })
+        })
+      )
+    );
+
+    expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+  });
+
   it('advances a compacted timeline cursor using only streamed row cursors', () => {
     const store = new ServerProjectionStore();
     const prefix = Array.from({ length: 50 }, (_, index) =>

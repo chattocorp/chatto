@@ -734,6 +734,13 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
+	if _, err := env.core.CreateNotification(env.ctx, viewer.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Mention{Mention: &corev1.MentionNotification{
+			RoomId: room.Id, EventId: message.Id,
+		}},
+	}); err != nil {
+		t.Fatalf("CreateNotification: %v", err)
+	}
 	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, viewer.Id, room.Id, message.Id); err != nil {
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
@@ -752,12 +759,17 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 		t.Fatal("room-read event was not handled as a projection mutation")
 	}
 	operations := frame.GetProjectionEvent().GetOperations()
-	if len(operations) != 1 {
-		t.Fatalf("room-read operations = %d, want 1", len(operations))
+	if len(operations) != 2 {
+		t.Fatalf("room-read operations = %d, want viewer-state and notification replacements", len(operations))
 	}
 	replacement := operations[0].GetRoomViewerStateReplace()
 	if replacement.GetRoomId() != room.Id || replacement.GetViewerState().GetHasUnread() {
 		t.Fatalf("room-read replacement = %+v, want room %q with has_unread=false", replacement, room.Id)
+	}
+	if notifications := operations[1].GetNotificationsReplace(); notifications == nil {
+		t.Fatal("room-read event did not replace current notification state")
+	} else if len(notifications.GetPage().GetNotifications()) != 0 || len(notifications.GetRoomCounts()) != 0 {
+		t.Fatalf("room-read notifications = %+v, want no pending notification state", notifications)
 	}
 }
 
