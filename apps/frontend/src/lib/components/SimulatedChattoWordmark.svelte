@@ -136,7 +136,7 @@
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
   let points = $state(0);
-  let shotsFired = $state(0);
+  let firstLaserShots = $state(0);
   let laserGuns = $state.raw<LaserGunState[]>([{ id: 1, power: 1, readyAt: 0 }]);
   let selectedLaserIndex = $state(0);
   let hudNow = $state(0);
@@ -144,7 +144,7 @@
   const selectedLaserPower = $derived(laserGuns[selectedLaserIndex]?.power ?? 1);
   const powerUpgradeCost = $derived(laserPowerUpgradeCost(selectedLaserPower));
   const nextLaserCost = $derived(laserGunCost(laserGuns.length));
-  const gameUiVisible = $derived(shotsFired >= GAME_UI_REVEAL_SHOTS);
+  const gameUiVisible = $derived(firstLaserShots >= GAME_UI_REVEAL_SHOTS);
 
   function loadGame() {
     try {
@@ -153,7 +153,6 @@
         power?: unknown;
         guns?: unknown;
         powers?: unknown;
-        shots?: unknown;
       };
       const savedPoints =
         typeof saved.points === 'number' && Number.isFinite(saved.points)
@@ -179,16 +178,9 @@
           ? savedPowers
           : Array.from({ length: legacyGunCount }, () => legacyPower);
       laserGuns = powers.map((power, index) => ({ id: index + 1, power, readyAt: 0 }));
-      shotsFired =
-        typeof saved.shots === 'number' && Number.isFinite(saved.shots)
-          ? Math.max(0, Math.floor(saved.shots))
-          : savedPoints > 0 || powers.length > 1 || (powers[0] ?? 1) > 1
-            ? GAME_UI_REVEAL_SHOTS
-            : 0;
       selectedLaserIndex = 0;
     } catch {
       points = 0;
-      shotsFired = 0;
       laserGuns = [{ id: 1, power: 1, readyAt: 0 }];
       selectedLaserIndex = 0;
     }
@@ -198,7 +190,7 @@
     try {
       localStorage.setItem(
         GAME_STORAGE_KEY,
-        JSON.stringify({ points, powers: laserGuns.map((laser) => laser.power), shots: shotsFired })
+        JSON.stringify({ points, powers: laserGuns.map((laser) => laser.power) })
       );
     } catch {
       // Storage can be unavailable; the in-memory game should remain playable.
@@ -787,7 +779,7 @@
     laserGuns = laserGuns.map((laser, index) =>
       index === laserIndex ? { ...laser, readyAt: triggeredAt + LASER_COOLDOWN } : laser
     );
-    shotsFired += 1;
+    if (laserIndex === 0) firstLaserShots += 1;
     hudNow = triggeredAt;
     const projectionFrame = createCanvasProjectionFrame(triggeredAt);
     const influenceRadius =

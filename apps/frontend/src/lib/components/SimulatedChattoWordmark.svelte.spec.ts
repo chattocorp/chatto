@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import SimulatedChattoWordmark from './SimulatedChattoWordmark.svelte';
@@ -70,10 +70,10 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
   });
 
-  it('fades in the game UI after the third successful shot', async () => {
+  it('fades in the game UI after four successful shots from the first laser', async () => {
     localStorage.setItem(
       'chatto.simulated-wordmark-game.v1',
-      JSON.stringify({ points: 0, powers: [1], shots: GAME_UI_REVEAL_SHOTS - 1 })
+      JSON.stringify({ points: 100, powers: [1], shots: GAME_UI_REVEAL_SHOTS })
     );
     const { container } = render(SimulatedChattoWordmark);
     const wordmark = q(
@@ -83,14 +83,19 @@ describe('SimulatedChattoWordmark', () => {
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
-    wordmark.click();
-
-    await expect
-      .poll(() => container.querySelector('[data-game-ui-visible="true"]'))
-      .not.toBeNull();
+    let now = performance.now();
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    for (let shot = 1; shot <= GAME_UI_REVEAL_SHOTS; shot += 1) {
+      wordmark.click();
+      await expect
+        .poll(() => container.querySelector(`[data-game-ui-visible="${shot === 4}"]`))
+        .not.toBeNull();
+      now += LASER_COOLDOWN + 1;
+    }
+    performanceNow.mockRestore();
     expect(
-      JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}').shots
-    ).toBe(GAME_UI_REVEAL_SHOTS);
+      JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')
+    ).not.toHaveProperty('shots');
   });
 
   it('scores a shot and puts its only laser on cooldown', async () => {
@@ -167,8 +172,7 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
     expect(JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')).toEqual({
       points: 62,
-      powers: [1, 4],
-      shots: GAME_UI_REVEAL_SHOTS
+      powers: [1, 4]
     });
   });
 
