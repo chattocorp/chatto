@@ -614,6 +614,19 @@ func TestInitWizardIntroPreservesWordmarkAlignment(t *testing.T) {
 	}
 }
 
+func TestChattoInitThemeSeparatesFormHierarchy(t *testing.T) {
+	styles := (chattoInitTheme{}).Theme(true)
+	if got := styles.Group.Description.GetMarginBottom(); got != 1 {
+		t.Errorf("group description bottom margin = %d, want 1", got)
+	}
+	if got := styles.Focused.Description.GetMarginBottom(); got != 1 {
+		t.Errorf("focused field description bottom margin = %d, want 1", got)
+	}
+	if got := styles.Blurred.Description.GetMarginBottom(); got != 1 {
+		t.Errorf("blurred field description bottom margin = %d, want 1", got)
+	}
+}
+
 func TestRunInteractiveInitWizardUsesOneTerminalRenderer(t *testing.T) {
 	answers := defaultInitAnswers()
 	form := newInitForm(initWizardOptions{}, initFrontDoorGroup(&answers, false))

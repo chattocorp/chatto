@@ -437,9 +437,9 @@ func (chattoInitTheme) Theme(isDark bool) *huh.Styles {
 	errorColor := choose(lipgloss.Color("#DC2626"), lipgloss.Color("#FCA5A5"))
 
 	styles.Group.Title = styles.Group.Title.Foreground(violet).Bold(true)
-	styles.Group.Description = styles.Group.Description.Foreground(muted)
+	styles.Group.Description = styles.Group.Description.Foreground(muted).MarginBottom(1)
 	styles.Focused.Title = styles.Focused.Title.Foreground(indigo).Bold(true)
-	styles.Focused.Description = styles.Focused.Description.Foreground(muted)
+	styles.Focused.Description = styles.Focused.Description.Foreground(muted).MarginBottom(1)
 	styles.Focused.SelectSelector = styles.Focused.SelectSelector.Foreground(cyan).SetString("› ")
 	styles.Focused.FocusedButton = styles.Focused.FocusedButton.Foreground(lipgloss.Color("#FFFFFF")).Background(violet).Bold(true)
 	styles.Focused.NoteTitle = styles.Focused.NoteTitle.Foreground(violet).Bold(true)
@@ -447,6 +447,7 @@ func (chattoInitTheme) Theme(isDark bool) *huh.Styles {
 	styles.Focused.ErrorIndicator = styles.Focused.ErrorIndicator.Foreground(errorColor)
 	styles.Focused.ErrorMessage = styles.Focused.ErrorMessage.Foreground(errorColor)
 	styles.Blurred.Title = styles.Blurred.Title.Foreground(muted)
+	styles.Blurred.Description = styles.Blurred.Description.Foreground(muted).MarginBottom(1)
 	styles.Help.ShortKey = styles.Help.ShortKey.Foreground(cyan)
 	styles.Help.ShortDesc = styles.Help.ShortDesc.Foreground(muted)
 	return styles
