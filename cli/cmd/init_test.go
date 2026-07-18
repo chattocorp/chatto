@@ -541,7 +541,7 @@ func TestInitWizardModelOwnsIntroAndForm(t *testing.T) {
 	if !intro.AltScreen {
 		t.Fatal("wizard does not use the alternate screen")
 	}
-	if !strings.Contains(intro.Content, "██████") {
+	if !strings.Contains(intro.Content, "┌─┐┬ ┬") {
 		t.Fatalf("intro does not contain the Chatto wordmark:\n%s", intro.Content)
 	}
 
@@ -551,7 +551,7 @@ func TestInitWizardModelOwnsIntroAndForm(t *testing.T) {
 	if model.stage != initWizardForm {
 		t.Fatalf("stage = %v, want form", model.stage)
 	}
-	if strings.Contains(formView.Content, "██████") {
+	if strings.Contains(formView.Content, "┌─┐┬ ┬") {
 		t.Fatalf("wordmark remained after entering the form:\n%s", formView.Content)
 	}
 	if !strings.Contains(formView.Content, "The front door") {
