@@ -61,6 +61,26 @@ beforeEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('dismisses on outside scroll by default', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new Event('scroll'));
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('can remain open during outside scroll', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, dismissOnScroll: false });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new Event('scroll'));
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
   it('uses floating presentation on hybrid devices by default', async () => {
     inputCapabilities.prefersTouchActions.mockReturnValue(true);
     inputCapabilities.supportsHoverActions.mockReturnValue(true);

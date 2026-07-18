@@ -25,10 +25,11 @@ popover repositions reactively — callers wanting "follow the trigger on
 scroll" can simply update the prop on scroll.
 
 If `onclose` is provided, the popover dismisses itself when the user
-clicks/taps outside or scrolls a container that isn't part of it. The
-caller still owns Escape handling (the dismissal contract is different
-between tooltips and menus, and `onclose` here is intentionally
-pointer-only).
+clicks/taps outside or, by default, scrolls a container that isn't part
+of it. Set `dismissOnScroll` to false for interactions that should survive
+unrelated programmatic scrolling. The caller still owns Escape handling
+(the dismissal contract is different between tooltips and menus, and
+`onclose` here is intentionally pointer-only).
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -47,6 +48,7 @@ pointer-only).
     id,
     class: className,
     onclose,
+    dismissOnScroll = true,
     onmouseenter,
     onmouseleave,
     children
@@ -65,6 +67,8 @@ pointer-only).
      * dismissal triggers are the caller's responsibility.
      */
     onclose?: () => void;
+    /** Whether scrolling outside the popover dismisses it. */
+    dismissOnScroll?: boolean;
     onmouseenter?: () => void;
     onmouseleave?: () => void;
     children: Snippet;
@@ -171,6 +175,7 @@ pointer-only).
   // immediately close the popover).
   function closeOnOutsideInteraction(popover: HTMLDivElement) {
     if (!open || !onclose) return;
+    const shouldDismissOnScroll = dismissOnScroll;
     const handlePointerDown = (e: PointerEvent) => {
       if (popover.contains(e.target as Node)) return;
       onclose();
@@ -181,12 +186,16 @@ pointer-only).
     };
     const frame = requestAnimationFrame(() => {
       document.addEventListener('pointerdown', handlePointerDown);
-      window.addEventListener('scroll', handleScroll, { capture: true });
+      if (shouldDismissOnScroll) {
+        window.addEventListener('scroll', handleScroll, { capture: true });
+      }
     });
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
+      if (shouldDismissOnScroll) {
+        window.removeEventListener('scroll', handleScroll, { capture: true });
+      }
     };
   }
 </script>
