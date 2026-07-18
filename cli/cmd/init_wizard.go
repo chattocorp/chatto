@@ -9,6 +9,7 @@ import (
 
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/pkg/natsauth"
 )
@@ -19,6 +20,13 @@ const (
 	initNATSEmbedded initNATSMode = "embedded"
 	initNATSExternal initNATSMode = "external"
 )
+
+const initWizardLogo = ` ██████╗██╗  ██╗ █████╗ ████████╗████████╗ ██████╗
+██╔════╝██║  ██║██╔══██╗╚══██╔══╝╚══██╔══╝██╔═══██╗
+██║     ███████║███████║   ██║      ██║   ██║   ██║
+██║     ██╔══██║██╔══██║   ██║      ██║   ██║   ██║
+╚██████╗██║  ██║██║  ██║   ██║      ██║   ╚██████╔╝
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝      ╚═╝    ╚═════╝`
 
 type initAnswers struct {
 	PublicURL           string
@@ -89,7 +97,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		groups = append(groups, initOverwriteWarningGroup(opts.configPath))
 	}
 	groups = append(groups,
-		initWelcomeGroup(),
+		initWelcomeGroup(opts),
 		initFrontDoorGroup(answers, false),
 		initNATSModeGroup(answers),
 		embedded,
@@ -110,7 +118,7 @@ func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error
 		groups = append(groups, initOverwriteWarningGroup(opts.configPath))
 	}
 	groups = append(groups,
-		initWelcomeGroup(),
+		initWelcomeGroup(opts),
 		initFrontDoorGroup(answers, true),
 		initNATSModeGroup(answers),
 	)
@@ -159,14 +167,37 @@ func initOverwriteWarningGroup(configPath string) *huh.Group {
 	).Title("Overwrite mode")
 }
 
-func initWelcomeGroup() *huh.Group {
+func initWelcomeGroup(opts initWizardOptions) *huh.Group {
+	title := initWizardWordmark(opts.input, opts.output)
+	description := "Chat Just Got Real\n\nA new conversation starts here.\nLet’s find the front door, tune the engine room, and mint the secrets.\nNothing is written until you approve the launch card."
+	if opts.accessible {
+		title = "A new conversation starts here"
+		description = "Let’s find the front door, tune the engine room, and mint the secrets.\nNothing is written until you approve the launch card."
+	}
 	return huh.NewGroup(
 		huh.NewNote().
-			Title("A new conversation starts here").
-			Description("Let’s find the front door, tune the engine room, and mint the secrets.\nNothing is written until you approve the launch card.").
+			Title(title).
+			Description(description).
 			Next(true).
 			NextLabel("Let’s do this →"),
 	).Title("Welcome")
+}
+
+func initWizardWordmark(input io.Reader, output io.Writer) string {
+	for _, stream := range []any{input, output} {
+		fd, ok := stream.(interface{ Fd() uintptr })
+		if !ok {
+			continue
+		}
+		width, _, err := term.GetSize(int(fd.Fd()))
+		if err == nil && width < lipgloss.Width(initWizardLogo)+4 {
+			return "chatto"
+		}
+		if err == nil {
+			break
+		}
+	}
+	return initWizardLogo
 }
 
 func initFrontDoorGroup(answers *initAnswers, accessible bool) *huh.Group {
