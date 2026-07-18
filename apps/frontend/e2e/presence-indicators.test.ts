@@ -141,6 +141,29 @@ test.describe('Presence indicators', () => {
       await otherTab.close();
     }
   });
+
+  test('continues receiving realtime messages while looking offline', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await choosePresenceMode(page, 'Look offline');
+    await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-offline/);
+
+    const message = `Realtime while offline ${Date.now()}`;
+    await withServerUser(browser!, serverURL, async ({ chatPage: senderChatPage }) => {
+      const senderRoomPage = await senderChatPage.enterRoom('general');
+      await senderRoomPage.sendMessage(message);
+    });
+
+    await roomPage.expectMessageVisible(message, { timeout: TIMEOUTS.REALTIME_EVENT });
+  });
 });
 
 test.describe('Message avatar presence', () => {

@@ -187,14 +187,6 @@
         currentUserPresenceStores(),
         status
       );
-    },
-    {
-      onPauseLiveEvents: () => {
-        eventBusManager.pauseAll();
-      },
-      onResumeLiveEvents: () => {
-        eventBusManager.resumeAll();
-      }
     }
   );
   onDestroy(stopPresenceTracking);

@@ -29,8 +29,6 @@ let windowTarget: EventTarget;
 let visibilityState: DocumentVisibilityState;
 let cleanup: (() => void) | null;
 let onStatusChange: Mock<PresenceStatusHandler>;
-let onPauseLiveEvents: Mock<() => void>;
-let onResumeLiveEvents: Mock<() => void>;
 
 function dispatchDocumentEvent(type: string) {
 	documentTarget.dispatchEvent(new Event(type));
@@ -56,12 +54,9 @@ function setVisibility(next: DocumentVisibilityState) {
 
 function startTracking() {
 	onStatusChange = vi.fn<PresenceStatusHandler>();
-	onPauseLiveEvents = vi.fn();
-	onResumeLiveEvents = vi.fn();
 	cleanup = initPresenceTracking(
 		() => [{ serverId: 'origin', baseUrl: 'https://chat.example.test/api/connect', bearerToken: 't' }],
-		onStatusChange,
-		{ onPauseLiveEvents, onResumeLiveEvents }
+		onStatusChange
 	);
 }
 
@@ -235,7 +230,7 @@ describe('initPresenceTracking', () => {
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DoNotDisturb);
 	});
 
-	it('does not update presence while invisible and pauses live events', () => {
+	it('does not update presence while invisible and returns online when automatic mode resumes', () => {
 		startTracking();
 		setPresenceMode('invisible');
 		vi.advanceTimersByTime(60_000);
@@ -243,12 +238,20 @@ describe('initPresenceTracking', () => {
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Offline);
-		expect(onPauseLiveEvents).toHaveBeenCalledOnce();
 
 		setPresenceMode('auto');
 
-		expect(onResumeLiveEvents).toHaveBeenCalled();
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE, APIPresenceStatus.ONLINE]);
 		expect(sentUserSelectedFlags()).toEqual([false, true]);
+	});
+
+	it('starts without reporting presence when look offline was persisted', () => {
+		localStorage.setItem(__presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY, 'invisible');
+
+		startTracking();
+		vi.advanceTimersByTime(60_000);
+
+		expect(sentStatuses()).toEqual([]);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Offline);
 	});
 });

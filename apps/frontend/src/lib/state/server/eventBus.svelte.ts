@@ -61,7 +61,6 @@ type TransportController = {
   readonly projectionSupported: boolean;
   update(projectionSupported: boolean): void;
   setMode(mode: 'dormant' | 'live'): void;
-  suspend(): void;
   pollOnce(): Promise<boolean>;
   hydrateRoom(roomId: string): void;
   cleanup(): void;
@@ -132,7 +131,6 @@ class EventBusManager {
   #controllers = new Map<string, TransportController>();
   #managedServerIds = new Set<string>();
   #activeServerId: string | null = null;
-  #paused = false;
   #pollCycleRunning = false;
   #pollTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -146,7 +144,6 @@ class EventBusManager {
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState()
   ): () => void {
-    if (this.#paused) return () => {};
     const controller = this.ensureBus(
       serverId,
       serverConnection,
@@ -509,7 +506,7 @@ class EventBusManager {
         if (stopped) return;
         if (nextMode === 'dormant') {
           // A normal reconciliation keeps an already-running background
-          // catch-up alive. pauseAll() uses suspend() to abort it explicitly.
+          // catch-up alive until it reaches caught_up or its timeout.
           if (mode === 'polling') return;
           becomeDormant(true);
           return;
@@ -522,9 +519,6 @@ class EventBusManager {
         mode = 'live';
         serverConnection.setRealtimeConnectionStatus(socketSubscribed ? 'connected' : 'connecting');
         connect('server became active');
-      },
-      suspend() {
-        if (!stopped) becomeDormant(true);
       },
       pollOnce() {
         if (stopped || !projectionSupported || mode === 'live') {
@@ -604,16 +598,12 @@ class EventBusManager {
     // Close the previous live transport before opening the next one so a
     // route change never leaves two persistent sockets, even momentarily.
     for (const registration of registrations) {
-      if (registration.serverId !== this.#activeServerId || this.#paused) {
+      if (registration.serverId !== this.#activeServerId) {
         this.#controllers.get(registration.serverId)?.setMode('dormant');
       }
     }
-    if (!this.#paused && this.#activeServerId) {
+    if (this.#activeServerId) {
       this.#controllers.get(this.#activeServerId)?.setMode('live');
-    }
-
-    if (this.#paused) {
-      return;
     }
 
     void this.#runPollCycle(true);
@@ -638,30 +628,12 @@ class EventBusManager {
     for (const serverId of [...this.#controllers.keys()]) this.stopBus(serverId);
   }
 
-  /** Suspend sockets while retaining every in-memory projection and cursor. */
-  pauseAll(): void {
-    this.#paused = true;
-    this.#clearPollTimer();
-    for (const controller of this.#controllers.values()) controller.suspend();
-  }
-
-  /** Restore active ownership and background polling after a presence pause. */
-  resumeAll(): void {
-    if (!this.#paused) return;
-    this.#paused = false;
-    for (const [serverId, controller] of this.#controllers) {
-      controller.setMode(serverId === this.#activeServerId ? 'live' : 'dormant');
-    }
-    void this.#runPollCycle(true);
-    this.#scheduleNextPoll();
-  }
-
   async #runPollCycle(onlyEmpty: boolean): Promise<void> {
-    if (this.#paused || this.#pollCycleRunning) return;
+    if (this.#pollCycleRunning) return;
     this.#pollCycleRunning = true;
     try {
       for (const serverId of this.#managedServerIds) {
-        if (this.#paused || serverId === this.#activeServerId) continue;
+        if (serverId === this.#activeServerId) continue;
         const controller = this.#controllers.get(serverId);
         if (!controller?.projectionSupported) continue;
         if (onlyEmpty && controller.sync.phase !== 'empty') continue;
@@ -671,10 +643,9 @@ class EventBusManager {
       this.#pollCycleRunning = false;
     }
   }
-
   #scheduleNextPoll(): void {
     this.#clearPollTimer();
-    if (this.#paused || this.#managedServerIds.size === 0) return;
+    if (this.#managedServerIds.size === 0) return;
     const jitter = (pollRandom() * 2 - 1) * INACTIVE_POLL_JITTER_MS;
     this.#pollTimer = setTimeout(() => {
       this.#pollTimer = null;

@@ -3,7 +3,6 @@
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
-  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -47,13 +46,7 @@
     registrations: ReturnType<typeof realtimeRegistrations>,
     activeServerId: string
   ) {
-    const shouldPause = shouldPauseLiveEventsForStoredPresence();
-    if (shouldPause) {
-      eventBusManager.pauseAll();
-    }
     eventBusManager.synchronizeAuthenticatedServers(registrations, activeServerId || null);
-
-    if (!shouldPause) eventBusManager.resumeAll();
   }
 
   // Run synchronously so child route layouts can provide an already-registered

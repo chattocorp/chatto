@@ -1,6 +1,17 @@
 # Realtime Delivery Inventory
 
-Key files: [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto), [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go), [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go), [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go), [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts), [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts), [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
+Key files:
+
+- [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
+- [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go)
+- [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go)
+- [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go)
+- [`cli/internal/core/my_events_model.go`](../../cli/internal/core/my_events_model.go)
+- [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go)
+- [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
+- [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
+- [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
+- [`apps/frontend/src/lib/presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md) and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
@@ -35,6 +46,11 @@ same `/api/realtime` stream with that projection's cursor and closes as soon as
 run about once a minute with jitter and a 30-second client timeout. Switching
 servers closes the previous persistent socket without discarding its state and
 promotes the selected server to the sole persistent connection.
+
+The frontend keeps an authenticated server's realtime stream connected
+independently of the local presence mode. "Look offline" stops presence
+refreshes and lets the live presence record expire; it does not pause event
+delivery. Realtime connection establishment itself does not touch presence.
 
 Returning to a tab after at least 30 seconds hidden replaces the active
 transport even when the browser still reports its old WebSocket as open. The

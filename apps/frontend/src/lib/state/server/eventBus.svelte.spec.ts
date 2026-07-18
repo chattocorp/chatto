@@ -25,10 +25,7 @@ import {
   setRealtimeSocketFactoryForTests
 } from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
-import {
-  MAX_RETAINED_ROOM_TIMELINES,
-  RealtimeProjectionSyncState
-} from './realtimeSync.svelte';
+import { MAX_RETAINED_ROOM_TIMELINES, RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -257,7 +254,6 @@ describe('eventBusManager realtime transport', () => {
   });
 
   afterEach(() => {
-    eventBusManager.resumeAll();
     eventBusManager.stopAll();
     setRealtimeSocketFactoryForTests(null);
     setRealtimePollRandomForTests(null);
@@ -421,9 +417,7 @@ describe('eventBusManager realtime transport', () => {
     if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
     expect(subscribe.frame.value.retainedRoomIds).not.toContain('R0');
     expect(subscribe.frame.value.retainedRoomIds).not.toContain('R-overflow');
-    expect(subscribe.frame.value.retainedRoomIds).toHaveLength(
-      MAX_RETAINED_ROOM_TIMELINES - 1
-    );
+    expect(subscribe.frame.value.retainedRoomIds).toHaveLength(MAX_RETAINED_ROOM_TIMELINES - 1);
 
     await replacement.receive(subscribedFrame());
     const hydration = RealtimeClientFrame.fromBinary(replacement.sent[2]);
@@ -770,26 +764,6 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
   });
-
-  it('pauseAll closes transports but retains buses and their projection sessions', async () => {
-    const fake = new FakeServerConnection();
-    await startAndSubscribe(fake);
-    expect(sockets).toHaveLength(1);
-
-    eventBusManager.pauseAll();
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
-    expect(sockets[0].closeCalls.at(-1)?.reason).toBe('dormant');
-
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
-    expect(sockets).toHaveLength(1);
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
-
-    eventBusManager.resumeAll();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
-    expect(sockets).toHaveLength(2);
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
-  });
-
   it('keeps only the active server live and closes an inactive catch-up at caught_up', async () => {
     const active = new FakeServerConnection();
     const inactive = new FakeServerConnection();
@@ -1016,38 +990,5 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribe.frame.case).toBe('subscribeEvents');
     if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
     expect(subscribe.frame.value.resumeCursor).toBe('periodic-cursor');
-  });
-
-  it('remembers servers registered while paused and activates them on resume', () => {
-    const active = new FakeServerConnection();
-    const inactive = new FakeServerConnection();
-    inactive.realtimeUrl = 'ws://paused-inactive.test/api/realtime';
-    eventBusManager.pauseAll();
-
-    eventBusManager.synchronizeAuthenticatedServers(
-      [
-        {
-          serverId: 'paused-active',
-          connection: active as unknown as ServerConnection,
-          projectionSupported: true,
-          sync: new RealtimeProjectionSyncState()
-        },
-        {
-          serverId: 'paused-inactive',
-          connection: inactive as unknown as ServerConnection,
-          projectionSupported: true,
-          sync: new RealtimeProjectionSyncState()
-        }
-      ],
-      'paused-active'
-    );
-
-    expect(eventBusManager.getBus('paused-active')).toBeDefined();
-    expect(eventBusManager.getBus('paused-inactive')).toBeDefined();
-    expect(sockets).toHaveLength(0);
-
-    eventBusManager.resumeAll();
-
-    expect(sockets.map((socket) => socket.url)).toEqual([active.realtimeUrl, inactive.realtimeUrl]);
   });
 });
