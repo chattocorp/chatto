@@ -12,7 +12,6 @@ import { RoomUnreadStore } from './roomUnread.svelte';
 import { NotificationLevelStore } from './notificationLevel.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
-import { CallParticipantsState } from './callParticipants.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 import { RoomsStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
@@ -27,14 +26,11 @@ import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
-import type { EventHandler, ProjectionHandler } from '$lib/eventBus.svelte';
+import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteMap } from 'svelte/reactivity';
-import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
-import { useRenderData } from '$lib/render/data';
-import { UserAvatarUserViewDocument } from '$lib/render/types';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore } from '$lib/state/room';
 import type { RoomMember } from '$lib/state/room';
@@ -50,22 +46,7 @@ import {
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationPage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-
-type CallTransitionEventPayload = {
-  roomId: string;
-  callId: string | null;
-};
-
-function callTransitionEventPayload(event: RoomEventKindSource): CallTransitionEventPayload | null {
-  if (!event || typeof event !== 'object') return null;
-  const roomId = 'roomId' in event ? event.roomId : null;
-  const callId = 'callId' in event ? event.callId : null;
-  if (typeof roomId !== 'string') return null;
-  return {
-    roomId,
-    callId: typeof callId === 'string' ? callId : null
-  };
-}
+import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -97,7 +78,6 @@ export class ServerStateStore {
   readonly notificationLevels: NotificationLevelStore;
   readonly pendingHighlights: PendingHighlightStore;
   readonly voiceCall: VoiceCallState;
-  readonly callParticipants: CallParticipantsState;
   readonly activeCallRooms: ActiveCallRoomsState;
   readonly rooms: RoomsStore;
   readonly roomDirectory: RoomDirectoryStore;
@@ -125,7 +105,6 @@ export class ServerStateStore {
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
-  #adminRoomLayoutSubscriptions = 0;
 
   constructor(
     registered: RegisteredServer,
@@ -166,8 +145,7 @@ export class ServerStateStore {
     });
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
-    this.callParticipants = new CallParticipantsState(voiceCallAPI);
-    this.activeCallRooms = new ActiveCallRoomsState(voiceCallAPI, this.voiceCall);
+    this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     this.rooms = new RoomsStore(
       roomDirectoryAPI,
       memberDirectoryAPI,
@@ -184,76 +162,15 @@ export class ServerStateStore {
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
 
-    // Self-managed lifecycle for the substores that need fetch / event
-    // wiring. Living here (in the per-server bundle) means consumers
-    // don't have to scatter $effect + useEvent pairs through pages and
-    // layouts — every server keeps itself in sync with its own bus, and
-    // switching to a server only swaps which bundle's data the UI reads.
+    // Apply the canonical projection delivered by this server's bus. Transient
+    // envelopes are consumed only by components that need one-shot signals.
     this.#disposeEffects = $effect.root(() => {
-      // Forward live events from this server's bus into the substores
-      // that care. `eventBusManager.getBus` reads from a SvelteMap, so
-      // this effect re-runs when the bus starts (post-auth for cookie
-      // servers) or stops (sign-out / disconnect) and (de)registers
-      // the handler accordingly.
       $effect(() => {
         const bus = eventBusManager.getBus(this.serverId);
         if (!bus) return;
-        const handler: EventHandler = (event) => {
-          this.rooms.ingestServerEvent(event);
-          this.roomDirectory.ingestServerEvent(event);
-          if (this.#adminRoomLayoutActive) {
-            this.adminRoomLayout.ingestServerEvent(event);
-          }
-          const eventKind = roomEventKind(event.event);
-          if (eventKind === RoomEventKind.CallParticipantJoined) {
-            const callEvent = callTransitionEventPayload(event.event);
-            if (!callEvent || !callEvent.callId) return;
-            const actor = event.actor
-              ? useRenderData(UserAvatarUserViewDocument, event.actor)
-              : null;
-            void this.activeCallRooms.handleJoin(callEvent.roomId, callEvent.callId, actor);
-            this.playCallTransitionSound(
-              event.id,
-              'join',
-              callEvent.roomId,
-              callEvent.callId,
-              event.actorId ?? null
-            );
-          } else if (eventKind === RoomEventKind.CallParticipantLeft) {
-            const callEvent = callTransitionEventPayload(event.event);
-            if (!callEvent) return;
-            this.activeCallRooms.handleLeave(
-              callEvent.roomId,
-              callEvent.callId,
-              event.actorId ?? null
-            );
-            this.playCallTransitionSound(
-              event.id,
-              'leave',
-              callEvent.roomId,
-              callEvent.callId,
-              event.actorId ?? null
-            );
-            this.voiceCall.handleParticipantLeftEvent(
-              callEvent.roomId,
-              callEvent.callId,
-              event.actorId ?? null,
-              this.currentUserId()
-            );
-          } else if (eventKind === RoomEventKind.CallEnded) {
-            const callEvent = callTransitionEventPayload(event.event);
-            if (!callEvent) return;
-            if (callEvent.callId) {
-              this.activeCallRooms.handleEnd(callEvent.roomId, callEvent.callId);
-            }
-            this.voiceCall.handleCallEndedEvent(callEvent.roomId, callEvent.callId);
-          }
-        };
         const projectionHandler: ProjectionHandler = (event) => this.ingestProjectionEvent(event);
-        bus.handlers.add(handler);
         bus.projectionHandlers.add(projectionHandler);
         return () => {
-          bus.handlers.delete(handler);
           bus.projectionHandlers.delete(projectionHandler);
         };
       });
@@ -405,13 +322,6 @@ export class ServerStateStore {
                 update.retainDeletedRow
               );
             }
-            if (
-              event.id === update.event.id &&
-              update.event.event.case === 'messagePosted' &&
-              !update.event.event.value.message?.threadRootEventId
-            ) {
-              this.rooms.bumpRoom(update.roomId);
-            }
           }
           break;
         }
@@ -435,8 +345,8 @@ export class ServerStateStore {
         }
         case 'activeCallsReplace': {
           const calls = operation.operation.value.calls;
+          this.reconcileActiveCallTransition(event, calls);
           this.activeCallRooms.replaceProjection(calls);
-          this.callParticipants.replaceProjection(calls);
           break;
         }
         case 'presencesReplace': {
@@ -561,18 +471,6 @@ export class ServerStateStore {
     return this.#registered.token != null;
   }
 
-  get #adminRoomLayoutActive(): boolean {
-    return this.#adminRoomLayoutSubscriptions > 0;
-  }
-
-  activateAdminRoomLayout(): () => void {
-    this.#adminRoomLayoutSubscriptions += 1;
-    void this.adminRoomLayout.refresh();
-    return () => {
-      this.#adminRoomLayoutSubscriptions = Math.max(0, this.#adminRoomLayoutSubscriptions - 1);
-    };
-  }
-
   /** Update permissions from viewer query data. */
   setPermissions(viewer: ViewerData): void {
     this.permissions = { ...viewer, loaded: true };
@@ -631,6 +529,58 @@ export class ServerStateStore {
     void playCallSound(kind);
   }
 
+  private reconcileActiveCallTransition(
+    event: RealtimeProjectionEvent,
+    calls: readonly ActiveCall[]
+  ): void {
+    const actorId = event.actorId;
+    const previousActorCall = actorId
+      ? this.activeCallRooms.findParticipantCall(actorId)
+      : null;
+    const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;
+
+    if (!previousActorCall && nextActorCall) {
+      this.playCallTransitionSound(
+        event.id,
+        'join',
+        nextActorCall.roomId,
+        nextActorCall.callId,
+        actorId ?? null
+      );
+    } else if (
+      previousActorCall &&
+      !nextActorCall &&
+      calls.some(
+        (call) =>
+          call.room?.id === previousActorCall.roomId &&
+          (call.callId || null) === previousActorCall.callId
+      )
+    ) {
+      this.playCallTransitionSound(
+        event.id,
+        'leave',
+        previousActorCall.roomId,
+        previousActorCall.callId,
+        actorId ?? null
+      );
+      this.voiceCall.handleParticipantLeftEvent(
+        previousActorCall.roomId,
+        previousActorCall.callId,
+        actorId ?? null,
+        this.currentUserId()
+      );
+    }
+
+    const connectedRoomId = this.voiceCall.roomId;
+    if (!connectedRoomId) return;
+    const previousCallId = this.activeCallRooms.getCallId(connectedRoomId);
+    if (!previousCallId) return;
+    const nextCallId = calls.find((call) => call.room?.id === connectedRoomId)?.callId ?? null;
+    if (nextCallId !== previousCallId) {
+      this.voiceCall.handleCallEndedEvent(connectedRoomId, previousCallId);
+    }
+  }
+
   private rememberPlayedCallSoundEvent(eventId: string): void {
     this.#playedCallSoundEventIds.push(eventId);
     if (this.#playedCallSoundEventIds.length > 500) {
@@ -646,7 +596,6 @@ export class ServerStateStore {
   handleVoiceCallJoinFailed(roomId: string): void {
     const currentUserId = this.rooms.currentUserId;
     this.activeCallRooms.handleLeave(roomId, null, currentUserId);
-    this.callParticipants.handleLeave(roomId, null, currentUserId);
   }
 
   /** Clean up resources. */
@@ -661,6 +610,19 @@ export class ServerStateStore {
     this.notificationLevels.clear();
     this.pendingHighlights.clear();
     this.activeCallRooms.clear();
-    this.callParticipants.clear();
   }
+}
+
+function projectedParticipantCall(
+  calls: readonly ActiveCall[],
+  userId: string
+): { roomId: string; callId: string | null } | null {
+  for (const call of calls) {
+    const roomId = call.room?.id;
+    if (!roomId) continue;
+    if (call.participants.some((participant) => participant.user?.id === userId)) {
+      return { roomId, callId: call.callId || null };
+    }
+  }
+  return null;
 }

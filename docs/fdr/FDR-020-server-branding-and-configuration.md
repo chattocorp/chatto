@@ -26,11 +26,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** Partial-update semantics let UI forms send only changed fields without GET-then-PUT round-trips and without overwriting other fields with whatever defaults the form thinks they should be. It also makes API clients (CLI tools, scripts) safer.
 **Tradeoff:** Two ways to "clear" a string field: empty-string vs unset. The API treats empty string as a clear and nil as "leave alone". Documented; consistent across all string fields.
 
-### 2. Public profile/config changes broadcast as one live event
+### 2. Public profile/config changes publish one internal live signal
 
-**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated` and are delivered to every authenticated user. Clients treat the event as a refetch signal for `Server.profile` and related authenticated settings they display.
-**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One event keeps profile/config live behavior clear and avoids duplicate broadcasts from text updates.
-**Tradeoff:** Every connected client gets every public profile/config change event, including fields they may not render. Volume is low (operators don't tweak branding constantly) so this is fine.
+**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated`. The realtime service consumes that internal invalidation signal and emits an authoritative server projection replacement to each authenticated client; the internal event is not part of the public wire protocol.
+**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One internal signal keeps profile/config live behavior clear, avoids duplicate broadcasts from text updates, and lets the public stream converge without a client-side refetch.
+**Tradeoff:** Every connected client rebuilds the small projected server resource when public profile/config changes, including fields it may not render. Volume is low (operators don't tweak branding constantly), so this is preferable to exposing invalidation mechanics to clients.
 
 ### 3. Logo and banner have their own upload mutations
 

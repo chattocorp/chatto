@@ -42,12 +42,12 @@ Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
 
 Clients send binary protobuf frames to `/api/realtime`. The first frame must
 be `hello`; after the server replies with `hello`, clients send
-`subscribe_events` to start the authenticated live event stream.
+`subscribe_events` to start the authenticated server-projection stream.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
-| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized live-event stream. |
+| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized server-projection stream. |
 | `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
 | `frame.hydrate_room` | [`RealtimeHydrateRoom`](#chatto-realtime-v1-RealtimeHydrateRoom) | Adds one joined room's recent timeline to the retained projection. |
 
@@ -111,16 +111,6 @@ delivered only as RealtimeProjectionEvent operations.
 | `actor_id` | `optional string` | User or system actor that caused the event, when known. |
 | `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
 | `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
-| `event.notification_created` | [`RealtimeNotificationCreatedEvent`](#chatto-realtime-v1-RealtimeNotificationCreatedEvent) | A notification was created for the current user. |
-| `event.notification_dismissed` | [`RealtimeNotificationDismissedEvent`](#chatto-realtime-v1-RealtimeNotificationDismissedEvent) | A notification was dismissed for the current user. |
-| `event.notification_level_changed` | [`RealtimeNotificationLevelChangedEvent`](#chatto-realtime-v1-RealtimeNotificationLevelChangedEvent) | The current user's notification level changed. |
-| `event.thread_follow_changed` | [`RealtimeThreadFollowChangedEvent`](#chatto-realtime-v1-RealtimeThreadFollowChangedEvent) | The current user's thread follow state changed. |
-| `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-realtime-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
-| `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-realtime-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
-| `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-realtime-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
-| `event.server_user_preferences_updated` | [`RealtimeServerUserPreferencesUpdatedEvent`](#chatto-realtime-v1-RealtimeServerUserPreferencesUpdatedEvent) | The current user's display preferences changed. |
-| `event.room_groups_updated` | [`RealtimeRoomGroupsUpdatedEvent`](#chatto-realtime-v1-RealtimeRoomGroupsUpdatedEvent) | Room-group layout changed. |
-| `event.server_member_deleted` | [`RealtimeServerMemberDeletedEvent`](#chatto-realtime-v1-RealtimeServerMemberDeletedEvent) | A server member was deleted. |
 | `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-realtime-v1-RealtimeMentionNotificationEvent) | The current user was mentioned in a room. |
 | `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-realtime-v1-RealtimeNewDirectMessageNotificationEvent) | The current user received a new direct message. |
 | `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
@@ -199,60 +189,6 @@ local caches are missing or stale.
 
 
 
-<a id="chatto-realtime-v1-RealtimeNotificationCreatedEvent"></a>
-
-### RealtimeNotificationCreatedEvent
-
-Notification-created signal for the connected user.
-
-Hydrate full notification rows with `NotificationService.GetNotification` or
-`NotificationService.BatchGetNotifications`. Use `RoomService` or
-`ThreadService` anchor reads when `event_id` or `in_reply_to_id` must be
-opened in context.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Notification ID. |
-| `room_id` | `optional string` | Room associated with the notification, when the notification navigates to a room. |
-| `event_id` | `optional string` | Event ID associated with the notification, when the notification navigates to an event. |
-| `in_reply_to_id` | `optional string` | Parent event ID for reply notifications, when known. |
-| `silent` | `bool` | True when the notification should not alert. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeNotificationDismissedEvent"></a>
-
-### RealtimeNotificationDismissedEvent
-
-Notification-dismissed signal for the connected user.
-
-Remove the local notification row by ID. A later singular notification read
-returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Notification ID. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeNotificationLevelChangedEvent"></a>
-
-### RealtimeNotificationLevelChangedEvent
-
-Notification-level signal for the connected user.
-
-The updated level is inline. Use
-`NotificationPreferencesService.GetRoomNotificationPreference` when clients
-need the complete preference resource.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room whose notification level changed. |
-| `level` | `chatto.api.v1.NotificationLevel` | Explicit room notification level. |
-| `effective_level` | `chatto.api.v1.NotificationLevel` | Effective notification level after defaults are applied. |
-
-
-
 <a id="chatto-realtime-v1-RealtimePing"></a>
 
 ### RealtimePing
@@ -327,6 +263,23 @@ replay uses current authorisation, deletion, and erasure state.
 
 
 
+<a id="chatto-realtime-v1-RealtimeProjectionNotificationChange"></a>
+
+### RealtimeProjectionNotificationChange
+
+One live notification transition accompanying authoritative current state.
+
+This metadata exists for one-shot presentation effects such as sounds. The
+enclosing replacement remains the canonical notification state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeProjectionNotificationAction`](#chatto-realtime-v1-RealtimeProjectionNotificationAction) | No field description provided. |
+| `notification_id` | `string` | No field description provided. |
+| `silent` | `bool` | True when a created notification must not produce an alert. |
+
+
+
 <a id="chatto-realtime-v1-RealtimeProjectionNotificationsReplace"></a>
 
 ### RealtimeProjectionNotificationsReplace
@@ -337,6 +290,7 @@ Finite current notification state emitted on bootstrap and every resume.
 | --- | --- | --- |
 | `page` | `chatto.api.v1.ListNotificationsResponse` | Newest pending notifications and total pending count. |
 | `room_counts` | `repeated chatto.api.v1.RoomNotificationCount` | Complete current counts for rooms with pending notifications. |
+| `change` | optional [`RealtimeProjectionNotificationChange`](#chatto-realtime-v1-RealtimeProjectionNotificationChange) | Live transition that caused this replacement, when one exists. Bootstrap, replay reconciliation, and compacted reset replacements omit this field. |
 
 
 
@@ -571,38 +525,6 @@ Removes one user from the client projection.
 
 
 
-<a id="chatto-realtime-v1-RealtimeRoomGroupsUpdatedEvent"></a>
-
-### RealtimeRoomGroupsUpdatedEvent
-
-Room-group layout signal.
-
-Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
-client already knows specific group IDs, it can use
-`RoomDirectoryService.GetRoomGroup` or
-`RoomDirectoryService.BatchGetRoomGroups`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `changed` | `bool` | Always true; present for event-bus compatibility. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeRoomMarkedAsReadEvent"></a>
-
-### RealtimeRoomMarkedAsReadEvent
-
-Room-read signal for the connected user.
-
-This is a current-user read-state invalidation signal. Clients can patch local
-unread state for the room; no separate hydration is normally needed.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room marked read. |
-
-
-
 <a id="chatto-realtime-v1-RealtimeServerFrame"></a>
 
 ### RealtimeServerFrame
@@ -612,8 +534,8 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 | Field | Type | Description |
 | --- | --- | --- |
 | `frame.hello` | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol version, server version, and capabilities. |
-| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the live-event stream has started. |
-| `frame.event` | [`RealtimeEventEnvelope`](#chatto-realtime-v1-RealtimeEventEnvelope) | A live event authorized for the connected user. |
+| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the server-projection stream has started. |
+| `frame.event` | [`RealtimeEventEnvelope`](#chatto-realtime-v1-RealtimeEventEnvelope) | An authorized transient, non-replayable event. |
 | `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
 | `frame.error` | [`RealtimeError`](#chatto-realtime-v1-RealtimeError) | Protocol or authorization error. |
 | `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
@@ -634,58 +556,7 @@ Initial server hello.
 | `protocol_version` | `uint32` | Protocol version accepted by the server. |
 | `server_version` | `string` | Chatto server software version. |
 | `heartbeat_interval_seconds` | `uint32` | Approximate heartbeat interval clients should expect. |
-| `capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and `chatto.realtime.projection.v1`. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeServerMemberDeletedEvent"></a>
-
-### RealtimeServerMemberDeletedEvent
-
-Server-member deleted signal.
-
-Remove or invalidate local member/user rows for `user_id`. Admin clients can
-hydrate remaining member rows through `AdminUserService.GetMember` or
-`AdminUserService.BatchGetMembers`.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Deleted user ID. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeServerUpdatedEvent"></a>
-
-### RealtimeServerUpdatedEvent
-
-Transient server-profile signal.
-
-Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
-for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
-Canonical public and authenticated server state also converges through
-projection operations.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Server display name. |
-| `description` | `string` | Server description. |
-| `logo_url` | `optional string` | Server logo URL, when configured. |
-| `banner_url` | `optional string` | Server banner URL, when configured. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeServerUserPreferencesUpdatedEvent"></a>
-
-### RealtimeServerUserPreferencesUpdatedEvent
-
-User display-preferences signal for the connected user.
-
-The updated display preferences are inline for the connected user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | IANA timezone name, when the user has selected a fixed timezone. |
-| `time_format` | `chatto.api.v1.TimeFormat` | Preferred time display format. |
+| `capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and `chatto.realtime.projection.v1`. |
 
 
 
@@ -705,7 +576,7 @@ Session-terminated signal for the connected user's current session.
 
 ### RealtimeSubscribeEvents
 
-Request to start the caller's authorized live event stream.
+Request to start the caller's authorized server-projection stream.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -718,29 +589,11 @@ Request to start the caller's authorized live event stream.
 
 ### RealtimeSubscribed
 
-Confirms event streaming has started.
+Confirms projection streaming has started.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `start_cursor` | `optional string` | Opaque cursor from which this subscription starts. When the request supplied a resume cursor, this is that validated cursor. Otherwise it is the current live boundary. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeThreadFollowChangedEvent"></a>
-
-### RealtimeThreadFollowChangedEvent
-
-Thread-follow signal for the connected user.
-
-The updated follow state is inline. Use `ThreadService.GetThreadEvents`
-or `ThreadService.GetThreadEventsAround` when the thread itself needs
-refreshing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `thread_root_event_id` | `string` | Root message event ID of the thread. |
-| `following` | `bool` | True when the user now follows the thread. |
 
 
 
@@ -760,26 +613,21 @@ where to display typing state; clients normally do not hydrate it.
 
 
 
-<a id="chatto-realtime-v1-RealtimeUserProfileUpdatedEvent"></a>
-
-### RealtimeUserProfileUpdatedEvent
-
-User-profile signal.
-
-Basic profile fields are inline. Use `UserService.GetUser` or
-`UserService.BatchGetUsers` for complete user-profile hydration.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | User whose profile changed. |
-| `login` | `string` | Login name. |
-| `display_name` | `string` | Display name. |
-| `avatar_url` | `optional string` | Avatar URL, when the user has an avatar. |
-
-
-
 
 ## Enums
+
+<a id="chatto-realtime-v1-RealtimeProjectionNotificationAction"></a>
+
+### RealtimeProjectionNotificationAction
+
+Kind of live notification transition.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED` | `0` | No value description provided. |
+| `REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED` | `1` | No value description provided. |
+| `REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED` | `2` | No value description provided. |
+
 
 <a id="chatto-realtime-v1-RealtimeProjectionReactionAction"></a>
 

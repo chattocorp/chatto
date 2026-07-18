@@ -247,13 +247,18 @@ event. A completed inactive poll becomes `stale` as soon as its socket closes:
 known resources remain renderable, but absence is not authoritative while the
 transport is dormant.
 
-Transient/latest-value signals such as presence transitions, typing, and notification
-create/dismiss hints continue as `RealtimeEventEnvelope` frames on the same
-WebSocket. Active calls instead converge through `active_calls_replace` in the
-compacted prefix and after every durable call transition. Transient frames have no durable
-cursor; finite pending-notification and presence state are reconciled
-explicitly on every subscription. The process-wide PresenceHub retains current
-presence and fans out later transitions.
+Typing, presence transitions, mention/new-DM attention hints, and session
+termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
+Notification create/dismiss signals instead assemble an authoritative
+`notifications_replace`; a live replacement may carry transition metadata for
+one-shot presentation effects, while replay and finite reconciliation omit it.
+Viewer preferences, thread follow/read state, profile changes, server layout,
+and member removal likewise mutate the client only through projection
+operations. Active calls converge through `active_calls_replace` in the
+compacted prefix and after every durable call transition. Transient frames have
+no durable cursor; finite pending-notification and presence state are
+reconciled explicitly on every subscription. The process-wide PresenceHub
+retains current presence and fans out later transitions.
 
 Process-wide ingress loss or projection-readiness failure quarantines the hub
 and closes every session. A slow session that exceeds its queue limits is
@@ -267,3 +272,8 @@ compresses frames of at least 1 KiB.
 | Endpoint        | Frame schema                                          | Authorization                                                                                                               | Description                                                       |
 | --------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer token in hello or cookie auth; current per-resource and room visibility is applied before public projection mapping. | Protocol 2 server-scoped compacted/resumable projection delivery. |
+
+The realtime client projection does not supersede `chatto.api.v1`. Public
+ConnectRPC resources remain the integrations surface for explicit reads,
+pagination, mutations, and read-your-writes responses; realtime protocol 2 is
+an optional ordered convergence feed for clients maintaining local state.

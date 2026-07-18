@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus } from '$lib/render/types';
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
@@ -331,33 +329,6 @@ describe('RoomMembersStore', () => {
     expect(store.isInitialLoading).toBe(false);
     expect(store.hasFirstPage).toBe(true);
     expect(store.hasLoadedAll).toBe(true);
-  });
-
-  it('refreshes from room membership events using local event kind', async () => {
-    const fakeAPI = new FakeMemberDirectoryAPI([
-      pageResult([user('u1', 'initial')], false, 1),
-      pageResult([user('u2', 'joined')], false, 1)
-    ]);
-    const store = new RoomMembersStore(fakeAPI);
-
-    store.setRoom('room-1');
-    await store.loadInitial();
-
-    store.ingestServerEvent({
-      id: 'evt-1',
-      roomId: 'room-1',
-      actorId: 'u2',
-      createdAt: new Date().toISOString(),
-      event: {
-        kind: RoomEventKind.UserJoinedRoom,
-        roomId: 'room-1'
-      }
-    } as EventEnvelope);
-
-    await vi.waitFor(() => {
-      expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
-      expect(store.members.map((member) => member.login)).toEqual(['joined']);
-    });
   });
 
   it('publishes a refreshed first page when later refresh hydration fails', async () => {

@@ -40,7 +40,6 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
@@ -348,14 +347,6 @@
     isThreadFollowPending = false;
     isFollowingThread = value;
     messageStore?.setThreadRootFollowState(event.id, value);
-  }
-
-  function syncThreadFollowEvents() {
-    return onThreadFollowChanged((update) => {
-      if (update.roomId === roomId && update.threadRootEventId === event.id) {
-        setThreadFollowState(update.isFollowing);
-      }
-    });
   }
 
   async function toggleThreadFollow(e: MouseEvent) {
@@ -672,7 +663,6 @@
     ]}
     role="article"
     data-event-id={event.id}
-    {@attach syncThreadFollowEvents}
   >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div

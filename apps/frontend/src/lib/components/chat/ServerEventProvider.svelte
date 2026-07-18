@@ -12,7 +12,7 @@
   // got connected; here we just expose its bus via Svelte context so
   // descendant components can register handlers without going through the
   // manager directly. The getter form keeps the bus reactive across
-  // `[serverId]` URL changes — `useEvent` / `onEvent` consumers below
+  // `[serverId]` URL changes — typed-event consumers below
   // automatically follow the active server.
   provideEventBus(getActiveServer);
 
@@ -23,7 +23,7 @@
   // refresh and event-ingestion lifecycles from inside `ServerStateStore`
   // — every server keeps itself in sync with its own bus, so consumers
   // here and below just read `serverRegistry.getStore(...)` and don't
-  // wire any `$effect` / `useEvent` for that purpose.
+  // wire any additional `$effect` for that purpose.
 
   // Populate global presence cache from server events so that any UserAvatar
   // (including newly-mounted ones like popovers) sees the latest presence.

@@ -1,4 +1,4 @@
-import { authHeaders, Code, ConnectError, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListRoomNotificationsResponse,
@@ -116,29 +116,6 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
           { headers: headers() }
         )
       );
-    },
-
-    async getNotification(notificationId: string): Promise<NotificationItem | null> {
-      try {
-        const response = await client.getNotification({ notificationId }, { headers: headers() });
-        return response.notification ? notificationItem(response.notification) : null;
-      } catch (err) {
-        if (err instanceof ConnectError && err.code === Code.NotFound) {
-          return null;
-        }
-        throw err;
-      }
-    },
-
-    async batchGetNotifications(notificationIds: string[]): Promise<NotificationItem[]> {
-      const response = await client.batchGetNotifications(
-        { notificationIds },
-        { headers: headers() }
-      );
-      return response.notifications.flatMap((item) => {
-        const mapped = notificationItem(item);
-        return mapped ? [mapped] : [];
-      });
     },
 
     async hasNotifications(): Promise<boolean> {

@@ -13,7 +13,6 @@ const { mocks } = vi.hoisted(() => {
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
-      ingestServerEvent: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
       setThreadRootFollowState: vi.fn(),
@@ -53,7 +52,7 @@ vi.mock('$lib/api-client/threads', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useEvent: vi.fn(),
+  useProjectionEvent: vi.fn(),
   useUnreadMarker: (
     getTargetId: () => string,
     options: { markAsRead: (targetId: string, upToEventId?: string) => unknown }
@@ -95,7 +94,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
           hasReachedStart: true,
           setThread: mocks.setThread,
           dispose: mocks.disposeMessagesStore,
-          ingestServerEvent: mocks.ingestServerEvent,
           ingestEvent: mocks.ingestEvent,
           refreshCurrentWindow: mocks.refreshCurrentWindow,
           setThreadRootFollowState: mocks.setThreadRootFollowState,
@@ -141,7 +139,6 @@ vi.mock('$lib/state/room', () => ({
     hasReachedStart = true;
     setThread = mocks.setThread;
     dispose = mocks.disposeMessagesStore;
-    ingestServerEvent = mocks.ingestServerEvent;
     ingestEvent = mocks.ingestEvent;
     refreshCurrentWindow = mocks.refreshCurrentWindow;
     setThreadRootFollowState = mocks.setThreadRootFollowState;
@@ -153,10 +150,6 @@ vi.mock('$lib/state/room', () => ({
 
 vi.mock('$lib/state/room/messageMutationEvents', () => ({
   onRoomMessageMutated: vi.fn(() => vi.fn())
-}));
-
-vi.mock('$lib/eventBus.svelte', () => ({
-  onThreadFollowChanged: vi.fn(() => vi.fn())
 }));
 
 vi.mock('./TimelineEventsPane.svelte', async () => {

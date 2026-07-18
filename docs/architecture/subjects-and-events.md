@@ -101,7 +101,7 @@ and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, and auth workflow audit facts. |
-| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `StreamMyEvents` authorizes and adapts these messages into realtime events; they are never projection input. |
+| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
@@ -237,7 +237,7 @@ Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/e
 
 ## Transient live subjects
 
-Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted and are not projection input.
+Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted. Genuinely ephemeral activity may be mapped to a public transient event; latest-value invalidations are inputs to live projection assembly but are not replay facts themselves.
 
 Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
@@ -293,10 +293,11 @@ end projected calls only after three consecutive failed elected reconciliation
 cycles. A successful elected pass deletes the counter.
 
 `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
-`ListCallParticipants` expose the active call ID. Clients can ignore stale
-leave or end facts from previous calls in the same room, and hydrate realtime
-`call_*` events through `GetActiveCall` or `BatchGetActiveCalls`. Room
-membership remains the authorization boundary for live delivery.
+`ListCallParticipants` expose the active call ID to integrations and command
+flows. The bundled frontend receives complete authorized active-call state in
+`active_calls_replace` projection operations and infers one-shot join/leave/end
+presentation effects by comparing replacements. Room membership remains the
+authorization boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 

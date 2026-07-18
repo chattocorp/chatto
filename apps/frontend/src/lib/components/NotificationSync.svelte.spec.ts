@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
-import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import {
+  RealtimeProjectionEvent,
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionNotificationChange,
+  RealtimeProjectionNotificationsReplace,
+  RealtimeProjectionOperation
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
   const bus = {
-    handlers: new Set<EventHandler>()
+    projectionHandlers: new Set<ProjectionHandler>()
   };
   const store = {
     isAuthenticated: true,
@@ -14,20 +20,7 @@ const { mocks } = vi.hoisted(() => {
       notifications: [] as Array<{ kind: string }>,
       count: 0,
       unreadNotificationCount: 0,
-      hasLoaded: true,
-      addNotification: vi.fn((_notificationId?: string): Promise<boolean> => Promise.resolve(true)),
-      removeNotification: vi.fn(),
-      consumeLocalDismissal: vi.fn(),
-      fetch: vi.fn(() => Promise.resolve())
-    },
-    rooms: {
-      refreshNotificationCounts: vi.fn(() => Promise.resolve()),
-      incrementUnreadNotification: vi.fn(),
-      decrementUnreadNotification: vi.fn(),
-      refresh: vi.fn()
-    },
-    roomUnread: {
-      hasAnyUnread: false
+      hasLoaded: true
     }
   };
 
@@ -80,28 +73,32 @@ vi.mock('$lib/notifications/appBadge', () => ({
   syncServiceWorkerNotificationBadgeState: mocks.syncServiceWorkerNotificationBadgeState
 }));
 
-function dispatch(event: Record<string, unknown>) {
-  const envelope = {
+function dispatch(change?: RealtimeProjectionNotificationChange) {
+  const event = new RealtimeProjectionEvent({
     id: 'event-id',
-    createdAt: new Date().toISOString(),
-    actorId: 'actor-id',
-    actor: null,
-    event
-  } as EventEnvelope;
+    operations: [
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({ change })
+        }
+      })
+    ]
+  });
 
-  for (const handler of mocks.bus.handlers) {
-    handler(envelope);
+  for (const handler of mocks.bus.projectionHandlers) {
+    handler(event);
   }
 }
 
 async function renderAndWaitForSubscription() {
   render(NotificationSync);
-  await vi.waitFor(() => expect(mocks.bus.handlers.size).toBe(1));
+  await vi.waitFor(() => expect(mocks.bus.projectionHandlers.size).toBe(1));
 }
 
 describe('NotificationSync', () => {
   beforeEach(() => {
-    mocks.bus.handlers.clear();
+    mocks.bus.projectionHandlers.clear();
     vi.clearAllMocks();
 
     mocks.store.isAuthenticated = true;
@@ -109,109 +106,42 @@ describe('NotificationSync', () => {
     mocks.store.notifications.count = 0;
     mocks.store.notifications.unreadNotificationCount = 0;
     mocks.store.notifications.hasLoaded = true;
-    mocks.store.roomUnread.hasAnyUnread = false;
-    mocks.store.notifications.addNotification.mockResolvedValue(true);
-    mocks.store.notifications.removeNotification.mockReturnValue(null);
-    mocks.store.notifications.consumeLocalDismissal.mockReturnValue(false);
-    mocks.store.notifications.fetch.mockResolvedValue(undefined);
-    mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
   });
 
-  it('increments the room from the realtime notification', async () => {
+  it('plays a sound for a live non-silent notification creation', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationCreated,
+    dispatch(new RealtimeProjectionNotificationChange({
+      action: RealtimeProjectionNotificationAction.CREATED,
       notificationId: 'n1',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      inReplyToId: null,
       silent: false
-    });
+    }));
 
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    await vi.waitFor(() =>
-      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce()
-    );
-    expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
   });
 
-  it('reconciles silent notification creation without playing a sound', async () => {
+  it('does not play a sound for a silent notification creation', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationCreated,
+    dispatch(new RealtimeProjectionNotificationChange({
+      action: RealtimeProjectionNotificationAction.CREATED,
       notificationId: 'n1',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      inReplyToId: null,
       silent: true
-    });
+    }));
 
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    await vi.waitFor(() =>
-      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce()
-    );
-    expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('does not double-count a live notification already installed by the projection', async () => {
-    mocks.store.notifications.addNotification.mockResolvedValue(false);
+  it('does not play a sound for reconciliation or dismissal replacements', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationCreated,
-      notificationId: 'n1',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      inReplyToId: null,
-      silent: false
-    });
-
-    await vi.waitFor(() =>
-      expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce()
-    );
-    await Promise.resolve();
-    expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
-    expect(mocks.store.rooms.refreshNotificationCounts).not.toHaveBeenCalled();
-    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
-  });
-
-  it('reconciles counts when a cached notification is dismissed elsewhere', async () => {
-    mocks.store.notifications.removeNotification.mockReturnValue('room-1');
-    await renderAndWaitForSubscription();
-
-    dispatch({
-      kind: RoomEventKind.NotificationDismissed,
+    dispatch();
+    dispatch(new RealtimeProjectionNotificationChange({
+      action: RealtimeProjectionNotificationAction.DISMISSED,
       notificationId: 'n1'
-    });
+    }));
 
-    expect(mocks.store.notifications.removeNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
-    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
-  });
-
-  it('refetches notification state and counts when an uncached remote dismissal arrives', async () => {
-    mocks.store.notifications.removeNotification.mockReturnValue(null);
-    mocks.store.notifications.consumeLocalDismissal.mockReturnValue(false);
-    await renderAndWaitForSubscription();
-
-    dispatch({
-      kind: RoomEventKind.NotificationDismissed,
-      notificationId: 'unknown-notification'
-    });
-
-    expect(mocks.store.notifications.consumeLocalDismissal).toHaveBeenCalledWith(
-      'unknown-notification'
-    );
-    expect(mocks.store.notifications.fetch).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.refresh).not.toHaveBeenCalled();
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
   it('uses a numeric app badge for loaded DM notifications', async () => {
@@ -284,9 +214,7 @@ describe('NotificationSync', () => {
     expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
-  it('does not set a dock badge for unread-only rooms', async () => {
-    mocks.store.roomUnread.hasAnyUnread = true;
-
+  it('clears the dock badge when there are no notifications', async () => {
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());

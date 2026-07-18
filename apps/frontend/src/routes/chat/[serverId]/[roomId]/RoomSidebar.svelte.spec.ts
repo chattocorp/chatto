@@ -64,25 +64,17 @@ const callStore = vi.hoisted(() => ({
   },
   activeCallRooms: {
     active: false,
-    load: vi.fn().mockResolvedValue(undefined),
-    has: vi.fn(() => callStore.activeCallRooms.active),
-    getParticipantCallPresenceInAnyRoom: vi.fn(
-      (_userId: string): 'voice' | 'video' | null => null
-    ),
-    handleEnd: vi.fn()
-  },
-  callParticipants: {
     participants: [] as Array<{
       userId: string;
       displayName: string;
       login: string;
       avatarUrl: string | null;
     }>,
-    load: vi.fn().mockResolvedValue(undefined),
-    clear: vi.fn(),
-    handleJoin: vi.fn(),
-    handleLeave: vi.fn(),
-    handleEnd: vi.fn()
+    has: vi.fn(() => callStore.activeCallRooms.active),
+    getParticipants: vi.fn(() => callStore.activeCallRooms.participants),
+    getParticipantCallPresenceInAnyRoom: vi.fn(
+      (_userId: string): 'voice' | 'video' | null => null
+    )
   },
   rooms: {
     currentUserId: 'viewer'
@@ -121,15 +113,6 @@ class MockIntersectionObserver {
     this.callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver);
   }
 }
-
-vi.mock('$lib/hooks/useEvent.svelte', () => ({
-  useEvent: vi.fn(),
-  usePresenceChange: vi.fn()
-}));
-
-vi.mock('$lib/hooks', () => ({
-  useEvent: vi.fn()
-}));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
@@ -391,16 +374,11 @@ describe('RoomSidebar', () => {
     callStore.voiceCall.getAudioLevel.mockClear();
     callStore.voiceCall.getAudioLevel.mockImplementation(() => ({ isSpeaking: false, audioLevel: 0 }));
     callStore.activeCallRooms.active = false;
-    callStore.activeCallRooms.load.mockClear();
+    callStore.activeCallRooms.participants = [];
     callStore.activeCallRooms.has.mockClear();
+    callStore.activeCallRooms.getParticipants.mockClear();
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockClear();
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
-    callStore.callParticipants.participants = [];
-    callStore.callParticipants.load.mockClear();
-    callStore.callParticipants.clear.mockClear();
-    callStore.callParticipants.handleJoin.mockClear();
-    callStore.callParticipants.handleLeave.mockClear();
-    callStore.callParticipants.handleEnd.mockClear();
     callStore.handleVoiceCallJoinFailed.mockClear();
   });
 
@@ -498,7 +476,7 @@ describe('RoomSidebar', () => {
 
   it('renders projected call participants before joining', async () => {
     callStore.activeCallRooms.active = true;
-    callStore.callParticipants.participants = [
+    callStore.activeCallRooms.participants = [
       {
         userId: 'user-2',
         login: 'bob',
@@ -524,23 +502,6 @@ describe('RoomSidebar', () => {
     await expect
       .element(q(container, '[data-testid="call-participants-list"]'))
       .toBeInTheDocument();
-    await vi.waitFor(() => {
-      expect(callStore.callParticipants.load).toHaveBeenCalledWith('room-1');
-    });
-  });
-
-  it('refreshes active-call room state when the call tab opens for an observer', async () => {
-    render(RoomSidebarTestHarness, {
-      props: {
-        roomData: roomData([], 0, false),
-        activePanel: 'call',
-        livekitUrl: 'wss://livekit.example.test'
-      }
-    });
-
-    await vi.waitFor(() => {
-      expect(callStore.activeCallRooms.load).toHaveBeenCalledOnce();
-    });
   });
 
   it('renders connected participant cards video-first and exposes call controls', async () => {

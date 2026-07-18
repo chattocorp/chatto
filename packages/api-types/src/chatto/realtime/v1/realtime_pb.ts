@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ServerPublicProfile } from "../../api/v1/server_pb.js";
-import { GetViewerResponse, TimeFormat } from "../../api/v1/viewer_pb.js";
+import { GetViewerResponse } from "../../api/v1/viewer_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ServerRuntimeConfig } from "../../api/v1/server_state_pb.js";
 import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
@@ -15,7 +15,34 @@ import { ThreadViewerState } from "../../api/v1/message_types_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
 import { ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/notifications_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { NotificationLevel } from "../../api/v1/notification_preferences_pb.js";
+
+/**
+ * Kind of live notification transition.
+ *
+ * @generated from enum chatto.realtime.v1.RealtimeProjectionNotificationAction
+ */
+export enum RealtimeProjectionNotificationAction {
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED = 1;
+   */
+  CREATED = 1,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED = 2;
+   */
+  DISMISSED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeProjectionNotificationAction)
+proto3.util.setEnumType(RealtimeProjectionNotificationAction, "chatto.realtime.v1.RealtimeProjectionNotificationAction", [
+  { no: 0, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED" },
+  { no: 2, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED" },
+]);
 
 /**
  * Kind of reaction transition.
@@ -56,7 +83,7 @@ proto3.util.setEnumType(RealtimeProjectionReactionAction, "chatto.realtime.v1.Re
  *
  * Clients send binary protobuf frames to `/api/realtime`. The first frame must
  * be `hello`; after the server replies with `hello`, clients send
- * `subscribe_events` to start the authenticated live event stream.
+ * `subscribe_events` to start the authenticated server-projection stream.
  *
  * @generated from message chatto.realtime.v1.RealtimeClientFrame
  */
@@ -74,7 +101,7 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     case: "hello";
   } | {
     /**
-     * Starts the caller's authorized live-event stream.
+     * Starts the caller's authorized server-projection stream.
      *
      * @generated from field: chatto.realtime.v1.RealtimeSubscribeEvents subscribe_events = 2;
      */
@@ -148,7 +175,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "hello";
   } | {
     /**
-     * Confirms the live-event stream has started.
+     * Confirms the server-projection stream has started.
      *
      * @generated from field: chatto.realtime.v1.RealtimeSubscribed subscribed = 2;
      */
@@ -156,7 +183,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "subscribed";
   } | {
     /**
-     * A live event authorized for the connected user.
+     * An authorized transient, non-replayable event.
      *
      * @generated from field: chatto.realtime.v1.RealtimeEventEnvelope event = 3;
      */
@@ -326,7 +353,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
 
   /**
    * Stable protocol capability keys supported by this server. Current keys:
-   * `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
+   * `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`,
    * `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
    * `chatto.realtime.projection.v1`.
    *
@@ -366,7 +393,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
 }
 
 /**
- * Request to start the caller's authorized live event stream.
+ * Request to start the caller's authorized server-projection stream.
  *
  * @generated from message chatto.realtime.v1.RealtimeSubscribeEvents
  */
@@ -472,7 +499,7 @@ export class RealtimeHydrateRoom extends Message<RealtimeHydrateRoom> {
 }
 
 /**
- * Confirms event streaming has started.
+ * Confirms projection streaming has started.
  *
  * @generated from message chatto.realtime.v1.RealtimeSubscribed
  */
@@ -1500,6 +1527,14 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
    */
   roomCounts: RoomNotificationCount[] = [];
 
+  /**
+   * Live transition that caused this replacement, when one exists. Bootstrap,
+   * replay reconciliation, and compacted reset replacements omit this field.
+   *
+   * @generated from field: optional chatto.realtime.v1.RealtimeProjectionNotificationChange change = 3;
+   */
+  change?: RealtimeProjectionNotificationChange;
+
   constructor(data?: PartialMessage<RealtimeProjectionNotificationsReplace>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1510,6 +1545,7 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page", kind: "message", T: ListNotificationsResponse },
     { no: 2, name: "room_counts", kind: "message", T: RoomNotificationCount, repeated: true },
+    { no: 3, name: "change", kind: "message", T: RealtimeProjectionNotificationChange, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationsReplace {
@@ -1526,6 +1562,62 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
 
   static equals(a: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined, b: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionNotificationsReplace, a, b);
+  }
+}
+
+/**
+ * One live notification transition accompanying authoritative current state.
+ *
+ * This metadata exists for one-shot presentation effects such as sounds. The
+ * enclosing replacement remains the canonical notification state.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionNotificationChange
+ */
+export class RealtimeProjectionNotificationChange extends Message<RealtimeProjectionNotificationChange> {
+  /**
+   * @generated from field: chatto.realtime.v1.RealtimeProjectionNotificationAction action = 1;
+   */
+  action = RealtimeProjectionNotificationAction.UNSPECIFIED;
+
+  /**
+   * @generated from field: string notification_id = 2;
+   */
+  notificationId = "";
+
+  /**
+   * True when a created notification must not produce an alert.
+   *
+   * @generated from field: bool silent = 3;
+   */
+  silent = false;
+
+  constructor(data?: PartialMessage<RealtimeProjectionNotificationChange>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationChange";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "action", kind: "enum", T: proto3.getEnumType(RealtimeProjectionNotificationAction) },
+    { no: 2, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationChange {
+    return new RealtimeProjectionNotificationChange().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationChange {
+    return new RealtimeProjectionNotificationChange().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationChange {
+    return new RealtimeProjectionNotificationChange().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionNotificationChange | PlainMessage<RealtimeProjectionNotificationChange> | undefined, b: RealtimeProjectionNotificationChange | PlainMessage<RealtimeProjectionNotificationChange> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionNotificationChange, a, b);
   }
 }
 
@@ -1983,86 +2075,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     case: "presenceChanged";
   } | {
     /**
-     * A notification was created for the current user.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeNotificationCreatedEvent notification_created = 60;
-     */
-    value: RealtimeNotificationCreatedEvent;
-    case: "notificationCreated";
-  } | {
-    /**
-     * A notification was dismissed for the current user.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeNotificationDismissedEvent notification_dismissed = 61;
-     */
-    value: RealtimeNotificationDismissedEvent;
-    case: "notificationDismissed";
-  } | {
-    /**
-     * The current user's notification level changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeNotificationLevelChangedEvent notification_level_changed = 62;
-     */
-    value: RealtimeNotificationLevelChangedEvent;
-    case: "notificationLevelChanged";
-  } | {
-    /**
-     * The current user's thread follow state changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeThreadFollowChangedEvent thread_follow_changed = 63;
-     */
-    value: RealtimeThreadFollowChangedEvent;
-    case: "threadFollowChanged";
-  } | {
-    /**
-     * The current user's room read state changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomMarkedAsReadEvent room_marked_as_read = 64;
-     */
-    value: RealtimeRoomMarkedAsReadEvent;
-    case: "roomMarkedAsRead";
-  } | {
-    /**
-     * The server profile/config changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeServerUpdatedEvent server_updated = 70;
-     */
-    value: RealtimeServerUpdatedEvent;
-    case: "serverUpdated";
-  } | {
-    /**
-     * A user profile changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeUserProfileUpdatedEvent user_profile_updated = 71;
-     */
-    value: RealtimeUserProfileUpdatedEvent;
-    case: "userProfileUpdated";
-  } | {
-    /**
-     * The current user's display preferences changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeServerUserPreferencesUpdatedEvent server_user_preferences_updated = 74;
-     */
-    value: RealtimeServerUserPreferencesUpdatedEvent;
-    case: "serverUserPreferencesUpdated";
-  } | {
-    /**
-     * Room-group layout changed.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomGroupsUpdatedEvent room_groups_updated = 75;
-     */
-    value: RealtimeRoomGroupsUpdatedEvent;
-    case: "roomGroupsUpdated";
-  } | {
-    /**
-     * A server member was deleted.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeServerMemberDeletedEvent server_member_deleted = 76;
-     */
-    value: RealtimeServerMemberDeletedEvent;
-    case: "serverMemberDeleted";
-  } | {
-    /**
      * The current user was mentioned in a room.
      *
      * @generated from field: chatto.realtime.v1.RealtimeMentionNotificationEvent mention_notification = 88;
@@ -2100,16 +2112,6 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 30, name: "user_typing", kind: "message", T: RealtimeTypingEvent, oneof: "event" },
     { no: 31, name: "presence_changed", kind: "message", T: RealtimePresenceChangedEvent, oneof: "event" },
-    { no: 60, name: "notification_created", kind: "message", T: RealtimeNotificationCreatedEvent, oneof: "event" },
-    { no: 61, name: "notification_dismissed", kind: "message", T: RealtimeNotificationDismissedEvent, oneof: "event" },
-    { no: 62, name: "notification_level_changed", kind: "message", T: RealtimeNotificationLevelChangedEvent, oneof: "event" },
-    { no: 63, name: "thread_follow_changed", kind: "message", T: RealtimeThreadFollowChangedEvent, oneof: "event" },
-    { no: 64, name: "room_marked_as_read", kind: "message", T: RealtimeRoomMarkedAsReadEvent, oneof: "event" },
-    { no: 70, name: "server_updated", kind: "message", T: RealtimeServerUpdatedEvent, oneof: "event" },
-    { no: 71, name: "user_profile_updated", kind: "message", T: RealtimeUserProfileUpdatedEvent, oneof: "event" },
-    { no: 74, name: "server_user_preferences_updated", kind: "message", T: RealtimeServerUserPreferencesUpdatedEvent, oneof: "event" },
-    { no: 75, name: "room_groups_updated", kind: "message", T: RealtimeRoomGroupsUpdatedEvent, oneof: "event" },
-    { no: 76, name: "server_member_deleted", kind: "message", T: RealtimeServerMemberDeletedEvent, oneof: "event" },
     { no: 88, name: "mention_notification", kind: "message", T: RealtimeMentionNotificationEvent, oneof: "event" },
     { no: 89, name: "new_direct_message_notification", kind: "message", T: RealtimeNewDirectMessageNotificationEvent, oneof: "event" },
     { no: 90, name: "session_terminated", kind: "message", T: RealtimeSessionTerminatedEvent, oneof: "event" },
@@ -2233,574 +2235,6 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
 
   static equals(a: RealtimePresenceChangedEvent | PlainMessage<RealtimePresenceChangedEvent> | undefined, b: RealtimePresenceChangedEvent | PlainMessage<RealtimePresenceChangedEvent> | undefined): boolean {
     return proto3.util.equals(RealtimePresenceChangedEvent, a, b);
-  }
-}
-
-/**
- * Notification-created signal for the connected user.
- *
- * Hydrate full notification rows with `NotificationService.GetNotification` or
- * `NotificationService.BatchGetNotifications`. Use `RoomService` or
- * `ThreadService` anchor reads when `event_id` or `in_reply_to_id` must be
- * opened in context.
- *
- * @generated from message chatto.realtime.v1.RealtimeNotificationCreatedEvent
- */
-export class RealtimeNotificationCreatedEvent extends Message<RealtimeNotificationCreatedEvent> {
-  /**
-   * Notification ID.
-   *
-   * @generated from field: string notification_id = 1;
-   */
-  notificationId = "";
-
-  /**
-   * Room associated with the notification, when the notification navigates to a room.
-   *
-   * @generated from field: optional string room_id = 2;
-   */
-  roomId?: string;
-
-  /**
-   * Event ID associated with the notification, when the notification navigates to an event.
-   *
-   * @generated from field: optional string event_id = 3;
-   */
-  eventId?: string;
-
-  /**
-   * Parent event ID for reply notifications, when known.
-   *
-   * @generated from field: optional string in_reply_to_id = 4;
-   */
-  inReplyToId?: string;
-
-  /**
-   * True when the notification should not alert.
-   *
-   * @generated from field: bool silent = 5;
-   */
-  silent = false;
-
-  constructor(data?: PartialMessage<RealtimeNotificationCreatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeNotificationCreatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "in_reply_to_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 5, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNotificationCreatedEvent {
-    return new RealtimeNotificationCreatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeNotificationCreatedEvent {
-    return new RealtimeNotificationCreatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeNotificationCreatedEvent {
-    return new RealtimeNotificationCreatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeNotificationCreatedEvent | PlainMessage<RealtimeNotificationCreatedEvent> | undefined, b: RealtimeNotificationCreatedEvent | PlainMessage<RealtimeNotificationCreatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeNotificationCreatedEvent, a, b);
-  }
-}
-
-/**
- * Notification-dismissed signal for the connected user.
- *
- * Remove the local notification row by ID. A later singular notification read
- * returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
- *
- * @generated from message chatto.realtime.v1.RealtimeNotificationDismissedEvent
- */
-export class RealtimeNotificationDismissedEvent extends Message<RealtimeNotificationDismissedEvent> {
-  /**
-   * Notification ID.
-   *
-   * @generated from field: string notification_id = 1;
-   */
-  notificationId = "";
-
-  constructor(data?: PartialMessage<RealtimeNotificationDismissedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeNotificationDismissedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNotificationDismissedEvent {
-    return new RealtimeNotificationDismissedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeNotificationDismissedEvent {
-    return new RealtimeNotificationDismissedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeNotificationDismissedEvent {
-    return new RealtimeNotificationDismissedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeNotificationDismissedEvent | PlainMessage<RealtimeNotificationDismissedEvent> | undefined, b: RealtimeNotificationDismissedEvent | PlainMessage<RealtimeNotificationDismissedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeNotificationDismissedEvent, a, b);
-  }
-}
-
-/**
- * Notification-level signal for the connected user.
- *
- * The updated level is inline. Use
- * `NotificationPreferencesService.GetRoomNotificationPreference` when clients
- * need the complete preference resource.
- *
- * @generated from message chatto.realtime.v1.RealtimeNotificationLevelChangedEvent
- */
-export class RealtimeNotificationLevelChangedEvent extends Message<RealtimeNotificationLevelChangedEvent> {
-  /**
-   * Room whose notification level changed.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Explicit room notification level.
-   *
-   * @generated from field: chatto.api.v1.NotificationLevel level = 2;
-   */
-  level = NotificationLevel.UNSPECIFIED;
-
-  /**
-   * Effective notification level after defaults are applied.
-   *
-   * @generated from field: chatto.api.v1.NotificationLevel effective_level = 3;
-   */
-  effectiveLevel = NotificationLevel.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<RealtimeNotificationLevelChangedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeNotificationLevelChangedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
-    { no: 3, name: "effective_level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNotificationLevelChangedEvent {
-    return new RealtimeNotificationLevelChangedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeNotificationLevelChangedEvent {
-    return new RealtimeNotificationLevelChangedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeNotificationLevelChangedEvent {
-    return new RealtimeNotificationLevelChangedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeNotificationLevelChangedEvent | PlainMessage<RealtimeNotificationLevelChangedEvent> | undefined, b: RealtimeNotificationLevelChangedEvent | PlainMessage<RealtimeNotificationLevelChangedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeNotificationLevelChangedEvent, a, b);
-  }
-}
-
-/**
- * Thread-follow signal for the connected user.
- *
- * The updated follow state is inline. Use `ThreadService.GetThreadEvents`
- * or `ThreadService.GetThreadEventsAround` when the thread itself needs
- * refreshing.
- *
- * @generated from message chatto.realtime.v1.RealtimeThreadFollowChangedEvent
- */
-export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFollowChangedEvent> {
-  /**
-   * Room containing the thread.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Root message event ID of the thread.
-   *
-   * @generated from field: string thread_root_event_id = 2;
-   */
-  threadRootEventId = "";
-
-  /**
-   * True when the user now follows the thread.
-   *
-   * @generated from field: bool following = 3;
-   */
-  following = false;
-
-  constructor(data?: PartialMessage<RealtimeThreadFollowChangedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeThreadFollowChangedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeThreadFollowChangedEvent {
-    return new RealtimeThreadFollowChangedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeThreadFollowChangedEvent {
-    return new RealtimeThreadFollowChangedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeThreadFollowChangedEvent {
-    return new RealtimeThreadFollowChangedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeThreadFollowChangedEvent | PlainMessage<RealtimeThreadFollowChangedEvent> | undefined, b: RealtimeThreadFollowChangedEvent | PlainMessage<RealtimeThreadFollowChangedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeThreadFollowChangedEvent, a, b);
-  }
-}
-
-/**
- * Room-read signal for the connected user.
- *
- * This is a current-user read-state invalidation signal. Clients can patch local
- * unread state for the room; no separate hydration is normally needed.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomMarkedAsReadEvent
- */
-export class RealtimeRoomMarkedAsReadEvent extends Message<RealtimeRoomMarkedAsReadEvent> {
-  /**
-   * Room marked read.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RealtimeRoomMarkedAsReadEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomMarkedAsReadEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomMarkedAsReadEvent {
-    return new RealtimeRoomMarkedAsReadEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomMarkedAsReadEvent {
-    return new RealtimeRoomMarkedAsReadEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomMarkedAsReadEvent {
-    return new RealtimeRoomMarkedAsReadEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomMarkedAsReadEvent | PlainMessage<RealtimeRoomMarkedAsReadEvent> | undefined, b: RealtimeRoomMarkedAsReadEvent | PlainMessage<RealtimeRoomMarkedAsReadEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomMarkedAsReadEvent, a, b);
-  }
-}
-
-/**
- * Transient server-profile signal.
- *
- * Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
- * for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
- * Canonical public and authenticated server state also converges through
- * projection operations.
- *
- * @generated from message chatto.realtime.v1.RealtimeServerUpdatedEvent
- */
-export class RealtimeServerUpdatedEvent extends Message<RealtimeServerUpdatedEvent> {
-  /**
-   * Server display name.
-   *
-   * @generated from field: string name = 1;
-   */
-  name = "";
-
-  /**
-   * Server description.
-   *
-   * @generated from field: string description = 2;
-   */
-  description = "";
-
-  /**
-   * Server logo URL, when configured.
-   *
-   * @generated from field: optional string logo_url = 3;
-   */
-  logoUrl?: string;
-
-  /**
-   * Server banner URL, when configured.
-   *
-   * @generated from field: optional string banner_url = 4;
-   */
-  bannerUrl?: string;
-
-  constructor(data?: PartialMessage<RealtimeServerUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeServerUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerUpdatedEvent {
-    return new RealtimeServerUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeServerUpdatedEvent {
-    return new RealtimeServerUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeServerUpdatedEvent {
-    return new RealtimeServerUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeServerUpdatedEvent | PlainMessage<RealtimeServerUpdatedEvent> | undefined, b: RealtimeServerUpdatedEvent | PlainMessage<RealtimeServerUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeServerUpdatedEvent, a, b);
-  }
-}
-
-/**
- * User-profile signal.
- *
- * Basic profile fields are inline. Use `UserService.GetUser` or
- * `UserService.BatchGetUsers` for complete user-profile hydration.
- *
- * @generated from message chatto.realtime.v1.RealtimeUserProfileUpdatedEvent
- */
-export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfileUpdatedEvent> {
-  /**
-   * User whose profile changed.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  /**
-   * Login name.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * Avatar URL, when the user has an avatar.
-   *
-   * @generated from field: optional string avatar_url = 4;
-   */
-  avatarUrl?: string;
-
-  constructor(data?: PartialMessage<RealtimeUserProfileUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeUserProfileUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUserProfileUpdatedEvent {
-    return new RealtimeUserProfileUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUserProfileUpdatedEvent {
-    return new RealtimeUserProfileUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUserProfileUpdatedEvent {
-    return new RealtimeUserProfileUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeUserProfileUpdatedEvent | PlainMessage<RealtimeUserProfileUpdatedEvent> | undefined, b: RealtimeUserProfileUpdatedEvent | PlainMessage<RealtimeUserProfileUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeUserProfileUpdatedEvent, a, b);
-  }
-}
-
-/**
- * User display-preferences signal for the connected user.
- *
- * The updated display preferences are inline for the connected user.
- *
- * @generated from message chatto.realtime.v1.RealtimeServerUserPreferencesUpdatedEvent
- */
-export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeServerUserPreferencesUpdatedEvent> {
-  /**
-   * IANA timezone name, when the user has selected a fixed timezone.
-   *
-   * @generated from field: optional string timezone = 1;
-   */
-  timezone?: string;
-
-  /**
-   * Preferred time display format.
-   *
-   * @generated from field: chatto.api.v1.TimeFormat time_format = 2;
-   */
-  timeFormat = TimeFormat.TIME_FORMAT_UNSPECIFIED;
-
-  constructor(data?: PartialMessage<RealtimeServerUserPreferencesUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeServerUserPreferencesUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerUserPreferencesUpdatedEvent {
-    return new RealtimeServerUserPreferencesUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeServerUserPreferencesUpdatedEvent {
-    return new RealtimeServerUserPreferencesUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeServerUserPreferencesUpdatedEvent {
-    return new RealtimeServerUserPreferencesUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeServerUserPreferencesUpdatedEvent | PlainMessage<RealtimeServerUserPreferencesUpdatedEvent> | undefined, b: RealtimeServerUserPreferencesUpdatedEvent | PlainMessage<RealtimeServerUserPreferencesUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeServerUserPreferencesUpdatedEvent, a, b);
-  }
-}
-
-/**
- * Room-group layout signal.
- *
- * Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
- * client already knows specific group IDs, it can use
- * `RoomDirectoryService.GetRoomGroup` or
- * `RoomDirectoryService.BatchGetRoomGroups`.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomGroupsUpdatedEvent
- */
-export class RealtimeRoomGroupsUpdatedEvent extends Message<RealtimeRoomGroupsUpdatedEvent> {
-  /**
-   * Always true; present for event-bus compatibility.
-   *
-   * @generated from field: bool changed = 1;
-   */
-  changed = false;
-
-  constructor(data?: PartialMessage<RealtimeRoomGroupsUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomGroupsUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "changed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomGroupsUpdatedEvent {
-    return new RealtimeRoomGroupsUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsUpdatedEvent {
-    return new RealtimeRoomGroupsUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsUpdatedEvent {
-    return new RealtimeRoomGroupsUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomGroupsUpdatedEvent | PlainMessage<RealtimeRoomGroupsUpdatedEvent> | undefined, b: RealtimeRoomGroupsUpdatedEvent | PlainMessage<RealtimeRoomGroupsUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomGroupsUpdatedEvent, a, b);
-  }
-}
-
-/**
- * Server-member deleted signal.
- *
- * Remove or invalidate local member/user rows for `user_id`. Admin clients can
- * hydrate remaining member rows through `AdminUserService.GetMember` or
- * `AdminUserService.BatchGetMembers`.
- *
- * @generated from message chatto.realtime.v1.RealtimeServerMemberDeletedEvent
- */
-export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemberDeletedEvent> {
-  /**
-   * Deleted user ID.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  constructor(data?: PartialMessage<RealtimeServerMemberDeletedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeServerMemberDeletedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerMemberDeletedEvent {
-    return new RealtimeServerMemberDeletedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeServerMemberDeletedEvent {
-    return new RealtimeServerMemberDeletedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeServerMemberDeletedEvent {
-    return new RealtimeServerMemberDeletedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeServerMemberDeletedEvent | PlainMessage<RealtimeServerMemberDeletedEvent> | undefined, b: RealtimeServerMemberDeletedEvent | PlainMessage<RealtimeServerMemberDeletedEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeServerMemberDeletedEvent, a, b);
   }
 }
 

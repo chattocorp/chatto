@@ -7,10 +7,7 @@ import type {
   AdminSidebarLinkInfo
 } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
 import { SvelteMap } from 'svelte/reactivity';
-
-const OWN_MUTATION_ECHO_SUPPRESSION_MS = 2000;
 
 export type {
   AdminRoomGroup,
@@ -233,15 +230,13 @@ export class AdminRoomLayoutStore {
   universalRoomId = $state<string | null>(null);
 
   #loadId = 0;
-  #lastMutationTimestamp = 0;
   #preDragSnapshot: GroupItemOrder | null = null;
   #pendingMoveDiff = false;
   #preReorderIds: string[] | null = null;
 
   constructor(
     private readonly layoutAPI: AdminRoomLayoutAPI,
-    private readonly roomAPI: Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'>,
-    private readonly now: () => number = () => Date.now()
+    private readonly roomAPI: Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'>
   ) {}
 
   get loading(): boolean {
@@ -278,7 +273,6 @@ export class AdminRoomLayoutStore {
     }
     if (!group) return { ok: false, error: 'Room group not found' };
     this.groups = [...this.groups, group];
-    this.markMutation();
     await this.refresh();
     return { ok: true, group: this.groups.find((candidate) => candidate.id === group.id) ?? group };
   }
@@ -294,7 +288,6 @@ export class AdminRoomLayoutStore {
     }
 
     this.groups[idx] = { ...this.groups[idx], name: newName };
-    this.markMutation();
     return { ok: true };
   }
 
@@ -306,7 +299,6 @@ export class AdminRoomLayoutStore {
     }
 
     this.groups = this.groups.filter((group) => group.id !== groupId);
-    this.markMutation();
     return { ok: true };
   }
 
@@ -323,7 +315,6 @@ export class AdminRoomLayoutStore {
     }
     if (!link) return { ok: false, error: 'Sidebar link not found' };
 
-    this.markMutation();
     await this.refresh();
     return { ok: true, link };
   }
@@ -341,7 +332,6 @@ export class AdminRoomLayoutStore {
     }
     if (!link) return { ok: false, error: 'Sidebar link not found' };
 
-    this.markMutation();
     await this.refresh();
     return { ok: true, link };
   }
@@ -353,7 +343,6 @@ export class AdminRoomLayoutStore {
       return { ok: false, error: errorMessage(error) };
     }
 
-    this.markMutation();
     await this.refresh();
     return { ok: true };
   }
@@ -362,7 +351,6 @@ export class AdminRoomLayoutStore {
     this.updatingRoom = true;
     try {
       await this.roomAPI.updateRoom({ roomId, name, description });
-      this.markMutation();
       await this.refresh();
       return { ok: true };
     } catch (error) {
@@ -384,7 +372,6 @@ export class AdminRoomLayoutStore {
     this.universalRoomId = roomId;
     try {
       await this.roomAPI.updateRoom({ roomId, universal: isUniversal });
-      this.markMutation();
       await this.refresh();
       return { ok: true };
     } catch (error) {
@@ -395,7 +382,6 @@ export class AdminRoomLayoutStore {
   }
 
   handleRoomCreated(): void {
-    this.markMutation();
     void this.refresh();
   }
 
@@ -452,7 +438,6 @@ export class AdminRoomLayoutStore {
       };
     }
 
-    this.markMutation();
     return { ok: true, changed: true };
   }
 
@@ -491,7 +476,6 @@ export class AdminRoomLayoutStore {
       }
     }
 
-    this.markMutation();
     if (errors.length > 0) {
       void this.refresh();
       return {
@@ -510,34 +494,6 @@ export class AdminRoomLayoutStore {
     };
   }
 
-  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): boolean {
-    const kind = roomEventKind(serverEvent.event);
-    if (kind === RoomEventKind.RoomGroupsUpdated) {
-      return this.ingestRoomLayoutUpdated();
-    }
-    if (
-      kind === RoomEventKind.RoomUpdated ||
-      kind === RoomEventKind.RoomArchived ||
-      kind === RoomEventKind.RoomUnarchived ||
-      kind === RoomEventKind.RoomUniversalChanged
-    ) {
-      return this.ingestRoomMetadataUpdated();
-    }
-    return false;
-  }
-
-  ingestRoomLayoutUpdated(now = this.now()): boolean {
-    if (this.shouldSuppressLiveRefresh(now)) return false;
-    void this.refresh();
-    return true;
-  }
-
-  private ingestRoomMetadataUpdated(now = this.now()): boolean {
-    if (this.shouldSuppressLiveRefresh(now)) return false;
-    void this.refresh();
-    return true;
-  }
-
   private async setRoomArchived(roomId: string, archived: boolean): Promise<StoreResult> {
     this.archivingRoomId = roomId;
     try {
@@ -546,7 +502,6 @@ export class AdminRoomLayoutStore {
       } else {
         await this.roomAPI.unarchiveRoom(roomId);
       }
-      this.markMutation();
       await this.refresh();
       return { ok: true };
     } catch (error) {
@@ -569,11 +524,4 @@ export class AdminRoomLayoutStore {
     }
   }
 
-  private markMutation(): void {
-    this.#lastMutationTimestamp = this.now();
-  }
-
-  private shouldSuppressLiveRefresh(now: number): boolean {
-    return this.isDragging || now - this.#lastMutationTimestamp < OWN_MUTATION_ECHO_SUPPRESSION_MS;
-  }
 }

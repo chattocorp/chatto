@@ -13,12 +13,11 @@
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
-    useUserProfileUpdate,
     useProjectionEvent,
-    useUserCustomStatusUpdate,
-    useUserSettingsUpdate,
     useSessionTerminated
   } from '$lib/hooks';
+  import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+  import { viewerResponseToState } from '$lib/api-client/viewer';
   import {
     scheduleCustomStatusExpiry,
     type CustomUserStatus
@@ -120,56 +119,33 @@
       hardRedirectAfterSignOut('/');
     }
 
-    // Subscribe to profile update events and populate the cache
-    useUserProfileUpdate((update) => {
-      profileCache.update(
-        update.userId,
-        update.displayName,
-        update.avatarUrl,
-        update.login
-      );
-      if (currentUserState.user?.id === update.userId) {
-        currentUserState.user = {
-          ...currentUserState.user,
-          displayName: update.displayName,
-          avatarUrl: update.avatarUrl,
-          login: update.login
-        };
-      }
-    });
-
-    // Durable profile state is delivered by the canonical projection stream
-    // in protocol v2. Keep the render cache synchronized so existing message
-    // rows update without replacing every timeline event that references the
-    // user.
+    // Keep origin-global profile/settings caches synchronized with the same
+    // projection operations that own each server-scoped store.
     useProjectionEvent((event) => {
       for (const operation of event.operations) {
-        if (operation.operation.case !== 'userUpsert') continue;
-        const user = operation.operation.value.user;
-        if (!user?.id) continue;
-        profileCache.update(
-          user.id,
-          user.displayName,
-          user.avatarUrl ?? null,
-          user.login
-        );
+        if (operation.operation.case === 'userUpsert') {
+          const member = mapDirectoryMember(operation.operation.value);
+          if (!member.id) continue;
+          profileCache.update(
+            member.id,
+            member.displayName,
+            member.avatarUrl,
+            member.login,
+            member.customStatus
+          );
+        } else if (operation.operation.case === 'viewerUpsert') {
+          const viewer = viewerResponseToState(operation.operation.value);
+          currentUserState.user = viewer.user;
+          profileCache.update(
+            viewer.user.id,
+            viewer.user.displayName,
+            viewer.user.avatarUrl ?? null,
+            viewer.user.login,
+            viewer.user.customStatus ?? null
+          );
+          userSettings.updateFromData(viewer.user.settings);
+        }
       }
-    });
-
-    useUserCustomStatusUpdate((update) => {
-      profileCache.updateStatus(update.userId, update.customStatus);
-      if (currentUserState.user?.id === update.userId) {
-        currentUserState.user = {
-          ...currentUserState.user,
-          customStatus: update.customStatus
-        };
-      }
-    });
-
-    // Subscribe to settings update events for multi-tab sync
-    useUserSettingsUpdate((update) => {
-      userSettings.timezone = update.timezone;
-      userSettings.timeFormat = update.timeFormat;
     });
 
     // Handle session terminated events from server (logout from another tab/device, admin boot)

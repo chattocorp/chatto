@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-18
 
 ## Overview
 
@@ -57,7 +57,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 **Decision:** "Look offline" is not a server status. The client stops refreshing presence and stops receiving live event streams while the local mode is active. The server and other users only see the existing presence record expire.
 **Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it to other clients or operators through logs, admin tooling, or future APIs. Absence of reporting preserves the privacy property.
-**Tradeoff:** The user's own client loses realtime updates while invisible and must catch up from projected reads after returning to a reporting mode.
+**Tradeoff:** The user's own client loses realtime updates while invisible. On returning to a reporting mode it resumes the server-scoped projection stream, or receives a compacted reset when its cursor is unusable.
 
 ### 7. Per-server tracking, with frontend coordination across servers
 
@@ -68,7 +68,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 8. Delivery gaps force latest-value recovery
 
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
-**Why:** Presence is latest-value state, so a missed transition can be repaired cheaply from current user reads. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049.
+**Why:** Presence is latest-value state. Every realtime subscription includes a complete `presences_replace` reconciliation before `caught_up`, so reconnect repairs a missed transition through the same projection stream without a separate user read. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-051.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
 
 ## Permissions
@@ -77,5 +77,5 @@ Presence status is public. Any authenticated user can see any other authenticate
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-051 (server-scoped resumable client projection)
 - **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile)

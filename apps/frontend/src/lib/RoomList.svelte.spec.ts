@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { RoomType } from '$lib/render/types';
-import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import {
@@ -11,12 +9,11 @@ import {
   roomSidebarPanelStorageSuffix
 } from '$lib/storage/roomSidebarPanel';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
-import { useEvent } from '$lib/hooks';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
-    callParticipants: new Map<string, unknown[]>(),
+    projectedCallParticipants: new Map<string, unknown[]>(),
     unreadRoomIds: new Set<string>(),
     markNavigationRoomAsRead: vi.fn().mockResolvedValue(true),
     pushState: vi.fn(),
@@ -55,12 +52,10 @@ const { mocks } = vi.hoisted(() => ({
         })
       },
       activeCallRooms: {
-        load: vi.fn().mockResolvedValue(undefined),
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId)),
-        getParticipants: vi.fn((roomId: string) => mocks.callParticipants.get(roomId) ?? []),
-        handleJoin: vi.fn(),
-        handleLeave: vi.fn(),
-        handleEnd: vi.fn()
+        getParticipants: vi.fn(
+          (roomId: string) => mocks.projectedCallParticipants.get(roomId) ?? []
+        )
       },
       voiceCall: {
         join: vi.fn().mockResolvedValue(undefined),
@@ -125,12 +120,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     originServer: { id: 'origin' },
     servers: [{ id: 'origin', url: 'https://chat.example.test' }]
   }
-}));
-
-vi.mock('$lib/hooks', () => ({
-  useEvent: vi.fn(),
-  useRoomMarkedAsRead: vi.fn(),
-  useTabResumeCallback: vi.fn()
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
@@ -259,23 +248,11 @@ function setRoomUnread(roomId: string, hasUnread: boolean) {
   else mocks.unreadRoomIds.delete(roomId);
 }
 
-function dispatchRoomListEvent(handlerIndex: number, event: Record<string, unknown>) {
-  const handler = vi.mocked(useEvent).mock.calls[handlerIndex]?.[0] as EventHandler | undefined;
-  if (!handler) throw new Error(`RoomList useEvent handler ${handlerIndex} was not registered`);
-  handler({
-    id: 'event-1',
-    createdAt: new Date().toISOString(),
-    actorId: 'other-user',
-    actor: null,
-    event
-  } as EventEnvelope);
-}
-
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeCallRoomIds = new Set();
-  mocks.callParticipants = new Map();
+  mocks.projectedCallParticipants = new Map();
   mocks.unreadRoomIds = new Set();
   mocks.store.rooms.roomGroups = null;
   mocks.store.rooms.isInitialLoading = false;
@@ -451,7 +428,7 @@ describe('RoomList', () => {
 
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('dm-with-participants');
-    mocks.callParticipants.set('dm-with-participants', [
+    mocks.projectedCallParticipants.set('dm-with-participants', [
       {
         userId: 'teal',
         login: 'teal',
@@ -496,7 +473,7 @@ describe('RoomList', () => {
 
   it('renders active-call channel rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('channel-1');
-    mocks.callParticipants.set('channel-1', [
+    mocks.projectedCallParticipants.set('channel-1', [
       {
         userId: 'teal',
         login: 'teal',
@@ -530,7 +507,7 @@ describe('RoomList', () => {
 
   it('renders a compact overflow count for larger active calls', async () => {
     mocks.activeCallRoomIds.add('channel-1');
-    mocks.callParticipants.set('channel-1', [
+    mocks.projectedCallParticipants.set('channel-1', [
       { userId: 'teal', login: 'teal', displayName: 'Teal', avatarUrl: null },
       { userId: 'river', login: 'river', displayName: 'River', avatarUrl: null },
       { userId: 'sage', login: 'sage', displayName: 'Sage', avatarUrl: null },
@@ -593,19 +570,6 @@ describe('RoomList', () => {
       )
     ).toBe('call');
     expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
-  });
-
-  it('marks inactive rooms unread from local message event kind', async () => {
-    render(RoomList);
-
-    dispatchRoomListEvent(1, {
-      kind: RoomEventKind.MessagePosted,
-      roomId: 'channel-1',
-      threadRootEventId: null
-    });
-
-    expect(mocks.store.rooms.bumpRoom).toHaveBeenCalledWith('channel-1');
-    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('channel-1', true);
   });
 
   it.each([

@@ -1,7 +1,6 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RealtimeEventEnvelope,
@@ -13,7 +12,7 @@ import {
   RealtimeMentionNotificationEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
-  RealtimeServerUpdatedEvent,
+  RealtimeTypingEvent,
   RealtimeSubscribed,
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
@@ -171,19 +170,16 @@ function roomTimelineFrame(roomId: string): RealtimeServerFrame {
   });
 }
 
-function serverUpdatedFrame(id = 'evt-1'): RealtimeServerFrame {
+function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEventEnvelope({
       id,
       createdAt: Timestamp.now(),
+      actorId: 'user-1',
       event: {
-        case: 'serverUpdated',
-        value: new RealtimeServerUpdatedEvent({
-          name: 'Updated',
-          description: 'Description',
-          logoUrl: 'https://example.test/logo.png'
-        })
+        case: 'userTyping',
+        value: new RealtimeTypingEvent({ roomId: 'room-1' })
       }
     })
   });
@@ -453,20 +449,20 @@ describe('eventBusManager realtime transport', () => {
     const handler = vi.fn();
     eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-    await socket.receive(serverUpdatedFrame());
+    await socket.receive(transientFrame());
 
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'evt-1',
         event: expect.objectContaining({
-          kind: RoomEventKind.ServerUpdated,
-          name: 'Updated'
+          kind: RoomEventKind.UserTyping,
+          roomId: 'room-1'
         })
       })
     );
     expect(consoleDebug).toHaveBeenCalledWith(
       `[eventBus:${TEST_SERVER}] event dispatched`,
-      RoomEventKind.ServerUpdated,
+      RoomEventKind.UserTyping,
       expect.objectContaining({ eventId: 'evt-1' })
     );
   });
@@ -581,7 +577,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
-  it('attaches the decoded protobuf event to dispatched envelopes', async () => {
+  it('preserves transient event display data in dispatched envelopes', async () => {
     const { socket } = await startAndSubscribe();
     const handler = vi.fn();
     eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
@@ -596,9 +592,7 @@ describe('eventBusManager realtime transport', () => {
         })
       })
     );
-    const realtime = getRealtimeEventEnvelope(dispatched);
-    expect(realtime?.event.case).toBe('mentionNotification');
-    expect(realtime?.event.value).toEqual(
+    expect(dispatched.event).toEqual(
       expect.objectContaining({
         actorDisplayName: 'Ada Lovelace',
         roomName: 'General'
@@ -617,7 +611,7 @@ describe('eventBusManager realtime transport', () => {
     });
     bus.handlers.add(ranAfter);
 
-    await socket.receive(serverUpdatedFrame());
+    await socket.receive(transientFrame());
 
     expect(ranBefore).toHaveBeenCalledTimes(1);
     expect(ranAfter).toHaveBeenCalledTimes(1);
@@ -637,8 +631,8 @@ describe('eventBusManager realtime transport', () => {
     });
     bus.handlers.add(handler);
 
-    await socket.receive(serverUpdatedFrame('evt-1'));
-    await socket.receive(serverUpdatedFrame('evt-2'));
+    await socket.receive(transientFrame('evt-1'));
+    await socket.receive(transientFrame('evt-2'));
 
     expect(handler).toHaveBeenCalledTimes(2);
   });
@@ -765,30 +759,6 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(heartbeatFrame());
 
     expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('matches direct room layout handlers by local event kind', async () => {
-    await startAndSubscribe();
-    const handler = vi.fn();
-    const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
-    const bus = eventBusManager.getBus(TEST_SERVER)!;
-
-    for (const eventHandler of bus.handlers) {
-      eventHandler({
-        id: 'evt-room-kind',
-        createdAt: new Date().toISOString(),
-        actorId: null,
-        actor: null,
-        event: {
-          kind: RoomEventKind.RoomUniversalChanged,
-          roomId: 'room-kind',
-          universal: true
-        } as never
-      });
-    }
-
-    expect(handler).toHaveBeenCalledWith({ roomId: 'room-kind', universal: true });
-    unsubscribe();
   });
 
   it('does NOT reconnect when stopBus is called', async () => {

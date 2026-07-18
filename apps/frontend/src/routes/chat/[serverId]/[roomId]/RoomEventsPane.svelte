@@ -1,25 +1,11 @@
 <script lang="ts">
-  import { useEvent, type UnreadMarkerWindow } from '$lib/hooks';
-  import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
+  import type { UnreadMarkerWindow } from '$lib/hooks';
   import { getComposerContext, type RoomMember } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
-
-  type MessageRetractedEventPayload = {
-    roomId?: string | null;
-    messageEventId?: string | null;
-  };
-
-  function messageRetractedPayload(
-    event: RoomEventKindSource
-  ): MessageRetractedEventPayload | null {
-    if (roomEventKind(event) !== RoomEventKind.MessageRetracted) return null;
-    if (!event || typeof event !== 'object') return null;
-    return event as MessageRetractedEventPayload;
-  }
 
   let {
     roomId,
@@ -81,22 +67,6 @@
   // the resumable server projection and does not trigger a parallel room read.
   $effect(() => {
     store.setRoom(roomId);
-  });
-
-  // Subscribe to server events: route to store, plus handle component-level
-  // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useEvent((serverEvent) => {
-    const eventData = messageRetractedPayload(serverEvent.event);
-    if (!eventData) {
-      store.ingestServerEvent(serverEvent);
-      return;
-    }
-
-    if (eventData.roomId === roomId && editState.eventId === eventData.messageEventId) {
-      editState.cancelEdit();
-    }
-
-    store.ingestServerEvent(serverEvent);
   });
 
   function handleReachedPresent(): void {

@@ -2,7 +2,11 @@
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { createThreadAPI } from '$lib/api-client/threads';
-  import { useEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
+  import {
+    useProjectionEvent,
+    createTypingIndicator,
+    useUnreadMarker
+  } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -24,7 +28,6 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
 
   let {
@@ -194,28 +197,19 @@
   // Subscribe to server events: clear typing indicator on a thread reply,
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
-  useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
+  useProjectionEvent((projectionEvent) => {
+    for (const operation of projectionEvent.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
+      if (update.event.event.value.message?.threadRootEventId !== threadRootEventId) continue;
 
-    if (
-      isMessagePostedEvent(eventData) &&
-      eventData.roomId === roomId &&
-      eventData.threadRootEventId === threadRootEventId
-    ) {
-      const actorId = serverEvent.actorId;
-      if (actorId) {
-        typingIndicator.removeTypingUser(actorId);
-      }
-
-      if (currentUser.user && actorId !== currentUser.user.id) {
-        if (appState.isPresent) {
-          void unread.markAsRead(threadRootEventId, serverEvent.id);
-        }
+      const actorId = projectionEvent.actorId;
+      if (actorId) typingIndicator.removeTypingUser(actorId);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        void unread.markAsRead(threadRootEventId, projectionEvent.id);
       }
     }
-
-    store.ingestServerEvent(serverEvent);
   });
 
   // -- Thread follow state --
@@ -280,16 +274,6 @@
       isFollowingThread = wasFollowing;
     }
   }
-
-  // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
-  $effect(() =>
-    onThreadFollowChanged((update) => {
-      if (update.roomId === roomId && update.threadRootEventId === threadRootEventId) {
-        store.setThreadRootFollowState(update.threadRootEventId, update.isFollowing);
-        setAuthoritativeThreadFollowState(update.isFollowing);
-      }
-    })
-  );
 
   async function markThreadAsRead(
     currentThreadId: string,

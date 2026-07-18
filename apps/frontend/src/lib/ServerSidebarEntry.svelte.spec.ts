@@ -3,10 +3,8 @@ import { render } from 'vitest-browser-svelte';
 import { NotificationLevel, PresenceStatus } from '$lib/render/types';
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
-import type { EventHandler } from '$lib/eventBus.svelte';
 
 const { mocks } = vi.hoisted(() => {
-  const eventHandlers: EventHandler[] = [];
   return {
     mocks: {
       getAuthenticatedServerState: vi.fn(),
@@ -18,18 +16,6 @@ const { mocks } = vi.hoisted(() => {
       markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
       appUi: {
         disableRoomCallWideFor: vi.fn()
-      },
-      eventHandlers,
-      registrar: {
-        onEvent: vi.fn((handler: EventHandler) => {
-          eventHandlers.push(handler);
-          return () => {
-            const index = eventHandlers.indexOf(handler);
-            if (index >= 0) eventHandlers.splice(index, 1);
-          };
-        }),
-        onRoomMarkedAsRead: vi.fn(() => vi.fn()),
-        onNotificationLevelChanged: vi.fn(() => vi.fn())
       },
       showConnectionLostIcon: false,
       server: {
@@ -119,10 +105,6 @@ vi.mock('$lib/hooks', () => ({
 
 vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
-}));
-
-vi.mock('$lib/eventBus.svelte', () => ({
-  createEventBusHandlerRegistrar: vi.fn(() => mocks.registrar)
 }));
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
@@ -227,10 +209,6 @@ describe('ServerSidebarEntry', () => {
     mocks.markNavigationServerAsRead.mockClear();
     mocks.markNavigationServerAsRead.mockResolvedValue(true);
     mocks.appUi.disableRoomCallWideFor.mockClear();
-    mocks.eventHandlers.length = 0;
-    mocks.registrar.onEvent.mockClear();
-    mocks.registrar.onRoomMarkedAsRead.mockClear();
-    mocks.registrar.onNotificationLevelChanged.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
@@ -503,15 +481,4 @@ describe('ServerSidebarEntry', () => {
     });
   });
 
-  it('does not synthesize unread state from transient message envelopes', async () => {
-    render(ServerSidebarEntry, {
-      props: {
-        serverId: 'remote',
-        currentUserId: 'user-1'
-      }
-    });
-
-    expect(mocks.eventHandlers).toHaveLength(0);
-    expect(mocks.store.roomUnread.setRoomUnread).not.toHaveBeenCalled();
-  });
 });

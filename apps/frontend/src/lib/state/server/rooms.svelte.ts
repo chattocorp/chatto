@@ -1,12 +1,6 @@
 import { untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { RoomType, type UserAvatarUserView } from '$lib/render/types';
-import {
-  isMessagePostedEvent,
-  RoomEventKind,
-  roomEventKind,
-  type RoomEventKindSource
-} from '$lib/render/eventKinds';
 import type {
   DirectoryRoomGroup,
   DirectoryRoomGroupItem,
@@ -178,23 +172,6 @@ function sameRoomGroups(
   });
 }
 
-const roomStateRefreshEvents = new Set<RoomEventKind>([
-  RoomEventKind.RoomCreated,
-  RoomEventKind.RoomDeleted,
-  RoomEventKind.RoomGroupsUpdated,
-  RoomEventKind.RoomUpdated,
-  RoomEventKind.RoomArchived,
-  RoomEventKind.RoomUnarchived,
-  RoomEventKind.RoomUniversalChanged,
-  RoomEventKind.UserJoinedRoom,
-  RoomEventKind.UserLeftRoom
-]);
-
-export function isRoomStateRefreshEvent(event: RoomEventKindSource): boolean {
-  const kind = roomEventKind(event);
-  return kind !== null && roomStateRefreshEvents.has(kind);
-}
-
 /**
  * Reactive store for a server's joined-room list, layout, and per-room
  * notification counts. One store per registered server, owned by
@@ -206,9 +183,8 @@ export function isRoomStateRefreshEvent(event: RoomEventKindSource): boolean {
  * Room read state is owned separately by `RoomUnreadStore` so the room list
  * and server indicator cannot maintain competing unread projections.
  *
- * Subscription events are forwarded via {@link ingestServerEvent}; the
- * server bundle forwards events from every server's bus so each server's
- * store stays current regardless of which one is active.
+ * Canonical room and viewer state is replaced by the server projection; the
+ * Connect API remains available for explicit paginated reads and commands.
  */
 export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
@@ -460,32 +436,6 @@ export class RoomsStore {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Subscription event ingestion
-  // -------------------------------------------------------------------------
-
-  /**
-   * Refresh the room list when membership, room metadata, or group layout
-   * changes. Other event types (messages, reactions, presence) are no-ops at
-   * this level unless the message arrives for a room we don't yet know about —
-   * that's how a freshly-created empty DM (filtered from the active
-   * member-room DM list until its first message lands) shows up in the
-   * sidebar without a manual reload.
-   */
-  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): void {
-    const event = serverEvent.event;
-    if (!event) return;
-    if (isRoomStateRefreshEvent(event)) {
-      void this.refresh();
-      return;
-    }
-    if (isMessagePostedEvent(event)) {
-      const roomId = event.roomId;
-      if (roomId && !this.rooms.some((r) => r.id === roomId)) {
-        void this.refresh();
-      }
-    }
-  }
 }
 
 function roomGroupItem(item: DirectoryRoomGroupItem): RoomsListGroupItem {

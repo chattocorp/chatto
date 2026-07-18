@@ -1,7 +1,6 @@
 import { tick } from 'svelte';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import {
   createRoomTimelineAPI,
@@ -123,7 +122,7 @@ function skippedRefreshResult(): RefreshCurrentWindowResult {
 }
 
 function isMessagePostedPayload(
-  event: RoomEventView['event'] | EventEnvelope['event'] | null | undefined
+  event: RoomEventView['event'] | null | undefined
 ): event is MessagePostedPayload {
   return roomEventKind(event) === RoomEventKind.MessagePosted;
 }
@@ -569,22 +568,8 @@ export class MessagesStore {
   }
 
   /**
-   * Route a space event into the store. Handles common message-list
-   * mutations inline and delegates room/thread-specific MessagePostedEvent
-   * handling to the current scope.
-   */
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    // Subscription and historical-query payloads share the same Event
-    // envelope. Cast once at the room boundary so downstream code can keep
-    // using the RoomEventView shape it renders with.
-    const spaceEvent = serverEvent as unknown as RoomEventView;
-    this.ingestEvent(spaceEvent);
-  }
-
-  /**
-   * Route an already-renderable event into the store. Used for read-your-writes
-   * after mutations that return the posted event; live subscription delivery
-   * still follows {@link ingestServerEvent} and is deduped by event ID.
+   * Route an already-renderable event into the store. Used for historical
+   * pages and read-your-writes after mutations that return the posted event.
    */
   ingestEvent(spaceEvent: RoomEventView): void {
     const eventData = spaceEvent.event;
@@ -1219,10 +1204,10 @@ export class MessagesStore {
    * Replace the buffer with fetched events but preserve any subscription
    * events that arrived during the in-flight query. Always the right
    * choice when a paginated query result replaces the timeline: the
-   * eventBus subscription has been live since layout mount, so any
-   * MessagePostedEvent for this room that lands while the query is in
-   * flight has already been added to {@link events} via
-   * {@link ingestServerEvent} and must not be wiped by the result.
+   * projection subscription has been live since layout mount, so any
+   * timeline event for this room that lands while the query is in flight
+   * has already been added to {@link events} via {@link ingestEvent} and
+   * must not be wiped by the result.
    */
   private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
     const fetched = unmask(rawEvents);

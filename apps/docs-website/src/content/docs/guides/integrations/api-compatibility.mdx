@@ -56,6 +56,11 @@ servers as unsupported and asks the operator to upgrade them. A 0.5 server
 accepts only realtime protocol 2; older clients must migrate to the
 server-scoped projection stream.
 
+This breaking realtime migration does not retire the `chatto.api.v1`
+ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
+API. Do not replace explicit resource reads, pagination, mutation responses, or
+read-your-writes handling with assumptions about projection internals.
+
 Protocol 2 resume cursors are opaque, viewer-bound, and valid for up to 24
 hours. Retain a cursor only with the projection state produced before it, and
 replace it after each `caught_up` frame. A missing, expired, or unusable cursor

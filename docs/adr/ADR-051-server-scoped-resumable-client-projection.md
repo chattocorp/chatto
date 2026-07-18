@@ -159,10 +159,14 @@ dormant server to converge on activation.
 Authenticated server presentation and runtime settings are canonical client
 state. They are therefore included in the compacted prefix and replaced by a
 projection operation after server updates; the client does not bootstrap or
-refresh them through a separate ConnectRPC read. Transient latest-value
-transitions such as presence, typing, and notification hints can continue to
-use existing live envelopes on the same WebSocket; presence additionally has
-the finite convergence operation described above. Active call state is canonical and uses
+refresh them through a separate ConnectRPC read. Typing, presence transitions,
+attention hints, and session termination remain non-replayable envelopes on the
+same WebSocket; presence additionally has the finite convergence operation
+described above. Notification create/dismiss signals, viewer preferences,
+thread follow/read state, and profile changes instead assemble authoritative
+projection operations. A notification replacement may include optional
+live-only transition metadata for presentation effects such as sounds; replay
+and finite reconciliation omit it. Active call state is canonical and uses
 `active_calls_replace` in the compacted prefix and after durable call
 transitions. These transient values do not
 define the durable client projection and are not replayed. Lazy room hydration
@@ -178,11 +182,18 @@ remote frontend/server compatibility CI therefore starts a new patch-series
 baseline when the first stable 0.5 release exists.
 
 The transient `RealtimeEventEnvelope` no longer declares durable message,
-reaction, room, thread-creation, custom-status, asset, or call alternatives;
-their former field numbers and names are reserved. Integrators migrate those
-handlers to `RealtimeProjectionEvent` operations and retain the envelope only
-for non-replayable signals such as typing, presence, attention hints,
-preferences, and session termination.
+reaction, room, thread-creation, custom-status, asset, call, notification,
+viewer-preference, thread-follow/read, server-layout, or member-removal
+alternatives; their former field numbers and names are reserved. Integrators
+migrate those handlers to `RealtimeProjectionEvent` operations and retain the
+envelope only for non-replayable signals: typing, presence, mention/new-DM
+attention hints, and session termination.
+
+This client projection protocol complements rather than replaces
+`chatto.api.v1`. Integrations continue to use the resource-oriented ConnectRPC
+services for explicit reads, pagination, commands, and read-your-writes
+responses. The projection stream is the ordered bootstrap/convergence surface
+for clients that choose to maintain a server-wide local view.
 
 ## Consequences
 

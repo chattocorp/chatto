@@ -1,21 +1,8 @@
 // Server events — unified bus from `myEvents` subscription.
 export {
-  useEvent,
   useProjectionEvent,
   usePresenceChange,
-  useActiveEvent,
-  useUserProfileUpdate,
-  useUserCustomStatusUpdate,
-  useUserSettingsUpdate,
-  useNotificationLevelChanged,
-  useMention,
-  useNewDM,
-  useNotificationCreated,
-  useNotificationDismissed,
-  useRoomMarkedAsRead,
-  useRoomLayoutUpdated,
-  useSessionTerminated,
-  useActiveRoomLayoutUpdated
+  useSessionTerminated
 } from './useEvent.svelte';
 
 // Message actions

@@ -50,7 +50,7 @@
   provideConnection(() => serverConnectionManager.getClient(serverId));
 
   // Provide the active server's event bus to child components via Svelte
-  // context. Passing a getter (not a fixed serverId) means `useEvent` /
+  // context. Passing a getter (not a fixed serverId) means typed-event /
   // `onEvent` consumers below this point automatically migrate to the new
   // server's bus when the URL `[serverId]` param changes — the bus lookup
   // re-runs inside each consumer's `$effect`.

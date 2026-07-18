@@ -1150,7 +1150,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'edit-1',
       createdAt: '2026-05-27T00:00:01Z',
       actorId: 'u1',
@@ -1227,7 +1227,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       )
     ).toBe(true);
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'retract-1',
       createdAt: '2026-05-27T00:00:01Z',
       actorId: 'u1',
@@ -1269,10 +1269,10 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent(callEvent(RoomEventKind.CallStarted, 'call-started') as never);
-    store.ingestServerEvent(callEvent(RoomEventKind.CallParticipantJoined, 'call-joined') as never);
-    store.ingestServerEvent(callEvent(RoomEventKind.CallParticipantLeft, 'call-left') as never);
-    store.ingestServerEvent(callEvent(RoomEventKind.CallEnded, 'call-ended') as never);
+    store.ingestEvent(callEvent(RoomEventKind.CallStarted, 'call-started') as never);
+    store.ingestEvent(callEvent(RoomEventKind.CallParticipantJoined, 'call-joined') as never);
+    store.ingestEvent(callEvent(RoomEventKind.CallParticipantLeft, 'call-left') as never);
+    store.ingestEvent(callEvent(RoomEventKind.CallEnded, 'call-ended') as never);
 
     expect(store.rootEvents).toEqual([]);
     expect(fake.queryMock).not.toHaveBeenCalled();
@@ -1304,7 +1304,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent(roomSystemEvent('archive-1', RoomEventKind.RoomArchived) as never);
+    store.ingestEvent(roomSystemEvent('archive-1', RoomEventKind.RoomArchived) as never);
     await settle();
 
     expect(fake.queryMock).toHaveBeenCalledOnce();
@@ -1343,7 +1343,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'reaction-1',
       createdAt: '2026-05-27T00:00:01Z',
       actorId: 'u2',
@@ -1404,7 +1404,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'reaction-echo',
       createdAt: '2026-05-27T00:00:01Z',
       actorId: 'u2',
@@ -1458,7 +1458,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       action: 'add'
     });
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'reaction-authoritative',
       createdAt: '2026-05-27T00:00:01Z',
       actorId: 'u2',
@@ -1607,7 +1607,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'retract-echo',
       createdAt: '2026-05-27T00:00:02Z',
       actorId: 'u1',
@@ -1668,7 +1668,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'retract-original',
       createdAt: '2026-05-27T00:00:02Z',
       actorId: 'u1',
@@ -1731,7 +1731,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.ingestEvent(returnedPost as never);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m-local']);
 
-    store.ingestServerEvent(returnedPost as never);
+    store.ingestEvent(returnedPost as never);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m-local']);
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
@@ -1758,7 +1758,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
 
     store.ingestEvent(returnedReply as never);
-    store.ingestServerEvent(returnedReply as never);
+    store.ingestEvent(returnedReply as never);
 
     expect(store.rootEvents[0].event).toMatchObject({ replyCount: 1 });
     store.dispose();
@@ -2018,7 +2018,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     fake.queryMock.mockClear();
 
     const refresh = store.refreshCurrentWindow('m3');
-    store.ingestServerEvent(threadMessageEvent('m8') as never);
+    store.ingestEvent(threadMessageEvent('m8') as never);
     resolveAnchoredRefresh({
       room: {
         eventsAround: {
@@ -2490,7 +2490,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     store.ingestEvent(returnedReply as never);
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
 
-    store.ingestServerEvent(returnedReply as never);
+    store.ingestEvent(returnedReply as never);
     expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r1']);
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
@@ -2545,7 +2545,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'echo1',
       createdAt: '2026-05-27T00:00:02Z',
       actorId: 'u1',
@@ -2562,7 +2562,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     });
     expect(store.refreshAnchorForMessageMutation('echo1')).toBe('reply1');
 
-    store.ingestServerEvent({
+    store.ingestEvent({
       id: 'retract-echo1',
       createdAt: '2026-05-27T00:00:03Z',
       actorId: 'u1',

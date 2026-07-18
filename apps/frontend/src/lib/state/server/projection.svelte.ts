@@ -24,6 +24,8 @@ export class ServerProjectionStore {
   roomGroups = $state.raw<RoomGroup[]>([]);
   notifications = $state.raw<ListNotificationsResponse | null>(null);
   activeCalls = $state.raw<ActiveCall[]>([]);
+  /** Complete current followed-thread viewer state, keyed by room and root ID. */
+  threadViewerStates = new SvelteMap<string, ThreadViewerState>();
   timelines = new SvelteMap<string, RoomTimelinePage>();
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
 
@@ -108,13 +110,6 @@ export class ServerProjectionStore {
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
           this.upsertTimelineEvent(update);
-          if (
-            event.id === update.event?.id &&
-            update.event?.event.case === 'messagePosted' &&
-            !update.event.event.value.message?.threadRootEventId
-          ) {
-            this.bumpRoom(update.roomId);
-          }
           break;
         }
         case 'roomTimelineEventRemove':
@@ -175,12 +170,13 @@ export class ServerProjectionStore {
           }
           break;
         case 'threadViewerStatesReplace': {
-          const states = new SvelteMap(
-            operation.operation.value.states.map((state) => [
+          this.threadViewerStates.clear();
+          for (const state of operation.operation.value.states) {
+            this.threadViewerStates.set(
               `${state.roomId}\u0000${state.threadRootEventId}`,
-              state.viewerState
-            ])
-          );
+              state.viewerState ?? new ThreadViewerState()
+            );
+          }
           for (const [roomId, page] of this.timelines) {
             let changed = false;
             const events = page.events.map((event) => {
@@ -192,7 +188,9 @@ export class ServerProjectionStore {
                 next.event.case === 'messagePosted' ? next.event.value.message?.thread : undefined;
               if (!nextThread) return event;
               nextThread.viewerState =
-                states.get(`${roomId}\u0000${thread.threadRootEventId}`)?.clone() ??
+                this.threadViewerStates
+                  .get(`${roomId}\u0000${thread.threadRootEventId}`)
+                  ?.clone() ??
                 new ThreadViewerState({ isFollowing: false, hasUnread: false });
               changed = true;
               return next;
@@ -248,6 +246,7 @@ export class ServerProjectionStore {
     this.roomGroups = [];
     this.notifications = null;
     this.activeCalls = [];
+    this.threadViewerStates.clear();
     this.timelines.clear();
     this.timelineEventCursors.clear();
   }

@@ -12,7 +12,6 @@ import type {
   EventBus,
   EventEnvelope
 } from '$lib/eventBus.svelte';
-import { attachRealtimeEventEnvelope } from '$lib/eventBus.svelte';
 import { roomEventKind } from '$lib/render/eventKinds';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
@@ -361,7 +360,7 @@ class EventBusManager {
               return;
             case 'event': {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
-              if (event) dispatchEvent(attachRealtimeEventEnvelope(event, frame.frame.value));
+              if (event) dispatchEvent(event);
               return;
             }
             case 'projectionEvent':

@@ -1,6 +1,5 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { FitMode } from '$lib/render/types';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import {
   assetUrlNeedsRefresh,
@@ -8,7 +7,6 @@ import {
   mergeRefreshedAttachmentUrls,
   refreshAttachmentUrlsForAssets
 } from '$lib/attachments/attachmentUrls';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import {
   createAttachmentAPI,
@@ -24,16 +22,6 @@ function itemKey(item: RoomFileItem): string {
   return `${item.messageEventId}:${item.attachment.id}`;
 }
 
-const roomFilesInvalidatingEventKinds = new Set<RoomEventKind>([
-  RoomEventKind.MessagePosted,
-  RoomEventKind.MessageEdited,
-  RoomEventKind.MessageRetracted,
-  RoomEventKind.AssetProcessingStarted,
-  RoomEventKind.AssetProcessingSucceeded,
-  RoomEventKind.AssetProcessingFailed,
-  RoomEventKind.AssetDeleted
-]);
-
 function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentUrls | undefined) {
   if (refreshed) {
     return [refreshed.assetUrl, refreshed.thumbnailAssetUrl, refreshed.videoThumbnailAssetUrl];
@@ -44,14 +32,6 @@ function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentU
     item.attachment.thumbnailAssetUrl,
     item.attachment.videoProcessing?.thumbnailAssetUrl
   ];
-}
-
-function eventRoomId(eventData: EventEnvelope['event']): string | null {
-  if (!eventData) return null;
-  if ('roomId' in eventData) return eventData.roomId ?? null;
-  if ('processingRoomId' in eventData) return eventData.processingRoomId ?? null;
-  if ('deletedRoomId' in eventData) return eventData.deletedRoomId ?? null;
-  return null;
 }
 
 function isImageAttachment(contentType: string): boolean {
@@ -113,17 +93,6 @@ export class RoomFilesStore {
   async refresh(): Promise<void> {
     if (!this.roomId || this.isUnsupported) return;
     await this.loadPage(0, true, Math.max(ROOM_FILES_PAGE_SIZE, this.items.length));
-  }
-
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
-    if (eventRoomId(eventData) !== this.roomId) return;
-
-    const kind = roomEventKind(eventData);
-    if (kind && roomFilesInvalidatingEventKinds.has(kind)) {
-      void this.refresh();
-    }
   }
 
   assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {

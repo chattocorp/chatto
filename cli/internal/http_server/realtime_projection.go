@@ -230,6 +230,52 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
+		case *corev1.LiveEvent_NotificationLevelChanged:
+			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
+		case *corev1.LiveEvent_NotificationCreated:
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			replacement := realtimeProjectionNotifications(notifications)
+			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
+				Action:         realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED,
+				NotificationId: payload.NotificationCreated.GetNotificationId(),
+				Silent:         payload.NotificationCreated.GetSilent(),
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+				NotificationsReplace: replacement,
+			}})
+			// Reply notifications are also the live signal that a followed
+			// thread became unread. Replace the complete latest-value set so
+			// unretained rooms and the My Threads view converge without a
+			// ConnectRPC refresh.
+			if payload.NotificationCreated.GetInReplyToId() != "" {
+				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+				if err != nil {
+					return nil, false, err
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+				}})
+			}
+		case *corev1.LiveEvent_NotificationDismissed:
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			replacement := realtimeProjectionNotifications(notifications)
+			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
+				Action:         realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED,
+				NotificationId: payload.NotificationDismissed.GetNotificationId(),
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+				NotificationsReplace: replacement,
+			}})
 		case *corev1.LiveEvent_RoomMarkedAsRead:
 			roomID := payload.RoomMarkedAsRead.GetRoomId()
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
@@ -250,18 +296,24 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
-			if !retainsTimeline(thread.GetRoomId()) {
-				break
-			}
-			timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
+			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
-				RoomTimelineEventUpsert: &realtimev1.RealtimeProjectionRoomTimelineEventUpsert{
-					RoomId: thread.GetRoomId(), Event: timelineEvent, Includes: includes, EventCursor: eventCursor,
-				},
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+				ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
 			}})
+			if retainsTimeline(thread.GetRoomId()) {
+				timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
+				if err != nil {
+					return nil, false, err
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
+					RoomTimelineEventUpsert: &realtimev1.RealtimeProjectionRoomTimelineEventUpsert{
+						RoomId: thread.GetRoomId(), Event: timelineEvent, Includes: includes, EventCursor: eventCursor,
+					},
+				}})
+			}
 		default:
 			return nil, false, nil
 		}

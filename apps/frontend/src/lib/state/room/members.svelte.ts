@@ -7,17 +7,11 @@ import {
   type MemberDirectoryAPI,
   type MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
-const roomMemberInvalidatingEventKinds = new Set<RoomEventKind>([
-  RoomEventKind.UserJoinedRoom,
-  RoomEventKind.UserLeftRoom
-]);
 
 /**
  * Room member data for the current room.
@@ -57,11 +51,6 @@ function mapPage(page: MemberDirectoryPage): RoomMembersPage {
     totalCount: page.totalCount,
     hasMore: page.hasMore
   };
-}
-
-function eventRoomId(eventData: EventEnvelope['event']): string | null {
-  if (!eventData || !('roomId' in eventData) || typeof eventData.roomId !== 'string') return null;
-  return eventData.roomId;
 }
 
 /**
@@ -267,19 +256,6 @@ export class RoomMembersStore {
       hasMore = page.hasMore && page.members.length > 0;
       offset += page.members.length;
       this.#searchCache.set(query, { members, complete: !hasMore });
-    }
-  }
-
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
-    const kind = roomEventKind(eventData);
-    if (
-      kind &&
-      roomMemberInvalidatingEventKinds.has(kind) &&
-      eventRoomId(eventData) === this.roomId
-    ) {
-      void this.refresh();
     }
   }
 

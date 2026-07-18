@@ -12,8 +12,6 @@ import {
 
 type MockNotificationAPI = NotificationAPI & {
   listNotifications: ReturnType<typeof vi.fn>;
-  getNotification: ReturnType<typeof vi.fn>;
-  batchGetNotifications: ReturnType<typeof vi.fn>;
   listRoomNotifications: ReturnType<typeof vi.fn>;
   hasNotifications: ReturnType<typeof vi.fn>;
   listRoomNotificationCounts: ReturnType<typeof vi.fn>;
@@ -44,9 +42,6 @@ function makeAPI(
     roomNotifications?: NotificationPage;
     notificationsError?: Error;
     roomNotificationsError?: Error;
-    getNotification?: (
-      notificationId: string
-    ) => Promise<NotificationItem | null> | NotificationItem | null;
     dismissNotification?: (notificationId: string) => Promise<boolean> | boolean;
     dismissAllNotifications?: () => Promise<number> | number;
   } = {}
@@ -56,12 +51,6 @@ function makeAPI(
       if (options.notificationsError) throw options.notificationsError;
       return options.notifications ?? page([]);
     }),
-    getNotification: vi
-      .fn()
-      .mockImplementation(async (notificationId: string) =>
-        options.getNotification ? options.getNotification(notificationId) : null
-      ),
-    batchGetNotifications: vi.fn().mockResolvedValue([]),
     listRoomNotifications: vi.fn().mockImplementation(async () => {
       if (options.roomNotificationsError) throw options.roomNotificationsError;
       return options.roomNotifications ?? page([]);
@@ -133,78 +122,6 @@ describe('NotificationStore', () => {
     await olderFetch;
 
     expect(store.notifications.map((notification) => notification.id)).toEqual(['newer']);
-  });
-
-  it('hydrates one realtime notification by ID and reconciles its authoritative total', async () => {
-    const liveNotification = mention('live');
-    const api = makeAPI({
-      notifications: page([liveNotification]),
-      getNotification: (notificationId) =>
-        notificationId === liveNotification.id ? liveNotification : null
-    });
-    const store = new NotificationStore(api);
-
-    await expect(store.addNotification(liveNotification.id)).resolves.toBe(true);
-    await expect(store.addNotification(liveNotification.id)).resolves.toBe(false);
-
-    expect(api.getNotification).toHaveBeenCalledTimes(2);
-    expect(api.listNotifications).toHaveBeenCalledTimes(2);
-    expect(store.notifications.map((notification) => notification.id)).toEqual(['live']);
-    expect(store.unreadNotificationCount).toBe(1);
-  });
-
-  it('does not increment a projection total that already includes an omitted item', async () => {
-    const projectedItems = Array.from({ length: 50 }, (_, index) => mention(`projected-${index}`));
-    const omitted = mention('omitted');
-    const api = makeAPI({
-      notifications: page(projectedItems, 51),
-      getNotification: () => omitted
-    });
-    const store = new NotificationStore(api);
-    store.replaceProjection(page(projectedItems, 51));
-
-    await expect(store.addNotification(omitted.id)).resolves.toBe(false);
-
-    expect(store.notifications).toHaveLength(50);
-    expect(store.notifications.some((notification) => notification.id === omitted.id)).toBe(false);
-    expect(store.unreadNotificationCount).toBe(51);
-  });
-
-  it('does not restore a notification whose removal supersedes delayed hydration', async () => {
-    const response = deferred<NotificationItem | null>();
-    const stale = mention('stale');
-    const api = makeAPI({ getNotification: () => response.promise });
-    const store = new NotificationStore(api);
-
-    const hydration = store.addNotification(stale.id);
-    store.removeNotification(stale.id);
-    response.resolve(stale);
-
-    await expect(hydration).resolves.toBe(false);
-    expect(api.listNotifications).not.toHaveBeenCalled();
-    expect(store.notifications).toEqual([]);
-    expect(store.unreadNotificationCount).toBe(0);
-  });
-
-  it('coalesces concurrent hydration of the same live notification', async () => {
-    const response = deferred<NotificationItem | null>();
-    const live = mention('duplicate-live');
-    const api = makeAPI({
-      notifications: page([live]),
-      getNotification: () => response.promise
-    });
-    const store = new NotificationStore(api);
-
-    const first = store.addNotification(live.id);
-    const duplicate = store.addNotification(live.id);
-    response.resolve(live);
-
-    await expect(first).resolves.toBe(true);
-    await expect(duplicate).resolves.toBe(false);
-    expect(api.getNotification).toHaveBeenCalledOnce();
-    expect(api.listNotifications).toHaveBeenCalledOnce();
-    expect(store.notifications.map((notification) => notification.id)).toEqual([live.id]);
-    expect(store.unreadNotificationCount).toBe(1);
   });
 
   it('does not let an in-flight fetch restore an optimistically dismissed notification', async () => {
@@ -416,15 +333,6 @@ describe('NotificationStore', () => {
     expect(store.error).toBe('network down');
   });
 
-  it('suppresses live echo refreshes for locally dismissed notifications', async () => {
-    const store = new NotificationStore(makeAPI());
-    store.notifications = [mention('local')];
-
-    await store.dismiss('local');
-
-    expect(store.consumeLocalDismissal('local')).toBe(true);
-    expect(store.consumeLocalDismissal('local')).toBe(false);
-  });
 
   // The DM list dot uses hasDMRoomNotification per conversation. It must
   // match DM notifications by room, and ignore non-DM notifications even if

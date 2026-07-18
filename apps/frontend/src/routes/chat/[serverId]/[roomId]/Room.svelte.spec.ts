@@ -135,7 +135,6 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useEvent: vi.fn(),
   useProjectionEvent: vi.fn(),
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({

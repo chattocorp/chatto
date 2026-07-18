@@ -597,62 +597,12 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_PresenceChanged{PresenceChanged: &realtimev1.RealtimePresenceChangedEvent{
 			UserId: event.GetActorId(), Status: apiPresenceStatus(payload.PresenceChanged.GetStatus()),
 		}}
-	case *corev1.LiveEvent_NotificationCreated:
-		notification := payload.NotificationCreated
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_NotificationCreated{NotificationCreated: &realtimev1.RealtimeNotificationCreatedEvent{
-			NotificationId: notification.GetNotificationId(),
-			RoomId:         optionalRealtimeString(notification.GetRoomId()),
-			EventId:        optionalRealtimeString(notification.GetEventId()),
-			InReplyToId:    optionalRealtimeString(notification.GetInReplyToId()),
-			Silent:         notification.GetSilent(),
-		}}
-	case *corev1.LiveEvent_NotificationDismissed:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_NotificationDismissed{NotificationDismissed: &realtimev1.RealtimeNotificationDismissedEvent{
-			NotificationId: payload.NotificationDismissed.GetNotificationId(),
-		}}
-	case *corev1.LiveEvent_NotificationLevelChanged:
-		level := payload.NotificationLevelChanged
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_NotificationLevelChanged{NotificationLevelChanged: &realtimev1.RealtimeNotificationLevelChangedEvent{
-			RoomId: level.GetRoomId(), Level: apiNotificationLevel(level.GetLevel()), EffectiveLevel: apiNotificationLevel(level.GetEffectiveLevel()),
-		}}
-	case *corev1.LiveEvent_ServerUserPreferencesUpdated:
-		prefs := payload.ServerUserPreferencesUpdated
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &realtimev1.RealtimeServerUserPreferencesUpdatedEvent{
-			Timezone: optionalRealtimeString(prefs.GetTimezone()), TimeFormat: apiRealtimeTimeFormat(prefs.GetTimeFormat()),
-		}}
-	case *corev1.LiveEvent_ThreadFollowChanged:
-		follow := payload.ThreadFollowChanged
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ThreadFollowChanged{ThreadFollowChanged: &realtimev1.RealtimeThreadFollowChangedEvent{
-			RoomId: follow.GetRoomId(), ThreadRootEventId: follow.GetThreadRootEventId(), Following: follow.GetIsFollowing(),
-		}}
 	case *corev1.LiveEvent_MentionNotification:
 		mention := payload.MentionNotification
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_MentionNotification{MentionNotification: s.realtimeMentionNotification(ctx, viewerID, mention)}
 	case *corev1.LiveEvent_NewDirectMessageNotification:
 		dm := payload.NewDirectMessageNotification
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_NewDirectMessageNotification{NewDirectMessageNotification: s.realtimeNewDirectMessageNotification(ctx, viewerID, dm)}
-	case *corev1.LiveEvent_RoomMarkedAsRead:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomMarkedAsRead{RoomMarkedAsRead: &realtimev1.RealtimeRoomMarkedAsReadEvent{
-			RoomId: payload.RoomMarkedAsRead.GetRoomId(),
-		}}
-	case *corev1.LiveEvent_RoomGroupsUpdated:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomGroupsUpdated{RoomGroupsUpdated: &realtimev1.RealtimeRoomGroupsUpdatedEvent{
-			Changed: true,
-		}}
-	case *corev1.LiveEvent_ServerMemberDeleted:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ServerMemberDeleted{ServerMemberDeleted: &realtimev1.RealtimeServerMemberDeletedEvent{
-			UserId: payload.ServerMemberDeleted.GetUserId(),
-		}}
-	case *corev1.LiveEvent_ServerUpdated:
-		server := payload.ServerUpdated
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_ServerUpdated{ServerUpdated: &realtimev1.RealtimeServerUpdatedEvent{
-			Name: server.GetName(), Description: server.GetDescription(), LogoUrl: optionalRealtimeString(server.GetLogoUrl()), BannerUrl: optionalRealtimeString(server.GetBannerUrl()),
-		}}
-	case *corev1.LiveEvent_UserProfileUpdated:
-		user := payload.UserProfileUpdated
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserProfileUpdated{UserProfileUpdated: &realtimev1.RealtimeUserProfileUpdatedEvent{
-			UserId: user.GetUserId(), Login: user.GetLogin(), DisplayName: user.GetDisplayName(), AvatarUrl: optionalRealtimeString(user.GetAvatarUrl()),
-		}}
 	case *corev1.LiveEvent_SessionTerminated:
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_SessionTerminated{SessionTerminated: &realtimev1.RealtimeSessionTerminatedEvent{
 			Reason: payload.SessionTerminated.GetReason(),
@@ -761,31 +711,5 @@ func apiPresenceStatus(status string) apiv1.PresenceStatus {
 		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
 	default:
 		return apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
-	}
-}
-
-func apiNotificationLevel(level corev1.NotificationLevel) apiv1.NotificationLevel {
-	switch level {
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES
-	default:
-		return apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
-	}
-}
-
-func apiRealtimeTimeFormat(format corev1.TimeFormat) apiv1.TimeFormat {
-	switch format {
-	case corev1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
-	case corev1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
-	default:
-		return apiv1.TimeFormat_TIME_FORMAT_AUTO
 	}
 }

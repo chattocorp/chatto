@@ -20,7 +20,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onProjectionEvent, onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import { onProjectionEvent } from '$lib/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import {
     createRoomPermissions,
@@ -135,14 +135,16 @@
     roomId: string,
     threadRootEventId: string,
     replyCount: number,
-    lastReplyAt: string | null
+    lastReplyAt: string | null,
+    hasUnread?: boolean
   ) {
     let changed = false;
     const next = threads.map((thread) => {
       if (
         thread.roomId !== roomId ||
         thread.threadRootEventId !== threadRootEventId ||
-        thread.replyCount === replyCount
+        (thread.replyCount === replyCount &&
+          (hasUnread === undefined || thread.hasUnread === hasUnread))
       ) {
         return thread;
       }
@@ -162,18 +164,36 @@
               }
             : rootMessage,
         replyCount,
-        lastReplyAt: lastReplyAt ?? thread.lastReplyAt
+        lastReplyAt: lastReplyAt ?? thread.lastReplyAt,
+        hasUnread: hasUnread ?? thread.hasUnread
       };
     });
     if (changed) threads = next;
   }
 
+  function reconcileThreadViewerStates(
+    states: ReadonlyMap<string, { hasUnread?: boolean }>
+  ): boolean {
+    const knownKeys = new Set(threads.map((thread) => `${thread.roomId}\u0000${thread.threadRootEventId}`));
+    let changed = false;
+    const next = threads.flatMap((thread) => {
+      const key = `${thread.roomId}\u0000${thread.threadRootEventId}`;
+      const state = states.get(key);
+      if (!state) {
+        changed = true;
+        return [];
+      }
+      if (thread.hasUnread === (state.hasUnread ?? false)) return [thread];
+      changed = true;
+      return [{ ...thread, hasUnread: state.hasUnread ?? false }];
+    });
+    if (changed) threads = next;
+    return [...states.keys()].some((key) => !knownKeys.has(key));
+  }
+
   $effect(() => {
     loadThreads();
   });
-
-  // Real-time: Refresh when thread follow state changes
-  $effect(() => onThreadFollowChanged(() => loadThreads()));
 
   // Apply live root-message summaries directly from projection operations.
   // The canonical store reconciliation below also covers summaries that
@@ -181,6 +201,16 @@
   $effect(() =>
     onProjectionEvent((event) => {
       for (const operation of event.operations) {
+        if (operation.operation.case === 'threadViewerStatesReplace') {
+          const states = new Map(
+            operation.operation.value.states.map((state) => [
+              `${state.roomId}\u0000${state.threadRootEventId}`,
+              state.viewerState ?? {}
+            ])
+          );
+          if (reconcileThreadViewerStates(states)) void loadThreads();
+          continue;
+        }
         if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
         const update = operation.operation.value;
         const timelineEvent = update.event;
@@ -193,7 +223,8 @@
           update.roomId,
           timelineEvent.id,
           summary.replyCount,
-          summary.lastReplyAt?.toDate().toISOString() ?? null
+          summary.lastReplyAt?.toDate().toISOString() ?? null,
+          summary.viewerState?.hasUnread
         );
       }
     })
@@ -201,6 +232,11 @@
 
   // Reconcile followed-thread summaries from the same canonical room
   // projection that feeds every room timeline.
+  $effect(() => {
+    if (!serverStore.realtimeSync.hasUsableProjection) return;
+    reconcileThreadViewerStates(serverStore.projection.threadViewerStates);
+  });
+
   $effect(() => {
     for (const thread of threads) {
       const event = serverStore.projection.timelines
@@ -213,7 +249,8 @@
         thread.roomId,
         thread.threadRootEventId,
         summary.replyCount,
-        summary.lastReplyAt?.toDate().toISOString() ?? null
+        summary.lastReplyAt?.toDate().toISOString() ?? null,
+        summary.viewerState?.hasUnread
       );
     }
   });

@@ -121,6 +121,7 @@ describe('ServerProjectionStore', () => {
     };
     expect(viewerState()?.isFollowing).toBe(true);
     expect(viewerState()?.hasUnread).toBe(true);
+    expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnread).toBe(true);
 
     store.apply(
       event(
@@ -132,6 +133,7 @@ describe('ServerProjectionStore', () => {
     );
     expect(viewerState()?.isFollowing).toBe(false);
     expect(viewerState()?.hasUnread).toBe(false);
+    expect(store.threadViewerStates.size).toBe(0);
   });
 
   it('reconciles complete transient presence without changing user profiles', () => {
@@ -454,6 +456,10 @@ describe('ServerProjectionStore', () => {
             roomId: 'R2',
             event: timelineEvent('M1', '2026-01-01T00:00:00Z')
           })
+        }),
+        operation({
+          case: 'roomActivity',
+          value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
         }),
         operation({
           case: 'roomViewerStateReplace',

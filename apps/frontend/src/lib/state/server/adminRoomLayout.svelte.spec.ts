@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   AdminRoomLayoutStore,
   buildGroupRoomOrder,
@@ -41,10 +40,6 @@ type QueuedResult = {
   error?: unknown;
   reject?: Error;
 };
-
-function serverEvent(kind: RoomEventKind) {
-  return { event: { kind } } as never;
-}
 
 function makeClient(
   opts: {
@@ -462,49 +457,5 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
       changed: true
     });
     expect((mutation.mock.calls[0] as unknown[])[1]).toEqual(['g2', 'g1']);
-  });
-});
-
-describe('AdminRoomLayoutStore — live events', () => {
-  it('suppresses own room-layout echo events but refreshes later events', async () => {
-    let now = 1000;
-    const { client, query } = makeClient({
-      mutations: [{ data: group('g1', [], 'Lobby') }],
-      queries: [{ data: queryData([group('g1', [])]) }, { data: queryData([group('g1', [])]) }]
-    });
-    const store = new AdminRoomLayoutStore(client, roomAPI(), () => now);
-
-    await store.createGroup('Lobby');
-    now = 1500;
-    expect(store.ingestRoomLayoutUpdated()).toBe(false);
-    expect(query).toHaveBeenCalledTimes(1);
-
-    now = 3100;
-    expect(store.ingestRoomLayoutUpdated()).toBe(true);
-    await settle();
-    expect(query).toHaveBeenCalledTimes(2);
-  });
-
-  it('refreshes on external room metadata/archive events', async () => {
-    const { client, query } = makeClient({
-      queries: [
-        { data: queryData([group('g1', [room('r1', { name: 'fresh' })])]) },
-        { data: queryData([group('g1', [room('r1', { archived: true })])]) },
-        { data: queryData([group('g1', [room('r1', { archived: false })])]) },
-        { data: queryData([group('g1', [room('r1', { isUniversal: true })])]) }
-      ]
-    });
-    const store = new AdminRoomLayoutStore(client, roomAPI());
-
-    expect(store.ingestServerEvent(serverEvent(RoomEventKind.RoomUpdated))).toBe(true);
-    await settle();
-    expect(store.ingestServerEvent(serverEvent(RoomEventKind.RoomArchived))).toBe(true);
-    await settle();
-    expect(store.ingestServerEvent(serverEvent(RoomEventKind.RoomUnarchived))).toBe(true);
-    await settle();
-    expect(store.ingestServerEvent(serverEvent(RoomEventKind.RoomUniversalChanged))).toBe(true);
-    await settle();
-
-    expect(query).toHaveBeenCalledTimes(4);
   });
 });

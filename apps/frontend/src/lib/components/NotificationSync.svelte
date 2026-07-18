@@ -5,8 +5,8 @@ Handles real-time notification synchronization across all authenticated instance
 and PWA badge updates.
 
 **Responsibilities:**
-- Listens for new notifications on all instance event buses and plays the user's selected sound
-- Syncs notification dismissals from other devices
+- Listens for live notification transitions attached to authoritative projection replacements
+- Plays the user's selected sound for non-silent creations
 - Updates PWA dock badge based on aggregated pending-notification count
 
 Include this component once in the chat layout (unconditionally).
@@ -22,36 +22,9 @@ Include this component once in the chat layout (unconditionally).
     syncServiceWorkerNotificationBadgeState,
     type AppBadgeIntent
   } from '$lib/notifications/appBadge';
-  import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import type { ProjectionHandler } from '$lib/eventBus.svelte';
+  import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
   import { NotificationItemKind } from '$lib/api-client/notifications';
-
-  function notificationCreatedEvent(
-    event: EventEnvelope['event']
-  ): { notificationId: string; roomId?: string; silent?: boolean } | null {
-    if (
-      !event ||
-      !('notificationId' in event) ||
-      typeof event.notificationId !== 'string' ||
-      !('silent' in event)
-    ) {
-      return null;
-    }
-    return {
-      notificationId: event.notificationId,
-      roomId: 'roomId' in event && typeof event.roomId === 'string' ? event.roomId : undefined,
-      silent: event.silent === true
-    };
-  }
-
-  function notificationDismissedEvent(
-    event: EventEnvelope['event']
-  ): { notificationId: string } | null {
-    if (!event || !('notificationId' in event) || typeof event.notificationId !== 'string') {
-      return null;
-    }
-    return { notificationId: event.notificationId };
-  }
 
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
@@ -65,54 +38,21 @@ Include this component once in the chat layout (unconditionally).
       const bus = eventBusManager.getBus(instance.id);
       if (!bus) continue;
 
-      const notificationStore = stores.notifications;
-
-      const handler: EventHandler = (event) => {
-        if (!event.event) return;
-
-        switch (roomEventKind(event.event)) {
-          case RoomEventKind.NotificationCreated: {
-            const notification = notificationCreatedEvent(event.event);
-            if (!notification) break;
-            void notificationStore.addNotification(notification.notificationId).then((added) => {
-              // A compacted projection may already contain a notification whose
-              // queued live event arrives immediately after catch-up. Only the
-              // insertion winner may apply one-shot side effects. Room counts
-              // are a separate authoritative projection and must be reconciled:
-              // incrementing here can double-count when that projection arrived
-              // before the finite notification page did.
-              if (!added) return;
-              if (notification.roomId) {
-                void stores.rooms.refreshNotificationCounts();
-              }
-              if (!notification.silent) {
-                playNotificationSound(
-                  userPreferences.notificationSound,
-                  userPreferences.notificationSoundFilters
-                );
-              }
-            });
-            break;
-          }
-          case RoomEventKind.NotificationDismissed: {
-            const notification = notificationDismissedEvent(event.event);
-            if (!notification) break;
-            const roomId = notificationStore.removeNotification(notification.notificationId);
-            if (roomId) {
-              void stores.rooms.refreshNotificationCounts();
-            } else if (!notificationStore.consumeLocalDismissal(notification.notificationId)) {
-              void Promise.allSettled([
-                notificationStore.fetch(),
-                stores.rooms.refreshNotificationCounts()
-              ]);
-            }
-            break;
+      const handler: ProjectionHandler = (event) => {
+        for (const operation of event.operations) {
+          if (operation.operation.case !== 'notificationsReplace') continue;
+          const change = operation.operation.value.change;
+          if (change?.action === RealtimeProjectionNotificationAction.CREATED && !change.silent) {
+            playNotificationSound(
+              userPreferences.notificationSound,
+              userPreferences.notificationSoundFilters
+            );
           }
         }
       };
 
-      bus.handlers.add(handler);
-      cleanups.push(() => bus.handlers.delete(handler));
+      bus.projectionHandlers.add(handler);
+      cleanups.push(() => bus.projectionHandlers.delete(handler));
     }
 
     return () => {

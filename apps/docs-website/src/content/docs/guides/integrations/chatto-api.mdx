@@ -45,6 +45,10 @@ Authenticated realtime clients connect to `/api/realtime` and exchange protobuf 
 
 For 0.5, durable message, reaction, room, asset, and call changes are `RealtimeProjectionEvent` operations, not `RealtimeEventEnvelope` alternatives. The latter is reserved for transient, non-replayable signals. This is a breaking migration from the 0.4 live-event contract.
 
+Notification, viewer-preference, thread follow/read, profile, layout, and member changes also arrive as authoritative projection operations. A live notification replacement can carry optional transition metadata for effects such as sounds; bootstrap, resume reconciliation, and reset omit that metadata. The remaining transient envelopes are typing, presence, mention/new-DM attention hints, and session termination.
+
+The projection stream does not replace `chatto.api.v1`. Integrations should continue to use its resource-oriented ConnectRPC services for explicit reads, pagination, commands, and read-your-writes responses, and add realtime protocol 2 only when they need an ordered local projection that can resume after a disconnect.
+
 Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
 
 ## Integration Patterns

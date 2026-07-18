@@ -3,10 +3,10 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
-import { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import {
@@ -39,10 +39,6 @@ const { soundMocks, apiMocks } = vi.hoisted(() => ({
         hasMore: false
       })
     ),
-    listActiveCalls: vi.fn(() => Promise.resolve([])),
-    getActiveCall: vi.fn(() => Promise.resolve(null)),
-    batchGetActiveCalls: vi.fn(() => Promise.resolve([])),
-    listCallParticipants: vi.fn(() => Promise.resolve([])),
     joinCall: vi.fn(() => Promise.resolve(true)),
     getCallToken: vi.fn(() => Promise.resolve(null)),
     leaveCall: vi.fn(() => Promise.resolve(true)),
@@ -154,10 +150,6 @@ const { soundMocks, apiMocks } = vi.hoisted(() => ({
   }
 }));
 
-function roomEvent(kind: RoomEventKind, fields: Record<string, unknown> = {}) {
-  return { kind, ...fields } as never;
-}
-
 vi.mock('$lib/audio/callSounds', () => ({
   playCallSound: soundMocks.playCallSound
 }));
@@ -187,10 +179,6 @@ vi.mock('$lib/api-client/memberDirectory', () => ({
 
 vi.mock('$lib/api-client/voiceCalls', () => ({
   createVoiceCallAPI: vi.fn(() => ({
-    listActiveCalls: apiMocks.listActiveCalls,
-    getActiveCall: apiMocks.getActiveCall,
-    batchGetActiveCalls: apiMocks.batchGetActiveCalls,
-    listCallParticipants: apiMocks.listCallParticipants,
     joinCall: apiMocks.joinCall,
     getCallToken: apiMocks.getCallToken,
     leaveCall: apiMocks.leaveCall
@@ -351,10 +339,6 @@ beforeEach(() => {
     totalCount: 0,
     hasMore: false
   });
-  apiMocks.listActiveCalls.mockResolvedValue([]);
-  apiMocks.getActiveCall.mockResolvedValue(null);
-  apiMocks.batchGetActiveCalls.mockResolvedValue([]);
-  apiMocks.listCallParticipants.mockResolvedValue([]);
   apiMocks.joinCall.mockResolvedValue(true);
   apiMocks.getCallToken.mockResolvedValue(null);
   apiMocks.leaveCall.mockResolvedValue(true);
@@ -624,7 +608,6 @@ describe('ServerStateStore live server updates', () => {
     }
 
     expect(store.activeCallRooms.has('R1')).toBe(true);
-    expect(apiMocks.listActiveCalls).not.toHaveBeenCalled();
   });
 
   it('does not inject an old mutation outside the retained room window or bump the room', () => {
@@ -720,256 +703,141 @@ describe('ServerStateStore live server updates', () => {
     expect(store.projection.timelines.has('R2')).toBe(false);
   });
 
-  it('forwards RoomGroupsUpdatedEvent to public room-state stores by default', async () => {
-    const fake = new FakeServerConnection([
-      roomDirectoryResult([{ id: 'r1', name: 'general', description: null, archived: false }]),
-      adminRoomLayoutResult(
-        [{ id: 'r1', name: 'general', description: null, archived: false }],
-        [{ id: 'g1', name: 'Lobby', rooms: [{ id: 'r1' }], items: [] }]
-      )
-    ]);
-    const store = makeStore(fake);
-    store.currentUser.user = { id: 'U1', login: 'alice', displayName: 'Alice' } as never;
-    await Promise.resolve();
-    await Promise.resolve();
-    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
-    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
-    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
-
-    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
-    flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
-
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E2',
-        createdAt: new Date().toISOString(),
-        actorId: 'U1',
-        actor: null,
-        event: roomEvent(RoomEventKind.RoomGroupsUpdated, { changed: true })
-      });
-    }
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(store.rooms.refresh).toHaveBeenCalledOnce();
-    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
-    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
-  });
-
-  it('forwards RoomGroupsUpdatedEvent to admin room layout while active', async () => {
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
-    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
-    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
-    const deactivate = store.activateAdminRoomLayout();
-    await Promise.resolve();
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
-
-    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
-    flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
-
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E2-admin',
-        createdAt: new Date().toISOString(),
-        actorId: 'U1',
-        actor: null,
-        event: roomEvent(RoomEventKind.RoomGroupsUpdated, { changed: true })
-      });
-    }
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(store.rooms.refresh).toHaveBeenCalledOnce();
-    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
-
-    deactivate();
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E2-admin-inactive',
-        createdAt: new Date().toISOString(),
-        actorId: 'U1',
-        actor: null,
-        event: roomEvent(RoomEventKind.RoomGroupsUpdated, { changed: true })
-      });
-    }
-    await Promise.resolve();
-
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
-  });
-
-  it('plays call join and leave sounds for participant events in the current active call', async () => {
+  it('derives call join and leave effects from active-call projection replacements', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.rooms.currentUserId = 'U1';
-    const handleJoin = vi.spyOn(store.activeCallRooms, 'handleJoin').mockResolvedValue(undefined);
-    const handleLeave = vi.spyOn(store.activeCallRooms, 'handleLeave').mockImplementation(() => {});
     const shouldPlay = vi
       .spyOn(store.voiceCall, 'callTransitionSoundDecision')
       .mockReturnValue('play');
-
+    const handleParticipantLeftEvent = vi
+      .spyOn(store.voiceCall, 'handleParticipantLeftEvent')
+      .mockImplementation(() => {});
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
+    const bus = eventBusManager.getBus(registered.id)!;
+    const participant = new CallParticipant({
+      user: new User({ id: 'U2', login: 'bob', displayName: 'Bob' })
+    });
 
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E-call-join',
-        createdAt: new Date().toISOString(),
-        actorId: 'U2',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantJoined, { roomId: 'R1', callId: 'call-1' })
-      });
-      handler({
-        id: 'E-call-leave',
-        createdAt: new Date().toISOString(),
-        actorId: 'U1',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantLeft, { roomId: 'R1', callId: 'call-1' })
-      });
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'E-call-base',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
+                })
+              }
+            })
+          ]
+        })
+      );
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'E-call-join',
+          actorId: 'U2',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [
+                    new ActiveCall({
+                      room: new Room({ id: 'R1' }),
+                      callId: 'call-1',
+                      participants: [participant]
+                    })
+                  ]
+                })
+              }
+            })
+          ]
+        })
+      );
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'E-call-leave',
+          actorId: 'U2',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
+                })
+              }
+            })
+          ]
+        })
+      );
     }
 
-    expect(handleJoin).toHaveBeenCalledWith('R1', 'call-1', null);
-    expect(handleLeave).toHaveBeenCalledWith('R1', 'call-1', 'U1');
     expect(shouldPlay).toHaveBeenNthCalledWith(1, 'join', 'R1', 'call-1', false);
-    expect(shouldPlay).toHaveBeenNthCalledWith(2, 'leave', 'R1', 'call-1', true);
-    expect(soundMocks.playCallSound).toHaveBeenCalledTimes(2);
+    expect(shouldPlay).toHaveBeenNthCalledWith(2, 'leave', 'R1', 'call-1', false);
     expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(1, 'join');
     expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(2, 'leave');
+    expect(handleParticipantLeftEvent).toHaveBeenCalledWith('R1', 'call-1', 'U2', 'U1');
   });
 
-  it('clears active call snapshots when a call end event arrives through the server bus', async () => {
+  it('disconnects a locally connected call when its projection disappears', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
-    const handleEnd = vi.spyOn(store.activeCallRooms, 'handleEnd').mockImplementation(() => {});
+    store.voiceCall.roomId = 'R1';
     const handleCallEndedEvent = vi
       .spyOn(store.voiceCall, 'handleCallEndedEvent')
       .mockImplementation(() => {});
-
-    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
-    flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
-
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E-call-ended',
-        createdAt: new Date().toISOString(),
-        actorId: 'U2',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallEnded, { roomId: 'R1', callId: 'call-1' })
-      });
-    }
-
-    expect(handleEnd).toHaveBeenCalledWith('R1', 'call-1');
-    expect(handleCallEndedEvent).toHaveBeenCalledWith('R1', 'call-1');
-  });
-
-  it('dedupes call sound events by event ID', async () => {
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.rooms.currentUserId = 'U1';
-    vi.spyOn(store.voiceCall, 'callTransitionSoundDecision').mockReturnValue('play');
-
-    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
-    flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
-
-    for (const handler of bus.handlers) {
-      const event = {
-        id: 'E-duplicate-call-join',
-        createdAt: new Date().toISOString(),
-        actorId: 'U2',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantJoined, { roomId: 'R1', callId: 'call-1' })
-      } as const;
-      handler(event);
-      handler(event);
-    }
-
-    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
-    expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
-  });
-
-  it('dedupes deferred call sound events by event ID', async () => {
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.rooms.currentUserId = 'U1';
-    const decision = vi
-      .spyOn(store.voiceCall, 'callTransitionSoundDecision')
-      .mockReturnValueOnce('defer')
-      .mockReturnValueOnce('play');
-
-    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
-    flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
-
-    for (const handler of bus.handlers) {
-      const event = {
-        id: 'E-deferred-call-join',
-        createdAt: new Date().toISOString(),
-        actorId: 'U1',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantJoined, { roomId: 'R1', callId: 'call-1' })
-      } as const;
-      handler(event);
-      handler(event);
-    }
-
-    expect(decision).toHaveBeenCalledOnce();
-    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
-  });
-
-  it('does not play call sounds for missing-actor or inactive events', async () => {
-    const fake = new FakeServerConnection([]);
-    const store = makeStore(fake);
-    store.rooms.currentUserId = 'U1';
     const shouldPlay = vi.spyOn(store.voiceCall, 'callTransitionSoundDecision');
-
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
-    const bus = eventBusManager.getBus(registered.id);
-    if (!bus) throw new Error('event bus did not start');
+    const bus = eventBusManager.getBus(registered.id)!;
 
-    shouldPlay.mockReturnValue('play');
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E-missing-actor',
-        createdAt: new Date().toISOString(),
-        actorId: null,
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantJoined, { roomId: 'R1', callId: 'call-1' })
-      });
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [
+                    new ActiveCall({
+                      room: new Room({ id: 'R1' }),
+                      callId: 'call-1',
+                      participants: [
+                        new CallParticipant({
+                          user: new User({ id: 'U2', login: 'bob', displayName: 'Bob' })
+                        })
+                      ]
+                    })
+                  ]
+                })
+              }
+            })
+          ]
+        })
+      );
+      handler(
+        new RealtimeProjectionEvent({
+          id: 'E-call-end',
+          actorId: 'U2',
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace()
+              }
+            })
+          ]
+        })
+      );
     }
 
-    shouldPlay.mockReturnValue('skip');
-    for (const handler of bus.handlers) {
-      handler({
-        id: 'E-stale',
-        createdAt: new Date().toISOString(),
-        actorId: 'U2',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantJoined, { roomId: 'R2', callId: 'old-call' })
-      });
-      handler({
-        id: 'E-inactive',
-        createdAt: new Date().toISOString(),
-        actorId: 'U2',
-        actor: null,
-        event: roomEvent(RoomEventKind.CallParticipantLeft, { roomId: 'R1', callId: 'call-1' })
-      });
-    }
-
-    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+    expect(handleCallEndedEvent).toHaveBeenCalledWith('R1', 'call-1');
+    expect(shouldPlay).not.toHaveBeenCalled();
   });
 
 });

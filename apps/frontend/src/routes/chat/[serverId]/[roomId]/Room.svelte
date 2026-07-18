@@ -11,7 +11,6 @@
   import {
     useRoomData,
     useRoomUnread,
-    useEvent,
     useProjectionEvent,
     usePresenceChange,
     createTypingIndicator
@@ -47,7 +46,6 @@
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
@@ -328,41 +326,30 @@
     }
   }
 
-  // Keep the server read cursor in sync with incoming root messages. Other
-  // users' messages mark the room read while the user is actually present;
-  // own messages are already auto-marked read by the post mutation.
-  useEvent((event) => {
-    roomFilesStore.ingestServerEvent(event);
-    roomMembersStore.ingestServerEvent(event);
-    if (!event.event) return;
-
-    if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
-      const actorId = event.actorId;
-
-      if (!event.event.threadRootEventId) {
-        if (actorId) {
-          typingIndicator.removeTypingUser(actorId);
-        }
-      }
-
-      if (!event.event.threadRootEventId && currentUser.user) {
-        if (actorId !== currentUser.user.id && appState.isPresent) {
-          unread.markRoomAsRead(roomId, event.id);
-        }
-      }
-    }
-  });
-
-  // Durable message rows arrive through projection operations. Refresh the
-  // independent files read model only when an attachment-bearing row (or its
-  // tombstone) changes, avoiding a query for ordinary text messages.
+  // Durable message rows arrive only through projection operations. Keep
+  // presence/read side effects and the independent paginated files read model
+  // aligned with those authoritative row replacements.
   useProjectionEvent((event) => {
+    const isThreadViewerStateChange = event.operations.some(
+      (operation) => operation.operation.case === 'threadViewerStatesReplace'
+    );
     for (const operation of event.operations) {
       if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
       const update = operation.operation.value;
       if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
       const message = update.event.event.value.message;
-      if ((message?.attachments.length ?? 0) > 0 || message?.deletedAt) {
+      if (!message?.threadRootEventId) {
+        const actorId = event.actorId;
+        if (actorId) typingIndicator.removeTypingUser(actorId);
+        if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+          unread.markRoomAsRead(roomId, event.id);
+        }
+      }
+      if (
+        (message?.attachments.length ?? 0) > 0 ||
+        message?.deletedAt ||
+        (event.id !== update.event.id && !update.reactionChange && !isThreadViewerStateChange)
+      ) {
         void roomFilesStore.refresh();
       }
     }
