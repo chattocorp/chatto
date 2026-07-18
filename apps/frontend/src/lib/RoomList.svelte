@@ -18,16 +18,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-  import { useEvent, useTabResumeCallback, useRoomMarkedAsRead } from '$lib/hooks';
+  import { useEvent, useRoomMarkedAsRead } from '$lib/hooks';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { useRenderData } from './render/data';
   import { PresenceStatus, RoomType, type UserAvatarUserView } from '$lib/render/types';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
@@ -65,8 +64,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
   const activeCallRooms = $derived(stores.activeCallRooms);
-  const voiceCallState = $derived(stores.voiceCall);
-  const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
 
   const roomsStore = $derived(stores.rooms);
@@ -107,33 +104,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
     return event.roomId;
   }
-
-  function callEventPayload(
-    event: EventEnvelope['event']
-  ): { roomId: string; callId: string } | null {
-    if (
-      !event ||
-      !('roomId' in event) ||
-      typeof event.roomId !== 'string' ||
-      !('callId' in event) ||
-      typeof event.callId !== 'string'
-    ) {
-      return null;
-    }
-    return { roomId: event.roomId, callId: event.callId };
-  }
-
-  // Load active call room IDs whenever the active server has a LiveKit URL.
-  // Re-runs on server switch so a server with LiveKit configured fetches its
-  // own active calls instead of inheriting the previous server's snapshot.
-  $effect(() => {
-    if (serverInfo.livekitUrl) activeCallRooms.load();
-  });
-
-  // Refresh active call state when tab resumes (catches missed live events)
-  useTabResumeCallback(() => {
-    if (serverInfo.livekitUrl) activeCallRooms.load();
-  });
 
   // --- Derived layout helpers ---
 
@@ -248,34 +218,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           }
         }
         break;
-      case RoomEventKind.CallParticipantJoined: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        const actor = serverEvent.actor
-          ? useRenderData(UserAvatarViewData, serverEvent.actor)
-          : null;
-        void activeCallRooms.handleJoin(call.roomId, call.callId, actor);
-        break;
-      }
-      case RoomEventKind.CallParticipantLeft: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        activeCallRooms.handleLeave(call.roomId, call.callId, serverEvent.actorId ?? null);
-        voiceCallState.handleParticipantLeftEvent(
-          call.roomId,
-          call.callId,
-          serverEvent.actorId ?? null,
-          roomsStore.currentUserId
-        );
-        break;
-      }
-      case RoomEventKind.CallEnded: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        activeCallRooms.handleEnd(call.roomId, call.callId);
-        voiceCallState.handleCallEndedEvent(call.roomId, call.callId);
-        break;
-      }
     }
   });
 

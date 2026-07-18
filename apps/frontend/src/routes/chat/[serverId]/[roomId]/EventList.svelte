@@ -7,7 +7,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import type { RoomEventView } from '$lib/render/types';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import type { MessagesStore, RefreshCurrentWindowResult, RoomMember } from '$lib/state/room';
+  import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
@@ -24,8 +24,6 @@
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
-  import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
-  import type { ResumeSignal } from '$lib/hooks/resumeCoordinator.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
   import {
@@ -75,7 +73,6 @@
     onJumpToPresent,
     onReachedPresent,
     onReachedBottom,
-    onSoftRefresh,
     pendingHighlightId = null
   }: {
     roomId: string;
@@ -117,7 +114,6 @@
     onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
     onReachedBottom?: () => void;
-    onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
   } = $props();
@@ -638,119 +634,6 @@
     console.debug('[room-refresh] no visible anchor found', { roomId });
     return null;
   }
-
-  let softRefreshInFlight = false;
-  const MIN_BROWSER_WAKE_REFRESH_HIDDEN_MS = 5_000;
-
-  function isShortBrowserWake(signal: ResumeSignal): boolean {
-    if (signal.source !== 'browser') return false;
-    if (signal.reason !== 'visibility' && signal.reason !== 'pageshow') return false;
-    return (
-      signal.hiddenDurationMs !== null &&
-      signal.hiddenDurationMs < MIN_BROWSER_WAKE_REFRESH_HIDDEN_MS
-    );
-  }
-
-  async function refreshAfterPossibleMiss(signal: ResumeSignal): Promise<boolean> {
-    if (softRefreshInFlight) return false;
-    if (isLoading && virtualItems.length === 0) return false;
-    if (isShortBrowserWake(signal)) {
-      console.debug('[room-refresh] skipped short browser wake refresh', {
-        roomId,
-        reason: signal.reason,
-        hiddenDurationMs: signal.hiddenDurationMs,
-        epoch: signal.epoch
-      });
-      return false;
-    }
-
-    const bottomDistance = distanceFromBottom();
-    const wasAtBottom =
-      alwaysScrollToBottom ||
-      (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
-    const anchor = wasAtBottom ? null : captureRefreshAnchor();
-
-    softRefreshInFlight = true;
-    try {
-      console.debug('[room-refresh] event list refresh started', {
-        roomId,
-        reason: signal.reason,
-        source: signal.source,
-        phase: signal.phase,
-        hiddenDurationMs: signal.hiddenDurationMs,
-        epoch: signal.epoch,
-        mode: wasAtBottom ? 'latest' : 'anchored',
-        wasAtBottom,
-        bottomDistance,
-        anchorEventId: anchor?.eventId ?? null,
-        itemCount: virtualItems.length
-      });
-      const result = await messageStore.refreshCurrentWindow(
-        wasAtBottom ? null : (anchor?.eventId ?? null)
-      );
-      if (!result.refreshed) {
-        console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
-          roomId,
-          reason: signal.reason,
-          source: signal.source,
-          phase: signal.phase,
-          wasAtBottom,
-          result
-        });
-        return false;
-      }
-      onSoftRefresh?.(result, anchor !== null);
-      if (!result.changed) {
-        console.debug('[room-refresh] event list refresh completed unchanged', {
-          roomId,
-          result,
-          itemCount: virtualItems.length
-        });
-        return true;
-      }
-      await tick();
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-
-      if (wasAtBottom) {
-        setShouldScrollToBottom(true);
-        await requestBottomScroll();
-        console.debug('[room-refresh] event list refresh completed at bottom', {
-          roomId,
-          result,
-          itemCount: virtualItems.length
-        });
-        return true;
-      }
-
-      if (anchor && scrollContainer) {
-        const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
-        if (target) {
-          const nextTop = target.getBoundingClientRect().top;
-          scrollContainer.scrollTop += nextTop - anchor.top;
-          scrollFader?.refresh();
-          console.debug('[room-refresh] anchor restored', {
-            roomId,
-            anchorEventId: anchor.eventId,
-            deltaPx: nextTop - anchor.top,
-            result,
-            itemCount: virtualItems.length
-          });
-        } else {
-          console.debug('[room-refresh] anchor disappeared after refresh', {
-            roomId,
-            anchorEventId: anchor.eventId,
-            result,
-            itemCount: virtualItems.length
-          });
-        }
-      }
-      return true;
-    } finally {
-      softRefreshInFlight = false;
-    }
-  }
-
-  useMayHaveMissedMessagesCallback((signal) => refreshAfterPossibleMiss(signal));
 
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
   // browser may have throttled virtua's measurements or our auto-scroll effect

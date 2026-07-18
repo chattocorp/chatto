@@ -208,18 +208,10 @@ export type EventEnvelope = {
 
 export type EventHandler = (event: EventEnvelope) => void;
 export type ProjectionHandler = (event: RealtimeProjectionEvent) => void;
-export type EventBusCatchUpReason = 'subscription-ended' | 'ws-reconnected' | 'heartbeat-stalled';
-export type EventBusCatchUpPhase = 'immediate' | 'projection-grace';
-export type EventBusCatchUpSignal = {
-  reason: EventBusCatchUpReason;
-  phase: EventBusCatchUpPhase;
-};
-export type EventBusCatchUpHandler = (signal: EventBusCatchUpSignal) => void;
 
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;
   projectionHandlers: SvelteSet<ProjectionHandler>;
-  catchUpHandlers: SvelteSet<EventBusCatchUpHandler>;
 }
 
 const realtimeEnvelopeSymbol: unique symbol = Symbol('chattoRealtimeEventEnvelope');

@@ -2,11 +2,7 @@
   import type { UnreadMarkerWindow } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
   import type { RoomEventView } from '$lib/render/types';
-  import {
-    type MessagesStore,
-    type RefreshCurrentWindowResult,
-    type RoomMember
-  } from '$lib/state/room';
+  import { type MessagesStore, type RoomMember } from '$lib/state/room';
   import EventList from './EventList.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
 
@@ -43,7 +39,6 @@
     onLoadNewer,
     onJumpToPresent,
     onReachedPresent,
-    onSoftRefresh,
     pendingHighlightId = null
   }: {
     roomId: string;
@@ -78,7 +73,6 @@
     onLoadNewer?: () => Promise<void>;
     onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
-    onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     pendingHighlightId?: string | null;
   } = $props();
 
@@ -140,6 +134,5 @@
   {onJumpToPresent}
   {onReachedPresent}
   onReachedBottom={onUnreadMarkerCleared}
-  {onSoftRefresh}
   {pendingHighlightId}
 />

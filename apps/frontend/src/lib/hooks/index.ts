@@ -30,12 +30,6 @@ export type { UnreadMarkerWindow } from './useUnreadMarker.svelte';
 
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';
-export {
-  useMayHaveMissedMessagesCallback,
-  type MayHaveMissedMessagesReason
-} from './useMayHaveMissedMessagesCallback.svelte';
-export { useReconnectCallback, useReconnectTrigger } from './useReconnectCallback.svelte';
-export type { ResumeSignal } from './resumeCoordinator.svelte';
 export { createTypingIndicator } from './useTypingIndicator.svelte';
 export type { TypingIndicator, TypingUser } from './useTypingIndicator.svelte';
 

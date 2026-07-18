@@ -138,7 +138,7 @@ function subscribedFrame(): RealtimeServerFrame {
   return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed() });
 }
 
-function projectionFrame(cursor = 'cursor-1'): RealtimeServerFrame {
+function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   return serverFrame({
     case: 'projectionEvent',
     value: new RealtimeProjectionEvent({
@@ -495,6 +495,43 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
+  it('accepts a compacted reset when a retained resume cursor is no longer usable', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.retainRoom('room-retained');
+    sync.confirmRoom('room-retained');
+    sync.markCaughtUp('cursor-expired');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+
+    await socket.receive(projectionFrame(undefined));
+
+    expect(sync.phase).toBe('hydrating');
+    // Snapshot frames are deliberately cursorless. Until the complete reset
+    // reaches caught_up, reconnecting must retry the old cursor and receive a
+    // fresh reset rather than resume from a partially rebuilt projection.
+    expect(sync.resumeCursor).toBe('cursor-expired');
+    expect(sync.desiredRoomIds).toEqual(['room-retained']);
+    expect(sync.retainedRoomIds).toEqual([]);
+
+    await socket.receive(roomTimelineFrame('room-retained'));
+    expect(sync.resumeCursor).toBe('cursor-expired');
+    await socket.receive(
+      serverFrame({
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'cursor-reset-caught-up' })
+      })
+    );
+
+    expect(sync.phase).toBe('ready');
+    expect(sync.resumeCursor).toBe('cursor-reset-caught-up');
+    expect(sync.retainedRoomIds).toEqual(['room-retained']);
+  });
+
   it('does not advance the cursor when no projection reducer is registered', async () => {
     vi.useFakeTimers();
     const { socket } = await startAndSubscribe();
@@ -606,19 +643,13 @@ describe('eventBusManager realtime transport', () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it('reconnects and notifies catch-up handlers when the socket closes', async () => {
+  it('marks the projection stale and reconnects when the socket closes', async () => {
     vi.useFakeTimers();
     const { fake, socket } = await startAndSubscribe();
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
     socket.serverClose();
 
     expect(fake.status).toBe('disconnected');
-    expect(catchUp).toHaveBeenCalledWith({
-      reason: 'subscription-ended',
-      phase: 'immediate'
-    });
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
   });
@@ -626,8 +657,6 @@ describe('eventBusManager realtime transport', () => {
   it('does not reconnect when the realtime stream reports authentication required', async () => {
     vi.useFakeTimers();
     const { fake, socket } = await startAndSubscribe();
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
     await socket.receive(
       serverFrame({
@@ -642,7 +671,6 @@ describe('eventBusManager realtime transport', () => {
 
     expect(fake.authRequiredCalls).toBe(1);
     expect(fake.status).toBe('disconnected');
-    expect(catchUp).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(1);
   });
@@ -692,58 +720,26 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
   });
 
-  it('re-notifies catch-up handlers after the projection grace period', async () => {
-    vi.useFakeTimers();
-    const { socket } = await startAndSubscribe();
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
-
-    socket.serverClose();
-
-    expect(catchUp).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(2_499);
-    expect(catchUp).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(catchUp).toHaveBeenCalledTimes(2);
-    expect(catchUp).toHaveBeenNthCalledWith(2, {
-      reason: 'subscription-ended',
-      phase: 'projection-grace'
-    });
-  });
-
   it('reconnects when the ServerConnection retry bridge requests it', async () => {
     vi.useFakeTimers();
     const { fake } = await startAndSubscribe();
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
     fake.forceReconnect('user retry');
 
-    expect(catchUp).toHaveBeenCalledWith({
-      reason: 'ws-reconnected',
-      phase: 'immediate'
-    });
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
   });
 
-  it('reconnects and notifies catch-up handlers when heartbeats stall', async () => {
+  it('reconnects when heartbeats stall', async () => {
     vi.useFakeTimers();
     await startAndSubscribeWithHeartbeatInterval(15);
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
     await vi.advanceTimersByTimeAsync(44_999);
 
-    expect(catchUp).not.toHaveBeenCalled();
     expect(sockets).toHaveLength(1);
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(catchUp).toHaveBeenCalledWith({
-      reason: 'heartbeat-stalled',
-      phase: 'immediate'
-    });
     await vi.advanceTimersByTimeAsync(1);
     expect(sockets).toHaveLength(2);
   });
@@ -751,20 +747,14 @@ describe('eventBusManager realtime transport', () => {
   it('falls back to the previous stall timeout when heartbeat interval is omitted', async () => {
     vi.useFakeTimers();
     await startAndSubscribeWithHeartbeatInterval(0);
-    const catchUp = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
 
     await vi.advanceTimersByTimeAsync(74_999);
 
-    expect(catchUp).not.toHaveBeenCalled();
     expect(sockets).toHaveLength(1);
 
     await vi.advanceTimersByTimeAsync(1);
-
-    expect(catchUp).toHaveBeenCalledWith({
-      reason: 'heartbeat-stalled',
-      phase: 'immediate'
-    });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
   });
 
   it('does not dispatch heartbeat frames to handlers', async () => {

@@ -595,22 +595,6 @@ describe('RoomList', () => {
     expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
   });
 
-  it('updates active call rooms from local event kind', async () => {
-    render(RoomList);
-
-    dispatchRoomListEvent(0, {
-      kind: RoomEventKind.CallParticipantJoined,
-      roomId: 'channel-1',
-      callId: 'call-1'
-    });
-
-    expect(mocks.store.activeCallRooms.handleJoin).toHaveBeenCalledWith(
-      'channel-1',
-      'call-1',
-      null
-    );
-  });
-
   it('marks inactive rooms unread from local message event kind', async () => {
     render(RoomList);
 

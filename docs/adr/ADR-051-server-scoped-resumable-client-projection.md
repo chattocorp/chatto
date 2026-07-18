@@ -81,6 +81,13 @@ and close; these catch-ups are serialized across the browser and use the same
 frames and reducer as the active connection. Polling is therefore a transport
 lifecycle, not a second bootstrap mechanism.
 
+Browser wake-up, socket close, online, and heartbeat-stall signals act only on
+the transport. They never trigger parallel ConnectRPC refreshes for canonical
+server, room, timeline, notification, presence, or active-call state. A tab
+that was hidden for at least 30 seconds replaces its active WebSocket and
+resumes the retained projection. If its cursor expired while asleep, the
+server emits the normal compacted reset on that replacement stream.
+
 Resume cursors are encrypted and authenticated with a purpose-separated key
 derived from `core.secret_key`, use a random nonce, and are bound to the
 authenticated viewer. EVT stream incarnation and global sequence remain inside
@@ -207,6 +214,9 @@ Non-replayable
 typing, presence transitions, and similar transient frames are intentionally
 not reconstructed while a server is dormant; activation observes current
 latest-value state and later transitions according to their owning subsystem.
+Presentation-only browser resume work, such as re-measuring virtualized lists
+or advancing local expiry clocks, remains independent of server catch-up and
+must not initiate canonical data reads.
 
 Initial connection payload and server hydration work grow with server users and
 visible room summaries, not with every joined-room timeline. A first room view

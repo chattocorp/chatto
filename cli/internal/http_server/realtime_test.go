@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -19,6 +20,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
+	"hmans.de/chatto/internal/publiccursor"
 )
 
 func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
@@ -1799,6 +1801,94 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 		t.Fatalf("post-replay frame = %+v, want latest-value reconciliation", reconciliation)
 	}
 	readRealtimeCaughtUp(t, resumed)
+}
+
+func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-expired-resume", "Expired Resume", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	boundaryConn := env.dialRealtime(t)
+	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive boundary hello")
+	}
+	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatal("did not receive boundary subscribed")
+	}
+	boundary := readRealtimeCaughtUp(t, boundaryConn)
+	if err := boundaryConn.Close(); err != nil {
+		t.Fatalf("close boundary connection: %v", err)
+	}
+
+	type cursorPayload struct {
+		Version        int    `json:"v"`
+		StreamIdentity string `json:"i"`
+		Sequence       uint64 `json:"s"`
+		UserID         string `json:"u"`
+		IssuedAtUnix   int64  `json:"t"`
+	}
+	payloadJSON, err := publiccursor.Open("test-core-secret", "realtime-resume-v2", user.Id, boundary.GetCursor())
+	if err != nil {
+		t.Fatalf("open boundary cursor: %v", err)
+	}
+	var payload cursorPayload
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		t.Fatalf("decode boundary cursor: %v", err)
+	}
+	payload.IssuedAtUnix = time.Now().Add(-25 * time.Hour).Unix()
+	payloadJSON, err = json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("encode expired cursor payload: %v", err)
+	}
+	expiredCursor, err := publiccursor.Seal("test-core-secret", "realtime-resume-v2", user.Id, payloadJSON)
+	if err != nil {
+		t.Fatalf("seal expired cursor: %v", err)
+	}
+
+	resumed := env.dialRealtime(t)
+	t.Cleanup(func() { resumed.Close() })
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive resumed hello")
+	}
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &expiredCursor},
+	}})
+	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	if !ok || subscribed.GetSubscribed() == nil {
+		t.Fatalf("expired resume subscribed = %+v", subscribed)
+	}
+	if subscribed.GetSubscribed().GetStartCursor() == expiredCursor {
+		t.Fatal("expired resume retained the unusable cursor")
+	}
+	firstProjection, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	if !ok || firstProjection.GetProjectionEvent() == nil {
+		t.Fatalf("expired resume first projection frame = %+v", firstProjection)
+	}
+	operations := firstProjection.GetProjectionEvent().GetOperations()
+	if len(operations) != 1 || operations[0].GetReset_() == nil {
+		t.Fatalf("expired resume first operations = %+v, want reset", operations)
+	}
+	if firstProjection.GetProjectionEvent().GetResumeCursor() != "" {
+		t.Fatal("expired resume reset exposed a cursor before the replacement snapshot completed")
+	}
+	if caughtUp := readRealtimeCaughtUp(t, resumed); caughtUp.GetCursor() == "" {
+		t.Fatal("expired resume reset did not reach a new caught_up cursor")
+	}
 }
 
 func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testing.T) {

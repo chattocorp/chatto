@@ -7,10 +7,6 @@
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type {
-  EventBusCatchUpReason,
-  EventBusCatchUpPhase,
-  EventBusCatchUpSignal,
-  EventBusCatchUpHandler,
   EventHandler,
   ProjectionHandler,
   EventBus,
@@ -34,7 +30,6 @@ const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
 const MIN_HEARTBEAT_STALL_MS = 30_000;
 const MISSED_HEARTBEATS_BEFORE_STALL = 3;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
-const CATCH_UP_RETRY_MS = 2_500;
 const RECONNECT_WAIT_MS = 5_000;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
@@ -178,8 +173,7 @@ class EventBusManager {
 
     const handlers = new SvelteSet<EventHandler>();
     const projectionHandlers = new SvelteSet<ProjectionHandler>();
-    const catchUpHandlers = new SvelteSet<EventBusCatchUpHandler>();
-    const bus: EventBus = { handlers, projectionHandlers, catchUpHandlers };
+    const bus: EventBus = { handlers, projectionHandlers };
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
@@ -193,7 +187,6 @@ class EventBusManager {
     let socketSubscribed = false;
     let requestedRoomIds = new SvelteSet<string>();
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let catchUpRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
@@ -208,30 +201,6 @@ class EventBusManager {
       heartbeatStallMs,
       lastEventAgeMs: Date.now() - lastEventAt
     });
-
-    const notifyCatchUpHandlers = (
-      reason: EventBusCatchUpReason,
-      phase: EventBusCatchUpPhase = 'immediate'
-    ) => {
-      const signal: EventBusCatchUpSignal = { reason, phase };
-      for (const handler of catchUpHandlers) {
-        try {
-          handler(signal);
-        } catch (error) {
-          console.error(`[eventBus:${serverId}] catch-up handler threw`, error);
-        }
-      }
-    };
-
-    const scheduleCatchUpRetry = (reason: EventBusCatchUpReason) => {
-      if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
-      catchUpRetryTimer = setTimeout(() => {
-        catchUpRetryTimer = null;
-        if (!stopped && mode === 'live') {
-          notifyCatchUpHandlers(reason, 'projection-grace');
-        }
-      }, CATCH_UP_RETRY_MS);
-    };
 
     const clearReconnectTimer = () => {
       if (!reconnectTimer) return;
@@ -456,11 +425,7 @@ class EventBusManager {
               if (socket === nextSocket) socket = null;
               nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
               if (mode === 'live' && frame.frame.value.reconnect) {
-                scheduleReconnect(
-                  'server requested close',
-                  'subscription-ended',
-                  frame.frame.value.retryAfterMs
-                );
+                scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
               } else {
                 resolvePoll(false);
                 if (mode === 'polling') {
@@ -493,7 +458,7 @@ class EventBusManager {
           ...debugState()
         });
         if (mode === 'live') {
-          scheduleReconnect('socket closed', 'subscription-ended');
+          scheduleReconnect('socket closed');
         } else {
           mode = 'dormant';
           resolvePoll(false);
@@ -502,39 +467,33 @@ class EventBusManager {
       };
     };
 
-    function scheduleReconnect(
-      reason: string,
-      catchUpReason: EventBusCatchUpReason,
-      delayMs?: number
-    ): void {
+    function scheduleReconnect(reason: string, delayMs?: number): void {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       clearReconnectTimer();
       reconnectCount++;
       reconnectAttempts++;
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
-      notifyCatchUpHandlers(catchUpReason);
-      scheduleCatchUpRetry(catchUpReason);
       const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
       reconnectTimer = setTimeout(() => connect(reason), wait);
     }
 
-    const reconnectNow = (reason: string, catchUpReason: EventBusCatchUpReason) => {
+    const reconnectNow = (reason: string) => {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       detachSocket(true);
       reconnectAttempts = 0;
-      scheduleReconnect(reason, catchUpReason, 0);
+      scheduleReconnect(reason, 0);
     };
 
     const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
-      reconnectNow(reason, 'ws-reconnected');
+      reconnectNow(reason);
     });
 
     const heartbeatWatchdog = setInterval(() => {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const ageMs = Date.now() - lastEventAt;
-      if (ageMs >= heartbeatStallMs) reconnectNow('heartbeat stalled', 'heartbeat-stalled');
+      if (ageMs >= heartbeatStallMs) reconnectNow('heartbeat stalled');
     }, HEARTBEAT_WATCHDOG_MS);
 
     const controller: TransportController = {
@@ -601,7 +560,6 @@ class EventBusManager {
       cleanup() {
         stopped = true;
         mode = 'dormant';
-        if (catchUpRetryTimer) clearTimeout(catchUpRetryTimer);
         clearReconnectTimer();
         clearInterval(heartbeatWatchdog);
         unregisterReconnect();

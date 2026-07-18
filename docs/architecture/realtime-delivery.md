@@ -36,6 +36,13 @@ run about once a minute with jitter and a 30-second client timeout. Switching
 servers closes the previous persistent socket without discarding its state and
 promotes the selected server to the sole persistent connection.
 
+Returning to a tab after at least 30 seconds hidden replaces the active
+transport even when the browser still reports its old WebSocket as open. The
+replacement supplies the retained projection cursor and room set. Browser
+visibility, `pageshow`, online, socket-close, and heartbeat signals do not
+start parallel ConnectRPC refreshes for canonical projection data. They only
+restore transport liveness; replay or a compacted reset performs convergence.
+
 ## Compacted projection prefix
 
 A subscription without a usable cursor emits one ordered stream of
@@ -104,7 +111,10 @@ expires after 24 hours; expiry selects the same safe reset, limiting captured
 cursor reuse while still allowing ordinary reconnect gaps. The browser retains
 a cursor only with its corresponding in-memory projection. Socket
 reconnects can resume; page reloads and recreated stores omit it and receive a
-new compacted prefix.
+new compacted prefix. A tab waking after more than 24 hours still presents its
+expired cursor, and the server responds with the same compacted reset used for
+any other unusable cursor. The client clears and rebuilds the retained
+projection through normal operations, then marks it ready only at `caught_up`.
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, and performs bounded JetStream point reads for the

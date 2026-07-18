@@ -6,8 +6,7 @@ import { RoomEventKind } from '$lib/render/eventKinds';
 
 const { mocks } = vi.hoisted(() => {
   const bus = {
-    handlers: new Set<EventHandler>(),
-    catchUpHandlers: new Set()
+    handlers: new Set<EventHandler>()
   };
   const store = {
     isAuthenticated: true,
@@ -103,7 +102,6 @@ async function renderAndWaitForSubscription() {
 describe('NotificationSync', () => {
   beforeEach(() => {
     mocks.bus.handlers.clear();
-    mocks.bus.catchUpHandlers.clear();
     vi.clearAllMocks();
 
     mocks.store.isAuthenticated = true;

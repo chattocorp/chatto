@@ -6,7 +6,9 @@ import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
+import { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -14,6 +16,7 @@ import {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
   RealtimeProjectionEvent,
+  RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
   RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomTimelineEventUpsert,
@@ -593,6 +596,35 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.motd).toBe('Fresh MOTD');
     expect(store.serverInfo.pushNotificationsEnabled).toBe(true);
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit');
+  });
+
+  it('uses the projection as the authoritative active-call snapshot', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(store.activeCallRooms.has('R1')).toBe(true);
+    expect(apiMocks.listActiveCalls).not.toHaveBeenCalled();
   });
 
   it('does not inject an old mutation outside the retained room window or bump the room', () => {
