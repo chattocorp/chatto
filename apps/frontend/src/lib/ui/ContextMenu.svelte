@@ -15,6 +15,7 @@ handling around the shared positioning primitive.
 - `ariaLabel` - ARIA label for the container
 - `presentation` - "auto" uses input capability, "floating" or "sheet" forces a mode
 - `class` - Additional CSS classes for the outer container (floating mode only)
+- `scrollDismissal` - Which outside scrolling interactions dismiss the floating presentation
 - `onclose` - Callback when the menu should be dismissed
 
 In floating mode, exactly one of `position` or `anchor` must be provided. In sheet mode, both are
@@ -36,6 +37,7 @@ ignored (the BottomSheet handles its own positioning).
     ariaLabel,
     presentation = 'auto',
     class: className,
+    scrollDismissal = 'all',
     onclose,
     onmouseenter,
     onmouseleave,
@@ -47,6 +49,7 @@ ignored (the BottomSheet handles its own positioning).
     ariaLabel?: string;
     presentation?: ContextMenuPresentation;
     class?: string;
+    scrollDismissal?: 'all' | 'user' | 'none';
     onclose: () => void;
     onmouseenter?: () => void;
     onmouseleave?: () => void;
@@ -87,6 +90,7 @@ ignored (the BottomSheet handles its own positioning).
     {role}
     {ariaLabel}
     class={['min-w-48 menu', className]}
+    {scrollDismissal}
     {onclose}
     {onmouseenter}
     {onmouseleave}
