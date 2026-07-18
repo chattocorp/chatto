@@ -18,6 +18,7 @@ import {
   exponentialSample,
   explosionFrame,
   explosionParticleOpacity,
+  GAME_UI_REVEAL_SHOTS,
   glyphFloatOffset,
   IMPACT_LASER_DURATION,
   impactLaserFrame,
@@ -61,11 +62,35 @@ describe('SimulatedChattoWordmark', () => {
       5, 7, 12
     ]);
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
+    expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
     expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
     expect(container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')).toBe(
       'Laser 1, power 1, ready'
     );
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
+  });
+
+  it('fades in the game UI after the third successful shot', async () => {
+    localStorage.setItem(
+      'chatto.simulated-wordmark-game.v1',
+      JSON.stringify({ points: 0, powers: [1], shots: GAME_UI_REVEAL_SHOTS - 1 })
+    );
+    const { container } = render(SimulatedChattoWordmark);
+    const wordmark = q(
+      container,
+      'button[aria-label="Fire a ready laser at Chatto"]'
+    ) as HTMLButtonElement;
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
+    wordmark.click();
+
+    await expect
+      .poll(() => container.querySelector('[data-game-ui-visible="true"]'))
+      .not.toBeNull();
+    expect(
+      JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}').shots
+    ).toBe(GAME_UI_REVEAL_SHOTS);
   });
 
   it('scores a shot and puts its only laser on cooldown', async () => {
@@ -78,9 +103,9 @@ describe('SimulatedChattoWordmark', () => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     wordmark.click();
 
-    await expect.poll(() => container.querySelector('output')?.getAttribute('aria-label')).toMatch(
-      /^[1-9]\d* points$/
-    );
+    await expect
+      .poll(() => container.querySelector('output')?.getAttribute('aria-label'))
+      .toMatch(/^[1-9]\d* points$/);
     expect(container.querySelector('[role="listitem"]')?.getAttribute('data-ready')).toBe('false');
     const scoreAfterFirstShot = container.querySelector('output')?.getAttribute('aria-label');
 
@@ -123,7 +148,9 @@ describe('SimulatedChattoWordmark', () => {
     ) as HTMLButtonElement;
     secondLaser.click();
     await expect
-      .poll(() => container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label'))
+      .poll(() =>
+        container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')
+      )
       .toBe('Laser 2, power 3, ready');
     const upgrade = q(
       container,
@@ -132,13 +159,16 @@ describe('SimulatedChattoWordmark', () => {
     upgrade.click();
 
     await expect
-      .poll(() => container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label'))
+      .poll(() =>
+        container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')
+      )
       .toBe('Laser 2, power 4, ready');
     expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
     expect(JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')).toEqual({
       points: 62,
-      powers: [1, 4]
+      powers: [1, 4],
+      shots: GAME_UI_REVEAL_SHOTS
     });
   });
 
