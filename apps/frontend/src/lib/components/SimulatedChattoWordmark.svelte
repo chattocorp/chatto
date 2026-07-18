@@ -158,11 +158,8 @@
       readyAt: 0
     }))
   );
-  let selectedLaserIndex = $state(0);
   let hudNow = $state(0);
 
-  const selectedLaserPower = $derived(laserGuns[selectedLaserIndex]?.power ?? 1);
-  const powerUpgradeCost = $derived(laserPowerUpgradeCost(selectedLaserPower));
   const nextLaserCost = $derived(laserGunCost(laserGuns.length));
   const gameUiVisible = $derived(firstLaserShots >= GAME_UI_REVEAL_SHOTS);
 
@@ -854,11 +851,14 @@
     requestDraw();
   }
 
-  function upgradeLaserPower() {
-    if (points < powerUpgradeCost) return;
-    points -= powerUpgradeCost;
+  function upgradeLaserPower(laserIndex: number) {
+    const laser = laserGuns[laserIndex];
+    if (!laser) return;
+    const upgradeCost = laserPowerUpgradeCost(laser.power);
+    if (points < upgradeCost) return;
+    points -= upgradeCost;
     laserGuns = laserGuns.map((laser, index) =>
-      index === selectedLaserIndex ? { ...laser, power: laser.power + 1 } : laser
+      index === laserIndex ? { ...laser, power: laser.power + 1 } : laser
     );
   }
 
@@ -867,7 +867,6 @@
     points -= nextLaserCost;
     const newLaserIndex = laserGuns.length;
     laserGuns = [...laserGuns, { id: newLaserIndex + 1, power: 1, readyAt: 0 }];
-    selectedLaserIndex = newLaserIndex;
     requestDraw();
   }
 </script>
@@ -914,36 +913,46 @@
       {#each laserGuns as laser, index (laser.id)}
         {@const cooldownProgress = laserCooldownProgress(hudNow, laser.readyAt)}
         {@const cooldownSeconds = Math.max(0, (laser.readyAt - hudNow) / 1000).toFixed(1)}
-        <div class="flex" role="listitem" data-ready={cooldownProgress >= 1}>
-          <button
-            type="button"
-            class={[
-              'flex min-h-10 w-9 cursor-pointer flex-col items-center justify-center gap-0.5 rounded border border-white/15 bg-black/65 text-xs text-white tabular-nums hover:bg-black/90',
-              selectedLaserIndex === index ? 'bg-cyan-300/25 ring-1 ring-cyan-300' : ''
-            ]}
-            aria-label={cooldownProgress >= 1
-              ? m['ui.easter_egg.laser_ready']({
-                  number: index + 1,
-                  power: laser.power
-                })
-              : m['ui.easter_egg.laser_cooldown']({
-                  number: index + 1,
-                  power: laser.power,
-                  seconds: cooldownSeconds
-                })}
-            aria-pressed={selectedLaserIndex === index}
-            onclick={() => (selectedLaserIndex = index)}
+        {@const upgradeCost = laserPowerUpgradeCost(laser.power)}
+        <div
+          class="flex w-11 flex-col gap-0.5"
+          role="listitem"
+          data-ready={cooldownProgress >= 1}
+          aria-label={cooldownProgress >= 1
+            ? m['ui.easter_egg.laser_ready']({
+                number: index + 1,
+                power: laser.power
+              })
+            : m['ui.easter_egg.laser_cooldown']({
+                number: index + 1,
+                power: laser.power,
+                seconds: cooldownSeconds
+              })}
+        >
+          <div
+            class="flex min-h-10 w-full flex-col items-center justify-center gap-0.5 rounded border border-white/15 bg-black/65 text-xs text-white tabular-nums"
           >
             <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true"
               >🔫{laser.power}</span
             >
-            <span class="h-1 w-6 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
+            <span class="h-1 w-7 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
               <span
                 class="block h-full rounded-full bg-cyan-300"
                 style:width={`${cooldownProgress * 100}%`}
               ></span>
             </span>
-          </button>
+          </div>
+          <button
+            type="button"
+            class="min-h-8 w-full cursor-pointer rounded border border-white/20 bg-black/75 px-1 text-[10px] text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={points < upgradeCost}
+            aria-label={m['ui.easter_egg.upgrade_power']({
+              number: index + 1,
+              level: laser.power + 1,
+              cost: upgradeCost
+            })}
+            onclick={() => upgradeLaserPower(index)}>⚡ {upgradeCost}</button
+          >
         </div>
       {/each}
     </div>
@@ -956,19 +965,6 @@
     <div
       class="pointer-events-auto absolute right-2 bottom-2 left-2 flex items-center justify-center gap-2"
     >
-      <button
-        type="button"
-        class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
-        disabled={points < powerUpgradeCost}
-        aria-label={m['ui.easter_egg.upgrade_power']({
-          number: selectedLaserIndex + 1,
-          level: selectedLaserPower + 1,
-          cost: powerUpgradeCost
-        })}
-        onclick={upgradeLaserPower}
-        >⚡ 🔫{selectedLaserIndex + 1}
-        {selectedLaserPower} → {selectedLaserPower + 1} · ✨ {powerUpgradeCost}</button
-      >
       <button
         type="button"
         class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"

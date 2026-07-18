@@ -64,9 +64,12 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
     expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
     expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
-    expect(container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')).toBe(
+    expect(container.querySelector('[role="listitem"]')?.getAttribute('aria-label')).toBe(
       'Laser 1, power 1, ready'
     );
+    expect(
+      container.querySelector('button[aria-label="Upgrade laser 1 to power level 2 for 16 points"]')
+    ).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
   });
 
@@ -103,7 +106,9 @@ describe('SimulatedChattoWordmark', () => {
     }
     performanceNow.mockRestore();
     expect(pointsAfterShots[0]! - 100).toBeGreaterThan(20);
-    expect(container.querySelector('button[aria-label^="Laser 1, power 7"]')).not.toBeNull();
+    expect(
+      container.querySelector('[role="listitem"][aria-label^="Laser 1, power 7"]')
+    ).not.toBeNull();
   });
 
   it('scores a shot and puts its only laser on cooldown', async () => {
@@ -144,26 +149,16 @@ describe('SimulatedChattoWordmark', () => {
     expect(second.container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
     expect(second.container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
     expect(
-      second.container.querySelector('button[aria-label="Laser 1, power 1, ready"]')
+      second.container.querySelector('[role="listitem"][aria-label="Laser 1, power 1, ready"]')
     ).not.toBeNull();
   });
 
-  it('selects and upgrades each laser independently', async () => {
+  it('offers and applies an individual upgrade beneath each laser', async () => {
     const { container } = render(SimulatedChattoWordmark, {
       props: { initialPoints: 100, initialLaserPowers: [1, 3] }
     });
 
     await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(2);
-    const secondLaser = q(
-      container,
-      'button[aria-label="Laser 2, power 3, ready"]'
-    ) as HTMLButtonElement;
-    secondLaser.click();
-    await expect
-      .poll(() =>
-        container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')
-      )
-      .toBe('Laser 2, power 3, ready');
     const upgrade = q(
       container,
       'button[aria-label="Upgrade laser 2 to power level 4 for 38 points"]'
@@ -171,11 +166,14 @@ describe('SimulatedChattoWordmark', () => {
     upgrade.click();
 
     await expect
-      .poll(() =>
-        container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')
-      )
-      .toBe('Laser 2, power 4, ready');
-    expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
+      .poll(() => container.querySelector('[role="listitem"][aria-label^="Laser 2, power 4"]'))
+      .not.toBeNull();
+    expect(
+      container.querySelector('[role="listitem"][aria-label="Laser 1, power 1, ready"]')
+    ).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Upgrade laser 2 to power level 5 for 60 points"]')
+    ).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
   });
 
@@ -187,7 +185,9 @@ describe('SimulatedChattoWordmark', () => {
     const { container } = render(SimulatedChattoWordmark);
 
     await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(1);
-    expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
+    expect(
+      container.querySelector('[role="listitem"][aria-label="Laser 1, power 1, ready"]')
+    ).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
   });
 
