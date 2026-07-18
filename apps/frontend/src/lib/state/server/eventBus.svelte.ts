@@ -91,14 +91,12 @@ class EventBusManager {
   #buses = new SvelteMap<string, EventBus>();
   #subscriptions = new Map<string, { unsubscribe: () => void }>();
   #cleanups = new Map<string, () => void>();
-  #paused = false;
 
   /**
    * Start an event bus for the given server. Creates the realtime socket and
    * stores the bus. If a bus already exists for this server, returns a no-op.
    */
   startBus(serverId: string, serverConnection: ServerConnection): () => void {
-    if (this.#paused) return () => {};
     if (this.#buses.has(serverId)) return () => {};
 
     const handlers = new SvelteSet<EventHandler>();
@@ -405,17 +403,6 @@ class EventBusManager {
     for (const serverId of [...this.#buses.keys()]) {
       this.stopBus(serverId);
     }
-  }
-
-  /** Stop all event streams and block new starts until resumeAll() is called. */
-  pauseAll(): void {
-    this.#paused = true;
-    this.stopAll();
-  }
-
-  /** Allow event streams to be started again. Callers decide which buses to restart. */
-  resumeAll(): void {
-    this.#paused = false;
   }
 }
 

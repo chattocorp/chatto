@@ -208,7 +208,6 @@ describe('eventBusManager realtime transport', () => {
   });
 
   afterEach(() => {
-    eventBusManager.resumeAll();
     eventBusManager.stopBus(TEST_SERVER);
     setRealtimeSocketFactoryForTests(null);
     consoleError.mockRestore();
@@ -519,23 +518,5 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
-  });
-
-  it('pauseAll stops active buses and blocks later startBus calls until resumeAll', async () => {
-    const fake = new FakeServerConnection();
-    await startAndSubscribe(fake);
-    expect(sockets).toHaveLength(1);
-
-    eventBusManager.pauseAll();
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
-
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
-    expect(sockets).toHaveLength(1);
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
-
-    eventBusManager.resumeAll();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
-    expect(sockets).toHaveLength(2);
-    expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
   });
 });

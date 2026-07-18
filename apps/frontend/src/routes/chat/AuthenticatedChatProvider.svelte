@@ -190,19 +190,6 @@
         currentUserPresenceStores(),
         status
       );
-    },
-    {
-      onPauseLiveEvents: () => {
-        eventBusManager.pauseAll();
-      },
-      onResumeLiveEvents: () => {
-        eventBusManager.resumeAll();
-        for (const server of serverRegistry.servers) {
-          if (serverRegistry.tryGetStore(server.id)?.isAuthenticated) {
-            eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
-          }
-        }
-      }
     }
   );
   onDestroy(stopPresenceTracking);
