@@ -31,6 +31,7 @@ export class ServerInfoState {
   bannerUrl = $state<string | null>(null);
   iconUrl = $state<string | null>(null);
   directRegistrationEnabled = $state(true);
+  clientSyncEnabled = $state(false);
   pushNotificationsEnabled = $state(false);
   vapidPublicKey = $state<string | null>(null);
   livekitUrl = $state<string | null>(null);
@@ -115,6 +116,7 @@ export class ServerInfoState {
       this.iconUrl = info.iconUrl;
       this.bannerUrl = info.bannerUrl;
       this.directRegistrationEnabled = info.directRegistrationEnabled;
+      this.clientSyncEnabled = info.clientSyncEnabled;
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err);
       console.error(`[server:${this.#label}] failed to load server info`, err);

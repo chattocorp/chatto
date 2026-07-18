@@ -52,11 +52,6 @@
       icon: 'iconify uil--user'
     },
     {
-      href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: m['settings.nav.display'](),
-      icon: 'iconify uil--clock'
-    },
-    {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: m['settings.nav.notifications'](),
       icon: 'iconify uil--bell'

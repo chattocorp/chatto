@@ -70,6 +70,10 @@ type ChattoCore struct {
 	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker *projectionSnapshotWorker
 
+	// ClientSync owns portable per-user preferences and server directories in
+	// RUNTIME_STATE. These are latest-value records, not domain events.
+	ClientSync *ClientSyncService
+
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
 	// Set this after ChattoCore is created, from VideoConfig.
@@ -258,6 +262,27 @@ type ChattoCore struct {
 // started automatically here without any additional wiring.
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
+	if c.ClientSync != nil {
+		g.Go(func() error {
+			select {
+			case <-c.bootDone:
+			case <-gctx.Done():
+				return gctx.Err()
+			}
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for {
+				if err := c.ClientSync.RecoverPendingDeletions(gctx); err != nil {
+					c.logger.Warn("Failed to recover pending client-sync deletion", "error", err)
+				}
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				case <-ticker.C:
+				}
+			}
+		})
+	}
 
 	for _, projection := range c.projections {
 		projection := projection
@@ -1483,6 +1508,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.readStateModel = &ReadStateModel{core: core}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
+	core.ClientSync = NewClientSyncService(storage.runtimeStateKV, func(ctx context.Context, userID string) error {
+		_, err := core.GetUser(ctx, userID)
+		return err
+	})
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)

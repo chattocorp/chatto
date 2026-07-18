@@ -17,7 +17,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md) a
 
 | Surface | Mount | Contract | Access boundary |
 | ------- | ----- | -------- | --------------- |
-| Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
+| Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` and `/api/connect/chatto.clientsync.api.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
 | Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
@@ -38,6 +38,7 @@ socket.
 | `chatto.discovery.v1` | `ServerDiscoveryService` | Public discovery |
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `MessageService`, `MyAccountService`, `NotificationPreferencesService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
+| `chatto.clientsync.api.v1` | `ClientSyncService` | Operator opt-in; authenticated user; resources are always scoped to the caller |
 
 ## Mounted operator services
 
@@ -45,7 +46,8 @@ socket.
 | ------- | ------- | ------------- |
 | `chatto.operator.v1` | `OperatorUserService` | Root-equivalent access over the private Unix socket |
 
-`ServerDiscoveryService.GetServer` is the only Connect method for which the
+`ServerDiscoveryService.GetServer` advertises whether the operator enabled
+client sync. It is the only Connect method for which the
 bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.

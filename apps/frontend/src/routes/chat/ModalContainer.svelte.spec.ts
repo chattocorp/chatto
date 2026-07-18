@@ -26,6 +26,7 @@ const { mocks } = vi.hoisted(() => ({
       | { id: string; url: string; name: string; token: string | null }
       | undefined,
     authenticated: {} as Record<string, boolean>,
+    homeServerId: null as string | null,
     beginExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
@@ -84,6 +85,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     },
     get originServer() {
       return mocks.originServer;
+    },
+    get homeServerId() {
+      return mocks.homeServerId;
     }
   }
 }));
@@ -201,6 +205,7 @@ beforeEach(() => {
   };
   mocks.servers = [mocks.originServer];
   mocks.authenticated = { origin: true };
+  mocks.homeServerId = null;
   vi.clearAllMocks();
 });
 
@@ -300,6 +305,29 @@ describe('ModalContainer sign out modal', () => {
       expect(mocks.removeServer).toHaveBeenCalledWith(remote.id);
       expect(mocks.removeAll).not.toHaveBeenCalled();
       expect(mocks.notifyLogout).not.toHaveBeenCalled();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+    });
+  });
+
+  it('keeps a signed-out remote home server and requires reauthentication', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'remote-token'
+    };
+    mocks.modal = { type: 'logout' };
+    mocks.activeServer = remote.id;
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.authenticated = { origin: true, remote: true };
+    mocks.homeServerId = remote.id;
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Current Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.clearServerAuthentication).toHaveBeenCalledWith(remote.id, true);
+      expect(mocks.removeServer).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
     });
   });

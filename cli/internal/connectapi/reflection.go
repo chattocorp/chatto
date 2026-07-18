@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
+	clientsyncapiv1connect "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1/apiv1connect"
 )
 
 var publicReflectionServiceNames = []string{
@@ -42,6 +43,7 @@ var publicReflectionServiceNames = []string{
 	apiv1connect.UserServiceName,
 	apiv1connect.ViewerServiceName,
 	apiv1connect.VoiceCallServiceName,
+	clientsyncapiv1connect.ClientSyncServiceName,
 }
 
 func reflectionHandlers(options []connect.HandlerOption) []Handler {

@@ -11,6 +11,13 @@ var (
 	// ErrNotFound is returned when a requested resource does not exist.
 	ErrNotFound = errors.New("not found")
 
+	// ErrKnownServerAlreadyExists is returned when a client-sync server
+	// directory already contains the requested stable server ID or origin.
+	ErrKnownServerAlreadyExists = errors.New("server already exists in client-sync directory")
+
+	// ErrCannotDeleteHomeServer protects the directory's home-server invariant.
+	ErrCannotDeleteHomeServer = errors.New("home server must be moved before it can be removed")
+
 	// ErrNotAuthenticated is returned when an operation requires authentication
 	// but no valid user context is available.
 	ErrNotAuthenticated = errors.New("authentication required")

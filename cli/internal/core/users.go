@@ -1359,6 +1359,14 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if _, err := c.GetUser(ctx, userID); err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
+	var clientSyncFence *clientSyncDeletionFence
+	if c.ClientSync != nil {
+		var err error
+		clientSyncFence, err = c.ClientSync.BeginDeleteUser(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("failed to fence client sync before user deletion: %w", err)
+		}
+	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and
 	// cleanup iterates each kind.
@@ -1394,6 +1402,13 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
+		if c.ClientSync != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), clientSyncDeletionRollbackTimeout)
+			defer cancel()
+			if cancelErr := c.ClientSync.CancelDeleteUser(cleanupCtx, clientSyncFence); cancelErr != nil {
+				return errors.Join(fmt.Errorf("failed to mark user deleted: %w", err), cancelErr)
+			}
+		}
 		return fmt.Errorf("failed to mark user deleted: %w", err)
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
@@ -1402,6 +1417,13 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 	if err := c.deleteUserSettings(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
+	}
+	var clientSyncCleanupErr error
+	if c.ClientSync != nil {
+		if err := c.ClientSync.completeUserDeletion(ctx, userID, clientSyncFence); err != nil {
+			c.logger.Warn("Failed to delete client sync during user deletion", "user_id", userID, "error", err)
+			clientSyncCleanupErr = err
+		}
 	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the
@@ -1424,5 +1446,8 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 
 	c.logger.Info("Deleted user account", "id", userID)
 
+	if clientSyncCleanupErr != nil {
+		return fmt.Errorf("account deleted but client sync cleanup failed: %w", clientSyncCleanupErr)
+	}
 	return nil
 }

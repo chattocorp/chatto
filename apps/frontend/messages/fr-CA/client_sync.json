@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Paramètres personnels",
+      "subtitle": "Des préférences qui vous appartiennent, et non à un seul serveur",
+      "save_failed": "Impossible d’enregistrer vos paramètres personnels",
+      "home": {
+        "title": "Serveur principal",
+        "description": "Votre serveur principal conserve les préférences et la liste de serveurs qui vous suivent d’un client Chatto à l’autre. Les mots de passe et jetons de connexion restent sur cet appareil.",
+        "add_server_first": "Ajoutez un serveur et connectez-vous avant de choisir un serveur principal.",
+        "choose_prompt": "Choisissez le serveur qui synchronisera vos préférences et votre liste de serveurs.",
+        "no_capable_server": "Aucun de vos serveurs ne propose actuellement la synchronisation du client. Vos paramètres restent sur cet appareil."
+      },
+      "sync": {
+        "local": "Sur cet appareil",
+        "loading": "Synchronisation…",
+        "synced": "Synchronisé",
+        "unavailable": "Synchronisation indisponible",
+        "error": "Votre attention est requise"
+      }
+    }
+  }
+}

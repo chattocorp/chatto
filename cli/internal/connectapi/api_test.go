@@ -27,6 +27,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
@@ -40,6 +41,8 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
+	clientsyncapiv1 "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1"
+	clientsyncapiv1connect "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1/apiv1connect"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
@@ -88,6 +91,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.UserServiceName + "/",
 		"/" + apiv1connect.ViewerServiceName + "/",
 		"/" + apiv1connect.VoiceCallServiceName + "/",
+		"/" + clientsyncapiv1connect.ClientSyncServiceName + "/",
 	}
 	sort.Strings(want)
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
@@ -132,6 +136,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.UserServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ViewerServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.VoiceCallServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + clientsyncapiv1connect.ClientSyncServiceName + "/":    AuthPolicyAuthenticatedUser,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("auth policy count = %d, want %d (%v)", len(got), len(want), got)
@@ -197,6 +202,109 @@ func TestRequireCaller(t *testing.T) {
 			t.Fatalf("UserID = %q, want user-123", caller.UserID)
 		}
 	})
+}
+
+func TestClientSyncServiceManagesCallerScopedData(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.ClientSync.Enabled = true
+	ctx := withCaller(env.ctx, env.viewer)
+
+	if _, err := env.clientSync.GetPreferences(env.ctx, connect.NewRequest(&clientsyncapiv1.GetPreferencesRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetPreferences code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+
+	locale := "de-DE"
+	format := clientsyncapiv1.TimeFormat_TIME_FORMAT_24_HOUR
+	updated, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Locale: &locale, TimeFormat: &format},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"locale", "time_format"}},
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePreferences: %v", err)
+	}
+	if updated.Msg.GetPreferences().GetLocale() != locale || updated.Msg.GetPreferences().GetTimeFormat() != format {
+		t.Fatalf("updated preferences = %+v", updated.Msg.GetPreferences())
+	}
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"unknown"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unsupported preference mask code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	invalidTimezone := "Definitely/Not_A_Timezone"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &invalidTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid timezone code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	localTimezone := "Local"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &localTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("Local timezone code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	timezone := "Europe/Berlin"
+	if _, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &timezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	})); err != nil {
+		t.Fatalf("set timezone: %v", err)
+	}
+	emptyTimezone := ""
+	cleared, err := env.clientSync.UpdatePreferences(ctx, connect.NewRequest(&clientsyncapiv1.UpdatePreferencesRequest{
+		Preferences: &clientsyncapiv1.Preferences{Timezone: &emptyTimezone},
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"timezone"}},
+	}))
+	if err != nil {
+		t.Fatalf("clear timezone: %v", err)
+	}
+	if cleared.Msg.GetPreferences().Timezone != nil {
+		t.Fatalf("cleared timezone = %q, want absent", cleared.Msg.GetPreferences().GetTimezone())
+	}
+
+	created, err := env.clientSync.CreateKnownServer(ctx, connect.NewRequest(&clientsyncapiv1.CreateKnownServerRequest{
+		Server: &clientsyncapiv1.KnownServer{Id: "one", Url: "https://one.example/path?ignored=yes", Name: "One"},
+	}))
+	if err != nil {
+		t.Fatalf("CreateKnownServer one: %v", err)
+	}
+	if created.Msg.GetServer().GetUrl() != "https://one.example" {
+		t.Fatalf("canonical server URL = %q, want origin", created.Msg.GetServer().GetUrl())
+	}
+	list, err := env.clientSync.ListKnownServers(ctx, connect.NewRequest(&clientsyncapiv1.ListKnownServersRequest{}))
+	if err != nil {
+		t.Fatalf("ListKnownServers: %v", err)
+	}
+	if list.Msg.GetHomeServerId() != "one" || len(list.Msg.GetServers()) != 1 {
+		t.Fatalf("initial directory = %+v", list.Msg)
+	}
+	if _, err := env.clientSync.DeleteKnownServer(ctx, connect.NewRequest(&clientsyncapiv1.DeleteKnownServerRequest{Id: "one"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("delete home code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+
+	if _, err := env.clientSync.CreateKnownServer(ctx, connect.NewRequest(&clientsyncapiv1.CreateKnownServerRequest{
+		Server: &clientsyncapiv1.KnownServer{Id: "two", Url: "https://two.example", Name: "Two"},
+	})); err != nil {
+		t.Fatalf("CreateKnownServer two: %v", err)
+	}
+	if _, err := env.clientSync.SetHomeServer(ctx, connect.NewRequest(&clientsyncapiv1.SetHomeServerRequest{Id: "two"})); err != nil {
+		t.Fatalf("SetHomeServer two: %v", err)
+	}
+	if _, err := env.clientSync.DeleteKnownServer(ctx, connect.NewRequest(&clientsyncapiv1.DeleteKnownServerRequest{Id: "one"})); err != nil {
+		t.Fatalf("DeleteKnownServer one after move: %v", err)
+	}
+}
+
+func TestClientSyncServiceIsOperatorOptIn(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+
+	_, err := env.clientSync.GetPreferences(ctx, connect.NewRequest(&clientsyncapiv1.GetPreferencesRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("disabled GetPreferences code = %v, want unimplemented", connect.CodeOf(err))
+	}
 }
 
 func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
@@ -468,6 +576,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 				{ID: "hub provider", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub"},
 			},
 		},
+		ClientSync: config.ClientSyncConfig{Enabled: true},
 	}, "9.8.7")
 	mux := http.NewServeMux()
 	for _, handler := range api.Handlers() {
@@ -514,6 +623,9 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.LoginUrl != "/auth/providers/hub%20provider" {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
+	}
+	if !msg.GetFeatures().GetClientSync() {
+		t.Fatal("features.client_sync = false, want true")
 	}
 }
 
@@ -7752,6 +7864,7 @@ type connectAPITestEnv struct {
 	messages         *messageService
 	notifications    *notificationService
 	permissions      *permissionService
+	clientSync       *clientSyncService
 	prefs            *notificationPreferencesService
 	push             *pushNotificationService
 	publicRoles      *publicRoleService
@@ -7805,6 +7918,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		messages:         &messageService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},
+		clientSync:       &clientSyncService{api: api},
 		prefs:            &notificationPreferencesService{api: api},
 		push:             &pushNotificationService{api: api},
 		publicRoles:      &publicRoleService{api: api},

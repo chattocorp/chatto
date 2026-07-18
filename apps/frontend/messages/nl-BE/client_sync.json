@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Persoonlijke instellingen",
+      "subtitle": "Voorkeuren die bij jou horen, niet bij één server",
+      "save_failed": "Je persoonlijke instellingen konden niet worden opgeslagen",
+      "home": {
+        "title": "Thuisserver",
+        "description": "Je thuisserver bewaart de voorkeuren en serverlijst die je tussen Chatto-clients volgen. Wachtwoorden en aanmeldingstokens blijven op dit apparaat.",
+        "add_server_first": "Voeg een server toe en meld je aan voordat je een thuisserver kiest.",
+        "choose_prompt": "Kies welke server je instellingen en serverlijst moet synchroniseren.",
+        "no_capable_server": "Geen van je servers biedt momenteel clientsynchronisatie aan. Je instellingen blijven op dit apparaat."
+      },
+      "sync": {
+        "local": "Op dit apparaat",
+        "loading": "Synchroniseren…",
+        "synced": "Gesynchroniseerd",
+        "unavailable": "Synchronisatie niet beschikbaar",
+        "error": "Aandacht vereist"
+      }
+    }
+  }
+}

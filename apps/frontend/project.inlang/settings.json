@@ -8,6 +8,7 @@
     "pathPattern": [
       "./messages/{locale}/common.json",
       "./messages/{locale}/settings.json",
+      "./messages/{locale}/client_sync.json",
       "./messages/{locale}/auth.json",
       "./messages/{locale}/error_page.json",
       "./messages/{locale}/chat.json",

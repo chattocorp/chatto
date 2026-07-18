@@ -50,6 +50,7 @@ describe('getPublicServerInfo', () => {
           }
         ]
       },
+      features: { clientSync: true },
       compatibility: {
         protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
         minimumWebClientVersion: '0.5.0-beta.2'
@@ -72,6 +73,7 @@ describe('getPublicServerInfo', () => {
       description: 'description',
       iconUrl: 'https://cdn/logo.webp',
       bannerUrl: 'https://cdn/banner.webp',
+      clientSyncEnabled: true,
       authProviders: [
         {
           id: 'hub',
@@ -102,6 +104,7 @@ describe('getPublicServerInfo', () => {
       description: null,
       iconUrl: null,
       bannerUrl: null,
+      clientSyncEnabled: false,
       compatibility: null
     });
   });

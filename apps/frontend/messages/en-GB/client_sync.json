@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Personal settings",
+      "subtitle": "Preferences that belong to you, not to one server",
+      "save_failed": "Could not save your personal settings",
+      "home": {
+        "title": "Home server",
+        "description": "Your home server stores the preferences and server list that follow you between Chatto clients. Passwords and sign-in tokens stay on this device.",
+        "add_server_first": "Add and sign in to a server before choosing a home server.",
+        "choose_prompt": "Choose which server should sync your settings and server list.",
+        "no_capable_server": "None of your servers currently offer client sync. Your settings stay on this device."
+      },
+      "sync": {
+        "local": "On this device",
+        "loading": "Syncing…",
+        "synced": "Synced",
+        "unavailable": "Sync unavailable",
+        "error": "Needs attention"
+      }
+    }
+  }
+}

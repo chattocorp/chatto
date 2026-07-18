@@ -18,6 +18,7 @@ export type PublicServerInfo = {
   description: string | null;
   iconUrl: string | null;
   bannerUrl: string | null;
+  clientSyncEnabled: boolean;
   authProviders: PublicAuthProvider[];
   compatibility: {
     protocolCapabilities: string[];
@@ -46,6 +47,7 @@ export async function getPublicServerInfo(
     description: profile.description,
     iconUrl: profile.logoUrl,
     bannerUrl: profile.bannerUrl,
+    clientSyncEnabled: response.features?.clientSync ?? false,
     authProviders: (response.login?.providers ?? []).map((provider) => ({
       id: provider.id,
       type: provider.type,

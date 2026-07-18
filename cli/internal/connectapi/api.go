@@ -11,6 +11,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
+	clientsyncapiv1connect "hmans.de/chatto/internal/pb/chatto/clientsync/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
@@ -117,6 +118,7 @@ func (a *API) Handlers() []Handler {
 	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
+	clientSyncPath, clientSyncHandler := clientsyncapiv1connect.NewClientSyncServiceHandler(&clientSyncService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -142,6 +144,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: roomDirectoryPath, Handler: roomDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: clientSyncPath, Handler: clientSyncHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
 	return append(handlers, reflectionHandlers(options)...)
 }

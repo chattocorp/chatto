@@ -51,6 +51,7 @@ initial server view.
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public server profile and branding. |
 | `login` | `chatto.api.v1.ServerLogin` | Login and registration options. |
 | `compatibility` | [`ServerCompatibility`](#chatto-discovery-v1-ServerCompatibility) | Protocol support and bundled-web-client compatibility metadata. |
+| `features` | [`ServerFeatures`](#chatto-discovery-v1-ServerFeatures) | Optional functionality enabled by this server's operator. |
 
 
 
@@ -72,3 +73,17 @@ has not declared a lower bound for the bundled Chatto web client.
 | --- | --- | --- |
 | `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, and `chatto.realtime.v1`. |
 | `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
+
+
+
+<a id="chatto-discovery-v1-ServerFeatures"></a>
+
+### ServerFeatures
+
+ServerFeatures reports optional server functionality which a client can
+consider before authentication. A false or absent field means the feature
+must not be used.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_sync` | `bool` | Whether this server accepts authenticated client-sync data and can be selected as a home server. |

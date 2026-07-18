@@ -1,5 +1,6 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -34,6 +35,17 @@
 <header class="app-header flex items-center justify-between gap-2 p-2 text-muted md:text-sm">
   <!-- Leading: Sidebar toggle + Notifications -->
   <div class="flex items-center gap-3">
+    <!-- eslint-disable svelte/no-navigation-without-resolve -- the route portion is resolved before the returnTo query is appended -->
+    <a
+      href={`${resolve('/settings')}?returnTo=${encodeURIComponent(page.url.pathname + page.url.search)}`}
+      aria-label={m['settings.nav.title']()}
+      title={m['settings.nav.title']()}
+      class="app-header-icon"
+    >
+      <span class="iconify text-lg uil--setting"></span>
+    </a>
+    <!-- eslint-enable svelte/no-navigation-without-resolve -->
+
     <!-- Hamburger - 44px tap target for mobile accessibility -->
     <button
       type="button"

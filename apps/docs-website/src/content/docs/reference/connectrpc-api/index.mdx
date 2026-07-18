@@ -4,7 +4,7 @@ description: Overview of Chatto's public protobuf API.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from Chatto public protobuf packages. Do not edit directly. */}
 
 Chatto exposes a protobuf-first integration API over ConnectRPC at `/api/connect`. Use it for bots, integrations, admin tooling, and alternate clients that need the same public contract as the bundled web app.
 
@@ -194,7 +194,7 @@ Generated clients expose those codes through their Connect client error helpers.
 
 ## Versioning And Stability
 
-Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.
+Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.clientsync.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.
 
 Chatto is still pre-1.0, so any release may change the public API in ways that require client changes. The `v1` suffix is part of the current wire name, not a compatibility guarantee. Pin an exact server version, test integrations against the exact upgrade candidate, and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.
 
@@ -215,6 +215,10 @@ Use the service pages below for request and response fields. Shared messages and
 ### chatto.discovery.v1
 
 - [ServerDiscoveryService](/reference/connectrpc-api/server-discovery/) - Unauthenticated server metadata, branding, and login discovery RPCs.
+
+### chatto.clientsync.api.v1
+
+- [ClientSyncService](/reference/connectrpc-api/client-sync/) - Authenticated portable preferences and known-server directory RPCs.
 
 ### chatto.api.v1
 

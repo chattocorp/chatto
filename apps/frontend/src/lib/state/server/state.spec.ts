@@ -12,6 +12,7 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     description: 'a server for acme',
     iconUrl: 'https://icon',
     bannerUrl: 'https://banner',
+    clientSyncEnabled: false,
     authProviders: [],
     compatibility: {
       protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],

@@ -4,6 +4,9 @@ import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
+import { generateServerId } from './serverIdentity';
+
+export { generateServerId } from './serverIdentity';
 
 /**
  * A registered Chatto server in the multi-server client.
@@ -40,33 +43,6 @@ export interface AuthenticatedUserSummary {
 	avatarUrl?: string | null;
 }
 
-/**
- * Generate a URL-safe server ID from a base URL.
- * Extracts the hostname and replaces dots/colons with hyphens.
- * If the ID already exists in `existingIds`, appends a numeric suffix.
- */
-export function generateServerId(url: string, existingIds: string[] = []): string {
-	let hostname: string;
-	try {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- this helper parses an input string once; no reactive URL state is needed
-		hostname = new URL(url).hostname;
-	} catch {
-		hostname = url.replace(/[^a-z0-9-]/gi, '-');
-	}
-
-	const base = hostname.replace(/\./g, '-').replace(/^-+|-+$/g, '');
-
-	if (!existingIds.includes(base)) {
-		return base;
-	}
-
-	let suffix = 2;
-	while (existingIds.includes(`${base}-${suffix}`)) {
-		suffix++;
-	}
-	return `${base}-${suffix}`;
-}
-
 // Storage key intentionally stays as 'instances' — renaming would lose users'
 // multi-server registrations (including remote bearer tokens that can't be
 // regenerated). The in-code rename is purely cosmetic.
@@ -83,6 +59,13 @@ const serversSlot = globalSlot(
 	Codecs.json<RegisteredServer[]>((v): v is RegisteredServer[] => Array.isArray(v))
 );
 
+const homeServerSlot = globalSlot(
+	'home-server-id',
+	null as string | null,
+	Codecs.json<string | null>(
+		(value): value is string | null => typeof value === 'string' || value === null
+	)
+);
 
 /**
  * Client-side registry of connected Chatto servers.
@@ -101,6 +84,7 @@ const serversSlot = globalSlot(
  */
 class ServerRegistry {
 	servers = $state<RegisteredServer[]>(serversSlot.get().map(normalizeRegisteredServer));
+	homeServerId = $state<string | null>(homeServerSlot.get());
 	#stores = new SvelteMap<string, ServerStateStore>();
 
 	/**
@@ -125,6 +109,46 @@ class ServerRegistry {
 				return false;
 			}
 		});
+	}
+
+	/** The user's explicitly chosen client-sync server. */
+	get homeServer(): RegisteredServer | undefined {
+		return this.homeServerId ? this.getServer(this.homeServerId) : undefined;
+	}
+
+	/** Choose the normal registered server which stores portable client state. */
+	setHomeServer(id: string): boolean {
+		if (!this.getServer(id)) return false;
+		this.homeServerId = id;
+		homeServerSlot.set(id);
+		return true;
+	}
+
+	/** Stop using the current home while keeping every server registration intact. */
+	clearHomeServer(): void {
+		this.homeServerId = null;
+		homeServerSlot.set(null);
+	}
+
+	/** Whether discovery says this server can be selected for client sync. */
+	isClientSyncCapable(id: string): boolean {
+		return this.tryGetStore(id)?.serverInfo.clientSyncEnabled === true;
+	}
+
+	/** Authenticated servers currently eligible to become the user's home. */
+	get clientSyncCandidates(): RegisteredServer[] {
+		return this.servers.filter(
+			(server) => this.isAuthenticated(server.id) && this.isClientSyncCapable(server.id)
+		);
+	}
+
+	/** Select the home automatically only when there is exactly one safe choice. */
+	chooseAutomaticHomeServer(): void {
+		if (this.homeServerId) return;
+		const authenticated = this.servers.filter((server) => this.isAuthenticated(server.id));
+		if (authenticated.some((server) => this.tryGetStore(server.id)?.serverInfo.loading)) return;
+		const candidates = this.clientSyncCandidates;
+		if (candidates.length === 1) this.setHomeServer(candidates[0].id);
 	}
 
 	/**
@@ -168,7 +192,10 @@ class ServerRegistry {
 
 		if (knownServer) {
 			// Synchronous registration — we already know it's a Chatto server
-			const id = generateServerId(origin, this.servers.map((s) => s.id));
+			const id = generateServerId(
+				origin,
+				this.servers.map((s) => s.id)
+			);
 			this.#registerOrigin(id, origin, 'Chatto', null);
 			this.originProbed = true;
 			return;
@@ -222,7 +249,10 @@ class ServerRegistry {
 		const origin = this.originServer;
 		if (!origin) {
 			const originUrl = window.location.origin;
-			const id = generateServerId(originUrl, this.servers.map((s) => s.id));
+			const id = generateServerId(
+				originUrl,
+				this.servers.map((s) => s.id)
+			);
 			this.#registerOrigin(id, originUrl, 'Chatto', null, token, user);
 			this.originProbed = true;
 			return;
@@ -250,7 +280,7 @@ class ServerRegistry {
 		store.currentUser.loading = false;
 	}
 
-	clearServerAuthentication(id: string): void {
+	clearServerAuthentication(id: string, requireReauthentication = false): void {
 		const server = this.getServer(id);
 		if (!server) return;
 		this.#replaceServerAuth(id, {
@@ -259,13 +289,18 @@ class ServerRegistry {
 			userLogin: null,
 			userDisplayName: null,
 			userAvatarUrl: null,
-			reauthRequiredAt: null
+			reauthRequiredAt: requireReauthentication ? Date.now() : null
 		});
 		const store = this.tryGetStore(id);
 		if (store) {
 			store.currentUser.user = undefined;
 			store.currentUser.loading = false;
 		}
+	}
+
+	/** Reconsider automatic home selection after cookie authentication settles. */
+	serverAuthenticated(id: string): void {
+		if (this.isAuthenticated(id)) this.chooseAutomaticHomeServer();
 	}
 
 	clearOriginAuthentication(): void {
@@ -300,6 +335,10 @@ class ServerRegistry {
 	 * Call once from the root layout's script init (before any $derived reads stores).
 	 */
 	init(): void {
+		if (this.homeServerId && !this.getServer(this.homeServerId)) {
+			this.homeServerId = null;
+			homeServerSlot.set(null);
+		}
 		for (const server of this.servers) {
 			if (!this.#stores.has(server.id)) {
 				this.#createStore(server);
@@ -326,6 +365,7 @@ class ServerRegistry {
 		if (store.isAuthenticated) {
 			const serverConnection = serverConnectionManager.getClient(server.id);
 			eventBusManager.startBus(server.id, serverConnection);
+			this.chooseAutomaticHomeServer();
 		}
 	}
 
@@ -335,6 +375,7 @@ class ServerRegistry {
 		if (!server) {
 			return false;
 		}
+		if (id === this.homeServerId) return false;
 
 		// Stop event bus subscription
 		eventBusManager.stopBus(id);
@@ -362,6 +403,8 @@ class ServerRegistry {
 		}
 		this.servers = [];
 		serversSlot.set(this.servers);
+		this.homeServerId = null;
+		homeServerSlot.set(null);
 	}
 
 	/** Update fields on an existing server. */
@@ -406,6 +449,7 @@ class ServerRegistry {
 		const store = this.#createStore(server);
 		if (store.isAuthenticated) {
 			eventBusManager.startBus(id, serverConnectionManager.getClient(id));
+			this.chooseAutomaticHomeServer();
 		}
 		return true;
 	}
@@ -453,10 +497,7 @@ class ServerRegistry {
 		// init() is fail-soft (catches its own errors) but defensively swallow
 		// any unexpected rejection so it can never become an unhandled rejection.
 		store.serverInfo.init().catch((err) => {
-			console.error(
-				`[server:${server.url}] unexpected init() rejection`,
-				err
-			);
+			console.error(`[server:${server.url}] unexpected init() rejection`, err);
 		});
 
 		if (server.token === null) {
@@ -482,10 +523,7 @@ class ServerRegistry {
 					}
 				})
 				.catch((err) => {
-					console.error(
-						`[server:${server.url}] failed to load current user`,
-						err
-					);
+					console.error(`[server:${server.url}] failed to load current user`, err);
 					store.currentUser.loading = false;
 				});
 		}

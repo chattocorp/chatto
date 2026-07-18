@@ -84,6 +84,7 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const isHomeServer = $derived(serverRegistry.homeServerId === serverId);
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
@@ -289,7 +290,6 @@
     void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 
@@ -325,6 +325,8 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   dimmed={iconDimmed}
+  home={isHomeServer}
+  homeLabel={m['client_sync.settings.home.title']()}
   {compatibilityWarning}
 />
 

@@ -4,7 +4,7 @@ description: Unauthenticated server metadata, branding, and login discovery RPCs
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from Chatto public protobuf packages. Do not edit directly. */}
 
 Chatto exposes this service below `/api/connect`.
 
@@ -51,3 +51,4 @@ initial server view.
 | `profile` | [`chatto.api.v1.ServerPublicProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
 | `login` | [`chatto.api.v1.ServerLogin`](/reference/connectrpc-api/types/#chatto-api-v1-ServerLogin) | Login and registration options. |
 | `compatibility` | [`ServerCompatibility`](/reference/connectrpc-api/types/#chatto-discovery-v1-ServerCompatibility) | Protocol support and bundled-web-client compatibility metadata. |
+| `features` | [`ServerFeatures`](/reference/connectrpc-api/types/#chatto-discovery-v1-ServerFeatures) | Optional functionality enabled by this server's operator. |

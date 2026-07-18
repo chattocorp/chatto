@@ -46,6 +46,9 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
 		},
+		Features: &discoveryv1.ServerFeatures{
+			ClientSync: s.api.config.ClientSync.Enabled,
+		},
 		Compatibility: &discoveryv1.ServerCompatibility{
 			ProtocolCapabilities: discoveryProtocolCapabilities,
 		},

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
+import NotificationSoundSettings from '$lib/components/settings/NotificationSoundSettings.svelte';
 import { NotificationLevel } from '$lib/render/types';
 import { NotificationLevel as ApiNotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -186,7 +187,7 @@ describe('Notification settings page', () => {
     mocks.listRooms.mockResolvedValue([{ id: 'room-1', name: 'general', hasUnread: false }]);
   });
 
-  it('renders notification levels and sound choices from mocked state', async () => {
+  it('renders notification levels from mocked state', async () => {
     const { container } = render(NotificationsPage);
     await settle();
 
@@ -206,6 +207,12 @@ describe('Notification settings page', () => {
       bearerToken: 'origin-token'
     });
     expect(mocks.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
+  });
+
+  it('renders the extracted browser-local notification sound settings', async () => {
+    const { container } = render(NotificationSoundSettings);
+    await settle();
+
     expect(container.textContent).toContain('Notification Sound');
     expect(container.textContent).toContain('Silent');
     expect(container.textContent).toContain('Simple');
@@ -221,16 +228,10 @@ describe('Notification settings page', () => {
     await expect.element(q(container, '[data-testid="notification-echo-filter"]')).toBeVisible();
     await expect.element(q(container, '[data-testid="notification-reverb-filter"]')).toBeVisible();
     await expect.element(q(container, '[data-testid="notification-crunch-filter"]')).toBeVisible();
-    expect(container.querySelector('.uil--volume')).not.toBeNull();
-    expect(container.querySelector('.uil--bolt')).not.toBeNull();
-    expect(container.querySelector('.uil--volume-mute')).not.toBeNull();
-    expect(container.querySelector('.uil--redo')).not.toBeNull();
-    expect(container.querySelector('.uil--cloud')).not.toBeNull();
-    expect(container.querySelector('.uil--fire')).not.toBeNull();
   });
 
   it('selects and persists a non-silent notification sound', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     const softPopButton = buttonWithText(container, 'Soft Pop');
@@ -249,7 +250,7 @@ describe('Notification settings page', () => {
   });
 
   it('selects silent mode without previewing a sound', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     const silentButton = buttonWithText(container, 'Silent');
@@ -410,7 +411,7 @@ describe('Notification settings page', () => {
   });
 
   it('updates and persists notification sound filter sliders', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     setRangeValue(
@@ -470,7 +471,7 @@ describe('Notification settings page', () => {
   });
 
   it('previews the selected sound with the current filters', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     setRangeValue(
@@ -489,7 +490,7 @@ describe('Notification settings page', () => {
   });
 
   it('previews a filter change only when the slider change is committed', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     const volumeInput = q(
@@ -512,7 +513,7 @@ describe('Notification settings page', () => {
   });
 
   it('does not preview committed filter changes while Silent is selected', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     buttonWithText(container, 'Silent').click();
@@ -528,7 +529,7 @@ describe('Notification settings page', () => {
   });
 
   it('disables preview when silent is selected', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     buttonWithText(container, 'Silent').click();
@@ -544,7 +545,7 @@ describe('Notification settings page', () => {
   });
 
   it('resets notification sound filters to defaults', async () => {
-    const { container } = render(NotificationsPage);
+    const { container } = render(NotificationSoundSettings);
     await settle();
 
     setRangeValue(

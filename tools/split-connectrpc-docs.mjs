@@ -9,6 +9,7 @@ const rawReferencePaths = [
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/clientsync.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx')
 ];
 const legacyRawReferencePath = path.join(
@@ -43,6 +44,17 @@ const categories = [
         slug: 'server-discovery',
         title: 'Server Discovery',
         description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
+      }
+    ]
+  },
+  {
+    title: 'chatto.clientsync.api.v1',
+    services: [
+      {
+        name: 'ClientSyncService',
+        slug: 'client-sync',
+        title: 'Client Sync',
+        description: 'Authenticated portable preferences and known-server directory RPCs.'
       }
     ]
   },
@@ -197,7 +209,7 @@ function frontmatter(title, description) {
 }
 
 function generatedNotice() {
-  return '{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
+  return '{/* Generated from Chatto public protobuf packages. Do not edit directly. */}\n\n';
 }
 
 function parseAnchoredSections(source, heading) {
@@ -218,11 +230,11 @@ function parseAnchoredSections(source, heading) {
 function rewriteServiceTypeLinks(section) {
   return section
     .replace(
-      /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
+      /\]\(#(chatto-(?:auth|discovery|api|admin|clientsync-api)-v1-[^)]+)\)/g,
       '](/reference/connectrpc-api/types/#$1)'
     )
     .replace(
-      /`chatto\.(auth|discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
+      /`chatto\.(auth|discovery|api|admin|clientsync\.api)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
       (_match, pkg, typeName) =>
         `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
     );
@@ -269,7 +281,7 @@ function dedupeInlineMethodTypes(content) {
 }
 
 function isRealtimeType(name) {
-  return name.startsWith('Realtime');
+  return name.startsWith('Realtime') || name.startsWith('chatto-realtime-v1-');
 }
 
 function renderPage(title, description, body) {
@@ -466,7 +478,7 @@ function renderLanding() {
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.',
+    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, `chatto.clientsync.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.',
     '',
     'Chatto is still pre-1.0, so any release may change the public API in ways that require client changes. The `v1` suffix is part of the current wire name, not a compatibility guarantee. Pin an exact server version, test integrations against the exact upgrade candidate, and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.',
     '',
@@ -664,11 +676,11 @@ for (const rawReferencePath of rawReferencePaths) {
   for (const [name, section] of parseAnchoredSections(serviceSource, '##')) {
     serviceSections.set(name, section);
   }
-  for (const [name, section] of parseAnchoredSections(typeSource, '###')) {
-    typeSections.set(name, section);
+  for (const [, section] of parseAnchoredSections(typeSource, '###')) {
+    typeSections.set(section.anchor, section);
   }
-  for (const [name, section] of parseAnchoredSections(enumSource, '###')) {
-    enumSections.set(name, section);
+  for (const [, section] of parseAnchoredSections(enumSource, '###')) {
+    enumSections.set(section.anchor, section);
   }
 }
 

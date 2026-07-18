@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Personliga inställningar",
+      "subtitle": "Inställningar som tillhör dig, inte en enskild server",
+      "save_failed": "Det gick inte att spara dina personliga inställningar",
+      "home": {
+        "title": "Hemserver",
+        "description": "Din hemserver lagrar inställningarna och serverlistan som följer med dig mellan Chatto-klienter. Lösenord och inloggningstoken stannar på den här enheten.",
+        "add_server_first": "Lägg till och logga in på en server innan du väljer en hemserver.",
+        "choose_prompt": "Välj vilken server som ska synkronisera dina inställningar och din serverlista.",
+        "no_capable_server": "Ingen av dina servrar erbjuder klientsynkronisering just nu. Dina inställningar stannar på den här enheten."
+      },
+      "sync": {
+        "local": "På den här enheten",
+        "loading": "Synkroniserar…",
+        "synced": "Synkroniserat",
+        "unavailable": "Synkronisering inte tillgänglig",
+        "error": "Kräver åtgärd"
+      }
+    }
+  }
+}

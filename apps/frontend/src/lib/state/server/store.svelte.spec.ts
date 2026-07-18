@@ -471,6 +471,7 @@ describe('ServerStateStore live server updates', () => {
       iconUrl: 'https://cdn/icon.webp',
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
+      clientSyncEnabled: false,
       authProviders: [],
       compatibility: {
         protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],

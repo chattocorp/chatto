@@ -104,6 +104,7 @@ export const adminServerSettings = serverAdminGeneral;
 // --- User settings ---
 
 export const settings = `/chat/${HOME}/settings`;
+export const personalSettings = '/settings';
 export const settingsAccount = `/chat/${HOME}/settings/account`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
 export const settingsPreferences = `/chat/${HOME}/settings/preferences`;

@@ -16,6 +16,24 @@ test.describe('Notification Settings', () => {
 
     await page.waitForURL(routes.settingsNotifications);
     await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(page.getByText('Server Notification Level')).toBeVisible();
+  });
+
+  test('personal settings are accessible from the app header', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await page.waitForURL(routes.browseRooms);
+
+    await page
+      .locator('header.app-header')
+      .getByRole('link', { name: 'Settings', exact: true })
+      .click();
+
+    await page.waitForURL((url) => url.pathname === routes.personalSettings);
+    await expect(
+      page.getByRole('heading', { name: 'Personal settings', exact: true })
+    ).toBeVisible();
+    await expect(page.getByText('Home server', { exact: true })).toBeVisible();
     await expect(page.getByText('Notification Sound')).toBeVisible();
   });
 });

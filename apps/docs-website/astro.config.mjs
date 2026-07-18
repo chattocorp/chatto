@@ -119,6 +119,10 @@ export default defineConfig({
               items: ["reference/connectrpc-api/server-discovery"],
             },
             {
+              label: "chatto.clientsync.api.v1",
+              items: ["reference/connectrpc-api/client-sync"],
+            },
+            {
               label: "chatto.api.v1",
               items: [
                 "reference/connectrpc-api/assets",

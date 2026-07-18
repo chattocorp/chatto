@@ -1,5 +1,4 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
   import ServerLogo from './components/ServerLogo.svelte';
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
@@ -17,6 +16,8 @@
     contextMenuTrigger,
     title,
     dimmed = false,
+    home = false,
+    homeLabel,
     compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
@@ -36,12 +37,17 @@
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
+    /** Mark this server as the user's client-sync home server. */
+    home?: boolean;
+    /** Accessible label for the home-server marker. */
+    homeLabel?: string;
     /** Show a non-interactive compatibility warning marker. */
     compatibilityWarning?: boolean;
   } = $props();
 </script>
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
+  <!-- eslint-disable svelte/no-navigation-without-resolve -- callers provide resolved internal routes or absolute server URLs -->
   <a
     {href}
     {title}
@@ -59,6 +65,7 @@
       <span class={icon}></span>
     {/if}
   </a>
+  <!-- eslint-enable svelte/no-navigation-without-resolve -->
 
   {#if compatibilityWarning}
     <span
@@ -86,11 +93,7 @@
             : 'Go to first unread room'}
       >
         {#if indicator === 'notification' && notificationCount > 0}
-          <NotificationBadge
-            count={notificationCount}
-            overlay
-            testid="server-notification-badge"
-          />
+          <NotificationBadge count={notificationCount} overlay testid="server-notification-badge" />
           <span class="sr-only">{notificationCount} notifications</span>
         {:else}
           <UnreadDot
@@ -100,23 +103,34 @@
           />
         {/if}
       </button>
+    {:else if indicator === 'notification' && notificationCount > 0}
+      <NotificationBadge
+        count={notificationCount}
+        overlay
+        class="absolute top-0 right-0 z-10"
+        testid="server-notification-badge"
+      />
+      <span class="sr-only">{notificationCount} notifications</span>
     {:else}
-      {#if indicator === 'notification' && notificationCount > 0}
-        <NotificationBadge
-          count={notificationCount}
-          overlay
-          class="absolute top-0 right-0 z-10"
-          testid="server-notification-badge"
-        />
-        <span class="sr-only">{notificationCount} notifications</span>
-      {:else}
-        <UnreadDot
-          color={indicator === 'notification' ? 'warning' : 'muted'}
-          overlay
-          class="absolute top-0 right-0 z-10"
-          testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
-        />
-      {/if}
+      <UnreadDot
+        color={indicator === 'notification' ? 'warning' : 'muted'}
+        overlay
+        class="absolute top-0 right-0 z-10"
+        testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
+      />
     {/if}
+  {/if}
+
+  {#if home}
+    <span
+      class="absolute bottom-0 left-0 z-10 flex size-5 items-center justify-center rounded-full bg-action text-on-action shadow-sm ring-2 ring-background"
+      role={homeLabel ? 'img' : 'presentation'}
+      aria-label={homeLabel}
+      data-testid="home-server-indicator"
+    >
+      <svg class="size-3" viewBox="0 0 20 20" aria-hidden="true">
+        <path fill="currentColor" d="M10 2.5 2.5 8.7v8.8h5v-5h5v5h5V8.7L10 2.5Z" />
+      </svg>
+    </span>
   {/if}
 </div>

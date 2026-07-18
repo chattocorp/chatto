@@ -38,6 +38,10 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**Home Server** — A registered, authenticated Chatto server whose operator has enabled client sync and which the user designates to store portable preferences and their known-server directory. It is marked in the Server Gutter; credentials for other servers remain device-local. See [ADR-051](adr/ADR-051-home-server-client-sync.md) and [FDR-032](fdr/FDR-032-personal-settings.md).
+
+**Client Sync** — The optional home-server capability that synchronises portable preferences and public server-directory metadata between Chatto clients. Operators must opt in; passwords, sessions, and bearer tokens are never synchronised. See [ADR-051](adr/ADR-051-home-server-client-sync.md).
+
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).

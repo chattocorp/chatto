@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "client_sync": {
+    "settings": {
+      "title": "Ustawienia osobiste",
+      "subtitle": "Preferencje należące do Ciebie, a nie do jednego serwera",
+      "save_failed": "Nie udało się zapisać ustawień osobistych",
+      "home": {
+        "title": "Serwer domowy",
+        "description": "Serwer domowy przechowuje preferencje i listę serwerów, które towarzyszą Ci między klientami Chatto. Hasła i tokeny logowania pozostają na tym urządzeniu.",
+        "add_server_first": "Dodaj serwer i zaloguj się, zanim wybierzesz serwer domowy.",
+        "choose_prompt": "Wybierz serwer, który ma synchronizować Twoje ustawienia i listę serwerów.",
+        "no_capable_server": "Żaden z Twoich serwerów nie oferuje obecnie synchronizacji klienta. Ustawienia pozostają na tym urządzeniu."
+      },
+      "sync": {
+        "local": "Na tym urządzeniu",
+        "loading": "Synchronizowanie…",
+        "synced": "Zsynchronizowano",
+        "unavailable": "Synchronizacja niedostępna",
+        "error": "Wymaga uwagi"
+      }
+    }
+  }
+}

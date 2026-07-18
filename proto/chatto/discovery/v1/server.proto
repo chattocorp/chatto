@@ -8,6 +8,15 @@ import "google/protobuf/descriptor.proto";
 // Request for public server metadata.
 message GetServerRequest {}
 
+// ServerFeatures reports optional server functionality which a client can
+// consider before authentication. A false or absent field means the feature
+// must not be used.
+message ServerFeatures {
+  // Whether this server accepts authenticated client-sync data and can be
+  // selected as a home server.
+  bool client_sync = 1;
+}
+
 // Public metadata clients need before they can authenticate or render the
 // initial server view.
 message GetServerResponse {
@@ -17,6 +26,8 @@ message GetServerResponse {
   chatto.api.v1.ServerLogin login = 2;
   // Protocol support and bundled-web-client compatibility metadata.
   ServerCompatibility compatibility = 3;
+  // Optional functionality enabled by this server's operator.
+  ServerFeatures features = 4;
 }
 
 // Machine-readable compatibility metadata for clients connecting to this
