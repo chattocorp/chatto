@@ -200,6 +200,28 @@ export function laserCooldownProgress(now: number, readyAt: number): number {
   return Math.max(0, Math.min(1, 1 - (readyAt - now) / LASER_COOLDOWN));
 }
 
+/** Place a laser gun at an evenly spaced position around the canvas perimeter. */
+export function laserBeamOrigin(
+  laserIndex: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  laserCount = MAX_LASER_GUNS
+): { x: number; y: number } {
+  const width = Math.max(0, canvasWidth);
+  const height = Math.max(0, canvasHeight);
+  const count = Math.max(1, Math.floor(laserCount));
+  const index = Math.max(0, Math.min(count - 1, Math.floor(laserIndex)));
+  const perimeter = 2 * (width + height);
+  let position = ((index + 0.5) / count) * perimeter;
+
+  if (position <= width) return { x: position, y: 0 };
+  position -= width;
+  if (position <= height) return { x: width, y: position };
+  position -= height;
+  if (position <= width) return { x: width - position, y: height };
+  return { x: 0, y: height - (position - width) };
+}
+
 function deterministicUnit(seed: number): number {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);

@@ -23,6 +23,7 @@ import {
   IMPACT_LASER_DURATION,
   impactLaserFrame,
   LASER_COOLDOWN,
+  laserBeamOrigin,
   laserCooldownProgress,
   laserGunCost,
   laserJitter,
@@ -132,6 +133,35 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(scoreAfterFirstShot);
   });
 
+  it('fires the final allowed laser without interrupting canvas rendering', async () => {
+    const { container } = render(SimulatedChattoWordmark, {
+      props: { initialLaserPowers: Array.from({ length: MAX_LASER_GUNS }, () => 1) }
+    });
+    const wordmark = q(
+      container,
+      'button[aria-label="Fire a ready laser at Chatto"]'
+    ) as HTMLButtonElement;
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    let now = performance.now();
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    for (let shot = 0; shot < GAME_UI_REVEAL_SHOTS; shot += 1) {
+      wordmark.click();
+      if (shot < GAME_UI_REVEAL_SHOTS - 1) now += LASER_COOLDOWN + 1;
+    }
+    for (let laser = 1; laser < MAX_LASER_GUNS; laser += 1) wordmark.click();
+
+    await expect
+      .poll(() =>
+        container.querySelector(`[aria-label^="Laser ${MAX_LASER_GUNS}, power 1"]`)?.getAttribute(
+          'data-ready'
+        )
+      )
+      .toBe('false');
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    performanceNow.mockRestore();
+  });
+
   it('starts a fresh game when reopened', async () => {
     const first = render(SimulatedChattoWordmark);
     const wordmark = q(
@@ -209,6 +239,12 @@ describe('SimulatedChattoWordmark', () => {
     expect(laserCooldownProgress(1000, 2500)).toBe(0);
     expect(laserCooldownProgress(1750, 2500)).toBe(0.5);
     expect(laserCooldownProgress(2500, 2500)).toBe(1);
+    const origins = Array.from({ length: MAX_LASER_GUNS }, (_, index) =>
+      laserBeamOrigin(index, 800, 400)
+    );
+    expect(origins).toHaveLength(MAX_LASER_GUNS);
+    expect(new Set(origins.map(({ x, y }) => `${x},${y}`)).size).toBe(MAX_LASER_GUNS);
+    expect(origins.every(({ x, y }) => x === 0 || x === 800 || y === 0 || y === 400)).toBe(true);
   });
 
   it('builds four depth layers for the rounded glyphs', () => {

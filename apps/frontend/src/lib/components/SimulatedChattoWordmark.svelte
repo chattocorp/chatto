@@ -23,6 +23,7 @@
     IMPACT_LASER_DURATION,
     impactLaserFrame,
     LASER_COOLDOWN,
+    laserBeamOrigin,
     laserCooldownProgress,
     laserGunCost,
     laserJitter,
@@ -755,19 +756,7 @@
     hudNow = triggeredAt;
     const projectionFrame = createCanvasProjectionFrame(triggeredAt);
     const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(shotPower);
-    const clamp = (value: number, minimum: number, maximum: number) =>
-      Math.max(minimum, Math.min(maximum, value));
-    const laserPositions: LaserBeam[] = [
-      { x: 0, y: clamp(canvasHeight * 0.34, 20, canvasHeight - 20) },
-      { x: canvasWidth, y: clamp(canvasHeight * 0.66, 20, canvasHeight - 20) },
-      { x: clamp(canvasWidth * 0.3, 20, canvasWidth - 20), y: 0 },
-      { x: clamp(canvasWidth * 0.7, 20, canvasWidth - 20), y: canvasHeight },
-      { x: 0, y: clamp(canvasHeight * 0.76, 20, canvasHeight - 20) },
-      { x: canvasWidth, y: clamp(canvasHeight * 0.24, 20, canvasHeight - 20) },
-      { x: clamp(canvasWidth * 0.72, 20, canvasWidth - 20), y: 0 },
-      { x: clamp(canvasWidth * 0.28, 20, canvasWidth - 20), y: canvasHeight }
-    ];
-    const lasers = [laserPositions[laserIndex]];
+    const lasers = [laserBeamOrigin(laserIndex, canvasWidth, canvasHeight)];
     const smokeScale = laserPowerSmokeScale(shotPower);
     const smokeCount = Math.round(5 + smokeScale * 9);
     const smoke: SmokeParticle[] = Array.from({ length: smokeCount }, (_, index) => {
