@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Вистрілити готовим лазером у Chatto",
       "points": "{count} очок",
-      "laser_guns": "{count} лазерних гармат",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} лазерна гармата",
+            "countPlural=other": "{count} лазерних гармат"
+          }
+        }
+      ],
       "laser_ready": "Лазер {number}, потужність {power}, готовий",
       "laser_cooldown": "Лазер {number}, потужність {power}: залишилося {seconds} с перезарядки",
       "upgrade_power": "Підвищити лазер {number} до рівня потужності {level} за {cost} очок",

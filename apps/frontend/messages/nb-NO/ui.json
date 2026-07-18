@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Avfyr en klar laser mot Chatto",
       "points": "{count} poeng",
-      "laser_guns": "{count} laserkanoner",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laserkanon",
+            "countPlural=other": "{count} laserkanoner"
+          }
+        }
+      ],
       "laser_ready": "Laser {number}, styrke {power}, klar",
       "laser_cooldown": "Laser {number}, styrke {power}: {seconds} sekunder nedkjøling gjenstår",
       "upgrade_power": "Oppgrader laser {number} til styrkenivå {level} for {cost} poeng",

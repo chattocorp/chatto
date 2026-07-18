@@ -200,6 +200,17 @@ export function laserCooldownProgress(now: number, readyAt: number): number {
   return Math.max(0, Math.min(1, 1 - (readyAt - now) / LASER_COOLDOWN));
 }
 
+/** Advance the cooldown HUD periodically and exactly once when a gun becomes ready. */
+export function nextCooldownHudTime(
+  hudNow: number,
+  now: number,
+  lasers: readonly { readyAt: number }[]
+): number {
+  const cooldownCompleted = lasers.some((laser) => laser.readyAt > hudNow && laser.readyAt <= now);
+  const cooldownActive = lasers.some((laser) => laser.readyAt > now);
+  return cooldownCompleted || (cooldownActive && now - hudNow >= 50) ? now : hudNow;
+}
+
 /** Place a laser gun at an evenly spaced position around the canvas perimeter. */
 export function laserBeamOrigin(
   laserIndex: number,

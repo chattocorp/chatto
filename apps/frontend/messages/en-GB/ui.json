@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Fire a ready laser at Chatto",
       "points": "{count} points",
-      "laser_guns": "{count} laser guns",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laser gun",
+            "countPlural=other": "{count} laser guns"
+          }
+        }
+      ],
       "laser_ready": "Laser {number}, power {power}, ready",
       "laser_cooldown": "Laser {number}, power {power}: {seconds} seconds of cooldown remaining",
       "upgrade_power": "Upgrade laser {number} to power level {level} for {cost} points",

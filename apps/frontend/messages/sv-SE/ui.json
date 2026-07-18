@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Avfyra en redo laser mot Chatto",
       "points": "{count} poäng",
-      "laser_guns": "{count} laserkanoner",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laserkanon",
+            "countPlural=other": "{count} laserkanoner"
+          }
+        }
+      ],
       "laser_ready": "Laser {number}, styrka {power}, redo",
       "laser_cooldown": "Laser {number}, styrka {power}: {seconds} sekunders nedkylning återstår",
       "upgrade_power": "Uppgradera laser {number} till styrkenivå {level} för {cost} poäng",

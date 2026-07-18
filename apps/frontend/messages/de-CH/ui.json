@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Einen bereiten Laser auf Chatto abfeuern",
       "points": "{count} Punkte",
-      "laser_guns": "{count} Laserkanonen",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} Laserkanone",
+            "countPlural=other": "{count} Laserkanonen"
+          }
+        }
+      ],
       "laser_ready": "Laser {number}, Stärke {power}, bereit",
       "laser_cooldown": "Laser {number}, Stärke {power}: noch {seconds} Sekunden Abklingzeit",
       "upgrade_power": "Stärke von Laser {number} für {cost} Punkte auf Stufe {level} erhöhen",

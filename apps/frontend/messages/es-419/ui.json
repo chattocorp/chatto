@@ -36,7 +36,16 @@
     "easter_egg": {
       "fire": "Disparar un láser listo contra Chatto",
       "points": "{count} puntos",
-      "laser_guns": "{count} cañones láser",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} cañón láser",
+            "countPlural=other": "{count} cañones láser"
+          }
+        }
+      ],
       "laser_ready": "Láser {number}, potencia {power}, listo",
       "laser_cooldown": "Láser {number}, potencia {power}: quedan {seconds} segundos de recarga",
       "upgrade_power": "Mejorar el láser {number} al nivel de potencia {level} por {cost} puntos",

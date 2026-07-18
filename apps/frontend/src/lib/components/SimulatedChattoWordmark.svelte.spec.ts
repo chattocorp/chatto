@@ -31,6 +31,7 @@ import {
   laserPowerSmokeScale,
   laserPowerUpgradeCost,
   MAX_LASER_GUNS,
+  nextCooldownHudTime,
   nextReadyLaserIndex,
   projectParticle,
   projectParticleWithRotation,
@@ -64,6 +65,7 @@ describe('SimulatedChattoWordmark', () => {
     ]);
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
     expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
+    expect(container.querySelector('[role="list"]')?.getAttribute('aria-label')).toBe('1 laser gun');
     expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
     expect(container.querySelector('[role="listitem"]')?.getAttribute('aria-label')).toBe(
       'Laser 1, power 1, ready'
@@ -190,6 +192,9 @@ describe('SimulatedChattoWordmark', () => {
     });
 
     await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(2);
+    expect(container.querySelector('[role="list"]')?.getAttribute('aria-label')).toBe(
+      '2 laser guns'
+    );
     const upgrade = q(
       container,
       'button[aria-label="Upgrade laser 2 to power level 4 for 38 points"]'
@@ -239,6 +244,9 @@ describe('SimulatedChattoWordmark', () => {
     expect(laserCooldownProgress(1000, 2500)).toBe(0);
     expect(laserCooldownProgress(1750, 2500)).toBe(0.5);
     expect(laserCooldownProgress(2500, 2500)).toBe(1);
+    expect(nextCooldownHudTime(1400, 1449, [{ readyAt: 1500 }])).toBe(1400);
+    expect(nextCooldownHudTime(1400, 1450, [{ readyAt: 1500 }])).toBe(1450);
+    expect(nextCooldownHudTime(1490, 1500, [{ readyAt: 1500 }])).toBe(1500);
     const origins = Array.from({ length: MAX_LASER_GUNS }, (_, index) =>
       laserBeamOrigin(index, 800, 400)
     );

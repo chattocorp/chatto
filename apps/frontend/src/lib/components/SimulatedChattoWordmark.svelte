@@ -31,6 +31,7 @@
     laserPowerSmokeScale,
     laserPowerUpgradeCost,
     MAX_LASER_GUNS,
+    nextCooldownHudTime,
     nextReadyLaserIndex,
     projectParticleWithRotation,
     quantizeSpriteFontSize,
@@ -526,7 +527,7 @@
       Math.abs(targetRotateX - currentRotateX) > 0.02 ||
       Math.abs(targetRotateY - currentRotateY) > 0.02;
     const cooldownActive = laserGuns.some((laser) => laser.readyAt > now);
-    if (cooldownActive && now - hudNow >= 50) hudNow = now;
+    hudNow = nextCooldownHudTime(hudNow, now, laserGuns);
     const activeMotion =
       constructionElapsed < CONSTRUCTION_DURATION ||
       activeBursts.length > 0 ||
