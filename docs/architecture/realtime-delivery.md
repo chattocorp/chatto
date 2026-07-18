@@ -1,6 +1,12 @@
 # Realtime Delivery Inventory
 
-Key files: [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto), [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go), [`cli/internal/core/my_events_model.go`](../../cli/internal/core/my_events_model.go)
+Key files:
+
+- [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
+- [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go)
+- [`cli/internal/core/my_events_model.go`](../../cli/internal/core/my_events_model.go)
+- [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
+- [`apps/frontend/src/lib/presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts)
 
 Related decision: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
 
@@ -23,6 +29,11 @@ touching disabled, then maps the already-authorized core envelope into public
 event gates, projection readiness, live membership changes, slow-consumer
 shutdown, and session termination therefore remain shared with
 `core.StreamMyEvents`.
+
+The frontend keeps an authenticated server's realtime stream connected
+independently of the local presence mode. "Look offline" stops presence
+refreshes and lets the live presence record expire; it does not pause event
+delivery. Realtime connection establishment itself does not touch presence.
 
 A process-wide `MyEventsHub` owns one NATS Core subscription to `live.sync.>`
 and one to `live.evt.>`. It classifies subjects before decoding, waits for

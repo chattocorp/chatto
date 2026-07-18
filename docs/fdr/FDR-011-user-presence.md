@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-18
 
 ## Overview
 
@@ -16,7 +16,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 - Users can explicitly set Away. Explicit Away does not auto-return to Online on activity.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Automatic Online/Away reports from other clients do not overwrite that manual state; an explicit Online selection clears it.
-- Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence to the server and pauses live event subscriptions so the existing presence record expires normally.
+- Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence so the existing presence record expires normally while messages and other realtime updates continue working.
 - Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
 - The presence dot updates across the UI as other users' statuses change, in real time.
 - If a live connection falls behind presence updates, it reconnects and recovers current presence instead of remaining silently stale.
@@ -55,9 +55,9 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 6. Invisible mode is client-local privacy behavior
 
-**Decision:** "Look offline" is not a server status. The client stops refreshing presence and stops receiving live event streams while the local mode is active. The server and other users only see the existing presence record expire.
-**Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it to other clients or operators through logs, admin tooling, or future APIs. Absence of reporting preserves the privacy property.
-**Tradeoff:** The user's own client loses realtime updates while invisible and must catch up from projected reads after returning to a reporting mode.
+**Decision:** "Look offline" is not a server status. The client stops refreshing presence while keeping its realtime event streams active. The server and other users only see the existing presence record expire.
+**Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it as presence state. Keeping realtime delivery independent from presence lets the app remain fully functional without reporting the user's availability choice.
+**Tradeoff:** The server can still observe ordinary authenticated activity, including API requests and an active realtime connection. "Look offline" controls the presence shown to other users; it is not an anonymity mode. Another active browser or device can also keep the user visibly present.
 
 ### 7. Per-server tracking, with frontend coordination across servers
 

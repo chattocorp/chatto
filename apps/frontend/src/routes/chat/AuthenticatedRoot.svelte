@@ -3,7 +3,6 @@
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
-  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
@@ -27,11 +26,6 @@
   } = $props();
 
   function startAuthenticatedBuses() {
-    if (shouldPauseLiveEventsForStoredPresence()) {
-      eventBusManager.pauseAll();
-      return;
-    }
-
     for (const server of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {
