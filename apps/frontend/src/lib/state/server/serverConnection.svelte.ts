@@ -138,6 +138,7 @@ export class ServerConnection {
     }
 
     if (status === 'connected') {
+      console.log('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
       return;
