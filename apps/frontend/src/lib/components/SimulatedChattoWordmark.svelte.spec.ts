@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import SimulatedChattoWordmark from './SimulatedChattoWordmark.svelte';
@@ -21,7 +21,14 @@ import {
   glyphFloatOffset,
   IMPACT_LASER_DURATION,
   impactLaserFrame,
+  LASER_COOLDOWN,
+  laserCooldownProgress,
+  laserGunCost,
   laserJitter,
+  laserPowerRadiusScale,
+  laserPowerUpgradeCost,
+  MAX_LASER_GUNS,
+  nextReadyLaserIndex,
   projectParticle,
   projectParticleWithRotation,
   quantizeSpriteFontSize,
@@ -34,20 +41,84 @@ import {
 } from './simulatedChattoWordmark';
 
 describe('SimulatedChattoWordmark', () => {
+  beforeEach(() => {
+    localStorage.removeItem('chatto.simulated-wordmark-game.v1');
+  });
+
   it('renders the particle wordmark in one accessible canvas control', async () => {
     const { container } = render(SimulatedChattoWordmark);
-    const wordmark = q(container, 'button[aria-label="Chatto"]');
+    const wordmark = q(container, 'button[aria-label="Fire a ready laser at Chatto"]');
     const canvas = q(container, 'canvas[aria-hidden="true"]') as HTMLCanvasElement;
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(wordmark).toBeTruthy();
     expect(canvas.width).toBeGreaterThan(1);
-    expect(wordmark?.classList.contains('rounded-lg')).toBe(true);
+    expect(wordmark?.parentElement?.classList.contains('rounded-lg')).toBe(true);
     expect(canvas.classList.contains('rounded-lg')).toBe(true);
     expect(Array.from(canvas.getContext('2d')!.getImageData(1, 1, 1, 1).data.slice(0, 3))).toEqual([
       5, 7, 12
     ]);
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
+    expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
+    expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
+  });
+
+  it('scores a shot and puts its only laser on cooldown', async () => {
+    const { container } = render(SimulatedChattoWordmark);
+    const wordmark = q(
+      container,
+      'button[aria-label="Fire a ready laser at Chatto"]'
+    ) as HTMLButtonElement;
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    wordmark.click();
+
+    await expect.poll(() => container.querySelector('output')?.getAttribute('aria-label')).toMatch(
+      /^[1-9]\d* points$/
+    );
+    expect(container.querySelector('[role="listitem"]')?.getAttribute('data-ready')).toBe('false');
+    const scoreAfterFirstShot = container.querySelector('output')?.getAttribute('aria-label');
+
+    wordmark.click();
+    expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(scoreAfterFirstShot);
+  });
+
+  it('restores saved incremental-game progress when reopened', async () => {
+    const first = render(SimulatedChattoWordmark);
+    const wordmark = q(
+      first.container,
+      'button[aria-label="Fire a ready laser at Chatto"]'
+    ) as HTMLButtonElement;
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    wordmark.click();
+    await expect
+      .poll(() => first.container.querySelector('output')?.getAttribute('aria-label'))
+      .toMatch(/^[1-9]\d* points$/);
+    const savedScore = first.container.querySelector('output')?.getAttribute('aria-label');
+    first.unmount();
+
+    const second = render(SimulatedChattoWordmark);
+    await expect
+      .poll(() => second.container.querySelector('output')?.getAttribute('aria-label'))
+      .toBe(savedScore);
+  });
+
+  it('prices laser progression and tracks independent cooldowns', () => {
+    expect(LASER_COOLDOWN).toBe(1500);
+    expect(MAX_LASER_GUNS).toBe(8);
+    expect(laserGunCost(1)).toBe(48);
+    expect(laserGunCost(2)).toBeGreaterThan(laserGunCost(1));
+    expect(laserGunCost(8)).toBeGreaterThan(laserGunCost(7));
+    expect(laserPowerUpgradeCost(1)).toBe(16);
+    expect(laserPowerUpgradeCost(3)).toBeGreaterThan(laserPowerUpgradeCost(2));
+    expect(laserPowerRadiusScale(1)).toBe(0.035);
+    expect(laserPowerRadiusScale(2)).toBeGreaterThan(laserPowerRadiusScale(1));
+    expect(nextReadyLaserIndex([2000, 900, 3000], 1000)).toBe(1);
+    expect(nextReadyLaserIndex([2000, 3000], 1000)).toBe(-1);
+    expect(laserCooldownProgress(1000, 2500)).toBe(0);
+    expect(laserCooldownProgress(1750, 2500)).toBe(0.5);
+    expect(laserCooldownProgress(2500, 2500)).toBe(1);
   });
 
   it('builds four depth layers for the rounded glyphs', () => {

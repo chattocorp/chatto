@@ -33,6 +33,16 @@
       "more_information": "Más información",
       "about": "Acerca de {subject}"
     },
+    "easter_egg": {
+      "fire": "Disparar un láser listo contra Chatto",
+      "points": "{count} puntos",
+      "laser_guns": "{count} cañones láser",
+      "laser_ready": "Láser {number} listo",
+      "laser_cooldown": "Láser {number}: quedan {seconds} segundos de recarga",
+      "upgrade_power": "Mejorar la potencia láser al nivel {level} por {cost} puntos",
+      "buy_laser": "Comprar el cañón láser {number} por {cost} puntos",
+      "maximum_lasers": "Se alcanzó el máximo de {count} cañones láser"
+    },
     "pane_header": {
       "back": "Volver"
     },

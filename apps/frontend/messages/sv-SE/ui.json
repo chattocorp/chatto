@@ -33,6 +33,16 @@
       "more_information": "Mer information",
       "about": "Om {subject}"
     },
+    "easter_egg": {
+      "fire": "Avfyra en redo laser mot Chatto",
+      "points": "{count} poäng",
+      "laser_guns": "{count} laserkanoner",
+      "laser_ready": "Laser {number} redo",
+      "laser_cooldown": "Laser {number}: {seconds} sekunders nedkylning återstår",
+      "upgrade_power": "Uppgradera laserstyrkan till nivå {level} för {cost} poäng",
+      "buy_laser": "Köp laserkanon {number} för {cost} poäng",
+      "maximum_lasers": "Maxgränsen på {count} laserkanoner är nådd"
+    },
     "pane_header": {
       "back": "Tillbaka"
     },

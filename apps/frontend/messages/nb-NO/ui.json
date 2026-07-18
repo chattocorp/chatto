@@ -33,6 +33,16 @@
       "more_information": "Mer informasjon",
       "about": "Om {subject}"
     },
+    "easter_egg": {
+      "fire": "Avfyr en klar laser mot Chatto",
+      "points": "{count} poeng",
+      "laser_guns": "{count} laserkanoner",
+      "laser_ready": "Laser {number} klar",
+      "laser_cooldown": "Laser {number}: {seconds} sekunder nedkjøling gjenstår",
+      "upgrade_power": "Oppgrader laserstyrken til nivå {level} for {cost} poeng",
+      "buy_laser": "Kjøp laserkanon {number} for {cost} poeng",
+      "maximum_lasers": "Maksgrensen på {count} laserkanoner er nådd"
+    },
     "pane_header": {
       "back": "Tilbake"
     },

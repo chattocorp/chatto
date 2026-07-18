@@ -33,6 +33,16 @@
       "more_information": "Więcej informacji",
       "about": "O {subject}"
     },
+    "easter_egg": {
+      "fire": "Wystrzel gotowy laser w Chatto",
+      "points": "{count} punktów",
+      "laser_guns": "{count} dział laserowych",
+      "laser_ready": "Laser {number} gotowy",
+      "laser_cooldown": "Laser {number}: pozostało {seconds} s odnowienia",
+      "upgrade_power": "Ulepsz moc lasera do poziomu {level} za {cost} punktów",
+      "buy_laser": "Kup działo laserowe {number} za {cost} punktów",
+      "maximum_lasers": "Osiągnięto limit {count} dział laserowych"
+    },
     "pane_header": {
       "back": "Wróć"
     },

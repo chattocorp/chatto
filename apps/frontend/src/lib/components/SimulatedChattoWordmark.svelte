@@ -1,4 +1,5 @@
 <script lang="ts">
+  import * as m from '$lib/i18n/messages';
   import {
     ballisticDisplacement,
     BoundedLruCache,
@@ -19,7 +20,14 @@
     glyphFloatOffset,
     IMPACT_LASER_DURATION,
     impactLaserFrame,
+    LASER_COOLDOWN,
+    laserCooldownProgress,
+    laserGunCost,
     laserJitter,
+    laserPowerRadiusScale,
+    laserPowerUpgradeCost,
+    MAX_LASER_GUNS,
+    nextReadyLaserIndex,
     projectParticleWithRotation,
     quantizeSpriteFontSize,
     radialForce,
@@ -81,12 +89,12 @@
     position: ProjectedParticle;
   };
 
-  const EXPLOSION_INFLUENCE_RADIUS_SCALE = 0.09;
   const ACTIVE_FRAME_RATE = 60;
   const IDLE_FRAME_RATE = 30;
   const MAX_ACTIVE_BURSTS = 8;
   const MAX_EMOJI_SPRITES = 768;
   const FOREGROUND_STAR_DEPTH = 0.66;
+  const GAME_STORAGE_KEY = 'chatto.simulated-wordmark-game.v1';
 
   type StarFieldLayer = 'background' | 'foreground';
 
@@ -119,11 +127,58 @@
   let activeBursts: ActiveBurst[] = [];
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
+  let points = $state(0);
+  let laserPower = $state(1);
+  let laserReadyAt = $state.raw<number[]>([0]);
+  let hudNow = $state(0);
+
+  const powerUpgradeCost = $derived(laserPowerUpgradeCost(laserPower));
+  const nextLaserCost = $derived(laserGunCost(laserReadyAt.length));
+
+  function loadGame() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(GAME_STORAGE_KEY) ?? '{}') as {
+        points?: unknown;
+        power?: unknown;
+        guns?: unknown;
+      };
+      points =
+        typeof saved.points === 'number' && Number.isFinite(saved.points)
+          ? Math.max(0, Math.floor(saved.points))
+          : 0;
+      laserPower =
+        typeof saved.power === 'number' && Number.isFinite(saved.power)
+          ? Math.max(1, Math.floor(saved.power))
+          : 1;
+      const gunCount =
+        typeof saved.guns === 'number' && Number.isFinite(saved.guns)
+          ? Math.max(1, Math.min(MAX_LASER_GUNS, Math.floor(saved.guns)))
+          : 1;
+      laserReadyAt = Array.from({ length: gunCount }, () => 0);
+    } catch {
+      points = 0;
+      laserPower = 1;
+      laserReadyAt = [0];
+    }
+  }
+
+  function saveGame() {
+    try {
+      localStorage.setItem(
+        GAME_STORAGE_KEY,
+        JSON.stringify({ points, power: laserPower, guns: laserReadyAt.length })
+      );
+    } catch {
+      // Storage can be unavailable; the in-memory game should remain playable.
+    }
+  }
 
   function setupCanvas(canvas: HTMLCanvasElement) {
+    loadGame();
     canvasElement = canvas;
     canvasContext = canvas.getContext('2d');
     constructionStartedAt = performance.now();
+    hudNow = constructionStartedAt;
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     reducedMotion = motionQuery.matches;
 
@@ -480,14 +535,17 @@
     const rotationSettling =
       Math.abs(targetRotateX - currentRotateX) > 0.02 ||
       Math.abs(targetRotateY - currentRotateY) > 0.02;
+    const cooldownActive = laserReadyAt.some((readyAt) => readyAt > now);
+    if (cooldownActive && now - hudNow >= 50) hudNow = now;
     const activeMotion =
       constructionElapsed < CONSTRUCTION_DURATION ||
       activeBursts.length > 0 ||
+      cooldownActive ||
       hoverCursor !== null ||
       rotationSettling;
     const frameInterval = 1000 / (activeMotion ? ACTIVE_FRAME_RATE : IDLE_FRAME_RATE);
     const elapsedSinceLastDraw = now - lastDrawnAt;
-    if (!reducedMotion && elapsedSinceLastDraw < frameInterval - 1) {
+    if (elapsedSinceLastDraw < frameInterval - 1) {
       requestDraw();
       return;
     }
@@ -509,11 +567,13 @@
     const projectionFrame = createCanvasProjectionFrame(now);
     drawStarField(context, now, pixelRatio, 'background');
     drawConstructionLasers(context, constructionElapsed);
-    const burstFrames = activeBursts.map((activeBurst) => ({
-      activeBurst,
-      progress: (now - activeBurst.startedAt) / EXPLOSION_DURATION,
-      frame: explosionFrame((now - activeBurst.startedAt) / EXPLOSION_DURATION)
-    }));
+    const burstFrames = reducedMotion
+      ? []
+      : activeBursts.map((activeBurst) => ({
+          activeBurst,
+          progress: (now - activeBurst.startedAt) / EXPLOSION_DURATION,
+          frame: explosionFrame((now - activeBurst.startedAt) / EXPLOSION_DURATION)
+        }));
     if (!reducedMotion) {
       for (const activeBurst of activeBursts) {
         drawImpactLasers(context, activeBurst, now);
@@ -654,7 +714,7 @@
 
     drawStarField(context, now, pixelRatio, 'foreground');
 
-    if (!reducedMotion) requestDraw();
+    if (!reducedMotion || cooldownActive) requestDraw();
   }
 
   function handlePointerMove(event: PointerEvent) {
@@ -678,7 +738,7 @@
   }
 
   function triggerBurst(event: MouseEvent) {
-    if (reducedMotion || canvasWidth <= 0 || canvasHeight <= 0) return;
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
 
     const wordmark = event.currentTarget as HTMLButtonElement;
     const bounds = canvasElement?.getBoundingClientRect() ?? wordmark.getBoundingClientRect();
@@ -686,16 +746,27 @@
     const originX = keyboardActivation ? canvasWidth / 2 : event.clientX - bounds.left;
     const originY = keyboardActivation ? canvasHeight / 2 : event.clientY - bounds.top;
     const triggeredAt = performance.now();
+    const laserIndex = nextReadyLaserIndex(laserReadyAt, triggeredAt);
+    if (laserIndex < 0) return;
+    laserReadyAt = laserReadyAt.map((readyAt, index) =>
+      index === laserIndex ? triggeredAt + LASER_COOLDOWN : readyAt
+    );
+    hudNow = triggeredAt;
     const projectionFrame = createCanvasProjectionFrame(triggeredAt);
-    const influenceRadius = projectionFrame.wordmark.width * EXPLOSION_INFLUENCE_RADIUS_SCALE;
+    const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(laserPower);
     const clamp = (value: number, minimum: number, maximum: number) =>
       Math.max(minimum, Math.min(maximum, value));
-    const lasers: LaserBeam[] = [
-      { x: 0, y: clamp(originY - 54, 20, canvasHeight - 20) },
-      { x: canvasWidth, y: clamp(originY + 46, 20, canvasHeight - 20) },
-      { x: clamp(originX - 76, 20, canvasWidth - 20), y: 0 },
-      { x: clamp(originX + 68, 20, canvasWidth - 20), y: canvasHeight }
+    const laserPositions: LaserBeam[] = [
+      { x: 0, y: clamp(canvasHeight * 0.34, 20, canvasHeight - 20) },
+      { x: canvasWidth, y: clamp(canvasHeight * 0.66, 20, canvasHeight - 20) },
+      { x: clamp(canvasWidth * 0.3, 20, canvasWidth - 20), y: 0 },
+      { x: clamp(canvasWidth * 0.7, 20, canvasWidth - 20), y: canvasHeight },
+      { x: 0, y: clamp(canvasHeight * 0.76, 20, canvasHeight - 20) },
+      { x: canvasWidth, y: clamp(canvasHeight * 0.24, 20, canvasHeight - 20) },
+      { x: clamp(canvasWidth * 0.72, 20, canvasWidth - 20), y: 0 },
+      { x: clamp(canvasWidth * 0.28, 20, canvasWidth - 20), y: canvasHeight }
     ];
+    const lasers = [laserPositions[laserIndex]];
     const smoke: SmokeParticle[] = Array.from({ length: 14 }, (_, index) => {
       const angleDirection = Math.random() < 0.5 ? -1 : 1;
       return {
@@ -752,6 +823,16 @@
       };
     });
 
+    points += vectors.filter(
+      (vector) => vector.force >= EXPLOSION_PARTICLE_FORCE_THRESHOLD
+    ).length;
+    saveGame();
+
+    if (reducedMotion) {
+      requestDraw();
+      return;
+    }
+
     activeBursts = [
       ...activeBursts.slice(-(MAX_ACTIVE_BURSTS - 1)),
       {
@@ -766,27 +847,112 @@
     ];
     requestDraw();
   }
+
+  function upgradeLaserPower() {
+    if (points < powerUpgradeCost) return;
+    points -= powerUpgradeCost;
+    laserPower += 1;
+    saveGame();
+  }
+
+  function buyLaserGun() {
+    if (laserReadyAt.length >= MAX_LASER_GUNS || points < nextLaserCost) return;
+    points -= nextLaserCost;
+    laserReadyAt = [...laserReadyAt, 0];
+    saveGame();
+    requestDraw();
+  }
 </script>
 
 <svelte:window onpointermove={handlePointerMove} />
 
-<button
-  type="button"
+<div
   class={[
-    'relative cursor-pointer overflow-hidden rounded-lg border-0 bg-black p-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action',
+    'relative overflow-hidden rounded-lg bg-black',
     contained ? 'h-full w-full' : 'aspect-[5/1] w-[min(82vw,42rem)] max-w-full'
   ]}
-  aria-label="Chatto"
-  onclick={triggerBurst}
 >
-  <canvas
-    class={[
-      'pointer-events-none absolute rounded-lg',
-      contained
-        ? 'inset-0 h-full w-full'
-        : 'top-1/2 left-1/2 h-[400%] w-[170%] -translate-x-1/2 -translate-y-1/2'
-    ]}
-    aria-hidden="true"
-    {@attach setupCanvas}
-  ></canvas>
-</button>
+  <button
+    type="button"
+    class="absolute inset-0 cursor-crosshair border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
+    aria-label={m['ui.easter_egg.fire']()}
+    onclick={triggerBurst}
+  >
+    <canvas
+      class={[
+        'pointer-events-none absolute rounded-lg',
+        contained
+          ? 'inset-0 h-full w-full'
+          : 'top-1/2 left-1/2 h-[400%] w-[170%] -translate-x-1/2 -translate-y-1/2'
+      ]}
+      aria-hidden="true"
+      {@attach setupCanvas}
+    ></canvas>
+  </button>
+
+  <div
+    class="pointer-events-none absolute top-2 left-2 flex max-w-[68%] items-start gap-1 rounded bg-black/65 p-1 text-white"
+    role="list"
+    aria-label={m['ui.easter_egg.laser_guns']({ count: laserReadyAt.length })}
+  >
+    {#each laserReadyAt as readyAt, index (index)}
+      {@const cooldownProgress = laserCooldownProgress(hudNow, readyAt)}
+      {@const cooldownSeconds = Math.max(0, (readyAt - hudNow) / 1000).toFixed(1)}
+      <div
+        class="flex w-6 flex-col items-center gap-0.5"
+        role="listitem"
+        aria-label={
+          cooldownProgress >= 1
+            ? m['ui.easter_egg.laser_ready']({ number: index + 1 })
+            : m['ui.easter_egg.laser_cooldown']({
+                number: index + 1,
+                seconds: cooldownSeconds
+              })
+        }
+        data-ready={cooldownProgress >= 1}
+      >
+        <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true">🔫</span>
+        <span class="h-1 w-5 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
+          <span
+            class="block h-full rounded-full bg-cyan-300"
+            style:width={`${cooldownProgress * 100}%`}
+          ></span>
+        </span>
+      </div>
+    {/each}
+  </div>
+
+  <output
+    class="pointer-events-none absolute top-2 right-2 rounded bg-black/65 px-2 py-1 font-mono text-sm text-white tabular-nums"
+    aria-label={m['ui.easter_egg.points']({ count: points })}
+  >✨ {points}</output>
+
+  <div class="absolute right-2 bottom-2 left-2 flex items-center justify-center gap-2">
+    <button
+      type="button"
+      class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
+      disabled={points < powerUpgradeCost}
+      aria-label={m['ui.easter_egg.upgrade_power']({
+        level: laserPower + 1,
+        cost: powerUpgradeCost
+      })}
+      onclick={upgradeLaserPower}
+    >⚡ {laserPower} → {laserPower + 1} · ✨ {powerUpgradeCost}</button>
+    <button
+      type="button"
+      class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
+      disabled={laserReadyAt.length >= MAX_LASER_GUNS || points < nextLaserCost}
+      aria-label={
+        laserReadyAt.length >= MAX_LASER_GUNS
+          ? m['ui.easter_egg.maximum_lasers']({ count: MAX_LASER_GUNS })
+          : m['ui.easter_egg.buy_laser']({
+              number: laserReadyAt.length + 1,
+              cost: nextLaserCost
+            })
+      }
+      onclick={buyLaserGun}
+    >🔫 {laserReadyAt.length}/{MAX_LASER_GUNS} · {laserReadyAt.length >= MAX_LASER_GUNS
+        ? '⛔'
+        : `✨ ${nextLaserCost}`}</button>
+  </div>
+</div>

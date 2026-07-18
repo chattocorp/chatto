@@ -33,6 +33,16 @@
       "more_information": "Meer informatie",
       "about": "Over {subject}"
     },
+    "easter_egg": {
+      "fire": "Vuur een gereed laserkanon af op Chatto",
+      "points": "{count} punten",
+      "laser_guns": "{count} laserkanonnen",
+      "laser_ready": "Laser {number} gereed",
+      "laser_cooldown": "Laser {number}: nog {seconds} seconden afkoeltijd",
+      "upgrade_power": "Verhoog laserkracht naar niveau {level} voor {cost} punten",
+      "buy_laser": "Koop laserkanon {number} voor {cost} punten",
+      "maximum_lasers": "Maximum van {count} laserkanonnen bereikt"
+    },
     "pane_header": {
       "back": "Terug"
     },

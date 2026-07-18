@@ -160,12 +160,39 @@ export const IMPACT_LASER_DURATION = 190;
 export const SMOKE_DURATION = 900;
 export const CONSTRUCTION_DURATION = 1650;
 export const CANVAS_PIXEL_RATIO_LIMIT = 1.5;
+export const LASER_COOLDOWN = 1500;
+export const MAX_LASER_GUNS = 8;
 
 const CONSTRUCTION_FIRST_ROW_DELAY = 80;
 const CONSTRUCTION_ROW_INTERVAL = 140;
 const CONSTRUCTION_SWEEP_DURATION = 460;
 const CONSTRUCTION_LASER_FADE_DURATION = 140;
 const CONSTRUCTION_PARTICLE_SETTLE_DURATION = 160;
+
+/** Cost of the next gun, with each additional gun becoming substantially dearer. */
+export function laserGunCost(currentGunCount: number): number {
+  const owned = Math.max(1, Math.min(MAX_LASER_GUNS, Math.floor(currentGunCount)));
+  return Math.round(48 * Math.pow(1.9, owned - 1));
+}
+
+/** Cost of increasing the shared power level for every owned laser gun. */
+export function laserPowerUpgradeCost(currentPower: number): number {
+  const power = Math.max(1, Math.floor(currentPower));
+  return Math.round(16 * Math.pow(1.55, power - 1));
+}
+
+/** Blast-radius scale for the current shared laser power level. */
+export function laserPowerRadiusScale(power: number): number {
+  return Math.min(0.16, 0.035 + (Math.max(1, Math.floor(power)) - 1) * 0.008);
+}
+
+export function nextReadyLaserIndex(readyAt: number[], now: number): number {
+  return readyAt.findIndex((timestamp) => timestamp <= now);
+}
+
+export function laserCooldownProgress(now: number, readyAt: number): number {
+  return Math.max(0, Math.min(1, 1 - (readyAt - now) / LASER_COOLDOWN));
+}
 
 function deterministicUnit(seed: number): number {
   const value = Math.sin(seed * 12.9898) * 43758.5453;

@@ -440,7 +440,9 @@ describe('ModalContainer About Chatto modal', () => {
     ).not.toBeNull();
     expect(container.querySelector('a[href="https://docs.chatto.run"]')).not.toBeNull();
     await vi.waitFor(() => {
-      expect(container.querySelector('button[aria-label="Chatto"] canvas')).not.toBeNull();
+      expect(
+        container.querySelector('button[aria-label="Fire a ready laser at Chatto"] canvas')
+      ).not.toBeNull();
     });
   });
 });

@@ -33,6 +33,16 @@
       "more_information": "Pliaj informoj",
       "about": "Pri {subject}"
     },
+    "easter_egg": {
+      "fire": "Pafu pretan laseron al Chatto",
+      "points": "{count} poentoj",
+      "laser_guns": "{count} laserkanonoj",
+      "laser_ready": "Lasero {number} preta",
+      "laser_cooldown": "Lasero {number}: restas {seconds} sekundoj da malvarmiĝo",
+      "upgrade_power": "Altigu laseran potencon al nivelo {level} kontraŭ {cost} poentoj",
+      "buy_laser": "Aĉetu laserkanonon {number} kontraŭ {cost} poentoj",
+      "maximum_lasers": "Maksimumo de {count} laserkanonoj atingita"
+    },
     "pane_header": {
       "back": "Reen"
     },

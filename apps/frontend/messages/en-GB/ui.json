@@ -33,6 +33,16 @@
       "more_information": "More information",
       "about": "About {subject}"
     },
+    "easter_egg": {
+      "fire": "Fire a ready laser at Chatto",
+      "points": "{count} points",
+      "laser_guns": "{count} laser guns",
+      "laser_ready": "Laser {number} ready",
+      "laser_cooldown": "Laser {number}: {seconds} seconds of cooldown remaining",
+      "upgrade_power": "Upgrade laser power to level {level} for {cost} points",
+      "buy_laser": "Buy laser gun {number} for {cost} points",
+      "maximum_lasers": "Maximum of {count} laser guns reached"
+    },
     "pane_header": {
       "back": "Back"
     },

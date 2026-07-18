@@ -33,6 +33,16 @@
       "more_information": "Mehr Informationen",
       "about": "Über {subject}"
     },
+    "easter_egg": {
+      "fire": "Einen bereiten Laser auf Chatto abfeuern",
+      "points": "{count} Punkte",
+      "laser_guns": "{count} Laserkanonen",
+      "laser_ready": "Laser {number} bereit",
+      "laser_cooldown": "Laser {number}: noch {seconds} Sekunden Abklingzeit",
+      "upgrade_power": "Laserstärke für {cost} Punkte auf Stufe {level} erhöhen",
+      "buy_laser": "Laserkanone {number} für {cost} Punkte kaufen",
+      "maximum_lasers": "Maximum von {count} Laserkanonen erreicht"
+    },
     "pane_header": {
       "back": "Zurück"
     },
