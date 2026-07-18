@@ -81,8 +81,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthNKey
 	})
 
-	return newInitForm(opts,
-		initWelcomeGroup(),
+	form := newInitForm(opts,
 		initFrontDoorGroup(answers, false),
 		initNATSModeGroup(answers),
 		embedded,
@@ -92,7 +91,8 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		userpass,
 		nkey,
 		initReviewGroup(answers, opts.configPath, true),
-	).Run()
+	)
+	return runInteractiveInitWizard(form, opts)
 }
 
 func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error {
