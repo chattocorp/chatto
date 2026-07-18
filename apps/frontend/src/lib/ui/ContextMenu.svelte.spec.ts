@@ -71,12 +71,46 @@ describe('ContextMenu', () => {
     expect(onclose).toHaveBeenCalledOnce();
   });
 
-  it('can remain open during outside scroll', async () => {
+  it('can remain open during programmatic outside scroll', async () => {
     const onclose = vi.fn();
-    renderMenu({ onclose, dismissOnScroll: false });
+    renderMenu({ onclose, scrollDismissal: 'user' });
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
     document.body.dispatchEvent(new Event('scroll'));
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
+  it('dismisses user-scroll mode on outside wheel input', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('dismisses user-scroll mode when an outside touch scroll starts', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' })
+    );
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps user-scroll mode open for wheel input inside the menu', async () => {
+    const onclose = vi.fn();
+    const { container } = renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const menu = q(container, '[role="menu"]');
+    if (!menu) throw new Error('menu not rendered');
+    menu.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
 
     expect(onclose).not.toHaveBeenCalled();
   });

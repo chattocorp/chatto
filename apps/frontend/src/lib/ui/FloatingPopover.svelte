@@ -26,10 +26,10 @@ scroll" can simply update the prop on scroll.
 
 If `onclose` is provided, the popover dismisses itself when the user
 clicks/taps outside or, by default, scrolls a container that isn't part
-of it. Set `dismissOnScroll` to false for interactions that should survive
-unrelated programmatic scrolling. The caller still owns Escape handling
-(the dismissal contract is different between tooltips and menus, and
-`onclose` here is intentionally pointer-only).
+of it. Set `scrollDismissal` to `"user"` for interactions that should
+survive programmatic scrolling but still close before an outside wheel,
+touch/pointer, scrollbar, or keyboard scroll. The caller still owns Escape
+handling because its dismissal contract varies between tooltips and menus.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -48,7 +48,7 @@ unrelated programmatic scrolling. The caller still owns Escape handling
     id,
     class: className,
     onclose,
-    dismissOnScroll = true,
+    scrollDismissal = 'all',
     onmouseenter,
     onmouseleave,
     children
@@ -67,8 +67,8 @@ unrelated programmatic scrolling. The caller still owns Escape handling
      * dismissal triggers are the caller's responsibility.
      */
     onclose?: () => void;
-    /** Whether scrolling outside the popover dismisses it. */
-    dismissOnScroll?: boolean;
+    /** Which outside scrolling interactions dismiss the popover. */
+    scrollDismissal?: 'all' | 'user' | 'none';
     onmouseenter?: () => void;
     onmouseleave?: () => void;
     children: Snippet;
@@ -175,7 +175,7 @@ unrelated programmatic scrolling. The caller still owns Escape handling
   // immediately close the popover).
   function closeOnOutsideInteraction(popover: HTMLDivElement) {
     if (!open || !onclose) return;
-    const shouldDismissOnScroll = dismissOnScroll;
+    const dismissalMode = scrollDismissal;
     const handlePointerDown = (e: PointerEvent) => {
       if (popover.contains(e.target as Node)) return;
       onclose();
@@ -184,17 +184,34 @@ unrelated programmatic scrolling. The caller still owns Escape handling
       if (popover.contains(e.target as Node)) return;
       onclose();
     };
+    const handleWheel = (e: WheelEvent) => {
+      if (popover.contains(e.target as Node)) return;
+      onclose();
+    };
+    const handleScrollKey = (e: KeyboardEvent) => {
+      if (popover.contains(e.target as Node)) return;
+      if (!['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) {
+        return;
+      }
+      onclose();
+    };
     const frame = requestAnimationFrame(() => {
       document.addEventListener('pointerdown', handlePointerDown);
-      if (shouldDismissOnScroll) {
+      if (dismissalMode === 'all') {
         window.addEventListener('scroll', handleScroll, { capture: true });
+      } else if (dismissalMode === 'user') {
+        document.addEventListener('wheel', handleWheel, { capture: true });
+        document.addEventListener('keydown', handleScrollKey, { capture: true });
       }
     });
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('pointerdown', handlePointerDown);
-      if (shouldDismissOnScroll) {
+      if (dismissalMode === 'all') {
         window.removeEventListener('scroll', handleScroll, { capture: true });
+      } else if (dismissalMode === 'user') {
+        document.removeEventListener('wheel', handleWheel, { capture: true });
+        document.removeEventListener('keydown', handleScrollKey, { capture: true });
       }
     };
   }

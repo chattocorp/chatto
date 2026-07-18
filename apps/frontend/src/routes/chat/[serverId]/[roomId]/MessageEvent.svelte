@@ -1004,7 +1004,7 @@
     <ContextMenu
       position={emojiPickerPos}
       presentation={emojiPickerPresentation}
-      dismissOnScroll={false}
+      scrollDismissal="user"
       onclose={closeEmojiPicker}
     >
       <EmojiPicker
