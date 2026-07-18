@@ -18,7 +18,6 @@ type initNATSMode string
 const (
 	initNATSEmbedded initNATSMode = "embedded"
 	initNATSExternal initNATSMode = "external"
-	initFormMinWidth              = 20
 )
 
 type initAnswers struct {
@@ -82,6 +81,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 	})
 
 	form := newInitForm(opts,
+		initWelcomeGroup(),
 		initFrontDoorGroup(answers, false),
 		initNATSModeGroup(answers),
 		embedded,
@@ -92,7 +92,7 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		nkey,
 		initReviewGroup(answers, opts.configPath, true),
 	)
-	return runInteractiveInitWizard(form, opts)
+	return form.Run()
 }
 
 func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error {
@@ -128,26 +128,11 @@ func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error
 func newInitForm(opts initWizardOptions, groups ...*huh.Group) *huh.Form {
 	return huh.NewForm(groups...).
 		WithTheme(chattoInitTheme{}).
-		// Huh v2.0.3 can pass transient invalid terminal widths through to
-		// Bubbles, which panics while rendering input placeholders. A fixed
-		// minimum keeps the form responsive without corrupting field dimensions.
-		WithLayout(initWizardLayout{}).
-		WithWidth(initWizardMaxFormWidth).
 		WithAccessible(opts.accessible).
 		WithInput(opts.input).
 		WithOutput(opts.output).
 		WithShowHelp(true).
 		WithShowErrors(true)
-}
-
-type initWizardLayout struct{}
-
-func (initWizardLayout) View(form *huh.Form) string {
-	return huh.LayoutDefault.View(form)
-}
-
-func (initWizardLayout) GroupWidth(_ *huh.Form, _ *huh.Group, width int) int {
-	return max(width, initFormMinWidth)
 }
 
 func initWelcomeGroup() *huh.Group {

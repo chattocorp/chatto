@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"hmans.de/chatto/internal/config"
@@ -513,123 +512,6 @@ func TestRunInitWizardAccessibleAcceptsDisplayedDefaults(t *testing.T) {
 	}
 }
 
-func TestInitWizardSurvivesInvalidTerminalWidths(t *testing.T) {
-	answers := defaultInitAnswers()
-	form := newInitForm(initWizardOptions{}, initFrontDoorGroup(&answers, false))
-	for _, width := range []int{0, -1, -80} {
-		model, _ := form.Update(tea.WindowSizeMsg{Width: width, Height: 24})
-		form = model.(*huh.Form)
-		func() {
-			defer func() {
-				if recovered := recover(); recovered != nil {
-					t.Fatalf("form panicked at terminal width %d: %v", width, recovered)
-				}
-			}()
-			_ = form.View()
-		}()
-	}
-}
-
-func TestInitWizardModelOwnsIntroAndForm(t *testing.T) {
-	answers := defaultInitAnswers()
-	form := newInitForm(initWizardOptions{}, initFrontDoorGroup(&answers, false))
-	model := newInitWizardModel(form)
-	updated, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
-	model = updated.(*initWizardModel)
-
-	intro := model.View()
-	if !intro.AltScreen {
-		t.Fatal("wizard does not use the alternate screen")
-	}
-	if !strings.Contains(intro.Content, "██████") {
-		t.Fatalf("intro does not contain the Chatto wordmark:\n%s", intro.Content)
-	}
-
-	updated, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
-	model = updated.(*initWizardModel)
-	formView := model.View()
-	if model.stage != initWizardForm {
-		t.Fatalf("stage = %v, want form", model.stage)
-	}
-	if strings.Contains(formView.Content, "██████") {
-		t.Fatalf("wordmark remained after entering the form:\n%s", formView.Content)
-	}
-	if !strings.Contains(formView.Content, "The front door") {
-		t.Fatalf("form view does not contain first group:\n%s", formView.Content)
-	}
-}
-
-func TestInitWizardModelConstrainsFormToTerminal(t *testing.T) {
-	model := newInitWizardModel(newInitForm(initWizardOptions{}, initWelcomeGroup()))
-	tests := []struct {
-		width int
-		want  int
-	}{
-		{width: 10, want: initFormMinWidth},
-		{width: 80, want: 72},
-		{width: 200, want: initWizardMaxFormWidth},
-	}
-	for _, tt := range tests {
-		model.width = tt.width
-		model.height = 30
-		if got := model.formWindowSize().Width; got != tt.want {
-			t.Errorf("terminal width %d: form width = %d, want %d", tt.width, got, tt.want)
-		}
-	}
-}
-
-func TestInitWizardCenteredViewDoesNotFillTerminalEdges(t *testing.T) {
-	const (
-		width  = 20
-		height = 10
-	)
-	view := initWizardCenteredView(width, height, "hello\nworld")
-	if got := lipgloss.Height(view); got >= height {
-		t.Fatalf("rendered height = %d, want less than terminal height %d", got, height)
-	}
-	for i, line := range strings.Split(view, "\n") {
-		if got := lipgloss.Width(line); got >= width {
-			t.Fatalf("line %d width = %d, want less than terminal width %d", i, got, width)
-		}
-	}
-}
-
-func TestInitWizardIntroFramesHaveStableGeometry(t *testing.T) {
-	for _, width := range []int{50, 100} {
-		first := initWizardIntroView(width, 1, true)
-		wantWidth := lipgloss.Width(first)
-		wantHeight := lipgloss.Height(first)
-		for frame := 2; frame <= initWizardIntroFrames(); frame++ {
-			view := initWizardIntroView(width, frame, true)
-			if got := lipgloss.Width(view); got != wantWidth {
-				t.Errorf("width %d frame %d: rendered width = %d, want %d", width, frame, got, wantWidth)
-			}
-			if got := lipgloss.Height(view); got != wantHeight {
-				t.Errorf("width %d frame %d: rendered height = %d, want %d", width, frame, got, wantHeight)
-			}
-		}
-	}
-}
-
-func TestInitWizardIntroPreservesWordmarkAlignment(t *testing.T) {
-	renderedLines := strings.Split(initWizardIntroView(100, initWizardIntroFrames(), true), "\n")
-	logoLines := strings.Split(initWizardLogo, "\n")
-	var blockLeft int
-	for i, sourceLine := range logoLines {
-		sourceGlyph := strings.IndexFunc(sourceLine, func(r rune) bool { return r != ' ' })
-		renderedGlyph := strings.IndexAny(renderedLines[i], "█╗╔═╝║╚")
-		if sourceGlyph < 0 || renderedGlyph < 0 {
-			t.Fatalf("wordmark row %d has no visible glyph", i)
-		}
-		rowBlockLeft := lipgloss.Width(renderedLines[i][:renderedGlyph]) - lipgloss.Width(sourceLine[:sourceGlyph])
-		if i == 0 {
-			blockLeft = rowBlockLeft
-		} else if rowBlockLeft != blockLeft {
-			t.Fatalf("wordmark row %d starts at column %d, want block column %d", i, rowBlockLeft, blockLeft)
-		}
-	}
-}
-
 func TestChattoInitThemeSeparatesFormHierarchy(t *testing.T) {
 	styles := (chattoInitTheme{}).Theme(true)
 	for name, style := range map[string]lipgloss.Style{
@@ -644,62 +526,6 @@ func TestChattoInitThemeSeparatesFormHierarchy(t *testing.T) {
 			t.Errorf("%s bottom margin = %d, want 0 so Huh can measure the field", name, got)
 		}
 	}
-}
-
-func TestRunInteractiveInitWizardUsesOneTerminalRenderer(t *testing.T) {
-	answers := defaultInitAnswers()
-	form := newInitForm(initWizardOptions{}, initFrontDoorGroup(&answers, false))
-	input, inputWriter := io.Pipe()
-	output := newTerminalCaptureWriter()
-	go func() {
-		<-output.enteredAltScreen
-		_, _ = inputWriter.Write([]byte("\r\x03"))
-		_ = inputWriter.Close()
-	}()
-	err := runInteractiveInitWizard(form, initWizardOptions{
-		input:  input,
-		output: output,
-	})
-	if !errors.Is(err, huh.ErrUserAborted) {
-		t.Fatalf("runInteractiveInitWizard() error = %v, want user aborted", err)
-	}
-	const (
-		enterAltScreen = "\x1b[?1049h"
-		exitAltScreen  = "\x1b[?1049l"
-	)
-	if got := strings.Count(output.String(), enterAltScreen); got != 1 {
-		t.Fatalf("alternate screen entered %d times, want exactly once", got)
-	}
-	if got := strings.Count(output.String(), exitAltScreen); got != 1 {
-		t.Fatalf("alternate screen exited %d times, want exactly once", got)
-	}
-}
-
-type terminalCaptureWriter struct {
-	mu               sync.Mutex
-	buffer           bytes.Buffer
-	enteredAltScreen chan struct{}
-	enteredOnce      sync.Once
-}
-
-func newTerminalCaptureWriter() *terminalCaptureWriter {
-	return &terminalCaptureWriter{enteredAltScreen: make(chan struct{})}
-}
-
-func (w *terminalCaptureWriter) Write(p []byte) (int, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	n, err := w.buffer.Write(p)
-	if strings.Contains(w.buffer.String(), "\x1b[?1049h") {
-		w.enteredOnce.Do(func() { close(w.enteredAltScreen) })
-	}
-	return n, err
-}
-
-func (w *terminalCaptureWriter) String() string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.buffer.String()
 }
 
 func TestInitWizardValidators(t *testing.T) {
