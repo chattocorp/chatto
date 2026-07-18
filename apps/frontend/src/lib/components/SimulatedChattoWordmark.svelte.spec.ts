@@ -71,11 +71,9 @@ describe('SimulatedChattoWordmark', () => {
   });
 
   it('fades in the game UI after four successful shots from the first laser', async () => {
-    localStorage.setItem(
-      'chatto.simulated-wordmark-game.v1',
-      JSON.stringify({ points: 100, powers: [7, 3], shots: GAME_UI_REVEAL_SHOTS })
-    );
-    const { container } = render(SimulatedChattoWordmark);
+    const { container } = render(SimulatedChattoWordmark, {
+      props: { initialPoints: 100, initialLaserPowers: [7, 3] }
+    });
     const wordmark = q(
       container,
       'button[aria-label="Fire a ready laser at Chatto"]'
@@ -99,16 +97,13 @@ describe('SimulatedChattoWordmark', () => {
         );
       }
       pointsAfterShots.push(
-        JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}').points
+        Number.parseInt(container.querySelector('output')?.textContent?.replace(/\D/g, '') ?? '0')
       );
       now += LASER_COOLDOWN + 1;
     }
     performanceNow.mockRestore();
     expect(pointsAfterShots[0]! - 100).toBeGreaterThan(20);
     expect(container.querySelector('button[aria-label^="Laser 1, power 7"]')).not.toBeNull();
-    expect(
-      JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')
-    ).not.toHaveProperty('shots');
   });
 
   it('scores a shot and puts its only laser on cooldown', async () => {
@@ -131,7 +126,7 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(scoreAfterFirstShot);
   });
 
-  it('restores saved incremental-game progress when reopened', async () => {
+  it('starts a fresh game when reopened', async () => {
     const first = render(SimulatedChattoWordmark);
     const wordmark = q(
       first.container,
@@ -143,21 +138,20 @@ describe('SimulatedChattoWordmark', () => {
     await expect
       .poll(() => first.container.querySelector('output')?.getAttribute('aria-label'))
       .toMatch(/^[1-9]\d* points$/);
-    const savedScore = first.container.querySelector('output')?.getAttribute('aria-label');
     first.unmount();
 
     const second = render(SimulatedChattoWordmark);
-    await expect
-      .poll(() => second.container.querySelector('output')?.getAttribute('aria-label'))
-      .toBe(savedScore);
+    expect(second.container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
+    expect(second.container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
+    expect(
+      second.container.querySelector('button[aria-label="Laser 1, power 1, ready"]')
+    ).not.toBeNull();
   });
 
   it('selects and upgrades each laser independently', async () => {
-    localStorage.setItem(
-      'chatto.simulated-wordmark-game.v1',
-      JSON.stringify({ points: 100, powers: [1, 3] })
-    );
-    const { container } = render(SimulatedChattoWordmark);
+    const { container } = render(SimulatedChattoWordmark, {
+      props: { initialPoints: 100, initialLaserPowers: [1, 3] }
+    });
 
     await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(2);
     const secondLaser = q(
@@ -183,21 +177,18 @@ describe('SimulatedChattoWordmark', () => {
       .toBe('Laser 2, power 4, ready');
     expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
-    expect(JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')).toEqual({
-      points: 62,
-      powers: [1, 4]
-    });
   });
 
-  it('migrates shared-power saves to independent lasers', async () => {
+  it('ignores previously saved game state', async () => {
     localStorage.setItem(
       'chatto.simulated-wordmark-game.v1',
       JSON.stringify({ points: 143, power: 6, guns: 3 })
     );
     const { container } = render(SimulatedChattoWordmark);
 
-    await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(3);
-    expect(container.querySelectorAll('button[aria-label*="power 6"]')).toHaveLength(3);
+    await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(1);
+    expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
+    expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
   });
 
   it('prices laser progression and tracks independent cooldowns', () => {

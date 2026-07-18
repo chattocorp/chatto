@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import * as m from '$lib/i18n/messages';
   import {
     ballisticDisplacement,
@@ -102,12 +103,23 @@
   const MAX_ACTIVE_BURSTS = 8;
   const MAX_EMOJI_SPRITES = 768;
   const FOREGROUND_STAR_DEPTH = 0.66;
-  const GAME_STORAGE_KEY = 'chatto.simulated-wordmark-game.v1';
-
   type StarFieldLayer = 'background' | 'foreground';
 
-  let { contained = false }: { contained?: boolean } = $props();
+  type Props = {
+    contained?: boolean;
+    /** Optional starting state for isolated previews and component tests. */
+    initialPoints?: number;
+    initialLaserPowers?: number[];
+  };
+
+  let { contained = false, initialPoints = 0, initialLaserPowers = [1] }: Props = $props();
   const drawingSurfaceWidthScale = $derived(contained ? 1.25 : 1.7);
+  const startingLaserPowers = untrack(() =>
+    initialLaserPowers
+      .filter((power) => Number.isFinite(power))
+      .slice(0, MAX_LASER_GUNS)
+      .map((power) => Math.max(1, Math.floor(power)))
+  );
 
   const particles = createWordmarkParticles();
   const stars = createStarFieldParticles();
@@ -135,9 +147,17 @@
   let activeBursts: ActiveBurst[] = [];
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
-  let points = $state(0);
+  let points = $state(
+    untrack(() => (Number.isFinite(initialPoints) ? Math.max(0, Math.floor(initialPoints)) : 0))
+  );
   let firstLaserShots = $state(0);
-  let laserGuns = $state.raw<LaserGunState[]>([{ id: 1, power: 1, readyAt: 0 }]);
+  let laserGuns = $state.raw<LaserGunState[]>(
+    (startingLaserPowers.length > 0 ? startingLaserPowers : [1]).map((power, index) => ({
+      id: index + 1,
+      power,
+      readyAt: 0
+    }))
+  );
   let selectedLaserIndex = $state(0);
   let hudNow = $state(0);
 
@@ -146,59 +166,7 @@
   const nextLaserCost = $derived(laserGunCost(laserGuns.length));
   const gameUiVisible = $derived(firstLaserShots >= GAME_UI_REVEAL_SHOTS);
 
-  function loadGame() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(GAME_STORAGE_KEY) ?? '{}') as {
-        points?: unknown;
-        power?: unknown;
-        guns?: unknown;
-        powers?: unknown;
-      };
-      const savedPoints =
-        typeof saved.points === 'number' && Number.isFinite(saved.points)
-          ? Math.max(0, Math.floor(saved.points))
-          : 0;
-      points = savedPoints;
-      const legacyPower =
-        typeof saved.power === 'number' && Number.isFinite(saved.power)
-          ? Math.max(1, Math.floor(saved.power))
-          : 1;
-      const legacyGunCount =
-        typeof saved.guns === 'number' && Number.isFinite(saved.guns)
-          ? Math.max(1, Math.min(MAX_LASER_GUNS, Math.floor(saved.guns)))
-          : 1;
-      const savedPowers = Array.isArray(saved.powers)
-        ? saved.powers
-            .filter((power): power is number => typeof power === 'number' && Number.isFinite(power))
-            .slice(0, MAX_LASER_GUNS)
-            .map((power) => Math.max(1, Math.floor(power)))
-        : [];
-      const powers =
-        savedPowers.length > 0
-          ? savedPowers
-          : Array.from({ length: legacyGunCount }, () => legacyPower);
-      laserGuns = powers.map((power, index) => ({ id: index + 1, power, readyAt: 0 }));
-      selectedLaserIndex = 0;
-    } catch {
-      points = 0;
-      laserGuns = [{ id: 1, power: 1, readyAt: 0 }];
-      selectedLaserIndex = 0;
-    }
-  }
-
-  function saveGame() {
-    try {
-      localStorage.setItem(
-        GAME_STORAGE_KEY,
-        JSON.stringify({ points, powers: laserGuns.map((laser) => laser.power) })
-      );
-    } catch {
-      // Storage can be unavailable; the in-memory game should remain playable.
-    }
-  }
-
   function setupCanvas(canvas: HTMLCanvasElement) {
-    loadGame();
     canvasElement = canvas;
     canvasContext = canvas.getContext('2d');
     constructionStartedAt = performance.now();
@@ -864,7 +832,6 @@
     });
 
     points += vectors.filter((vector) => vector.force >= EXPLOSION_PARTICLE_FORCE_THRESHOLD).length;
-    saveGame();
 
     if (reducedMotion) {
       requestDraw();
@@ -893,7 +860,6 @@
     laserGuns = laserGuns.map((laser, index) =>
       index === selectedLaserIndex ? { ...laser, power: laser.power + 1 } : laser
     );
-    saveGame();
   }
 
   function buyLaserGun() {
@@ -902,7 +868,6 @@
     const newLaserIndex = laserGuns.length;
     laserGuns = [...laserGuns, { id: newLaserIndex + 1, power: 1, readyAt: 0 }];
     selectedLaserIndex = newLaserIndex;
-    saveGame();
     requestDraw();
   }
 </script>
