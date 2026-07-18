@@ -39,7 +39,8 @@ import {
   rebuildStitchFrame,
   rayExitDistance,
   smokeFrame,
-  sparkleStrength
+  sparkleStrength,
+  STARTER_LASER_POWER
 } from './simulatedChattoWordmark';
 
 describe('SimulatedChattoWordmark', () => {
@@ -73,7 +74,7 @@ describe('SimulatedChattoWordmark', () => {
   it('fades in the game UI after four successful shots from the first laser', async () => {
     localStorage.setItem(
       'chatto.simulated-wordmark-game.v1',
-      JSON.stringify({ points: 100, powers: [1], shots: GAME_UI_REVEAL_SHOTS })
+      JSON.stringify({ points: 100, powers: [7, 3], shots: GAME_UI_REVEAL_SHOTS })
     );
     const { container } = render(SimulatedChattoWordmark);
     const wordmark = q(
@@ -90,6 +91,13 @@ describe('SimulatedChattoWordmark', () => {
       await expect
         .poll(() => container.querySelector(`[data-game-ui-visible="${shot === 4}"]`))
         .not.toBeNull();
+      if (shot === 1) {
+        const pointsAfterFirstShot = container.querySelector('output')?.getAttribute('aria-label');
+        wordmark.click();
+        expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(
+          pointsAfterFirstShot
+        );
+      }
       now += LASER_COOLDOWN + 1;
     }
     performanceNow.mockRestore();
@@ -189,6 +197,7 @@ describe('SimulatedChattoWordmark', () => {
 
   it('prices laser progression and tracks independent cooldowns', () => {
     expect(LASER_COOLDOWN).toBe(1500);
+    expect(STARTER_LASER_POWER).toBe(1);
     expect(MAX_LASER_GUNS).toBe(8);
     expect(laserGunCost(1)).toBe(48);
     expect(laserGunCost(2)).toBeGreaterThan(laserGunCost(1));

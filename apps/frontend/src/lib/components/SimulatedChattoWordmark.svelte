@@ -38,6 +38,7 @@
     rayExitDistance,
     smokeFrame,
     sparkleStrength,
+    STARTER_LASER_POWER,
     type ProjectedParticle,
     type ProjectionRotation,
     type WordmarkParticle
@@ -770,20 +771,26 @@
     const originX = keyboardActivation ? canvasWidth / 2 : event.clientX - bounds.left;
     const originY = keyboardActivation ? canvasHeight / 2 : event.clientY - bounds.top;
     const triggeredAt = performance.now();
-    const laserIndex = nextReadyLaserIndex(
-      laserGuns.map((laser) => laser.readyAt),
-      triggeredAt
-    );
+    const introShot = !gameUiVisible;
+    const laserIndex = introShot
+      ? (laserGuns[0]?.readyAt ?? Number.POSITIVE_INFINITY) <= triggeredAt
+        ? 0
+        : -1
+      : nextReadyLaserIndex(
+          laserGuns.map((laser) => laser.readyAt),
+          triggeredAt
+        );
     if (laserIndex < 0) return;
     const firingLaser = laserGuns[laserIndex];
+    if (!firingLaser) return;
+    const shotPower = introShot ? STARTER_LASER_POWER : firingLaser.power;
     laserGuns = laserGuns.map((laser, index) =>
       index === laserIndex ? { ...laser, readyAt: triggeredAt + LASER_COOLDOWN } : laser
     );
-    if (laserIndex === 0) firstLaserShots += 1;
+    if (introShot) firstLaserShots += 1;
     hudNow = triggeredAt;
     const projectionFrame = createCanvasProjectionFrame(triggeredAt);
-    const influenceRadius =
-      projectionFrame.wordmark.width * laserPowerRadiusScale(firingLaser.power);
+    const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(shotPower);
     const clamp = (value: number, minimum: number, maximum: number) =>
       Math.max(minimum, Math.min(maximum, value));
     const laserPositions: LaserBeam[] = [
@@ -797,7 +804,7 @@
       { x: clamp(canvasWidth * 0.28, 20, canvasWidth - 20), y: canvasHeight }
     ];
     const lasers = [laserPositions[laserIndex]];
-    const smokeScale = laserPowerSmokeScale(firingLaser.power);
+    const smokeScale = laserPowerSmokeScale(shotPower);
     const smokeCount = Math.round(5 + smokeScale * 9);
     const smoke: SmokeParticle[] = Array.from({ length: smokeCount }, (_, index) => {
       const angleDirection = Math.random() < 0.5 ? -1 : 1;
