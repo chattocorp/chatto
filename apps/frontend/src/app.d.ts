@@ -17,6 +17,7 @@ declare global {
           | 'removeServer'
           | 'deleteAttachment'
           | 'deleteLinkPreview'
+          | 'aboutChatto'
           | 'imageViewer';
         spaceId?: string;
         serverId?: string;

@@ -55,6 +55,8 @@ vi.mock('$app/navigation', () => ({
   replaceState: mocks.replaceState
 }));
 
+vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
+
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
     path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
@@ -425,6 +427,24 @@ describe('ModalContainer sign out modal', () => {
   });
 });
 
+describe('ModalContainer About Chatto modal', () => {
+  it('shows the interactive Chatto wordmark', async () => {
+    mocks.modal = { type: 'aboutChatto' };
+
+    const { container } = render(ModalContainer);
+
+    expect(q(container, 'dialog')?.getAttribute('aria-label')).toBe('About Chatto');
+    expect(container.textContent ?? '').toContain('v0.5.0-test');
+    expect(
+      container.querySelector('a[href="https://github.com/chattocorp/chatto"]')
+    ).not.toBeNull();
+    expect(container.querySelector('a[href="https://docs.chatto.run"]')).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(container.querySelector('button[aria-label="Chatto"] canvas')).not.toBeNull();
+    });
+  });
+});
+
 describe('ModalContainer remove server modal', () => {
   it('removes an inactive selected server without navigating away from the active server', async () => {
     const remote = {
@@ -440,7 +460,9 @@ describe('ModalContainer remove server modal', () => {
     await expect
       .element(q(container, '[href="/chat/remote.example.test/settings/account"]'))
       .toHaveTextContent('Account Settings');
-    expect(container.textContent).toContain('Your account and data on the server will not be deleted.');
+    expect(container.textContent).toContain(
+      'Your account and data on the server will not be deleted.'
+    );
     clickButton(container, 'Remove Server');
 
     await vi.waitFor(() => {
