@@ -616,14 +616,17 @@ func TestInitWizardIntroPreservesWordmarkAlignment(t *testing.T) {
 
 func TestChattoInitThemeSeparatesFormHierarchy(t *testing.T) {
 	styles := (chattoInitTheme{}).Theme(true)
-	if got := styles.Group.Description.GetMarginBottom(); got != 1 {
-		t.Errorf("group description bottom margin = %d, want 1", got)
-	}
-	if got := styles.Focused.Description.GetMarginBottom(); got != 1 {
-		t.Errorf("focused field description bottom margin = %d, want 1", got)
-	}
-	if got := styles.Blurred.Description.GetMarginBottom(); got != 1 {
-		t.Errorf("blurred field description bottom margin = %d, want 1", got)
+	for name, style := range map[string]lipgloss.Style{
+		"group description":         styles.Group.Description,
+		"focused field description": styles.Focused.Description,
+		"blurred field description": styles.Blurred.Description,
+	} {
+		if got := style.GetPaddingBottom(); got != 1 {
+			t.Errorf("%s bottom padding = %d, want 1", name, got)
+		}
+		if got := style.GetMarginBottom(); got != 0 {
+			t.Errorf("%s bottom margin = %d, want 0 so Huh can measure the field", name, got)
+		}
 	}
 }
 
