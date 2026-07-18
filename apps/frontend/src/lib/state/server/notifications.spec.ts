@@ -135,20 +135,75 @@ describe('NotificationStore', () => {
     expect(store.notifications.map((notification) => notification.id)).toEqual(['newer']);
   });
 
-  it('hydrates one realtime notification by ID without refetching the full list', async () => {
+  it('hydrates one realtime notification by ID and reconciles its authoritative total', async () => {
     const liveNotification = mention('live');
     const api = makeAPI({
+      notifications: page([liveNotification]),
       getNotification: (notificationId) =>
         notificationId === liveNotification.id ? liveNotification : null
     });
     const store = new NotificationStore(api);
 
-    await store.addNotification(liveNotification.id);
-    await store.addNotification(liveNotification.id);
+    await expect(store.addNotification(liveNotification.id)).resolves.toBe(true);
+    await expect(store.addNotification(liveNotification.id)).resolves.toBe(false);
 
     expect(api.getNotification).toHaveBeenCalledTimes(2);
-    expect(api.listNotifications).not.toHaveBeenCalled();
+    expect(api.listNotifications).toHaveBeenCalledTimes(2);
     expect(store.notifications.map((notification) => notification.id)).toEqual(['live']);
+    expect(store.unreadNotificationCount).toBe(1);
+  });
+
+  it('does not increment a projection total that already includes an omitted item', async () => {
+    const projectedItems = Array.from({ length: 50 }, (_, index) => mention(`projected-${index}`));
+    const omitted = mention('omitted');
+    const api = makeAPI({
+      notifications: page(projectedItems, 51),
+      getNotification: () => omitted
+    });
+    const store = new NotificationStore(api);
+    store.replaceProjection(page(projectedItems, 51));
+
+    await expect(store.addNotification(omitted.id)).resolves.toBe(false);
+
+    expect(store.notifications).toHaveLength(50);
+    expect(store.notifications.some((notification) => notification.id === omitted.id)).toBe(false);
+    expect(store.unreadNotificationCount).toBe(51);
+  });
+
+  it('does not restore a notification whose removal supersedes delayed hydration', async () => {
+    const response = deferred<NotificationItem | null>();
+    const stale = mention('stale');
+    const api = makeAPI({ getNotification: () => response.promise });
+    const store = new NotificationStore(api);
+
+    const hydration = store.addNotification(stale.id);
+    store.removeNotification(stale.id);
+    response.resolve(stale);
+
+    await expect(hydration).resolves.toBe(false);
+    expect(api.listNotifications).not.toHaveBeenCalled();
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
+  it('coalesces concurrent hydration of the same live notification', async () => {
+    const response = deferred<NotificationItem | null>();
+    const live = mention('duplicate-live');
+    const api = makeAPI({
+      notifications: page([live]),
+      getNotification: () => response.promise
+    });
+    const store = new NotificationStore(api);
+
+    const first = store.addNotification(live.id);
+    const duplicate = store.addNotification(live.id);
+    response.resolve(live);
+
+    await expect(first).resolves.toBe(true);
+    await expect(duplicate).resolves.toBe(false);
+    expect(api.getNotification).toHaveBeenCalledOnce();
+    expect(api.listNotifications).toHaveBeenCalledOnce();
+    expect(store.notifications.map((notification) => notification.id)).toEqual([live.id]);
     expect(store.unreadNotificationCount).toBe(1);
   });
 

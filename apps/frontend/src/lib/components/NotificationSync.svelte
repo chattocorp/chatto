@@ -74,16 +74,24 @@ Include this component once in the chat layout (unconditionally).
           case RoomEventKind.NotificationCreated: {
             const notification = notificationCreatedEvent(event.event);
             if (!notification) break;
-            if (notification.roomId) {
-              stores.rooms.incrementUnreadNotification(notification.roomId);
-            }
-            void notificationStore.addNotification(notification.notificationId);
-            if (!notification.silent) {
-              playNotificationSound(
-                userPreferences.notificationSound,
-                userPreferences.notificationSoundFilters
-              );
-            }
+            void notificationStore.addNotification(notification.notificationId).then((added) => {
+              // A compacted projection may already contain a notification whose
+              // queued live event arrives immediately after catch-up. Only the
+              // insertion winner may apply one-shot side effects. Room counts
+              // are a separate authoritative projection and must be reconciled:
+              // incrementing here can double-count when that projection arrived
+              // before the finite notification page did.
+              if (!added) return;
+              if (notification.roomId) {
+                void stores.rooms.refreshNotificationCounts();
+              }
+              if (!notification.silent) {
+                playNotificationSound(
+                  userPreferences.notificationSound,
+                  userPreferences.notificationSoundFilters
+                );
+              }
+            });
             break;
           }
           case RoomEventKind.NotificationDismissed: {

@@ -125,6 +125,9 @@ export class NotificationStore {
   #api: NotificationAPI;
   #locallyDismissedNotificationIds = new SvelteSet<string>();
   #fetchGeneration = 0;
+  #replacementGeneration = 0;
+  #notificationMutationGenerations: Record<string, number> = Object.create(null);
+  #notificationHydrations: Record<string, Promise<boolean> | undefined> = Object.create(null);
   notifications = $state<NotificationItem[]>([]);
   unreadNotificationCount = $state(0);
   loading = $state(false);
@@ -151,11 +154,15 @@ export class NotificationStore {
   /** Replace the finite current page carried by the realtime projection. */
   replaceProjection(page: { items: NotificationItem[]; totalCount: number }): void {
     this.#fetchGeneration++;
+    this.#replacementGeneration++;
     const notifications = page.items.filter(
       (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
     );
     this.notifications = notifications;
-    this.unreadNotificationCount = Math.max(0, page.totalCount - (page.items.length - notifications.length));
+    this.unreadNotificationCount = Math.max(
+      0,
+      page.totalCount - (page.items.length - notifications.length)
+    );
     this.loading = false;
     this.hasLoaded = true;
     this.error = null;
@@ -287,6 +294,7 @@ export class NotificationStore {
       this.notifications = notifications;
       this.unreadNotificationCount = Math.max(0, page.totalCount - locallyDismissedPageItems);
       this.hasLoaded = true;
+      this.#replacementGeneration++;
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -356,6 +364,7 @@ export class NotificationStore {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
 
+    this.#supersedeNotificationMutation(notificationId);
     this.#invalidateFetch();
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
@@ -387,6 +396,7 @@ export class NotificationStore {
     const originalCount = this.unreadNotificationCount;
     if (original.length === 0 && originalCount === 0) return 0;
 
+    this.#replacementGeneration++;
     this.#invalidateFetch();
     this.notifications = [];
     this.unreadNotificationCount = 0;
@@ -453,27 +463,104 @@ export class NotificationStore {
     }
   }
 
+  #notificationMutationGeneration(notificationId: string): number {
+    return this.#notificationMutationGenerations[notificationId] ?? 0;
+  }
+
+  #supersedeNotificationMutation(notificationId: string): void {
+    if (!this.#notificationHydrations[notificationId]) {
+      delete this.#notificationMutationGenerations[notificationId];
+      return;
+    }
+    this.#notificationMutationGenerations[notificationId] =
+      this.#notificationMutationGeneration(notificationId) + 1;
+  }
+
   /**
    * Add a notification (for real-time updates from instance events).
    * Hydrates the event's notification ID directly, with a full-list fallback
    * for older or temporarily incompatible servers.
    */
-  async addNotification(notificationId?: string) {
+  async addNotification(notificationId?: string): Promise<boolean> {
     if (!notificationId) {
       await this.fetch();
-      return;
+      return false;
     }
+
+    const existing = this.#notificationHydrations[notificationId];
+    if (existing) {
+      await existing;
+      return false;
+    }
+
+    const hydration = this.#hydrateNotification(notificationId);
+    this.#notificationHydrations[notificationId] = hydration;
+    try {
+      return await hydration;
+    } finally {
+      if (this.#notificationHydrations[notificationId] === hydration) {
+        delete this.#notificationHydrations[notificationId];
+        delete this.#notificationMutationGenerations[notificationId];
+      }
+    }
+  }
+
+  async #hydrateNotification(notificationId: string): Promise<boolean> {
+    const replacementGeneration = this.#replacementGeneration;
+    const mutationGeneration = this.#notificationMutationGeneration(notificationId);
+    const wasPresent = this.notifications.some((candidate) => candidate.id === notificationId);
 
     try {
       const notification = await this.#api.getNotification(notificationId);
-      if (!notification || this.#locallyDismissedNotificationIds.has(notificationId)) return;
-
-      if (this.#upsertNotification(notification)) {
-        this.unreadNotificationCount++;
+      if (
+        !notification ||
+        replacementGeneration !== this.#replacementGeneration ||
+        mutationGeneration !== this.#notificationMutationGeneration(notificationId) ||
+        this.#locallyDismissedNotificationIds.has(notificationId)
+      ) {
+        return false;
       }
+
+      const generation = ++this.#fetchGeneration;
+      this.loading = true;
+      this.error = null;
+      const page = await this.#api.listNotifications(50);
+      if (
+        replacementGeneration !== this.#replacementGeneration ||
+        mutationGeneration !== this.#notificationMutationGeneration(notificationId) ||
+        this.#locallyDismissedNotificationIds.has(notificationId)
+      ) {
+        return false;
+      }
+
+      // The list response owns the total. Merge the exact resource only to
+      // cover a list/detail timing edge, then retain the canonical finite page.
+      // An older item omitted from an already-authoritative first page remains
+      // omitted and therefore cannot increment the total a second time.
+      const items = [...page.items.filter((item) => item.id !== notificationId), notification]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 50);
+      const present = items.some((item) => item.id === notificationId);
+      if (generation === this.#fetchGeneration) {
+        const visibleItems = items.filter(
+          (item) => !this.#locallyDismissedNotificationIds.has(item.id)
+        );
+        this.notifications = visibleItems;
+        this.unreadNotificationCount = Math.max(
+          0,
+          page.totalCount - (items.length - visibleItems.length)
+        );
+        this.loading = false;
+        this.hasLoaded = true;
+        this.error = null;
+      }
+      return !wasPresent && present;
     } catch (e) {
       console.error('Failed to hydrate notification:', e);
       await this.fetch();
+      // The authoritative replacement may already include this notification.
+      // Callers must not layer incremental room-count side effects onto it.
+      return false;
     }
   }
 
@@ -482,6 +569,7 @@ export class NotificationStore {
    */
   removeNotification(notificationId: string) {
     const removed = this.notifications.find((n) => n.id === notificationId);
+    this.#supersedeNotificationMutation(notificationId);
     this.#invalidateFetch();
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     if (removed) {
