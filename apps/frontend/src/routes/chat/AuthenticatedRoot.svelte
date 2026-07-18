@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
@@ -67,7 +67,15 @@
   const activeServerId = $derived(getActiveServer());
 
   $effect(() => {
-    synchronizeRealtimeTransports(registrations, activeServerId);
+    const nextRegistrations = registrations;
+    const nextActiveServerId = activeServerId;
+
+    // Transport synchronization reads and mutates reactive connection state.
+    // Only the materialized registration inputs and active server should
+    // retrigger ownership; tracking transport internals creates feedback loops.
+    untrack(() => {
+      synchronizeRealtimeTransports(nextRegistrations, nextActiveServerId);
+    });
   });
 </script>
 
