@@ -37,9 +37,9 @@
       "fire": "Disparar un láser listo contra Chatto",
       "points": "{count} puntos",
       "laser_guns": "{count} cañones láser",
-      "laser_ready": "Láser {number} listo",
-      "laser_cooldown": "Láser {number}: quedan {seconds} segundos de recarga",
-      "upgrade_power": "Mejorar la potencia láser al nivel {level} por {cost} puntos",
+      "laser_ready": "Láser {number}, potencia {power}, listo",
+      "laser_cooldown": "Láser {number}, potencia {power}: quedan {seconds} segundos de recarga",
+      "upgrade_power": "Mejorar el láser {number} al nivel de potencia {level} por {cost} puntos",
       "buy_laser": "Comprar el cañón láser {number} por {cost} puntos",
       "maximum_lasers": "Se alcanzó el máximo de {count} cañones láser"
     },

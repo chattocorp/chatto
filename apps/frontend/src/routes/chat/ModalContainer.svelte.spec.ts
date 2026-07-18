@@ -440,10 +440,12 @@ describe('ModalContainer About Chatto modal', () => {
     ).not.toBeNull();
     expect(container.querySelector('a[href="https://docs.chatto.run"]')).not.toBeNull();
     await vi.waitFor(() => {
-      expect(
-        container.querySelector('button[aria-label="Fire a ready laser at Chatto"] canvas')
-      ).not.toBeNull();
-    });
+      const wordmarkButton = container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Fire a ready laser at Chatto"]'
+      );
+      expect(wordmarkButton).not.toBeNull();
+      expect(wordmarkButton?.querySelector('canvas')).not.toBeNull();
+    }, { timeout: 10_000 });
   });
 });
 

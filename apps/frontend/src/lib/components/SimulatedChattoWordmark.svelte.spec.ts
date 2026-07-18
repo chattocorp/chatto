@@ -26,6 +26,7 @@ import {
   laserGunCost,
   laserJitter,
   laserPowerRadiusScale,
+  laserPowerSmokeScale,
   laserPowerUpgradeCost,
   MAX_LASER_GUNS,
   nextReadyLaserIndex,
@@ -54,12 +55,16 @@ describe('SimulatedChattoWordmark', () => {
     expect(wordmark).toBeTruthy();
     expect(canvas.width).toBeGreaterThan(1);
     expect(wordmark?.parentElement?.classList.contains('rounded-lg')).toBe(true);
+    expect(wordmark?.parentElement?.classList.contains('select-none')).toBe(true);
     expect(canvas.classList.contains('rounded-lg')).toBe(true);
     expect(Array.from(canvas.getContext('2d')!.getImageData(1, 1, 1, 1).data.slice(0, 3))).toEqual([
       5, 7, 12
     ]);
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
     expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
+    expect(container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label')).toBe(
+      'Laser 1, power 1, ready'
+    );
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
   });
 
@@ -104,6 +109,50 @@ describe('SimulatedChattoWordmark', () => {
       .toBe(savedScore);
   });
 
+  it('selects and upgrades each laser independently', async () => {
+    localStorage.setItem(
+      'chatto.simulated-wordmark-game.v1',
+      JSON.stringify({ points: 100, powers: [1, 3] })
+    );
+    const { container } = render(SimulatedChattoWordmark);
+
+    await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(2);
+    const secondLaser = q(
+      container,
+      'button[aria-label="Laser 2, power 3, ready"]'
+    ) as HTMLButtonElement;
+    secondLaser.click();
+    await expect
+      .poll(() => container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label'))
+      .toBe('Laser 2, power 3, ready');
+    const upgrade = q(
+      container,
+      'button[aria-label="Upgrade laser 2 to power level 4 for 38 points"]'
+    ) as HTMLButtonElement;
+    upgrade.click();
+
+    await expect
+      .poll(() => container.querySelector('button[aria-pressed="true"]')?.getAttribute('aria-label'))
+      .toBe('Laser 2, power 4, ready');
+    expect(container.querySelector('button[aria-label="Laser 1, power 1, ready"]')).not.toBeNull();
+    expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
+    expect(JSON.parse(localStorage.getItem('chatto.simulated-wordmark-game.v1') ?? '{}')).toEqual({
+      points: 62,
+      powers: [1, 4]
+    });
+  });
+
+  it('migrates shared-power saves to independent lasers', async () => {
+    localStorage.setItem(
+      'chatto.simulated-wordmark-game.v1',
+      JSON.stringify({ points: 143, power: 6, guns: 3 })
+    );
+    const { container } = render(SimulatedChattoWordmark);
+
+    await expect.poll(() => container.querySelectorAll('[role="listitem"]').length).toBe(3);
+    expect(container.querySelectorAll('button[aria-label*="power 6"]')).toHaveLength(3);
+  });
+
   it('prices laser progression and tracks independent cooldowns', () => {
     expect(LASER_COOLDOWN).toBe(1500);
     expect(MAX_LASER_GUNS).toBe(8);
@@ -114,6 +163,8 @@ describe('SimulatedChattoWordmark', () => {
     expect(laserPowerUpgradeCost(3)).toBeGreaterThan(laserPowerUpgradeCost(2));
     expect(laserPowerRadiusScale(1)).toBe(0.035);
     expect(laserPowerRadiusScale(2)).toBeGreaterThan(laserPowerRadiusScale(1));
+    expect(laserPowerSmokeScale(1)).toBe(0.42);
+    expect(laserPowerSmokeScale(6)).toBeGreaterThan(laserPowerSmokeScale(1));
     expect(nextReadyLaserIndex([2000, 900, 3000], 1000)).toBe(1);
     expect(nextReadyLaserIndex([2000, 3000], 1000)).toBe(-1);
     expect(laserCooldownProgress(1000, 2500)).toBe(0);

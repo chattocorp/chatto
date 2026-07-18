@@ -186,6 +186,11 @@ export function laserPowerRadiusScale(power: number): number {
   return Math.min(0.16, 0.035 + (Math.max(1, Math.floor(power)) - 1) * 0.008);
 }
 
+/** Relative smoke size and density for a shot at the given laser power. */
+export function laserPowerSmokeScale(power: number): number {
+  return Math.min(1.5, 0.42 + (Math.max(1, Math.floor(power)) - 1) * 0.12);
+}
+
 export function nextReadyLaserIndex(readyAt: number[], now: number): number {
   return readyAt.findIndex((timestamp) => timestamp <= now);
 }

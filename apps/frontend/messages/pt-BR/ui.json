@@ -37,9 +37,9 @@
       "fire": "Disparar um laser pronto contra o Chatto",
       "points": "{count} pontos",
       "laser_guns": "{count} canhões laser",
-      "laser_ready": "Laser {number} pronto",
-      "laser_cooldown": "Laser {number}: restam {seconds} segundos de recarga",
-      "upgrade_power": "Aumentar a potência do laser para o nível {level} por {cost} pontos",
+      "laser_ready": "Laser {number}, potência {power}, pronto",
+      "laser_cooldown": "Laser {number}, potência {power}: restam {seconds} segundos de recarga",
+      "upgrade_power": "Aumentar o laser {number} para o nível de potência {level} por {cost} pontos",
       "buy_laser": "Comprar o canhão laser {number} por {cost} pontos",
       "maximum_lasers": "Limite de {count} canhões laser atingido"
     },

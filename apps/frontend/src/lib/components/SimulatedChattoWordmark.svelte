@@ -25,6 +25,7 @@
     laserGunCost,
     laserJitter,
     laserPowerRadiusScale,
+    laserPowerSmokeScale,
     laserPowerUpgradeCost,
     MAX_LASER_GUNS,
     nextReadyLaserIndex,
@@ -56,6 +57,12 @@
     vectors: BurstVector[];
     lasers: LaserBeam[];
     smoke: SmokeParticle[];
+    smokeIntensity: number;
+  };
+  type LaserGunState = {
+    id: number;
+    power: number;
+    readyAt: number;
   };
   type LaserBeam = {
     x: number;
@@ -128,12 +135,13 @@
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
   let points = $state(0);
-  let laserPower = $state(1);
-  let laserReadyAt = $state.raw<number[]>([0]);
+  let laserGuns = $state.raw<LaserGunState[]>([{ id: 1, power: 1, readyAt: 0 }]);
+  let selectedLaserIndex = $state(0);
   let hudNow = $state(0);
 
-  const powerUpgradeCost = $derived(laserPowerUpgradeCost(laserPower));
-  const nextLaserCost = $derived(laserGunCost(laserReadyAt.length));
+  const selectedLaserPower = $derived(laserGuns[selectedLaserIndex]?.power ?? 1);
+  const powerUpgradeCost = $derived(laserPowerUpgradeCost(selectedLaserPower));
+  const nextLaserCost = $derived(laserGunCost(laserGuns.length));
 
   function loadGame() {
     try {
@@ -141,24 +149,36 @@
         points?: unknown;
         power?: unknown;
         guns?: unknown;
+        powers?: unknown;
       };
       points =
         typeof saved.points === 'number' && Number.isFinite(saved.points)
           ? Math.max(0, Math.floor(saved.points))
           : 0;
-      laserPower =
+      const legacyPower =
         typeof saved.power === 'number' && Number.isFinite(saved.power)
           ? Math.max(1, Math.floor(saved.power))
           : 1;
-      const gunCount =
+      const legacyGunCount =
         typeof saved.guns === 'number' && Number.isFinite(saved.guns)
           ? Math.max(1, Math.min(MAX_LASER_GUNS, Math.floor(saved.guns)))
           : 1;
-      laserReadyAt = Array.from({ length: gunCount }, () => 0);
+      const savedPowers = Array.isArray(saved.powers)
+        ? saved.powers
+            .filter((power): power is number => typeof power === 'number' && Number.isFinite(power))
+            .slice(0, MAX_LASER_GUNS)
+            .map((power) => Math.max(1, Math.floor(power)))
+        : [];
+      const powers =
+        savedPowers.length > 0
+          ? savedPowers
+          : Array.from({ length: legacyGunCount }, () => legacyPower);
+      laserGuns = powers.map((power, index) => ({ id: index + 1, power, readyAt: 0 }));
+      selectedLaserIndex = 0;
     } catch {
       points = 0;
-      laserPower = 1;
-      laserReadyAt = [0];
+      laserGuns = [{ id: 1, power: 1, readyAt: 0 }];
+      selectedLaserIndex = 0;
     }
   }
 
@@ -166,7 +186,7 @@
     try {
       localStorage.setItem(
         GAME_STORAGE_KEY,
-        JSON.stringify({ points, power: laserPower, guns: laserReadyAt.length })
+        JSON.stringify({ points, powers: laserGuns.map((laser) => laser.power) })
       );
     } catch {
       // Storage can be unavailable; the in-memory game should remain playable.
@@ -407,7 +427,7 @@
       context.save();
       context.translate(x, y);
       context.scale(frame.scale, frame.scale);
-      context.globalAlpha = frame.opacity * 0.72;
+      context.globalAlpha = frame.opacity * 0.72 * activeBurst.smokeIntensity;
       context.drawImage(
         sprite.canvas,
         -sprite.width / 2,
@@ -535,7 +555,7 @@
     const rotationSettling =
       Math.abs(targetRotateX - currentRotateX) > 0.02 ||
       Math.abs(targetRotateY - currentRotateY) > 0.02;
-    const cooldownActive = laserReadyAt.some((readyAt) => readyAt > now);
+    const cooldownActive = laserGuns.some((laser) => laser.readyAt > now);
     if (cooldownActive && now - hudNow >= 50) hudNow = now;
     const activeMotion =
       constructionElapsed < CONSTRUCTION_DURATION ||
@@ -746,14 +766,19 @@
     const originX = keyboardActivation ? canvasWidth / 2 : event.clientX - bounds.left;
     const originY = keyboardActivation ? canvasHeight / 2 : event.clientY - bounds.top;
     const triggeredAt = performance.now();
-    const laserIndex = nextReadyLaserIndex(laserReadyAt, triggeredAt);
+    const laserIndex = nextReadyLaserIndex(
+      laserGuns.map((laser) => laser.readyAt),
+      triggeredAt
+    );
     if (laserIndex < 0) return;
-    laserReadyAt = laserReadyAt.map((readyAt, index) =>
-      index === laserIndex ? triggeredAt + LASER_COOLDOWN : readyAt
+    const firingLaser = laserGuns[laserIndex];
+    laserGuns = laserGuns.map((laser, index) =>
+      index === laserIndex ? { ...laser, readyAt: triggeredAt + LASER_COOLDOWN } : laser
     );
     hudNow = triggeredAt;
     const projectionFrame = createCanvasProjectionFrame(triggeredAt);
-    const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(laserPower);
+    const influenceRadius =
+      projectionFrame.wordmark.width * laserPowerRadiusScale(firingLaser.power);
     const clamp = (value: number, minimum: number, maximum: number) =>
       Math.max(minimum, Math.min(maximum, value));
     const laserPositions: LaserBeam[] = [
@@ -767,18 +792,22 @@
       { x: clamp(canvasWidth * 0.28, 20, canvasWidth - 20), y: canvasHeight }
     ];
     const lasers = [laserPositions[laserIndex]];
-    const smoke: SmokeParticle[] = Array.from({ length: 14 }, (_, index) => {
+    const smokeScale = laserPowerSmokeScale(firingLaser.power);
+    const smokeCount = Math.round(5 + smokeScale * 9);
+    const smoke: SmokeParticle[] = Array.from({ length: smokeCount }, (_, index) => {
       const angleDirection = Math.random() < 0.5 ? -1 : 1;
       return {
         angle:
-          (index / 14) * Math.PI * 2 +
+          (index / smokeCount) * Math.PI * 2 +
           (originX + originY) * 0.001 +
           angleDirection * Math.min(0.5, exponentialSample(Math.random()) * 0.12),
         distance:
           (28 + (index % 4) * 8) * (1 + Math.min(0.65, exponentialSample(Math.random()) * 0.18)),
         delay: Math.min(180, exponentialSample(Math.random()) * 52),
         size:
-          (2.2 + (index % 3) * 0.4) * (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22))
+          (2.2 + (index % 3) * 0.4) *
+          smokeScale *
+          (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22))
       };
     });
     const vectors = particles.map((particle) => {
@@ -842,7 +871,8 @@
         influenceRadius,
         vectors,
         lasers,
-        smoke
+        smoke,
+        smokeIntensity: Math.min(1, 0.35 + smokeScale * 0.5)
       }
     ];
     requestDraw();
@@ -851,14 +881,18 @@
   function upgradeLaserPower() {
     if (points < powerUpgradeCost) return;
     points -= powerUpgradeCost;
-    laserPower += 1;
+    laserGuns = laserGuns.map((laser, index) =>
+      index === selectedLaserIndex ? { ...laser, power: laser.power + 1 } : laser
+    );
     saveGame();
   }
 
   function buyLaserGun() {
-    if (laserReadyAt.length >= MAX_LASER_GUNS || points < nextLaserCost) return;
+    if (laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost) return;
     points -= nextLaserCost;
-    laserReadyAt = [...laserReadyAt, 0];
+    const newLaserIndex = laserGuns.length;
+    laserGuns = [...laserGuns, { id: newLaserIndex + 1, power: 1, readyAt: 0 }];
+    selectedLaserIndex = newLaserIndex;
     saveGame();
     requestDraw();
   }
@@ -868,7 +902,7 @@
 
 <div
   class={[
-    'relative overflow-hidden rounded-lg bg-black',
+    'relative touch-manipulation overflow-hidden rounded-lg bg-black select-none',
     contained ? 'h-full w-full' : 'aspect-[5/1] w-[min(82vw,42rem)] max-w-full'
   ]}
 >
@@ -891,33 +925,49 @@
   </button>
 
   <div
-    class="pointer-events-none absolute top-2 left-2 flex max-w-[68%] items-start gap-1 rounded bg-black/65 p-1 text-white"
+    class="absolute top-2 left-2 flex max-w-[72%] flex-wrap items-start gap-1 text-white"
     role="list"
-    aria-label={m['ui.easter_egg.laser_guns']({ count: laserReadyAt.length })}
+    aria-label={m['ui.easter_egg.laser_guns']({ count: laserGuns.length })}
   >
-    {#each laserReadyAt as readyAt, index (index)}
-      {@const cooldownProgress = laserCooldownProgress(hudNow, readyAt)}
-      {@const cooldownSeconds = Math.max(0, (readyAt - hudNow) / 1000).toFixed(1)}
+    {#each laserGuns as laser, index (laser.id)}
+      {@const cooldownProgress = laserCooldownProgress(hudNow, laser.readyAt)}
+      {@const cooldownSeconds = Math.max(0, (laser.readyAt - hudNow) / 1000).toFixed(1)}
       <div
-        class="flex w-6 flex-col items-center gap-0.5"
+        class="flex"
         role="listitem"
-        aria-label={
-          cooldownProgress >= 1
-            ? m['ui.easter_egg.laser_ready']({ number: index + 1 })
-            : m['ui.easter_egg.laser_cooldown']({
-                number: index + 1,
-                seconds: cooldownSeconds
-              })
-        }
         data-ready={cooldownProgress >= 1}
       >
-        <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true">🔫</span>
-        <span class="h-1 w-5 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
-          <span
-            class="block h-full rounded-full bg-cyan-300"
-            style:width={`${cooldownProgress * 100}%`}
-          ></span>
-        </span>
+        <button
+          type="button"
+          class={[
+            'flex min-h-10 w-9 cursor-pointer flex-col items-center justify-center gap-0.5 rounded border border-white/15 bg-black/65 text-xs text-white tabular-nums hover:bg-black/90',
+            selectedLaserIndex === index ? 'bg-cyan-300/25 ring-1 ring-cyan-300' : ''
+          ]}
+          aria-label={
+            cooldownProgress >= 1
+              ? m['ui.easter_egg.laser_ready']({
+                  number: index + 1,
+                  power: laser.power
+                })
+              : m['ui.easter_egg.laser_cooldown']({
+                  number: index + 1,
+                  power: laser.power,
+                  seconds: cooldownSeconds
+                })
+          }
+          aria-pressed={selectedLaserIndex === index}
+          onclick={() => (selectedLaserIndex = index)}
+        >
+          <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true"
+            >🔫{laser.power}</span
+          >
+          <span class="h-1 w-6 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
+            <span
+              class="block h-full rounded-full bg-cyan-300"
+              style:width={`${cooldownProgress * 100}%`}
+            ></span>
+          </span>
+        </button>
       </div>
     {/each}
   </div>
@@ -933,25 +983,27 @@
       class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
       disabled={points < powerUpgradeCost}
       aria-label={m['ui.easter_egg.upgrade_power']({
-        level: laserPower + 1,
+        number: selectedLaserIndex + 1,
+        level: selectedLaserPower + 1,
         cost: powerUpgradeCost
       })}
       onclick={upgradeLaserPower}
-    >⚡ {laserPower} → {laserPower + 1} · ✨ {powerUpgradeCost}</button>
+    >⚡ 🔫{selectedLaserIndex + 1} {selectedLaserPower} → {selectedLaserPower + 1} · ✨ {powerUpgradeCost}</button
+    >
     <button
       type="button"
       class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
-      disabled={laserReadyAt.length >= MAX_LASER_GUNS || points < nextLaserCost}
+      disabled={laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost}
       aria-label={
-        laserReadyAt.length >= MAX_LASER_GUNS
+        laserGuns.length >= MAX_LASER_GUNS
           ? m['ui.easter_egg.maximum_lasers']({ count: MAX_LASER_GUNS })
           : m['ui.easter_egg.buy_laser']({
-              number: laserReadyAt.length + 1,
+              number: laserGuns.length + 1,
               cost: nextLaserCost
             })
       }
       onclick={buyLaserGun}
-    >🔫 {laserReadyAt.length}/{MAX_LASER_GUNS} · {laserReadyAt.length >= MAX_LASER_GUNS
+    >🔫 {laserGuns.length}/{MAX_LASER_GUNS} · {laserGuns.length >= MAX_LASER_GUNS
         ? '⛔'
         : `✨ ${nextLaserCost}`}</button>
   </div>

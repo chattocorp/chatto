@@ -37,9 +37,9 @@
       "fire": "Einen bereiten Laser auf Chatto abfeuern",
       "points": "{count} Punkte",
       "laser_guns": "{count} Laserkanonen",
-      "laser_ready": "Laser {number} bereit",
-      "laser_cooldown": "Laser {number}: noch {seconds} Sekunden Abklingzeit",
-      "upgrade_power": "Laserstärke für {cost} Punkte auf Stufe {level} erhöhen",
+      "laser_ready": "Laser {number}, Stärke {power}, bereit",
+      "laser_cooldown": "Laser {number}, Stärke {power}: noch {seconds} Sekunden Abklingzeit",
+      "upgrade_power": "Stärke von Laser {number} für {cost} Punkte auf Stufe {level} erhöhen",
       "buy_laser": "Laserkanone {number} für {cost} Punkte kaufen",
       "maximum_lasers": "Maximum von {count} Laserkanonen erreicht"
     },

@@ -37,9 +37,9 @@
       "fire": "Vuur een gereed laserkanon af op Chatto",
       "points": "{count} punten",
       "laser_guns": "{count} laserkanonnen",
-      "laser_ready": "Laser {number} gereed",
-      "laser_cooldown": "Laser {number}: nog {seconds} seconden afkoeltijd",
-      "upgrade_power": "Verhoog laserkracht naar niveau {level} voor {cost} punten",
+      "laser_ready": "Laser {number}, kracht {power}, gereed",
+      "laser_cooldown": "Laser {number}, kracht {power}: nog {seconds} seconden afkoeltijd",
+      "upgrade_power": "Verhoog laser {number} naar krachtniveau {level} voor {cost} punten",
       "buy_laser": "Koop laserkanon {number} voor {cost} punten",
       "maximum_lasers": "Maximum van {count} laserkanonnen bereikt"
     },
