@@ -71,6 +71,7 @@ describe('SimulatedChattoWordmark', () => {
       container.querySelector('button[aria-label="Upgrade laser 1 to power level 2 for 16 points"]')
     ).not.toBeNull();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
+    expect(container.textContent).toContain('1/10');
   });
 
   it('fades in the game UI after four successful shots from the first laser', async () => {
@@ -193,10 +194,10 @@ describe('SimulatedChattoWordmark', () => {
 
   it('prices laser progression and tracks independent cooldowns', () => {
     expect(LASER_COOLDOWN).toBe(1500);
-    expect(MAX_LASER_GUNS).toBe(8);
+    expect(MAX_LASER_GUNS).toBe(10);
     expect(laserGunCost(1)).toBe(48);
     expect(laserGunCost(2)).toBeGreaterThan(laserGunCost(1));
-    expect(laserGunCost(8)).toBeGreaterThan(laserGunCost(7));
+    expect(laserGunCost(10)).toBeGreaterThan(laserGunCost(9));
     expect(laserPowerUpgradeCost(1)).toBe(16);
     expect(laserPowerUpgradeCost(3)).toBeGreaterThan(laserPowerUpgradeCost(2));
     expect(laserPowerRadiusScale(1)).toBe(0.035);

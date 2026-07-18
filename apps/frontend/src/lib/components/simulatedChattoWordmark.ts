@@ -161,7 +161,7 @@ export const SMOKE_DURATION = 900;
 export const CONSTRUCTION_DURATION = 1650;
 export const CANVAS_PIXEL_RATIO_LIMIT = 1.5;
 export const LASER_COOLDOWN = 1500;
-export const MAX_LASER_GUNS = 8;
+export const MAX_LASER_GUNS = 10;
 export const GAME_UI_REVEAL_SHOTS = 4;
 
 const CONSTRUCTION_FIRST_ROW_DELAY = 80;
