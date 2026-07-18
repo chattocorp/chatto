@@ -190,9 +190,9 @@ func initWizardIntroView(width, frame int, isDark bool) string {
 	}
 	lines = append(lines, "")
 	if frame > len(logoLines) {
-		lines = append(lines, mutedStyle.Render("A new conversation starts here."))
+		lines = append(lines, mutedStyle.Render("Chat Just Got Real"))
 	} else {
-		lines = append(lines, strings.Repeat(" ", lipgloss.Width("A new conversation starts here.")))
+		lines = append(lines, strings.Repeat(" ", lipgloss.Width("Chat Just Got Real")))
 	}
 	if frame > len(logoLines)+1 {
 		lines = append(lines, accentStyle.Render("enter to begin  •  ctrl+c to bail out"))
