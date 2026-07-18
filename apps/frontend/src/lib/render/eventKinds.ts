@@ -25,7 +25,6 @@ export const RoomEventKind = {
   RoomUniversalChanged: 'roomUniversalChanged',
   RoomUnarchived: 'roomUnarchived',
   RoomUpdated: 'roomUpdated',
-  ServerMemberDeleted: 'serverMemberDeleted',
   SessionTerminated: 'sessionTerminated',
   ThreadCreated: 'threadCreated',
   UserCreated: 'userCreated',

@@ -59,6 +59,26 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
   });
 
+  it('scrubs deleted participants from projected calls', () => {
+    const state = new ActiveCallRoomsState(voiceCall());
+    state.replaceProjection([call('R1', 'call-1', ['U1', 'U2'])]);
+
+    state.scrubUser('U1');
+
+    expect(state.getParticipants('R1').map(({ userId }) => userId)).toEqual(['U2']);
+    expect(state.findParticipantCall('U1')).toBeNull();
+  });
+
+  it('does not infer that a call ended when its last deleted participant is scrubbed', () => {
+    const state = new ActiveCallRoomsState(voiceCall());
+    state.replaceProjection([call('R1', 'call-1', ['U1'])]);
+
+    state.scrubUser('U1');
+
+    expect(state.has('R1')).toBe(true);
+    expect(state.getParticipants('R1')).toEqual([]);
+  });
+
   it('reports projected participants as voice and LiveKit camera participants as video', () => {
     const state = new ActiveCallRoomsState(
       voiceCall({

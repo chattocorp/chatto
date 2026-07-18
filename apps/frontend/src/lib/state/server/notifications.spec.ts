@@ -96,6 +96,28 @@ describe('NotificationStore', () => {
     consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
+  it('invalidates projection state during reset', () => {
+    const store = new NotificationStore(makeAPI());
+    store.replaceProjection(page([mention('n1')], 3));
+
+    store.resetProjectionState();
+
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+    expect(store.hasLoaded).toBe(true);
+    expect(store.loading).toBe(true);
+  });
+
+  it('scrubs deleted notification actors and actor-derived summaries', () => {
+    const store = new NotificationStore(makeAPI());
+    store.replaceProjection(page([mention('n1')]));
+
+    store.scrubUser('a');
+
+    expect(store.notifications[0]?.actor).toBeNull();
+    expect(store.notifications[0]?.summary).not.toContain('Tester');
+  });
+
   it('populates notifications on success', async () => {
     const store = new NotificationStore(
       makeAPI({ notifications: page([mention('n1'), mention('n2')]) })
@@ -332,7 +354,6 @@ describe('NotificationStore', () => {
     expect(store.notifications).toHaveLength(1);
     expect(store.error).toBe('network down');
   });
-
 
   // The DM list dot uses hasDMRoomNotification per conversation. It must
   // match DM notifications by room, and ignore non-DM notifications even if

@@ -265,7 +265,6 @@ export type RoomEventPayload =
       universal?: boolean;
     }
   | { kind: 'roomUpdated'; roomId: string }
-  | { kind: 'serverMemberDeleted'; userId: string }
   | { kind: 'sessionTerminated'; reason?: string }
   | {
       kind: 'threadCreated';

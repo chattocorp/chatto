@@ -7,8 +7,10 @@ import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -21,7 +23,10 @@ import {
   RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
-  RealtimeProjectionServerState
+  RealtimeProjectionServerState,
+  RealtimeProjectionReset,
+  RealtimeProjectionRoom,
+  RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
 
@@ -467,6 +472,174 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore live server updates', () => {
+  it('clears every projection-derived mirror immediately on reset', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+
+    store.notifications.replaceProjection({
+      items: [
+        {
+          kind: 'mention',
+          id: 'N1',
+          createdAt: '2026-01-01T00:00:00Z',
+          summary: 'Alice mentioned you',
+          mentionRoom: { id: 'R1', name: 'general' },
+          mentionEventId: 'M1'
+        } as never
+      ],
+      totalCount: 1
+    });
+    store.activeCallRooms.replaceProjection([
+      new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })
+    ]);
+    store.notificationLevels.setServerPreference('MUTED' as never, 'MUTED' as never);
+    store.roomUnread.setRoomUnread('R1', true);
+    store.setPermissions({ canViewAdmin: true } as never);
+    store.serverInfo.applyProjectionState(
+      new RealtimeProjectionServerState({
+        motd: 'private MOTD',
+        runtime: new ServerRuntimeConfig({
+          pushNotificationsEnabled: true,
+          livekitUrl: 'wss://livekit'
+        })
+      })
+    );
+    store.rooms.rooms = [{ id: 'R1' } as never];
+    store.rooms.roomGroups = [{ id: 'G1' } as never];
+    store.rooms.isInitialLoading = false;
+    store.roomDirectory.allRooms = [{ id: 'R1' } as never];
+    store.roomDirectory.isLoading = false;
+    store.currentUser.loading = false;
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'reset', value: new RealtimeProjectionReset() }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(store.notifications.notifications).toEqual([]);
+    expect(store.notifications.unreadNotificationCount).toBe(0);
+    expect(store.notifications.hasLoaded).toBe(true);
+    expect(store.activeCallRooms.has('R1')).toBe(false);
+    expect(store.notificationLevels.isServerMuted()).toBe(false);
+    expect(store.roomUnread.hasAnyUnread).toBe(false);
+    expect(store.permissions.loaded).toBe(false);
+    expect(store.permissions.canViewAdmin).toBe(false);
+    expect(store.serverInfo.motd).toBeNull();
+    expect(store.serverInfo.pushNotificationsEnabled).toBe(false);
+    expect(store.serverInfo.livekitUrl).toBeNull();
+    expect(store.rooms.rooms).toEqual([]);
+    expect(store.rooms.roomGroups).toEqual([]);
+    expect(store.rooms.isInitialLoading).toBe(true);
+    expect(store.roomDirectory.allRooms).toEqual([]);
+    expect(store.roomDirectory.isLoading).toBe(true);
+    expect(store.currentUser.loading).toBe(true);
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'serverStateUpsert',
+                value: new RealtimeProjectionServerState({
+                  motd: 'rehydrated',
+                  runtime: new ServerRuntimeConfig({ livekitUrl: 'wss://fresh' })
+                })
+              }
+            }),
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'activeCallsReplace',
+                value: new RealtimeProjectionActiveCallsReplace({
+                  calls: [new ActiveCall({ room: new Room({ id: 'R2' }), callId: 'call-2' })]
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+    expect(store.serverInfo.motd).toBe('rehydrated');
+    expect(store.serverInfo.livekitUrl).toBe('wss://fresh');
+    expect(store.activeCallRooms.has('R2')).toBe(true);
+  });
+
+  it('purges removed users from navigation and retained render stores', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const messages = store.messagesForRoom('R1');
+    const message = projectedMessage('M1', new Date('2026-01-01T00:00:00Z'));
+    messages.events = [
+      {
+        id: message.id,
+        createdAt: '2026-01-01T00:00:00Z',
+        actorId: 'U2',
+        actor: { id: 'U2', displayName: 'Deleted Person' },
+        event: {
+          kind: 'messagePosted',
+          roomId: 'R1',
+          body: 'hello',
+          attachments: [],
+          reactions: [],
+          replyCount: 0,
+          threadParticipants: []
+        }
+      } as never
+    ];
+    store.projection.viewer = {
+      user: { id: 'U1' },
+      serverNotificationPreference: { level: 'DEFAULT', effectiveLevel: 'NORMAL' },
+      roomNotificationPreferences: []
+    } as never;
+    store.projection.users.set(
+      'U2',
+      new DirectoryMember({ user: new User({ id: 'U2', displayName: 'Deleted Person' }) })
+    );
+    store.projection.rooms.set(
+      'R1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) }),
+        memberUserIds: ['U2']
+      })
+    );
+    const replaceNavigation = vi.spyOn(store.rooms, 'replaceProjection');
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'userRemove',
+                value: new RealtimeProjectionUserRemove({ userId: 'U2' })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(store.projection.users.has('U2')).toBe(false);
+    expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual([]);
+    expect(replaceNavigation).toHaveBeenCalled();
+    const membersByRoom = replaceNavigation.mock.calls.at(-1)?.[3];
+    expect(membersByRoom?.get('R1')).toEqual([]);
+    expect(messages.events[0]).toMatchObject({ actorId: 'U2', actor: null });
+  });
+
   it('keeps a first-view room timeline loading while requesting it from realtime', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
@@ -839,5 +1012,4 @@ describe('ServerStateStore live server updates', () => {
     expect(handleCallEndedEvent).toHaveBeenCalledWith('R1', 'call-1');
     expect(shouldPlay).not.toHaveBeenCalled();
   });
-
 });

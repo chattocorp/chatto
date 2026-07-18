@@ -12,10 +12,7 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import {
-    useProjectionEvent,
-    useSessionTerminated
-  } from '$lib/hooks';
+  import { useProjectionEvent, useSessionTerminated } from '$lib/hooks';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import {
@@ -49,6 +46,8 @@
         customStatus?: CustomUserStatus | null
       ) => void;
       updateStatus: (userId: string, customStatus: CustomUserStatus | null) => void;
+      remove: (userId: string) => void;
+      clear: () => void;
     };
     presenceCache: PresenceCache;
     children: Snippet;
@@ -123,7 +122,9 @@
     // projection operations that own each server-scoped store.
     useProjectionEvent((event) => {
       for (const operation of event.operations) {
-        if (operation.operation.case === 'userUpsert') {
+        if (operation.operation.case === 'reset') {
+          profileCache.clear();
+        } else if (operation.operation.case === 'userUpsert') {
           const member = mapDirectoryMember(operation.operation.value);
           if (!member.id) continue;
           profileCache.update(
@@ -144,6 +145,8 @@
             viewer.user.customStatus ?? null
           );
           userSettings.updateFromData(viewer.user.settings);
+        } else if (operation.operation.case === 'userRemove') {
+          profileCache.remove(operation.operation.value.userId);
         }
       }
     });
@@ -162,7 +165,6 @@
         clearTerminatedOriginSession();
       })
     );
-
   }
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).

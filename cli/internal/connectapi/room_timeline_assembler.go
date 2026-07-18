@@ -95,7 +95,7 @@ func (a *roomTimelineAssembler) hydrateEvents(ctx context.Context, viewerID stri
 	return apiEvents, h, nil
 }
 
-func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID string, kind core.RoomKind, root *core.RoomEvent, replies *core.RoomEventsResult, includeRoot bool) (*apiv1.RoomTimelinePage, error) {
+func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID, roomID, threadRootEventID string, kind core.RoomKind, root *core.RoomEvent, replies *core.RoomEventsResult, includeRoot bool) (*apiv1.RoomTimelinePage, error) {
 	events := make([]*core.RoomEvent, 0, 1+len(replies.Events))
 	if includeRoot {
 		events = append(events, root)
@@ -106,11 +106,11 @@ func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID st
 	if err != nil {
 		return nil, err
 	}
-	page.StartCursor, err = a.api.formatRoomTimelineCursor(replies.StartCursorSeq)
+	page.StartCursor, err = a.api.formatRoomTimelineCursor(viewerID, roomID, threadRootEventID, replies.StartCursorSeq)
 	if err != nil {
 		return nil, err
 	}
-	page.EndCursor, err = a.api.formatRoomTimelineCursor(replies.EndCursorSeq)
+	page.EndCursor, err = a.api.formatRoomTimelineCursor(viewerID, roomID, threadRootEventID, replies.EndCursorSeq)
 	if err != nil {
 		return nil, err
 	}

@@ -350,6 +350,58 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+  it('scrubs deleted-user actors, thread participants, and reaction previews', () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+    const message = threadMessageEvent('m1');
+    store.events = [
+      {
+        ...message,
+        actorId: 'deleted-user',
+        actor: { id: 'deleted-user', displayName: 'Alice' },
+        event: {
+          ...message.event,
+          threadParticipants: [
+            { id: 'deleted-user', displayName: 'Alice' },
+            { id: 'remaining-user', displayName: 'Bob' }
+          ],
+          reactions: [
+            {
+              emoji: 'heart',
+              count: 2,
+              hasReacted: false,
+              users: [
+                { id: 'deleted-user', displayName: 'Alice' },
+                { id: 'remaining-user', displayName: 'Bob' }
+              ]
+            }
+          ]
+        }
+      } as never
+    ];
+
+    store.scrubUserReferences('deleted-user');
+
+    expect(store.events[0]).toMatchObject({
+      actorId: 'deleted-user',
+      actor: null,
+      event: {
+        threadParticipants: [{ id: 'remaining-user', displayName: 'Bob' }],
+        reactions: [
+          {
+            count: 2,
+            users: [{ id: 'remaining-user', displayName: 'Bob' }]
+          }
+        ]
+      }
+    });
+    store.dispose();
+  });
+
   it('reports a successful jump when the target is already loaded', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI();

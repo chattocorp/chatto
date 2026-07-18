@@ -79,7 +79,7 @@ export class ServerProjectionStore {
           break;
         }
         case 'userRemove':
-          this.users.delete(operation.operation.value.userId);
+          this.removeUser(operation.operation.value.userId);
           break;
         case 'roomUpsert': {
           const room = operation.operation.value;
@@ -190,8 +190,7 @@ export class ServerProjectionStore {
               nextThread.viewerState =
                 this.threadViewerStates
                   .get(`${roomId}\u0000${thread.threadRootEventId}`)
-                  ?.clone() ??
-                new ThreadViewerState({ isFollowing: false, hasUnread: false });
+                  ?.clone() ?? new ThreadViewerState({ isFollowing: false, hasUnread: false });
               changed = true;
               return next;
             });
@@ -249,6 +248,57 @@ export class ServerProjectionStore {
     this.threadViewerStates.clear();
     this.timelines.clear();
     this.timelineEventCursors.clear();
+  }
+
+  /**
+   * Purge every canonical copy of profile data for an account removed from the
+   * server directory. Stable user IDs remain on historical facts, but no
+   * renderable user object survives the removal operation.
+   */
+  private removeUser(userId: string): void {
+    this.users.delete(userId);
+
+    for (const [roomId, room] of this.rooms) {
+      if (!room.memberUserIds.includes(userId)) continue;
+      this.rooms.set(
+        roomId,
+        new RealtimeProjectionRoom({
+          room: room.room,
+          memberUserIds: room.memberUserIds.filter((candidate) => candidate !== userId),
+          viewerNotificationCount: room.viewerNotificationCount
+        })
+      );
+    }
+
+    for (const [roomId, page] of this.timelines) {
+      if (!page.includes?.users[userId]) continue;
+      const next = page.clone();
+      if (next.includes) delete next.includes.users[userId];
+      this.timelines.set(roomId, next);
+    }
+
+    if (this.notifications) {
+      let changed = false;
+      const next = this.notifications.clone();
+      for (const notification of next.notifications) {
+        if (notification.actor?.id !== userId) continue;
+        notification.actor = undefined;
+        changed = true;
+      }
+      if (changed) this.notifications = next;
+    }
+
+    let callsChanged = false;
+    const calls = this.activeCalls.map((call) => {
+      if (!call.participants.some((participant) => participant.user?.id === userId)) return call;
+      callsChanged = true;
+      const next = call.clone();
+      next.participants = next.participants.filter(
+        (participant) => participant.user?.id !== userId
+      );
+      return next;
+    });
+    if (callsChanged) this.activeCalls = calls;
   }
 
   private upsertTimelineEvent(input: {

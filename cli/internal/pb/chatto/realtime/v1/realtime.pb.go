@@ -1467,7 +1467,9 @@ func (x *RealtimeProjectionRoomActivity) GetRoomId() string {
 	return ""
 }
 
-// Removes one user from the client projection.
+// Removes one user from the client projection. Reducers must also purge copied
+// render data for this user from retained rooms, timelines, notifications, and
+// calls while preserving stable IDs on historical facts.
 type RealtimeProjectionUserRemove struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable user ID to remove.

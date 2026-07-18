@@ -151,4 +151,19 @@ export class ServerInfoState {
     this.maxVideoUploadSize = Number(runtime.maxVideoUploadSize);
     this.messageEditWindowSeconds = runtime.messageEditWindowSeconds;
   }
+
+  /**
+   * Clear authenticated projection state while preserving independently
+   * discovered public profile and protocol-compatibility information.
+   */
+  resetProjectionState(): void {
+    this.motd = null;
+    this.pushNotificationsEnabled = false;
+    this.vapidPublicKey = null;
+    this.livekitUrl = null;
+    this.videoProcessingEnabled = false;
+    this.maxUploadSize = 25 * 1024 * 1024;
+    this.maxVideoUploadSize = 25 * 1024 * 1024;
+    this.messageEditWindowSeconds = 3 * 60 * 60;
+  }
 }

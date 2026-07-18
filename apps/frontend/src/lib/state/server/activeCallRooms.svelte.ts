@@ -121,14 +121,29 @@ export class ActiveCallRoomsState {
         participants: call.participants.flatMap((participant) => {
           const user = participant.user;
           if (!user?.id) return [];
-          return [{
-            userId: user.id,
-            displayName: user.displayName,
-            login: user.login,
-            avatarUrl: user.avatarUrl ?? null
-          }];
+          return [
+            {
+              userId: user.id,
+              displayName: user.displayName,
+              login: user.login,
+              avatarUrl: user.avatarUrl ?? null
+            }
+          ];
         })
       });
+    }
+  }
+
+  /** Remove copied participant profile data for a deleted account. */
+  scrubUser(userId: string): void {
+    for (const [roomId, snapshot] of this.serverRooms) {
+      const participants = snapshot.participants.filter(
+        (participant) => participant.userId !== userId
+      );
+      if (participants.length === snapshot.participants.length) continue;
+      // Account removal scrubs copied profile data; it does not imply that the
+      // call resource ended. A later active-calls replacement owns that state.
+      this.serverRooms.set(roomId, { callId: snapshot.callId, participants });
     }
   }
 

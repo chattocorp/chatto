@@ -311,6 +311,16 @@ export class RoomsStore {
     this.isInitialLoading = false;
   }
 
+  /** Invalidate all projection-owned navigation state during a reset. */
+  resetProjectionState(): void {
+    this.loadId++;
+    this.notificationCountsLoadId++;
+    this.rooms = [];
+    this.roomGroups = [];
+    this.currentUserId = null;
+    this.isInitialLoading = true;
+  }
+
   private roomListItem(room: DirectoryRoomSummary, members: UserAvatarUserView[]): RoomsListItem {
     return {
       id: room.id,
@@ -435,7 +445,6 @@ export class RoomsStore {
       this.rooms[idx] = { ...this.rooms[idx], ...patch };
     });
   }
-
 }
 
 function roomGroupItem(item: DirectoryRoomGroupItem): RoomsListGroupItem {

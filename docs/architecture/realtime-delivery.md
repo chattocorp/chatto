@@ -13,10 +13,10 @@ subscription, `hydrate_room` materialises another joined room over the same
 ordered stream.
 
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
-behavioural protocol version. Protocol 2 is the server-scoped projection stream. It uses
-`RealtimeProjectionEvent`, an optional resume cursor on `subscribe_events`, and
-`caught_up` at the replay-to-live boundary. Application heartbeats and client
-`ping`/server `pong` share the same connection.
+behavioural protocol version. Protocol 2 is the server-scoped projection
+stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on
+`subscribe_events`, and `caught_up` at the replay-to-live boundary. Application
+heartbeats and client `ping`/server `pong` share the same connection.
 
 The bundled client creates its event-bus reducer before discovery completes so
 consumers can register synchronously, but it opens the WebSocket only after
@@ -81,9 +81,19 @@ message stores are created lazily, and selecting a cold room sends
 `hydrate_room`. The response atomically replaces its full room membership and
 current timeline through the normal projection reducer; it is not a ConnectRPC
 bootstrap.
+
 Timeline replacements carry an opaque cursor for every retained row, and later
 row upserts carry that row's cursor. The reducer can therefore advance its
-pagination boundary using only the projection stream.
+pagination boundary using only the projection stream. Each timeline cursor is
+encrypted, authenticated, and bound to its viewer plus exact room or
+room/thread-root resource, so it cannot be reused as another timeline's
+boundary.
+
+On `reset`, the frontend immediately clears the canonical projection and all
+projection-derived mirrors, including cached profiles, notifications, calls,
+preferences, permissions, and authenticated runtime settings. Later snapshot
+operations repopulate those stores through the normal reducer.
+
 Changing the route selects retained state immediately after a room's first
 hydration. A cold route briefly renders its timeline loading state while the
 same WebSocket materialises it. DM labels resolve eager participant references,
@@ -259,6 +269,11 @@ compacted prefix and after every durable call transition. Transient frames have
 no durable cursor; finite pending-notification and presence state are
 reconciled explicitly on every subscription. The process-wide PresenceHub
 retains current presence and fans out later transitions.
+
+A `user_remove` operation purges copied profile fields from room membership,
+timeline includes, notification actors, active-call participants, retained
+message/thread render stores, and the shared profile cache. Historical rows may
+retain the stable user ID, but not a renderable user object.
 
 Process-wide ingress loss or projection-readiness failure quarantines the hub
 and closes every session. A slow session that exceeds its queue limits is

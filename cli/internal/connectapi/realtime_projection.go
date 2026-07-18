@@ -302,18 +302,18 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 	if err != nil {
 		return nil, err
 	}
-	apiPage.StartCursor, err = a.formatRoomTimelineCursor(page.StartCursorSeq)
+	apiPage.StartCursor, err = a.formatRoomTimelineCursor(userID, roomID, "", page.StartCursorSeq)
 	if err != nil {
 		return nil, err
 	}
-	apiPage.EndCursor, err = a.formatRoomTimelineCursor(page.EndCursorSeq)
+	apiPage.EndCursor, err = a.formatRoomTimelineCursor(userID, roomID, "", page.EndCursorSeq)
 	if err != nil {
 		return nil, err
 	}
 	eventCursors := make(map[string]string, len(page.Events))
 	for _, event := range page.Events {
 		if event != nil && event.Event != nil {
-			cursor, err := a.formatRoomTimelineCursor(event.Sequence)
+			cursor, err := a.formatRoomTimelineCursor(userID, roomID, "", event.Sequence)
 			if err != nil {
 				return nil, err
 			}
@@ -515,7 +515,7 @@ func (a *API) BuildRealtimeProjectionTimelineEvent(ctx context.Context, userID, 
 	if err != nil {
 		return nil, nil, "", err
 	}
-	cursor, err := a.formatRoomTimelineCursor(seq)
+	cursor, err := a.formatRoomTimelineCursor(userID, roomID, "", seq)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -538,7 +538,7 @@ func (a *API) BuildRealtimeProjectionSourceTimelineEvent(ctx context.Context, us
 	if err != nil {
 		return nil, nil, "", err
 	}
-	cursor, err := a.formatRoomTimelineCursor(seq)
+	cursor, err := a.formatRoomTimelineCursor(userID, roomID, "", seq)
 	if err != nil {
 		return nil, nil, "", err
 	}

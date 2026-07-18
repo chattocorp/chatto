@@ -235,14 +235,7 @@ export class ServerStateStore {
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
-          clearUserSummaryCache(this.serverId);
-          for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
-          for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
-          this.rooms.rooms = [];
-          this.rooms.roomGroups = [];
-          this.rooms.isInitialLoading = true;
-          this.roomDirectory.allRooms = [];
-          this.roomDirectory.isLoading = true;
+          this.resetProjectionMirrors();
           break;
         case 'serverUpsert':
           this.serverInfo.applyProjectionProfile(operation.operation.value);
@@ -267,9 +260,23 @@ export class ServerStateStore {
             this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           break;
         }
-        case 'userRemove':
-          removeUserSummaryCacheEntry(this.serverId, operation.operation.value.userId);
+        case 'userRemove': {
+          const userId = operation.operation.value.userId;
+          removeUserSummaryCacheEntry(this.serverId, userId);
+          this.notifications.scrubUser(userId);
+          this.activeCallRooms.scrubUser(userId);
+          for (const store of Object.values(this.#roomMessages)) {
+            store.scrubUserReferences(userId);
+          }
+          for (const store of Object.values(this.#threadMessages)) {
+            store.scrubUserReferences(userId);
+          }
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse) {
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          }
           break;
+        }
         case 'roomUpsert':
         case 'roomRemove':
         case 'roomGroupsReplace': {
@@ -432,6 +439,24 @@ export class ServerStateStore {
     this.roomDirectory.replaceProjection(rooms);
   }
 
+  /** Clear every mirror whose authority was invalidated by a reset frame. */
+  private resetProjectionMirrors(): void {
+    clearUserSummaryCache(this.serverId);
+    for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
+    for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
+    this.rooms.resetProjectionState();
+    this.roomDirectory.resetProjectionState();
+    this.notifications.resetProjectionState();
+    this.notificationLevels.clear();
+    this.roomUnread.clear();
+    this.pendingHighlights.clear();
+    this.activeCallRooms.clear();
+    this.serverInfo.resetProjectionState();
+    this.permissions = { ...EMPTY_PERMISSIONS };
+    this.currentUser.loading = true;
+    this.#playedCallSoundEventIds.length = 0;
+  }
+
   /** Complete current room membership resolved through the warm user cache. */
   projectedMembersForRoom(roomId: string): RoomMember[] {
     const room = this.projection.rooms.get(roomId);
@@ -534,9 +559,7 @@ export class ServerStateStore {
     calls: readonly ActiveCall[]
   ): void {
     const actorId = event.actorId;
-    const previousActorCall = actorId
-      ? this.activeCallRooms.findParticipantCall(actorId)
-      : null;
+    const previousActorCall = actorId ? this.activeCallRooms.findParticipantCall(actorId) : null;
     const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;
 
     if (!previousActorCall && nextActorCall) {

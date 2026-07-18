@@ -164,6 +164,34 @@ export class NotificationStore {
     this.error = null;
   }
 
+  /** Invalidate projection-owned state while a compacted reset hydrates. */
+  resetProjectionState(): void {
+    this.#fetchGeneration++;
+    this.notifications = [];
+    this.unreadNotificationCount = 0;
+    this.loading = true;
+    // The empty reset boundary is already authoritative. Keep this true so
+    // badge synchronisation clears stale native notification counts even when
+    // a later snapshot frame never arrives.
+    this.hasLoaded = true;
+    this.error = null;
+  }
+
+  /** Remove copied profile data for an account deleted from the projection. */
+  scrubUser(userId: string): void {
+    let changed = false;
+    const notifications = this.notifications.map((notification) => {
+      if (notification.actor?.id !== userId) return notification;
+      changed = true;
+      return {
+        ...notification,
+        actor: null,
+        summary: redactedNotificationSummary(notification.kind)
+      };
+    });
+    if (changed) this.notifications = notifications;
+  }
+
   /**
    * Get the set of thread root IDs that have pending reply notifications.
    * Used to show notification indicators on thread buttons.
@@ -546,5 +574,18 @@ export class NotificationStore {
       roomId: t.roomId
     });
     return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;
+  }
+}
+
+function redactedNotificationSummary(kind: NotificationItemKind): string {
+  switch (kind) {
+    case NotificationItemKind.DirectMessage:
+      return 'New message';
+    case NotificationItemKind.Mention:
+      return 'You were mentioned';
+    case NotificationItemKind.Reply:
+      return 'New reply to your message';
+    case NotificationItemKind.RoomMessage:
+      return 'New message';
   }
 }

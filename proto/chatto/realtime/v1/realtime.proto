@@ -245,7 +245,9 @@ message RealtimeProjectionRoomActivity {
   string room_id = 1;
 }
 
-// Removes one user from the client projection.
+// Removes one user from the client projection. Reducers must also purge copied
+// render data for this user from retained rooms, timelines, notifications, and
+// calls while preserving stable IDs on historical facts.
 message RealtimeProjectionUserRemove {
   // Stable user ID to remove.
   string user_id = 1;

@@ -517,7 +517,9 @@ is dormant without retransmitting room timelines.
 
 ### RealtimeProjectionUserRemove
 
-Removes one user from the client projection.
+Removes one user from the client projection. Reducers must also purge copied
+render data for this user from retained rooms, timelines, notifications, and
+calls while preserving stable IDs on historical facts.
 
 | Field | Type | Description |
 | --- | --- | --- |

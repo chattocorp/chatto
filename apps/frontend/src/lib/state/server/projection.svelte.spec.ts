@@ -16,14 +16,16 @@ import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import {
   RoomMessagePosted,
+  RoomTimelineIncludes,
   RoomTimelineEvent,
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
-import { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
   ListNotificationsResponse,
+  NotificationItem,
   RoomNotificationCount
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
@@ -197,9 +199,43 @@ describe('ServerProjectionStore', () => {
         operation({ case: 'userUpsert', value: user }),
         operation({ case: 'roomUpsert', value: room }),
         operation({
+          case: 'roomTimelineReplace',
+          value: new RealtimeProjectionRoomTimelineReplace({
+            roomId: 'R1',
+            page: new RoomTimelinePage({
+              includes: new RoomTimelineIncludes({
+                users: { U1: new User({ id: 'U1', displayName: 'Ada' }) }
+              })
+            })
+          })
+        }),
+        operation({
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({
+            page: new ListNotificationsResponse({
+              notifications: [
+                new NotificationItem({
+                  id: 'N1',
+                  actor: new User({ id: 'U1', displayName: 'Ada' })
+                })
+              ]
+            }),
+            roomCounts: [new RoomNotificationCount({ roomId: 'R1', totalCount: 3 })]
+          })
+        }),
+        operation({
           case: 'activeCallsReplace',
           value: new RealtimeProjectionActiveCallsReplace({
-            calls: [new ActiveCall({ callId: 'call-1' })]
+            calls: [
+              new ActiveCall({
+                callId: 'call-1',
+                participants: [
+                  new CallParticipant({
+                    user: new User({ id: 'U1', displayName: 'Ada' })
+                  })
+                ]
+              })
+            ]
           })
         }),
         operation({
@@ -239,6 +275,10 @@ describe('ServerProjectionStore', () => {
       )
     );
     expect(store.users.has('U1')).toBe(false);
+    expect(store.rooms.get('R1')?.memberUserIds).toEqual([]);
+    expect(store.timelines.get('R1')?.includes?.users.U1).toBeUndefined();
+    expect(store.notifications?.notifications[0]?.actor).toBeUndefined();
+    expect(store.activeCalls[0]?.participants).toEqual([]);
     expect(store.roomGroups).toEqual([]);
   });
 

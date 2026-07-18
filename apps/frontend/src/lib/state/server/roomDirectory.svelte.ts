@@ -96,12 +96,19 @@ export class RoomDirectoryStore {
   /** Replace the visible channel directory from the realtime projection. */
   replaceProjection(rooms: DirectoryRoomSummary[]): void {
     this.loadId++;
-    this.allRooms = rooms
-      .filter((room) => room.kind === RoomKind.CHANNEL)
-      .map(directoryRoom);
+    this.allRooms = rooms.filter((room) => room.kind === RoomKind.CHANNEL).map(directoryRoom);
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.isLoading = false;
+  }
+
+  /** Invalidate projection-owned directory state during a compacted reset. */
+  resetProjectionState(): void {
+    this.loadId++;
+    this.allRooms = [];
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
+    this.isLoading = true;
   }
 
   /**
@@ -189,5 +196,4 @@ export class RoomDirectoryStore {
       this.leavingIds.delete(roomId);
     }
   }
-
 }

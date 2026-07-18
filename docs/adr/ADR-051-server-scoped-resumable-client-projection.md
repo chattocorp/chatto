@@ -94,7 +94,9 @@ authenticated viewer. EVT stream incarnation and global sequence remain inside
 the sealed payload and are never disclosed as public API facts. Tampering,
 cross-user reuse, secret rotation, and foreign stream incarnation select a
 compacted reset. Room-timeline pagination cursors follow the same confidentiality
-and integrity invariant; legacy plaintext `seq:` cursors are rejected.
+and integrity invariant, and bind their sequence boundary to the authenticated
+viewer plus the exact room or room/thread-root resource; legacy plaintext
+`seq:` cursors and cross-resource reuse are rejected.
 Realtime resume cursors carry a sealed issue time and expire after 24 hours.
 Expiry selects compacted current state, so clients converge without retaining
 an indefinitely reusable replay credential.
@@ -127,6 +129,10 @@ rooms. Message retractions and account
 key shredding are resolved to their current tombstone form, so replay never
 re-emits an obsolete plaintext body. Room and RBAC visibility changes either
 emit explicit resource removal or force a reset from current authorization.
+`reset` immediately invalidates every projection-derived frontend mirror before
+the multi-frame compacted prefix is applied, so an interrupted reset cannot
+leave stale notifications, calls, permissions, preferences, or authenticated
+runtime settings visible.
 Channel echoes remain projection rows linked to their canonical thread reply.
 Reaction changes refresh both visible forms, while disabling an echo emits an
 explicit timeline-row removal rather than misrepresenting it as a deleted
@@ -188,6 +194,11 @@ alternatives; their former field numbers and names are reserved. Integrators
 migrate those handlers to `RealtimeProjectionEvent` operations and retain the
 envelope only for non-replayable signals: typing, presence, mention/new-DM
 attention hints, and session termination.
+
+`user_remove` purges the directory resource and every copied render reference
+to that user in retained membership, timeline includes, notification actors,
+active calls, and frontend room/thread mirrors. Historical facts retain stable
+actor IDs, but deleted profile PII is not retained for display.
 
 This client projection protocol complements rather than replaces
 `chatto.api.v1`. Integrations continue to use the resource-oriented ConnectRPC

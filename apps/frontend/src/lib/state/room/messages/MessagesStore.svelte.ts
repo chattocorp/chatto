@@ -483,6 +483,48 @@ export class MessagesStore {
     }
   }
 
+  /**
+   * Remove copied render data for a deleted account while preserving stable
+   * actor and participant IDs on historical facts.
+   */
+  scrubUserReferences(userId: string): void {
+    let changed = false;
+    const events = this.events.map((event) => {
+      const scrubActor = event.actor?.id === userId;
+      const payload = event.event;
+      if (!isMessagePostedPayload(payload)) {
+        if (!scrubActor) return event;
+        changed = true;
+        return { ...event, actor: null };
+      }
+
+      const threadParticipants = payload.threadParticipants.filter(
+        (participant) => participant.id !== userId
+      );
+      let reactionsChanged = false;
+      const reactions = payload.reactions.map((reaction) => {
+        const users = reaction.users.filter((user) => user.id !== userId);
+        if (users.length === reaction.users.length) return reaction;
+        reactionsChanged = true;
+        return { ...reaction, users };
+      });
+      const participantsChanged = threadParticipants.length !== payload.threadParticipants.length;
+      if (!scrubActor && !participantsChanged && !reactionsChanged) return event;
+
+      changed = true;
+      return {
+        ...event,
+        actor: scrubActor ? null : event.actor,
+        event: {
+          ...payload,
+          threadParticipants,
+          reactions
+        }
+      };
+    });
+    if (changed) this.events = events;
+  }
+
   /** Apply one authoritative current timeline row from the projection stream. */
   upsertRoomProjectionEvent(
     roomId: string,
@@ -575,11 +617,6 @@ export class MessagesStore {
     const eventData = spaceEvent.event;
     if (!eventData) return;
     const kind = roomEventKind(eventData);
-
-    if (kind === RoomEventKind.ServerMemberDeleted) {
-      this.refetchAll();
-      return;
-    }
 
     if (isRoomDeletedPayload(eventData)) {
       if (eventData.roomId === this.roomId) this.resetState();

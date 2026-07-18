@@ -6062,7 +6062,7 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 		t.Fatalf("older page HasNewer = false, want true")
 	}
 
-	startSeq, err := env.api.parseRoomTimelineCursor(page.StartCursor)
+	startSeq, err := env.api.parseRoomTimelineCursor(env.viewer.Id, room.Id, "", page.StartCursor)
 	if err != nil {
 		t.Fatalf("parse emitted start cursor: %v", err)
 	}
@@ -6073,7 +6073,7 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 
 func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	cursor, err := env.api.formatRoomTimelineCursor(42)
+	cursor, err := env.api.formatRoomTimelineCursor(env.viewer.Id, "room-1", "", 42)
 	if err != nil {
 		t.Fatalf("formatRoomTimelineCursor: %v", err)
 	}
@@ -6083,14 +6083,14 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	if !strings.HasPrefix(cursor, roomTimelineCursorOpaquePrefix) || strings.Contains(cursor, "42") {
 		t.Fatalf("cursor %q exposes raw sequence", cursor)
 	}
-	seq, err := env.api.parseRoomTimelineCursor(cursor)
+	seq, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", cursor)
 	if err != nil {
 		t.Fatalf("parse opaque cursor: %v", err)
 	}
 	if seq != 42 {
 		t.Fatalf("opaque cursor seq = %d, want 42", seq)
 	}
-	second, err := env.api.formatRoomTimelineCursor(42)
+	second, err := env.api.formatRoomTimelineCursor(env.viewer.Id, "room-1", "", 42)
 	if err != nil {
 		t.Fatalf("format second cursor: %v", err)
 	}
@@ -6108,14 +6108,86 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	}
 	tampered := []byte(cursor)
 	tampered[len(tampered)-1] ^= 1
-	if _, err := env.api.parseRoomTimelineCursor(string(tampered)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", string(tampered)); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("tampered cursor code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	for _, invalid := range []string{"bad", "seq:42", "tl:not-base64", "tl:AQ"} {
-		if _, err := env.api.parseRoomTimelineCursor(invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("parse invalid cursor %q code = %v, want invalid_argument", invalid, connect.CodeOf(err))
 		}
 	}
+}
+
+func TestRoomTimelineCursorsAreBoundToViewerAndResource(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("cursor-scope-room")
+	otherRoom := env.createJoinedRoom("cursor-scope-other")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	env.post(room.Id, env.viewer.Id, "latest", "")
+
+	ctx := withCaller(env.ctx, env.viewer)
+	roomPage, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  2,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	roomCursor := roomPage.Msg.GetPage().GetStartCursor()
+	if roomCursor == "" {
+		t.Fatal("room cursor is empty")
+	}
+
+	_, err = env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: otherRoom.Id,
+		Limit:  2,
+		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	_, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             2,
+		Cursor:            &apiv1.GetThreadEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	threadPage, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             2,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents: %v", err)
+	}
+	threadCursor := threadPage.Msg.GetPage().GetEndCursor()
+	if threadCursor == "" {
+		t.Fatal("thread cursor is empty")
+	}
+	otherRoot := env.post(room.Id, env.viewer.Id, "other root", "")
+	_, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: otherRoot.Id,
+		Limit:             2,
+		Cursor:            &apiv1.GetThreadEventsRequest_Before{Before: threadCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	otherViewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "cursor-other-viewer", "Other Viewer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other viewer: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, otherViewer.Id, core.KindChannel, otherViewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other viewer: %v", err)
+	}
+	_, err = env.rooms.GetRoomEvents(withCaller(env.ctx, otherViewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  2,
+		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
 }
 
 func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *testing.T) {
