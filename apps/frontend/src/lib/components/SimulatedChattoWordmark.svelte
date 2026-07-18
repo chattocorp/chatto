@@ -38,7 +38,6 @@
     rayExitDistance,
     smokeFrame,
     sparkleStrength,
-    STARTER_LASER_POWER,
     type ProjectedParticle,
     type ProjectionRotation,
     type WordmarkParticle
@@ -783,7 +782,7 @@
     if (laserIndex < 0) return;
     const firingLaser = laserGuns[laserIndex];
     if (!firingLaser) return;
-    const shotPower = introShot ? STARTER_LASER_POWER : firingLaser.power;
+    const shotPower = firingLaser.power;
     laserGuns = laserGuns.map((laser, index) =>
       index === laserIndex ? { ...laser, readyAt: triggeredAt + LASER_COOLDOWN } : laser
     );
