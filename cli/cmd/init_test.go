@@ -376,6 +376,65 @@ func TestRunInitCommandRefusesOverwriteBeforeWizard(t *testing.T) {
 	}
 }
 
+func TestRunInitCommandForceOverwritesExistingConfiguration(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(configPath, []byte("sentinel"), 0o644); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+	var gotWizardOptions initWizardOptions
+	err := runInitCommand(initCommandOptions{configPath: configPath, force: true}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
+		getenv:  func(string) string { return "" },
+		wizard: func(answers *initAnswers, opts initWizardOptions) error {
+			gotWizardOptions = opts
+			answers.Confirmed = true
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("runInitCommand() error = %v", err)
+	}
+	if !gotWizardOptions.force {
+		t.Fatal("wizard was not told that overwrite mode is enabled")
+	}
+	if _, err := config.ReadConfig(configPath); err != nil {
+		t.Fatalf("read replacement config: %v", err)
+	}
+	info, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("stat replacement config: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("replacement config mode = %o, want 600", got)
+	}
+}
+
+func TestRunInitCommandForceCancellationPreservesExistingConfiguration(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(configPath, []byte("sentinel"), 0o600); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+	err := runInitCommand(initCommandOptions{configPath: configPath, force: true}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: panicReader{},
+		getenv:  func(string) string { return "" },
+		wizard: func(answers *initAnswers, _ initWizardOptions) error {
+			answers.Confirmed = false
+			return nil
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "nothing was written") {
+		t.Fatalf("runInitCommand() error = %v", err)
+	}
+	got, readErr := os.ReadFile(configPath)
+	if readErr != nil || string(got) != "sentinel" {
+		t.Fatalf("existing config changed: %q, %v", got, readErr)
+	}
+}
+
 func TestRunInitCommandAccessibleMode(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -456,7 +515,7 @@ func TestInitWizardAccessibleReviewIncludesSummary(t *testing.T) {
 		accessible: true,
 		configPath: "/etc/chatto/chatto.toml",
 	}
-	err := newInitForm(opts, initReviewGroup(&answers, opts.configPath, false)).Run()
+	err := newInitForm(opts, initReviewGroup(&answers, opts.configPath, false, false)).Run()
 	if err != nil {
 		t.Fatalf("review form error = %v", err)
 	}
@@ -464,6 +523,40 @@ func TestInitWizardAccessibleReviewIncludesSummary(t *testing.T) {
 	for _, want := range []string{"Launch card", "https://chat.example.com", "/etc/chatto/chatto.toml"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("accessible output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestInitWizardAccessibleForceWarnsAndRequiresOverwriteConfirmation(t *testing.T) {
+	answers := defaultInitAnswers()
+	answers.Confirmed = false
+	var output bytes.Buffer
+	opts := initWizardOptions{
+		input:      strings.NewReader("y\n"),
+		output:     &output,
+		accessible: true,
+		configPath: "/etc/chatto/chatto.toml",
+		force:      true,
+	}
+	err := newInitForm(opts,
+		initOverwriteWarningGroup(opts.configPath),
+		initReviewGroup(&answers, opts.configPath, true, false),
+	).Run()
+	if err != nil {
+		t.Fatalf("force confirmation form error = %v", err)
+	}
+	if !answers.Confirmed {
+		t.Fatal("overwrite confirmation was not recorded")
+	}
+	text := output.String()
+	for _, want := range []string{
+		"Careful — overwrite mode is enabled",
+		"--force allows Chatto to replace",
+		"Overwrite this configuration?",
+		"/etc/chatto/chatto.toml",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("accessible force output missing %q:\n%s", want, text)
 		}
 	}
 }

@@ -41,6 +41,7 @@ type initWizardOptions struct {
 	output     io.Writer
 	accessible bool
 	configPath string
+	force      bool
 }
 
 func defaultInitAnswers() initAnswers {
@@ -59,6 +60,9 @@ func defaultInitAnswers() initAnswers {
 func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 	if opts.accessible {
 		return runAccessibleInitWizard(answers, opts)
+	}
+	if opts.force {
+		answers.Confirmed = false
 	}
 
 	embedded := initEmbeddedNATSGroup(answers, false).WithHideFunc(func() bool {
@@ -80,7 +84,11 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthNKey
 	})
 
-	form := newInitForm(opts,
+	groups := make([]*huh.Group, 0, 11)
+	if opts.force {
+		groups = append(groups, initOverwriteWarningGroup(opts.configPath))
+	}
+	groups = append(groups,
 		initWelcomeGroup(),
 		initFrontDoorGroup(answers, false),
 		initNATSModeGroup(answers),
@@ -90,17 +98,23 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 		token,
 		userpass,
 		nkey,
-		initReviewGroup(answers, opts.configPath, true),
+		initReviewGroup(answers, opts.configPath, opts.force, true),
 	)
+	form := newInitForm(opts, groups...)
 	return form.Run()
 }
 
 func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error {
-	if err := newInitForm(opts,
+	groups := make([]*huh.Group, 0, 4)
+	if opts.force {
+		groups = append(groups, initOverwriteWarningGroup(opts.configPath))
+	}
+	groups = append(groups,
 		initWelcomeGroup(),
 		initFrontDoorGroup(answers, true),
 		initNATSModeGroup(answers),
-	).Run(); err != nil {
+	)
+	if err := newInitForm(opts, groups...).Run(); err != nil {
 		return err
 	}
 
@@ -122,7 +136,7 @@ func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error
 	// Huh's accessible renderer treats EOF as the default confirmation. Require
 	// an explicit yes so redirected or disconnected input can never write a file.
 	answers.Confirmed = false
-	return newInitForm(opts, initReviewGroup(answers, opts.configPath, false)).Run()
+	return newInitForm(opts, initReviewGroup(answers, opts.configPath, opts.force, false)).Run()
 }
 
 func newInitForm(opts initWizardOptions, groups ...*huh.Group) *huh.Form {
@@ -133,6 +147,16 @@ func newInitForm(opts initWizardOptions, groups ...*huh.Group) *huh.Form {
 		WithOutput(opts.output).
 		WithShowHelp(true).
 		WithShowErrors(true)
+}
+
+func initOverwriteWarningGroup(configPath string) *huh.Group {
+	return huh.NewGroup(
+		huh.NewNote().
+			Title("Careful — overwrite mode is enabled").
+			Description(fmt.Sprintf("--force allows Chatto to replace the configuration at %s.\nYou’ll get one final confirmation before anything is written.", configPath)).
+			Next(true).
+			NextLabel("I understand →"),
+	).Title("Overwrite mode")
 }
 
 func initWelcomeGroup() *huh.Group {
@@ -254,36 +278,50 @@ func initNATSCredentialsGroup(answers *initAnswers, method config.NATSAuthMethod
 	return huh.NewGroup(fields...).Title("NATS credentials")
 }
 
-func initReviewGroup(answers *initAnswers, configPath string, dynamic bool) *huh.Group {
+func initReviewGroup(answers *initAnswers, configPath string, force, dynamic bool) *huh.Group {
 	review := huh.NewNote().Title("Launch card")
 	if dynamic {
 		review = review.DescriptionFunc(func() string {
-			return initAnswersSummary(*answers, configPath)
+			return initAnswersSummary(*answers, configPath, force)
 		}, answers)
 	} else {
 		// Huh's accessible renderer does not evaluate dynamic descriptions.
 		// Accessible mode reaches this staged form only after all answers exist.
-		review = review.Description(initAnswersSummary(*answers, configPath))
+		review = review.Description(initAnswersSummary(*answers, configPath, force))
+	}
+	confirmTitle := "Create this configuration?"
+	affirmative := "Write configuration"
+	negative := "Not yet"
+	if force {
+		confirmTitle = "Overwrite this configuration?"
+		affirmative = "Overwrite configuration"
+		negative = "Keep existing file"
 	}
 
 	return huh.NewGroup(
 		review,
 		huh.NewConfirm().
-			Title("Create this configuration?").
-			Affirmative("Write configuration").
-			Negative("Not yet").
+			Title(confirmTitle).
+			Affirmative(affirmative).
+			Negative(negative).
 			Value(&answers.Confirmed),
 	).Title("Ready when you are")
 }
 
-func initAnswersSummary(answers initAnswers, configPath string) string {
+func initAnswersSummary(answers initAnswers, configPath string, force bool) string {
 	storage := fmt.Sprintf("Embedded NATS · %s", strings.TrimSpace(answers.EmbeddedDataDir))
 	if answers.NATSMode == initNATSExternal {
 		storage = fmt.Sprintf("External NATS · %s · %d replica(s) · %s auth",
 			strings.TrimSpace(answers.ExternalNATSURL), answers.NATSReplicas, answers.NATSAuthMethod)
 	}
-	return fmt.Sprintf("Public URL   %s\nListen port  %s\nStorage      %s\nWrite        %s\n\nFresh secrets will be generated now.",
-		strings.TrimSpace(answers.PublicURL), answers.ListenPort, storage, configPath)
+	writeAction := "Write"
+	closingNote := "Fresh secrets will be generated now."
+	if force {
+		writeAction = "Overwrite"
+		closingNote = "The existing file will be replaced with freshly generated secrets."
+	}
+	return fmt.Sprintf("Public URL   %s\nListen port  %s\nStorage      %s\n%-12s%s\n\n%s",
+		strings.TrimSpace(answers.PublicURL), answers.ListenPort, storage, writeAction, configPath, closingNote)
 }
 
 func validatePublicURL(value string) error {
