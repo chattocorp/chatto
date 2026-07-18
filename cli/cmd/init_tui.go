@@ -20,9 +20,12 @@ const (
 	initWizardFrameDelay   = 65 * time.Millisecond
 )
 
-const initWizardLogo = `┌─┐┬ ┬┌─┐┌┬┐┌┬┐┌─┐
-│  ├─┤├─┤ │  │ │ │
-└─┘┴ ┴┴ ┴ ┴  ┴ └─┘`
+const initWizardLogo = ` ██████╗██╗  ██╗ █████╗ ████████╗████████╗ ██████╗
+██╔════╝██║  ██║██╔══██╗╚══██╔══╝╚══██╔══╝██╔═══██╗
+██║     ███████║███████║   ██║      ██║   ██║   ██║
+██║     ██╔══██║██╔══██║   ██║      ██║   ██║   ██║
+╚██████╗██║  ██║██║  ██║   ██║      ██║   ╚██████╔╝
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝      ╚═╝    ╚═════╝`
 
 type initWizardTickMsg struct{}
 
@@ -173,16 +176,21 @@ func initWizardIntroView(width, frame int, isDark bool) string {
 	}
 
 	visibleLogoLines := min(frame, len(logoLines))
+	logoWidth := 0
+	for _, line := range logoLines {
+		logoWidth = max(logoWidth, lipgloss.Width(line))
+	}
 	choose := lipgloss.LightDark(isDark)
-	logoStyle := lipgloss.NewStyle().Foreground(choose(lipgloss.Color("#7C3AED"), lipgloss.Color("#C4B5FD")))
+	logoStyle := lipgloss.NewStyle().Foreground(choose(lipgloss.Color("#7C3AED"), lipgloss.Color("#C4B5FD"))).Bold(true)
 	mutedStyle := lipgloss.NewStyle().Foreground(choose(lipgloss.Color("#64748B"), lipgloss.Color("#94A3B8")))
 	accentStyle := lipgloss.NewStyle().Foreground(choose(lipgloss.Color("#0891B2"), lipgloss.Color("#67E8F9"))).Bold(true)
 	lines := make([]string, 0, len(logoLines)+3)
 	for i, line := range logoLines {
+		line += strings.Repeat(" ", logoWidth-lipgloss.Width(line))
 		if i < visibleLogoLines {
 			lines = append(lines, logoStyle.Render(line))
 		} else {
-			lines = append(lines, strings.Repeat(" ", lipgloss.Width(line)))
+			lines = append(lines, strings.Repeat(" ", logoWidth))
 		}
 	}
 	lines = append(lines, "")
