@@ -132,6 +132,7 @@ func newInitForm(opts initWizardOptions, groups ...*huh.Group) *huh.Form {
 		// Bubbles, which panics while rendering input placeholders. A fixed
 		// minimum keeps the form responsive without corrupting field dimensions.
 		WithLayout(initWizardLayout{}).
+		WithWidth(initWizardMaxFormWidth).
 		WithAccessible(opts.accessible).
 		WithInput(opts.input).
 		WithOutput(opts.output).

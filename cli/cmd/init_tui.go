@@ -78,7 +78,7 @@ func (m *initWizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		if m.stage == initWizardForm {
-			return m.updateForm(m.formWindowSize())
+			return m.resizeForm()
 		}
 		return m, nil
 	case tea.BackgroundColorMsg:
@@ -116,11 +116,16 @@ func (m *initWizardModel) startForm() (tea.Model, tea.Cmd) {
 	m.stage = initWizardForm
 	cmds := []tea.Cmd{m.form.Init()}
 	if m.width > 0 && m.height > 0 {
-		updated, cmd := m.form.Update(m.formWindowSize())
-		m.form = updated.(*huh.Form)
+		_, cmd := m.resizeForm()
 		cmds = append(cmds, cmd)
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func (m *initWizardModel) resizeForm() (tea.Model, tea.Cmd) {
+	size := m.formWindowSize()
+	m.form.WithWidth(size.Width)
+	return m.updateForm(size)
 }
 
 func (m *initWizardModel) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -149,13 +154,29 @@ func (m *initWizardModel) View() tea.View {
 	} else {
 		content = m.form.View()
 	}
-	if m.width > 0 && m.height > 0 {
-		content = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
-	}
+	content = initWizardCenteredView(m.width, m.height, content)
 	view := tea.NewView(content)
 	view.AltScreen = true
 	view.ReportFocus = true
 	return view
+}
+
+// initWizardCenteredView centers a block without filling the entire terminal
+// with trailing whitespace. Writing through the bottom-right cell can make
+// some terminals scroll an alternate screen and corrupt subsequent repaints.
+func initWizardCenteredView(width, height int, content string) string {
+	if width <= 0 || height <= 0 {
+		return content
+	}
+	contentWidth, contentHeight := lipgloss.Size(content)
+	left := max((width-contentWidth)/2, 0)
+	top := max((height-contentHeight)/2, 0)
+	prefix := strings.Repeat(" ", left)
+	lines := strings.Split(content, "\n")
+	for i := range lines {
+		lines[i] = prefix + lines[i]
+	}
+	return strings.Repeat("\n", top) + strings.Join(lines, "\n")
 }
 
 func initWizardTick() tea.Cmd {

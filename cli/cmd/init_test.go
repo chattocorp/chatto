@@ -578,6 +578,22 @@ func TestInitWizardModelConstrainsFormToTerminal(t *testing.T) {
 	}
 }
 
+func TestInitWizardCenteredViewDoesNotFillTerminalEdges(t *testing.T) {
+	const (
+		width  = 20
+		height = 10
+	)
+	view := initWizardCenteredView(width, height, "hello\nworld")
+	if got := lipgloss.Height(view); got >= height {
+		t.Fatalf("rendered height = %d, want less than terminal height %d", got, height)
+	}
+	for i, line := range strings.Split(view, "\n") {
+		if got := lipgloss.Width(line); got >= width {
+			t.Fatalf("line %d width = %d, want less than terminal width %d", i, got, width)
+		}
+	}
+}
+
 func TestInitWizardIntroFramesHaveStableGeometry(t *testing.T) {
 	for _, width := range []int{50, 100} {
 		first := initWizardIntroView(width, 1, true)
