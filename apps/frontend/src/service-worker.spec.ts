@@ -25,6 +25,10 @@ type TestNativeNotification = {
   close?: () => void;
 };
 
+type TestWindowClient = {
+  id: string;
+};
+
 function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
   const pending: Promise<unknown>[] = [];
   return {
@@ -69,7 +73,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
   };
   const clients = {
     claim: vi.fn(async () => {}),
-    matchAll: vi.fn(async () => []),
+    matchAll: vi.fn(async (): Promise<TestWindowClient[]> => []),
     openWindow: vi.fn(async () => null)
   };
   const setAppBadge = vi.fn(async () => {});
@@ -265,7 +269,7 @@ describe('service worker notifications', () => {
     }
   });
 
-  it('closes matching native notifications after a dismiss push without writing a badge', async () => {
+  it('closes matching native notifications and updates the badge when the app is closed', async () => {
     const worker = await importServiceWorker();
     const staleNotification = { close: vi.fn() };
     worker.registration.getNotifications.mockResolvedValueOnce([staleNotification]);
@@ -274,13 +278,54 @@ describe('service worker notifications', () => {
       data: {
         json: () => ({
           action: 'dismiss',
-          tag: 'notification-1'
+          tag: 'notification-1',
+          app_badge: '2'
         })
       }
     });
 
     expect(staleNotification.close).toHaveBeenCalledOnce();
     expect(worker.registration.getNotifications).toHaveBeenCalledOnce();
+    expect(worker.clients.matchAll).toHaveBeenCalledWith({
+      type: 'window',
+      includeUncontrolled: true
+    });
+    expect(worker.setAppBadge).toHaveBeenCalledWith(2);
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('leaves dismiss badge updates to an open app client', async () => {
+    const worker = await importServiceWorker();
+    worker.clients.matchAll.mockResolvedValueOnce([{ id: 'open-app' }]);
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          action: 'dismiss',
+          tag: 'notification-1',
+          app_badge: 1
+        })
+      }
+    });
+
+    expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('ignores dismiss badge updates without a valid authoritative count', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          action: 'dismiss',
+          tag: 'notification-1',
+          app_badge: '-1'
+        })
+      }
+    });
+
+    expect(worker.clients.matchAll).not.toHaveBeenCalled();
     expect(worker.setAppBadge).not.toHaveBeenCalled();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
   });

@@ -492,6 +492,13 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			Action: "dismiss",
 			Tag:    tag,
 		}
+		if count, err := chattoCore.GetNotificationCount(ctx, userID); err == nil {
+			payload.AppBadge = strconv.Itoa(count)
+		} else {
+			logger.Warn("Failed to get notification count for dismiss app badge",
+				"user_id", userID,
+				"error", err)
+		}
 		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
 		if len(subscriptions) == 0 {
 			return

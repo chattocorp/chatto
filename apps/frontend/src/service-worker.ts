@@ -18,6 +18,12 @@ import {
 
 declare const self: ServiceWorkerGlobalScope;
 
+type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
+  setAppBadge?: (contents?: number) => Promise<void>;
+};
+
+const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
+
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
@@ -130,6 +136,7 @@ interface PushPayload {
   tag?: string;
   notificationId?: string;
   url?: string;
+  app_badge?: string | number;
   // "dismiss" action is used to close notifications on other devices
   action?: 'dismiss';
 }
@@ -219,6 +226,32 @@ function stringProperty(record: object, key: string): string | undefined {
 }
 
 /**
+ * Apply the server's remaining origin count only when no page can provide the
+ * authoritative aggregate multi-server badge.
+ */
+async function updateClosedAppBadgeAfterDismiss(appBadge: unknown): Promise<void> {
+  const count = parseAppBadgeCount(appBadge);
+  if (count === undefined || !badgeNavigator.setAppBadge) return;
+
+  let windowClients: readonly Client[];
+  try {
+    windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  } catch {
+    return;
+  }
+  if (windowClients.length > 0) return;
+
+  await badgeNavigator.setAppBadge(count).catch(() => {});
+}
+
+function parseAppBadgeCount(value: unknown): number | undefined {
+  const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
+    ? count
+    : undefined;
+}
+
+/**
  * Handle incoming push events.
  * Parse the payload and display a native notification, or dismiss existing ones.
  */
@@ -245,6 +278,7 @@ self.addEventListener('push', (event) => {
       (async () => {
         const notifications = await self.registration.getNotifications({ tag: payload.tag });
         notifications.forEach((n) => n.close());
+        await updateClosedAppBadgeAfterDismiss(payload.app_badge);
       })()
     );
     return;

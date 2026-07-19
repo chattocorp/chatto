@@ -22,7 +22,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
-- While Chatto is open, its pending-notification stores are authoritative for the app-icon badge. Declarative Web Push can supply a browser-managed badge update while the app is closed; the service worker never writes to the Badging API.
+- While Chatto is open, its pending-notification stores are authoritative for the app-icon badge. Declarative Web Push supplies browser-managed badge updates while the app is closed. A dismiss push updates the badge through the service worker only when no app window is open, because declarative push cannot remove a notification without displaying a replacement.
 - Clicking or manually dismissing a native notification does not itself dismiss the pending notification inside Chatto, so it does not clear the app-icon badge; the badge clears when the pending notification is dismissed in Chatto.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions.
@@ -78,17 +78,17 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Why:** A browser push subscription belongs to a service worker origin and is created with a single application server key. Registering arbitrary remote servers from another server's app origin would imply cross-origin routing and VAPID-key behavior that Chatto has not designed yet.
 **Tradeoff:** Users connected to remote servers do not get native OS notifications for those servers through this app origin. They still get realtime in-app badges and notification sounds while Chatto is open, and remote-native push can be revisited with an explicit relay or shared-key design.
 
-### 9. Declarative-compatible payloads with service-worker fallback
+### 9. Declarative-compatible payloads with service-worker notification fallback
 
-**Decision:** Regular push notifications use a mutable Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload.
-**Why:** Modern browsers can display the standard declarative notification if the service worker is unavailable, while browsers with the Chatto worker installed still dispatch a push event so the worker can keep badge and click reconciliation behavior intact. Older browsers and already-installed Chatto service workers keep using the legacy root fields.
-**Tradeoff:** Payloads duplicate a small amount of title/body/navigation data and include WebKit's `app_badge` field when the count is available. That is preferable to a flag-day service-worker rollout, a second subscription path, or losing badge reconciliation on declarative-capable installed PWAs.
+**Decision:** Regular push notifications use a mutable Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload. Badge counts appear in both WebKit's current top-level location and its earlier nested location during the format transition.
+**Why:** Modern browsers can display and navigate from the declarative notification if the service worker is unavailable. The installed worker remains a compatibility path for notification display and click routing, while older browsers and already-installed Chatto workers can keep using the legacy fields.
+**Tradeoff:** Payloads duplicate a small amount of title/body/navigation and badge data. That is preferable to a flag-day service-worker rollout or dropping badge updates on either side of WebKit's payload-format change.
 
 ### 10. Late delivery and badge-state revalidation
 
-**Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is open, one direct synchronization from the aggregate pending-notification count sets or clears the app badge; declarative push payloads leave closed-app badge handling to the browser.
-**Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. Using the durable notification projection as the only JavaScript badge source keeps the app icon aligned with Chatto's notification center without competing service-worker writes, persisted badge state, or foreground ownership coordination.
-**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Browsers without declarative badge support do not receive closed-app badge updates from Chatto's service worker; opening the app restores the authoritative aggregate count.
+**Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is open, one direct synchronization from the aggregate pending-notification count sets or clears the app badge. Declarative push handles regular closed-app updates; dismiss pushes carry the remaining origin-server count and the worker applies it only when no app window is open.
+**Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. The open page must remain authoritative for its aggregate multi-server count, while the narrow worker fallback prevents cross-device dismissals from leaving a closed installed app stale. This needs no persisted badge state or foreground message protocol.
+**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Closed-app counts cover only the app's origin server, and browsers without declarative or worker Badging API support restore the authoritative aggregate when the app next opens.
 
 ## Permissions
 
