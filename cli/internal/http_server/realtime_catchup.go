@@ -150,6 +150,10 @@ func (a *realtimeCatchUpAdmission) acquireHydration(userID string) (func(), *rea
 	now := a.now()
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.acquisitions++
+	if a.acquisitions%256 == 0 {
+		a.removeStaleUsers(now)
+	}
 	state := a.users[userID]
 	if state == nil {
 		state = &realtimeCatchUpUserState{

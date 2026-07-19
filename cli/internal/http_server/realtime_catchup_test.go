@@ -78,6 +78,32 @@ func TestRealtimeHydrationAdmissionRateLimitsDistinctRooms(t *testing.T) {
 	release()
 }
 
+func TestRealtimeHydrationAdmissionPrunesInactiveUsers(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
+	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
+
+	release, err := admission.acquireHydration("inactive-user")
+	if err != nil {
+		t.Fatalf("acquire hydration: %v", err)
+	}
+	release()
+
+	now = now.Add(realtimeCatchUpLimiterStateLifetime + time.Second)
+	admission.acquisitions = 255
+	release, err = admission.acquireHydration("active-user")
+	if err != nil {
+		t.Fatalf("acquire hydration after cleanup interval: %v", err)
+	}
+	release()
+
+	if _, exists := admission.users["inactive-user"]; exists {
+		t.Fatal("inactive hydration-only user was not pruned")
+	}
+	if _, exists := admission.users["active-user"]; !exists {
+		t.Fatal("current hydration user was pruned")
+	}
+}
+
 func TestRealtimeCatchUpAdmissionRateLimitsReplayAndBootstrapAttempts(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(2, 2, time.Minute, func() time.Time { return now })

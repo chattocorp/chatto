@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-07-19
 
 ## Overview
 
@@ -20,7 +20,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.
 - A member's join/leave updates active call indicators and participant lists, but call lifecycle and participant transitions are not shown as room timeline messages. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
-- Losing room membership also removes the user from the room's active call. This includes voluntarily leaving the room, being removed by a moderator, being banned, and account-deletion cleanup. Chatto records the call leave from the membership transition and best-effort asks LiveKit to disconnect the participant; if that LiveKit removal fails, the room membership change still succeeds and reconciliation can catch up later.
+- Losing room membership also removes the user from the room's active call. This includes voluntarily leaving the room, being removed by a moderator, being banned, and account-deletion cleanup. The affected client immediately hides that room's call roster and disconnects its local media when the membership change arrives. Chatto records the call leave from the membership transition and best-effort asks LiveKit to disconnect the participant; if that LiveKit removal fails, the room membership change still succeeds and reconciliation can catch up later.
 - Joined call participants hear fixed synthesized cues from durable participant join/leave events, including their own join/leave events and other participants in the same active call. These call cues are separate from configurable notification sounds and do not use notification sound filters; `CallEndedEvent` does not play a separate cue.
 - The first join starts a call session, creates fresh per-call E2EE key material, and records durable call lifecycle facts. The final leave ends the call, records the end fact, and shreds the call key.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
@@ -102,7 +102,7 @@ Voice calling doesn't have a dedicated permission today; room membership is the 
 
 ## Related
 
-- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints)
+- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-051 (server-scoped resumable client projection)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-019 (Room Lifecycle)
 
 ## Open Questions
