@@ -315,9 +315,11 @@ describe('renderMarkdown', () => {
       expect(html).not.toContain('<hr');
     });
 
-    it('does not render tables', async () => {
+    it('renders GFM tables', async () => {
       const html = await renderMarkdown('| a | b |\n|---|---|\n| 1 | 2 |');
-      expect(html).not.toContain('<table');
+      expect(html).toContain('<div class="table-scroll" tabindex="0"><table>');
+      expect(html).toContain('<th>a</th>');
+      expect(html).toContain('<td>1</td>');
     });
   });
 

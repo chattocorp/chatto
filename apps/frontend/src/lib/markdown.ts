@@ -14,7 +14,6 @@ const DISABLED_RULES = [
   // Block-level
   'lheading',
   'hr',
-  'table',
   'reference',
   // Inline
   'image',
@@ -328,6 +327,8 @@ function initialize(): void {
   md.core.ruler.after('inline', 'normalize_non_breaking_spaces', normalizeInlineNonBreakingSpaces);
   md.renderer.rules.softbreak = renderChatLineBreak;
   md.renderer.rules.hardbreak = renderChatLineBreak;
+  md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
+  md.renderer.rules.table_close = () => '</table></div>\n';
 
   // Customize link rendering for security
   const defaultLinkRender =

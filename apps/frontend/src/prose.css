@@ -203,8 +203,14 @@
   }
 
   /* Tables */
+  & .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
   & table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 0.875em;
   }

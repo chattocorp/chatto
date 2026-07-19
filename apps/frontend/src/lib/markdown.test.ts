@@ -8,6 +8,54 @@ import {
 } from './codeHighlighting';
 
 describe('renderMarkdown', () => {
+  describe('GFM tables', () => {
+    it('renders a pipe table with semantic sections', async () => {
+      const html = await renderMarkdown('| Name | Role |\n| --- | --- |\n| Ada | Admin |');
+
+      expect(html).toContain('<div class="table-scroll" tabindex="0"><table>');
+      expect(html).toContain('<thead>');
+      expect(html).toContain('<th>Name</th>');
+      expect(html).toContain('<tbody>');
+      expect(html).toContain('<td>Ada</td>');
+      expect(html).toContain('</table></div>');
+    });
+
+    it('renders tables without outer pipes', async () => {
+      const html = await renderMarkdown('Name | Role\n--- | ---\nAda | Admin');
+
+      expect(html).toContain('<table>');
+      expect(html).toContain('<td>Ada</td>');
+    });
+
+    it('honours GFM column alignment', async () => {
+      const html = await renderMarkdown(
+        '| Left | Centre | Right |\n| :--- | :---: | ---: |\n| a | b | c |'
+      );
+
+      expect(html).toContain('<th style="text-align:left">Left</th>');
+      expect(html).toContain('<th style="text-align:center">Centre</th>');
+      expect(html).toContain('<th style="text-align:right">Right</th>');
+      expect(html).toContain('<td style="text-align:center">b</td>');
+    });
+
+    it('renders inline Markdown and escaped pipes inside cells', async () => {
+      const html = await renderMarkdown(
+        '| Value | Notes |\n| --- | --- |\n| **bold** | one \\| two |\n| `a\\|b` | [link](https://example.com) |'
+      );
+
+      expect(html).toContain('<strong>bold</strong>');
+      expect(html).toContain('<td>one | two</td>');
+      expect(html).toContain('<code>a|b</code>');
+      expect(html).toContain('href="https://example.com"');
+    });
+
+    it('leaves table-like text literal without a valid delimiter row', async () => {
+      const html = await renderMarkdown('| Name | Role |\n| Ada | Admin |');
+
+      expect(html).not.toContain('<table>');
+    });
+  });
+
   describe('invisible spacing', () => {
     it('collapses lines made from encoded non-breaking spaces', async () => {
       const html = await renderMarkdown(`before\n${'&nbsp;\n'.repeat(500)}after`);
