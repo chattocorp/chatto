@@ -72,7 +72,7 @@
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
-  // Keep at least an hour of margin ahead of the 23-hour minimum access-ticket validity.
+  // Preserve roughly an hour of margin ahead of the 23-hour minimum ticket validity.
   const IMAGE_MODAL_URL_REFRESH_MS = 22 * 60 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
