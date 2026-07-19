@@ -258,17 +258,10 @@ func DefaultEveryonePermissions() []Permission {
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
+		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
 	}
-}
-
-// DefaultSeedEveryonePermissions returns permissions granted to everyone when
-// RBAC is freshly seeded or explicitly reset. Keep permissions here out of
-// the legacy EnsureDefaultRolePermissions helper when adding them would
-// silently change existing deployments if that helper is invoked explicitly.
-func DefaultSeedEveryonePermissions() []Permission {
-	return append(DefaultEveryonePermissions(), PermMessageAttach)
 }
 
 // DefaultModeratorPermissions returns the permissions granted to moderators
@@ -286,19 +279,23 @@ func DefaultModeratorPermissions() []Permission {
 // this list contains only admin-specific capabilities plus global room
 // administration defaults.
 func DefaultAdminPermissions() []Permission {
-	seen := map[Permission]bool{}
-	var result []Permission
-	for _, meta := range PermissionsForScope(ScopeServer) {
-		if seen[meta.Permission] {
-			continue
-		}
-		if meta.Category == CategoryMessage && meta.Permission != PermMessageManage {
-			continue
-		}
-		seen[meta.Permission] = true
-		result = append(result, meta.Permission)
+	return []Permission{
+		PermServerManage,
+		PermRoomCreate,
+		PermRoomJoin,
+		PermRoomList,
+		PermRoomManage,
+		PermRoomMemberBan,
+		PermMessageManage,
+		PermRoleManage,
+		PermRoleAssign,
+		PermAdminUsersView,
+		PermAdminAuditView,
+		PermUserDeleteAny,
+		PermUserDeleteSelf,
+		PermUserManageAccounts,
+		PermUserManagePermissions,
 	}
-	return result
 }
 
 // DefaultOwnerPermissions returns the persisted permissions granted to owners
@@ -308,47 +305,23 @@ func DefaultOwnerPermissions() []Permission {
 	return nil
 }
 
-// DefaultRoomEveryonePermissions returns the default room-scope permissions
-// for normal channel rooms. Normal member behavior comes from server-scope
-// everyone grants; this intentionally starts empty so the room tier shows only
-// local exceptions.
-func DefaultRoomEveryonePermissions() []Permission {
-	return nil
-}
-
-// DefaultAnnouncementsEveryonePermissions returns the default room-scope
-// permissions for the built-in announcements room. Normal room behavior comes
-// from server defaults, so announcements only materialize local denials.
-func DefaultAnnouncementsEveryonePermissions() []Permission {
-	return nil
-}
+// AnnouncementsRoomName is the canonical name for the seeded announcement-only
+// room whose creation-time permission facts differ from ordinary rooms.
+const AnnouncementsRoomName = "announcements"
 
 // DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
-// built-in announcements room. This blocks root posts for users who have no
-// named-role or direct-user decision of their own.
+// built-in announcements room. This blocks root posts unless a named role or
+// direct user has a room-local allow. Effective owners bypass the decision.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }
 
-// DefaultAnnouncementsPosterPermissions returns room-scope staff poster grants
-// for announcements. Staff need an explicit room-local grant to override the
-// room-level everyone baseline, so no default staff grants are materialized.
-func DefaultAnnouncementsPosterPermissions() []Permission {
-	return nil
-}
-
-// DefaultRoomModeratorPermissions returns room-scope moderator defaults.
-// Moderator moderation defaults now live at server tier, so this intentionally
-// starts empty.
-func DefaultRoomModeratorPermissions() []Permission {
-	return nil
-}
-
-// DefaultRoomAdminPermissions returns room-scope room-management permissions
-// seeded for admins on every channel room. Admin room defaults now live at
-// server tier, so this intentionally starts empty.
-func DefaultRoomAdminPermissions() []Permission {
-	return nil
+// DefaultAnnouncementsAdminPermissions returns the room-scope grants that let
+// admins publish announcements. Other ordinary content capabilities continue
+// to come from the everyone baseline, and moderators receive no announcement-
+// specific grant.
+func DefaultAnnouncementsAdminPermissions() []Permission {
+	return []Permission{PermMessagePost}
 }
 
 // ============================================================================

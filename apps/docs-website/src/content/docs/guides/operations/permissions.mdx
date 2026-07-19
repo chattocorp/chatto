@@ -22,7 +22,7 @@ Every Chatto server starts with four system roles. You cannot delete them.
 | ------------- | ---------------- |
 | **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account. |
 | **moderator** | Adds server-wide moderation defaults for managing messages and banning room members. |
-| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. System diagnostics remain owner-only. |
+| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
 | **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants. |
 
 Roles still have a numeric position for display order and legacy event compatibility, but position is not an authorization rank.
@@ -86,9 +86,9 @@ The full list is visible in the admin UI.
 
 ### Read-only announcements for normal members
 
-Fresh servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
+Fresh servers create announcements as a read-only room for normal members by denying `message.post` for `everyone` at room scope and allowing it for `admin` at the same scope.
 
-This blocks normal members and named roles that only have less-specific posting grants. Owners can post, and a named role with its own room-level `message.post` grant can post too.
+This blocks normal members, moderators, and named roles that only have less-specific posting grants. Owners and admins can post, and another named role with its own room-level `message.post` grant can post too.
 
 If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
 

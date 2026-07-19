@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -2268,7 +2267,6 @@ func TestChattoCore_GrantRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room.Id)
 
 	// Grant message.post at room level for member role
 	err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
@@ -2294,7 +2292,6 @@ func TestChattoCore_DenyRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room.Id)
 
 	// Deny message.post at room level
 	err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
@@ -2319,7 +2316,6 @@ func TestChattoCore_ClearRoomRolePermission(t *testing.T) {
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test channel")
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room.Id)
 
 	// Grant, then clear
 	core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
@@ -2359,8 +2355,6 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 
 	room1, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-alpha", "Room Alpha")
 	room2, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "room-beta", "Room Beta")
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room1.Id)
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room2.Id)
 
 	// Deny message.post only in room1
 	core.DenyRoomPermission(ctx, SystemActorID, room1.Id, RoleEveryone, PermMessagePost)
@@ -2385,21 +2379,11 @@ func TestChattoCore_RoomPermissions_PerRoomIsolation(t *testing.T) {
 // operation models. The previous in-core gate that this test exercised has
 // been retired; API-level coverage exercises the replacement path.
 
-func clearDefaultEveryoneRoomPermissions(t *testing.T, core *ChattoCore, ctx context.Context, roomID string) {
-	t.Helper()
-	for _, perm := range DefaultRoomEveryonePermissions() {
-		if err := core.ClearRoomPermissionState(ctx, SystemActorID, roomID, RoleEveryone, perm); err != nil {
-			t.Fatalf("ClearRoomPermissionState(%s): %v", perm, err)
-		}
-	}
-}
-
 func TestChattoCore_GrantRoomRolePermission_GrantClearsDenial(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "General")
-	clearDefaultEveryoneRoomPermissions(t, core, ctx, room.Id)
 
 	// Deny, then grant — should clear the denial
 	core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)

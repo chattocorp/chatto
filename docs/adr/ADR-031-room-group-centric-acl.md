@@ -12,24 +12,28 @@ The post-#330 RBAC model resolves room-scope permissions through a single hierar
 
 - **Implicit `everyone` constrained the original deny semantics.** The later
   ADR-040 resolver made an `everyone` deny catch moderators and admins too.
-  ADR-052 replaces that combination rule and treats `everyone` as a fallback
+  ADR-052 replaces that combination rule and treats `everyone` as a scoped
   baseline.
 
-Chatto is at alpha. The three known production-shaped servers can absorb a `chatto reset rbac` on upgrade. This is a one-time opportunity to reshape the model before the room-groups feature lands rather than to layer over it.
+Chatto was still early enough to reshape this model before room groups became
+widely deployed. Existing permission facts remain valid; current defaults are
+creation-time facts and are not reconciled or reset during startup.
 
 A long design discussion considered alternatives — ReBAC/Zanzibar (overkill for chat's flat-ish structure), policy-as-code (incompatible with operator-configurable self-hosting), capability tokens (wrong fit for server-state-owns-everything chat). The model that best matches both the room-groups requirement and operators' actual mental model ("look at the room/category to know what's allowed there") is channel-centric ACLs as used by Discord and similar chat systems.
 
 ## Decision
 
-Adopt a **channel-centric ACL** model for channel-room permissions with **room groups** as the primary permission container. Three permission containers, with explicit (no implicit) inheritance:
+Adopt a **channel-centric ACL** model for channel-room permissions with **room groups** as the shared local permission container. Three permission containers participate in nearest-scope inheritance:
 
 | Container | Configures | Examples |
 |---|---|---|
-| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.view-users`, `user.delete-any`, `user.delete-self`, `user.manage-accounts` |
+| **Server** | Server-only capabilities and broad defaults for room-capable permissions | `server.manage`, `role.manage`, `message.post`, `room.join`, `user.manage-accounts` |
 | **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo` |
 | **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 
-Subjects are unchanged: **roles** (with rank, RBAC-style) and **users** (for direct overrides). Every authenticated user implicitly carries `everyone`.
+Subjects are unchanged: **roles** and **users** (for direct overrides). Role
+position controls display order, not authorization. Every authenticated user
+implicitly carries `everyone`.
 
 **DMs are out of scope for this ADR.** DM rooms are not part of any room group; their permission shape is captured separately in ADR-037. Room groups are a feature on top of channel rooms only.
 
@@ -75,24 +79,26 @@ place to configure permissions shared by a set of channel rooms.
 **The announcements pattern uses a room-scoped deny** against
 `everyone.message.post`. This blocks normal members while allowing a named role
 with its own room-level posting grant. The deny is local and audit-visible
-inside its room.
+inside its room. Fresh announcements rooms pair that deny with a room-level
+`admin.message.post` allow; moderators receive no announcement-specific grant.
 
 ### Moderation actions
 
 Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the existing **user-level deny** primitive. The UI exposes verbs (Mute, Timeout, Suspend with duration), not raw permission editors. Underneath, each action writes a small fixed bundle of user-level denies (server-scope, group-scope, or room-scope) with a scheduled cleanup for expiry. No new resolver concept ("restrictive role" flag etc.) is required.
 
-### Migration
+### Creation-time defaults and compatibility
 
-Existing servers reset RBAC on upgrade (`chatto reset rbac` already exists for related migrations). Specifically:
-
-- A seed "Lobby" group is created.
-- Existing `RoomLayoutSection`s migrate to `RoomGroup`s (id and ordering preserved; `name` becomes the group's `displayName`).
-- Any rooms tracked in `unsorted_room_ids` are swept into the seed "Lobby" group.
-- Groups are created with no explicit channel-room grants — the server-tier defaults cascade in via the resolver. Operators add per-group overrides only where they want to differ from the server-wide default. `SeedDefaultRoomGroupPermissions` remains available as an admin-tool affordance (a "Copy server defaults into this group" button) but no automatic path calls it.
-- Server-scope perms migrate untouched.
-- DM rooms and the `dmBoundaryDeniedPermissions` list are untouched; `dm.*` permissions are retired separately by ADR-037.
-
-The three known production-shaped Chatto servers absorb this. Out-of-the-box behavior after migration matches today's defaults.
+- Fresh servers create a seed `Lobby` group. New groups store no permission
+  decisions and inherit the server tier until an operator adds an override.
+- Fresh server-role defaults are written only when the RBAC event history is
+  empty. Startup never backfills a cleared or missing decision.
+- Channel-room creation commits the room and its exceptional permission facts
+  in one atomic EVT batch. Ordinary rooms store no default overrides.
+- Fresh `announcements` rooms store an `everyone.message.post` deny and an
+  `admin.message.post` allow. Existing rooms are not backfilled when defaults
+  change.
+- Historical permission events replay unchanged. No reset or copy-defaults
+  workflow is part of the supported model.
 
 ## Consequences
 
@@ -106,15 +112,22 @@ The three known production-shaped Chatto servers absorb this. Out-of-the-box beh
 
 ### More difficult
 
-- **Global tweaks require multi-group edits.** Today, changing a server-scope grant on `everyone` affects every room. After this change, the same effect requires editing each group (groups are independent — there is no cross-group inheritance). The admin UI must offer an "apply to all groups" affordance to make global tweaks ergonomic; under the hood it writes N keys.
-- **More KV keys.** Each (group, role, perm) and (room, role, perm) override is its own key. Practical scale (low thousands) is comfortable for JetStream KV, but storage and listing costs grow linearly with groups × rooms.
-- **One-time RBAC reset.** Existing servers need to migrate (`chatto reset rbac` or equivalent). Acceptable at alpha; a non-event for new deployments.
+- **Local containment is deliberate.** A group/room `everyone` deny can contain
+  less-specific administrative grants. Operators must add same-scope named
+  allows for staff who should bypass that local baseline.
+- **Defaults do not repair existing state.** New code defaults affect only new
+  RBAC histories or newly created rooms, so operators must change existing
+  deployments explicitly.
+- **More EVT facts.** Each explicit group/room subject decision adds a durable
+  RBAC event and projected decision, so local policy should remain intentional.
 - **Room creation always needs a group.** Pre-change, a new room could be created with no group affiliation. Post-change, the API and UI must always pick a group. Drop in operator ergonomics is small but real.
 - **Room-move requires two-group authorization.** Moving a room between groups needs `room.manage` in both source and target. UI must surface this clearly (preview affected users, confirmation step) and the public API surface needs to reflect both checks.
 
 ### Relationship to prior ADRs
 
-- **Supersedes ADR-005 for channel-room permissions only.** Hierarchy-wins RBAC still governs server-scope resolution; the room-scope cascade described in ADR-005 ("deny on `everyone` overridden by higher role's grant") is replaced by the room+group per-role walk. ADR-005's announcements example moves from "server-scope grant on everyone, room-scope deny on everyone" to "group-scope grant on everyone, room-scope deny on everyone" — same shape, just scoped to a group instead of cascading from the server.
+- **Supersedes ADR-005 for channel-room containers.** ADR-040 removed role-rank
+  authorization, and ADR-052 now governs subject combination at every scope.
+  This ADR retains the server/group/room container model and nearest-scope walk.
 - **Builds on ADR-044** (shared operation models for public API authorization). Public room/group operations enforce these checks in core operation models so ConnectRPC and future transports cannot drift.
 - **Leaves DM room policy outside room groups.** DMs are not part of any room group; their membership-based read access, message-permission send gate, and hardcoded `dmBoundaryDeniedPermissions` list are covered by ADR-037. Room groups are a channel-rooms-only feature.
 - **Compatible with ADR-037.** Removing the DM read permission does not change the group model because DM rooms never inherit group permissions.
@@ -122,8 +135,9 @@ The three known production-shaped Chatto servers absorb this. Out-of-the-box beh
 
 ### Out of scope for this ADR
 
-- Custom system roles beyond owner/admin/moderator (rank is unchanged).
-- Cross-group permission inheritance (groups are independent; this can be revisited if real demand emerges).
+- Custom system roles beyond owner/admin/moderator.
+- Cross-group permission inheritance; groups independently inherit from the
+  server and do not inherit from one another.
 - Nested room groups (rooms belong to exactly one group; no group-of-groups).
 - ReBAC / relationship-based resolution (revisit only if structural-document features appear).
 - Restrictive-role flag for temporary punishment (user-level denies are the chosen primitive instead).
