@@ -167,6 +167,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Treat undecodable realtime frames and unknown projection operations as fatal
   for that socket. Validate each projection event before mutation and never
   advance a cursor across input the reducer did not fully understand.
+- Treat authorization loss, message deletion, key shredding, and account
+  deletion as asynchronous privacy boundaries. Clearing current render state
+  is insufficient: invalidate or fence older reads and optimistic rollbacks,
+  and apply the boundary to every response that can arrive later.
 - Application code must leave realtime transport ownership to the central
   coordinator: only the URL-active server keeps a persistent WebSocket, while
   inactive servers use serialized short-lived catch-ups over the same stream.
