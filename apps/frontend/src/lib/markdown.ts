@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
+import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
@@ -26,6 +27,115 @@ const DISABLED_RULES = [
 ] as const;
 
 const ALPHANUMERIC = /[a-zA-Z0-9]/;
+const MAX_TABLE_COLUMNS = 64;
+const MAX_TABLE_ROWS = 256;
+const MAX_TABLE_CELLS = 4_096;
+const MAX_TABLE_CELLS_PER_MESSAGE = 8_192;
+const tableCellCountKey = Symbol('tableCellCount');
+
+type MarkdownBlockRule = (
+  state: StateBlock,
+  startLine: number,
+  endLine: number,
+  silent: boolean
+) => boolean;
+
+function getBlockLine(state: StateBlock, line: number): string {
+  const start = state.bMarks[line] + state.tShift[line];
+  return state.src.slice(start, state.eMarks[line]);
+}
+
+function splitEscapedTableRow(row: string): string[] {
+  const cells: string[] = [];
+  let lastPosition = 0;
+  let current = '';
+  let escaped = false;
+
+  for (let position = 0; position < row.length; position++) {
+    const char = row[position];
+    if (char === '|' && !escaped) {
+      cells.push(current + row.slice(lastPosition, position));
+      current = '';
+      lastPosition = position + 1;
+    } else if (char === '|' && escaped) {
+      current += row.slice(lastPosition, position - 1);
+      lastPosition = position;
+    }
+
+    escaped = char === '\\';
+  }
+  cells.push(current + row.slice(lastPosition));
+
+  return cells;
+}
+
+function tableColumnCount(state: StateBlock, startLine: number, endLine: number): number | null {
+  if (startLine + 2 > endLine) return null;
+
+  const delimiterLine = getBlockLine(state, startLine + 1);
+  if (!/^[|:\-\t ]+$/.test(delimiterLine)) return null;
+
+  const delimiters = delimiterLine.split('|');
+  if (delimiters[0]?.trim() === '') delimiters.shift();
+  if (delimiters.at(-1)?.trim() === '') delimiters.pop();
+  if (delimiters.length === 0 || delimiters.some((cell) => !/^:?-+:?$/.test(cell.trim()))) {
+    return null;
+  }
+
+  const headerLine = getBlockLine(state, startLine).trim();
+  if (!headerLine.includes('|')) return null;
+
+  const headers = splitEscapedTableRow(headerLine);
+  if (headers[0] === '') headers.shift();
+  if (headers.at(-1) === '') headers.pop();
+
+  return headers.length === delimiters.length ? headers.length : null;
+}
+
+function countTableCells(
+  state: StateBlock,
+  startLine: number,
+  endLine: number,
+  columnCount: number
+): number {
+  let rowCount = 1;
+  const terminatorRules = state.md.block.ruler.getRules('blockquote');
+
+  for (let line = startLine + 2; line < endLine; line++) {
+    if (state.sCount[line] < state.blkIndent) break;
+    if (state.sCount[line] - state.blkIndent >= 4) break;
+    if (terminatorRules.some((rule) => rule(state, line, endLine, true))) break;
+    if (!getBlockLine(state, line).trim()) break;
+
+    rowCount++;
+    if (rowCount > MAX_TABLE_ROWS || rowCount * columnCount > MAX_TABLE_CELLS) {
+      return MAX_TABLE_CELLS + 1;
+    }
+  }
+
+  return rowCount * columnCount;
+}
+
+function boundedTableRule(tableRule: MarkdownBlockRule): MarkdownBlockRule {
+  return (state, startLine, endLine, silent) => {
+    const columnCount = tableColumnCount(state, startLine, endLine);
+    if (columnCount === null) return false;
+    if (columnCount > MAX_TABLE_COLUMNS) return false;
+
+    const cellCount = countTableCells(state, startLine, endLine, columnCount);
+    const renderedCellCount = (state.env[tableCellCountKey] as number | undefined) ?? 0;
+    if (
+      cellCount > MAX_TABLE_CELLS ||
+      renderedCellCount + cellCount > MAX_TABLE_CELLS_PER_MESSAGE
+    ) {
+      return false;
+    }
+
+    const parsed = tableRule(state, startLine, endLine, silent);
+    if (parsed && !silent) state.env[tableCellCountKey] = renderedCellCount + cellCount;
+    return parsed;
+  };
+}
 
 /**
  * Inline rule that consumes `*` or `_` marker runs as literal text when they
@@ -309,6 +419,18 @@ function initialize(): void {
   // Update linkify-it's TLD list so bare-domain URLs with newer TLDs
   // (.dev, .app, .io, etc.) are auto-linked
   md.linkify.tlds(tlds);
+
+  // markdown-it pads short table rows to the header width. Without a guard, a
+  // tiny table source can therefore expand into hundreds of thousands of DOM
+  // nodes. Resolve the built-in rule through the public ruler API, then bound
+  // it before token allocation while preserving its normal parsing behavior.
+  const tableRules = new MarkdownIt().block.ruler;
+  tableRules.enableOnly(['table']);
+  const tableRule = tableRules.getRules('')[0] as MarkdownBlockRule | undefined;
+  if (!tableRule) throw new Error('markdown-it table rule is unavailable');
+  md.block.ruler.at('table', boundedTableRule(tableRule), {
+    alt: ['paragraph', 'reference']
+  });
 
   // Disable unwanted syntax - only keep what we explicitly want
   md.disable([...DISABLED_RULES]);

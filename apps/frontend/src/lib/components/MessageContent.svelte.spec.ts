@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
@@ -555,6 +556,19 @@ describe('MessageContent component', () => {
     expect(styles.borderLeftColor).not.toBe(computedBorderColorFor('--color-border'));
     expect(styles.backgroundImage).toBe('none');
     expect(styles.color).not.toBe(computedColorFor('--color-muted'));
+  });
+
+  it('shows an inset focus indicator on keyboard-scrollable tables', async () => {
+    const { container } = renderMessage('| Name | Role |\n| --- | --- |\n| Ada | Admin |');
+
+    await expect.poll(() => q(container, '.table-scroll')).toBeTruthy();
+    const scroller = q(container, '.table-scroll')!;
+    await userEvent.tab();
+
+    expect(document.activeElement).toBe(scroller);
+    expect(window.getComputedStyle(scroller).overflowX).toBe('auto');
+    expect(window.getComputedStyle(scroller).outlineStyle).toBe('solid');
+    expect(window.getComputedStyle(scroller).outlineOffset).toBe('-2px');
   });
 
   it('renders links with security attributes', async () => {

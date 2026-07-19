@@ -54,6 +54,36 @@ describe('renderMarkdown', () => {
 
       expect(html).not.toContain('<table>');
     });
+
+    it('does not expand adversarial short rows into an oversized table', async () => {
+      const columns = 256;
+      const rows = 256;
+      const body = [
+        Array.from({ length: columns }, (_, index) => `h${index}`).join('|'),
+        Array.from({ length: columns }, () => '---').join('|'),
+        ...Array.from({ length: rows }, () => '|')
+      ].join('\n');
+
+      const html = await renderMarkdown(body);
+
+      expect(html).not.toContain('<table>');
+      expect(html).not.toContain('<td>');
+      expect(html.length).toBeLessThan(20_000);
+    });
+
+    it('applies table expansion limits inside blockquotes', async () => {
+      const columns = 128;
+      const rows = 128;
+      const lines = [
+        Array.from({ length: columns }, (_, index) => `h${index}`).join('|'),
+        Array.from({ length: columns }, () => '---').join('|'),
+        ...Array.from({ length: rows }, () => '|')
+      ];
+      const html = await renderMarkdown(lines.map((line) => `> ${line}`).join('\n'));
+
+      expect(html).not.toContain('<table>');
+      expect(html).not.toContain('<td>');
+    });
   });
 
   describe('invisible spacing', () => {
