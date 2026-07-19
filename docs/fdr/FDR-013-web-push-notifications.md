@@ -84,7 +84,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Why:** Modern browsers can display and navigate from the declarative notification if the service worker is unavailable. The installed worker remains a compatibility path for notification display and click routing, while older browsers and already-installed Chatto workers can keep using the legacy fields.
 **Tradeoff:** Payloads duplicate a small amount of title/body/navigation and badge data. That is preferable to a flag-day service-worker rollout or dropping badge updates on either side of WebKit's payload-format change.
 
-### 10. Late delivery and badge-state revalidation
+### 10. Late delivery and badge ownership
 
 **Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is open, one direct synchronization from the aggregate pending-notification count sets or clears the app badge. Declarative push handles regular closed-app updates; dismiss pushes carry the remaining origin-server count and the worker applies it only when no app window is open.
 **Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. The open page must remain authoritative for its aggregate multi-server count, while the narrow worker fallback prevents cross-device dismissals from leaving a closed installed app stale. This needs no persisted badge state or foreground message protocol.
