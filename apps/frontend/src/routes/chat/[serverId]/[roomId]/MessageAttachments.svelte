@@ -20,6 +20,7 @@
   import { toast } from '$lib/ui/toast';
   import {
     assetUrlNeedsRefresh,
+    createAssetUrlRetainer,
     earliestAssetUrlRefreshAt,
     LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
     mergeRefreshedAttachmentUrls,
@@ -49,6 +50,7 @@
   const assetRetrySalts = new SvelteMap<string, number>();
   let refreshPromise: Promise<Map<string, RefreshedAttachmentUrls>> | null = null;
   const failedAssetRefreshKeys = new SvelteSet<string>();
+  const retainAssetUrl = createAssetUrlRetainer();
   let galleryScrolledFromLeft = $state(false);
   let galleryScrolledFromRight = $state(false);
 
@@ -80,21 +82,24 @@
 
   function normalizeAttachment(attachment: RawAttachment) {
     const refreshed = refreshedAttachmentUrls.get(attachment.id);
-    const assetUrl = withRetrySalt(
-      normalizeAssetUrl(refreshed ? refreshed.assetUrl : attachment.assetUrl),
-      attachment.id,
-      'asset'
+    const resolveUrl = (
+      role: string,
+      value: ExpiringAssetUrl | null | undefined,
+      retryRole = role
+    ) =>
+      retainAssetUrl(
+        `${attachment.id}:${role}`,
+        withRetrySalt(normalizeAssetUrl(value), attachment.id, retryRole),
+        refreshed !== undefined || assetRetrySalts.has(`${attachment.id}:${retryRole}`)
+      );
+    const assetUrl = resolveUrl('asset', refreshed ? refreshed.assetUrl : attachment.assetUrl);
+    const thumbnailAssetUrl = resolveUrl(
+      'thumbnail',
+      refreshed ? refreshed.thumbnailAssetUrl : attachment.thumbnailAssetUrl
     );
-    const thumbnailAssetUrl = withRetrySalt(
-      normalizeAssetUrl(refreshed ? refreshed.thumbnailAssetUrl : attachment.thumbnailAssetUrl),
-      attachment.id,
-      'thumbnail'
-    );
-    const videoThumbnailAssetUrl = withRetrySalt(
-      normalizeAssetUrl(
-        refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl
-      ),
-      attachment.id,
+    const videoThumbnailAssetUrl = resolveUrl(
+      'video-thumbnail',
+      refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl,
       'video'
     );
 
@@ -110,11 +115,9 @@
             thumbnailAssetUrl: videoThumbnailAssetUrl,
             thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
             variants: attachment.videoProcessing.variants.flatMap((variant) => {
-              const variantAssetUrl = withRetrySalt(
-                normalizeAssetUrl(
-                  refreshedVariantAssetUrl(refreshed, variant.quality, variant.assetUrl)
-                ),
-                attachment.id,
+              const variantAssetUrl = resolveUrl(
+                `variant:${variant.quality}`,
+                refreshedVariantAssetUrl(refreshed, variant.quality, variant.assetUrl),
                 'video'
               );
               if (!variantAssetUrl) return [];
