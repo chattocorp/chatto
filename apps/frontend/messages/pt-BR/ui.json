@@ -33,6 +33,25 @@
       "more_information": "Mais informações",
       "about": "Sobre {subject}"
     },
+    "easter_egg": {
+      "fire": "Disparar um laser pronto contra o Chatto",
+      "points": "{count} pontos",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} canhão laser",
+            "countPlural=other": "{count} canhões laser"
+          }
+        }
+      ],
+      "laser_ready": "Laser {number}, potência {power}, pronto",
+      "laser_cooldown": "Laser {number}, potência {power}: restam {seconds} segundos de recarga",
+      "upgrade_power": "Aumentar o laser {number} para o nível de potência {level} por {cost} pontos",
+      "buy_laser": "Comprar o canhão laser {number} por {cost} pontos",
+      "maximum_lasers": "Limite de {count} canhões laser atingido"
+    },
     "pane_header": {
       "back": "Voltar"
     },

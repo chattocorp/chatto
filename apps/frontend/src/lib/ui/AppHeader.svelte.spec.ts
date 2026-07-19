@@ -14,7 +14,7 @@ const { mocks } = vi.hoisted(() => ({
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
-vi.mock('$app/environment', () => ({ version: '' }));
+vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -50,6 +50,7 @@ describe('AppHeader', () => {
   beforeEach(() => {
     mocks.servers = [];
     mocks.getStore.mockReset();
+    mocks.pushState.mockReset();
   });
 
   it('hides notifications when no servers are registered', () => {
@@ -65,5 +66,13 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+  });
+
+  it('opens the About Chatto dialog from the frontend version', () => {
+    const { container } = render(AppHeader);
+
+    (container.querySelector('button[aria-label="About Chatto"]') as HTMLButtonElement).click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'aboutChatto' } });
   });
 });

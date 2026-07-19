@@ -33,6 +33,25 @@
       "more_information": "Meer informatie",
       "about": "Over {subject}"
     },
+    "easter_egg": {
+      "fire": "Vuur een gereed laserkanon af op Chatto",
+      "points": "{count} punten",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laserkanon",
+            "countPlural=other": "{count} laserkanonnen"
+          }
+        }
+      ],
+      "laser_ready": "Laser {number}, kracht {power}, gereed",
+      "laser_cooldown": "Laser {number}, kracht {power}: nog {seconds} seconden afkoeltijd",
+      "upgrade_power": "Verhoog laser {number} naar krachtniveau {level} voor {cost} punten",
+      "buy_laser": "Koop laserkanon {number} voor {cost} punten",
+      "maximum_lasers": "Maximum van {count} laserkanonnen bereikt"
+    },
     "pane_header": {
       "back": "Terug"
     },
