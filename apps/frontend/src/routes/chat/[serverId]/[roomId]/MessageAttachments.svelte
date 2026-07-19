@@ -102,13 +102,11 @@
       refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl,
       'video'
     );
-    const hlsMasterPlaylistUrl = withRetrySalt(
-      normalizeAssetUrl(
-        refreshed
-          ? refreshed.hlsMasterPlaylistUrl
-          : attachment.videoProcessing?.hlsMasterPlaylistUrl
-      ),
-      attachment.id,
+    const hlsMasterPlaylistUrl = resolveUrl(
+      'hls',
+      refreshed
+        ? refreshed.hlsMasterPlaylistUrl
+        : attachment.videoProcessing?.hlsMasterPlaylistUrl,
       'hls'
     );
 
