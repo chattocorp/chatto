@@ -84,7 +84,13 @@ export class ServerProjectionStore {
         case 'roomUpsert': {
           const room = operation.operation.value;
           const roomId = room.room?.room?.id;
-          if (roomId) this.rooms.set(roomId, room);
+          if (roomId) {
+            this.rooms.set(roomId, room);
+            if (room.room?.viewerState?.isMember === false) {
+              this.timelines.delete(roomId);
+              this.timelineEventCursors.delete(roomId);
+            }
+          }
           break;
         }
         case 'roomRemove':
@@ -151,6 +157,10 @@ export class ServerProjectionStore {
                 viewerNotificationCount: current.viewerNotificationCount
               })
             );
+          }
+          if (replacement.viewerState?.isMember === false) {
+            this.timelines.delete(replacement.roomId);
+            this.timelineEventCursors.delete(replacement.roomId);
           }
           break;
         }

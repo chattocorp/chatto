@@ -514,6 +514,55 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('scrubs an open thread, rejects its in-flight plaintext, and reloads only after access returns', async () => {
+    type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
+    let resolveRevokedRead: ((value: ThreadPage) => void) | undefined;
+    const revokedRead = new Promise<ThreadPage>((resolve) => {
+      resolveRevokedRead = resolve;
+    });
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockImplementationOnce(() => revokedRead)
+      .mockResolvedValueOnce({
+        events: [threadMessageEvent('restored-thread-message', 'thread-root') as never],
+        startCursor: 'thread:restored',
+        endCursor: 'thread:restored',
+        hasOlder: false,
+        hasNewer: false
+      });
+    const timeline = fakeTimelineAPI({ getThreadEvents });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+
+    store.setThread('room-1', 'thread-root');
+    store.events = [threadMessageEvent('cached-thread-plaintext', 'thread-root') as never];
+    store.clearForAccessRevocation();
+    expect(store.events).toEqual([]);
+    expect(store.isInitialLoading).toBe(false);
+    expect(getThreadEvents).toHaveBeenCalledTimes(1);
+
+    resolveRevokedRead?.({
+      events: [threadMessageEvent('late-revoked-plaintext', 'thread-root') as never],
+      startCursor: 'thread:revoked',
+      endCursor: 'thread:revoked',
+      hasOlder: false,
+      hasNewer: false
+    });
+    await settle();
+    expect(store.events).toEqual([]);
+    expect(getThreadEvents).toHaveBeenCalledTimes(1);
+
+    store.restoreAfterAccessGrant();
+    await settle();
+    expect(getThreadEvents).toHaveBeenCalledTimes(2);
+    expect(store.events.map(({ id }) => id)).toEqual(['restored-thread-message']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
   it('keeps the late latest-page fallback when an in-flight jump omits its target', async () => {
     const fake = new FakeQueryClient();
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;

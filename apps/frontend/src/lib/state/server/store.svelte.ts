@@ -219,6 +219,32 @@ export class ServerStateStore {
     }
   }
 
+  /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
+  private clearRoomAccess(roomId: string, forgetStores = false): void {
+    const roomStore = this.#roomMessages[roomId];
+    roomStore?.clearForAccessRevocation();
+    if (forgetStores) {
+      roomStore?.dispose();
+      delete this.#roomMessages[roomId];
+    }
+    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+      if (!key.startsWith(`${roomId}\u0000`)) continue;
+      threadStore.clearForAccessRevocation();
+      if (forgetStores) {
+        threadStore.dispose();
+        delete this.#threadMessages[key];
+      }
+    }
+  }
+
+  /** Reacquire only mounted stores that were previously scrubbed for access loss. */
+  private restoreRoomAccess(roomId: string): void {
+    this.#roomMessages[roomId]?.restoreAfterAccessGrant();
+    for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
+      if (key.startsWith(`${roomId}\u0000`)) threadStore.restoreAfterAccessGrant();
+    }
+  }
+
   /** Stable lazy thread timeline owner fed by the server projection once opened. */
   messagesForThread(roomId: string, threadRootEventId: string): MessagesStore {
     const key = `${roomId}\u0000${threadRootEventId}`;
@@ -277,22 +303,31 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomUpsert':
-        case 'roomRemove':
+        case 'roomUpsert': {
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse)
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          const roomId = operation.operation.value.room?.room?.id;
+          if (!roomId) break;
+          if (operation.operation.value.room?.viewerState?.isMember === false) {
+            this.clearRoomAccess(roomId);
+          } else {
+            this.restoreRoomAccess(roomId);
+          }
+          break;
+        }
+        case 'roomRemove': {
+          const roomId = operation.operation.value.roomId;
+          this.clearRoomAccess(roomId, true);
+          const viewerResponse = this.projection.viewer;
+          if (viewerResponse)
+            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
+          break;
+        }
         case 'roomGroupsReplace': {
           const viewerResponse = this.projection.viewer;
           if (viewerResponse)
             this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
-          if (operation.operation.case === 'roomRemove') {
-            const store = this.#roomMessages[operation.operation.value.roomId];
-            store?.dispose();
-            delete this.#roomMessages[operation.operation.value.roomId];
-            for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-              if (!key.startsWith(`${operation.operation.value.roomId}\u0000`)) continue;
-              threadStore.dispose();
-              delete this.#threadMessages[key];
-            }
-          }
           break;
         }
         case 'roomTimelineReplace': {
@@ -344,6 +379,12 @@ export class ServerStateStore {
           break;
         }
         case 'roomViewerStateReplace': {
+          const replacement = operation.operation.value;
+          if (replacement.viewerState?.isMember === false) {
+            this.clearRoomAccess(replacement.roomId);
+          } else {
+            this.restoreRoomAccess(replacement.roomId);
+          }
           const viewerResponse = this.projection.viewer;
           if (viewerResponse) {
             this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));

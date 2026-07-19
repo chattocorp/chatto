@@ -268,6 +268,21 @@ func waitRealtimeTimelineUpsert(t testing.TB, conn *websocket.Conn, timeout time
 	return nil
 }
 
+func waitRealtimeProjectionEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionEvent) bool) *realtimev1.RealtimeProjectionEvent {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			return nil
+		}
+		if projection := frame.GetProjectionEvent(); projection != nil && match(projection) {
+			return projection
+		}
+	}
+	return nil
+}
+
 func waitRealtimeTimelineRemove(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionRoomTimelineEventRemove) bool) *realtimev1.RealtimeProjectionRoomTimelineEventRemove {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -1004,6 +1019,193 @@ func TestRealtimeWebSocketMaterializesRetainedRoomAfterViewerGainsAccess(t *test
 		}
 	}
 	t.Fatal("retained room did not materialize after the viewer gained access")
+}
+
+func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetainedTimelines(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-owner", "RT Universal Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	implicitViewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-implicit", "RT Universal Implicit", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser implicit viewer: %v", err)
+	}
+	explicitViewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-explicit", "RT Universal Explicit", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser explicit viewer: %v", err)
+	}
+	lazyViewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-lazy", "RT Universal Lazy", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser lazy viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.Id, core.KindChannel, "", "rt-universal-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, owner.Id, core.KindChannel, owner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom owner: %v", err)
+	}
+	if _, err := env.core.AddMember(env.ctx, owner.Id, core.KindChannel, room.Id, explicitViewer.Id); err != nil {
+		t.Fatalf("AddMember explicit viewer: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, owner.Id, "universal retained plaintext", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.Id, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+
+	tokenFor := func(userID string) string {
+		t.Helper()
+		token, err := env.core.CreateAuthToken(env.ctx, userID)
+		if err != nil {
+			t.Fatalf("CreateAuthToken %s: %v", userID, err)
+		}
+		return token
+	}
+	implicitConn := env.connectRealtime(t)
+	explicitConn := env.connectRealtime(t)
+	lazyConn := env.connectRealtime(t)
+	subscribeRealtime(t, implicitConn, tokenFor(implicitViewer.Id), room.Id)
+	subscribeRealtime(t, explicitConn, tokenFor(explicitViewer.Id), room.Id)
+	subscribeRealtime(t, lazyConn, tokenFor(lazyViewer.Id))
+
+	roomTransition := func(conn *websocket.Conn) *realtimev1.RealtimeProjectionEvent {
+		t.Helper()
+		return waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+			for _, operation := range projection.GetOperations() {
+				projectedRoom := operation.GetRoomUpsert().GetRoom().GetRoom()
+				if projectedRoom.GetId() == room.Id {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	assertTransition := func(name string, projection *realtimev1.RealtimeProjectionEvent, wantMember, wantTimeline, wantMessage bool) {
+		t.Helper()
+		if projection == nil {
+			t.Fatalf("%s: timed out waiting for universal projection", name)
+		}
+		var gotRoom, gotTimeline, gotMessage bool
+		for _, operation := range projection.GetOperations() {
+			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+				gotRoom = true
+				if got := upsert.GetRoom().GetViewerState().GetIsMember(); got != wantMember {
+					t.Fatalf("%s: viewer membership = %t, want %t", name, got, wantMember)
+				}
+			}
+			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+				gotTimeline = true
+				for _, event := range timeline.GetPage().GetEvents() {
+					gotMessage = gotMessage || event.GetId() == message.Id
+				}
+			}
+		}
+		if !gotRoom || gotTimeline != wantTimeline || gotMessage != wantMessage {
+			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetOperations())
+		}
+	}
+
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.Id, core.KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+	assertTransition("implicit revocation", roomTransition(implicitConn), false, true, false)
+	assertTransition("explicit membership survives", roomTransition(explicitConn), true, true, true)
+	assertTransition("unretained revocation stays lazy", roomTransition(lazyConn), false, false, false)
+
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.Id, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal restore: %v", err)
+	}
+	assertTransition("implicit retained restoration", roomTransition(implicitConn), true, true, true)
+	assertTransition("explicit retained restoration", roomTransition(explicitConn), true, true, true)
+	assertTransition("unretained restoration stays lazy", roomTransition(lazyConn), true, false, false)
+}
+
+func TestRealtimeWebSocketResumeResetsRetainedTimelineAfterUniversalMembershipRevocation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-replay-owner", "RT Universal Replay Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-replay-viewer", "RT Universal Replay Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.Id, core.KindChannel, "", "rt-universal-replay-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, owner.Id, core.KindChannel, owner.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom owner: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, owner.Id, "replayed revocation plaintext", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.Id, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	boundaryConn := env.connectRealtime(t)
+	resumeCursor := subscribeRealtime(t, boundaryConn, token, room.Id)
+	if resumeCursor == "" {
+		t.Fatal("initial retained projection returned no resume cursor")
+	}
+	if err := boundaryConn.Close(); err != nil {
+		t.Fatalf("close boundary connection: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.Id, core.KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+
+	resumed := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive replay hello")
+	}
+	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetSubscribed() == nil || frame.GetSubscribed().GetStartCursor() == resumeCursor {
+		t.Fatalf("authorization-sensitive resume did not select a new compacted boundary: %+v", frame)
+	}
+
+	var foundReset, foundRevokedRoom bool
+	for {
+		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for compacted revocation reset")
+		}
+		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+			if !foundReset || !foundRevokedRoom || caughtUp.GetCursor() == "" {
+				t.Fatalf("revocation reset incomplete before caught_up: reset=%t revoked_room=%t caught_up=%+v", foundReset, foundRevokedRoom, caughtUp)
+			}
+			break
+		}
+		projection := frame.GetProjectionEvent()
+		if projection == nil {
+			continue
+		}
+		for _, operation := range projection.GetOperations() {
+			foundReset = foundReset || operation.GetReset_() != nil
+			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+				foundRevokedRoom = !upsert.GetRoom().GetViewerState().GetIsMember()
+			}
+			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+				if len(timeline.GetPage().GetEvents()) != 0 {
+					t.Fatalf("revocation reset leaked retained timeline: %+v", timeline)
+				}
+			}
+		}
+	}
 }
 
 func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {

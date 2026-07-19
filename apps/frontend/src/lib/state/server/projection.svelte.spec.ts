@@ -380,7 +380,10 @@ describe('ServerProjectionStore', () => {
         operation({
           case: 'roomUpsert',
           value: new RealtimeProjectionRoom({
-            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({ isMember: true })
+            })
           })
         }),
         operation({
@@ -392,6 +395,22 @@ describe('ServerProjectionStore', () => {
         })
       )
     );
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({ isMember: false })
+            })
+          })
+        })
+      )
+    );
+    expect(store.rooms.get('R1')?.room?.viewerState?.isMember).toBe(false);
+    expect(store.timelines.has('R1')).toBe(false);
 
     store.apply(
       event(

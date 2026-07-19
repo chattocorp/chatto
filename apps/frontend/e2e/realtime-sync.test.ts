@@ -1,8 +1,10 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { connectPost, getRoomIdByNameViaConnect } from './fixtures/connectHelpers';
 import {
   joinRoomFromOverview,
+  withBootstrapAdminRequest,
   withLoggedInServerWindow,
   withServerUser
 } from './fixtures/serverUser';
@@ -125,6 +127,61 @@ test.describe('Real-time synchronization', () => {
 
     // The room should now appear in the room list (real-time update)
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
+  });
+
+  test('universal membership revocation scrubs an open room and thread, then restores them', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomName = `universal-${Date.now().toString().slice(-8)}`;
+    const rootText = `Universal root ${Date.now()}`;
+    await chatPage.createRoom(roomName);
+    const roomId = await getRoomIdByNameViaConnect(page, roomName);
+    await roomPage.sendMessage(rootText);
+    const setUniversal = (universal: boolean) =>
+      withBootstrapAdminRequest(serverURL, (adminRequest) =>
+        connectPost(adminRequest, 'chatto.api.v1.RoomService/UpdateRoom', {
+          roomId,
+          universal
+        })
+      );
+    await setUniversal(true);
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: viewerPage, chatPage: viewerChat, roomPage: viewerRoom }) => {
+        await viewerChat.enterRoom(roomName);
+        await waitForRoomReady(viewerPage, roomName);
+        await viewerRoom.expectMessageVisible(rootText);
+        await viewerRoom.getMessage(rootText).openThread();
+        await viewerRoom.expectThreadPaneVisible();
+        const replyText = `Universal reply ${Date.now()}`;
+        await viewerRoom.postThreadReply(replyText);
+
+        await setUniversal(false);
+        await expect(viewerPage.getByText(rootText, { exact: true })).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(viewerPage.getByText(replyText, { exact: true })).not.toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        await setUniversal(true);
+        await viewerRoom.expectThreadPaneVisible();
+        await expect(viewerRoom.threadPane.getByText(rootText, { exact: true })).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(viewerRoom.threadPane.getByText(replyText, { exact: true })).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+      }
+    );
   });
 
   test('display name updates propagate to other users in real-time', async ({

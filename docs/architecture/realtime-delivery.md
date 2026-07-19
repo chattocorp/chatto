@@ -157,6 +157,20 @@ operation are still emitted as empty projection envelopes with their sealed
 cursor, so one global resume position can advance without making unhydrated
 timeline history part of client state. On reconnect the client resends retained
 IDs; a compacted reset includes only those room windows.
+
+Effective membership changes are authoritative timeline boundaries. When a
+universal room stops granting membership, live mapping pairs its current room
+state with an empty replacement for any retained timeline; loss of room
+visibility uses `room_remove`, which has the same eviction effect. The browser
+also scrubs canonical rows, mounted room stores, open thread stores, optimistic
+state, and in-flight reads as soon as projected membership becomes false.
+
+The browser keeps only the non-plaintext retained-room intent. If membership
+later returns, the server rematerialises the current window only for that
+retained room; never-requested rooms remain lazy. A disconnected client whose
+gap contains an authorization-sensitive revocation receives a compacted reset
+instead of incremental replay.
+
 The browser advertises a room as retained only after applying its timeline
 replacement. Desired rooms with lost or unavailable hydration responses remain
 pending and are requested again on the next socket. Both client and server cap

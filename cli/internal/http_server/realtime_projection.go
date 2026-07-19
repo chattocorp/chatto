@@ -361,7 +361,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
-	appendRoom := func(roomID string) error {
+	appendRoomResult := func(roomID string) (*connectapi.RealtimeProjectionRoom, error) {
 		var room *connectapi.RealtimeProjectionRoom
 		var err error
 		if retainsTimeline(roomID) {
@@ -373,13 +373,17 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomRemove{
 				RoomRemove: &realtimev1.RealtimeProjectionRoomRemove{RoomId: roomID},
 			}})
-			return nil
+			return nil, nil
 		}
 		if err != nil {
-			return fmt.Errorf("hydrate realtime room %q: %w", roomID, err)
+			return nil, fmt.Errorf("hydrate realtime room %q: %w", roomID, err)
 		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomUpsert{RoomUpsert: realtimeProjectionRoom(room)}})
-		return nil
+		return room, nil
+	}
+	appendRoom := func(roomID string) error {
+		_, err := appendRoomResult(roomID)
+		return err
 	}
 	appendRoomTimeline := func(roomID string) error {
 		if !retainsTimeline(roomID) {
@@ -585,8 +589,25 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 	case *corev1.Event_RoomUniversalChanged:
 		roomID := payload.RoomUniversalChanged.GetRoomId()
-		if err := appendRoom(roomID); err != nil {
+		room, err := appendRoomResult(roomID)
+		if err != nil {
 			return nil, false, err
+		}
+		if room == nil {
+			// room_remove authoritatively evicts any retained timeline.
+			break
+		}
+		if room.Room.GetViewerState().GetIsMember() {
+			// Retained rooms regain their current authorised window immediately.
+			// Unretained rooms remain lazy because appendRoomTimeline is filtered
+			// through the connection's retained-room set.
+			if err := appendRoomTimeline(roomID); err != nil {
+				return nil, false, err
+			}
+		} else {
+			// A universal-membership revocation must remove already-decrypted
+			// timeline state in the same ordered projection event as metadata.
+			appendRoomTimelineClear(roomID)
 		}
 	case *corev1.Event_UserJoinedRoom:
 		roomID := payload.UserJoinedRoom.GetRoomId()

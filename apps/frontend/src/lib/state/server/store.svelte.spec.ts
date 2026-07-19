@@ -10,7 +10,10 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomViewerState,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -21,6 +24,7 @@ import {
   RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
   RealtimeProjectionRoomActivity,
+  RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
   RealtimeProjectionServerState,
@@ -653,6 +657,108 @@ describe('ServerStateStore live server updates', () => {
     expect(store.realtimeSync.desiredRoomIds).toEqual(['R-cold']);
     expect(store.realtimeSync.retainedRoomIds).toEqual([]);
     expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-cold');
+  });
+
+  it('scrubs retained plaintext on membership loss and restores the same mounted room store', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const messages = store.messagesForRoom('R1');
+    store.realtimeSync.retainRoom('R1');
+    store.realtimeSync.confirmRoom('R1');
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const dispatch = (projectionEvent: RealtimeProjectionEvent) => {
+      for (const handler of bus.projectionHandlers) handler(projectionEvent);
+    };
+    const room = (isMember: boolean) =>
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'R1' }),
+          viewerState: new RoomViewerState({ isMember })
+        })
+      });
+
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: { case: 'roomUpsert', value: room(true) }
+          }),
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomTimelineReplace',
+              value: new RealtimeProjectionRoomTimelineReplace({
+                roomId: 'R1',
+                page: new RoomTimelinePage({
+                  events: [projectedMessage('M-secret', new Date('2026-01-01T00:00:00Z'))]
+                })
+              })
+            }
+          })
+        ]
+      })
+    );
+    expect(messages.events.map(({ id }) => id)).toEqual(['M-secret']);
+
+    // The room upsert alone is sufficient to revoke plaintext. The server also
+    // sends an empty timeline replacement, but the client fails closed if a
+    // future or mixed-version sender omits it.
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: { case: 'roomUpsert', value: room(false) }
+          })
+        ]
+      })
+    );
+    expect(store.projection.timelines.has('R1')).toBe(false);
+    expect(messages.events).toEqual([]);
+    expect(messages.isInitialLoading).toBe(false);
+    expect(store.realtimeSync.desiredRoomIds).toEqual(['R1']);
+    expect(store.realtimeSync.retainedRoomIds).toEqual(['R1']);
+
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: { case: 'roomUpsert', value: room(true) }
+          }),
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomTimelineReplace',
+              value: new RealtimeProjectionRoomTimelineReplace({
+                roomId: 'R1',
+                page: new RoomTimelinePage({
+                  events: [projectedMessage('M-restored', new Date('2026-01-02T00:00:00Z'))]
+                })
+              })
+            }
+          })
+        ]
+      })
+    );
+    expect(store.messagesForRoom('R1')).toBe(messages);
+    expect(messages.events.map(({ id }) => id)).toEqual(['M-restored']);
+
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomViewerStateReplace',
+              value: new RealtimeProjectionRoomViewerStateReplace({
+                roomId: 'R1',
+                viewerState: new RoomViewerState({ isMember: false })
+              })
+            }
+          })
+        ]
+      })
+    );
+    expect(store.projection.timelines.has('R1')).toBe(false);
+    expect(messages.events).toEqual([]);
   });
 
   it('evicts an inactive timeline before hydrating a room beyond the retention limit', () => {

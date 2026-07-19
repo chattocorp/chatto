@@ -204,6 +204,7 @@ export class MessagesStore {
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
+  #projectionAccessRevoked = false;
 
   constructor(
     serverConnection: ServerConnection,
@@ -410,6 +411,7 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
+    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     this.resetState();
     this.isInitialLoading = true;
@@ -430,6 +432,7 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
+    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     // Reset already purged the pre-prefix state. Preserve writes ingested
@@ -454,6 +457,7 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
+    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     const projected = unmask(connection.events);
@@ -480,6 +484,34 @@ export class MessagesStore {
     // server prefix. Reload an open thread through its existing read model.
     if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
       this.fetchThread(thisLoad);
+    }
+  }
+
+  /**
+   * Purge plaintext after projected room access is revoked.
+   *
+   * Unlike a transport reset, this must not issue a replacement read. The
+   * incremented load generation also prevents an older room/thread response
+   * from reinstalling data after the authorization transition.
+   */
+  clearForAccessRevocation(): void {
+    this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.#projectionAccessRevoked = true;
+    this.resetState();
+    this.isInitialLoading = false;
+  }
+
+  /** Reload an open thread only when it was previously scrubbed for access loss. */
+  restoreAfterAccessGrant(): void {
+    if (!this.#projectionAccessRevoked) return;
+    this.#projectionAccessRevoked = false;
+    this.isInitialLoading = true;
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      this.fetchThread(this.startLoad());
     }
   }
 
