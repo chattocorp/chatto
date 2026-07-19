@@ -153,7 +153,7 @@ Custom roles are permission bundles. They can override the `everyone` baseline, 
 Owners and admins are deliberately different:
 
 - **Owners** always receive all permissions and cannot be locked out through RBAC state. Owner permission rows are shown as read-only green checks in the UI.
-- **Admins** receive broad default grants, but they are still ordinary non-owner users for permission resolution. A direct-user deny or a deny from another named role can restrict an admin. An `everyone` deny alone cannot.
+- **Admins** receive broad default grants, but they are still ordinary non-owner users for permission resolution. A direct-user deny or a deny from another named role can restrict an admin. An `everyone` deny also restricts an admin when it is nearer than the admin's named allow, or when the admin role has no allow for that permission.
 
 Use `owners.emails` in `chatto.toml` as the recovery path. The email must be verified before it makes the user an effective owner.
 
