@@ -3,7 +3,6 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { MessagesStore } from '$lib/state/room';
 import {
@@ -51,10 +50,7 @@ const { mocks } = vi.hoisted(() => {
         getThreadEvents: vi.fn(),
         getThreadEventsAround: vi.fn()
       },
-      roomAttachments: {
-        listRoomAttachments: vi.fn(),
-        refreshAssetUrls: vi.fn()
-      },
+      roomFilesHydrate: vi.fn(),
       livekitUrl: null as string | null,
       roomKind: 1,
       getAppUiState: vi.fn(),
@@ -63,7 +59,6 @@ const { mocks } = vi.hoisted(() => {
       pendingHighlightConsume: vi.fn(
         (_roomId: string, _threadRootId: string | null): string | null => null
       ),
-      projectionEventHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
       notifications: {
         notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -141,9 +136,7 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
-    mocks.projectionEventHandler = handler;
-  },
+  useProjectionEvent: vi.fn(),
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
@@ -176,10 +169,6 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   };
 });
 
-vi.mock('$lib/api-client/attachments', () => ({
-  createAttachmentAPI: () => mocks.roomAttachments
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
@@ -202,6 +191,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       rooms: mocks.rooms,
       messagesForRoom: mocks.messagesForRoom,
+      filesForRoom: () => ({ hydrate: mocks.roomFilesHydrate }),
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
       projectedMembersForRoom: mocks.projectedMembersForRoom,
       hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
@@ -357,14 +347,8 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
-  mocks.roomAttachments.listRoomAttachments.mockReset();
-  mocks.roomAttachments.listRoomAttachments.mockResolvedValue({
-    items: [],
-    totalCount: 0,
-    hasMore: false
-  });
-  mocks.roomAttachments.refreshAssetUrls.mockReset();
-  mocks.roomAttachments.refreshAssetUrls.mockResolvedValue(new Map());
+  mocks.roomFilesHydrate.mockReset();
+  mocks.roomFilesHydrate.mockResolvedValue(undefined);
   mocks.messagesForRoom.mockReturnValue(
     new MessagesStore({} as never, () => 'test-user', mocks.timeline)
   );
@@ -372,7 +356,6 @@ beforeEach(() => {
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
-  mocks.projectionEventHandler = null;
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
   mocks.getAppUiState.mockReturnValue(appUi);
@@ -526,7 +509,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    expect(mocks.roomAttachments.listRoomAttachments).not.toHaveBeenCalled();
+    expect(mocks.roomFilesHydrate).not.toHaveBeenCalled();
   });
 
   it('does not load files selected only in the hidden desktop layout', async () => {
@@ -536,7 +519,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    expect(mocks.roomAttachments.listRoomAttachments).not.toHaveBeenCalled();
+    expect(mocks.roomFilesHydrate).not.toHaveBeenCalled();
   });
 
   it('loads files selected in the visible desktop layout', async () => {
@@ -545,31 +528,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
 
     await vi.waitFor(() => {
-      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledOnce();
-    });
-  });
-
-  it('refreshes visible files after a room timeline update', async () => {
-    appUi.openDesktopRoomSidebarPanel('files');
-    render(Room, { props: { roomId: 'room-1' } });
-    await vi.waitFor(() => {
-      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledOnce();
-    });
-
-    mocks.projectionEventHandler?.({
-      id: 'message-1',
-      operations: [
-        {
-          operation: {
-            case: 'roomTimelineEventUpsert',
-            value: { roomId: 'room-1' }
-          }
-        }
-      ]
-    } as RealtimeProjectionEvent);
-
-    await vi.waitFor(() => {
-      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledTimes(2);
+      expect(mocks.roomFilesHydrate).toHaveBeenCalledOnce();
     });
   });
 

@@ -8,8 +8,10 @@ import {
   refreshAttachmentUrlsForAssets
 } from '$lib/attachments/attachmentUrls';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
   createAttachmentAPI,
+  roomFileItemsForTimelineEvent,
   type AttachmentAPI,
   type RoomFileItem
 } from '$lib/api-client/attachments';
@@ -51,17 +53,16 @@ export class RoomFilesStore {
   refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
 
   private readonly attachmentAPI: AttachmentAPI;
-  private roomId = '';
-  private active = false;
-  private invalidationGeneration = 0;
-  private loadedGeneration = -1;
+  private readonly roomId: string;
+  private hydrated = false;
+  private retryHydration = false;
   private requestEpoch = 0;
-  private replacementPromise: Promise<void> | null = null;
+  private hydrationPromise: Promise<void> | null = null;
   private urlRefreshPromise: Promise<void> | null = null;
   private pendingUrlRefreshAssetIds = new SvelteSet<string>();
-  #loadId = 0;
 
-  constructor(serverConnection: ServerConnection) {
+  constructor(serverConnection: ServerConnection, roomId: string) {
+    this.roomId = roomId;
     this.attachmentAPI = createAttachmentAPI({
       serverId: serverConnection.serverId,
       baseUrl: serverConnection.connectBaseUrl,
@@ -69,50 +70,63 @@ export class RoomFilesStore {
     });
   }
 
-  /** Select a room without loading its Files panel. */
-  selectRoom(roomId: string): void {
-    if (this.roomId === roomId) return;
+  /** Hydrate this room's file cache the first time its Files panel opens. */
+  async hydrate(): Promise<void> {
+    await this.ensureFresh();
+  }
+
+  /** Reconcile a current timeline message into an already-hydrated file cache. */
+  applyTimelineEvent(event: RoomTimelineEvent, sourceEventId: string): void {
+    if (!this.hydrated) {
+      if (this.hydrationPromise) this.retryHydration = true;
+      return;
+    }
+
+    const current = this.items.filter((item) => item.messageEventId === event.id);
+    const replacement = roomFileItemsForTimelineEvent(event);
+    const isNewMessage = event.id === sourceEventId;
+    if (!isNewMessage && current.length === 0 && this.hasMore) return;
+    if (current.length === 0 && replacement.length === 0) return;
+
+    for (const item of [...current, ...replacement])
+      this.refreshedAttachmentUrls.delete(item.attachment.id);
+    this.items = [
+      ...this.items.filter((item) => item.messageEventId !== event.id),
+      ...replacement
+    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    this.totalCount = Math.max(0, this.totalCount - current.length + replacement.length);
+    this.hasMore = this.totalCount > this.items.length;
+  }
+
+  /** Remove one projected message from an already-hydrated file cache. */
+  removeTimelineEvent(eventId: string): void {
+    if (!this.hydrated) return;
+    const current = this.items.filter((item) => item.messageEventId === eventId);
+    if (current.length === 0) return;
+    for (const item of current) this.refreshedAttachmentUrls.delete(item.attachment.id);
+    this.items = this.items.filter((item) => item.messageEventId !== eventId);
+    this.totalCount = Math.max(0, this.totalCount - current.length);
+    this.hasMore = this.totalCount > this.items.length;
+  }
+
+  /** Clear cached room content at a reset or authorization boundary. */
+  reset(): void {
     this.fenceRequests();
-    this.roomId = roomId;
     this.items = [];
     this.totalCount = 0;
     this.hasMore = false;
     this.isInitialLoading = true;
-    this.isLoadingMore = false;
     this.refreshedAttachmentUrls = new SvelteMap();
-    this.invalidationGeneration++;
-    this.loadedGeneration = -1;
-  }
-
-  /** Activate the files read model for the visible room Files panel. */
-  activate(roomId?: string): void {
-    if (roomId) this.selectRoom(roomId);
-
-    this.active = true;
-    void this.ensureFresh();
-  }
-
-  /** Stop network refreshes while the Files panel is not visible. */
-  deactivate(): void {
-    if (!this.active) return;
-    this.active = false;
-    this.fenceRequests();
-  }
-
-  /** Refresh visible files, or remember that dormant data must be refreshed later. */
-  invalidate(roomId: string): void {
-    if (roomId !== this.roomId) return;
-    this.invalidationGeneration++;
-    if (this.active) void this.ensureFresh();
+    this.hydrated = false;
+    this.retryHydration = false;
   }
 
   async loadMore(): Promise<void> {
     if (
-      !this.active ||
-      this.replacementPromise ||
+      this.hydrationPromise ||
       this.isLoadingMore ||
       !this.hasMore ||
-      !this.roomId
+      !this.hydrated
     )
       return;
     const roomId = this.roomId;
@@ -125,12 +139,6 @@ export class RoomFilesStore {
         this.isLoadingMore = false;
       }
     }
-  }
-
-  async refresh(): Promise<void> {
-    if (!this.active || !this.roomId) return;
-    this.invalidationGeneration++;
-    await this.ensureFresh();
   }
 
   assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
@@ -185,7 +193,7 @@ export class RoomFilesStore {
   }
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
-    if (!this.active || !this.roomId || items.length === 0) return;
+    if (!this.hydrated || items.length === 0) return;
     for (const item of items) this.pendingUrlRefreshAssetIds.add(item.attachment.id);
     if (this.urlRefreshPromise) return this.urlRefreshPromise;
 
@@ -193,7 +201,6 @@ export class RoomFilesStore {
     const requestEpoch = this.requestEpoch;
     const refresh = (async () => {
       while (
-        this.active &&
         this.roomId === roomId &&
         this.requestEpoch === requestEpoch &&
         this.pendingUrlRefreshAssetIds.size > 0
@@ -209,7 +216,7 @@ export class RoomFilesStore {
             fit: FitMode.Cover
           }
         );
-        if (!this.active || this.roomId !== roomId || this.requestEpoch !== requestEpoch) return;
+        if (this.roomId !== roomId || this.requestEpoch !== requestEpoch) return;
         for (const assetId of assetIds) this.pendingUrlRefreshAssetIds.delete(assetId);
 
         const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
@@ -230,36 +237,32 @@ export class RoomFilesStore {
   }
 
   private async ensureFresh(): Promise<void> {
-    if (!this.active || !this.roomId || this.loadedGeneration === this.invalidationGeneration)
-      return;
-    if (this.replacementPromise) return this.replacementPromise;
+    if (this.hydrated) return;
+    if (this.hydrationPromise) return this.hydrationPromise;
 
-    const replacement = (async () => {
-      while (this.active && this.roomId && this.loadedGeneration !== this.invalidationGeneration) {
-        const generation = this.invalidationGeneration;
-        if (this.items.length === 0) this.isInitialLoading = true;
-        const loaded = await this.loadPage(
-          0,
-          true,
-          Math.max(ROOM_FILES_PAGE_SIZE, this.items.length),
-          generation
-        );
-        if (!loaded) break;
+    const hydration = (async () => {
+      while (true) {
+        this.retryHydration = false;
+        this.isInitialLoading = true;
+        const loaded = await this.loadPage(0, true, ROOM_FILES_PAGE_SIZE);
+        if (!loaded) return;
+        if (this.retryHydration) continue;
+        this.hydrated = true;
+        return;
       }
     })();
-    this.replacementPromise = replacement;
+    this.hydrationPromise = hydration;
     try {
-      await replacement;
+      await hydration;
     } finally {
-      if (this.replacementPromise === replacement) this.replacementPromise = null;
+      if (this.hydrationPromise === hydration) this.hydrationPromise = null;
     }
   }
 
   private fenceRequests(): void {
     this.requestEpoch++;
-    this.#loadId++;
     this.isLoadingMore = false;
-    this.replacementPromise = null;
+    this.hydrationPromise = null;
     this.urlRefreshPromise = null;
     this.pendingUrlRefreshAssetIds.clear();
   }
@@ -267,11 +270,9 @@ export class RoomFilesStore {
   private async loadPage(
     offset: number,
     replace: boolean,
-    limit: number = ROOM_FILES_PAGE_SIZE,
-    generation: number = this.invalidationGeneration
+    limit: number = ROOM_FILES_PAGE_SIZE
   ): Promise<boolean> {
     const roomId = this.roomId;
-    const thisLoad = ++this.#loadId;
     const requestEpoch = this.requestEpoch;
     let connection;
     try {
@@ -286,23 +287,12 @@ export class RoomFilesStore {
         }
       });
     } catch (error) {
-      if (
-        this.#loadId !== thisLoad ||
-        this.roomId !== roomId ||
-        this.requestEpoch !== requestEpoch
-      )
-        return false;
+      if (this.requestEpoch !== requestEpoch) return false;
       console.error('RoomFilesStore: failed to load files:', error);
       if (replace) this.isInitialLoading = false;
       return false;
     }
-    if (
-      !this.active ||
-      this.#loadId !== thisLoad ||
-      this.roomId !== roomId ||
-      this.requestEpoch !== requestEpoch
-    )
-      return false;
+    if (this.requestEpoch !== requestEpoch) return false;
 
     if (replace) {
       this.items = connection.items;
@@ -312,8 +302,11 @@ export class RoomFilesStore {
     }
     this.totalCount = connection.totalCount;
     this.hasMore = connection.hasMore;
-    if (replace) this.loadedGeneration = generation;
     this.isInitialLoading = false;
     return true;
+  }
+
+  dispose(): void {
+    this.fenceRequests();
   }
 }

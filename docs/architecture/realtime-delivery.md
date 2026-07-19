@@ -118,6 +118,13 @@ already-warm user projection. Server chrome and gutter entries likewise select
 projected branding, viewer capabilities, notification preferences, and unread
 state instead of independently fetching server/viewer/room snapshots.
 
+The room Files sidebar remains a separate, server-scoped lazy cache rather than
+part of the compacted realtime prefix. Each room starts with an empty cache and
+performs its attachment-list read only when Files is first opened. Later
+timeline message upserts and removals reconcile attachment rows in hydrated
+caches; reset and room-access loss clear them with the other content-bearing
+mirrors.
+
 Projection readiness distinguishes cold data from transport freshness. Known
 rooms in `ready` or `stale` projections render immediately, including after a
 server switch. Absence in a stale projection is not authoritative until the

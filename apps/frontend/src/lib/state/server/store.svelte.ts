@@ -32,7 +32,7 @@ import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteMap } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
-import { MessagesStore } from '$lib/state/room';
+import { MessagesStore, RoomFilesStore } from '$lib/state/room';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, mapRoomGroup, RoomKind } from '$lib/api-client/roomDirectory';
@@ -100,6 +100,7 @@ export class ServerStateStore {
   // These registries are intentionally non-reactive. The stores they own are
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
+  #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
   #threadMessages: Record<string, MessagesStore> = Object.create(null);
   #threadMessageRefCounts: Record<string, number> = Object.create(null);
   #adminRoomLayoutSubscriptions = 0;
@@ -191,6 +192,15 @@ export class ServerStateStore {
     return store;
   }
 
+  /** Stable lazy file-list owner for one room on this server. */
+  filesForRoom(roomId: string): RoomFilesStore {
+    let store = this.#roomFiles[roomId];
+    if (store) return store;
+    store = new RoomFilesStore(this.#serverConnection, roomId);
+    this.#roomFiles[roomId] = store;
+    return store;
+  }
+
   /** Restore the canonical latest window when a route selects this room. */
   restoreProjectedRoomWindow(roomId: string): void {
     const evictedRoomId = this.realtimeSync.retainRoom(roomId);
@@ -229,9 +239,13 @@ export class ServerStateStore {
     this.notifications.clearRoom(roomId);
     const roomStore = this.#roomMessages[roomId];
     roomStore?.clearForAccessRevocation();
+    const filesStore = this.#roomFiles[roomId];
+    filesStore?.reset();
     if (forgetStores) {
       roomStore?.dispose();
       delete this.#roomMessages[roomId];
+      filesStore?.dispose();
+      delete this.#roomFiles[roomId];
     }
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
       if (!key.startsWith(`${roomId}\u0000`)) continue;
@@ -388,6 +402,7 @@ export class ServerStateStore {
               update.retainDeletedRow,
               retainedByProjection
             );
+            this.#roomFiles[update.roomId]?.applyTimelineEvent(update.event, event.id);
             for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
               if (!key.startsWith(`${update.roomId}\u0000`)) continue;
               threadStore.upsertRoomProjectionEvent(
@@ -461,6 +476,7 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
+          this.#roomFiles[removal.roomId]?.removeTimelineEvent(removal.eventId);
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
             removal.roomId,
             removal.eventId
@@ -538,6 +554,7 @@ export class ServerStateStore {
     clearUserSummaryCache(this.serverId);
     for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
     for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
+    for (const store of Object.values(this.#roomFiles)) store.reset();
     this.rooms.resetProjectionState();
     this.roomDirectory.resetProjectionState();
     this.notifications.resetProjectionState();
@@ -723,6 +740,8 @@ export class ServerStateStore {
     this.realtimeSync.reset();
     for (const store of Object.values(this.#roomMessages)) store.dispose();
     this.#roomMessages = Object.create(null);
+    for (const store of Object.values(this.#roomFiles)) store.dispose();
+    this.#roomFiles = Object.create(null);
     for (const store of Object.values(this.#threadMessages)) store.dispose();
     this.#threadMessages = Object.create(null);
     this.#threadMessageRefCounts = Object.create(null);

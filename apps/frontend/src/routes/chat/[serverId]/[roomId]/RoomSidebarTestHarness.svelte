@@ -53,7 +53,7 @@ can exercise pagination wiring without mounting the full chat room.
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);
   });
-  const roomFilesStore = new RoomFilesStore(connection());
+  const roomFilesStore = $derived(new RoomFilesStore(connection(), roomId));
   const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
 
   const syncMembersStore: Attachment = () => {
@@ -66,18 +66,8 @@ can exercise pagination wiring without mounting the full chat room.
   };
 
   const syncFilesStore: Attachment = () => {
-    const selectedRoomId = roomId;
     const active = activePanel === 'files';
-    untrack(() => {
-      roomFilesStore.selectRoom(selectedRoomId);
-      if (active) {
-        roomFilesStore.activate();
-      } else {
-        roomFilesStore.deactivate();
-      }
-    });
-
-    return () => roomFilesStore.deactivate();
+    if (active) untrack(() => void roomFilesStore.hydrate());
   };
 </script>
 
