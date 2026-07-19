@@ -37,12 +37,8 @@ function messageUpsert(
   });
 }
 
-function invalidates(
-  event: RealtimeProjectionEvent,
-  existingFileMessageIds: string[] = []
-): boolean {
-  const existing = new Set(existingFileMessageIds);
-  return projectionEventInvalidatesRoomFiles(event, 'room-1', (eventId) => existing.has(eventId));
+function invalidates(event: RealtimeProjectionEvent): boolean {
+  return projectionEventInvalidatesRoomFiles(event, 'room-1');
 }
 
 describe('projectionEventInvalidatesRoomFiles', () => {
@@ -57,16 +53,7 @@ describe('projectionEventInvalidatesRoomFiles', () => {
     ).toBe(true);
   });
 
-  it('invalidates when an existing file message loses or changes attachments', () => {
-    expect(
-      invalidates(
-        new RealtimeProjectionEvent({ id: 'edit-1', operations: [messageUpsert('message-1')] }),
-        ['message-1']
-      )
-    ).toBe(true);
-  });
-
-  it('invalidates standalone message mutations that may remove an unloaded attachment', () => {
+  it('invalidates message edits that can change attachments', () => {
     expect(
       invalidates(
         new RealtimeProjectionEvent({ id: 'edit-1', operations: [messageUpsert('message-1')] })
@@ -80,23 +67,26 @@ describe('projectionEventInvalidatesRoomFiles', () => {
         new RealtimeProjectionEvent({
           id: 'reply-1',
           operations: [messageUpsert('reply-1'), messageUpsert('root-1')]
-        }),
-        ['root-1']
+        })
       )
     ).toBe(false);
   });
 
-  it('ignores reaction and thread-viewer-state replacements', () => {
+  it('ignores reactions, including secondary channel-echo upserts', () => {
     expect(
       invalidates(
         new RealtimeProjectionEvent({
           id: 'reaction-1',
-          operations: [messageUpsert('message-1', 'room-1', [new MessageAttachment({ id: 'a' })], true)]
-        }),
-        ['message-1']
+          operations: [
+            messageUpsert('message-1', 'room-1', [new MessageAttachment({ id: 'a' })], true),
+            messageUpsert('echo-1', 'room-1', [new MessageAttachment({ id: 'a' })])
+          ]
+        })
       )
     ).toBe(false);
+  });
 
+  it('ignores thread-viewer-state replacements', () => {
     expect(
       invalidates(
         new RealtimeProjectionEvent({
@@ -110,8 +100,7 @@ describe('projectionEventInvalidatesRoomFiles', () => {
               }
             })
           ]
-        }),
-        ['message-1']
+        })
       )
     ).toBe(false);
   });

@@ -133,10 +133,6 @@ export class RoomFilesStore {
     await this.ensureFresh();
   }
 
-  hasFilesForMessage(messageEventId: string): boolean {
-    return this.items.some((item) => item.messageEventId === messageEventId);
-  }
-
   assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
     const refreshed = this.refreshedAttachmentUrls.get(item.attachment.id);
     return refreshed ? refreshed.assetUrl : item.attachment.assetUrl;

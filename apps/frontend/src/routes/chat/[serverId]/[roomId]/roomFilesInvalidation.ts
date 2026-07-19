@@ -3,30 +3,24 @@ import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/real
 /** Whether an authoritative projection event can change the current room file list. */
 export function projectionEventInvalidatesRoomFiles(
   event: RealtimeProjectionEvent,
-  roomId: string,
-  hasFilesForMessage: (messageEventId: string) => boolean
+  roomId: string
 ): boolean {
-  const upserts = event.operations.flatMap((operation) => {
-    if (operation.operation.case !== 'roomTimelineEventUpsert') return [];
-    const upsert = operation.operation.value;
-    if (upsert.roomId !== roomId || upsert.event?.event.case !== 'messagePosted') return [];
-    return [{ upsert, message: upsert.event.event.value.message }];
-  });
-  const hasPrimaryMessageUpsert = upserts.some(({ upsert }) => upsert.event?.id === event.id);
-  const replacesThreadViewerState = event.operations.some(
-    (operation) => operation.operation.case === 'threadViewerStatesReplace'
-  );
+  if (event.operations.some(({ operation }) => operation.case === 'threadViewerStatesReplace'))
+    return false;
 
-  return upserts.some(({ upsert, message }) => {
-    if (upsert.reactionChange || replacesThreadViewerState) return false;
-    const messageEventId = upsert.event?.id ?? '';
-    if (hasPrimaryMessageUpsert && messageEventId !== event.id) return false;
+  // The server orders the source message before derived root/echo updates.
+  const update = event.operations.flatMap(({ operation }) => {
+    if (operation.case !== 'roomTimelineEventUpsert') return [];
+    const timelineEvent = operation.value.event;
+    if (operation.value.roomId !== roomId || timelineEvent?.event.case !== 'messagePosted') return [];
+    return [
+      {
+        eventId: timelineEvent.id,
+        hasAttachments: (timelineEvent.event.value.message?.attachments.length ?? 0) > 0,
+        isReaction: !!operation.value.reactionChange
+      }
+    ];
+  })[0];
 
-    return (
-      (message?.attachments.length ?? 0) > 0 ||
-      !!message?.deletedAt ||
-      hasFilesForMessage(messageEventId) ||
-      (!hasPrimaryMessageUpsert && messageEventId !== event.id)
-    );
-  });
+  return !!update && !update.isReaction && (update.eventId !== event.id || update.hasAttachments);
 }

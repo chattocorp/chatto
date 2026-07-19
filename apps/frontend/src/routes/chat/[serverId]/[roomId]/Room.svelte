@@ -335,12 +335,7 @@
         }
       }
     }
-    if (
-      projectionEventInvalidatesRoomFiles(event, roomId, (messageEventId) =>
-        roomFilesStore.hasFilesForMessage(messageEventId)
-      )
-    )
-      roomFilesStore.invalidate(roomId);
+    if (projectionEventInvalidatesRoomFiles(event, roomId)) roomFilesStore.invalidate(roomId);
   });
 
   usePresenceChange((userId, status) => {
