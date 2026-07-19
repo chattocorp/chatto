@@ -166,6 +166,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Testing
 
 - `mise test-frontend` runs the frontend suite.
+- Run frontend verification commands that compile Paraglide sequentially. In
+  particular, do not run `mise lint-frontend` and `mise test-frontend` in
+  parallel: one process can read `src/lib/paraglide/` while the other is
+  rewriting it and report invalid generated-code diagnostics.
 - Unit and component specs live next to source. Route specs should not start
   with `+`; use descriptive names such as `members.page.svelte.spec.ts`.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,

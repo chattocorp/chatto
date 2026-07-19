@@ -61,10 +61,16 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 
 ## Message Body Tokens
 
-Message bodies are plain text with Chatto's supported markdown subset. They may
-also contain inline timestamp tokens in the form `<t:UNIX_SECONDS:F>`. Render
-valid tokens as the referenced UTC instant in the viewer's locale and timezone,
-or leave the token literal if your client does not support inline timestamps.
+Message bodies are plain text with Chatto's supported Markdown subset: headings,
+emphasis, links and autolinks, inline and fenced code, blockquotes, ordered and
+unordered lists, and GFM pipe tables. Tables support the GFM delimiter-row
+alignment markers (`:---`, `:---:`, and `---:`), optional outer pipes, inline
+formatting in cells, and backslash-escaped pipes.
+
+Message bodies may also contain inline timestamp tokens in the form
+`<t:UNIX_SECONDS:F>`. Render valid tokens as the referenced UTC instant in the
+viewer's locale and timezone, or leave the token literal if your client does not
+support inline timestamps.
 
 ## Programmatic Safety
 
