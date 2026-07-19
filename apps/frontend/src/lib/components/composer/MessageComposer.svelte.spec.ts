@@ -8,6 +8,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { renderMarkdown } from '$lib/markdown';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -1607,6 +1608,23 @@ describe('MessageComposer', () => {
         roomId,
         body: 'test line one  \ntest line two'
       });
+    });
+
+    it('submits pasted GFM table syntax in a renderable form', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(2));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      const submittedBody = mutationMock.mock.calls[0][1].input.body as string;
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId });
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
     });
 
     it('preserves active inline formatting when pasting plain text', async () => {
