@@ -230,6 +230,7 @@ export class AdminRoomLayoutStore {
   universalRoomId = $state<string | null>(null);
 
   #loadId = 0;
+  #interactionGeneration = 0;
   #preDragSnapshot: GroupItemOrder | null = null;
   #pendingMoveDiff = false;
   #groupReorderPending = false;
@@ -248,10 +249,23 @@ export class AdminRoomLayoutStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.#loadId;
+    const interactionGeneration = this.#interactionGeneration;
     this.isRefreshing = true;
     try {
       const groups = await this.layoutAPI.listRoomGroups();
       if (this.#loadId !== thisLoad) return;
+      if (
+        interactionGeneration !== this.#interactionGeneration ||
+        this.isDragging ||
+        this.#pendingMoveDiff ||
+        this.#groupReorderPending
+      ) {
+        // This read began against pre-interaction state. Never let its result
+        // replace an active drag or the optimistic order being persisted.
+        this.#projectionRefreshPending = true;
+        this.scheduleProjectionRefresh();
+        return;
+      }
 
       this.groups = normalizeGroups(groups);
       this.error = null;
@@ -407,6 +421,7 @@ export class AdminRoomLayoutStore {
   }
 
   handleRoomDragConsider(groupId: string, items: Array<AdminSidebarItem | AdminRoomInfo>): void {
+    if (!this.isDragging) this.#interactionGeneration += 1;
     this.isDragging = true;
     this.captureRoomDragSnapshotIfNeeded();
     this.setGroupItems(groupId, toSidebarItems(items));
@@ -431,6 +446,7 @@ export class AdminRoomLayoutStore {
   }
 
   handleGroupsConsider(items: AdminRoomGroup[], draggingGroupId?: string | null): void {
+    if (!this.isDragging) this.#interactionGeneration += 1;
     this.isDragging = true;
     this.draggingGroupId = draggingGroupId ?? null;
     if (!this.#preReorderIds) {

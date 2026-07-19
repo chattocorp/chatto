@@ -381,6 +381,77 @@ describe('AdminRoomLayoutStore — mutations', () => {
 });
 
 describe('AdminRoomLayoutStore — drag sequencing', () => {
+  it('discards an in-flight refresh that resolves during a room drag', async () => {
+    vi.useFakeTimers();
+    let finishRefresh: ((groups: AdminRoomGroup[]) => void) | undefined;
+    const refreshFinished = new Promise<AdminRoomGroup[]>((resolve) => {
+      finishRefresh = resolve;
+    });
+    const a = room('a');
+    const b = room('b');
+    const initial = group('g1', [a, b]);
+    const dragged = group('g1', [b, a]);
+    const { client, query } = makeClient({
+      queries: [{ data: refreshFinished }, { data: [dragged] }],
+      mutations: [{ data: null }]
+    });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    store.groups = [initial];
+
+    store.requestProjectionRefresh();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(query).toHaveBeenCalledOnce();
+    store.handleRoomDragConsider('g1', [b, a]);
+
+    finishRefresh?.([initial]);
+    await settle();
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['b', 'a']);
+
+    await store.handleRoomDragFinalize('g1', [b, a]);
+    await vi.advanceTimersByTimeAsync(50);
+    await settle();
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['b', 'a']);
+  });
+
+  it('discards an in-flight refresh that resolves during group drag persistence', async () => {
+    vi.useFakeTimers();
+    let finishRefresh: ((groups: AdminRoomGroup[]) => void) | undefined;
+    const refreshFinished = new Promise<AdminRoomGroup[]>((resolve) => {
+      finishRefresh = resolve;
+    });
+    let finishReorder: (() => void) | undefined;
+    const reorderFinished = new Promise<void>((resolve) => {
+      finishReorder = resolve;
+    });
+    const initial = [group('g1', []), group('g2', [])];
+    const reordered = [group('g2', []), group('g1', [])];
+    const { client, query } = makeClient({
+      queries: [{ data: refreshFinished }, { data: reordered }],
+      mutations: [{ data: reorderFinished }]
+    });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    store.groups = initial;
+
+    store.requestProjectionRefresh();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(query).toHaveBeenCalledOnce();
+    store.handleGroupsConsider(reordered, 'g2');
+    const finalize = store.handleGroupsFinalize(reordered);
+    await Promise.resolve();
+
+    finishRefresh?.(initial);
+    await settle();
+    expect(store.groups.map((candidate) => candidate.id)).toEqual(['g2', 'g1']);
+
+    finishReorder?.();
+    await finalize;
+    await vi.advanceTimersByTimeAsync(50);
+    await settle();
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(store.groups.map((candidate) => candidate.id)).toEqual(['g2', 'g1']);
+  });
+
   it('defers a projection refresh until a room drag has been finalized', async () => {
     vi.useFakeTimers();
     const { client } = makeClient();
