@@ -381,6 +381,70 @@ describe('AdminRoomLayoutStore — mutations', () => {
 });
 
 describe('AdminRoomLayoutStore — drag sequencing', () => {
+  it('serializes a second room drag while the previous drag is still saving', async () => {
+    let finishFirstSave: (() => void) | undefined;
+    const firstSave = new Promise<void>((resolve) => {
+      finishFirstSave = resolve;
+    });
+    const { client, mutation } = makeClient({
+      mutations: [{ data: firstSave }, { data: null }]
+    });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    const a = room('a');
+    const b = room('b');
+    const c = room('c');
+    store.groups = [group('g1', [a, b, c])];
+
+    const firstGeneration = store.handleRoomDragConsider('g1', [b, a, c]);
+    const firstFinalize = store.handleRoomDragFinalize('g1', [b, a, c], firstGeneration);
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(1);
+
+    const secondGeneration = store.handleRoomDragConsider('g1', [c, b, a]);
+    const secondFinalize = store.handleRoomDragFinalize('g1', [c, b, a], secondGeneration);
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(1);
+
+    finishFirstSave?.();
+    await firstFinalize;
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(2);
+    await secondFinalize;
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('serializes a second group drag while the previous reorder is still saving', async () => {
+    let finishFirstSave: (() => void) | undefined;
+    const firstSave = new Promise<void>((resolve) => {
+      finishFirstSave = resolve;
+    });
+    const { client, mutation } = makeClient({
+      mutations: [{ data: firstSave }, { data: null }]
+    });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    const initial = [group('g1', []), group('g2', []), group('g3', [])];
+    store.groups = initial;
+
+    const firstOrder = [group('g2', []), group('g1', []), group('g3', [])];
+    const firstGeneration = store.handleGroupsConsider(firstOrder, 'g2');
+    const firstFinalize = store.handleGroupsFinalize(firstOrder, firstGeneration);
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(1);
+
+    const secondOrder = [group('g3', []), group('g2', []), group('g1', [])];
+    const secondGeneration = store.handleGroupsConsider(secondOrder, 'g3');
+    const secondFinalize = store.handleGroupsFinalize(secondOrder, secondGeneration);
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(1);
+
+    finishFirstSave?.();
+    await firstFinalize;
+    await settle();
+    expect(mutation).toHaveBeenCalledTimes(2);
+    await secondFinalize;
+    expect(store.groups.map((candidate) => candidate.id)).toEqual(['g3', 'g2', 'g1']);
+  });
+
   it('cancels an interrupted room drag and accepts a fresh read after remount', async () => {
     vi.useFakeTimers();
     let finishStaleRefresh: ((groups: AdminRoomGroup[]) => void) | undefined;

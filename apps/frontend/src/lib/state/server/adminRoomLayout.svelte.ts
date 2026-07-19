@@ -7,7 +7,7 @@ import type {
   AdminSidebarLinkInfo
 } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 export type {
   AdminRoomGroup,
@@ -234,8 +234,10 @@ export class AdminRoomLayoutStore {
   #activeRoomDragGeneration: number | null = null;
   #activeGroupDragGeneration: number | null = null;
   #preDragSnapshot: GroupItemOrder | null = null;
-  #pendingMoveDiff = false;
-  #groupReorderPending = false;
+  #roomPersistenceGenerations = new SvelteSet<number>();
+  #groupPersistenceGenerations = new SvelteSet<number>();
+  #roomPersistenceTail: Promise<void> = Promise.resolve();
+  #groupPersistenceTail: Promise<void> = Promise.resolve();
   #preReorderIds: string[] | null = null;
   #projectionRefreshPending = false;
   #projectionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -259,8 +261,8 @@ export class AdminRoomLayoutStore {
       if (
         interactionGeneration !== this.#interactionGeneration ||
         this.isDragging ||
-        this.#pendingMoveDiff ||
-        this.#groupReorderPending
+        this.#roomPersistenceGenerations.size > 0 ||
+        this.#groupPersistenceGenerations.size > 0
       ) {
         // This read began against pre-interaction state. Never let its result
         // replace an active drag or the optimistic order being persisted.
@@ -310,9 +312,7 @@ export class AdminRoomLayoutStore {
     this.isDragging = false;
     this.draggingGroupId = null;
     this.#preDragSnapshot = null;
-    this.#pendingMoveDiff = false;
     this.#preReorderIds = null;
-    this.#groupReorderPending = false;
   }
 
   async createGroup(name: string): Promise<StoreResult<{ group: AdminRoomGroup }>> {
@@ -464,20 +464,28 @@ export class AdminRoomLayoutStore {
     this.setGroupItems(groupId, toSidebarItems(items));
     this.isDragging = false;
 
-    if (this.#pendingMoveDiff) return null;
+    if (this.#roomPersistenceGenerations.has(dragGeneration)) return null;
     const interactionGeneration = this.#interactionGeneration;
-    this.#pendingMoveDiff = true;
+    this.#roomPersistenceGenerations.add(dragGeneration);
     try {
       await Promise.resolve();
-      return await this.flushRoomMoves();
+      const plan = this.takeRoomMovePlan();
+      if (!plan) return null;
+      const persistence = this.#roomPersistenceTail.then(() => this.persistRoomMoves(plan));
+      this.#roomPersistenceTail = persistence.then(
+        () => undefined,
+        () => undefined
+      );
+      return await persistence;
     } finally {
-      if (interactionGeneration === this.#interactionGeneration) {
-        this.#pendingMoveDiff = false;
-        if (this.#activeRoomDragGeneration === dragGeneration) {
-          this.#activeRoomDragGeneration = null;
-        }
-        this.scheduleProjectionRefresh();
+      this.#roomPersistenceGenerations.delete(dragGeneration);
+      if (
+        interactionGeneration === this.#interactionGeneration &&
+        this.#activeRoomDragGeneration === dragGeneration
+      ) {
+        this.#activeRoomDragGeneration = null;
       }
+      this.scheduleProjectionRefresh();
     }
   }
 
@@ -514,8 +522,7 @@ export class AdminRoomLayoutStore {
     this.draggingGroupId = null;
     this.groups = normalizeGroups(items);
     this.isDragging = false;
-    const interactionGeneration = this.#interactionGeneration;
-    this.#groupReorderPending = true;
+    this.#groupPersistenceGenerations.add(dragGeneration);
 
     try {
       const orderedIds = planGroupReorder(
@@ -525,28 +532,32 @@ export class AdminRoomLayoutStore {
       this.#preReorderIds = null;
       if (!orderedIds) return { ok: true, changed: false };
 
-      try {
-        await this.layoutAPI.reorderRoomGroups(orderedIds);
-      } catch (error) {
-        void this.refresh();
-        return {
-          ok: false,
-          changed: true,
-          error: errorMessage(error),
-          refreshRequested: true
-        };
-      }
-
-      return { ok: true, changed: true };
+      const persistence = this.#groupPersistenceTail.then(async (): Promise<GroupReorderResult> => {
+        try {
+          await this.layoutAPI.reorderRoomGroups(orderedIds);
+        } catch (error) {
+          void this.refresh();
+          return {
+            ok: false,
+            changed: true,
+            error: errorMessage(error),
+            refreshRequested: true
+          };
+        }
+        return { ok: true, changed: true };
+      });
+      this.#groupPersistenceTail = persistence.then(
+        () => undefined,
+        () => undefined
+      );
+      return await persistence;
     } finally {
-      if (interactionGeneration === this.#interactionGeneration) {
-        this.#groupReorderPending = false;
-        this.scheduleProjectionRefresh();
-      }
+      this.#groupPersistenceGenerations.delete(dragGeneration);
+      this.scheduleProjectionRefresh();
     }
   }
 
-  async flushRoomMoves(): Promise<RoomMoveFlushResult | null> {
+  private takeRoomMovePlan(): ReturnType<typeof planSidebarItemMutations> | null {
     if (!this.#preDragSnapshot) return null;
     const before = this.#preDragSnapshot;
     this.#preDragSnapshot = null;
@@ -555,7 +566,12 @@ export class AdminRoomLayoutStore {
     if (plan.moves.length === 0 && plan.linkMoves.length === 0 && plan.reorders.length === 0) {
       return null;
     }
+    return plan;
+  }
 
+  private async persistRoomMoves(
+    plan: ReturnType<typeof planSidebarItemMutations>
+  ): Promise<RoomMoveFlushResult> {
     const errors: string[] = [];
     for (const move of plan.moves) {
       try {
@@ -633,15 +649,21 @@ export class AdminRoomLayoutStore {
     if (
       !this.#projectionRefreshPending ||
       this.isDragging ||
-      this.#pendingMoveDiff ||
-      this.#groupReorderPending
+      this.#roomPersistenceGenerations.size > 0 ||
+      this.#groupPersistenceGenerations.size > 0
     ) {
       return;
     }
     if (this.#projectionRefreshTimer) clearTimeout(this.#projectionRefreshTimer);
     this.#projectionRefreshTimer = setTimeout(() => {
       this.#projectionRefreshTimer = null;
-      if (this.isDragging || this.#pendingMoveDiff || this.#groupReorderPending) return;
+      if (
+        this.isDragging ||
+        this.#roomPersistenceGenerations.size > 0 ||
+        this.#groupPersistenceGenerations.size > 0
+      ) {
+        return;
+      }
       this.#projectionRefreshPending = false;
       void this.refresh();
     }, 50);
