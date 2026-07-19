@@ -19,7 +19,13 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { Editor, Extension, InputRule, mergeAttributes, type JSONContent } from '@tiptap/core';
-  import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
+  import {
+    Fragment,
+    Slice,
+    type Mark,
+    type Node as ProseMirrorNode,
+    type Schema
+  } from '@tiptap/pm/model';
   import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
   import StarterKit from '@tiptap/starter-kit';
   import Link from '@tiptap/extension-link';
@@ -643,6 +649,58 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     );
   }
 
+  function createLiteralClipboardContent(
+    text: string,
+    schema: Schema,
+    destinationMarks: readonly Mark[]
+  ): Fragment {
+    const paragraphType = schema.nodes.paragraph;
+    const hardBreakType = schema.nodes.hardBreak;
+    const paragraphMarks = paragraphType.allowedMarks(destinationMarks);
+
+    return Fragment.fromArray(
+      text.split(/\n{2,}/).map((paragraphText) => {
+        const inlineNodes: ProseMirrorNode[] = [];
+        const lines = paragraphText.split('\n');
+
+        lines.forEach((line, index) => {
+          if (line) inlineNodes.push(schema.text(line, paragraphMarks));
+          if (index < lines.length - 1) inlineNodes.push(hardBreakType.create());
+        });
+
+        return paragraphType.create(null, inlineNodes);
+      })
+    );
+  }
+
+  function parseCompleteFencedCodeBlock(
+    text: string,
+    schema: Schema,
+    parseMarkdown: (markdown: string) => JSONContent
+  ): Fragment | null {
+    const lines = text.split('\n');
+    if (lines.at(-1) === '') lines.pop();
+    if (lines.length < 2) return null;
+
+    const openingFence = lines[0]?.match(/^ {0,3}(`{3,}|~{3,})[^\n]*$/)?.[1];
+    if (!openingFence) return null;
+
+    const fenceCharacter = openingFence[0];
+    const closingFence = lines.at(-1)?.match(/^ {0,3}(`+|~+)[ \t]*$/)?.[1];
+    if (
+      !closingFence ||
+      closingFence[0] !== fenceCharacter ||
+      closingFence.length < openingFence.length
+    ) {
+      return null;
+    }
+
+    const document = schema.nodeFromJSON(parseMarkdown(escapeMarkdownHtml(text)));
+    if (document.childCount !== 1 || document.firstChild?.type.name !== 'codeBlock') return null;
+
+    return document.content;
+  }
+
   function hasDefaultEmptyDocument(e: Editor): boolean {
     return isDefaultEmptyDocument(e.state.doc);
   }
@@ -1132,8 +1190,35 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             handleKeyDown: (_view, event) => {
               return onKeyDown?.(event) ?? false;
             },
-            handlePaste: (_view, event) => {
-              return onPaste?.(event) ?? false;
+            clipboardTextParser: (text, context, _plain, view) => {
+              const normalizedText = text.replace(/\r\n?/g, '\n');
+              const markdown = editor?.markdown;
+              const destinationMarks = view.state.storedMarks ?? context.marks();
+              const fencedCode = markdown
+                ? parseCompleteFencedCodeBlock(
+                    normalizedText,
+                    view.state.schema,
+                    markdown.parse.bind(markdown)
+                  )
+                : null;
+
+              // Keep ordinary clipboard text literal. ProseMirror's default parser turns every
+              // pasted line into a paragraph, which creates an extra rendered blank line.
+              const content =
+                fencedCode ??
+                createLiteralClipboardContent(normalizedText, view.state.schema, destinationMarks);
+              return Slice.maxOpen(content);
+            },
+            handlePaste: (view, event) => {
+              if (onPaste?.(event)) return true;
+
+              const text = event.clipboardData?.getData('text/plain');
+              const html = event.clipboardData?.getData('text/html');
+              if (!text || !html || editor?.isActive('codeBlock')) return false;
+
+              // Prefer the textual Markdown representation when the source also supplies HTML.
+              view.pasteText(text);
+              return true;
             }
           },
           onUpdate: ({ editor: ed }) => {
