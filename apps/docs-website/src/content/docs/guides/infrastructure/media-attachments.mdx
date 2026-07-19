@@ -56,7 +56,7 @@ Supported public Bluesky and Mastodon post URLs render as native Chatto cards. P
 | ---------- | ------------------- |
 | Small server with light uploads | NATS ObjectStore, the default. |
 | Active community with many files | S3-compatible storage. |
-| Video-heavy server | S3-compatible storage plus video processing. |
+| Video playback with seeking | S3-compatible storage plus video processing. |
 | Replicated NATS cluster | S3-compatible storage to avoid multiplying large binary storage. |
 
 Switching to S3 affects new assets. Existing NATS-stored assets continue to work because each asset records its own backend.
@@ -77,6 +77,10 @@ The official Docker image includes the required ffmpeg tools. Host installs need
 
 <Aside type="caution">
   Video processing is currently in-process and best-effort. Chatto records durable asset processing state and retries missed unmanifested video assets on boot, but operators should still treat transcoding as CPU-heavy background work.
+</Aside>
+
+<Aside type="caution">
+  NATS ObjectStore serves video as a complete, non-seekable response. Configure S3-compatible asset storage when members need reliable duration detection or timeline seeking; authorised S3-backed video redirects to object storage with byte-range support.
 </Aside>
 
 ## Active Document Safety

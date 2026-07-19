@@ -2,6 +2,7 @@
 
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
+[`cli/internal/http_server/assets.go`](../../cli/internal/http_server/assets.go),
 [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go),
 [`proto/chatto/`](../../proto/chatto/)
 
@@ -19,6 +20,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md) a
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
+| Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Stable per-user URLs; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
 | Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
 
@@ -62,3 +64,9 @@ Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol
 headers are not implicitly trusted. `webserver.trusted_proxies` affects client
 IP attribution and realtime same-origin comparison, not public URL authority.
+
+Chatto-streamed protected attachments are sequential full responses. They
+advertise `Accept-Ranges: none` and ignore `Range`, returning `200` with the
+complete object. NATS-backed video is therefore not seekable. Passive S3-backed
+media redirects after authorization to a presigned object URL whose storage
+backend provides byte-range delivery.
