@@ -828,6 +828,10 @@ Protected asset responses use `private, no-store`; image resize results may
 still be cached internally by the server. Chatto streams protected asset bytes
 by default, but can redirect heavy passive originals such as video, audio, and
 large files to short-lived presigned S3 URLs after the same authorization check.
+Chatto-streamed responses advertise `Accept-Ranges: none` and ignore `Range`,
+returning the complete object with `200`; NATS-backed video is therefore not
+seekable. Presigned S3 object URLs provide byte-range delivery through the
+storage backend.
 
 The old `/assets/attachments/{signedLocator}` compatibility route was removed
 before 0.4.0. ConnectRPC attachment fields use the stable `/assets/files/...`

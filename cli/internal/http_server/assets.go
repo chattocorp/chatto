@@ -197,6 +197,9 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
 	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
+	// Chatto-backed streams are sequential. Seekable media delivery requires an
+	// S3 redirect, whose object server handles byte ranges directly.
+	c.Header("Accept-Ranges", "none")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
