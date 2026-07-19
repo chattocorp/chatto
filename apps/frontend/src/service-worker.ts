@@ -15,11 +15,6 @@ import {
   routeNotificationClick,
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
-import {
-  applyPushBadgeIntent,
-  reconcilePushBadge,
-  type ServiceWorkerBadgeIntent
-} from '$lib/pwa/notificationBadge.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -28,13 +23,6 @@ const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
 const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
-
-type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
-  setAppBadge?: (contents?: number) => Promise<void>;
-  clearAppBadge?: () => Promise<void>;
-};
-
-const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
 
 /**
  * Immediately activate new service worker versions.
@@ -169,7 +157,6 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
-  appBadgeIntent: ServiceWorkerBadgeIntent;
 };
 
 type DeclarativePushEventNotification = Pick<
@@ -177,7 +164,6 @@ type DeclarativePushEventNotification = Pick<
   'title' | 'body' | 'icon' | 'tag' | 'data'
 > & {
   badge?: string;
-  app_badge?: string | number;
 };
 
 type PushEventWithDeclarativeNotification = PushEvent & {
@@ -200,8 +186,7 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
         notificationId,
         url
       }
-    },
-    appBadgeIntent: declarativeAppBadgeIntent(notification?.app_badge)
+    }
   };
 }
 
@@ -214,24 +199,10 @@ function declarativePayloadFromEventNotification(
       body: notification.body,
       icon: notification.icon,
       badge: notification.badge,
-      app_badge: notification.app_badge,
       tag: notification.tag,
       data: notificationData(notification.data)
     }
   };
-}
-
-function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
-  if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
-    const count = Math.max(0, Math.floor(appBadge));
-    return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
-  }
-  if (typeof appBadge !== 'string' || appBadge.trim() === '') return { kind: 'flag' };
-
-  const count = Number(appBadge);
-  if (!Number.isFinite(count)) return { kind: 'flag' };
-  const normalized = Math.max(0, Math.floor(count));
-  return normalized > 0 ? { kind: 'count', count: normalized } : { kind: 'clear' };
 }
 
 function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
@@ -274,7 +245,6 @@ self.addEventListener('push', (event) => {
       (async () => {
         const notifications = await self.registration.getNotifications({ tag: payload.tag });
         notifications.forEach((n) => n.close());
-        await reconcilePushBadge(self.registration, badgeNavigator);
       })()
     );
     return;
@@ -282,12 +252,7 @@ self.addEventListener('push', (event) => {
 
   const notification = normalizePushNotification(payload);
 
-  event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(notification.title, notification.options),
-      applyPushBadgeIntent(badgeNavigator, notification.appBadgeIntent)
-    ])
-  );
+  event.waitUntil(self.registration.showNotification(notification.title, notification.options));
 });
 
 /**
