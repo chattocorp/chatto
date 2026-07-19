@@ -59,7 +59,6 @@
     roomSidebarPanelsForRoom,
     visibleRoomSidebarPanel
   } from './roomSidebarBehavior';
-  import { projectionEventInvalidatesRoomFiles } from './roomFilesInvalidation';
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
@@ -322,7 +321,15 @@
   // presence/read side effects and the independent paginated files read model
   // aligned with those authoritative row replacements.
   useProjectionEvent((event) => {
+    let roomTimelineChanged = false;
     for (const operation of event.operations) {
+      if (
+        (operation.operation.case === 'roomTimelineEventUpsert' ||
+          operation.operation.case === 'roomTimelineEventRemove') &&
+        operation.operation.value.roomId === roomId
+      ) {
+        roomTimelineChanged = true;
+      }
       if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
       const update = operation.operation.value;
       if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
@@ -335,7 +342,7 @@
         }
       }
     }
-    if (projectionEventInvalidatesRoomFiles(event, roomId)) roomFilesStore.invalidate(roomId);
+    if (roomTimelineChanged) roomFilesStore.invalidate(roomId);
   });
 
   usePresenceChange((userId, status) => {

@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { MessagesStore } from '$lib/state/room';
 import {
@@ -62,6 +63,7 @@ const { mocks } = vi.hoisted(() => {
       pendingHighlightConsume: vi.fn(
         (_roomId: string, _threadRootId: string | null): string | null => null
       ),
+      projectionEventHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
       notifications: {
         notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -139,7 +141,9 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useProjectionEvent: vi.fn(),
+  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+    mocks.projectionEventHandler = handler;
+  },
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
@@ -368,6 +372,7 @@ beforeEach(() => {
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
+  mocks.projectionEventHandler = null;
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
   mocks.getAppUiState.mockReturnValue(appUi);
@@ -541,6 +546,30 @@ describe('Room local message echo', () => {
 
     await vi.waitFor(() => {
       expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('refreshes visible files after a room timeline update', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+    render(Room, { props: { roomId: 'room-1' } });
+    await vi.waitFor(() => {
+      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledOnce();
+    });
+
+    mocks.projectionEventHandler?.({
+      id: 'message-1',
+      operations: [
+        {
+          operation: {
+            case: 'roomTimelineEventUpsert',
+            value: { roomId: 'room-1' }
+          }
+        }
+      ]
+    } as RealtimeProjectionEvent);
+
+    await vi.waitFor(() => {
+      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledTimes(2);
     });
   });
 
