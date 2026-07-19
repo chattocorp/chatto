@@ -8,13 +8,13 @@ import { MessageComponent } from './pages/MessageComponent';
 /**
  * Player rendering for audio/image/video/generic attachments is unit-tested
  * in MessageAttachments.svelte.spec.ts. The upload pipeline is exercised by
- * the image-attachment cases in messages.test.ts. This e2e covers only the
+ * the image-attachment cases in messages.test.ts. This e2e covers the
  * subscription path and verifies that reaction updates do not interrupt
  * active playback by replacing the media element.
  */
 
 test.describe('audio player', () => {
-  test('second user sees audio player via real-time subscription', async ({
+  test('preserves playback across reactions and syncs to a second user', async ({
     page,
     chatPage,
     roomPage,

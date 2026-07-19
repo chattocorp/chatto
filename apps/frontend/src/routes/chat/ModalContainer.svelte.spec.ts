@@ -242,7 +242,7 @@ describe('ModalContainer image viewer', () => {
     );
 
     render(ModalContainer);
-    await vi.advanceTimersByTimeAsync(23 * 60 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(22 * 60 * 60 * 1000);
 
     expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledWith(
       expect.anything(),
