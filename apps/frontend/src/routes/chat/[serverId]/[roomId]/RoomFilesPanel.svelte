@@ -4,7 +4,7 @@
 Room-scoped file list for the room sidebar.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -110,9 +110,16 @@ Room-scoped file list for the room sidebar.
     return formatDateTime(value, userSettings, activeLocale);
   }
 
-  $effect(() => {
+  const refreshExpiringUrls: Attachment = () => {
     const refreshAt = store.nextAssetUrlRefreshAt;
     if (refreshAt === null) return;
+
+    if (refreshAt <= Date.now()) {
+      store.refreshStaleUrls().catch((error: unknown) => {
+        console.warn('Failed to refresh stale room file URLs', error);
+      });
+      return;
+    }
 
     const timeout = window.setTimeout(
       () => {
@@ -124,7 +131,7 @@ Room-scoped file list for the room sidebar.
     );
 
     return () => window.clearTimeout(timeout);
-  });
+  };
 
   function handleVisibilityChange(): void {
     if (document.visibilityState !== 'visible') return;
@@ -132,10 +139,6 @@ Room-scoped file list for the room sidebar.
       console.warn('Failed to refresh stale room file URLs', error);
     });
   }
-
-  onMount(() => {
-    void store.refreshStaleUrls();
-  });
 </script>
 
 <svelte:document onvisibilitychange={handleVisibilityChange} />
@@ -143,6 +146,7 @@ Room-scoped file list for the room sidebar.
 <nav
   class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2"
   aria-label={m['room.sidebar.files']()}
+  {@attach refreshExpiringUrls}
 >
   {#if loading}
     <ul role="list" class="space-y-1">

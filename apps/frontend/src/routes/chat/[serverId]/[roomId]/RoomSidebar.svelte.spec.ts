@@ -382,6 +382,18 @@ describe('RoomSidebar', () => {
     callStore.handleVoiceCallJoinFailed.mockClear();
   });
 
+  it('does not load room files for the Members panel', async () => {
+    render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'members',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await tick();
+    expect(attachmentMocks.listRoomAttachments).not.toHaveBeenCalled();
+  });
+
   it('shows the exact total count and eagerly loads all member pages', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));

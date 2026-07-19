@@ -48,11 +48,17 @@ export class RoomFilesStore {
   hasMore = $state(false);
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
-  isUnsupported = $state(false);
   refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
 
   private readonly attachmentAPI: AttachmentAPI;
   private roomId = '';
+  private active = false;
+  private invalidationGeneration = 0;
+  private loadedGeneration = -1;
+  private requestEpoch = 0;
+  private replacementPromise: Promise<void> | null = null;
+  private urlRefreshPromise: Promise<void> | null = null;
+  private pendingUrlRefreshAssetIds = new SvelteSet<string>();
   #loadId = 0;
 
   constructor(serverConnection: ServerConnection) {
@@ -63,36 +69,72 @@ export class RoomFilesStore {
     });
   }
 
-  setRoom(roomId: string): void {
+  /** Select a room without loading its Files panel. */
+  selectRoom(roomId: string): void {
     if (this.roomId === roomId) return;
+    this.fenceRequests();
     this.roomId = roomId;
     this.items = [];
     this.totalCount = 0;
     this.hasMore = false;
-    this.isUnsupported = false;
+    this.isInitialLoading = true;
+    this.isLoadingMore = false;
     this.refreshedAttachmentUrls = new SvelteMap();
-    void this.loadInitial();
+    this.invalidationGeneration++;
+    this.loadedGeneration = -1;
   }
 
-  async loadInitial(): Promise<void> {
-    if (!this.roomId || this.isUnsupported) return;
-    this.isInitialLoading = true;
-    await this.loadPage(0, true);
+  /** Activate the files read model for the visible room Files panel. */
+  activate(roomId?: string): void {
+    if (roomId) this.selectRoom(roomId);
+
+    this.active = true;
+    void this.ensureFresh();
+  }
+
+  /** Stop network refreshes while the Files panel is not visible. */
+  deactivate(): void {
+    if (!this.active) return;
+    this.active = false;
+    this.fenceRequests();
+  }
+
+  /** Refresh visible files, or remember that dormant data must be refreshed later. */
+  invalidate(roomId: string): void {
+    if (roomId !== this.roomId) return;
+    this.invalidationGeneration++;
+    if (this.active) void this.ensureFresh();
   }
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || !this.hasMore || !this.roomId || this.isUnsupported) return;
+    if (
+      !this.active ||
+      this.replacementPromise ||
+      this.isLoadingMore ||
+      !this.hasMore ||
+      !this.roomId
+    )
+      return;
+    const roomId = this.roomId;
+    const requestEpoch = this.requestEpoch;
     this.isLoadingMore = true;
     try {
       await this.loadPage(this.items.length, false);
     } finally {
-      this.isLoadingMore = false;
+      if (this.roomId === roomId && this.requestEpoch === requestEpoch) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
   async refresh(): Promise<void> {
-    if (!this.roomId || this.isUnsupported) return;
-    await this.loadPage(0, true, Math.max(ROOM_FILES_PAGE_SIZE, this.items.length));
+    if (!this.active || !this.roomId) return;
+    this.invalidationGeneration++;
+    await this.ensureFresh();
+  }
+
+  hasFilesForMessage(messageEventId: string): boolean {
+    return this.items.some((item) => item.messageEventId === messageEventId);
   }
 
   assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
@@ -147,29 +189,94 @@ export class RoomFilesStore {
   }
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
-    if (!this.roomId || this.isUnsupported || items.length === 0) return;
-    const assetIds = Array.from(new SvelteSet(items.map((item) => item.attachment.id)));
-    const freshMap = await refreshAttachmentUrlsForAssets(this.attachmentAPI, this.roomId, assetIds, {
-      width: 120,
-      height: 120,
-      fit: FitMode.Cover
-    });
-    const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
-    for (const [attachmentId, urls] of freshMap) {
-      fresh.set(attachmentId, urls);
+    if (!this.active || !this.roomId || items.length === 0) return;
+    for (const item of items) this.pendingUrlRefreshAssetIds.add(item.attachment.id);
+    if (this.urlRefreshPromise) return this.urlRefreshPromise;
+
+    const roomId = this.roomId;
+    const requestEpoch = this.requestEpoch;
+    const refresh = (async () => {
+      while (
+        this.active &&
+        this.roomId === roomId &&
+        this.requestEpoch === requestEpoch &&
+        this.pendingUrlRefreshAssetIds.size > 0
+      ) {
+        const assetIds = Array.from(this.pendingUrlRefreshAssetIds);
+        const freshMap = await refreshAttachmentUrlsForAssets(
+          this.attachmentAPI,
+          roomId,
+          assetIds,
+          {
+            width: 120,
+            height: 120,
+            fit: FitMode.Cover
+          }
+        );
+        if (!this.active || this.roomId !== roomId || this.requestEpoch !== requestEpoch) return;
+        for (const assetId of assetIds) this.pendingUrlRefreshAssetIds.delete(assetId);
+
+        const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
+        for (const [attachmentId, urls] of freshMap) {
+          fresh.set(attachmentId, urls);
+        }
+        this.refreshedAttachmentUrls = new SvelteMap(
+          mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)
+        );
+      }
+    })();
+    this.urlRefreshPromise = refresh;
+    try {
+      await refresh;
+    } finally {
+      if (this.urlRefreshPromise === refresh) this.urlRefreshPromise = null;
     }
-    this.refreshedAttachmentUrls = new SvelteMap(
-      mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)
-    );
+  }
+
+  private async ensureFresh(): Promise<void> {
+    if (!this.active || !this.roomId || this.loadedGeneration === this.invalidationGeneration)
+      return;
+    if (this.replacementPromise) return this.replacementPromise;
+
+    const replacement = (async () => {
+      while (this.active && this.roomId && this.loadedGeneration !== this.invalidationGeneration) {
+        const generation = this.invalidationGeneration;
+        if (this.items.length === 0) this.isInitialLoading = true;
+        const loaded = await this.loadPage(
+          0,
+          true,
+          Math.max(ROOM_FILES_PAGE_SIZE, this.items.length),
+          generation
+        );
+        if (!loaded) break;
+      }
+    })();
+    this.replacementPromise = replacement;
+    try {
+      await replacement;
+    } finally {
+      if (this.replacementPromise === replacement) this.replacementPromise = null;
+    }
+  }
+
+  private fenceRequests(): void {
+    this.requestEpoch++;
+    this.#loadId++;
+    this.isLoadingMore = false;
+    this.replacementPromise = null;
+    this.urlRefreshPromise = null;
+    this.pendingUrlRefreshAssetIds.clear();
   }
 
   private async loadPage(
     offset: number,
     replace: boolean,
-    limit: number = ROOM_FILES_PAGE_SIZE
-  ): Promise<void> {
+    limit: number = ROOM_FILES_PAGE_SIZE,
+    generation: number = this.invalidationGeneration
+  ): Promise<boolean> {
     const roomId = this.roomId;
     const thisLoad = ++this.#loadId;
+    const requestEpoch = this.requestEpoch;
     let connection;
     try {
       connection = await this.attachmentAPI.listRoomAttachments({
@@ -183,12 +290,23 @@ export class RoomFilesStore {
         }
       });
     } catch (error) {
-      if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
+      if (
+        this.#loadId !== thisLoad ||
+        this.roomId !== roomId ||
+        this.requestEpoch !== requestEpoch
+      )
+        return false;
       console.error('RoomFilesStore: failed to load files:', error);
       if (replace) this.isInitialLoading = false;
-      return;
+      return false;
     }
-    if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
+    if (
+      !this.active ||
+      this.#loadId !== thisLoad ||
+      this.roomId !== roomId ||
+      this.requestEpoch !== requestEpoch
+    )
+      return false;
 
     if (replace) {
       this.items = connection.items;
@@ -198,6 +316,8 @@ export class RoomFilesStore {
     }
     this.totalCount = connection.totalCount;
     this.hasMore = connection.hasMore;
+    if (replace) this.loadedGeneration = generation;
     this.isInitialLoading = false;
+    return true;
   }
 }

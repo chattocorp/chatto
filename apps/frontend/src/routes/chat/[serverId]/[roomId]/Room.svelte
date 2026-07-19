@@ -1,5 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { MediaQuery } from 'svelte/reactivity';
   import { goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
@@ -54,8 +56,10 @@
   import {
     canBanMembersFromRoomSidebar,
     roomSidebarPanelForRoom,
-    roomSidebarPanelsForRoom
+    roomSidebarPanelsForRoom,
+    visibleRoomSidebarPanel
   } from './roomSidebarBehavior';
+  import { projectionEventInvalidatesRoomFiles } from './roomFilesInvalidation';
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
@@ -72,6 +76,7 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
   const appUi = getAppUiState();
+  const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
@@ -189,19 +194,6 @@
   });
 
   const unread = useRoomUnread(() => ({ roomId }));
-
-  $effect(() => {
-    roomFilesStore.setRoom(roomId);
-    roomMembersStore.setRoom(roomId);
-  });
-
-  $effect(() => {
-    if (stores.hasCompleteProjectedRoomMembership(roomId)) {
-      roomMembersStore.replaceProjection(roomId, stores.projectedMembersForRoom(roomId));
-    } else {
-      roomMembersStore.awaitProjection(roomId);
-    }
-  });
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
@@ -330,9 +322,6 @@
   // presence/read side effects and the independent paginated files read model
   // aligned with those authoritative row replacements.
   useProjectionEvent((event) => {
-    const isThreadViewerStateChange = event.operations.some(
-      (operation) => operation.operation.case === 'threadViewerStatesReplace'
-    );
     for (const operation of event.operations) {
       if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
       const update = operation.operation.value;
@@ -345,14 +334,13 @@
           unread.markRoomAsRead(roomId, event.id);
         }
       }
-      if (
-        (message?.attachments.length ?? 0) > 0 ||
-        message?.deletedAt ||
-        (event.id !== update.event.id && !update.reactionChange && !isThreadViewerStateChange)
-      ) {
-        void roomFilesStore.refresh();
-      }
     }
+    if (
+      projectionEventInvalidatesRoomFiles(event, roomId, (messageEventId) =>
+        roomFilesStore.hasFilesForMessage(messageEventId)
+      )
+    )
+      roomFilesStore.invalidate(roomId);
   });
 
   usePresenceChange((userId, status) => {
@@ -369,6 +357,13 @@
   const mobileRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(room.isDM, appUi.mobileRoomSidebarPanel, showVoiceCall)
   );
+  const roomFilesPanelActive = $derived(
+    visibleRoomSidebarPanel(
+      desktopRoomLayout.current,
+      activeRoomSidebarPanel,
+      mobileRoomSidebarPanel
+    ) === 'files'
+  );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
   const hasActiveRoomCall = $derived(
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
@@ -379,9 +374,45 @@
       appUi.isRoomCallWideFor(getActiveServer(), roomId)
   );
 
-  $effect(() => {
-    if (!hasActiveRoomCall) appUi.disableRoomCallWideFor(getActiveServer(), roomId);
-  });
+  const syncRoomMembers: Attachment = () => {
+    const selectedRoomId = roomId;
+    const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
+    const projectedMembers = hasCompleteMembership
+      ? stores.projectedMembersForRoom(selectedRoomId)
+      : [];
+    untrack(() => {
+      roomMembersStore.setRoom(selectedRoomId);
+      if (hasCompleteMembership) {
+        roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
+      } else {
+        roomMembersStore.awaitProjection(selectedRoomId);
+      }
+    });
+  };
+
+  const syncRoomFiles: Attachment = () => {
+    const selectedRoomId = roomId;
+    const active = roomFilesPanelActive;
+    untrack(() => {
+      roomFilesStore.selectRoom(selectedRoomId);
+      if (active) {
+        roomFilesStore.activate();
+      } else {
+        roomFilesStore.deactivate();
+      }
+    });
+
+    return () => roomFilesStore.deactivate();
+  };
+
+  const syncRoomCallWide: Attachment = () => {
+    const active = hasActiveRoomCall;
+    const serverId = getActiveServer();
+    const selectedRoomId = roomId;
+    if (!active) {
+      untrack(() => appUi.disableRoomCallWideFor(serverId, selectedRoomId));
+    }
+  };
 
   let leavingRoom = $state(false);
 
@@ -512,7 +543,12 @@
     <PageTitle title={pageTitle} />
   {/if}
 
-  <div class="flex min-h-0 min-w-0 flex-1">
+  <div
+    class="flex min-h-0 min-w-0 flex-1"
+    {@attach syncRoomMembers}
+    {@attach syncRoomFiles}
+    {@attach syncRoomCallWide}
+  >
     <div
       class={[
         'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',

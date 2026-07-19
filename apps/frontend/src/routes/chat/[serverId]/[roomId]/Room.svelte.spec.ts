@@ -50,6 +50,10 @@ const { mocks } = vi.hoisted(() => {
         getThreadEvents: vi.fn(),
         getThreadEventsAround: vi.fn()
       },
+      roomAttachments: {
+        listRoomAttachments: vi.fn(),
+        refreshAssetUrls: vi.fn()
+      },
       livekitUrl: null as string | null,
       roomKind: 1,
       getAppUiState: vi.fn(),
@@ -167,6 +171,10 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
     createRoomTimelineAPI: () => mocks.timeline
   };
 });
+
+vi.mock('$lib/api-client/attachments', () => ({
+  createAttachmentAPI: () => mocks.roomAttachments
+}));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -320,6 +328,22 @@ function roomMessageEvent(id: string) {
   };
 }
 
+function stubMatchMedia(matches: boolean): void {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((media: string) => ({
+      matches,
+      media,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true)
+    }))
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -329,6 +353,14 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
+  mocks.roomAttachments.listRoomAttachments.mockReset();
+  mocks.roomAttachments.listRoomAttachments.mockResolvedValue({
+    items: [],
+    totalCount: 0,
+    hasMore: false
+  });
+  mocks.roomAttachments.refreshAssetUrls.mockReset();
+  mocks.roomAttachments.refreshAssetUrls.mockResolvedValue(new Map());
   mocks.messagesForRoom.mockReturnValue(
     new MessagesStore({} as never, () => 'test-user', mocks.timeline)
   );
@@ -347,10 +379,7 @@ beforeEach(() => {
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
   mocks.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => ({ matches: true }))
-  );
+  stubMatchMedia(true);
 });
 
 describe('Room local message echo', () => {
@@ -475,10 +504,7 @@ describe('Room local message echo', () => {
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn(() => ({ matches: false }))
-    );
+    stubMatchMedia(false);
     setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
@@ -487,6 +513,35 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('does not load files selected only in the hidden mobile layout', async () => {
+    appUi.openMobileRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    expect(mocks.roomAttachments.listRoomAttachments).not.toHaveBeenCalled();
+  });
+
+  it('does not load files selected only in the hidden desktop layout', async () => {
+    stubMatchMedia(false);
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    expect(mocks.roomAttachments.listRoomAttachments).not.toHaveBeenCalled();
+  });
+
+  it('loads files selected in the visible desktop layout', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.roomAttachments.listRoomAttachments).toHaveBeenCalledOnce();
+    });
   });
 
   it('keeps the thread open when pressing the app sidebar surface', async () => {
