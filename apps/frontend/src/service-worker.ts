@@ -16,9 +16,8 @@ import {
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
 import {
-  normalizeUnknownBadgeIntent,
-  ServiceWorkerBadgeCoordinator,
-  createCacheForegroundBadgeIntentStorage,
+  applyPushBadgeIntent,
+  reconcilePushBadge,
   type ServiceWorkerBadgeIntent
 } from '$lib/pwa/notificationBadge.worker';
 
@@ -26,7 +25,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
+const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
 const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
@@ -35,11 +34,7 @@ type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
   clearAppBadge?: () => Promise<void>;
 };
 
-const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
-  self.registration,
-  navigator as ServiceWorkerAppBadgeNavigator,
-  createCacheForegroundBadgeIntentStorage(caches, BADGE_STATE_CACHE_NAME)
-);
+const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
 
 /**
  * Immediately activate new service worker versions.
@@ -61,17 +56,15 @@ self.addEventListener('activate', (event) => {
       await Promise.all(
         cacheNames
           .filter(
-            (cacheName) => cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME
+            (cacheName) =>
+              (cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME) ||
+              RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
       );
       await self.clients.claim();
     })()
   );
-});
-
-self.addEventListener('message', (event) => {
-  handleBadgeStateMessage(event);
 });
 
 /**
@@ -191,25 +184,6 @@ type PushEventWithDeclarativeNotification = PushEvent & {
   notification?: DeclarativePushEventNotification | null;
 };
 
-function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
-  const message = event.data as Record<string, unknown> | undefined;
-  if (!message || message.type !== 'chatto-badge-state') return false;
-
-  const badgeIntent =
-    normalizeUnknownBadgeIntent(message.badgeIntent) ??
-    (typeof message.notificationCount === 'number'
-      ? legacyBadgeIntentFromCount(message.notificationCount)
-      : null);
-  if (!badgeIntent) return false;
-
-  event.waitUntil(
-    badgeCoordinator.applyForegroundBadgeIntent(badgeIntent, {
-      serviceWorkerAppBadgeEnabled: message.serviceWorkerAppBadgeEnabled === true
-    })
-  );
-  return true;
-}
-
 function normalizePushNotification(payload: DeclarativePushPayload): NormalizedPushNotification {
   const notification = payload.notification;
   const notificationId = payload.notificationId ?? notification?.data?.notificationId;
@@ -245,12 +219,6 @@ function declarativePayloadFromEventNotification(
       data: notificationData(notification.data)
     }
   };
-}
-
-function legacyBadgeIntentFromCount(notificationCount: number): ServiceWorkerBadgeIntent {
-  if (!Number.isFinite(notificationCount)) return { kind: 'clear' };
-  const count = Math.max(0, Math.floor(notificationCount));
-  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
 }
 
 function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
@@ -306,23 +274,18 @@ self.addEventListener('push', (event) => {
       (async () => {
         const notifications = await self.registration.getNotifications({ tag: payload.tag });
         notifications.forEach((n) => n.close());
-        await badgeCoordinator.reconcileAfterDismissPush();
+        await reconcilePushBadge(self.registration, badgeNavigator);
       })()
     );
     return;
   }
 
-  badgeCoordinator.recordRegularPush();
   const notification = normalizePushNotification(payload);
 
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(notification.title, notification.options),
-      notification.appBadgeIntent.kind === 'count'
-        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeIntent.count)
-        : notification.appBadgeIntent.kind === 'flag'
-          ? badgeCoordinator.setProvisionalPushFlagBadge()
-          : badgeCoordinator.setPushAppBadgeCount(0)
+      applyPushBadgeIntent(badgeNavigator, notification.appBadgeIntent)
     ])
   );
 });
@@ -348,7 +311,7 @@ self.addEventListener('notificationclick', (event) => {
           { logger: console }
         );
       } finally {
-        await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
+        await reconcilePushBadge(self.registration, badgeNavigator).catch(() => {});
       }
     })().catch((err) => {
       console.error('[SW] Error handling notification click:', err);

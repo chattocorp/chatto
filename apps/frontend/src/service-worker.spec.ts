@@ -25,14 +25,6 @@ type TestNativeNotification = {
   close?: () => void;
 };
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
-
 function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
   const pending: Promise<unknown>[] = [];
   return {
@@ -110,9 +102,6 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
   return {
     clients,
     dispatch,
-    getPendingDispatch(type: string, extra: Record<string, unknown> = {}) {
-      return createWaitUntilEvent(extra);
-    },
     handlers,
     registration,
     setAppBadge,
@@ -130,63 +119,20 @@ describe('service worker badge orchestration', () => {
     vi.unstubAllGlobals();
   });
 
-  it('does not let a stale foreground zero clear a regular pushed notification', async () => {
-    const worker = await importServiceWorker();
-    const nativeNotification = { close: vi.fn() };
-    const listing = deferred<Array<typeof nativeNotification>>();
-    worker.registration.getNotifications.mockReturnValueOnce(listing.promise);
+  it('deletes retired foreground badge caches during activation', async () => {
+    const cacheStorage = createMemoryCacheStorage();
+    await cacheStorage.open('chatto-badge-state-v1');
+    await cacheStorage.open('chatto-badge-state-v2');
+    const worker = await importServiceWorker(cacheStorage);
 
-    const messageDispatch = worker.getPendingDispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 0,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    for (const handler of worker.handlers.get('message') ?? []) {
-      handler(messageDispatch.event);
-    }
+    await worker.dispatch('activate');
 
-    await worker.dispatch('push', {
-      data: {
-        json: () => ({
-          title: 'New notification',
-          body: 'Hello',
-          tag: 'notification-1',
-          url: 'https://chatto.example/chat/-/room-1'
-        })
-      }
-    });
-
-    listing.resolve([nativeNotification]);
-    await Promise.all(messageDispatch.pending);
-
-    expect(worker.registration.showNotification).toHaveBeenCalledOnce();
-    expect(worker.registration.showNotification).toHaveBeenCalledWith('New notification', {
-      body: 'Hello',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: 'notification-1',
-      data: {
-        notificationId: undefined,
-        url: 'https://chatto.example/chat/-/room-1'
-      }
-    });
-    expect(nativeNotification.close).not.toHaveBeenCalled();
-    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v1');
+    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v2');
   });
 
   it('uses declarative push notification fields when legacy root fields are absent', async () => {
     const worker = await importServiceWorker();
-
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 0,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    worker.setAppBadge.mockClear();
 
     await worker.dispatch('push', {
       data: {
@@ -225,16 +171,6 @@ describe('service worker badge orchestration', () => {
   it('clears a declarative DM push app badge after clicking the only native notification', async () => {
     const worker = await importServiceWorker();
 
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 0,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    worker.clearAppBadge.mockClear();
-    worker.setAppBadge.mockClear();
-
     await worker.dispatch('push', {
       data: {
         json: () => ({
@@ -271,15 +207,6 @@ describe('service worker badge orchestration', () => {
 
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
     const worker = await importServiceWorker();
-
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 0,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    worker.setAppBadge.mockClear();
 
     await worker.dispatch('push', {
       notification: {
@@ -342,17 +269,9 @@ describe('service worker badge orchestration', () => {
     expect(worker.clients.openWindow).toHaveBeenCalledWith(targetUrl);
   });
 
-  it('preserves a foreground authoritative count after clicking the only native notification', async () => {
+  it('keeps a flag badge after a click while another native notification remains', async () => {
     const worker = await importServiceWorker();
-
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 3,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    worker.registration.getNotifications.mockResolvedValueOnce([]);
+    worker.registration.getNotifications.mockResolvedValueOnce([{}]);
 
     await worker.dispatch('notificationclick', {
       notification: {
@@ -361,8 +280,8 @@ describe('service worker badge orchestration', () => {
       }
     });
 
+    expect(worker.setAppBadge).toHaveBeenCalledWith();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
-    expect(worker.setAppBadge).toHaveBeenLastCalledWith(3);
     expect(worker.clients.openWindow.mock.invocationCallOrder[0]).toBeLessThan(
       worker.registration.getNotifications.mock.invocationCallOrder[0]
     );
@@ -370,15 +289,6 @@ describe('service worker badge orchestration', () => {
 
   it('reconciles badge state even when notification click routing fails', async () => {
     const worker = await importServiceWorker();
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 0,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-    worker.clearAppBadge.mockClear();
-    worker.registration.getNotifications.mockClear();
     worker.clients.openWindow.mockRejectedValueOnce(new Error('window activation failed'));
     worker.registration.getNotifications.mockResolvedValueOnce([]);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -399,34 +309,7 @@ describe('service worker badge orchestration', () => {
     }
   });
 
-  it('preserves a foreground authoritative count after a service worker restart', async () => {
-    const cacheStorage = createMemoryCacheStorage();
-    const firstWorker = await importServiceWorker(cacheStorage);
-
-    await firstWorker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 3,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
-
-    vi.resetModules();
-    const restartedWorker = await importServiceWorker(cacheStorage);
-    restartedWorker.registration.getNotifications.mockResolvedValueOnce([]);
-
-    await restartedWorker.dispatch('notificationclick', {
-      notification: {
-        close: vi.fn(),
-        data: { url: 'https://chatto.example/chat/-/room-1' }
-      }
-    });
-
-    expect(restartedWorker.clearAppBadge).not.toHaveBeenCalled();
-    expect(restartedWorker.setAppBadge).toHaveBeenLastCalledWith(3);
-  });
-
-  it('does not call the worker Badging API for a foreground browser tab', async () => {
+  it('does not accept foreground badge-state messages', async () => {
     const worker = await importServiceWorker();
 
     await worker.dispatch('message', {
@@ -436,33 +319,17 @@ describe('service worker badge orchestration', () => {
         serviceWorkerAppBadgeEnabled: false
       }
     });
-    worker.registration.getNotifications.mockResolvedValueOnce([]);
-
-    await worker.dispatch('notificationclick', {
-      notification: {
-        close: vi.fn(),
-        data: { url: 'https://chatto.example/chat/-/room-1' }
-      }
-    });
-
+    expect(worker.handlers.has('message')).toBe(false);
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.setAppBadge).not.toHaveBeenCalled();
   });
 
-  it('does not preserve a foreground count after a dismiss push without a fresh count', async () => {
+  it('reconciles the badge from remaining native notifications after a dismiss push', async () => {
     const worker = await importServiceWorker();
     const staleNotification = { close: vi.fn() };
-
-    await worker.dispatch('message', {
-      data: {
-        type: 'chatto-badge-state',
-        notificationCount: 1,
-        serviceWorkerAppBadgeEnabled: true
-      }
-    });
     worker.registration.getNotifications
       .mockResolvedValueOnce([staleNotification])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{}]);
 
     await worker.dispatch('push', {
       data: {
@@ -474,7 +341,7 @@ describe('service worker badge orchestration', () => {
     });
 
     expect(staleNotification.close).toHaveBeenCalledOnce();
-    expect(worker.clearAppBadge).toHaveBeenCalledOnce();
-    expect(worker.setAppBadge).toHaveBeenCalledTimes(1);
+    expect(worker.setAppBadge).toHaveBeenCalledWith();
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
   });
 });
