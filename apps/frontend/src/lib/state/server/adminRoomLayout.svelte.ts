@@ -232,7 +232,10 @@ export class AdminRoomLayoutStore {
   #loadId = 0;
   #preDragSnapshot: GroupItemOrder | null = null;
   #pendingMoveDiff = false;
+  #groupReorderPending = false;
   #preReorderIds: string[] | null = null;
+  #projectionRefreshPending = false;
+  #projectionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly layoutAPI: AdminRoomLayoutAPI,
@@ -262,6 +265,24 @@ export class AdminRoomLayoutStore {
         this.isRefreshing = false;
       }
     }
+  }
+
+  /**
+   * Reconcile an open editor after the realtime projection changes. Refreshes
+   * are coalesced and deferred until drag persistence has completed so an
+   * authoritative read cannot replace the drag snapshot halfway through a
+   * room move or group reorder.
+   */
+  requestProjectionRefresh(): void {
+    this.#projectionRefreshPending = true;
+    this.scheduleProjectionRefresh();
+  }
+
+  /** Cancel projection-driven work when the admin layout route is unmounted. */
+  cancelProjectionRefresh(): void {
+    this.#projectionRefreshPending = false;
+    if (this.#projectionRefreshTimer) clearTimeout(this.#projectionRefreshTimer);
+    this.#projectionRefreshTimer = null;
   }
 
   async createGroup(name: string): Promise<StoreResult<{ group: AdminRoomGroup }>> {
@@ -400,9 +421,13 @@ export class AdminRoomLayoutStore {
 
     if (this.#pendingMoveDiff) return null;
     this.#pendingMoveDiff = true;
-    await Promise.resolve();
-    this.#pendingMoveDiff = false;
-    return this.flushRoomMoves();
+    try {
+      await Promise.resolve();
+      return await this.flushRoomMoves();
+    } finally {
+      this.#pendingMoveDiff = false;
+      this.scheduleProjectionRefresh();
+    }
   }
 
   handleGroupsConsider(items: AdminRoomGroup[], draggingGroupId?: string | null): void {
@@ -418,27 +443,33 @@ export class AdminRoomLayoutStore {
     this.draggingGroupId = null;
     this.groups = normalizeGroups(items);
     this.isDragging = false;
-
-    const orderedIds = planGroupReorder(
-      this.#preReorderIds,
-      this.groups.map((group) => group.id)
-    );
-    this.#preReorderIds = null;
-    if (!orderedIds) return { ok: true, changed: false };
+    this.#groupReorderPending = true;
 
     try {
-      await this.layoutAPI.reorderRoomGroups(orderedIds);
-    } catch (error) {
-      void this.refresh();
-      return {
-        ok: false,
-        changed: true,
-        error: errorMessage(error),
-        refreshRequested: true
-      };
-    }
+      const orderedIds = planGroupReorder(
+        this.#preReorderIds,
+        this.groups.map((group) => group.id)
+      );
+      this.#preReorderIds = null;
+      if (!orderedIds) return { ok: true, changed: false };
 
-    return { ok: true, changed: true };
+      try {
+        await this.layoutAPI.reorderRoomGroups(orderedIds);
+      } catch (error) {
+        void this.refresh();
+        return {
+          ok: false,
+          changed: true,
+          error: errorMessage(error),
+          refreshRequested: true
+        };
+      }
+
+      return { ok: true, changed: true };
+    } finally {
+      this.#groupReorderPending = false;
+      this.scheduleProjectionRefresh();
+    }
   }
 
   async flushRoomMoves(): Promise<RoomMoveFlushResult | null> {
@@ -524,4 +555,21 @@ export class AdminRoomLayoutStore {
     }
   }
 
+  private scheduleProjectionRefresh(): void {
+    if (
+      !this.#projectionRefreshPending ||
+      this.isDragging ||
+      this.#pendingMoveDiff ||
+      this.#groupReorderPending
+    ) {
+      return;
+    }
+    if (this.#projectionRefreshTimer) clearTimeout(this.#projectionRefreshTimer);
+    this.#projectionRefreshTimer = setTimeout(() => {
+      this.#projectionRefreshTimer = null;
+      if (this.isDragging || this.#pendingMoveDiff || this.#groupReorderPending) return;
+      this.#projectionRefreshPending = false;
+      void this.refresh();
+    }, 50);
+  }
 }

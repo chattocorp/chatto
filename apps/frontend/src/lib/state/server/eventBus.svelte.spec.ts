@@ -391,6 +391,43 @@ describe('eventBusManager realtime transport', () => {
     expect(hydration.frame.value.roomId).toBe('room-lost-response');
   });
 
+  it('retries pending room hydration after a reconnectable server close frame', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-close-response');
+    expect(socket.sent).toHaveLength(3);
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: 'stream_closed',
+          message: 'reconnect to continue',
+          reconnect: true,
+          retryAfterMs: 0
+        })
+      })
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    const resumed = sockets.at(-1)!;
+    expect(resumed).not.toBe(socket);
+    resumed.open();
+    await resumed.receive(helloFrame());
+    await resumed.receive(subscribedFrame());
+
+    const hydration = RealtimeClientFrame.fromBinary(resumed.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('room-close-response');
+  });
+
   it('retries the rejected room after the server hydration backoff', async () => {
     vi.useFakeTimers();
     const sync = new RealtimeProjectionSyncState();

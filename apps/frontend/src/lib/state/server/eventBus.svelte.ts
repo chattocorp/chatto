@@ -469,6 +469,12 @@ class EventBusManager {
               }
               nextSocket.onclose = null;
               if (socket === nextSocket) socket = null;
+              // The close frame bypasses the socket's normal onclose handler.
+              // Release socket-scoped hydration state before reconnecting so a
+              // request whose response was lost can be sent on the replacement.
+              socketSubscribed = false;
+              pendingHydrationRoomId = null;
+              clearHydrationRetryTimer();
               nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
               if (mode === 'live' && frame.frame.value.reconnect) {
                 scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);

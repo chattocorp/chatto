@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
@@ -10,6 +10,10 @@ import {
   type AdminRoomGroup,
   type AdminRoomInfo
 } from './adminRoomLayout.svelte';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo {
   return {
@@ -377,6 +381,54 @@ describe('AdminRoomLayoutStore — mutations', () => {
 });
 
 describe('AdminRoomLayoutStore — drag sequencing', () => {
+  it('defers a projection refresh until a room drag has been finalized', async () => {
+    vi.useFakeTimers();
+    const { client } = makeClient();
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    const a = room('a');
+    store.groups = [group('g1', [a])];
+    store.refresh = vi.fn().mockResolvedValue(undefined);
+
+    store.handleRoomDragConsider('g1', [a]);
+    store.requestProjectionRefresh();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(store.refresh).not.toHaveBeenCalled();
+
+    await store.handleRoomDragFinalize('g1', [a]);
+    await vi.advanceTimersByTimeAsync(49);
+    expect(store.refresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(store.refresh).toHaveBeenCalledOnce();
+  });
+
+  it('defers a projection refresh until a group drag has been persisted', async () => {
+    vi.useFakeTimers();
+    let finishReorder: (() => void) | undefined;
+    const reorderFinished = new Promise<void>((resolve) => {
+      finishReorder = resolve;
+    });
+    const { client } = makeClient({ mutations: [{ data: reorderFinished }] });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    const groups = [group('g1', []), group('g2', [])];
+    store.groups = groups;
+    store.refresh = vi.fn().mockResolvedValue(undefined);
+
+    const reordered = [group('g2', []), group('g1', [])];
+    store.handleGroupsConsider(reordered, 'g2');
+    const finalize = store.handleGroupsFinalize(reordered);
+    await Promise.resolve();
+    store.requestProjectionRefresh();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(store.refresh).not.toHaveBeenCalled();
+
+    finishReorder?.();
+    await finalize;
+    await vi.advanceTimersByTimeAsync(49);
+    expect(store.refresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(store.refresh).toHaveBeenCalledOnce();
+  });
+
   it('flushes room move mutations before room reorder mutations', async () => {
     const { client, mutation } = makeClient({
       mutations: [{ data: null }, { data: null }, { data: null }]
