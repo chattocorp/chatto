@@ -3,13 +3,14 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
+import { MessageComponent } from './pages/MessageComponent';
 
 /**
  * Player rendering for audio/image/video/generic attachments is unit-tested
  * in MessageAttachments.svelte.spec.ts. The upload pipeline is exercised by
  * the image-attachment cases in messages.test.ts. This e2e covers only the
- * subscription path: that an audio attachment posted by one user shows up in
- * a second user's room via the real-time event stream.
+ * subscription path and verifies that reaction updates do not interrupt
+ * active playback by replacing the media element.
  */
 
 test.describe('audio player', () => {
@@ -37,6 +38,29 @@ test.describe('audio player', () => {
 
         // User 1 sees the audio player
         await expect(roomPage.audioPlayer).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+
+        const audioMessageLocator = page
+          .locator('[role="article"]')
+          .filter({ has: roomPage.audioPlayer });
+        const audioMessage = new MessageComponent(page, audioMessageLocator);
+        const inlineAudio = audioMessageLocator.getByTestId('audio-player');
+        await inlineAudio.evaluate(async (audio) => {
+          audio.dataset.reactionPlaybackMarker = 'preserve-me';
+          audio.muted = true;
+          audio.loop = true;
+          await audio.play();
+        });
+        await expect(inlineAudio).not.toHaveJSProperty('paused', true);
+
+        await audioMessage.reactViaToolbar('👍');
+        await audioMessage.expectReaction('👍', 1);
+        await expect(inlineAudio).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineAudio).not.toHaveJSProperty('paused', true);
+
+        await audioMessage.toggleReaction('👍');
+        await audioMessage.expectNoReaction('👍');
+        await expect(inlineAudio).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineAudio).not.toHaveJSProperty('paused', true);
 
         // User 2 also sees the audio player via real-time subscription
         await expect(roomPage2.audioPlayer).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

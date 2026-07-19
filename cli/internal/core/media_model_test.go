@@ -291,6 +291,38 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	}
 }
 
+func TestMediaModelStableAttachmentURLIssuanceBuckets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.mediaModel
+	now := time.Date(2026, time.July, 19, 10, 15, 0, 0, time.FixedZone("test", 2*60*60))
+	service.now = func() time.Time { return now }
+
+	first := service.GetStableAttachmentAssetURL("A-url", "U-url")
+	firstTransformed := service.GetStableTransformedAttachmentAssetURL("A-url", "U-url", 128, 96, "contain")
+	now = now.Add(44*time.Minute + 59*time.Second)
+	withinBucket := service.GetStableAttachmentAssetURL("A-url", "U-url")
+	withinBucketTransformed := service.GetStableTransformedAttachmentAssetURL("A-url", "U-url", 128, 96, "contain")
+
+	if withinBucket != first {
+		t.Fatalf("stable URL changed within issuance bucket: %#v != %#v", withinBucket, first)
+	}
+	if withinBucketTransformed != firstTransformed {
+		t.Fatalf("stable transformed URL changed within issuance bucket: %#v != %#v", withinBucketTransformed, firstTransformed)
+	}
+	if got, want := first.ExpiresAt, time.Date(2026, time.July, 20, 8, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("stable URL expiry = %v, want %v", got, want)
+	}
+
+	now = now.Add(time.Second)
+	nextBucket := service.GetStableAttachmentAssetURL("A-url", "U-url")
+	if nextBucket.URL == first.URL {
+		t.Fatal("stable URL did not rotate across issuance bucket boundary")
+	}
+	if got, want := nextBucket.ExpiresAt.Sub(now), AssetAccessTicketTTL; got != want {
+		t.Fatalf("next-bucket URL validity = %v, want %v", got, want)
+	}
+}
+
 func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAssetURL, params *signedurl.TransformParams, before time.Time) {
 	t.Helper()
 
@@ -319,8 +351,9 @@ func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAss
 		t.Fatalf("stable URL ticket expiry = %d, want %d", ticket.ExpiresAt, stable.ExpiresAt.Unix())
 	}
 	ttl := stable.ExpiresAt.Sub(before)
-	if ttl < AssetAccessTicketTTL-2*time.Second || ttl > AssetAccessTicketTTL+2*time.Second {
-		t.Fatalf("stable URL ticket TTL = %v, want about %v", ttl, AssetAccessTicketTTL)
+	minimumTTL := AssetAccessTicketTTL - assetAccessTicketIssueBucket
+	if ttl < minimumTTL || ttl > AssetAccessTicketTTL+2*time.Second {
+		t.Fatalf("stable URL ticket TTL = %v, want between %v and %v", ttl, minimumTTL, AssetAccessTicketTTL)
 	}
 }
 
