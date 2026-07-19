@@ -39,12 +39,25 @@ func TestWriteHLSMasterPlaylist(t *testing.T) {
 	}
 }
 
-func TestHLSBandwidth(t *testing.T) {
-	if got := hlsBandwidth(750_000, 6000); got != 1_000_000 {
-		t.Fatalf("hlsBandwidth = %d, want 1000000", got)
+func TestHLSPeakBandwidth(t *testing.T) {
+	tmp := t.TempDir()
+	playlist := filepath.Join(tmp, "index.m3u8")
+	if err := os.WriteFile(playlist, []byte("#EXTM3U\n#EXTINF:6.0,\none.ts\n#EXTINF:2.0,\ntwo.ts\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile playlist: %v", err)
 	}
-	if got := hlsBandwidth(0, 0); got != 1 {
-		t.Fatalf("invalid hlsBandwidth = %d, want 1", got)
+	segments := []string{filepath.Join(tmp, "one.ts"), filepath.Join(tmp, "two.ts")}
+	if err := os.WriteFile(segments[0], make([]byte, 6000), 0o600); err != nil {
+		t.Fatalf("WriteFile first segment: %v", err)
+	}
+	if err := os.WriteFile(segments[1], make([]byte, 4000), 0o600); err != nil {
+		t.Fatalf("WriteFile second segment: %v", err)
+	}
+	got, err := hlsPeakBandwidth(playlist, segments)
+	if err != nil {
+		t.Fatalf("hlsPeakBandwidth: %v", err)
+	}
+	if got != 16_000 {
+		t.Fatalf("hlsPeakBandwidth = %d, want 16000", got)
 	}
 }
 

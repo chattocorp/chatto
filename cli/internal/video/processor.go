@@ -343,15 +343,43 @@ func (s *Service) packageHLSRendition(ctx context.Context, inputPath, outputDir 
 	return playlistPath, segmentPaths, nil
 }
 
-func hlsBandwidth(size, durationMs int64) int64 {
-	if size <= 0 || durationMs <= 0 {
-		return 1
+func hlsPeakBandwidth(playlistPath string, segmentPaths []string) (int64, error) {
+	raw, err := os.ReadFile(playlistPath)
+	if err != nil {
+		return 0, fmt.Errorf("read HLS media playlist: %w", err)
 	}
-	bandwidth := size * 8 * 1000 / durationMs
-	if bandwidth < 1 {
-		return 1
+	var durations []float64
+	for line := range strings.SplitSeq(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
+		value, ok := strings.CutPrefix(strings.TrimSpace(line), "#EXTINF:")
+		if !ok {
+			continue
+		}
+		value = strings.TrimSuffix(value, ",")
+		duration, err := strconv.ParseFloat(value, 64)
+		if err != nil || duration <= 0 {
+			return 0, fmt.Errorf("invalid HLS segment duration %q", value)
+		}
+		durations = append(durations, duration)
 	}
-	return bandwidth
+	if len(durations) != len(segmentPaths) {
+		return 0, fmt.Errorf("HLS playlist contains %d segment durations, want %d", len(durations), len(segmentPaths))
+	}
+
+	var peak int64
+	for i, segmentPath := range segmentPaths {
+		info, err := os.Stat(segmentPath)
+		if err != nil {
+			return 0, fmt.Errorf("stat HLS segment: %w", err)
+		}
+		bandwidth := int64(math.Ceil(float64(info.Size()*8) / durations[i]))
+		if bandwidth > peak {
+			peak = bandwidth
+		}
+	}
+	if peak < 1 {
+		return 0, fmt.Errorf("HLS peak bandwidth is zero")
+	}
+	return peak, nil
 }
 
 func writeHLSMasterPlaylist(path string, renditions []*corev1.AssetHLSRendition) error {
@@ -508,7 +536,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		return s.failProcessing(ctx, req, fmt.Errorf("all variant transcodes failed"))
 	}
 
-	hls, err := s.generateAndUploadHLS(ctx, req, tmpDir, probeResult.DurationMs, variantOutputs)
+	hls, err := s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
 	if err != nil {
 		// MP4 variants remain a complete compatibility result. HLS is additive,
 		// so a packaging/storage failure must not make the posted video unusable.
@@ -533,7 +561,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	return nil
 }
 
-func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, durationMs int64, outputs []processedVariantOutput) (*corev1.AssetProcessedHLS, error) {
+func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, outputs []processedVariantOutput) (*corev1.AssetProcessedHLS, error) {
 	hlsDir := filepath.Join(tmpDir, "hls")
 	manifest := &corev1.AssetProcessedHLS{}
 	var uploaded []*corev1.Attachment
@@ -551,12 +579,17 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 			cleanupOnError()
 			return nil, err
 		}
+		bandwidth, err := hlsPeakBandwidth(playlistPath, segmentPaths)
+		if err != nil {
+			cleanupOnError()
+			return nil, err
+		}
 
 		rendition := &corev1.AssetHLSRendition{
 			Quality:   output.variant.GetQuality(),
 			Width:     output.variant.GetWidth(),
 			Height:    output.variant.GetHeight(),
-			Bandwidth: hlsBandwidth(output.variant.GetSize(), durationMs),
+			Bandwidth: bandwidth,
 		}
 		for segmentIndex, segmentPath := range segmentPaths {
 			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", rendition.GetQuality(), segmentIndex), "video/mp2t", segmentPath)
