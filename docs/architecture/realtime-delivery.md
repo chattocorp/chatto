@@ -121,9 +121,12 @@ state instead of independently fetching server/viewer/room snapshots.
 The room Files sidebar remains a separate, server-scoped lazy cache rather than
 part of the compacted realtime prefix. Each room starts with an empty cache and
 performs its attachment-list read only when Files is first opened. Later
-timeline message upserts and removals reconcile attachment rows in hydrated
-caches; reset and room-access loss clear them with the other content-bearing
-mirrors.
+attachment-relevant timeline message upserts reconcile attachment rows in
+hydrated caches. Updates racing the first read are queued and applied to its
+result, while updates racing pagination fence the stale page response.
+Projection-only timeline-row removals do not remove the underlying message's
+files. Reset and room-access loss clear the cache with the other
+content-bearing mirrors; a reset rehydrates it when Files remains visible.
 
 Projection readiness distinguishes cold data from transport freshness. Known
 rooms in `ready` or `stale` projections render immediately, including after a

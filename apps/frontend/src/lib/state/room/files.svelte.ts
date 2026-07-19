@@ -55,9 +55,14 @@ export class RoomFilesStore {
   private readonly attachmentAPI: AttachmentAPI;
   private readonly roomId: string;
   private hydrated = false;
-  private retryHydration = false;
+  private retainCount = 0;
   private requestEpoch = 0;
+  private paginationEpoch = 0;
   private hydrationPromise: Promise<void> | null = null;
+  private pendingTimelineEvents: Array<{
+    event: RoomTimelineEvent;
+    sourceEventId: string;
+  }> = [];
   private urlRefreshPromise: Promise<void> | null = null;
   private pendingUrlRefreshAssetIds = new SvelteSet<string>();
 
@@ -75,16 +80,39 @@ export class RoomFilesStore {
     await this.ensureFresh();
   }
 
+  /** Keep this cache hydrated while its room Files panel is visible. */
+  retain(): () => void {
+    this.retainCount++;
+    if (this.retainCount === 1) void this.hydrate();
+
+    let retained = true;
+    return () => {
+      if (!retained) return;
+      retained = false;
+      this.retainCount = Math.max(0, this.retainCount - 1);
+    };
+  }
+
   /** Reconcile a current timeline message into an already-hydrated file cache. */
   applyTimelineEvent(event: RoomTimelineEvent, sourceEventId: string): void {
+    const replacement = roomFileItemsForTimelineEvent(event);
+    const isNewMessage = event.id === sourceEventId;
+    if (isNewMessage && replacement.length === 0) return;
+
     if (!this.hydrated) {
-      if (this.hydrationPromise) this.retryHydration = true;
+      if (this.hydrationPromise) {
+        this.pendingTimelineEvents = [
+          ...this.pendingTimelineEvents.filter((pending) => pending.event.id !== event.id),
+          { event, sourceEventId }
+        ];
+      }
       return;
     }
 
     const current = this.items.filter((item) => item.messageEventId === event.id);
-    const replacement = roomFileItemsForTimelineEvent(event);
-    const isNewMessage = event.id === sourceEventId;
+    if (!isNewMessage && current.length === 0 && replacement.length === 0 && !this.hasMore) return;
+
+    this.fencePagination();
     if (!isNewMessage && current.length === 0 && this.hasMore) return;
     if (current.length === 0 && replacement.length === 0) return;
 
@@ -98,19 +126,8 @@ export class RoomFilesStore {
     this.hasMore = this.totalCount > this.items.length;
   }
 
-  /** Remove one projected message from an already-hydrated file cache. */
-  removeTimelineEvent(eventId: string): void {
-    if (!this.hydrated) return;
-    const current = this.items.filter((item) => item.messageEventId === eventId);
-    if (current.length === 0) return;
-    for (const item of current) this.refreshedAttachmentUrls.delete(item.attachment.id);
-    this.items = this.items.filter((item) => item.messageEventId !== eventId);
-    this.totalCount = Math.max(0, this.totalCount - current.length);
-    this.hasMore = this.totalCount > this.items.length;
-  }
-
-  /** Clear cached room content at a reset or authorization boundary. */
-  reset(): void {
+  /** Clear cached room content, optionally restoring a still-visible panel. */
+  reset(options: { rehydrateRetained?: boolean } = {}): void {
     this.fenceRequests();
     this.items = [];
     this.totalCount = 0;
@@ -118,7 +135,8 @@ export class RoomFilesStore {
     this.isInitialLoading = true;
     this.refreshedAttachmentUrls = new SvelteMap();
     this.hydrated = false;
-    this.retryHydration = false;
+    this.pendingTimelineEvents = [];
+    if (options.rehydrateRetained && this.retainCount > 0) void this.hydrate();
   }
 
   async loadMore(): Promise<void> {
@@ -131,11 +149,16 @@ export class RoomFilesStore {
       return;
     const roomId = this.roomId;
     const requestEpoch = this.requestEpoch;
+    const paginationEpoch = this.paginationEpoch;
     this.isLoadingMore = true;
     try {
-      await this.loadPage(this.items.length, false);
+      await this.loadPage(this.items.length, false, ROOM_FILES_PAGE_SIZE, paginationEpoch);
     } finally {
-      if (this.roomId === roomId && this.requestEpoch === requestEpoch) {
+      if (
+        this.roomId === roomId &&
+        this.requestEpoch === requestEpoch &&
+        this.paginationEpoch === paginationEpoch
+      ) {
         this.isLoadingMore = false;
       }
     }
@@ -241,14 +264,14 @@ export class RoomFilesStore {
     if (this.hydrationPromise) return this.hydrationPromise;
 
     const hydration = (async () => {
-      while (true) {
-        this.retryHydration = false;
-        this.isInitialLoading = true;
-        const loaded = await this.loadPage(0, true, ROOM_FILES_PAGE_SIZE);
-        if (!loaded) return;
-        if (this.retryHydration) continue;
-        this.hydrated = true;
-        return;
+      this.isInitialLoading = true;
+      const loaded = await this.loadPage(0, true, ROOM_FILES_PAGE_SIZE);
+      if (!loaded) return;
+      this.hydrated = true;
+      const pending = this.pendingTimelineEvents;
+      this.pendingTimelineEvents = [];
+      for (const update of pending) {
+        this.applyTimelineEvent(update.event, update.sourceEventId);
       }
     })();
     this.hydrationPromise = hydration;
@@ -261,16 +284,23 @@ export class RoomFilesStore {
 
   private fenceRequests(): void {
     this.requestEpoch++;
+    this.paginationEpoch++;
     this.isLoadingMore = false;
     this.hydrationPromise = null;
     this.urlRefreshPromise = null;
     this.pendingUrlRefreshAssetIds.clear();
   }
 
+  private fencePagination(): void {
+    this.paginationEpoch++;
+    this.isLoadingMore = false;
+  }
+
   private async loadPage(
     offset: number,
     replace: boolean,
-    limit: number = ROOM_FILES_PAGE_SIZE
+    limit: number = ROOM_FILES_PAGE_SIZE,
+    paginationEpoch?: number
   ): Promise<boolean> {
     const roomId = this.roomId;
     const requestEpoch = this.requestEpoch;
@@ -287,12 +317,20 @@ export class RoomFilesStore {
         }
       });
     } catch (error) {
-      if (this.requestEpoch !== requestEpoch) return false;
+      if (
+        this.requestEpoch !== requestEpoch ||
+        (paginationEpoch !== undefined && this.paginationEpoch !== paginationEpoch)
+      )
+        return false;
       console.error('RoomFilesStore: failed to load files:', error);
       if (replace) this.isInitialLoading = false;
       return false;
     }
-    if (this.requestEpoch !== requestEpoch) return false;
+    if (
+      this.requestEpoch !== requestEpoch ||
+      (paginationEpoch !== undefined && this.paginationEpoch !== paginationEpoch)
+    )
+      return false;
 
     if (replace) {
       this.items = connection.items;
@@ -307,6 +345,8 @@ export class RoomFilesStore {
   }
 
   dispose(): void {
+    this.retainCount = 0;
+    this.pendingTimelineEvents = [];
     this.fenceRequests();
   }
 }

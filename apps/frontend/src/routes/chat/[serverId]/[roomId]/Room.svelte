@@ -385,7 +385,7 @@
   const syncRoomFiles: Attachment = () => {
     const store = roomFilesStore;
     const active = roomFilesPanelActive;
-    if (active) untrack(() => void store.hydrate());
+    if (active) return untrack(() => store.retain());
   };
 
   const syncRoomCallWide: Attachment = () => {

@@ -176,11 +176,9 @@ describe('RoomFilesStore', () => {
     expect(attachmentMocks.listRoomAttachments).not.toHaveBeenCalled();
   });
 
-  it('refetches after an update races the initial hydration', async () => {
+  it('reconciles queued updates after initial hydration without refetching', async () => {
     const pending = deferred<{ items: RoomFileItem[]; totalCount: number; hasMore: boolean }>();
-    attachmentMocks.listRoomAttachments
-      .mockReturnValueOnce(pending.promise)
-      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 1, hasMore: false });
+    attachmentMocks.listRoomAttachments.mockReturnValueOnce(pending.promise);
     const store = new RoomFilesStore(serverConnection(), 'room-1');
 
     const hydration = store.hydrate();
@@ -189,8 +187,87 @@ describe('RoomFilesStore', () => {
     pending.resolve({ items: [], totalCount: 0, hasMore: false });
     await hydration;
 
-    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledOnce();
     expect(store.items.map((item) => item.attachment.id)).toEqual(['att-1']);
+  });
+
+  it('ignores new text-only messages during initial hydration', async () => {
+    const pending = deferred<{ items: RoomFileItem[]; totalCount: number; hasMore: boolean }>();
+    attachmentMocks.listRoomAttachments.mockReturnValueOnce(pending.promise);
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+
+    const hydration = store.hydrate();
+    await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledOnce());
+    store.applyTimelineEvent(timelineMessage('event-1', []), 'event-1');
+    pending.resolve({ items: [], totalCount: 0, hasMore: false });
+    await hydration;
+
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledOnce();
+    expect(store.items).toEqual([]);
+  });
+
+  it('discards a stale page after a realtime attachment deletion', async () => {
+    const pendingPage = deferred<{
+      items: RoomFileItem[];
+      totalCount: number;
+      hasMore: boolean;
+    }>();
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 2, hasMore: true })
+      .mockReturnValueOnce(pendingPage.promise)
+      .mockResolvedValueOnce({
+        items: [roomFileItem('att-2', 'event-2')],
+        totalCount: 1,
+        hasMore: false
+      });
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    await store.hydrate();
+
+    const staleLoad = store.loadMore();
+    await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2));
+    store.applyTimelineEvent(timelineMessage('event-1', []), 'edit-1');
+    pendingPage.resolve({ items: [roomFileItem()], totalCount: 2, hasMore: false });
+    await staleLoad;
+
+    expect(store.items).toEqual([]);
+    await store.loadMore();
+    expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']);
+  });
+
+  it('rehydrates after reset while retained by an open Files panel', async () => {
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 1, hasMore: false })
+      .mockResolvedValueOnce({
+        items: [roomFileItem('att-2', 'event-2')],
+        totalCount: 1,
+        hasMore: false
+      });
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-1']));
+
+    store.reset({ rehydrateRetained: true });
+
+    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']));
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
+    release();
+  });
+
+  it('stays empty after an authorization reset even while retained', async () => {
+    attachmentMocks.listRoomAttachments.mockResolvedValue({
+      items: [roomFileItem()],
+      totalCount: 1,
+      hasMore: false
+    });
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.items).toHaveLength(1));
+
+    store.reset();
+
+    expect(store.items).toEqual([]);
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledOnce();
+    release();
   });
 
   it('allows pagination after a reset fences a pending page request', async () => {

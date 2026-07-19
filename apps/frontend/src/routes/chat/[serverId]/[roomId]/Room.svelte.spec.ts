@@ -50,7 +50,7 @@ const { mocks } = vi.hoisted(() => {
         getThreadEvents: vi.fn(),
         getThreadEventsAround: vi.fn()
       },
-      roomFilesHydrate: vi.fn(),
+      roomFilesRetain: vi.fn(),
       livekitUrl: null as string | null,
       roomKind: 1,
       getAppUiState: vi.fn(),
@@ -191,7 +191,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       rooms: mocks.rooms,
       messagesForRoom: mocks.messagesForRoom,
-      filesForRoom: () => ({ hydrate: mocks.roomFilesHydrate }),
+      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
       projectedMembersForRoom: mocks.projectedMembersForRoom,
       hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
@@ -347,8 +347,8 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
-  mocks.roomFilesHydrate.mockReset();
-  mocks.roomFilesHydrate.mockResolvedValue(undefined);
+  mocks.roomFilesRetain.mockReset();
+  mocks.roomFilesRetain.mockReturnValue(vi.fn());
   mocks.messagesForRoom.mockReturnValue(
     new MessagesStore({} as never, () => 'test-user', mocks.timeline)
   );
@@ -509,7 +509,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    expect(mocks.roomFilesHydrate).not.toHaveBeenCalled();
+    expect(mocks.roomFilesRetain).not.toHaveBeenCalled();
   });
 
   it('does not load files selected only in the hidden desktop layout', async () => {
@@ -519,7 +519,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    expect(mocks.roomFilesHydrate).not.toHaveBeenCalled();
+    expect(mocks.roomFilesRetain).not.toHaveBeenCalled();
   });
 
   it('loads files selected in the visible desktop layout', async () => {
@@ -528,7 +528,7 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
 
     await vi.waitFor(() => {
-      expect(mocks.roomFilesHydrate).toHaveBeenCalledOnce();
+      expect(mocks.roomFilesRetain).toHaveBeenCalledOnce();
     });
   });
 

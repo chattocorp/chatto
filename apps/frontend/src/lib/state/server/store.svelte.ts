@@ -402,7 +402,9 @@ export class ServerStateStore {
               update.retainDeletedRow,
               retainedByProjection
             );
-            this.#roomFiles[update.roomId]?.applyTimelineEvent(update.event, event.id);
+            if (!update.reactionChange) {
+              this.#roomFiles[update.roomId]?.applyTimelineEvent(update.event, event.id);
+            }
             for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
               if (!key.startsWith(`${update.roomId}\u0000`)) continue;
               threadStore.upsertRoomProjectionEvent(
@@ -476,7 +478,6 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
-          this.#roomFiles[removal.roomId]?.removeTimelineEvent(removal.eventId);
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
             removal.roomId,
             removal.eventId
@@ -554,7 +555,9 @@ export class ServerStateStore {
     clearUserSummaryCache(this.serverId);
     for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
     for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
-    for (const store of Object.values(this.#roomFiles)) store.reset();
+    for (const store of Object.values(this.#roomFiles)) {
+      store.reset({ rehydrateRetained: true });
+    }
     this.rooms.resetProjectionState();
     this.roomDirectory.resetProjectionState();
     this.notifications.resetProjectionState();
