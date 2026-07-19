@@ -6,6 +6,7 @@ import {
   assetUrlExpiresAtMs,
   assetUrlNeedsRefresh,
   assetUrlRefreshAt,
+  createAssetUrlRetainer,
   earliestAssetUrlRefreshAt,
   mergeRefreshedAttachmentUrls,
   refreshAttachmentUrlsForAssets,
@@ -190,5 +191,40 @@ describe('asset URL expiry helpers', () => {
       '/assets/files/A?access=ticket&retry=123#view'
     );
     expect(withAssetUrlRetryParam('/assets/files/A', 'again')).toBe('/assets/files/A?retry=again');
+  });
+});
+
+describe('createAssetUrlRetainer', () => {
+  const now = Date.parse('2026-05-29T14:00:00Z');
+  const freshExpiry = '2026-05-29T15:00:00Z';
+
+  it('retains a usable URL when only its signature changes', () => {
+    const retain = createAssetUrlRetainer(() => now);
+    const initial = { url: '/assets/files/A?signature=first', expiresAt: freshExpiry };
+
+    expect(retain('attachment:video', initial)).toBe(initial);
+    expect(
+      retain('attachment:video', {
+        url: '/assets/files/A?signature=second',
+        expiresAt: freshExpiry
+      })
+    ).toBe(initial);
+  });
+
+  it('accepts explicit refreshes, expired URLs, and different assets', () => {
+    const retain = createAssetUrlRetainer(() => now);
+    const initial = { url: '/assets/files/A?signature=first', expiresAt: freshExpiry };
+    retain('attachment:video', initial);
+
+    const forced = { url: '/assets/files/A?signature=forced', expiresAt: freshExpiry };
+    expect(retain('attachment:video', forced, true)).toBe(forced);
+
+    const expired = { url: '/assets/files/A?signature=expired', expiresAt: '2026-05-29T13:00:00Z' };
+    retain('attachment:expired', expired);
+    const afterExpiry = { url: '/assets/files/A?signature=fresh', expiresAt: freshExpiry };
+    expect(retain('attachment:expired', afterExpiry)).toBe(afterExpiry);
+
+    const replacement = { url: '/assets/files/B?signature=fresh', expiresAt: freshExpiry };
+    expect(retain('attachment:video', replacement)).toBe(replacement);
   });
 });
