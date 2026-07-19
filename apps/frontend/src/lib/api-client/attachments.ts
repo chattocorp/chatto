@@ -46,6 +46,7 @@ export type RoomFileItem = {
       sourceAvailable: boolean;
       reasonCode: string | null;
       thumbnailAssetUrl: ExpiringAssetUrl | null;
+      hlsMasterPlaylistUrl?: ExpiringAssetUrl | null;
       variants: Array<{
         quality: string;
         width: number;
@@ -130,6 +131,7 @@ function refreshedAttachmentUrlMap(
         assetUrl: assetUrl(attachment.assetUrl),
         thumbnailAssetUrl: assetUrl(attachment.thumbnailAssetUrl),
         videoThumbnailAssetUrl: assetUrl(attachment.videoProcessing?.thumbnailAssetUrl),
+        hlsMasterPlaylistUrl: assetUrl(attachment.videoProcessing?.hls?.masterPlaylistUrl),
         variantAssetUrls: new Map(
           (attachment.videoProcessing?.variants ?? []).map(
             (variant) => [variant.quality, assetUrl(variant.assetUrl)] as const
@@ -202,6 +204,7 @@ function videoProcessing(
     sourceAvailable: value.sourceAvailable,
     reasonCode: value.reasonCode || null,
     thumbnailAssetUrl: assetUrl(value.thumbnailAssetUrl),
+    hlsMasterPlaylistUrl: assetUrl(value.hls?.masterPlaylistUrl),
     variants: value.variants.map((variant) => ({
       quality: variant.quality,
       width: variant.width,

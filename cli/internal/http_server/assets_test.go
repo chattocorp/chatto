@@ -1701,6 +1701,139 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 	}
 }
 
+func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		setup func(*testing.T) *assetTestEnv
+	}{
+		{name: "NATS", setup: setupAssetTestServer},
+		{name: "S3", setup: setupAssetTestServerWithS3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := tt.setup(t)
+			login := "hls-" + strings.ToLower(tt.name)
+			viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, "HLS Viewer", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", login+"-room", "HLS Room")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("JoinRoom: %v", err)
+			}
+
+			original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+			if err != nil {
+				t.Fatalf("UploadAttachment: %v", err)
+			}
+			segment, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment-bytes")))
+			if err != nil {
+				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
+			}
+			media, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST, room.Id, "media.m3u8", "application/vnd.apple.mpegurl", strings.NewReader("#EXTM3U\n#EXTINF:6.0,\nsegment-00000.ts\n#EXT-X-ENDLIST\n"))
+			if err != nil {
+				t.Fatalf("UploadDerivativeAttachment(media): %v", err)
+			}
+			master, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, room.Id, "master.m3u8", "application/vnd.apple.mpegurl", strings.NewReader("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000,RESOLUTION=640x360\nmedia.m3u8\n"))
+			if err != nil {
+				t.Fatalf("UploadDerivativeAttachment(master): %v", err)
+			}
+			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId()); err != nil {
+				t.Fatalf("RecordAssetProcessingStarted: %v", err)
+			}
+			hls := &corev1.AssetProcessedHLS{
+				MasterPlaylistAssetId: master.GetId(),
+				Renditions: []*corev1.AssetHLSRendition{{
+					Quality: "360p", Width: 640, Height: 360, Bandwidth: 500000,
+					PlaylistAssetId: media.GetId(), SegmentAssetIds: []string{segment.GetId()},
+				}},
+			}
+			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
+				t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
+			}
+
+			masterURL := env.core.GetStableHLSMasterPlaylistAssetURL(original.GetId(), viewer.Id).URL
+			plainClient := &http.Client{}
+			masterResp, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET master: %v", err)
+			}
+			masterBody, _ := io.ReadAll(masterResp.Body)
+			masterResp.Body.Close()
+			if masterResp.StatusCode != http.StatusOK {
+				t.Fatalf("master status = %d, body = %s", masterResp.StatusCode, masterBody)
+			}
+			mediaURL := firstHLSURI(t, masterBody)
+			if !strings.Contains(mediaURL, "/renditions/0/playlist.m3u8?access=") {
+				t.Fatalf("rewritten media URL = %q", mediaURL)
+			}
+
+			mediaResp, err := plainClient.Get(env.server.URL + mediaURL)
+			if err != nil {
+				t.Fatalf("GET media: %v", err)
+			}
+			mediaBody, _ := io.ReadAll(mediaResp.Body)
+			mediaResp.Body.Close()
+			if mediaResp.StatusCode != http.StatusOK {
+				t.Fatalf("media status = %d, body = %s", mediaResp.StatusCode, mediaBody)
+			}
+			segmentURL := firstHLSURI(t, mediaBody)
+			segmentResp, err := plainClient.Get(env.server.URL + segmentURL)
+			if err != nil {
+				t.Fatalf("GET segment: %v", err)
+			}
+			segmentBody, _ := io.ReadAll(segmentResp.Body)
+			segmentResp.Body.Close()
+			if segmentResp.StatusCode != http.StatusOK || string(segmentBody) != "segment-bytes" {
+				t.Fatalf("segment status/body = %d/%q", segmentResp.StatusCode, segmentBody)
+			}
+
+			if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("LeaveRoom: %v", err)
+			}
+			revoked, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET revoked master: %v", err)
+			}
+			revoked.Body.Close()
+			if revoked.StatusCode != http.StatusForbidden {
+				t.Fatalf("revoked master status = %d, want 403", revoked.StatusCode)
+			}
+		})
+	}
+}
+
+func firstHLSURI(t *testing.T, playlist []byte) string {
+	t.Helper()
+	for line := range strings.SplitSeq(string(playlist), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return line
+		}
+	}
+	t.Fatal("playlist contained no URI")
+	return ""
+}
+
+func TestRewriteHLSPlaylistRequiresExactManifestShape(t *testing.T) {
+	replacement := func(index int) string { return fmt.Sprintf("/child/%d", index) }
+	rewritten, err := rewriteHLSPlaylist([]byte("#EXTM3U\r\n#EXTINF:6,\r\none.ts\r\n#EXTINF:6,\r\ntwo.ts\r\n"), 2, replacement)
+	if err != nil {
+		t.Fatalf("rewriteHLSPlaylist: %v", err)
+	}
+	if got := string(rewritten); !strings.Contains(got, "/child/0\n") || !strings.Contains(got, "/child/1\n") {
+		t.Fatalf("rewritten playlist = %q", got)
+	}
+	if _, err := rewriteHLSPlaylist([]byte("#EXTM3U\none.ts\n"), 2, replacement); err == nil {
+		t.Fatal("playlist with missing URI unexpectedly passed")
+	}
+	if _, err := rewriteHLSPlaylist([]byte("#EXTM3U\none.ts\ntwo.ts\n"), 1, replacement); err == nil {
+		t.Fatal("playlist with extra URI unexpectedly passed")
+	}
+}
+
 // TestAsset_RevokedMembership_RevokesStableURL covers the "kick / leave"
 // path under the per-user access-ticket model.
 func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {

@@ -42,6 +42,13 @@ message MessageVideoVariant {
   MessageAssetUrl asset_url = 5;
 }
 
+// HLS adaptive-streaming metadata for a processed video.
+message MessageVideoHLS {
+  // Signed URL for the HLS master playlist. The URL authorises all playlists
+  // and segments in this video generation and expires with the attachment URL.
+  MessageAssetUrl master_playlist_url = 1;
+}
+
 // Processing metadata for a video attachment.
 //
 // Clients can use this object to show upload/transcoding progress and decide
@@ -64,6 +71,9 @@ message MessageVideoProcessing {
   MessageAssetUrl thumbnail_asset_url = 7;
   // Available transcoded renditions.
   repeated MessageVideoVariant variants = 8;
+  // Adaptive-streaming metadata. Absent on MP4-only historical results and
+  // servers that do not support HLS processing.
+  MessageVideoHLS hls = 9;
 }
 
 // Attachment metadata included with a message.

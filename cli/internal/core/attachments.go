@@ -735,6 +735,28 @@ func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableA
 	}
 }
 
+// GetStableHLSMasterPlaylistAssetURL returns the authorised entry point for
+// one processed video's HLS generation.
+func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) StableAssetURL {
+	if assetID == "" || userID == "" {
+		return StableAssetURL{}
+	}
+	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	ticket, err := signedurl.SignedHLSAccessTicket(c.config.Assets.SigningSecret, signedurl.HLSAccessTicket{
+		AssetID:   assetID,
+		UserID:    userID,
+		ExpiresAt: expiresAt.Unix(),
+	})
+	if err != nil {
+		c.logger.Warn("Failed to sign HLS access ticket", "error", err, "asset_id", assetID, "user_id", userID)
+		return StableAssetURL{}
+	}
+	values := url.Values{}
+	values.Set("access", ticket)
+	path := fmt.Sprintf("/assets/hls/%s/master.m3u8?%s", url.PathEscape(assetID), values.Encode())
+	return StableAssetURL{URL: c.assetURL(path), ExpiresAt: expiresAt}
+}
+
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived
 // image form factor. The dimensions are visible in the URL; authorization is a
 // scoped access ticket.

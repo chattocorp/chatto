@@ -102,6 +102,15 @@
       refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl,
       'video'
     );
+    const hlsMasterPlaylistUrl = withRetrySalt(
+      normalizeAssetUrl(
+        refreshed
+          ? refreshed.hlsMasterPlaylistUrl
+          : attachment.videoProcessing?.hlsMasterPlaylistUrl
+      ),
+      attachment.id,
+      'hls'
+    );
 
     return {
       ...attachment,
@@ -114,6 +123,8 @@
             ...attachment.videoProcessing,
             thumbnailAssetUrl: videoThumbnailAssetUrl,
             thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
+            hlsMasterPlaylistUrl,
+            hlsUrl: hlsMasterPlaylistUrl?.url ?? null,
             variants: attachment.videoProcessing.variants.flatMap((variant) => {
               const variantAssetUrl = resolveUrl(
                 `variant:${variant.quality}`,
@@ -272,6 +283,7 @@
       attachment.assetUrl,
       attachment.thumbnailAssetUrl,
       attachment.videoProcessing?.thumbnailAssetUrl,
+      attachment.videoProcessing?.hlsMasterPlaylistUrl,
       ...(attachment.videoProcessing?.variants.map((variant) => variant.assetUrl) ?? [])
     ];
   }
@@ -527,6 +539,7 @@
           status={attachment.videoProcessing.status}
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          hlsUrl={attachment.videoProcessing.hlsUrl}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
@@ -554,6 +567,7 @@
           status={attachment.videoProcessing.status}
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          hlsUrl={attachment.videoProcessing.hlsUrl}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}

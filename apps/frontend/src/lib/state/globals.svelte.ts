@@ -242,16 +242,22 @@ export const quickSwitcher = new QuickSwitcherState();
  *
  * No OS-level fullscreen is used — the overlay is a CSS full-viewport div.
  */
-let _src = $state<string | null>(null);
+export type FullscreenVideoSource = {
+  src: string;
+  type: 'video/mp4' | 'application/vnd.apple.mpegurl';
+};
+
+let _source = $state<FullscreenVideoSource | null>(null);
+let _fallbackSource = $state<FullscreenVideoSource | null>(null);
 let _poster = $state<string | null>(null);
 let _startTime = $state(0);
 
 export const fullscreenVideo = {
   get isOpen() {
-    return _src !== null;
+    return _source !== null;
   },
-  get src() {
-    return _src;
+  get source() {
+    return _source;
   },
   get poster() {
     return _poster;
@@ -260,15 +266,29 @@ export const fullscreenVideo = {
     return _startTime;
   },
 
-  open(src: string, poster: string | null, startTime: number) {
-    _src = src;
+  open(
+    source: FullscreenVideoSource,
+    poster: string | null,
+    startTime: number,
+    fallbackSource: FullscreenVideoSource | null = null
+  ) {
+    _source = source;
+    _fallbackSource = fallbackSource;
     _poster = poster;
     _startTime = startTime;
   },
 
   close() {
-    _src = null;
+    _source = null;
+    _fallbackSource = null;
     _poster = null;
     _startTime = 0;
+  },
+
+  useFallback() {
+    if (!_fallbackSource) return false;
+    _source = _fallbackSource;
+    _fallbackSource = null;
+    return true;
   }
 };

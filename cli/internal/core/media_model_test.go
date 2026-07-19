@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -289,6 +290,22 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	if got := service.GetStableTransformedAttachmentURL("", "U-url", 128, 96, "contain"); got != "" {
 		t.Fatalf("GetStableTransformedAttachmentURL with empty asset id = %q, want empty", got)
 	}
+
+	hls := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
+	if !strings.HasPrefix(hls.URL, "https://assets.example/assets/hls/A-url/master.m3u8?access=") {
+		t.Fatalf("stable HLS URL = %q, want HLS master path", hls.URL)
+	}
+	parsedHLSURL, err := url.Parse(hls.URL)
+	if err != nil {
+		t.Fatalf("stable HLS URL parse failed: %v", err)
+	}
+	hlsTicket, err := signedurl.ParseSignedHLSAccessTicket(core.config.Assets.SigningSecret, parsedHLSURL.Query().Get("access"))
+	if err != nil {
+		t.Fatalf("stable HLS ticket parse failed: %v", err)
+	}
+	if hlsTicket.AssetID != "A-url" || hlsTicket.UserID != "U-url" || hlsTicket.ExpiresAt != hls.ExpiresAt.Unix() {
+		t.Fatalf("stable HLS ticket = %#v, URL expiry = %v", hlsTicket, hls.ExpiresAt)
+	}
 }
 
 func TestMediaModelStableAttachmentURLIssuanceBuckets(t *testing.T) {
@@ -443,8 +460,15 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	variants := []*corev1.VideoVariant{
 		{Quality: "720p", Attachment: &corev1.Attachment{Id: "A-variant"}},
 	}
-	if err := service.RecordAssetProcessed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, variants); err != nil {
-		t.Fatalf("RecordAssetProcessed returned error: %v", err)
+	hls := &corev1.AssetProcessedHLS{
+		MasterPlaylistAssetId: "A-hls-master",
+		Renditions: []*corev1.AssetHLSRendition{{
+			Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_500_000,
+			PlaylistAssetId: "A-hls-media", SegmentAssetIds: []string{"A-hls-segment-1", "A-hls-segment-2"},
+		}},
+	}
+	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, variants, hls); err != nil {
+		t.Fatalf("RecordAssetProcessedWithHLS returned error: %v", err)
 	}
 	manifest, ok = core.Assets.VideoAttachmentManifest(original.GetId())
 	if !ok || manifest.Succeeded == nil {
@@ -455,6 +479,12 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	}
 	if got := manifest.Succeeded.GetVideo().GetVariants()[0].GetAssetId(); got != "A-variant" {
 		t.Fatalf("variant asset id = %q, want A-variant", got)
+	}
+	if got := manifest.Succeeded.GetVideo().GetHls().GetMasterPlaylistAssetId(); got != "A-hls-master" {
+		t.Fatalf("HLS master asset id = %q, want A-hls-master", got)
+	}
+	if got := manifest.Succeeded.GetVideo().GetHls().GetRenditions()[0].GetSegmentAssetIds(); !slices.Equal(got, []string{"A-hls-segment-1", "A-hls-segment-2"}) {
+		t.Fatalf("HLS segment asset ids = %q", got)
 	}
 
 	if err := service.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {

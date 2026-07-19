@@ -2,12 +2,86 @@ package video
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestWriteHLSMasterPlaylist(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "master.m3u8")
+	err := writeHLSMasterPlaylist(path, []*corev1.AssetHLSRendition{
+		{Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_500_000},
+		{Quality: "480p", Width: 854, Height: 480, Bandwidth: 800_000},
+	})
+	if err != nil {
+		t.Fatalf("writeHLSMasterPlaylist: %v", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	playlist := string(raw)
+	for _, want := range []string{
+		"#EXT-X-INDEPENDENT-SEGMENTS",
+		"BANDWIDTH=1500000,RESOLUTION=1280x720,NAME=\"720p\"\nrendition-0.m3u8",
+		"BANDWIDTH=800000,RESOLUTION=854x480,NAME=\"480p\"\nrendition-1.m3u8",
+	} {
+		if !strings.Contains(playlist, want) {
+			t.Fatalf("playlist %q does not contain %q", playlist, want)
+		}
+	}
+}
+
+func TestHLSBandwidth(t *testing.T) {
+	if got := hlsBandwidth(750_000, 6000); got != 1_000_000 {
+		t.Fatalf("hlsBandwidth = %d, want 1000000", got)
+	}
+	if got := hlsBandwidth(0, 0); got != 1 {
+		t.Fatalf("invalid hlsBandwidth = %d, want 1", got)
+	}
+}
+
+func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	tmp := t.TempDir()
+	input := filepath.Join(tmp, "input.mp4")
+	generate := exec.Command(
+		ffmpegPath,
+		"-f", "lavfi", "-i", "testsrc=size=160x90:rate=24:duration=13",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+		"-force_key_frames", "expr:gte(t,n_forced*6)", "-sc_threshold", "0",
+		"-y", input,
+	)
+	if output, err := generate.CombinedOutput(); err != nil {
+		t.Fatalf("generate ffmpeg fixture: %v\n%s", err, output)
+	}
+
+	service := &Service{ffmpegPath: ffmpegPath}
+	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), input, filepath.Join(tmp, "hls"))
+	if err != nil {
+		t.Fatalf("packageHLSRendition: %v", err)
+	}
+	if len(segmentPaths) != 3 {
+		t.Fatalf("segment count = %d, want 3", len(segmentPaths))
+	}
+	raw, err := os.ReadFile(playlistPath)
+	if err != nil {
+		t.Fatalf("ReadFile playlist: %v", err)
+	}
+	if !strings.Contains(string(raw), "#EXT-X-INDEPENDENT-SEGMENTS") || !strings.Contains(string(raw), "#EXT-X-ENDLIST") {
+		t.Fatalf("unexpected media playlist: %s", raw)
+	}
+}
 
 func TestSelectVariantHeights(t *testing.T) {
 	tests := []struct {

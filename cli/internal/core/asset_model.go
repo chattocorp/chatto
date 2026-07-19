@@ -169,6 +169,9 @@ func (s *AssetModel) DeleteVideoDerivativesForAttachment(ctx context.Context, ac
 	for _, variant := range video.Variants {
 		deleteDerivative(variant.GetAssetId())
 	}
+	for _, assetID := range hlsDerivativeAssetIDs(video.GetHls()) {
+		deleteDerivative(assetID)
+	}
 }
 
 // DeleteMessageOwnedAssetsForUser removes every currently projected
@@ -373,6 +376,12 @@ func (s *AssetModel) publishAssetProcessing(ctx context.Context, roomID string, 
 // skipped because another terminal/deleted state already won, derivative
 // outputs passed to this call are tombstoned and storage-cleaned.
 func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+	return s.RecordAssetProcessedWithHLS(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants, nil)
+}
+
+// RecordAssetProcessedWithHLS publishes a terminal video manifest containing
+// the compatibility MP4 renditions and, when generated, one HLS generation.
+func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) error {
 	thumbnailAssetID := ""
 	if thumbnail != nil {
 		thumbnailAssetID = thumbnail.GetId()
@@ -398,13 +407,14 @@ func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, r
 					Height:           height,
 					ThumbnailAssetId: thumbnailAssetID,
 					Variants:         assetVariants,
+					Hls:              hls,
 				},
 			},
 		},
 	})
 	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
 		if errors.Is(err, ErrAssetLifecycleSkipped) {
-			s.cleanupVideoDerivativeOutputs(ctx, actorID, roomID, attachmentID, thumbnail, variants)
+			s.cleanupVideoDerivativeOutputs(ctx, actorID, roomID, attachmentID, thumbnail, variants, hls)
 			return nil
 		}
 		return fmt.Errorf("publish asset processing event: %w", err)
@@ -412,7 +422,7 @@ func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, r
 	return nil
 }
 
-func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID string, roomID, originAssetID string, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) {
+func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID string, roomID, originAssetID string, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) {
 	s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, thumbnail)
 	for _, variant := range variants {
 		if variant == nil {
@@ -420,6 +430,33 @@ func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID 
 		}
 		s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, variant.GetAttachment())
 	}
+	for _, assetID := range hlsDerivativeAssetIDs(hls) {
+		declared, ok := s.AssetCreation(assetID)
+		if !ok || declared == nil {
+			continue
+		}
+		s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, attachmentFromAsset(declared.GetAsset()))
+	}
+}
+
+func hlsDerivativeAssetIDs(hls *corev1.AssetProcessedHLS) []string {
+	if hls == nil {
+		return nil
+	}
+	ids := make([]string, 0, 1+len(hls.GetRenditions())*2)
+	if id := hls.GetMasterPlaylistAssetId(); id != "" {
+		ids = append(ids, id)
+	}
+	for _, rendition := range hls.GetRenditions() {
+		if rendition == nil {
+			continue
+		}
+		if id := rendition.GetPlaylistAssetId(); id != "" {
+			ids = append(ids, id)
+		}
+		ids = append(ids, rendition.GetSegmentAssetIds()...)
+	}
+	return ids
 }
 
 func (s *AssetModel) cleanupVideoDerivativeOutput(ctx context.Context, actorID string, fallbackRoomID, originAssetID string, attachment *corev1.Attachment) {

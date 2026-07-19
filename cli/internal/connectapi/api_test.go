@@ -7033,12 +7033,16 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment variant: %v", err)
 	}
+	hlsMaster, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, room.Id, "master.m3u8", "application/vnd.apple.mpegurl", bytes.NewReader([]byte("#EXTM3U\n")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment HLS master: %v", err)
+	}
 
 	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "video", []string{original.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	if err := env.core.RecordAssetProcessed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
+	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
 		{
 			AttachmentId: variant.Id,
 			Quality:      "720p",
@@ -7047,8 +7051,8 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 			Size:         variant.Size,
 			Attachment:   variant,
 		},
-	}); err != nil {
-		t.Fatalf("RecordAssetProcessed: %v", err)
+	}, &corev1.AssetProcessedHLS{MasterPlaylistAssetId: hlsMaster.Id}); err != nil {
+		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
 	}
 
 	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
@@ -7088,6 +7092,9 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	}
 	if processing.GetVariants()[0].GetAssetUrl().GetUrl() == "" {
 		t.Fatal("videoProcessing variant URL is empty")
+	}
+	if got := processing.GetHls().GetMasterPlaylistUrl().GetUrl(); !strings.Contains(got, "/assets/hls/"+original.Id+"/master.m3u8?access=") {
+		t.Fatalf("videoProcessing HLS master URL = %q", got)
 	}
 }
 

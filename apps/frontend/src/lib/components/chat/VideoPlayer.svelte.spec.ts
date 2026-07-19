@@ -28,11 +28,13 @@ function renderAutoLoopVideo({ width, height }: { width: number; height: number 
 function renderPostedVideo({
   width,
   height,
-  thumbnailUrl = null
+  thumbnailUrl = null,
+  hlsUrl = null
 }: {
   width: number;
   height: number;
   thumbnailUrl?: string | null;
+  hlsUrl?: string | null;
 }) {
   return render(VideoPlayer, {
     props: {
@@ -41,6 +43,7 @@ function renderPostedVideo({
       width,
       height,
       thumbnailUrl,
+      hlsUrl,
       variants: [
         {
           url: 'https://chat.example.test/clip.mp4',
@@ -82,6 +85,23 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 }
 
 describe('VideoPlayer', () => {
+  it('prefers HLS and falls back to the MP4 variant after an HLS error', async () => {
+    const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
+    const { container } = renderPostedVideo({ width: 1280, height: 720, hlsUrl });
+    const player = (await mediaPlayer(container)) as HTMLElement & {
+      src?: { src?: string; type?: string };
+    };
+
+    await expect.poll(() => player.src?.src).toBe(hlsUrl);
+    expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+
+    player.dispatchEvent(new Event('error'));
+    await tick();
+
+    await expect.poll(() => player.src?.src).toBe('https://chat.example.test/clip.mp4');
+    expect(player.src?.type).toBe('video/mp4');
+  });
+
   it('frames 16:9 videos as 16:9 embeds', () => {
     const { container } = renderAutoLoopVideo({ width: 1600, height: 900 });
 
