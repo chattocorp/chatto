@@ -381,6 +381,50 @@ describe('AdminRoomLayoutStore — mutations', () => {
 });
 
 describe('AdminRoomLayoutStore — drag sequencing', () => {
+  it('cancels an interrupted room drag and accepts a fresh read after remount', async () => {
+    vi.useFakeTimers();
+    let finishStaleRefresh: ((groups: AdminRoomGroup[]) => void) | undefined;
+    const staleRefresh = new Promise<AdminRoomGroup[]>((resolve) => {
+      finishStaleRefresh = resolve;
+    });
+    const a = room('a');
+    const b = room('b');
+    const canonical = group('g1', [a, b]);
+    const { client } = makeClient({
+      queries: [{ data: staleRefresh }, { data: [canonical] }]
+    });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    store.groups = [canonical];
+
+    store.requestProjectionRefresh();
+    await vi.advanceTimersByTimeAsync(50);
+    store.handleRoomDragConsider('g1', [b, a]);
+    store.deactivateProjectionRefresh();
+
+    expect(store.isDragging).toBe(false);
+    await store.refresh();
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['a', 'b']);
+
+    finishStaleRefresh?.([group('g1', [b, a])]);
+    await settle();
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['a', 'b']);
+  });
+
+  it('cancels an interrupted group drag and accepts a fresh read after remount', async () => {
+    const initial = [group('g1', []), group('g2', [])];
+    const { client } = makeClient({ queries: [{ data: initial }] });
+    const store = new AdminRoomLayoutStore(client, roomAPI());
+    store.groups = initial;
+
+    store.handleGroupsConsider([group('g2', []), group('g1', [])], 'g2');
+    store.deactivateProjectionRefresh();
+
+    expect(store.isDragging).toBe(false);
+    expect(store.draggingGroupId).toBeNull();
+    await store.refresh();
+    expect(store.groups.map((candidate) => candidate.id)).toEqual(['g1', 'g2']);
+  });
+
   it('discards an in-flight refresh that resolves during a room drag', async () => {
     vi.useFakeTimers();
     let finishRefresh: ((groups: AdminRoomGroup[]) => void) | undefined;

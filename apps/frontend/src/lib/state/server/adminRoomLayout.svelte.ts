@@ -292,11 +292,23 @@ export class AdminRoomLayoutStore {
     this.scheduleProjectionRefresh();
   }
 
-  /** Cancel projection-driven work when the admin layout route is unmounted. */
-  cancelProjectionRefresh(): void {
+  /** Cancel projection and transient drag work when the admin route unmounts. */
+  deactivateProjectionRefresh(): void {
     this.#projectionRefreshPending = false;
     if (this.#projectionRefreshTimer) clearTimeout(this.#projectionRefreshTimer);
     this.#projectionRefreshTimer = null;
+    // Drag-and-drop libraries do not guarantee a finalize callback after the
+    // component is destroyed. Treat route teardown as cancellation so the
+    // cached per-server store can be activated again with a clean lifecycle.
+    this.#loadId += 1;
+    this.#interactionGeneration += 1;
+    this.isRefreshing = false;
+    this.isDragging = false;
+    this.draggingGroupId = null;
+    this.#preDragSnapshot = null;
+    this.#pendingMoveDiff = false;
+    this.#preReorderIds = null;
+    this.#groupReorderPending = false;
   }
 
   async createGroup(name: string): Promise<StoreResult<{ group: AdminRoomGroup }>> {
@@ -435,13 +447,16 @@ export class AdminRoomLayoutStore {
     this.isDragging = false;
 
     if (this.#pendingMoveDiff) return null;
+    const interactionGeneration = this.#interactionGeneration;
     this.#pendingMoveDiff = true;
     try {
       await Promise.resolve();
       return await this.flushRoomMoves();
     } finally {
-      this.#pendingMoveDiff = false;
-      this.scheduleProjectionRefresh();
+      if (interactionGeneration === this.#interactionGeneration) {
+        this.#pendingMoveDiff = false;
+        this.scheduleProjectionRefresh();
+      }
     }
   }
 
@@ -459,6 +474,7 @@ export class AdminRoomLayoutStore {
     this.draggingGroupId = null;
     this.groups = normalizeGroups(items);
     this.isDragging = false;
+    const interactionGeneration = this.#interactionGeneration;
     this.#groupReorderPending = true;
 
     try {
@@ -483,8 +499,10 @@ export class AdminRoomLayoutStore {
 
       return { ok: true, changed: true };
     } finally {
-      this.#groupReorderPending = false;
-      this.scheduleProjectionRefresh();
+      if (interactionGeneration === this.#interactionGeneration) {
+        this.#groupReorderPending = false;
+        this.scheduleProjectionRefresh();
+      }
     }
   }
 

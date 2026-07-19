@@ -498,7 +498,7 @@ export class ServerStateStore {
     if (this.#adminRoomLayoutSubscriptions === 1) void this.adminRoomLayout.refresh();
     return () => {
       this.#adminRoomLayoutSubscriptions = Math.max(0, this.#adminRoomLayoutSubscriptions - 1);
-      if (!this.#adminRoomLayoutActive) this.adminRoomLayout.cancelProjectionRefresh();
+      if (!this.#adminRoomLayoutActive) this.adminRoomLayout.deactivateProjectionRefresh();
     };
   }
 
@@ -718,7 +718,7 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#disposeEffects();
-    this.adminRoomLayout.cancelProjectionRefresh();
+    this.adminRoomLayout.deactivateProjectionRefresh();
     this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();
     for (const store of Object.values(this.#roomMessages)) store.dispose();
