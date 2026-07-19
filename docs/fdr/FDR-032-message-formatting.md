@@ -12,7 +12,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Messages support paragraphs, ATX headings, emphasis, links and autolinks, inline and fenced code, blockquotes, and ordered and unordered lists.
 - Messages support GFM pipe tables with a header delimiter row, optional outer pipes, left/centre/right column alignment, inline formatting, and escaped pipes inside cells.
 - Wide tables scroll horizontally inside the message instead of widening or clipping the conversation layout.
-- Message source HTML, images, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting.
+- Message source HTML, horizontal rules, reference-style links, and setext headings render as literal text rather than active formatting. Image syntax never loads or displays an image; its label and destination can fall back to an ordinary link.
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
