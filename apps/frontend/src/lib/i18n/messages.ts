@@ -1335,6 +1335,7 @@ const msg_admin_permissions_everyone_implicit = (): LocalizedString => messages(
 const msg_admin_permissions_no_users_with_role = (): LocalizedString => messages().admin_permissions_no_users_with_role(empty());
 const msg_admin_permissions_server_tier_intro = (): LocalizedString => messages().admin_permissions_server_tier_intro(empty());
 const msg_admin_permissions_server_tier_rooms_hint = (): LocalizedString => messages().admin_permissions_server_tier_rooms_hint(empty());
+const msg_admin_permissions_resolution_hint = (): LocalizedString => messages().admin_permissions_resolution_hint(empty());
 const msg_admin_rooms_admin_title = (): LocalizedString => messages().admin_rooms_admin_title(empty());
 const msg_admin_rooms_admin_subtitle = (): LocalizedString => messages().admin_rooms_admin_subtitle(empty());
 const msg_admin_rooms_admin_group_permissions_subtitle = (): LocalizedString => messages().admin_rooms_admin_group_permissions_subtitle(empty());
@@ -2705,6 +2706,7 @@ export { msg_admin_permissions_everyone_implicit as 'admin.permissions.everyone_
 export { msg_admin_permissions_no_users_with_role as 'admin.permissions.no_users_with_role' };
 export { msg_admin_permissions_server_tier_intro as 'admin.permissions.server_tier_intro' };
 export { msg_admin_permissions_server_tier_rooms_hint as 'admin.permissions.server_tier_rooms_hint' };
+export { msg_admin_permissions_resolution_hint as 'admin.permissions.resolution_hint' };
 export { msg_admin_rooms_admin_title as 'admin.rooms_admin.title' };
 export { msg_admin_rooms_admin_subtitle as 'admin.rooms_admin.subtitle' };
 export { msg_admin_rooms_admin_group_permissions_subtitle as 'admin.rooms_admin.group_permissions_subtitle' };

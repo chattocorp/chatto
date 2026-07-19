@@ -331,8 +331,8 @@ func DefaultAnnouncementsEveryoneDenials() []Permission {
 }
 
 // DefaultAnnouncementsPosterPermissions returns room-scope staff poster grants
-// for announcements. Named-role server grants already override the everyone
-// baseline, so no room-local staff grants are needed.
+// for announcements. Staff need an explicit room-local grant to override the
+// room-level everyone baseline, so no default staff grants are materialized.
 func DefaultAnnouncementsPosterPermissions() []Permission {
 	return nil
 }

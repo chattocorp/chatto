@@ -109,6 +109,10 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 	}
 	allowed, _ := core.CreateUser(ctx, SystemActorID, "private-allowed", "Allowed", "password123")
 	stranger, _ := core.CreateUser(ctx, SystemActorID, "private-stranger", "Stranger", "password123")
+	admin, _ := core.CreateUser(ctx, SystemActorID, "private-admin", "Admin", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "engineering", "Engineering", "Private engineering rooms"); err != nil {
 		t.Fatalf("CreateServerRole: %v", err)
 	}
@@ -134,6 +138,9 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		if visible, err := core.CanSeeRoom(ctx, stranger.Id, KindChannel, room.Id); err != nil || visible {
 			t.Fatalf("stranger visibility = %v, err = %v; want false", visible, err)
 		}
+		if visible, err := core.CanSeeRoom(ctx, admin.Id, KindChannel, room.Id); err != nil || visible {
+			t.Fatalf("admin visibility = %v, err = %v; want false without a room-specific named allow", visible, err)
+		}
 	})
 
 	t.Run("universal room membership follows the allowed role", func(t *testing.T) {
@@ -155,6 +162,9 @@ func TestCanSeeRoom_NamedRoleOverridesEveryoneBaseline(t *testing.T) {
 		}
 		if member, err := core.RoomMembershipExists(ctx, KindChannel, stranger.Id, room.Id); err != nil || member {
 			t.Fatalf("stranger membership = %v, err = %v; want false", member, err)
+		}
+		if member, err := core.RoomMembershipExists(ctx, KindChannel, admin.Id, room.Id); err != nil || member {
+			t.Fatalf("admin membership = %v, err = %v; want false without a room-specific named allow", member, err)
 		}
 	})
 }

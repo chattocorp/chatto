@@ -12,7 +12,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Every authenticated user belongs to the implicit `everyone` role and may additionally hold one or more named roles.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
-- Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role is the fallback baseline only when no explicit subject decides.
+- Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities, not every form of visibility. For example, DM read access comes from room membership, while `message.post` gates starting DMs and sending root DM messages.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
@@ -33,9 +33,9 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 2. Named subjects with an `everyone` baseline
 
-**Decision:** For non-owners, select the nearest room/group/server decision independently for the direct user and every explicitly assigned named role. Denies win across those decisions; otherwise any allow grants. Consult `everyone` only when none of those subjects decides. If nothing applies, the result is denied at the API boundary.
+**Decision:** For non-owners, select the nearest room/group/server decision independently for the direct user and every explicitly assigned named role. Denies win across those decisions. Select `everyone`'s nearest decision as the scoped baseline; a direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope. If nothing applies, the result is denied at the API boundary.
 **Why:** Operators can express an allowlist by denying the `everyone` baseline and granting a named role, while a named restriction role such as `suspended` still reliably denies. Role position remains irrelevant to authorization. See ADR-052.
-**Tradeoff:** An `everyone` deny is not a hard global restriction when a direct-user or named-role decision exists. Hard restrictions must be attached to the affected user or an explicit restriction role. Upgrading can therefore widen access for existing conflicting decisions; ADR-052 records the compatibility audit.
+**Tradeoff:** An `everyone` deny can be overridden deliberately at its own scope or a nearer one. A restriction role's deny beats other subjects' grants, but a nearer allow configured on that same role replaces its broader deny. Direct-user decisions follow the same nearest-scope rule. ADR-052 records the compatibility audit.
 
 ### 3. Three permission scopes (server / group / room)
 
@@ -90,7 +90,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
-- `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms replace that baseline with a room-level `everyone` deny. Named roles with their own posting grant can still post.
+- `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms replace that baseline with a room-level `everyone` deny. A named role needs its own room-level posting grant to override that room baseline.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.

@@ -141,7 +141,8 @@
       "everyone_implicit": "Todos los miembros del servidor tienen implícitamente el rol de todos.",
       "no_users_with_role": "Ningún usuario tiene este rol",
       "server_tier_intro": "Esta página es para permisos de rol a nivel de servidor: valores predeterminados amplios que se aplican antes de las anulaciones específicas de la sala.",
-      "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala."
+      "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala.",
+      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico."
     },
     "rooms_admin": {
       "title": "Habitaciones",

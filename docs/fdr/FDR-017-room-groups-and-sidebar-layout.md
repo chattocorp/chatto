@@ -38,7 +38,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 3. Server scope cascades as a global default
 
-**Decision:** When a subject's permission isn't decided at group or room scope, the resolver falls back to that subject's server decision. If no direct-user or named-role subject decides, the resolver then uses `everyone` as the baseline. This gives operators a single global default while still allowing role-specific rooms.
+**Decision:** When a subject's permission isn't decided at group or room scope, the resolver falls back to that subject's server decision. `everyone` supplies the scoped baseline: a named allow overrides an `everyone` deny only at the same or a nearer scope. This gives operators a single global default while letting a room/group baseline contain less-specific grants.
 **Why:** Without server-scope cascade, every group would need a full set of grants from scratch — a worse onboarding experience and a worse story for DMs (which aren't in any group). The cascade restores a sensible default tier. See ADR-031.
 **Tradeoff:** The ADR's headline "groups are the permission container" is slightly softer than it sounded — server scope still matters as a backstop. In practice operators rarely need to think about server scope unless they want a global default different from the seed.
 

@@ -586,7 +586,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("owner and named admin can post in announcements, regular member cannot", func(t *testing.T) {
+	t.Run("owner and room-granted admin can post in announcements, regular member cannot", func(t *testing.T) {
 		// Owner should be able to post
 		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
 		if err != nil {
@@ -610,8 +610,18 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CanPostMessage (admin) failed: %v", err)
 		}
+		if canAdmin {
+			t.Error("Admin server grant should not override the nearer everyone room denial")
+		}
+		if err := core.GrantRoomPermission(ctx, SystemActorID, annRoom.Id, RoleAdmin, PermMessagePost); err != nil {
+			t.Fatalf("GrantRoomPermission (admin): %v", err)
+		}
+		canAdmin, err = core.CanPostMessage(ctx, admin.Id, KindChannel, annRoom.Id)
+		if err != nil {
+			t.Fatalf("CanPostMessage (room-granted admin) failed: %v", err)
+		}
 		if !canAdmin {
-			t.Error("Admin named-role grant should override the everyone baseline denial")
+			t.Error("Admin room grant should override the everyone room denial")
 		}
 
 		// Create a regular member

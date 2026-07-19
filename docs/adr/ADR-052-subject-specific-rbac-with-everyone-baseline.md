@@ -29,9 +29,10 @@ Resolve each known permission in this order:
 3. The direct user and each explicitly assigned named role contribute at most
    one decision: their nearest explicit value at room, group, or server scope.
 4. Combine those direct-user and named-role decisions with deny-wins. Any deny
-   blocks; otherwise any allow grants.
-5. Only when none of those subjects decides, consult the implicit `everyone`
-   role's nearest decision as the baseline.
+   blocks; otherwise retain the most-specific allow.
+5. Select the implicit `everyone` role's nearest decision as the scoped
+   baseline. A direct-user or named-role allow overrides an `everyone` deny only
+   at the same or a nearer scope.
 6. If nothing decides, the API boundary denies the action. The small set of
    participant actions that DMs allow by default remains unchanged.
 
@@ -43,7 +44,9 @@ rank.
 
 Examples:
 
-- `admin: allow` plus `everyone: deny` resolves to allow.
+- Server `admin: allow` plus server `everyone: deny` resolves to allow.
+- Server `admin: allow` plus room `everyone: deny` resolves to deny unless admin
+  also has a room allow.
 - `admin: allow` plus `suspended: deny` resolves to deny.
 - Engineering's room allow replaces Engineering's server deny in that room.
 - With no named or direct-user decision, `everyone: deny` resolves to deny.
@@ -55,7 +58,8 @@ role positions remain active.
 ## Consequences
 
 - Role allowlists are expressible: deny `room.list` and `room.join` for
-  `everyone`, then allow them for the selected named role.
+  `everyone` in the room, then allow them there for the selected named role.
+  Less-specific grants on other roles do not bypass the room baseline.
 - A restriction role remains effective because its deny is combined with all
   other named roles and direct-user decisions.
 - Room and group values genuinely override less-specific values for the same
@@ -63,9 +67,9 @@ role positions remain active.
 - The built-in announcements room's `everyone.message.post` deny blocks normal
   members, while named roles with their own posting grant can post. Owners
   remain allowed virtually.
-- The permission explainer can show the ignored `everyone` baseline alongside
-  the winning named decision. An ignored deny is therefore not necessarily the
-  winning trace row.
+- The permission explainer shows the `everyone` baseline alongside named
+  decisions and identifies whether its scope or a sufficiently specific named
+  allow won.
 
 ## Compatibility and migration
 
@@ -74,11 +78,12 @@ schema change. Existing EVT permission facts and projections replay unchanged;
 no data migration or generated-client update is required.
 
 Upgrading can widen access where stored state combines an `everyone` deny with
-a direct-user or named-role allow, or where a nearer allow exists above a
-less-specific deny for the same subject. Operators should inspect those
-conflicts before upgrading if they previously relied on the broader deny. To
-preserve a hard restriction, attach the deny directly to the user or to an
-explicit restriction role such as `suspended`.
+a same-scope or nearer direct-user/named-role allow, or where a nearer allow
+replaces a less-specific deny for the same subject. It can narrow access where
+a room/group `everyone` deny now contains less-specific named grants. Operators
+should inspect those conflicts before upgrading. For a restriction role, avoid
+configuring nearer allows on that same role. Before using a server-level direct
+user deny as a suspension, clear conflicting direct-user group/room allows.
 
 Mixed versions accept the same API messages but can return different effective
 decisions. A new client talking to an old server cannot assume baseline

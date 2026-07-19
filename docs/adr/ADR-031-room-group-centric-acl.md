@@ -49,8 +49,8 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 For **server-scope** permissions: server decisions remain global defaults and
 restrictions. ADR-052 combines direct-user and named-role decisions without
-using role position as an authorization rank, then consults `everyone` only as
-the fallback baseline.
+using role position as an authorization rank, then applies `everyone` as the
+scoped baseline.
 
 For **DM rooms**: room groups do not apply. Reading is membership-based, starting/sending DMs uses message permissions, and the `dmBoundaryDeniedPermissions` deny-list applies inside DM rooms for non-owners.
 
@@ -59,11 +59,11 @@ For **channel-room-scope** permissions in room R (belonging to group G):
 1. For the direct user and each explicitly assigned named role, the resolver
    selects the nearest explicit decision at room R, group G, or server scope.
 2. ADR-052 combines those subject decisions with deny-wins. If any named role
-   or direct-user decision denies, the permission is denied; otherwise any
-   allow grants it.
-3. Only when none of those subjects decides does the resolver consult the
-   implicit `everyone` role's nearest decision as the baseline. If that also
-   has no decision, the API boundary denies the action.
+   or direct-user decision denies, the permission is denied; otherwise it keeps
+   the most-specific allow.
+3. The resolver selects the implicit `everyone` role's nearest decision as the
+   scoped baseline. A named/direct allow overrides an `everyone` deny only at
+   the same or a nearer scope. If nothing decides, the API boundary denies.
 
 The earlier ADR text said "there is no cascade from server scope into
 channel-room scope" and later described a first-explicit-decision walker. Both
@@ -74,7 +74,8 @@ place to configure permissions shared by a set of channel rooms.
 
 **The announcements pattern uses a room-scoped deny** against
 `everyone.message.post`. This blocks normal members while allowing a named role
-with its own posting grant. The deny is local and audit-visible inside its room.
+with its own room-level posting grant. The deny is local and audit-visible
+inside its room.
 
 ### Moderation actions
 

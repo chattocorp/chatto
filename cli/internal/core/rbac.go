@@ -160,7 +160,8 @@ func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userI
 
 // hasRoomPermission checks a permission at the room level. Each direct user or
 // named role contributes its nearest room/group/server decision; named denies
-// win across those subjects, with everyone used only as the fallback baseline.
+// win across those subjects. Everyone supplies a scoped baseline: a named allow
+// overrides its deny only at the same or a nearer scope.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }

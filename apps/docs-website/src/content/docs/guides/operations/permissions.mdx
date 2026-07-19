@@ -10,8 +10,8 @@ Chatto's permissions system is built around two ideas: **roles** group people, a
 The current model is intentionally simple:
 
 - **Owners are always allowed.** A user is an owner if they have the durable `owner` role or a verified email listed in `owners.emails`.
-- **Named roles decide before `everyone`.** Direct-user and explicitly assigned role decisions are combined first. A deny from any of those subjects wins; otherwise an allow wins.
-- **`everyone` is the baseline.** Chatto consults `everyone` only when the user and their named roles have no decision. This lets a named role opt into something denied to ordinary members.
+- **Named denies are restrictions.** Direct-user and explicitly assigned role decisions are combined first. A deny from any of those subjects wins.
+- **`everyone` is the scoped baseline.** A named or direct-user allow overrides an `everyone` deny only at the same or a nearer scope. A room baseline therefore contains unrelated server grants while still allowing a room-specific role exception.
 - **The nearest scope wins for each subject.** A room value replaces that same user or role's group and server values in the room; otherwise Chatto falls back through group to server.
 
 ## Built-in roles
@@ -34,14 +34,14 @@ When a user tries to do something, Chatto resolves the decision like this:
 1. **Owner override.** Effective owners are allowed every known RBAC permission. Membership checks still prevent owners from reading DMs they do not participate in.
 2. **DM boundary.** For non-owners, fixed privacy and category restrictions deny channel-style moderation and room-management actions inside DMs.
 3. **Nearest decision per subject.** For the direct user and each explicitly assigned named role, Chatto uses the nearest explicit value: room, then group, then server.
-4. **Combine named subjects.** Any deny among those decisions wins; otherwise any allow grants the permission. Role position is not considered.
-5. **Fall back to `everyone`.** Only if no direct-user or named-role decision applies, Chatto uses `everyone`'s nearest value.
+4. **Combine named subjects.** Any deny among those decisions wins; otherwise Chatto keeps the nearest allow. Role position is not considered.
+5. **Apply the `everyone` baseline.** Chatto uses `everyone`'s nearest value. A named/direct allow beats an `everyone` deny only when the allow is at least as specific.
 6. **Default deny.** If nothing decides, the action is denied.
 
-For example, `admin: allow` plus `everyone: deny` resolves to **allow**. `admin: allow` plus `suspended: deny` resolves to **deny**.
+For example, server `admin: allow` plus server `everyone: deny` resolves to **allow**. A room `everyone: deny` beats that less-specific admin grant until admin receives a room allow. `admin: allow` plus `suspended: deny` resolves to **deny**.
 
 <Aside type="tip">
-  Prefer room permissions for local policy. Use `everyone` for ordinary-member defaults, named roles for reusable access, and a direct-user or restriction-role deny for a hard restriction.
+  Prefer room permissions for local policy. Use `everyone` for ordinary-member defaults, named roles for reusable access, and a direct-user or restriction-role deny for a restriction. Avoid adding a nearer allow to the same user or restriction role.
 </Aside>
 
 ## Scopes
@@ -88,7 +88,7 @@ The full list is visible in the admin UI.
 
 Fresh servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
 
-This blocks normal members who have no named posting decision. Owners can post, and a named role with its own `message.post` grant can post too.
+This blocks normal members and named roles that only have less-specific posting grants. Owners can post, and a named role with its own room-level `message.post` grant can post too.
 
 If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
 
@@ -103,6 +103,8 @@ To make a room available only to a role such as `engineering`:
 5. Remove any explicit room members who should no longer have access. Existing explicit members can still see their joined room even when `room.list` is denied.
 
 Removing the role removes Universal-derived membership, but it does not delete an explicit membership record created by joining or by an admin.
+
+Other named roles can enter only if they also have an allow at this room's scope. Their server/group grants do not bypass the room-level `everyone` deny. Effective owners remain able to access the room.
 
 ### Normal-member room lockdown
 
@@ -119,10 +121,13 @@ Clear the room-level denials to restore the normal server defaults. Named roles 
 To stop one non-owner user from posting without changing their roles:
 
 1. Open the user's member details in the admin UI.
-2. Under permission overrides, deny `message.post` at server scope.
-3. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
+2. Clear any direct-user group/room allows for the capability; a nearer value for the same user replaces their server value.
+3. Under permission overrides, deny `message.post` at server scope.
+4. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
 
 User-level denies beat named-role grants for non-owners. They do not restrict effective owners.
+
+For reusable suspensions, prefer a named role such as `suspended` containing server-level denies, and do not add group/room allows to that same restriction role. Its denies beat grants from the user's other named roles.
 
 ### Giving one user a room-specific moderation grant
 
@@ -131,7 +136,7 @@ To let one non-owner user moderate one room:
 1. Open the user's member details.
 2. Grant `message.manage` scoped to that room.
 
-This works as long as no named role or direct-user decision denies `message.manage`. An `everyone` deny does not block the grant because `everyone` is only the fallback baseline.
+This works as long as no named role or direct-user decision denies `message.manage`. If `everyone` denies it, the direct-user grant must be at the same or a nearer scope.
 
 ### Custom roles
 
@@ -174,7 +179,7 @@ Access to a DM comes from being a participant in that conversation. Owners canno
 </Aside>
 
 <Aside type="caution" title="Authorization behavior changed">
-  When upgrading from the older literal deny-wins resolver, review configurations that combine an `everyone` deny with a named-role or direct-user allow. Those allows now win over the baseline and can widen access. Put hard restrictions on the affected user or on a named restriction role such as `suspended`.
+  When upgrading from the older literal deny-wins resolver, review configurations that combine an `everyone` deny with a named-role or direct-user allow. Same-scope or nearer allows can now widen access, while a nearer `everyone` deny can contain broader named grants. For suspensions, clear nearer decisions on the same user or restriction role.
 </Aside>
 
 <LinkCard

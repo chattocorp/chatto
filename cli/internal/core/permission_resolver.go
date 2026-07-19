@@ -13,15 +13,17 @@ import (
 //  3. Each direct-user or explicitly assigned role contributes its nearest
 //     decision (room, then group, then server). Across those decisions, any
 //     deny wins; otherwise any allow grants the permission.
-//  4. The implicit everyone role is consulted only when neither the user nor
-//     any explicitly assigned role contributes a decision.
+//  4. The implicit everyone role supplies the nearest scope baseline. A named
+//     allow overrides an everyone deny only at the same or a nearer scope;
+//     named denies always win.
 //  5. No decision is denied at the API boundary.
 //
-// This makes everyone a baseline rather than an absolute restriction: a named
-// role can grant access that everyone lacks, while a deny from another named
-// role (for example suspended) still blocks the action. Scope specificity is
-// evaluated independently for each subject, so a room decision replaces that
-// subject's group/server decision for the room.
+// This makes everyone a scoped baseline rather than an absolute restriction: a
+// room allow can grant access that everyone lacks in that room, while an
+// unrelated server-wide role grant cannot bypass a nearer room baseline. A
+// deny from another named role (for example suspended) still blocks the action.
+// Scope specificity is evaluated independently for each subject, so a room
+// decision replaces that subject's group/server decision for the room.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -72,7 +74,8 @@ type TraceEntry struct {
 //     grants for non-owners. This is the privacy/category-mismatch floor.
 //  3. Resolve the nearest decision for the user and each named role. Any deny
 //     beats any allow across those subjects.
-//  4. If those subjects do not decide, resolve the implicit everyone baseline.
+//  4. Apply the implicit everyone baseline. A named allow beats an everyone
+//     deny only when it is at least as specific; named denies always win.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
 }
@@ -111,10 +114,7 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 	if err != nil {
 		return DecisionNone, err
 	}
-	result, _, _ := resolveDecisionEntries(decisions.named)
-	if result == DecisionNone && decisions.everyone != nil {
-		result = decisions.everyone.Decision
-	}
+	result, _, _ := resolveApplicablePermissionDecisions(decisions)
 	if err == nil && result == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
 		result = DecisionAllow
 	}
@@ -180,8 +180,9 @@ type applicablePermissionDecisions struct {
 
 // applicableDecisions returns at most one decision per subject: the nearest
 // explicit decision at room, group, or server scope. Direct-user and named-role
-// decisions are kept separate from the implicit everyone baseline because the
-// baseline applies only when none of the more specific subjects decide.
+// decisions are kept separate from the implicit everyone baseline because its
+// scope participates differently: a named allow must be at least as specific
+// as an everyone deny to override it.
 func (r *PermissionResolver) applicableDecisions(
 	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
 ) (applicablePermissionDecisions, error) {
@@ -233,20 +234,55 @@ func (r *PermissionResolver) nearestDecision(subject string, parts PermissionKey
 // decisions. It returns the winning entry so the explainer can identify the
 // exact subject and scope that determined the result.
 func resolveDecisionEntries(entries []TraceEntry) (DecisionKind, TraceEntry, bool) {
-	var firstAllow *TraceEntry
+	var nearestAllow *TraceEntry
 	for i := range entries {
 		entry := entries[i]
 		if entry.Decision == DecisionDeny {
 			return DecisionDeny, entry, true
 		}
-		if entry.Decision == DecisionAllow && firstAllow == nil {
-			firstAllow = &entries[i]
+		if entry.Decision == DecisionAllow && (nearestAllow == nil || permissionLevelSpecificity(entry.Level) > permissionLevelSpecificity(nearestAllow.Level)) {
+			nearestAllow = &entries[i]
 		}
 	}
-	if firstAllow != nil {
-		return DecisionAllow, *firstAllow, true
+	if nearestAllow != nil {
+		return DecisionAllow, *nearestAllow, true
 	}
 	return DecisionNone, TraceEntry{}, false
+}
+
+// resolveApplicablePermissionDecisions combines named subjects with the scoped
+// everyone baseline. Named denies always win. A named allow can override an
+// everyone deny only at the same or a nearer scope; this lets a room-specific
+// role allowlist work without letting unrelated server grants bypass it.
+func resolveApplicablePermissionDecisions(decisions applicablePermissionDecisions) (DecisionKind, TraceEntry, bool) {
+	state, winner, decided := resolveDecisionEntries(decisions.named)
+	if state == DecisionDeny {
+		return state, winner, decided
+	}
+	if decisions.everyone == nil {
+		return state, winner, decided
+	}
+	baseline := *decisions.everyone
+	if state == DecisionNone {
+		return baseline.Decision, baseline, true
+	}
+	if baseline.Decision == DecisionDeny && permissionLevelSpecificity(winner.Level) < permissionLevelSpecificity(baseline.Level) {
+		return DecisionDeny, baseline, true
+	}
+	return state, winner, true
+}
+
+func permissionLevelSpecificity(level PermissionLevel) int {
+	switch level {
+	case LevelRoom:
+		return 3
+	case LevelGroup:
+		return 2
+	case LevelServer:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func (r *PermissionResolver) applicableScopeTargets(kind RoomKind, roomID, groupID string, perm Permission) []permissionScopeTarget {

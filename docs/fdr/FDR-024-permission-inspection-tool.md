@@ -11,8 +11,8 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 - The admin UI exposes a "Permission Explainer" tool: pick a user, optionally pick a room, pick a permission, and see the full resolution trace.
 - The ConnectRPC permission-inspection API keeps the inspector in the RBAC tooling namespace while preserving its admin/tooling-only authorization gate.
-- The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry, even when a named decision means that baseline is ignored.
-- Denies win across direct-user and named-role entries; otherwise an allow wins. The `everyone` row is marked as winning only when no direct-user or named-role entry decides.
+- The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry.
+- Denies win across direct-user and named-role entries. A named/direct allow wins over an `everyone` deny only at the same or a nearer scope; otherwise the nearer baseline row is marked as winning.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
 
@@ -20,7 +20,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 1. Trace, not just final decision
 
-**Decision:** The tool returns the complete set of effective subject entries, not just the boolean outcome. Less-specific entries shadowed by the same subject's nearer decision are omitted; an ignored `everyone` baseline is retained so operators can see why it did not apply.
+**Decision:** The tool returns the complete set of effective subject entries, not just the boolean outcome. Less-specific entries shadowed by the same subject's nearer decision are omitted; the `everyone` baseline is retained so operators can see whether its scope applied.
 **Why:** "Did the resolver allow this?" is a question the resolver itself answers. "Why?" requires showing the decision path so operators can spot misconfigurations — e.g., "this user gets `message.post` because their custom role has it granted at server scope, even though we denied it on `everyone`". A boolean wouldn't help debug a misconfig.
 **Tradeoff:** Bigger response payloads. Acceptable for an admin tool that's used sparingly.
 

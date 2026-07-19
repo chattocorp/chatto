@@ -146,10 +146,10 @@ authorization, live events, backup/restore, and backend tests.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
 - For non-owners, each direct-user or explicitly assigned role contributes its
-  nearest room/group/server decision. Denies win across those subjects;
-  otherwise an allow grants. The implicit `everyone` role is only the fallback
-  baseline when no direct-user or named-role decision applies. Effective owners
-  bypass normal permission decisions.
+  nearest room/group/server decision. Denies win across those subjects. The
+  implicit `everyone` role supplies the scoped baseline: a named allow overrides
+  an everyone deny only at the same or a nearer scope. Effective owners bypass
+  normal permission decisions.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`.
 - DM rooms have an explicit privacy boundary; owners/admins/moderators do not

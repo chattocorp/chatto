@@ -62,8 +62,8 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 
 // collectFullTrace mirrors Resolve while preserving the nearest decision for
 // each direct-user/named-role subject plus the everyone baseline. The baseline
-// remains visible in the trace even when a named subject decides, but it is not
-// marked as the winning decision in that case.
+// remains visible in the trace and can win when its deny is nearer than every
+// named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -110,15 +110,10 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		return err
 	}
 	exp.Trace = append(exp.Trace, decisions.named...)
-	state, winner, decided := resolveDecisionEntries(decisions.named)
 	if decisions.everyone != nil {
 		exp.Trace = append(exp.Trace, *decisions.everyone)
-		if !decided {
-			state = decisions.everyone.Decision
-			winner = *decisions.everyone
-			decided = true
-		}
 	}
+	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
 	if decided {
 		exp.State = state
 		exp.DecidedAt = winner.Level

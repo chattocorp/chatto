@@ -158,6 +158,35 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	}
 }
 
+func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, _ := core.CreateUser(ctx, SystemActorID, "explainer-scope-owner", "Owner", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatalf("assign owner: %v", err)
+	}
+	room, _ := core.CreateRoom(ctx, owner.Id, KindChannel, "", "explainer-scope", "Explainer Scope")
+	admin, _ := core.CreateUser(ctx, SystemActorID, "explainer-scope-admin", "Admin", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("assign admin: %v", err)
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermRoomList); err != nil {
+		t.Fatalf("grant admin: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("deny everyone: %v", err)
+	}
+
+	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
+	if err != nil {
+		t.Fatalf("ExplainRoomPermission: %v", err)
+	}
+	if exp.State != DecisionDeny || exp.DecidedByRole != RoleEveryone || exp.DecidedAt != LevelRoom {
+		t.Fatalf("decision = %s at %s by %q, want room deny by everyone; trace=%+v", exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
+	}
+}
+
 func traceContains(trace []TraceEntry, subject string, level PermissionLevel, decision DecisionKind) bool {
 	for _, entry := range trace {
 		if entry.RoleName == subject && entry.Level == level && entry.Decision == decision {

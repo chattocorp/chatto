@@ -661,6 +661,46 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	}
 }
 
+func TestPermissionResolver_HasRoomPermission_EveryoneDenyBlocksLessSpecificNamedAllow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, _ := core.CreateUser(ctx, SystemActorID, "scoped-baseline-owner", "Owner", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole owner: %v", err)
+	}
+	room, _ := core.CreateRoom(ctx, owner.Id, KindChannel, "", "scoped-baseline", "Scoped Baseline")
+	admin, _ := core.CreateUser(ctx, SystemActorID, "scoped-baseline-admin", "Admin", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("AssignServerRole admin: %v", err)
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermRoomList); err != nil {
+		t.Fatalf("GrantServerPermission admin: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission everyone: %v", err)
+	}
+
+	has, err := core.permissionResolver.HasRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
+	if err != nil {
+		t.Fatalf("HasRoomPermission: %v", err)
+	}
+	if has {
+		t.Error("expected room everyone deny to block the less-specific admin server allow")
+	}
+
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleAdmin, PermRoomList); err != nil {
+		t.Fatalf("GrantRoomPermission admin: %v", err)
+	}
+	has, err = core.permissionResolver.HasRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
+	if err != nil {
+		t.Fatalf("HasRoomPermission after room allow: %v", err)
+	}
+	if !has {
+		t.Error("expected same-scope admin room allow to override the everyone room deny")
+	}
+}
+
 func TestPermissionResolver_HasRoomPermission_IsolationBetweenRooms(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -897,6 +937,24 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)
 		if !has {
 			t.Error("expected user-level room grant to override everyone group baseline deny")
+		}
+	})
+
+	t.Run("nearest user-level room grant replaces the same user's server deny", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, SystemActorID, "user-nearest-override", "Nearest Override", "password123")
+		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "nearest-override", "Nearest Override")
+		if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermMessagePost); err != nil {
+			t.Fatalf("DenyUserPermission: %v", err)
+		}
+		if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePost); err != nil {
+			t.Fatalf("GrantUserRoomPermission: %v", err)
+		}
+		has, err := core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)
+		if err != nil {
+			t.Fatalf("HasRoomPermission: %v", err)
+		}
+		if !has {
+			t.Error("expected the user's room allow to replace that user's server deny")
 		}
 	})
 

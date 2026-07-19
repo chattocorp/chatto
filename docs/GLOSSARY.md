@@ -96,9 +96,9 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Moderator** — System role (position 100). Moderation permissions, no administrative reach.
 
-**Everyone** — Implicit virtual role (position 0) held by every authenticated user. Its nearest decision is the permission baseline, consulted only when neither the direct user nor an explicitly assigned named role decides.
+**Everyone** — Implicit virtual role (position 0) held by every authenticated user. Its nearest decision is the scoped permission baseline. A direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope; a named/direct deny always wins.
 
-**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Each direct user or named role contributes only its nearest explicit decision (room, then group, then server). Denies win across those subject decisions; `everyone` is the fallback baseline. See [`cli/AGENTS.md`](../cli/AGENTS.md).
+**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Each direct user or named role contributes only its nearest explicit decision (room, then group, then server). Denies win across those subject decisions; an allow must be at least as specific as an `everyone` deny to override the baseline. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
 

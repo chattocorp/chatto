@@ -610,6 +610,7 @@
 
       {#if canManageUserPermissions}
         <!-- Per-user permission overrides. -->
+        <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
         <UserPermissionsMatrix {userId} />
       {/if}
     {/if}

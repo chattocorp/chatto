@@ -62,7 +62,7 @@ Start broad and add local exceptions:
 | One exceptional user | User permission override |
 | Reusable staff capability | Custom role |
 
-Use `everyone` for broad ordinary-member defaults. Use named roles for reusable access, and attach a deny directly to a user or restriction role when it must beat other named grants. Room and group values override less-specific values for the same subject.
+Use `everyone` for broad ordinary-member defaults. Use named roles for reusable access, and attach a deny directly to a user or restriction role when it must beat other named grants. Room and group values override less-specific values for the same subject; a named allow overrides an `everyone` deny only at the same or a nearer scope.
 
 ## Common Structures
 
