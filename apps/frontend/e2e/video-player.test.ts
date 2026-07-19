@@ -3,6 +3,7 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
+import { MessageComponent } from './pages/MessageComponent';
 
 // Video processing (ffmpeg transcode) can take up to 45s for small test videos.
 const VIDEO_PROCESSING_TIMEOUT = 45_000;
@@ -73,6 +74,40 @@ test.describe('video player @ffmpeg', () => {
           );
           expect(computedDisplay).toBe('none');
         }
+
+        // Updating message reactions must not recreate the playing media node.
+        const videoMessageLocator = page
+          .locator('[role="article"]')
+          .filter({ has: roomPage.mediaPlayer });
+        const videoMessage = new MessageComponent(page, videoMessageLocator);
+        const inlineVideo = videoMessageLocator.locator('media-provider video');
+        await inlineVideo.evaluate(async (video) => {
+          video.dataset.reactionPlaybackMarker = 'preserve-me';
+          video.muted = true;
+          video.loop = true;
+          await video.play();
+        });
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
+
+        const projectedRefresh = page.waitForResponse((response) =>
+          response.url().includes('/GetRoomEventsAround')
+        );
+        await videoMessage.reactViaToolbar('👍');
+        await videoMessage.expectReaction('👍', 1);
+        await projectedRefresh;
+
+        await expect(inlineVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
+
+        const projectedRemovalRefresh = page.waitForResponse((response) =>
+          response.url().includes('/GetRoomEventsAround')
+        );
+        await videoMessage.toggleReaction('👍');
+        await videoMessage.expectNoReaction('👍');
+        await projectedRemovalRefresh;
+
+        await expect(inlineVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
 
         // User 2: the asset processing completion event must also be delivered
         // via the subscription so that the second user sees the player without reloading.

@@ -56,6 +56,44 @@ export function assetUrlNeedsRefresh(
   return refreshAt !== null && refreshAt <= now;
 }
 
+/**
+ * Retain usable signed URLs across DTO refreshes when they still identify the
+ * same asset. This prevents media elements from reloading on signature-only
+ * changes while still accepting explicit refreshes, expiry, and new assets.
+ */
+export function createAssetUrlRetainer(now: () => number = Date.now) {
+  const retained = new Map<string, ExpiringAssetUrl>();
+
+  return (
+    key: string,
+    next: ExpiringAssetUrl | null,
+    forceNext = false
+  ): ExpiringAssetUrl | null => {
+    if (!next) {
+      retained.delete(key);
+      return null;
+    }
+
+    const current = retained.get(key);
+    if (
+      !forceNext &&
+      current &&
+      !assetUrlNeedsRefresh(current, now()) &&
+      assetResource(current.url) === assetResource(next.url)
+    ) {
+      return current;
+    }
+
+    retained.set(key, next);
+    return next;
+  };
+}
+
+function assetResource(url: string): string {
+  const suffixStart = url.search(/[?#]/);
+  return suffixStart === -1 ? url : url.slice(0, suffixStart);
+}
+
 export function earliestAssetUrlRefreshAt(
   assetUrls: Iterable<ExpiringAssetUrl | null | undefined>,
   leadMs = ASSET_URL_REFRESH_LEAD_MS
