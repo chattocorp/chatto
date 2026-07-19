@@ -3,6 +3,16 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.14](https://github.com/chattocorp/chatto/compare/v0.4.13...v0.4.14) (2026-07-19)
+
+
+### Bug Fixes
+
+* **assets:** mark NATS streams as non-seekable ([#1607](https://github.com/chattocorp/chatto/issues/1607)) ([438d16d](https://github.com/chattocorp/chatto/commit/438d16d8bd17e12c530327967ecba50566a68b8e))
+* **frontend:** keep emoji picker open on new messages ([#1603](https://github.com/chattocorp/chatto/issues/1603)) ([b5c88a0](https://github.com/chattocorp/chatto/commit/b5c88a0b1d0fa25441faa02e76e200819822356e))
+* **frontend:** keep realtime active while looking offline ([#1606](https://github.com/chattocorp/chatto/issues/1606)) ([233fcc6](https://github.com/chattocorp/chatto/commit/233fcc6b8a8ebfe89316193743f2a06ba4518709))
+* **frontend:** preserve pasted message line breaks ([#1609](https://github.com/chattocorp/chatto/issues/1609)) ([8d3fd4b](https://github.com/chattocorp/chatto/commit/8d3fd4baabf3bca0d1d1f3bae4645e4e9f35a02c))
+
 ## [0.4.13](https://github.com/chattocorp/chatto/compare/v0.4.12...v0.4.13) (2026-07-17)
 
 
