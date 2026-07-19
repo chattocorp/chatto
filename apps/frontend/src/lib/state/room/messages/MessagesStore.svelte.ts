@@ -127,6 +127,37 @@ function isMessagePostedPayload(
   return roomEventKind(event) === RoomEventKind.MessagePosted;
 }
 
+function scrubUserFromEvent(event: RoomEventView, userId: string): RoomEventView {
+  const scrubActor = event.actor?.id === userId;
+  const payload = event.event;
+  if (!isMessagePostedPayload(payload)) {
+    return scrubActor ? { ...event, actor: null } : event;
+  }
+
+  const threadParticipants = payload.threadParticipants.filter(
+    (participant) => participant.id !== userId
+  );
+  let reactionsChanged = false;
+  const reactions = payload.reactions.map((reaction) => {
+    const users = reaction.users.filter((user) => user.id !== userId);
+    if (users.length === reaction.users.length) return reaction;
+    reactionsChanged = true;
+    return { ...reaction, users };
+  });
+  const participantsChanged = threadParticipants.length !== payload.threadParticipants.length;
+  if (!scrubActor && !participantsChanged && !reactionsChanged) return event;
+
+  return {
+    ...event,
+    actor: scrubActor ? null : event.actor,
+    event: {
+      ...payload,
+      threadParticipants,
+      reactions
+    }
+  };
+}
+
 function isRoomDeletedPayload(event: RoomEventView['event']): event is RoomDeletedPayload {
   return roomEventKind(event) === RoomEventKind.RoomDeleted;
 }
@@ -345,6 +376,7 @@ export class MessagesStore {
   /** Fetch an off-window event for previews. Transient errors are not cached. */
   ensureEvent(eventId: string): Promise<void> | undefined {
     if (!this.roomId) return undefined;
+    if (this.#projectionAccessRevoked) return undefined;
     if (this.events.some((e) => e.id === eventId)) return undefined;
 
     const key = this.previewKey(eventId);
@@ -353,8 +385,11 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
+    const thisLoad = this.#loadId;
+    const roomId = this.roomId;
     const promise = this.fetchEventById(eventId)
       .then((event) => {
+        if (this.isStale(thisLoad) || this.roomId !== roomId) return;
         if (event) this.clearOptimisticVersionForEvent(event.id);
         this.previewEvents.set(key, event);
       })
@@ -362,7 +397,9 @@ export class MessagesStore {
         console.error('MessagesStore: ensureEvent failed:', error);
       })
       .finally(() => {
-        this.pendingPreviewFetches.delete(key);
+        if (this.pendingPreviewFetches.get(key) === promise) {
+          this.pendingPreviewFetches.delete(key);
+        }
       });
 
     this.pendingPreviewFetches.set(key, promise);
@@ -520,41 +557,14 @@ export class MessagesStore {
    * actor and participant IDs on historical facts.
    */
   scrubUserReferences(userId: string): void {
-    let changed = false;
-    const events = this.events.map((event) => {
-      const scrubActor = event.actor?.id === userId;
-      const payload = event.event;
-      if (!isMessagePostedPayload(payload)) {
-        if (!scrubActor) return event;
-        changed = true;
-        return { ...event, actor: null };
-      }
+    const events = this.events.map((event) => scrubUserFromEvent(event, userId));
+    if (events.some((event, index) => event !== this.events[index])) this.events = events;
 
-      const threadParticipants = payload.threadParticipants.filter(
-        (participant) => participant.id !== userId
-      );
-      let reactionsChanged = false;
-      const reactions = payload.reactions.map((reaction) => {
-        const users = reaction.users.filter((user) => user.id !== userId);
-        if (users.length === reaction.users.length) return reaction;
-        reactionsChanged = true;
-        return { ...reaction, users };
-      });
-      const participantsChanged = threadParticipants.length !== payload.threadParticipants.length;
-      if (!scrubActor && !participantsChanged && !reactionsChanged) return event;
-
-      changed = true;
-      return {
-        ...event,
-        actor: scrubActor ? null : event.actor,
-        event: {
-          ...payload,
-          threadParticipants,
-          reactions
-        }
-      };
-    });
-    if (changed) this.events = events;
+    for (const [key, event] of this.previewEvents) {
+      if (!event) continue;
+      const scrubbed = scrubUserFromEvent(event, userId);
+      if (scrubbed !== event) this.previewEvents.set(key, scrubbed);
+    }
   }
 
   /** Apply one authoritative current timeline row from the projection stream. */
