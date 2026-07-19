@@ -820,6 +820,65 @@ func TestRealtimeRetainedRoomSetIsBoundedAndValidated(t *testing.T) {
 	}
 }
 
+func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-hydration-retry", "RT Hydration Retry", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-hydration-retry-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.dialRealtime(t)
+	t.Cleanup(func() { conn.Close() })
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatal("did not receive realtime hello")
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatal("did not receive realtime subscribed")
+	}
+	readRealtimeCaughtUp(t, conn)
+
+	release, admissionErr := env.httpServer.realtimeCatchUps.acquireHydration(viewer.Id)
+	if admissionErr != nil {
+		t.Fatalf("reserve hydration admission: %v", admissionErr)
+	}
+	t.Cleanup(release)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
+		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: room.Id},
+	}})
+
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetError() == nil {
+		t.Fatalf("hydration rejection frame = %+v", frame)
+	}
+	realtimeError := frame.GetError()
+	if realtimeError.GetCode() != "room_hydration_in_progress" {
+		t.Fatalf("hydration rejection code = %q", realtimeError.GetCode())
+	}
+	if realtimeError.GetRoomId() != room.Id {
+		t.Fatalf("hydration rejection room = %q, want %q", realtimeError.GetRoomId(), room.Id)
+	}
+	if realtimeError.GetRetryAfterMs() == 0 {
+		t.Fatal("hydration rejection omitted retry delay")
+	}
+}
+
 func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-room", "RT Lazy Room", "password123")

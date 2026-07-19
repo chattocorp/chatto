@@ -180,8 +180,11 @@ instead of incremental replay.
 
 The browser advertises a room as retained only after applying its timeline
 replacement. Desired rooms with lost or unavailable hydration responses remain
-pending and are requested again on the next socket. Both client and server cap
-retention at 64 room IDs, and the server ignores duplicate hydration work.
+pending and are requested again on the next socket. The browser sends one lazy
+hydration at a time; a non-fatal capacity or rate rejection identifies the room
+and supplies a retry delay, after which the browser resends it on the same
+socket. Both client and server cap retention at 64 room IDs, and the server
+ignores duplicate hydration work.
 At the bound, the browser evicts its least-recent inactive timeline and replaces
 the socket before materialising the newly selected room.
 

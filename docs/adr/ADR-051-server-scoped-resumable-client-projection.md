@@ -128,6 +128,9 @@ cross-replica invariant.
 Post-catch-up `hydrate_room` work shares the process-wide semaphore and is
 serialized per user across that user's sockets. A separate per-user bucket
 admits a burst of 20 room hydrations and restores one token per second.
+Clients serialize their own outstanding hydration requests. Non-fatal
+admission errors identify the rejected room and carry a retry delay so the
+request can resume on the same connection rather than waiting for reconnect.
 Compacted prefixes are emitted frame by frame instead of retaining a second
 frame graph, and the 64-room retention bound limits each reset to at most 3,200
 decrypted recent timeline rows.

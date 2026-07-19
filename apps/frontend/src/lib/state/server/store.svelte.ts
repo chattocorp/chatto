@@ -102,6 +102,8 @@ export class ServerStateStore {
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #threadMessages: Record<string, MessagesStore> = Object.create(null);
   #threadMessageRefCounts: Record<string, number> = Object.create(null);
+  #adminRoomLayoutSubscriptions = 0;
+  #adminRoomLayoutRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
@@ -285,10 +287,12 @@ export class ServerStateStore {
 
   private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
     this.projection.apply(event);
+    let adminRoomLayoutChanged = false;
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
           this.resetProjectionMirrors();
+          adminRoomLayoutChanged = true;
           break;
         case 'serverUpsert':
           this.serverInfo.applyProjectionProfile(operation.operation.value);
@@ -331,6 +335,7 @@ export class ServerStateStore {
           break;
         }
         case 'roomUpsert': {
+          adminRoomLayoutChanged = true;
           const viewerResponse = this.projection.viewer;
           if (viewerResponse)
             this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
@@ -344,6 +349,7 @@ export class ServerStateStore {
           break;
         }
         case 'roomRemove': {
+          adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
           this.clearRoomAccess(roomId, true);
           const viewerResponse = this.projection.viewer;
@@ -352,6 +358,7 @@ export class ServerStateStore {
           break;
         }
         case 'roomGroupsReplace': {
+          adminRoomLayoutChanged = true;
           const viewerResponse = this.projection.viewer;
           if (viewerResponse)
             this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
@@ -474,6 +481,36 @@ export class ServerStateStore {
           throw new Error('unsupported realtime projection operation');
       }
     }
+    if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+  }
+
+  get #adminRoomLayoutActive(): boolean {
+    return this.#adminRoomLayoutSubscriptions > 0;
+  }
+
+  private scheduleAdminRoomLayoutRefresh(): void {
+    if (!this.#adminRoomLayoutActive) return;
+    if (this.#adminRoomLayoutRefreshTimer) clearTimeout(this.#adminRoomLayoutRefreshTimer);
+    // A compacted projection may contain many room operations. Debounce them
+    // into one authoritative admin-layout read instead of issuing one request
+    // per frame while still updating an open editor promptly.
+    this.#adminRoomLayoutRefreshTimer = setTimeout(() => {
+      this.#adminRoomLayoutRefreshTimer = null;
+      if (this.#adminRoomLayoutActive) void this.adminRoomLayout.refresh();
+    }, 50);
+  }
+
+  /** Keep the admin layout editor current while its route is mounted. */
+  activateAdminRoomLayout(): () => void {
+    this.#adminRoomLayoutSubscriptions += 1;
+    if (this.#adminRoomLayoutSubscriptions === 1) void this.adminRoomLayout.refresh();
+    return () => {
+      this.#adminRoomLayoutSubscriptions = Math.max(0, this.#adminRoomLayoutSubscriptions - 1);
+      if (!this.#adminRoomLayoutActive && this.#adminRoomLayoutRefreshTimer) {
+        clearTimeout(this.#adminRoomLayoutRefreshTimer);
+        this.#adminRoomLayoutRefreshTimer = null;
+      }
+    };
   }
 
   private synchronizeProjectedNavigation(viewer: ViewerState): void {
@@ -692,6 +729,9 @@ export class ServerStateStore {
   /** Clean up resources. */
   dispose(): void {
     this.#disposeEffects();
+    if (this.#adminRoomLayoutRefreshTimer) clearTimeout(this.#adminRoomLayoutRefreshTimer);
+    this.#adminRoomLayoutRefreshTimer = null;
+    this.#adminRoomLayoutSubscriptions = 0;
     this.realtimeSync.reset();
     for (const store of Object.values(this.#roomMessages)) store.dispose();
     this.#roomMessages = Object.create(null);

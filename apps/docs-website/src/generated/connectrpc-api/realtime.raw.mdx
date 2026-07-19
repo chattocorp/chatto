@@ -92,6 +92,8 @@ Protocol error.
 | `code` | `string` | Stable machine-readable error code. |
 | `message` | `string` | Human-readable diagnostic message. |
 | `fatal` | `bool` | True when the server will close the socket after sending this error. |
+| `retry_after_ms` | `optional uint32` | Suggested retry delay for a non-fatal rejected request. Omitted when the request should not be retried automatically. |
+| `room_id` | `optional string` | Room associated with a room-hydration error. Omitted for errors that are not caused by `hydrate_room`. |
 
 
 
@@ -140,7 +142,7 @@ The server replies on the same ordered projection stream with a
 `room_timeline_replace` operation. Once hydrated, later timeline mutations
 for the room are included for the lifetime of this connection. Clients send
 all still-retained room IDs again in their next subscription. A connection
-may retain at most 1,024 distinct room IDs; excess requests receive a
+may retain at most 64 distinct room IDs; excess requests receive a
 non-fatal `too_many_retained_rooms` error.
 
 | Field | Type | Description |
@@ -583,7 +585,7 @@ Request to start the caller's authorized server-projection stream.
 | Field | Type | Description |
 | --- | --- | --- |
 | `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or caught-up frame. The server replays authorized durable projection changes after this cursor before continuing with live delivery. Omit it to receive a compacted reset of the current authorised server projection. Cursors expire 24 hours after issue; an expired cursor also receives a compacted reset rather than historical replay. |
-| `retained_room_ids` | `repeated string` | Joined rooms whose timeline windows the client already retains. A fresh compacted projection includes only these timelines, and resumed delivery emits timeline mutations only for these rooms. Lightweight room, unread, notification, and call state remains server-wide. At most 1,024 room IDs may be supplied in one subscription. |
+| `retained_room_ids` | `repeated string` | Joined rooms whose timeline windows the client already retains. A fresh compacted projection includes only these timelines, and resumed delivery emits timeline mutations only for these rooms. Lightweight room, unread, notification, and call state remains server-wide. At most 64 room IDs may be supplied in one subscription. |
 
 
 

@@ -414,7 +414,7 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
    * Joined rooms whose timeline windows the client already retains. A fresh
    * compacted projection includes only these timelines, and resumed delivery
    * emits timeline mutations only for these rooms. Lightweight room, unread,
-   * notification, and call state remains server-wide. At most 1,024 room IDs
+   * notification, and call state remains server-wide. At most 64 room IDs
    * may be supplied in one subscription.
    *
    * @generated from field: repeated string retained_room_ids = 2;
@@ -457,7 +457,7 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
  * `room_timeline_replace` operation. Once hydrated, later timeline mutations
  * for the room are included for the lifetime of this connection. Clients send
  * all still-retained room IDs again in their next subscription. A connection
- * may retain at most 1,024 distinct room IDs; excess requests receive a
+ * may retain at most 64 distinct room IDs; excess requests receive a
  * non-fatal `too_many_retained_rooms` error.
  *
  * @generated from message chatto.realtime.v1.RealtimeHydrateRoom
@@ -1931,6 +1931,22 @@ export class RealtimeError extends Message<RealtimeError> {
    */
   fatal = false;
 
+  /**
+   * Suggested retry delay for a non-fatal rejected request. Omitted when the
+   * request should not be retried automatically.
+   *
+   * @generated from field: optional uint32 retry_after_ms = 4;
+   */
+  retryAfterMs?: number;
+
+  /**
+   * Room associated with a room-hydration error. Omitted for errors that are
+   * not caused by `hydrate_room`.
+   *
+   * @generated from field: optional string room_id = 5;
+   */
+  roomId?: string;
+
   constructor(data?: PartialMessage<RealtimeError>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1942,6 +1958,8 @@ export class RealtimeError extends Message<RealtimeError> {
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "fatal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "retry_after_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 5, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeError {

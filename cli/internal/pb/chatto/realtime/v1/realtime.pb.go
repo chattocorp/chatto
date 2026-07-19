@@ -597,7 +597,7 @@ type RealtimeSubscribeEvents struct {
 	// Joined rooms whose timeline windows the client already retains. A fresh
 	// compacted projection includes only these timelines, and resumed delivery
 	// emits timeline mutations only for these rooms. Lightweight room, unread,
-	// notification, and call state remains server-wide. At most 1,024 room IDs
+	// notification, and call state remains server-wide. At most 64 room IDs
 	// may be supplied in one subscription.
 	RetainedRoomIds []string `protobuf:"bytes,2,rep,name=retained_room_ids,json=retainedRoomIds,proto3" json:"retained_room_ids,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -654,7 +654,7 @@ func (x *RealtimeSubscribeEvents) GetRetainedRoomIds() []string {
 // `room_timeline_replace` operation. Once hydrated, later timeline mutations
 // for the room are included for the lifetime of this connection. Clients send
 // all still-retained room IDs again in their next subscription. A connection
-// may retain at most 1,024 distinct room IDs; excess requests receive a
+// may retain at most 64 distinct room IDs; excess requests receive a
 // non-fatal `too_many_retained_rooms` error.
 type RealtimeHydrateRoom struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2432,7 +2432,13 @@ type RealtimeError struct {
 	// Human-readable diagnostic message.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// True when the server will close the socket after sending this error.
-	Fatal         bool `protobuf:"varint,3,opt,name=fatal,proto3" json:"fatal,omitempty"`
+	Fatal bool `protobuf:"varint,3,opt,name=fatal,proto3" json:"fatal,omitempty"`
+	// Suggested retry delay for a non-fatal rejected request. Omitted when the
+	// request should not be retried automatically.
+	RetryAfterMs *uint32 `protobuf:"varint,4,opt,name=retry_after_ms,json=retryAfterMs,proto3,oneof" json:"retry_after_ms,omitempty"`
+	// Room associated with a room-hydration error. Omitted for errors that are
+	// not caused by `hydrate_room`.
+	RoomId        *string `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2486,6 +2492,20 @@ func (x *RealtimeError) GetFatal() bool {
 		return x.Fatal
 	}
 	return false
+}
+
+func (x *RealtimeError) GetRetryAfterMs() uint32 {
+	if x != nil && x.RetryAfterMs != nil {
+		return *x.RetryAfterMs
+	}
+	return 0
+}
+
+func (x *RealtimeError) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
+	}
+	return ""
 }
 
 // Close instruction sent before the socket is closed when possible.
@@ -3206,11 +3226,16 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x11RealtimeHeartbeat\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"S\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xbb\x01\n" +
 	"\rRealtimeError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x14\n" +
-	"\x05fatal\x18\x03 \x01(\bR\x05fatal\"\x81\x01\n" +
+	"\x05fatal\x18\x03 \x01(\bR\x05fatal\x12)\n" +
+	"\x0eretry_after_ms\x18\x04 \x01(\rH\x00R\fretryAfterMs\x88\x01\x01\x12\x1c\n" +
+	"\aroom_id\x18\x05 \x01(\tH\x01R\x06roomId\x88\x01\x01B\x11\n" +
+	"\x0f_retry_after_msB\n" +
+	"\n" +
+	"\b_room_id\"\x81\x01\n" +
 	"\rRealtimeClose\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
@@ -3459,6 +3484,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 	file_chatto_realtime_v1_realtime_proto_msgTypes[11].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[21].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[23].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[31].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[33].OneofWrappers = []any{
 		(*RealtimeEventEnvelope_UserTyping)(nil),
 		(*RealtimeEventEnvelope_PresenceChanged)(nil),

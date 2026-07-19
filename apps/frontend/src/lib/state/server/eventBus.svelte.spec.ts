@@ -391,6 +391,62 @@ describe('eventBusManager realtime transport', () => {
     expect(hydration.frame.value.roomId).toBe('room-lost-response');
   });
 
+  it('retries the rejected room after the server hydration backoff', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-rate-limited');
+    expect(socket.sent).toHaveLength(3);
+    await socket.receive(
+      serverFrame({
+        case: 'error',
+        value: new RealtimeError({
+          code: 'room_hydration_rate_limited',
+          message: 'try again later',
+          roomId: 'room-rate-limited',
+          retryAfterMs: 250
+        })
+      })
+    );
+
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-rate-limited');
+    await vi.advanceTimersByTimeAsync(249);
+    expect(socket.sent).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(socket.sent).toHaveLength(4);
+    const retry = RealtimeClientFrame.fromBinary(socket.sent[3]);
+    expect(retry.frame.case).toBe('hydrateRoom');
+    if (retry.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room retry');
+    expect(retry.frame.value.roomId).toBe('room-rate-limited');
+
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(roomTimelineFrame('room-rate-limited'));
+    expect(sync.retainedRoomIds).toEqual(['room-rate-limited']);
+  });
+
+  it('serializes lazy room hydrations and advances after confirmation', async () => {
+    const { socket } = await startAndSubscribe();
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-first');
+    eventBusManager.hydrateRoom(TEST_SERVER, 'room-second');
+
+    expect(socket.sent).toHaveLength(3);
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(roomTimelineFrame('room-first'));
+
+    expect(socket.sent).toHaveLength(4);
+    const second = RealtimeClientFrame.fromBinary(socket.sent[3]);
+    expect(second.frame.case).toBe('hydrateRoom');
+    if (second.frame.case !== 'hydrateRoom') throw new Error('expected second hydrate room frame');
+    expect(second.frame.value.roomId).toBe('room-second');
+  });
+
   it('rolls the socket when LRU retention makes room for another timeline', async () => {
     const sync = new RealtimeProjectionSyncState();
     for (let index = 0; index < MAX_RETAINED_ROOM_TIMELINES; index++) {

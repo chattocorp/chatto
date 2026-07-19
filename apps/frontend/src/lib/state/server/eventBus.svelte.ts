@@ -33,6 +33,7 @@ const RECONNECT_WAIT_MS = 5_000;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
+const HYDRATION_RETRY_FALLBACK_MS = 1_000;
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -182,6 +183,8 @@ class EventBusManager {
     let socket: RealtimeSocket | null = null;
     let socketSubscribed = false;
     let requestedRoomIds = new SvelteSet<string>();
+    let pendingHydrationRoomId: string | null = null;
+    let hydrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -204,6 +207,40 @@ class EventBusManager {
       reconnectTimer = null;
     };
 
+    const clearHydrationRetryTimer = () => {
+      if (!hydrationRetryTimer) return;
+      clearTimeout(hydrationRetryTimer);
+      hydrationRetryTimer = null;
+    };
+
+    const sendNextRoomHydration = () => {
+      if (!socketSubscribed || !socket || pendingHydrationRoomId || hydrationRetryTimer) return;
+      for (const roomId of sync.desiredRoomIds) {
+        if (requestedRoomIds.has(roomId)) continue;
+        requestedRoomIds.add(roomId);
+        pendingHydrationRoomId = roomId;
+        socket.send(hydrateRoomFrame(roomId));
+        return;
+      }
+    };
+
+    const finishRoomHydrationRequest = (roomId: string) => {
+      if (pendingHydrationRoomId !== roomId) return;
+      pendingHydrationRoomId = null;
+      clearHydrationRetryTimer();
+      sendNextRoomHydration();
+    };
+
+    const retryRoomHydration = (roomId: string, retryAfterMs: number | undefined) => {
+      if (pendingHydrationRoomId === roomId) pendingHydrationRoomId = null;
+      requestedRoomIds.delete(roomId);
+      clearHydrationRetryTimer();
+      hydrationRetryTimer = setTimeout(() => {
+        hydrationRetryTimer = null;
+        sendNextRoomHydration();
+      }, Math.max(1, retryAfterMs ?? HYDRATION_RETRY_FALLBACK_MS));
+    };
+
     const resolvePoll = (caughtUp: boolean) => {
       if (pollTimeout) {
         clearTimeout(pollTimeout);
@@ -219,6 +256,8 @@ class EventBusManager {
       socket = null;
       socketSubscribed = false;
       requestedRoomIds = new SvelteSet<string>();
+      pendingHydrationRoomId = null;
+      clearHydrationRetryTimer();
       if (!current) return;
       current.onopen = null;
       current.onmessage = null;
@@ -341,11 +380,7 @@ class EventBusManager {
             case 'subscribed':
               socketSubscribed = true;
               reconnectAttempts = 0;
-              for (const roomId of sync.desiredRoomIds) {
-                if (requestedRoomIds.has(roomId)) continue;
-                requestedRoomIds.add(roomId);
-                nextSocket.send(hydrateRoomFrame(roomId));
-              }
+              sendNextRoomHydration();
               if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration,
@@ -374,7 +409,9 @@ class EventBusManager {
               );
               for (const operation of frame.frame.value.operations) {
                 if (operation.operation.case === 'roomTimelineReplace') {
-                  sync.confirmRoom(operation.operation.value.roomId);
+                  const roomId = operation.operation.value.roomId;
+                  sync.confirmRoom(roomId);
+                  finishRoomHydrationRequest(roomId);
                 }
               }
               return;
@@ -406,6 +443,19 @@ class EventBusManager {
               }
               if (frame.frame.value.code === 'unsupported_protocol') {
                 stopForUnsupportedProtocol(nextSocket);
+                return;
+              }
+              if (frame.frame.value.code.startsWith('room_hydration_')) {
+                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
+                if (roomId) retryRoomHydration(roomId, frame.frame.value.retryAfterMs);
+                return;
+              }
+              if (
+                frame.frame.value.code === 'room_unavailable' ||
+                frame.frame.value.code === 'too_many_retained_rooms'
+              ) {
+                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
+                if (roomId) finishRoomHydrationRequest(roomId);
                 return;
               }
               if (frame.frame.value.fatal) {
@@ -448,6 +498,8 @@ class EventBusManager {
         if (stopped || socket !== nextSocket) return;
         socket = null;
         socketSubscribed = false;
+        pendingHydrationRoomId = null;
+        clearHydrationRetryTimer();
         console.warn(`[eventBus:${serverId}] realtime socket closed`, {
           code: event.code,
           reason: event.reason,
@@ -546,8 +598,7 @@ class EventBusManager {
           return;
         }
         if (socketSubscribed && socket && !requestedRoomIds.has(roomId)) {
-          requestedRoomIds.add(roomId);
-          socket.send(hydrateRoomFrame(roomId));
+          sendNextRoomHydration();
         }
       },
       cleanup() {

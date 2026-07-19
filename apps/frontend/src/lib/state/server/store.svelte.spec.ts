@@ -476,6 +476,63 @@ describe('ServerStateStore authentication state', () => {
 });
 
 describe('ServerStateStore live server updates', () => {
+  it('refreshes a mounted admin room layout after remote projection changes', async () => {
+    vi.useFakeTimers();
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+    const deactivate = store.activateAdminRoomLayout();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const remoteRoom = new RealtimeProjectionRoom({
+      room: new RoomWithViewerState({ room: new Room({ id: 'R-remote', name: 'remote-room' }) })
+    });
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'roomUpsert', value: remoteRoom }
+            })
+          ]
+        })
+      );
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'roomUpsert', value: remoteRoom }
+            })
+          ]
+        })
+      );
+    }
+
+    await vi.advanceTimersByTimeAsync(49);
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+
+    deactivate();
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'roomUpsert', value: remoteRoom }
+            })
+          ]
+        })
+      );
+    }
+    await vi.advanceTimersByTimeAsync(100);
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it('clears every projection-derived mirror immediately on reset', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);

@@ -144,6 +144,17 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			Error: &realtimev1.RealtimeError{Code: code, Message: message, Fatal: fatal},
 		}})
 	}
+	writeRoomError := func(code, message, roomID string, retryAfter time.Duration) {
+		realtimeError := &realtimev1.RealtimeError{
+			Code: code, Message: message, RoomId: proto.String(roomID),
+		}
+		if retryAfter > 0 {
+			realtimeError.RetryAfterMs = proto.Uint32(uint32(retryAfter.Milliseconds()))
+		}
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
+			Error: realtimeError,
+		}})
+	}
 
 	hello, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
 	if err != nil {
@@ -356,12 +367,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				continue
 			}
 			if len(retainedRooms) >= realtimeMaxRetainedRooms {
-				writeError("too_many_retained_rooms", "too many retained room timelines", false)
+				writeRoomError("too_many_retained_rooms", "too many retained room timelines", roomID, 0)
 				continue
 			}
 			releaseHydration, admissionErr := s.realtimeCatchUps.acquireHydration(user.Id)
 			if admissionErr != nil {
-				writeError(admissionErr.code, "room hydration capacity is temporarily unavailable", false)
+				writeRoomError(admissionErr.code, "room hydration capacity is temporarily unavailable", roomID, admissionErr.retryAfter)
 				continue
 			}
 			// Retain the request even if authorization currently fails. If this
@@ -372,7 +383,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			releaseHydration()
 			if hydrateErr != nil {
 				if errors.Is(hydrateErr, core.ErrNotFound) || errors.Is(hydrateErr, core.ErrPermissionDenied) || errors.Is(hydrateErr, core.ErrNotRoomMember) {
-					writeError("room_unavailable", "room timeline is unavailable", false)
+					writeRoomError("room_unavailable", "room timeline is unavailable", roomID, 0)
 					continue
 				}
 				s.logger.Warn("Realtime room hydration failed", "error", hydrateErr)
