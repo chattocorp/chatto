@@ -161,6 +161,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
+- For paginated caches reconciled from realtime snapshots, queue relevant
+  updates during first hydration instead of restarting it, fence and retry
+  stale append reads, and version per-resource async refreshes so older
+  responses cannot restore deleted or superseded data.
 - Keep a realtime resume cursor RAM-only and owned by the exact per-server
   projection it advances. Socket teardown must not discard either one, and a
   recreated projection must resume without a cursor so it receives a reset.
