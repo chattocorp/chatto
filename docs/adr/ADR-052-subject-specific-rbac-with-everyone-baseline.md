@@ -79,11 +79,11 @@ no data migration or generated-client update is required.
 
 Upgrading can widen access where stored state combines an `everyone` deny with
 a same-scope or nearer direct-user/named-role allow, or where a nearer allow
-replaces a less-specific deny for the same subject. It can narrow access where
-a room/group `everyone` deny now contains less-specific named grants. Operators
-should inspect those conflicts before upgrading. For a restriction role, avoid
-configuring nearer allows on that same role. Before using a server-level direct
-user deny as a suspension, clear conflicting direct-user group/room allows.
+replaces a less-specific deny for the same subject. The change does not newly
+narrow access relative to literal deny-wins. Operators should inspect widening
+conflicts before upgrading. For a restriction role, avoid configuring nearer
+allows on that same role. Before using a server-level direct-user deny as a
+suspension, clear conflicting direct-user group/room allows.
 
 Mixed versions accept the same API messages but can return different effective
 decisions. A new client talking to an old server cannot assume baseline

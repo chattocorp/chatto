@@ -179,7 +179,7 @@ Access to a DM comes from being a participant in that conversation. Owners canno
 </Aside>
 
 <Aside type="caution" title="Authorization behavior changed">
-  When upgrading from the older literal deny-wins resolver, review configurations that combine an `everyone` deny with a named-role or direct-user allow. Same-scope or nearer allows can now widen access, while a nearer `everyone` deny can contain broader named grants. For suspensions, clear nearer decisions on the same user or restriction role.
+  When upgrading from the older literal deny-wins resolver, review configurations that combine an `everyone` deny with a named-role or direct-user allow. Same-scope or nearer allows can now widen access; the change does not newly narrow access. For suspensions, clear nearer decisions on the same user or restriction role.
 </Aside>
 
 <LinkCard

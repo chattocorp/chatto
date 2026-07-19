@@ -269,6 +269,9 @@ func resolveApplicablePermissionDecisions(decisions applicablePermissionDecision
 	if baseline.Decision == DecisionDeny && permissionLevelSpecificity(winner.Level) < permissionLevelSpecificity(baseline.Level) {
 		return DecisionDeny, baseline, true
 	}
+	if baseline.Decision == DecisionAllow && permissionLevelSpecificity(baseline.Level) > permissionLevelSpecificity(winner.Level) {
+		return DecisionAllow, baseline, true
+	}
 	return state, winner, true
 }
 

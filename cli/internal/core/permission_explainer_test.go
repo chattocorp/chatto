@@ -187,6 +187,38 @@ func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
 	}
 }
 
+func TestPermissionExplainer_NearerEveryoneAllowIsAttributedAsWinner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, _ := core.CreateUser(ctx, SystemActorID, "explainer-allow-owner", "Owner", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleOwner); err != nil {
+		t.Fatalf("assign owner: %v", err)
+	}
+	admin, _ := core.CreateUser(ctx, SystemActorID, "explainer-allow-admin", "Admin", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+		t.Fatalf("assign admin: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, owner.Id, KindChannel, "", "explainer-allow-room", "")
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermRoomList); err != nil {
+		t.Fatalf("grant admin server permission: %v", err)
+	}
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("grant everyone room permission: %v", err)
+	}
+
+	exp, err := core.permissionResolver.ExplainRoomPermission(ctx, admin.Id, KindChannel, room.Id, PermRoomList)
+	if err != nil {
+		t.Fatalf("ExplainRoomPermission: %v", err)
+	}
+	if exp.State != DecisionAllow || exp.DecidedByRole != RoleEveryone || exp.DecidedAt != LevelRoom {
+		t.Fatalf("decision = %s at %s by %q, want room allow by everyone; trace=%+v", exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
+	}
+}
+
 func traceContains(trace []TraceEntry, subject string, level PermissionLevel, decision DecisionKind) bool {
 	for _, entry := range trace {
 		if entry.RoleName == subject && entry.Level == level && entry.Decision == decision {
@@ -240,8 +272,8 @@ func assertAgreement(
 	}
 
 	// State / DecidedAt / DecidedByRole must identify a trace entry. Do not
-	// infer the winner by scanning for any deny: an everyone deny is an ignored
-	// fallback when a direct-user or named-role decision exists.
+	// infer the winner by scanning for any deny: an everyone deny may be
+	// overridden by a same-scope or nearer direct-user/named-role allow.
 	if len(exp.Trace) > 0 {
 		foundWinner := false
 		for _, entry := range exp.Trace {
