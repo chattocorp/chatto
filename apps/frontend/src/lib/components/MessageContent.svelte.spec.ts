@@ -559,10 +559,15 @@ describe('MessageContent component', () => {
   });
 
   it('shows an inset focus indicator on keyboard-scrollable tables', async () => {
-    const { container } = renderMessage('| Name | Role |\n| --- | --- |\n| Ada | Admin |');
+    const { container } = renderMessage(
+      '| Name | Role | Location |\n| --- | --- | --- |\n| Ada Lovelace | Administrator | London, United Kingdom |'
+    );
 
     await expect.poll(() => q(container, '.table-scroll')).toBeTruthy();
+    const wrapper = q(container, '.prose')!;
     const scroller = q(container, '.table-scroll')!;
+    wrapper.setAttribute('style', 'width: 240px');
+    await expect.poll(() => scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
     await userEvent.tab();
 
     expect(document.activeElement).toBe(scroller);

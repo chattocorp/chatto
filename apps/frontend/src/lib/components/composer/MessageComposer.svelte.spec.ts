@@ -1210,7 +1210,7 @@ describe('MessageComposer', () => {
     });
 
     it('preserves literal HTML-looking text when restoring and saving an edit', async () => {
-      const body = '<script>alert(1)</script> & <b>bold?</b>';
+      const body = '<script>alert(1)</script> & <b>bold?</b> &#45;';
       const editedBody = `${body}!`;
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = body;
@@ -1230,6 +1230,31 @@ describe('MessageComposer', () => {
         eventId: 'evt_edit',
         body: editedBody
       });
+    });
+
+    it('keeps an existing GFM table renderable after editing and saving', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      roomStateMock.editState.eventId = 'evt_table';
+      roomStateMock.editState.originalBody = body;
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent('| Name | Role |');
+      await placeCaretAtEditorEnd(editor);
+      document.execCommand('insertText', false, '!');
+      await vi.waitFor(() => expect(editor.textContent).toContain('| Ada | Admin |!'));
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      const submittedBody = updateMessageConnectMock.mock.calls[0][0].body as string;
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_table',
+        body: submittedBody
+      });
+      expect(submittedBody).toBe(`${body}!`);
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
     });
 
     it('clears staged attachments when edit mode is active at mount', async () => {

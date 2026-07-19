@@ -609,6 +609,46 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     });
   }
 
+  function hasUnescapedPipe(line: string): boolean {
+    for (let index = 0; index < line.length; index++) {
+      if (line[index] === '|' && line[index - 1] !== '\\') return true;
+    }
+    return false;
+  }
+
+  function isGfmTableDelimiter(line: string): boolean {
+    const content = line.replace(/^(?: {0,3}> ?)+/, '').trim();
+    const cells = content.split('|');
+    if (cells[0]?.trim() === '') cells.shift();
+    if (cells.at(-1)?.trim() === '') cells.pop();
+    return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell.trim()));
+  }
+
+  function escapeGfmTablesForEditor(markdown: string): string {
+    return transformMarkdownOutsideCode(
+      markdown,
+      (text) => {
+        const lines = text.split('\n');
+        for (let index = 1; index < lines.length; index++) {
+          const header = lines[index - 1].replace(/^(?: {0,3}> ?)+/, '').trim();
+          if (!hasUnescapedPipe(header) || !isGfmTableDelimiter(lines[index])) continue;
+
+          // The composer intentionally has no table node. Keep the source as
+          // editable prose by making the delimiter invisible to TipTap's GFM
+          // parser. The word joiner is invisible and is removed again when
+          // serializing, so the delimiter remains visually unchanged.
+          lines[index] = lines[index].replace('-', '-\u2060');
+        }
+        return lines.join('\n');
+      },
+      { preserveInlineCode: false }
+    );
+  }
+
+  function prepareMarkdownForEditor(markdown: string): string {
+    return escapeGfmTablesForEditor(escapeMarkdownHtml(markdown));
+  }
+
   function decodeSerializedMarkdownText(markdown: string): string {
     return transformMarkdownOutsideCode(markdown, decodeSerializedTextEntities);
   }
@@ -628,6 +668,31 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return markdown.replace(/ {2,}(\n\s*\n\s*(?:[-+*]|\d{1,9}[.)])\s)/g, '$1');
   }
 
+  function normalizeSerializedGfmTableHardBreaks(markdown: string): string {
+    return transformMarkdownOutsideCode(
+      markdown,
+      (text) => {
+        const lines = text.split('\n');
+        for (let index = 1; index < lines.length; index++) {
+          const header = lines[index - 1].replace(/ {2,}$/, '');
+          const delimiter = lines[index].replace(/ {2,}$/, '');
+          const unescapedDelimiter = delimiter.replace('\u2060', '');
+          if (!hasUnescapedPipe(header) || !isGfmTableDelimiter(unescapedDelimiter)) continue;
+
+          lines[index - 1] = header;
+          lines[index] = unescapedDelimiter;
+          for (let rowIndex = index + 1; rowIndex < lines.length; rowIndex++) {
+            const row = lines[rowIndex].replace(/ {2,}$/, '');
+            if (!hasUnescapedPipe(row)) break;
+            lines[rowIndex] = row;
+          }
+        }
+        return lines.join('\n');
+      },
+      { preserveInlineCode: false }
+    );
+  }
+
   function encodeSerializedHeadingClosingHashes(markdown: string): string {
     return transformMarkdownOutsideCode(
       markdown,
@@ -643,8 +708,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   function getSerializedMarkdown(e: Editor): string {
     return normalizeSerializedHardBreaksBeforeLists(
-      encodeSerializedHeadingClosingHashes(
-        trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+      normalizeSerializedGfmTableHardBreaks(
+        encodeSerializedHeadingClosingHashes(
+          trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+        )
       )
     );
   }
@@ -1125,7 +1192,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
-        e.commands.setContent(escapeMarkdownHtml(markdown), {
+        e.commands.setContent(prepareMarkdownForEditor(markdown), {
           contentType: 'markdown',
           emitUpdate: false
         });
