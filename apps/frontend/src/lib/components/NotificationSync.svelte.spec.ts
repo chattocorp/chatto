@@ -28,7 +28,8 @@ const { mocks } = vi.hoisted(() => {
     mocks: {
       bus,
       store,
-      playNotificationSound: vi.fn()
+      playNotificationSound: vi.fn(),
+      updateAppBadge: vi.fn(async () => {})
     }
   };
 });
@@ -62,6 +63,10 @@ vi.mock('$lib/state/userPreferences.svelte', () => ({
 
 vi.mock('$lib/audio/notificationSounds', () => ({
   playNotificationSound: mocks.playNotificationSound
+}));
+
+vi.mock('$lib/notifications/appBadge', () => ({
+  updateAppBadge: mocks.updateAppBadge
 }));
 
 function dispatch(change?: RealtimeProjectionNotificationChange) {
@@ -139,5 +144,27 @@ describe('NotificationSync', () => {
     );
 
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it('updates the app badge from the loaded pending-notification count', async () => {
+    mocks.store.notifications.unreadNotificationCount = 3;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(3));
+  });
+
+  it('clears a legacy app badge once empty notification stores have loaded', async () => {
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(0));
+  });
+
+  it('does not clear the app badge before notifications have loaded', async () => {
+    mocks.store.notifications.hasLoaded = false;
+
+    await renderAndWaitForSubscription();
+
+    expect(mocks.updateAppBadge).not.toHaveBeenCalled();
   });
 });

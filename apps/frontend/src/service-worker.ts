@@ -302,18 +302,12 @@ self.addEventListener('notificationclick', (event) => {
   const rawUrl =
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
-    (async () => {
-      try {
-        await routeNotificationClick(
-          rawUrl,
-          self.location.origin,
-          self.clients as unknown as NotificationClickClients,
-          { logger: console }
-        );
-      } finally {
-        await reconcilePushBadge(self.registration, badgeNavigator).catch(() => {});
-      }
-    })().catch((err) => {
+    routeNotificationClick(
+      rawUrl,
+      self.location.origin,
+      self.clients as unknown as NotificationClickClients,
+      { logger: console }
+    ).catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
   );

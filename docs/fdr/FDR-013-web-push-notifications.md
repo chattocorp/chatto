@@ -22,7 +22,8 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
-- App-icon badge writes happen only while handling Web Push. After a native notification is clicked or remotely dismissed, the service worker derives the remaining badge state from the native notifications still displayed by the browser.
+- While Chatto is open, its pending-notification stores are authoritative for the app-icon badge. Web Push supplies a badge hint while the app is closed, and remote dismissals reconcile that hint from the native notifications still displayed by the browser.
+- Clicking or manually dismissing a native notification does not itself dismiss the pending notification inside Chatto, so it does not clear the app-icon badge; the badge clears when the pending notification is dismissed in Chatto.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
@@ -85,9 +86,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 10. Late delivery and badge-state revalidation
 
-**Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. App-icon badge state belongs to the push service worker and is reconciled from displayed native notifications after clicks and dismissals; foreground notification state does not write to the Badging API.
-**Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. Keeping badge ownership inside the push path also prevents ordinary app activity from creating OS-level attention when push is disabled and avoids competing page and service-worker writers.
-**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. A push-supplied numeric count can also fall back to a generic flag after one notification is removed because the service worker can reliably observe displayed native notifications, not the complete server-side pending count.
+**Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is open, one direct synchronization from the aggregate pending-notification count sets or clears the app badge; the service worker uses push hints only while the app is closed.
+**Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. Using the durable notification projection as the foreground badge source keeps the app icon aligned with Chatto's notification center without persisting or replaying a second foreground badge state through the service worker.
+**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. A push-supplied numeric count can also fall back to a generic flag after a remote dismissal, until the open app replaces it with the authoritative aggregate count.
 
 ## Permissions
 

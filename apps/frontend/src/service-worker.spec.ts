@@ -168,7 +168,7 @@ describe('service worker badge orchestration', () => {
     });
   });
 
-  it('clears a declarative DM push app badge after clicking the only native notification', async () => {
+  it('leaves a declarative DM badge for the app store to reconcile after a click', async () => {
     const worker = await importServiceWorker();
 
     await worker.dispatch('push', {
@@ -191,8 +191,6 @@ describe('service worker badge orchestration', () => {
     });
 
     const options = worker.registration.showNotification.mock.calls[0][1] as NotificationOptions;
-    worker.registration.getNotifications.mockResolvedValueOnce([]);
-
     await worker.dispatch('notificationclick', {
       notification: {
         close: vi.fn(),
@@ -202,7 +200,8 @@ describe('service worker badge orchestration', () => {
 
     expect(worker.setAppBadge).toHaveBeenCalledOnce();
     expect(worker.setAppBadge).toHaveBeenCalledWith(1);
-    expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+    expect(worker.registration.getNotifications).not.toHaveBeenCalled();
   });
 
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
@@ -269,9 +268,8 @@ describe('service worker badge orchestration', () => {
     expect(worker.clients.openWindow).toHaveBeenCalledWith(targetUrl);
   });
 
-  it('keeps a flag badge after a click while another native notification remains', async () => {
+  it('does not derive badge state from native notifications after a click', async () => {
     const worker = await importServiceWorker();
-    worker.registration.getNotifications.mockResolvedValueOnce([{}]);
 
     await worker.dispatch('notificationclick', {
       notification: {
@@ -280,17 +278,14 @@ describe('service worker badge orchestration', () => {
       }
     });
 
-    expect(worker.setAppBadge).toHaveBeenCalledWith();
+    expect(worker.registration.getNotifications).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).not.toHaveBeenCalled();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
-    expect(worker.clients.openWindow.mock.invocationCallOrder[0]).toBeLessThan(
-      worker.registration.getNotifications.mock.invocationCallOrder[0]
-    );
   });
 
-  it('reconciles badge state even when notification click routing fails', async () => {
+  it('leaves badge state unchanged when notification click routing fails', async () => {
     const worker = await importServiceWorker();
     worker.clients.openWindow.mockRejectedValueOnce(new Error('window activation failed'));
-    worker.registration.getNotifications.mockResolvedValueOnce([]);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     try {
@@ -301,8 +296,9 @@ describe('service worker badge orchestration', () => {
         }
       });
 
-      expect(worker.registration.getNotifications).toHaveBeenCalledOnce();
-      expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+      expect(worker.registration.getNotifications).not.toHaveBeenCalled();
+      expect(worker.clearAppBadge).not.toHaveBeenCalled();
+      expect(worker.setAppBadge).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledOnce();
     } finally {
       consoleError.mockRestore();
@@ -320,6 +316,18 @@ describe('service worker badge orchestration', () => {
       }
     });
     expect(worker.handlers.has('message')).toBe(false);
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+    expect(worker.setAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('leaves the pending-notification badge unchanged when a native notification is closed', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('notificationclose', {
+      notification: { data: { notificationId: 'notification-1' } }
+    });
+
+    expect(worker.handlers.has('notificationclose')).toBe(false);
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.setAppBadge).not.toHaveBeenCalled();
   });
