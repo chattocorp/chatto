@@ -719,6 +719,50 @@ describe('ServerStateStore live server updates', () => {
     expect(store.realtimeSync.desiredRoomIds).toEqual(['R1']);
     expect(store.realtimeSync.retainedRoomIds).toEqual(['R1']);
 
+    store.activeCallRooms.replaceProjection([
+      new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-secret' })
+    ]);
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: { case: 'roomUpsert', value: room(false) }
+          }),
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomTimelineReplace',
+              value: new RealtimeProjectionRoomTimelineReplace({
+                roomId: 'R1',
+                page: new RoomTimelinePage()
+              })
+            }
+          })
+        ]
+      })
+    );
+    // Even a later stale replacement cannot reopen the canonical or mirrored
+    // timeline before an explicit positive membership operation arrives.
+    dispatch(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomTimelineReplace',
+              value: new RealtimeProjectionRoomTimelineReplace({
+                roomId: 'R1',
+                page: new RoomTimelinePage({
+                  events: [projectedMessage('M-stale', new Date('2026-01-01T00:00:01Z'))]
+                })
+              })
+            }
+          })
+        ]
+      })
+    );
+    expect(messages.events).toEqual([]);
+    expect(store.projection.timelines.has('R1')).toBe(false);
+    expect(store.activeCallRooms.has('R1')).toBe(false);
+
     dispatch(
       new RealtimeProjectionEvent({
         operations: [
@@ -759,6 +803,18 @@ describe('ServerStateStore live server updates', () => {
     );
     expect(store.projection.timelines.has('R1')).toBe(false);
     expect(messages.events).toEqual([]);
+  });
+
+  it('releases decrypted thread stores after their final mounted consumer', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const first = store.messagesForThread('R1', 'T1');
+    store.retainMessagesForThread('R1', 'T1', first);
+    store.retainMessagesForThread('R1', 'T1', first);
+    store.releaseMessagesForThread('R1', 'T1', first);
+    expect(store.messagesForThread('R1', 'T1')).toBe(first);
+
+    store.releaseMessagesForThread('R1', 'T1', first);
+    expect(store.messagesForThread('R1', 'T1')).not.toBe(first);
   });
 
   it('evicts an inactive timeline before hydrating a room beyond the retention limit', () => {

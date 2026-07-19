@@ -491,6 +491,18 @@ export class VoiceCallState {
     this.disconnectFromServerEvent(roomId, callId);
   }
 
+  /** Disconnect local media immediately when this viewer loses room access. */
+  handleRoomAccessRevoked(roomId: string): void {
+    if (this.roomId !== roomId) return;
+    const room = this.room;
+    if (room) {
+      this.suppressDisconnectToast = true;
+      room.disconnect();
+    }
+    this.cleanup();
+    this.suppressDisconnectToast = false;
+  }
+
   private disconnectFromServerEvent(roomId: string, callId: string | null): void {
     if (this.roomId !== roomId) return;
     if (!callId || this.activeCallId !== callId) return;

@@ -67,6 +67,18 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
+  // Thread timelines contain decrypted history and are useful only while a
+  // pane renders them. Ref-count the stable selector so closing or switching
+  // a pane releases its store instead of retaining every thread ever opened.
+  $effect(() => {
+    const mountedStore = store;
+    const mountedRoomId = roomId;
+    const mountedThreadRootEventId = threadRootEventId;
+    stores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+    return () =>
+      stores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+  });
+
   $effect(() =>
     onRoomMessageMutated((detail) => {
       if (detail.roomId !== roomId) return;

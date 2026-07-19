@@ -118,6 +118,17 @@ describe('NotificationStore', () => {
     expect(store.notifications[0]?.summary).not.toContain('Tester');
   });
 
+  it('clears room notification payloads at an authorization boundary', () => {
+    const other = { ...mention('n2'), mentionRoom: { id: 'r2', name: 'other' } } as NotificationItem;
+    const store = new NotificationStore(makeAPI());
+    store.replaceProjection(page([mention('n1'), other], 2));
+
+    store.clearRoom('r1');
+
+    expect(store.notifications.map(({ id }) => id)).toEqual(['n2']);
+    expect(store.unreadNotificationCount).toBe(1);
+  });
+
   it('populates notifications on success', async () => {
     const store = new NotificationStore(
       makeAPI({ notifications: page([mention('n1'), mention('n2')]) })

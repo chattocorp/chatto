@@ -24,15 +24,17 @@ import (
 )
 
 const (
-	realtimePath                     = "/api/realtime"
-	realtimeProtocolVersion          = 2
-	realtimeReadLimitBytes           = 64 << 10
-	realtimeReadBufferBytes          = 256
-	realtimeWriteBufferBytes         = 512
-	realtimeCompressionMinBytes      = 1024
-	realtimeHandshakeTimeout         = 10 * time.Second
-	realtimeWriteTimeout             = 10 * time.Second
-	realtimeMaxRetainedRooms         = 1024
+	realtimePath                = "/api/realtime"
+	realtimeProtocolVersion     = 2
+	realtimeReadLimitBytes      = 64 << 10
+	realtimeReadBufferBytes     = 256
+	realtimeWriteBufferBytes    = 512
+	realtimeCompressionMinBytes = 1024
+	realtimeHandshakeTimeout    = 10 * time.Second
+	realtimeWriteTimeout        = 10 * time.Second
+	// Bound compacted reset construction as well as the long-lived per-socket
+	// projection. Each retained room can carry up to 50 decrypted timeline rows.
+	realtimeMaxRetainedRooms         = 64
 	realtimeMaxRoomIDBytes           = 256
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
 )
@@ -306,16 +308,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			retainedRoomIDs = append(retainedRoomIDs, roomID)
 		}
 		slices.Sort(retainedRoomIDs)
-		frames, err := s.realtimeProjectionSnapshotFrames(catchUpCtx, user.Id, retainedRoomIDs)
-		if err != nil {
+		if err := s.writeRealtimeProjectionSnapshot(catchUpCtx, user.Id, retainedRoomIDs, writeCatchUpFrame); err != nil {
 			failCatchUp("Realtime compacted projection replay failed", err)
 			return
-		}
-		for _, frame := range frames {
-			if err := writeCatchUpFrame(frame); err != nil {
-				handleCatchUpWriteError(err)
-				return
-			}
 		}
 	}
 	for _, event := range replayPlan.Events {
@@ -364,11 +359,17 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				writeError("too_many_retained_rooms", "too many retained room timelines", false)
 				continue
 			}
+			releaseHydration, admissionErr := s.realtimeCatchUps.acquireHydration(user.Id)
+			if admissionErr != nil {
+				writeError(admissionErr.code, "room hydration capacity is temporarily unavailable", false)
+				continue
+			}
 			// Retain the request even if authorization currently fails. If this
 			// viewer joins later on the same socket, that membership fact can
 			// atomically materialise the room without a second client mechanism.
 			retainedRooms[roomID] = struct{}{}
 			frame, hydrateErr := s.realtimeProjectionRoomTimelineFrame(ctx, user.Id, roomID)
+			releaseHydration()
 			if hydrateErr != nil {
 				if errors.Is(hydrateErr, core.ErrNotFound) || errors.Is(hydrateErr, core.ErrPermissionDenied) || errors.Is(hydrateErr, core.ErrNotRoomMember) {
 					writeError("room_unavailable", "room timeline is unavailable", false)

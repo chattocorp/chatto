@@ -72,7 +72,7 @@ inactive poll sends its retained room IDs with the cursor.
 The client distinguishes desired rooms from confirmed materialised windows. A
 room enters the resumable retained set only after its timeline replacement was
 applied, so a dropped hydration response is retried instead of being mistaken
-for cached state. Desired retention is capped at the wire limit of 1,024 rooms;
+for cached state. Desired retention is capped at the wire limit of 64 rooms;
 selecting another room evicts the least-recent inactive timeline and replaces
 the socket so the server and client retention sets stay aligned.
 The URL-active server has the only persistent realtime WebSocket. Inactive
@@ -102,7 +102,9 @@ Expiry selects compacted current state, so clients converge without retaining
 an indefinitely reusable replay credential.
 
 The server creates no new JetStream stream and no per-client consumer. For a
-valid short gap it captures an EVT cutoff, performs bounded point reads by
+valid short gap it captures an EVT cutoff, waits until every registered
+projection is current before reading snapshot or authorization state, and
+performs bounded point reads by
 global stream sequence, and derives public projection operations from the
 current read models. It subscribes the connection to the process-wide
 `MyEventsHub` first, then discards buffered duplicates through the cutoff before
@@ -123,12 +125,25 @@ receive explicit reconnect guidance. These controls bound replica work but do
 not participate in correctness, authorization, replay position, or any
 cross-replica invariant.
 
+Post-catch-up `hydrate_room` work shares the process-wide semaphore and is
+serialized per user across that user's sockets. A separate per-user bucket
+admits a burst of 20 room hydrations and restores one token per second.
+Compacted prefixes are emitted frame by frame instead of retaining a second
+frame graph, and the 64-room retention bound limits each reset to at most 3,200
+decrypted recent timeline rows.
+
 Projection hydration reuses the public ConnectRPC assemblers. PII is decrypted
 only at this authenticated response boundary and only for requested timeline
 rooms. Message retractions and account
 key shredding are resolved to their current tombstone form, so replay never
 re-emits an obsolete plaintext body. Room and RBAC visibility changes either
 emit explicit resource removal or force a reset from current authorization.
+Membership loss also establishes a persistent client privacy fence: canonical
+and mounted timeline reducers reject later rows until an explicit positive
+membership operation arrives. The same server event replaces active calls and
+notifications from the viewer's new authorization state, and the client
+disconnects local call media for the revoked room without writing another
+leave intent.
 `reset` immediately invalidates every projection-derived frontend mirror before
 the multi-frame compacted prefix is applied, so an interrupted reset cannot
 leave stale notifications, calls, permissions, preferences, or authenticated
@@ -219,6 +234,9 @@ Reactions, edits, retractions, channel-echo additions/removals, and new messages
 remain current for retained rooms. A never-viewed room begins from current
 aggregate state when hydrated instead of replaying timeline transitions the
 client never retained.
+Thread timeline stores are reference-counted by mounted panes and disposed
+after their final consumer unmounts; reconnect/reset therefore reloads only
+open threads, not every thread viewed during the tab session.
 
 Switching among already-hydrated rooms and servers also renders retained state
 immediately, then resumes it in the background. Known rooms do not return to a

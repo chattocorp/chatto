@@ -28,6 +28,7 @@ export class ServerProjectionStore {
   threadViewerStates = new SvelteMap<string, ThreadViewerState>();
   timelines = new SvelteMap<string, RoomTimelinePage>();
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
+  private revokedRoomIds = new SvelteSet<string>();
 
   apply(event: RealtimeProjectionEvent): void {
     // Validate the entire atomic event before mutating anything. An unknown
@@ -87,23 +88,27 @@ export class ServerProjectionStore {
           if (roomId) {
             this.rooms.set(roomId, room);
             if (room.room?.viewerState?.isMember === false) {
+              this.revokedRoomIds.add(roomId);
               this.timelines.delete(roomId);
               this.timelineEventCursors.delete(roomId);
-            }
+              this.removeActiveCallRoom(roomId);
+            } else if (room.room?.viewerState?.isMember === true) this.revokedRoomIds.delete(roomId);
           }
           break;
         }
         case 'roomRemove':
+          this.revokedRoomIds.add(operation.operation.value.roomId);
           this.rooms.delete(operation.operation.value.roomId);
           this.timelines.delete(operation.operation.value.roomId);
           this.timelineEventCursors.delete(operation.operation.value.roomId);
+          this.removeActiveCallRoom(operation.operation.value.roomId);
           break;
         case 'roomGroupsReplace':
           this.roomGroups = [...operation.operation.value.groups];
           break;
         case 'roomTimelineReplace': {
           const replacement = operation.operation.value;
-          if (replacement.page) {
+          if (replacement.page && !this.revokedRoomIds.has(replacement.roomId)) {
             this.timelines.set(replacement.roomId, replacement.page);
             this.seedTimelineEventCursors(
               replacement.roomId,
@@ -115,7 +120,7 @@ export class ServerProjectionStore {
         }
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
-          this.upsertTimelineEvent(update);
+          if (!this.revokedRoomIds.has(update.roomId)) this.upsertTimelineEvent(update);
           break;
         }
         case 'roomTimelineEventRemove':
@@ -159,8 +164,12 @@ export class ServerProjectionStore {
             );
           }
           if (replacement.viewerState?.isMember === false) {
+            this.revokedRoomIds.add(replacement.roomId);
             this.timelines.delete(replacement.roomId);
             this.timelineEventCursors.delete(replacement.roomId);
+            this.removeActiveCallRoom(replacement.roomId);
+          } else if (replacement.viewerState?.isMember === true) {
+            this.revokedRoomIds.delete(replacement.roomId);
           }
           break;
         }
@@ -258,6 +267,7 @@ export class ServerProjectionStore {
     this.threadViewerStates.clear();
     this.timelines.clear();
     this.timelineEventCursors.clear();
+    this.revokedRoomIds.clear();
   }
 
   /**
@@ -309,6 +319,11 @@ export class ServerProjectionStore {
       return next;
     });
     if (callsChanged) this.activeCalls = calls;
+  }
+
+  private removeActiveCallRoom(roomId: string): void {
+    if (!this.activeCalls.some((call) => call.room?.id === roomId)) return;
+    this.activeCalls = this.activeCalls.filter((call) => call.room?.id !== roomId);
   }
 
   private upsertTimelineEvent(input: {

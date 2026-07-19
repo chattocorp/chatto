@@ -3,7 +3,7 @@ import { SvelteSet } from 'svelte/reactivity';
 /** How current one server's retained client projection is. */
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
 
-export const MAX_RETAINED_ROOM_TIMELINES = 1024;
+export const MAX_RETAINED_ROOM_TIMELINES = 64;
 
 /**
  * Session-local resume state for one server projection.

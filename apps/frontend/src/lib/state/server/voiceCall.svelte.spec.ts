@@ -453,6 +453,23 @@ describe('VoiceCallState', () => {
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
+  it('disconnects local media without recording leave when room access is revoked', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
+
+    state.handleRoomAccessRevoked('R2');
+    expect(state.isInAnyCall).toBe(true);
+
+    state.handleRoomAccessRevoked('R1');
+
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(client.leaveCall).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
   it('disconnects only for the current user participant leave event', async () => {
     const client = createVoiceCallClient();
 

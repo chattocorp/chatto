@@ -29,6 +29,55 @@ func TestRealtimeCatchUpAdmissionBoundsUserAndProcessConcurrency(t *testing.T) {
 	releaseSecond()
 }
 
+func TestRealtimeHydrationAdmissionIsSharedAcrossSocketsAndCatchUp(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
+	admission := newRealtimeCatchUpAdmissionWithLimits(2, 3, time.Minute, func() time.Time { return now })
+
+	release, err := admission.acquireHydration("user-1")
+	if err != nil {
+		t.Fatalf("acquire hydration: %v", err)
+	}
+	if _, err := admission.acquireHydration("user-1"); err == nil || err.code != "room_hydration_in_progress" {
+		t.Fatalf("parallel socket hydration error = %+v, want room_hydration_in_progress", err)
+	}
+	if _, err := admission.acquire("user-1", false); err == nil || err.code != "catch_up_in_progress" {
+		t.Fatalf("catch-up during hydration error = %+v, want catch_up_in_progress", err)
+	}
+	release()
+
+	releaseCatchUp, catchUpErr := admission.acquire("user-1", false)
+	if catchUpErr != nil {
+		t.Fatalf("catch-up after hydration: %v", catchUpErr)
+	}
+	if _, err := admission.acquireHydration("user-1"); err == nil || err.code != "room_hydration_in_progress" {
+		t.Fatalf("hydration during catch-up error = %+v, want room_hydration_in_progress", err)
+	}
+	releaseCatchUp()
+}
+
+func TestRealtimeHydrationAdmissionRateLimitsDistinctRooms(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
+	admission := newRealtimeCatchUpAdmissionWithLimits(1, 1, time.Hour, func() time.Time { return now })
+
+	for attempt := 0; attempt < realtimeHydrationRateBurst; attempt++ {
+		release, err := admission.acquireHydration("user-1")
+		if err != nil {
+			t.Fatalf("hydration %d: %v", attempt+1, err)
+		}
+		release()
+	}
+	if _, err := admission.acquireHydration("user-1"); err == nil || err.code != "room_hydration_rate_limited" {
+		t.Fatalf("hydration rate-limit error = %+v, want room_hydration_rate_limited", err)
+	}
+
+	now = now.Add(time.Second)
+	release, err := admission.acquireHydration("user-1")
+	if err != nil {
+		t.Fatalf("hydration after refill: %v", err)
+	}
+	release()
+}
+
 func TestRealtimeCatchUpAdmissionRateLimitsReplayAndBootstrapAttempts(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 12, 0, 0, 0, time.UTC)
 	admission := newRealtimeCatchUpAdmissionWithLimits(2, 2, time.Minute, func() time.Time { return now })

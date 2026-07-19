@@ -1089,7 +1089,7 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 		if projection == nil {
 			t.Fatalf("%s: timed out waiting for universal projection", name)
 		}
-		var gotRoom, gotTimeline, gotMessage bool
+		var gotRoom, gotTimeline, gotMessage, gotCalls, gotNotifications bool
 		for _, operation := range projection.GetOperations() {
 			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
 				gotRoom = true
@@ -1103,9 +1103,14 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 					gotMessage = gotMessage || event.GetId() == message.Id
 				}
 			}
+			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
+			gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
 		}
 		if !gotRoom || gotTimeline != wantTimeline || gotMessage != wantMessage {
 			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetOperations())
+		}
+		if !wantMember && (!gotCalls || !gotNotifications) {
+			t.Fatalf("%s: revocation omitted active-call/notification replacements; operations=%+v", name, projection.GetOperations())
 		}
 	}
 

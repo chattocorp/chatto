@@ -101,6 +101,7 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #threadMessages: Record<string, MessagesStore> = Object.create(null);
+  #threadMessageRefCounts: Record<string, number> = Object.create(null);
 
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
@@ -216,11 +217,15 @@ export class ServerStateStore {
       if (!key.startsWith(`${roomId}\u0000`)) continue;
       threadStore.dispose();
       delete this.#threadMessages[key];
+      delete this.#threadMessageRefCounts[key];
     }
   }
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    this.voiceCall.handleRoomAccessRevoked(roomId);
+    this.activeCallRooms.clearRoom(roomId);
+    this.notifications.clearRoom(roomId);
     const roomStore = this.#roomMessages[roomId];
     roomStore?.clearForAccessRevocation();
     if (forgetStores) {
@@ -233,6 +238,7 @@ export class ServerStateStore {
       if (forgetStores) {
         threadStore.dispose();
         delete this.#threadMessages[key];
+        delete this.#threadMessageRefCounts[key];
       }
     }
   }
@@ -254,6 +260,27 @@ export class ServerStateStore {
     store.setThread(roomId, threadRootEventId);
     this.#threadMessages[key] = store;
     return store;
+  }
+
+  /** Keep a mounted thread mirror alive until its final consumer unmounts. */
+  retainMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    if (this.#threadMessages[key] !== store) return;
+    this.#threadMessageRefCounts[key] = (this.#threadMessageRefCounts[key] ?? 0) + 1;
+  }
+
+  /** Release and destroy an unmounted thread mirror and its decrypted rows. */
+  releaseMessagesForThread(roomId: string, threadRootEventId: string, store: MessagesStore): void {
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    if (this.#threadMessages[key] !== store) return;
+    const remaining = (this.#threadMessageRefCounts[key] ?? 1) - 1;
+    if (remaining > 0) {
+      this.#threadMessageRefCounts[key] = remaining;
+      return;
+    }
+    store.dispose();
+    delete this.#threadMessages[key];
+    delete this.#threadMessageRefCounts[key];
   }
 
   private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
@@ -670,6 +697,7 @@ export class ServerStateStore {
     this.#roomMessages = Object.create(null);
     for (const store of Object.values(this.#threadMessages)) store.dispose();
     this.#threadMessages = Object.create(null);
+    this.#threadMessageRefCounts = Object.create(null);
     this.roomUnread.clear();
     this.notificationLevels.clear();
     this.pendingHighlights.clear();

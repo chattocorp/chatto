@@ -126,6 +126,14 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	if err != nil {
 		return RealtimeReplayPlan{}, err
 	}
+	// The public cursor promises that every current-state read used to shape
+	// authorization or a compacted reset includes all durable facts through
+	// this boundary. Waiting here, before any reset early-return or membership
+	// capture, prevents a lagging replica from publishing stale plaintext or
+	// permissions and then discarding the durable facts that would correct it.
+	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
+		return RealtimeReplayPlan{}, fmt.Errorf("wait for realtime projection boundary: %w", err)
+	}
 
 	plan := RealtimeReplayPlan{
 		Reset:            strings.TrimSpace(resumeCursor) == "",

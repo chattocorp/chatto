@@ -69,6 +69,16 @@ describe('ActiveCallRoomsState', () => {
     expect(state.findParticipantCall('U1')).toBeNull();
   });
 
+  it('clears only the room whose access was revoked', () => {
+    const state = new ActiveCallRoomsState(voiceCall());
+    state.replaceProjection([call('R1', 'call-1', ['U1']), call('R2', 'call-2', ['U2'])]);
+
+    state.clearRoom('R1');
+
+    expect(state.has('R1')).toBe(false);
+    expect(state.has('R2')).toBe(true);
+  });
+
   it('does not infer that a call ended when its last deleted participant is scrubbed', () => {
     const state = new ActiveCallRoomsState(voiceCall());
     state.replaceProjection([call('R1', 'call-1', ['U1'])]);

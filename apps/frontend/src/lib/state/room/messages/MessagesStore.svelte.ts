@@ -251,8 +251,10 @@ export class MessagesStore {
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    // The message store has no owned subscriptions. Server-event replay is
-    // managed by the singleton event bus.
+    // Invalidate every outstanding async read before its owner drops the
+    // store. Server-event replay itself is managed by the singleton event bus.
+    this.startLoad();
+    this.invalidatePendingPreviewFetches();
   }
 
   /** Root-level events only (excludes thread replies). */
@@ -452,7 +454,6 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
-    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     this.resetState();
     this.isInitialLoading = true;
@@ -473,7 +474,6 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
-    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     // Reset already purged the pre-prefix state. Preserve writes ingested
@@ -498,7 +498,6 @@ export class MessagesStore {
     this.scope = 'room';
     this.roomId = roomId;
     this.threadRootEventId = '';
-    this.#projectionAccessRevoked = false;
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     const projected = this.unmaskEvents(connection.events);
@@ -738,14 +737,37 @@ export class MessagesStore {
   }
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+    if (
+      this.#projectionAccessRevoked ||
+      this.isLoadingMore ||
+      this.hasReachedStart ||
+      !this.oldestCursor
+    )
+      return;
 
     const before = this.oldestCursor;
+    const loadId = this.#loadId;
+    const scope = this.scope;
+    const roomId = this.roomId;
+    const threadRootEventId = this.threadRootEventId;
     this.isLoadingMore = true;
 
     try {
       const page = await this.fetchOlderPage(before);
       if (!page) return;
+
+      // A reset, access revocation, route/scope change, or owner disposal may
+      // have happened while this page was in flight. Never let an older
+      // authorization context reinstall plaintext or overwrite new cursors.
+      if (
+        this.isStale(loadId) ||
+        this.#projectionAccessRevoked ||
+        this.scope !== scope ||
+        this.roomId !== roomId ||
+        this.threadRootEventId !== threadRootEventId
+      ) {
+        return;
+      }
 
       const olderEvents = this.unmaskEvents(page.events);
       if (olderEvents.length === 0) {
@@ -773,7 +795,14 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
+      if (
+        !this.isStale(loadId) &&
+        this.scope === scope &&
+        this.roomId === roomId &&
+        this.threadRootEventId === threadRootEventId
+      ) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
@@ -1334,6 +1363,7 @@ export class MessagesStore {
 
   /** Apply persistent deletion and account-removal fences to a timeline row. */
   private applyPrivacyBoundaries(event: RoomEventView): RoomEventView | null {
+    if (this.#projectionAccessRevoked) return null;
     if (this.removedMessageEventIds.has(event.id)) return null;
     event = this.scrubKnownUserReferences(event);
     const payload = event.event;

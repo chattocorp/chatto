@@ -192,6 +192,17 @@ export class NotificationStore {
     if (changed) this.notifications = notifications;
   }
 
+  /** Drop notification payloads for a room at an authorization boundary. */
+  clearRoom(roomId: string): void {
+    const notifications = this.notifications.filter(
+      (notification) => notificationTarget(notification).roomId !== roomId
+    );
+    const removed = this.notifications.length - notifications.length;
+    if (removed === 0) return;
+    this.notifications = notifications;
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
+  }
+
   /**
    * Get the set of thread root IDs that have pending reply notifications.
    * Used to show notification indicators on thread buttons.

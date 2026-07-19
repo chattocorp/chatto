@@ -134,6 +134,11 @@ export class ActiveCallRoomsState {
     }
   }
 
+  /** Immediately discard one room at a local authorization boundary. */
+  clearRoom(roomId: string): void {
+    this.serverRooms.delete(roomId);
+  }
+
   /** Remove copied participant profile data for a deleted account. */
   scrubUser(userId: string): void {
     for (const [roomId, snapshot] of this.serverRooms) {

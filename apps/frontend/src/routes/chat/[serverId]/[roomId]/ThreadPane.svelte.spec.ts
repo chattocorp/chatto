@@ -12,6 +12,8 @@ const { mocks } = vi.hoisted(() => {
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
+      retainMessagesForThread: vi.fn(),
+      releaseMessagesForThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -88,6 +90,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       notifications: mocks.notifications,
       rooms: mocks.rooms,
+      retainMessagesForThread: mocks.retainMessagesForThread,
+      releaseMessagesForThread: mocks.releaseMessagesForThread,
       messagesForThread: () =>
         Object.assign(mocks.threadStore!, {
           isLoadingMore: false,
@@ -202,6 +206,32 @@ describe('ThreadPane', () => {
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
     expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
+  });
+
+  it('retains decrypted thread history only for the mounted pane lifetime', async () => {
+    const rendered = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    const mountedStore = mocks.threadStore;
+    expect(mocks.retainMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      mountedStore
+    );
+
+    rendered.unmount();
+    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      mountedStore
+    );
   });
 
   it('loads a highlighted reply outside the latest thread page before jumping to it', async () => {

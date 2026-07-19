@@ -763,6 +763,93 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps the revocation fence closed across late projection and command rows', () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI()
+    );
+    store.awaitRoomProjection('room-1');
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('secret'));
+    store.clearForAccessRevocation();
+
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('late-projection'));
+    store.ingestEvent(threadMessageEvent('late-command') as never);
+    expect(store.events).toEqual([]);
+    expect(store.ensureEvent('late-preview')).toBeUndefined();
+
+    store.restoreAfterAccessGrant();
+    store.replaceRoomProjectionPage('room-1', projectedMessagePage('authorised-again'));
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['authorised-again']);
+    store.dispose();
+  });
+
+  it('rejects delayed room pagination after a projection reset', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const older = deferred<RoomPage>();
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents: vi.fn(() => older.promise) })
+    );
+    const current = projectedMessagePage('current');
+    current.startCursor = 'before-current';
+    current.hasOlder = true;
+    store.replaceRoomProjectionPage('room-1', current);
+
+    const loading = store.loadMore();
+    store.resetProjectionState();
+    older.resolve({
+      events: [threadMessageEvent('stale-older') as never],
+      startCursor: 'before-stale',
+      endCursor: 'stale',
+      hasOlder: false,
+      hasNewer: true
+    });
+    await loading;
+
+    expect(store.events).toEqual([]);
+    expect(store.isLoadingMore).toBe(false);
+    store.dispose();
+  });
+
+  it('rejects delayed thread pagination after access revocation', async () => {
+    type ThreadPage = Awaited<ReturnType<RoomTimelineAPI['getThreadEvents']>>;
+    const older = deferred<ThreadPage>();
+    const getThreadEvents = vi
+      .fn<RoomTimelineAPI['getThreadEvents']>()
+      .mockResolvedValueOnce({
+        events: [threadMessageEvent('thread-root') as never],
+        startCursor: 'before-thread',
+        endCursor: 'thread',
+        hasOlder: true,
+        hasNewer: false
+      })
+      .mockImplementationOnce(() => older.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getThreadEvents })
+    );
+    store.setThread('room-1', 'thread-root');
+    await settle();
+
+    const loading = store.loadMore();
+    store.clearForAccessRevocation();
+    older.resolve({
+      events: [threadMessageEvent('stale-reply', 'thread-root') as never],
+      startCursor: 'before-stale',
+      endCursor: 'stale',
+      hasOlder: false,
+      hasNewer: true
+    });
+    await loading;
+
+    expect(store.events).toEqual([]);
+    expect(store.isLoadingMore).toBe(false);
+    store.dispose();
+  });
+
   it('keeps the late latest-page fallback when an in-flight jump omits its target', async () => {
     const fake = new FakeQueryClient();
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;

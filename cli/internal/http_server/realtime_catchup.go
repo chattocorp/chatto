@@ -13,6 +13,8 @@ const (
 	realtimeCatchUpGeneralRefillInterval = time.Second
 	realtimeCatchUpLimiterStateLifetime  = 24 * time.Hour
 	realtimeCatchUpDefaultTimeout        = 30 * time.Second
+	realtimeHydrationRateBurst           = 20
+	realtimeHydrationRefillInterval      = time.Second
 )
 
 type realtimeCatchUpAdmissionError struct {
@@ -27,6 +29,9 @@ type realtimeCatchUpUserState struct {
 	generalTokens     float64
 	generalLastRefill time.Time
 	lastSeen          time.Time
+	hydrationActive   bool
+	hydrationTokens   float64
+	hydrationRefillAt time.Time
 }
 
 // realtimeCatchUpAdmission bounds expensive projection catch-up work per
@@ -87,10 +92,12 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 			generalTokens:     realtimeCatchUpGeneralRateBurst,
 			generalLastRefill: now,
 			lastSeen:          now,
+			hydrationTokens:   realtimeHydrationRateBurst,
+			hydrationRefillAt: now,
 		}
 		a.users[userID] = state
 	}
-	if state.active {
+	if state.active || state.hydrationActive {
 		return nil, &realtimeCatchUpAdmissionError{code: "catch_up_in_progress", retryAfter: time.Second}
 	}
 
@@ -129,6 +136,61 @@ func (a *realtimeCatchUpAdmission) acquire(userID string, metered bool) (func(),
 			<-a.global
 			a.mu.Lock()
 			state.active = false
+			state.lastSeen = a.now()
+			a.mu.Unlock()
+		})
+	}, nil
+}
+
+// acquireHydration bounds post-bootstrap room hydration across every socket
+// owned by one user and shares the process-wide expensive-work semaphore with
+// replay/reset catch-up. The limit is capacity protection only; authorization
+// remains authoritative in the room projection assembler.
+func (a *realtimeCatchUpAdmission) acquireHydration(userID string) (func(), *realtimeCatchUpAdmissionError) {
+	now := a.now()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	state := a.users[userID]
+	if state == nil {
+		state = &realtimeCatchUpUserState{
+			tokens: float64(a.burst), lastRefill: now,
+			generalTokens: realtimeCatchUpGeneralRateBurst, generalLastRefill: now,
+			hydrationTokens: realtimeHydrationRateBurst, hydrationRefillAt: now, lastSeen: now,
+		}
+		a.users[userID] = state
+	}
+	if state.active || state.hydrationActive {
+		return nil, &realtimeCatchUpAdmissionError{code: "room_hydration_in_progress", retryAfter: time.Second}
+	}
+	elapsed := now.Sub(state.hydrationRefillAt)
+	if elapsed > 0 {
+		state.hydrationTokens += float64(elapsed) / float64(realtimeHydrationRefillInterval)
+		if state.hydrationTokens > realtimeHydrationRateBurst {
+			state.hydrationTokens = realtimeHydrationRateBurst
+		}
+		state.hydrationRefillAt = now
+	}
+	state.lastSeen = now
+	if state.hydrationTokens < 1 {
+		retryAfter := time.Duration((1 - state.hydrationTokens) * float64(realtimeHydrationRefillInterval))
+		if retryAfter < time.Second {
+			retryAfter = time.Second
+		}
+		return nil, &realtimeCatchUpAdmissionError{code: "room_hydration_rate_limited", retryAfter: retryAfter}
+	}
+	select {
+	case a.global <- struct{}{}:
+	default:
+		return nil, &realtimeCatchUpAdmissionError{code: "room_hydration_server_busy", retryAfter: time.Second}
+	}
+	state.hydrationTokens--
+	state.hydrationActive = true
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			<-a.global
+			a.mu.Lock()
+			state.hydrationActive = false
 			state.lastSeen = a.now()
 			a.mu.Unlock()
 		})
@@ -187,7 +249,7 @@ func (a *realtimeCatchUpAdmission) refillGeneral(state *realtimeCatchUpUserState
 
 func (a *realtimeCatchUpAdmission) removeStaleUsers(now time.Time) {
 	for userID, state := range a.users {
-		if !state.active && now.Sub(state.lastSeen) > realtimeCatchUpLimiterStateLifetime {
+		if !state.active && !state.hydrationActive && now.Sub(state.lastSeen) > realtimeCatchUpLimiterStateLifetime {
 			delete(a.users, userID)
 		}
 	}

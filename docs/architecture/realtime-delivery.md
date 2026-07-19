@@ -143,7 +143,9 @@ any other unusable cursor. The client clears and rebuilds the retained
 projection through normal operations, then marks it ready only at `caught_up`.
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
-captures an EVT cutoff, and performs bounded JetStream point reads for the
+captures an EVT cutoff, waits until every registered projection is current
+before reading authorization or compacted state, and performs bounded
+JetStream point reads for the
 sequences after the cursor. It does not create a JetStream consumer. Each
 deliverable room, asset, or user fact waits for its owning projection and is
 converted to current public resource operations. The handler sends `caught_up`
@@ -160,10 +162,15 @@ IDs; a compacted reset includes only those room windows.
 
 Effective membership changes are authoritative timeline boundaries. When a
 universal room stops granting membership, live mapping pairs its current room
-state with an empty replacement for any retained timeline; loss of room
+state with an empty replacement for any retained timeline plus authoritative
+active-call and notification replacements; loss of room
 visibility uses `room_remove`, which has the same eviction effect. The browser
 also scrubs canonical rows, mounted room stores, open thread stores, optimistic
-state, and in-flight reads as soon as projected membership becomes false.
+state, call and notification mirrors, and in-flight reads as soon as projected
+membership becomes false. It also disconnects local call media for that room
+without issuing a redundant leave command. The privacy fence stays closed until an explicit
+positive membership operation arrives, so delayed pagination, previews,
+read-your-writes responses, and timeline replacements cannot restore plaintext.
 
 The browser keeps only the non-plaintext retained-room intent. If membership
 later returns, the server rematerialises the current window only for that
@@ -174,9 +181,15 @@ instead of incremental replay.
 The browser advertises a room as retained only after applying its timeline
 replacement. Desired rooms with lost or unavailable hydration responses remain
 pending and are requested again on the next socket. Both client and server cap
-retention at 1,024 room IDs, and the server ignores duplicate hydration work.
+retention at 64 room IDs, and the server ignores duplicate hydration work.
 At the bound, the browser evicts its least-recent inactive timeline and replaces
 the socket before materialising the newly selected room.
+
+Post-catch-up room hydration shares the process-wide catch-up semaphore and is
+serialized per authenticated user across all of that user's sockets. Its token
+bucket permits a burst of 20 hydrations and restores one token per second. A
+compacted reset emits frames incrementally and materialises at most 64 retained
+windows (3,200 recent rows), bounding decryption and transient response memory.
 
 Every subscription emits one finite latest-value reconciliation before
 `caught_up`. It replaces the viewer resource; every visible room's read and
@@ -286,6 +299,11 @@ either reducer mutates state, preventing partial application of an atomic
 event. A completed inactive poll becomes `stale` as soon as its socket closes:
 known resources remain renderable, but absence is not authoritative while the
 transport is dormant.
+
+Mounted room stores may retain deliberately paginated history. Thread stores
+are reference-counted by mounted thread panes and disposed after their final
+consumer unmounts, so inactive threads receive no later fanout and are not
+reloaded during reset.
 
 Typing, presence transitions, mention/new-DM attention hints, and session
 termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
