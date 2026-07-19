@@ -370,6 +370,24 @@ function projectedMessage(
   });
 }
 
+function projectedRoomFile(attachmentId = 'A1', messageEventId = 'M1'): RoomFileItem {
+  return {
+    messageEventId,
+    threadRootEventId: 'ROOT-1',
+    createdAt: '2026-07-19T12:00:00.000Z',
+    attachment: {
+      id: attachmentId,
+      filename: `${attachmentId}.jpg`,
+      contentType: 'image/jpeg',
+      width: 0,
+      height: 0,
+      assetUrl: null,
+      thumbnailAssetUrl: null,
+      videoProcessing: null
+    }
+  };
+}
+
 beforeEach(() => {
   apiMocks.listRooms.mockResolvedValue([]);
   apiMocks.listRoomGroups.mockResolvedValue([]);
@@ -1106,23 +1124,7 @@ describe('ServerStateStore live server updates', () => {
 
   it('ignores reaction upserts and projection-only row removals for room files', async () => {
     apiMocks.listRoomAttachments.mockResolvedValue({
-      items: [
-        {
-          messageEventId: 'M1',
-          threadRootEventId: 'ROOT-1',
-          createdAt: '2026-07-19T12:00:00.000Z',
-          attachment: {
-            id: 'A1',
-            filename: 'A1.jpg',
-            contentType: 'image/jpeg',
-            width: 0,
-            height: 0,
-            assetUrl: null,
-            thumbnailAssetUrl: null,
-            videoProcessing: null
-          }
-        }
-      ] satisfies RoomFileItem[],
+      items: [projectedRoomFile()],
       totalCount: 1,
       hasMore: false
     });
@@ -1175,6 +1177,85 @@ describe('ServerStateStore live server updates', () => {
     expect(applyTimelineEvent).not.toHaveBeenCalled();
     expect(files.items.map((item) => item.attachment.id)).toEqual(['A1']);
     expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
+  });
+
+  it('restores retained room files only after an explicit positive access grant', async () => {
+    apiMocks.listRoomAttachments
+      .mockResolvedValueOnce({
+        items: [projectedRoomFile()],
+        totalCount: 1,
+        hasMore: false
+      })
+      .mockResolvedValueOnce({
+        items: [projectedRoomFile('A2', 'M2')],
+        totalCount: 1,
+        hasMore: false
+      });
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const files = store.filesForRoom('R1');
+    const release = files.retain();
+    await vi.waitFor(() => expect(files.items.map((item) => item.attachment.id)).toEqual(['A1']));
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+    const dispatch = (operation: RealtimeProjectionOperation) => {
+      for (const handler of bus.projectionHandlers) {
+        handler(new RealtimeProjectionEvent({ operations: [operation] }));
+      }
+    };
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({ isMember: false })
+            })
+          })
+        }
+      })
+    );
+    expect(files.items).toEqual([]);
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+          })
+        }
+      })
+    );
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({ roomId: 'R1' })
+        }
+      })
+    );
+    expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
+    expect(files.items).toEqual([]);
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: true })
+          })
+        }
+      })
+    );
+    await vi.waitFor(() => expect(files.items.map((item) => item.attachment.id)).toEqual(['A2']));
+    expect(apiMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
+    release();
   });
 
   it('does not inject an old mutation outside the retained room window or bump the room', () => {

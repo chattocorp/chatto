@@ -357,7 +357,7 @@ export class ServerStateStore {
           if (!roomId) break;
           if (operation.operation.value.room?.viewerState?.isMember === false) {
             this.clearRoomAccess(roomId);
-          } else {
+          } else if (operation.operation.value.room?.viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
           }
           break;
@@ -433,7 +433,7 @@ export class ServerStateStore {
           const replacement = operation.operation.value;
           if (replacement.viewerState?.isMember === false) {
             this.clearRoomAccess(replacement.roomId);
-          } else {
+          } else if (replacement.viewerState?.isMember === true) {
             this.restoreRoomAccess(replacement.roomId);
           }
           const viewerResponse = this.projection.viewer;
