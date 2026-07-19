@@ -83,6 +83,21 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
   };
 }
 
+function messageRetraction(messageEventId: string, createdAt = '2026-05-27T00:00:02Z') {
+  return {
+    id: `retract-${messageEventId}`,
+    createdAt,
+    actorId: 'u1',
+    actor: null,
+    event: {
+      kind: RoomEventKind.MessageRetracted,
+      roomId: 'room-1',
+      messageEventId,
+      retractedReason: null
+    }
+  };
+}
+
 function messageWithReaction(id: string, emoji: string) {
   const event = threadMessageEvent(id);
   return {
@@ -461,6 +476,128 @@ describe('MessagesStore — room lifecycle ownership', () => {
           }
         ]
       }
+    });
+    store.dispose();
+  });
+
+  it('rejects an in-flight preview captured before deleted-user scrubbing', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const pendingRead = deferred<AroundPage>();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    const loading = store.ensureEvent('preview');
+    store.scrubUserReferences('deleted-user');
+    pendingRead.resolve(
+      pageFromEvent({
+        ...threadMessageEvent('preview'),
+        actorId: 'deleted-user',
+        actor: { id: 'deleted-user', displayName: 'Alice' }
+      })
+    );
+    await loading;
+
+    expect(store.getEventById('preview')).toBeUndefined();
+    store.dispose();
+  });
+
+  it('does not let optimistic reaction rollbacks restore scrubbed users', async () => {
+    const deletedReactionUser = { id: 'deleted-user', displayName: 'Alice' };
+    const mainEvent = messageWithReactionState('main', {
+      emoji: 'heart',
+      count: 1,
+      hasReacted: false,
+      users: [deletedReactionUser]
+    });
+    const previewEvent = messageWithReactionState('preview', {
+      emoji: 'heart',
+      count: 1,
+      hasReacted: false,
+      users: [deletedReactionUser]
+    });
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async () => pageFromEvent(previewEvent))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+    store.events = [mainEvent as never];
+    await store.ensureEvent('preview');
+
+    const mainOptimistic = store.beginOptimisticReaction({
+      messageEventId: 'main',
+      emoji: 'heart',
+      action: 'add'
+    });
+    const previewOptimistic = store.beginOptimisticReaction({
+      messageEventId: 'preview',
+      emoji: 'heart',
+      action: 'add'
+    });
+    store.scrubUserReferences('deleted-user');
+
+    mainOptimistic.rollback();
+    previewOptimistic.rollback();
+
+    expect(reactionsOf(store.getEventById('main')!)).toMatchObject([{ users: [] }]);
+    expect(reactionsOf(store.getEventById('preview')!)).toMatchObject([{ users: [] }]);
+    store.dispose();
+  });
+
+  it('scrubs deleted users from a primary timeline response that resolves later', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const pendingRead = deferred<AroundPage>();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('main') as never];
+    const refreshing = store.refreshCurrentWindow('main');
+
+    store.scrubUserReferences('deleted-user');
+    const stale = threadMessageEvent('main');
+    pendingRead.resolve(
+      pageFromEvent({
+        ...stale,
+        actorId: 'deleted-user',
+        actor: { id: 'deleted-user', displayName: 'Alice' },
+        event: {
+          ...stale.event,
+          threadParticipants: [{ id: 'deleted-user', displayName: 'Alice' }],
+          reactions: [
+            {
+              emoji: 'heart',
+              count: 1,
+              hasReacted: false,
+              users: [{ id: 'deleted-user', displayName: 'Alice' }]
+            }
+          ]
+        }
+      })
+    );
+    await refreshing;
+
+    expect(store.getEventById('main')).toMatchObject({
+      actor: null,
+      event: { threadParticipants: [], reactions: [{ users: [] }] }
     });
     store.dispose();
   });
@@ -1292,6 +1429,110 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.getEventById('preview')).toBeUndefined();
     expect(getRoomEventsAround).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  it('rejects an in-flight preview after its message is deleted', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const pendingRead = deferred<AroundPage>();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    const loading = store.ensureEvent('preview');
+    store.ingestEvent(messageRetraction('preview') as never);
+    pendingRead.resolve(pageFromEvent(threadMessageEvent('preview')));
+    await loading;
+
+    expect(store.getEventById('preview')).toBeUndefined();
+    store.dispose();
+  });
+
+  it('keeps a delayed primary timeline response behind its message tombstone', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const pendingRead = deferred<AroundPage>();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(() => pendingRead.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('main') as never];
+    const refreshing = store.refreshCurrentWindow('main');
+
+    store.ingestEvent(messageRetraction('main') as never);
+    pendingRead.resolve(pageFromEvent(threadMessageEvent('main')));
+    await refreshing;
+
+    expect(store.getEventById('main')?.event).toMatchObject({
+      body: null,
+      attachments: [],
+      deletedAt: '2026-05-27T00:00:02Z'
+    });
+    store.dispose();
+  });
+
+  it('tombstones linked and retained previews at deletion boundaries', async () => {
+    const linkedEcho = {
+      ...threadMessageEvent('echo'),
+      event: { ...threadMessageEvent('echo').event, echoOfEventId: 'original' }
+    };
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async ({ eventId }) =>
+        pageFromEvent(eventId === 'echo' ? linkedEcho : threadMessageEvent(eventId))
+      )
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+    await store.ensureEvent('echo');
+    await store.ensureEvent('retained');
+
+    store.ingestEvent(messageRetraction('original') as never);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      new RoomTimelineEvent({
+        id: 'retained',
+        event: {
+          case: 'messagePosted',
+          value: new RoomMessagePosted({
+            message: new Message({
+              id: 'retained',
+              roomId: 'room-1',
+              deletedAt: Timestamp.fromDate(new Date('2026-05-27T00:00:03Z'))
+            })
+          })
+        }
+      }),
+      undefined,
+      true
+    );
+
+    expect(store.getEventById('echo')?.event).toMatchObject({
+      body: null,
+      attachments: [],
+      deletedAt: '2026-05-27T00:00:02Z'
+    });
+    expect(store.getEventById('retained')?.event).toMatchObject({
+      body: null,
+      attachments: [],
+      deletedAt: '2026-05-27T00:00:03.000Z'
+    });
     store.dispose();
   });
 
