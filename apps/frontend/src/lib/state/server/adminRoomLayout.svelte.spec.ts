@@ -398,7 +398,7 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
 
     store.requestProjectionRefresh();
     await vi.advanceTimersByTimeAsync(50);
-    store.handleRoomDragConsider('g1', [b, a]);
+    const staleDragGeneration = store.handleRoomDragConsider('g1', [b, a]);
     store.deactivateProjectionRefresh();
 
     expect(store.isDragging).toBe(false);
@@ -408,6 +408,11 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
     finishStaleRefresh?.([group('g1', [b, a])]);
     await settle();
     expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['a', 'b']);
+
+    const currentDragGeneration = store.handleRoomDragConsider('g1', [b, a]);
+    await store.handleRoomDragFinalize('g1', [a, b], staleDragGeneration);
+    expect(store.groups[0].rooms.map((candidate) => candidate.id)).toEqual(['b', 'a']);
+    await store.handleRoomDragFinalize('g1', [b, a], currentDragGeneration);
   });
 
   it('cancels an interrupted group drag and accepts a fresh read after remount', async () => {
@@ -416,13 +421,22 @@ describe('AdminRoomLayoutStore — drag sequencing', () => {
     const store = new AdminRoomLayoutStore(client, roomAPI());
     store.groups = initial;
 
-    store.handleGroupsConsider([group('g2', []), group('g1', [])], 'g2');
+    const staleDragGeneration = store.handleGroupsConsider(
+      [group('g2', []), group('g1', [])],
+      'g2'
+    );
     store.deactivateProjectionRefresh();
 
     expect(store.isDragging).toBe(false);
     expect(store.draggingGroupId).toBeNull();
     await store.refresh();
     expect(store.groups.map((candidate) => candidate.id)).toEqual(['g1', 'g2']);
+
+    const reordered = [group('g2', []), group('g1', [])];
+    const currentDragGeneration = store.handleGroupsConsider(reordered, 'g2');
+    await store.handleGroupsFinalize(initial, staleDragGeneration);
+    expect(store.groups.map((candidate) => candidate.id)).toEqual(['g2', 'g1']);
+    await store.handleGroupsFinalize(reordered, currentDragGeneration);
   });
 
   it('discards an in-flight refresh that resolves during a room drag', async () => {

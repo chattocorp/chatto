@@ -231,6 +231,8 @@ export class AdminRoomLayoutStore {
 
   #loadId = 0;
   #interactionGeneration = 0;
+  #activeRoomDragGeneration: number | null = null;
+  #activeGroupDragGeneration: number | null = null;
   #preDragSnapshot: GroupItemOrder | null = null;
   #pendingMoveDiff = false;
   #groupReorderPending = false;
@@ -302,6 +304,8 @@ export class AdminRoomLayoutStore {
     // cached per-server store can be activated again with a clean lifecycle.
     this.#loadId += 1;
     this.#interactionGeneration += 1;
+    this.#activeRoomDragGeneration = null;
+    this.#activeGroupDragGeneration = null;
     this.isRefreshing = false;
     this.isDragging = false;
     this.draggingGroupId = null;
@@ -432,17 +436,31 @@ export class AdminRoomLayoutStore {
     void this.refresh();
   }
 
-  handleRoomDragConsider(groupId: string, items: Array<AdminSidebarItem | AdminRoomInfo>): void {
-    if (!this.isDragging) this.#interactionGeneration += 1;
+  handleRoomDragConsider(
+    groupId: string,
+    items: Array<AdminSidebarItem | AdminRoomInfo>,
+    dragGeneration: number | null = null
+  ): number {
+    if (dragGeneration !== null && dragGeneration !== this.#activeRoomDragGeneration) {
+      return dragGeneration;
+    }
+    if (dragGeneration === null) {
+      this.#interactionGeneration += 1;
+      dragGeneration = this.#interactionGeneration;
+      this.#activeRoomDragGeneration = dragGeneration;
+    }
     this.isDragging = true;
     this.captureRoomDragSnapshotIfNeeded();
     this.setGroupItems(groupId, toSidebarItems(items));
+    return dragGeneration;
   }
 
   async handleRoomDragFinalize(
     groupId: string,
-    items: Array<AdminSidebarItem | AdminRoomInfo>
+    items: Array<AdminSidebarItem | AdminRoomInfo>,
+    dragGeneration: number | null = this.#activeRoomDragGeneration
   ): Promise<RoomMoveFlushResult | null> {
+    if (dragGeneration === null || dragGeneration !== this.#activeRoomDragGeneration) return null;
     this.setGroupItems(groupId, toSidebarItems(items));
     this.isDragging = false;
 
@@ -455,22 +473,44 @@ export class AdminRoomLayoutStore {
     } finally {
       if (interactionGeneration === this.#interactionGeneration) {
         this.#pendingMoveDiff = false;
+        if (this.#activeRoomDragGeneration === dragGeneration) {
+          this.#activeRoomDragGeneration = null;
+        }
         this.scheduleProjectionRefresh();
       }
     }
   }
 
-  handleGroupsConsider(items: AdminRoomGroup[], draggingGroupId?: string | null): void {
-    if (!this.isDragging) this.#interactionGeneration += 1;
+  handleGroupsConsider(
+    items: AdminRoomGroup[],
+    draggingGroupId?: string | null,
+    dragGeneration: number | null = null
+  ): number {
+    if (dragGeneration !== null && dragGeneration !== this.#activeGroupDragGeneration) {
+      return dragGeneration;
+    }
+    if (dragGeneration === null) {
+      this.#interactionGeneration += 1;
+      dragGeneration = this.#interactionGeneration;
+      this.#activeGroupDragGeneration = dragGeneration;
+    }
     this.isDragging = true;
     this.draggingGroupId = draggingGroupId ?? null;
     if (!this.#preReorderIds) {
       this.#preReorderIds = this.groups.map((group) => group.id);
     }
     this.groups = normalizeGroups(items);
+    return dragGeneration;
   }
 
-  async handleGroupsFinalize(items: AdminRoomGroup[]): Promise<GroupReorderResult> {
+  async handleGroupsFinalize(
+    items: AdminRoomGroup[],
+    dragGeneration: number | null = this.#activeGroupDragGeneration
+  ): Promise<GroupReorderResult> {
+    if (dragGeneration === null || dragGeneration !== this.#activeGroupDragGeneration) {
+      return { ok: true, changed: false };
+    }
+    this.#activeGroupDragGeneration = null;
     this.draggingGroupId = null;
     this.groups = normalizeGroups(items);
     this.isDragging = false;
