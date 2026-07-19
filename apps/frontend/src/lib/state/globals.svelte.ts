@@ -267,12 +267,12 @@ export const fullscreenVideo = {
   },
 
   open(
-    source: FullscreenVideoSource,
+    source: FullscreenVideoSource | string,
     poster: string | null,
     startTime: number,
     fallbackSource: FullscreenVideoSource | null = null
   ) {
-    _source = source;
+    _source = typeof source === 'string' ? { src: source, type: 'video/mp4' } : source;
     _fallbackSource = fallbackSource;
     _poster = poster;
     _startTime = startTime;
