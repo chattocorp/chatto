@@ -261,6 +261,7 @@ export class ServerStateStore {
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
     this.#roomMessages[roomId]?.restoreAfterAccessGrant();
+    this.#roomFiles[roomId]?.restoreAfterAccessGrant();
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
       if (key.startsWith(`${roomId}\u0000`)) threadStore.restoreAfterAccessGrant();
     }

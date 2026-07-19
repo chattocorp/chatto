@@ -24,6 +24,48 @@ function itemKey(item: RoomFileItem): string {
   return `${item.messageEventId}:${item.attachment.id}`;
 }
 
+function attachmentState(item: RoomFileItem) {
+  const attachment = item.attachment;
+  const processing = attachment.videoProcessing;
+  return {
+    messageEventId: item.messageEventId,
+    threadRootEventId: item.threadRootEventId,
+    createdAt: item.createdAt,
+    id: attachment.id,
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    width: attachment.width,
+    height: attachment.height,
+    processing: processing
+      ? {
+          status: processing.status,
+          durationMs: processing.durationMs,
+          width: processing.width,
+          height: processing.height,
+          sourceAvailable: processing.sourceAvailable,
+          reasonCode: processing.reasonCode,
+          variants: processing.variants.map(({ quality, width, height, size }) => ({
+            quality,
+            width,
+            height,
+            size
+          }))
+        }
+      : null
+  };
+}
+
+function sameAttachmentState(current: RoomFileItem[], replacement: RoomFileItem[]): boolean {
+  return (
+    current.length === replacement.length &&
+    current.every(
+      (item, index) =>
+        JSON.stringify(attachmentState(item)) ===
+        JSON.stringify(attachmentState(replacement[index]))
+    )
+  );
+}
+
 function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentUrls | undefined) {
   if (refreshed) {
     return [refreshed.assetUrl, refreshed.thumbnailAssetUrl, refreshed.videoThumbnailAssetUrl];
@@ -63,6 +105,7 @@ export class RoomFilesStore {
     event: RoomTimelineEvent;
     sourceEventId: string;
   }> = [];
+  private attachmentVersions = new SvelteMap<string, number>();
   private urlRefreshPromise: Promise<void> | null = null;
   private pendingUrlRefreshAssetIds = new SvelteSet<string>();
 
@@ -110,20 +153,34 @@ export class RoomFilesStore {
     }
 
     const current = this.items.filter((item) => item.messageEventId === event.id);
+    if (sameAttachmentState(current, replacement)) return;
     if (!isNewMessage && current.length === 0 && replacement.length === 0 && !this.hasMore) return;
 
-    this.fencePagination();
-    if (!isNewMessage && current.length === 0 && this.hasMore) return;
-    if (current.length === 0 && replacement.length === 0) return;
+    const retryPagination = this.fencePagination();
+    for (const item of [...current, ...replacement]) {
+      const attachmentId = item.attachment.id;
+      this.attachmentVersions.set(
+        attachmentId,
+        (this.attachmentVersions.get(attachmentId) ?? 0) + 1
+      );
+      this.refreshedAttachmentUrls.delete(attachmentId);
+    }
+    if (!isNewMessage && current.length === 0 && this.hasMore) {
+      if (retryPagination) void this.loadMore();
+      return;
+    }
+    if (current.length === 0 && replacement.length === 0) {
+      if (retryPagination) void this.loadMore();
+      return;
+    }
 
-    for (const item of [...current, ...replacement])
-      this.refreshedAttachmentUrls.delete(item.attachment.id);
     this.items = [
       ...this.items.filter((item) => item.messageEventId !== event.id),
       ...replacement
     ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     this.totalCount = Math.max(0, this.totalCount - current.length + replacement.length);
     this.hasMore = this.totalCount > this.items.length;
+    if (retryPagination) void this.loadMore();
   }
 
   /** Clear cached room content, optionally restoring a still-visible panel. */
@@ -134,9 +191,15 @@ export class RoomFilesStore {
     this.hasMore = false;
     this.isInitialLoading = true;
     this.refreshedAttachmentUrls = new SvelteMap();
+    this.attachmentVersions.clear();
     this.hydrated = false;
     this.pendingTimelineEvents = [];
     if (options.rehydrateRetained && this.retainCount > 0) void this.hydrate();
+  }
+
+  /** Rehydrate a visible cache after an explicit positive room-access grant. */
+  restoreAfterAccessGrant(): void {
+    if (this.retainCount > 0 && !this.hydrated) void this.hydrate();
   }
 
   async loadMore(): Promise<void> {
@@ -229,6 +292,9 @@ export class RoomFilesStore {
         this.pendingUrlRefreshAssetIds.size > 0
       ) {
         const assetIds = Array.from(this.pendingUrlRefreshAssetIds);
+        const requestedVersions = Object.fromEntries(
+          assetIds.map((assetId) => [assetId, this.attachmentVersions.get(assetId) ?? 0])
+        );
         const freshMap = await refreshAttachmentUrlsForAssets(
           this.attachmentAPI,
           roomId,
@@ -243,7 +309,15 @@ export class RoomFilesStore {
         for (const assetId of assetIds) this.pendingUrlRefreshAssetIds.delete(assetId);
 
         const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
+        const currentAssetIds = new SvelteSet(
+          this.items.map((item) => item.attachment.id)
+        );
         for (const [attachmentId, urls] of freshMap) {
+          if (
+            !currentAssetIds.has(attachmentId) ||
+            (this.attachmentVersions.get(attachmentId) ?? 0) !== requestedVersions[attachmentId]
+          )
+            continue;
           fresh.set(attachmentId, urls);
         }
         this.refreshedAttachmentUrls = new SvelteMap(
@@ -291,9 +365,11 @@ export class RoomFilesStore {
     this.pendingUrlRefreshAssetIds.clear();
   }
 
-  private fencePagination(): void {
+  private fencePagination(): boolean {
+    const wasLoading = this.isLoadingMore;
     this.paginationEpoch++;
     this.isLoadingMore = false;
+    return wasLoading;
   }
 
   private async loadPage(

@@ -226,12 +226,45 @@ describe('RoomFilesStore', () => {
     const staleLoad = store.loadMore();
     await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2));
     store.applyTimelineEvent(timelineMessage('event-1', []), 'edit-1');
+    await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(3));
     pendingPage.resolve({ items: [roomFileItem()], totalCount: 2, hasMore: false });
     await staleLoad;
 
-    expect(store.items).toEqual([]);
-    await store.loadMore();
     expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']);
+  });
+
+  it('does not perturb pagination or URL overrides for an identical attachment snapshot', async () => {
+    const pendingPage = deferred<{
+      items: RoomFileItem[];
+      totalCount: number;
+      hasMore: boolean;
+    }>();
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 2, hasMore: true })
+      .mockReturnValueOnce(pendingPage.promise);
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    await store.hydrate();
+    const refreshed: RefreshedAttachmentUrls = {
+      assetUrl: null,
+      thumbnailAssetUrl: null,
+      videoThumbnailAssetUrl: null,
+      variantAssetUrls: new Map()
+    };
+    store.refreshedAttachmentUrls.set('att-1', refreshed);
+
+    const pageLoad = store.loadMore();
+    await vi.waitFor(() => expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2));
+    store.applyTimelineEvent(timelineMessage('event-1', ['att-1']), 'THREAD-SUMMARY-1');
+
+    expect(store.isLoadingMore).toBe(true);
+    expect(store.refreshedAttachmentUrls.get('att-1')).toBe(refreshed);
+    pendingPage.resolve({
+      items: [roomFileItem('att-2', 'event-2')],
+      totalCount: 2,
+      hasMore: false
+    });
+    await pageLoad;
+    expect(store.items.map((item) => item.attachment.id)).toEqual(['att-1', 'att-2']);
   });
 
   it('rehydrates after reset while retained by an open Files panel', async () => {
@@ -253,12 +286,14 @@ describe('RoomFilesStore', () => {
     release();
   });
 
-  it('stays empty after an authorization reset even while retained', async () => {
-    attachmentMocks.listRoomAttachments.mockResolvedValue({
-      items: [roomFileItem()],
-      totalCount: 1,
-      hasMore: false
-    });
+  it('stays empty after authorization loss until a positive access grant', async () => {
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 1, hasMore: false })
+      .mockResolvedValueOnce({
+        items: [roomFileItem('att-2', 'event-2')],
+        totalCount: 1,
+        hasMore: false
+      });
     const store = new RoomFilesStore(serverConnection(), 'room-1');
     const release = store.retain();
     await vi.waitFor(() => expect(store.items).toHaveLength(1));
@@ -267,6 +302,11 @@ describe('RoomFilesStore', () => {
 
     expect(store.items).toEqual([]);
     expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledOnce();
+
+    store.restoreAfterAccessGrant();
+
+    await vi.waitFor(() => expect(store.items.map((item) => item.attachment.id)).toEqual(['att-2']));
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
     release();
   });
 
@@ -318,5 +358,38 @@ describe('RoomFilesStore', () => {
     secondRefresh.resolve(new Map());
 
     await Promise.all([refreshFirst, refreshSecond]);
+  });
+
+  it('does not restore refreshed URLs after the attachment is deleted', async () => {
+    attachmentMocks.listRoomAttachments.mockResolvedValue({
+      items: [roomFileItem()],
+      totalCount: 1,
+      hasMore: false
+    });
+    const pendingRefresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    attachmentMocks.refreshAssetUrls.mockReturnValueOnce(pendingRefresh.promise);
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    await store.hydrate();
+
+    const refresh = store.refreshUrlsForItem(store.items[0]);
+    await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledOnce());
+    store.applyTimelineEvent(timelineMessage('event-1', []), 'edit-1');
+    pendingRefresh.resolve(
+      new Map([
+        [
+          'att-1',
+          {
+            assetUrl: { url: '/stale-signed-url', expiresAt: '2026-07-03T14:00:00.000Z' },
+            thumbnailAssetUrl: null,
+            videoThumbnailAssetUrl: null,
+            variantAssetUrls: new Map()
+          }
+        ]
+      ])
+    );
+    await refresh;
+
+    expect(store.items).toEqual([]);
+    expect(store.refreshedAttachmentUrls.has('att-1')).toBe(false);
   });
 });
