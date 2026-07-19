@@ -27,6 +27,7 @@ type TestNativeNotification = {
 
 type TestWindowClient = {
   id: string;
+  visibilityState: 'hidden' | 'visible';
 };
 
 function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
@@ -142,6 +143,7 @@ describe('service worker notifications', () => {
       data: {
         json: () => ({
           web_push: 8030,
+          app_badge: '5',
           notification: {
             title: 'Declarative notification',
             body: 'Opened by the browser or worker fallback',
@@ -296,7 +298,9 @@ describe('service worker notifications', () => {
 
   it('leaves dismiss badge updates to an open app client', async () => {
     const worker = await importServiceWorker();
-    worker.clients.matchAll.mockResolvedValueOnce([{ id: 'open-app' }]);
+    worker.clients.matchAll.mockResolvedValueOnce([
+      { id: 'open-app', visibilityState: 'visible' }
+    ]);
 
     await worker.dispatch('push', {
       data: {
@@ -309,6 +313,26 @@ describe('service worker notifications', () => {
     });
 
     expect(worker.setAppBadge).not.toHaveBeenCalled();
+    expect(worker.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('updates a dismiss badge when the only app client is hidden', async () => {
+    const worker = await importServiceWorker();
+    worker.clients.matchAll.mockResolvedValueOnce([
+      { id: 'background-app', visibilityState: 'hidden' }
+    ]);
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          action: 'dismiss',
+          tag: 'notification-1',
+          app_badge: 1
+        })
+      }
+    });
+
+    expect(worker.setAppBadge).toHaveBeenCalledWith(1);
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
   });
 

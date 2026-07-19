@@ -226,20 +226,24 @@ function stringProperty(record: object, key: string): string | undefined {
 }
 
 /**
- * Apply the server's remaining origin count only when no page can provide the
- * authoritative aggregate multi-server badge.
+ * Apply the server's remaining origin count unless a visible page can provide
+ * the authoritative aggregate multi-server badge. Hidden clients may be
+ * suspended and cannot safely claim foreground ownership.
  */
 async function updateClosedAppBadgeAfterDismiss(appBadge: unknown): Promise<void> {
   const count = parseAppBadgeCount(appBadge);
   if (count === undefined || !badgeNavigator.setAppBadge) return;
 
-  let windowClients: readonly Client[];
+  let windowClients: readonly WindowClient[];
   try {
-    windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    windowClients = (await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })) as WindowClient[];
   } catch {
     return;
   }
-  if (windowClients.length > 0) return;
+  if (windowClients.some((client) => client.visibilityState === 'visible')) return;
 
   await badgeNavigator.setAppBadge(count).catch(() => {});
 }

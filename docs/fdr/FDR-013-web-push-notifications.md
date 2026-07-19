@@ -22,7 +22,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
-- While Chatto is open, its pending-notification stores are authoritative for the app-icon badge. Declarative Web Push supplies browser-managed badge updates while the app is closed. A dismiss push updates the badge through the service worker only when no app window is open, because declarative push cannot remove a notification without displaying a replacement.
+- While Chatto is visible, its pending-notification stores are authoritative for the app-icon badge. Declarative Web Push supplies browser-managed badge updates while the app is closed or suspended. A dismiss push updates the badge through the service worker when no visible app window can own it, because declarative push cannot remove a notification without displaying a replacement.
 - Clicking or manually dismissing a native notification does not itself dismiss the pending notification inside Chatto, so it does not clear the app-icon badge; the badge clears when the pending notification is dismissed in Chatto.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions.
@@ -88,7 +88,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 **Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is open, one direct synchronization from the aggregate pending-notification count sets or clears the app badge. Declarative push handles regular closed-app updates; dismiss pushes carry the remaining origin-server count and the worker applies it only when no app window is open.
 **Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. The open page must remain authoritative for its aggregate multi-server count, while the narrow worker fallback prevents cross-device dismissals from leaving a closed installed app stale. This needs no persisted badge state or foreground message protocol.
-**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Closed-app counts cover only the app's origin server, and browsers without declarative or worker Badging API support restore the authoritative aggregate when the app next opens.
+**Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Web Push does not provide strict cross-message ordering, so concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate. Closed-app counts cover only the app's origin server, and browsers without declarative or worker Badging API support restore the authoritative aggregate when the app next opens.
 
 ## Permissions
 
