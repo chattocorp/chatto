@@ -610,10 +610,6 @@
 
       {#if canManageUserPermissions}
         <!-- Per-user permission overrides. -->
-        <Hint>
-          User-level overrides for this account. Any applicable deny wins over grants; use sparingly
-          for per-user exceptions like suspensions or one-off elevations.
-        </Hint>
         <UserPermissionsMatrix {userId} />
       {/if}
     {/if}

@@ -141,8 +141,7 @@
       "everyone_implicit": "Ĉiuj servilanoj havas la rolon de ĉiuj implicite.",
       "no_users_with_role": "Neniuj uzantoj havas ĉi tiun rolon",
       "server_tier_intro": "Ĉi tiu paĝo estas por servil-nivelaj rolpermesoj: larĝaj defaŭltoj kiuj validas antaŭ ĉambrospecifaj anstataŭaĵoj.",
-      "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj.",
-      "server_tier_denies_hint": "Uzu malkonfesojn intence: malkonfesi ĉiujn en ĉambroblokoj ĉiuj heredataj permesas ĉe tiu nivelo."
+      "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj."
     },
     "rooms_admin": {
       "title": "Ĉambroj",

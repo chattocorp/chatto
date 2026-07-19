@@ -10,7 +10,10 @@ The post-#330 RBAC model resolves room-scope permissions through a single hierar
 
 - **No natural permission boundary for groups of rooms.** A planned **room groups** feature (which replaces the current collapsible UI groups, themselves an evolution of `RoomLayoutSection`) requires per-group access control — e.g., "Engineering" rooms accessible only to the `engineers` role. There is no container in the current model where such permissions could live. Layering room groups onto the existing model would mean stacking a second per-group tier on top of the existing server-→room overlay; better to make the group the primary container instead.
 
-- **Implicit `everyone` constrains deny semantics.** Every authenticated user implicitly carries `everyone`, so any deny attached to `everyone` catches moderators and admins too. ADR-040 intentionally adopts deny-wins semantics; announcement-style rooms are modeled by omitting the room-level `everyone` allow instead of denying it.
+- **Implicit `everyone` constrained the original deny semantics.** The later
+  ADR-040 resolver made an `everyone` deny catch moderators and admins too.
+  ADR-052 replaces that combination rule and treats `everyone` as a fallback
+  baseline.
 
 Chatto is at alpha. The three known production-shaped servers can absorb a `chatto reset rbac` on upgrade. This is a one-time opportunity to reshape the model before the room-groups feature lands rather than to layer over it.
 
@@ -44,30 +47,34 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 
 ### Resolution
 
-For **server-scope** permissions: server decisions remain global defaults/overrides. ADR-040's deny-wins resolver considers user and role decisions without using role position as an authorization rank.
+For **server-scope** permissions: server decisions remain global defaults and
+restrictions. ADR-052 combines direct-user and named-role decisions without
+using role position as an authorization rank, then consults `everyone` only as
+the fallback baseline.
 
 For **DM rooms**: room groups do not apply. Reading is membership-based, starting/sending DMs uses message permissions, and the `dmBoundaryDeniedPermissions` deny-list applies inside DM rooms for non-owners.
 
 For **channel-room-scope** permissions in room R (belonging to group G):
 
-1. The resolver collects every applicable explicit decision for the user, their
-   assigned roles, and the implicit `everyone` role.
-2. Applicable scope inputs are server, group G, and room R when the permission is
-   valid at those scopes. Server-scope message and room permissions act as broad
-   defaults and broad restrictions; group and room decisions are local inputs to
-   the same check.
-3. ADR-040 defines the combination rule for non-owners: any applicable deny
-   blocks the permission; otherwise any applicable allow grants it; otherwise
-   the result is denied at the API boundary. Role position is display/order
-   metadata, not an authorization rank.
+1. For the direct user and each explicitly assigned named role, the resolver
+   selects the nearest explicit decision at room R, group G, or server scope.
+2. ADR-052 combines those subject decisions with deny-wins. If any named role
+   or direct-user decision denies, the permission is denied; otherwise any
+   allow grants it.
+3. Only when none of those subjects decides does the resolver consult the
+   implicit `everyone` role's nearest decision as the baseline. If that also
+   has no decision, the API boundary denies the action.
 
 The earlier ADR text said "there is no cascade from server scope into
 channel-room scope" and later described a first-explicit-decision walker. Both
-were superseded by ADR-040's permission-only deny-wins model. The room-group
+were superseded by ADR-040's permission-only model and ADR-052's
+subject-specific baseline model. The room-group
 container decision remains active: room groups are still the operator-facing
 place to configure permissions shared by a set of channel rooms.
 
-**The announcements pattern uses a room-scoped deny** against `everyone.message.post`. With deny-wins this blocks root posts for all non-owner users in that room, because every authenticated user carries `everyone`. The benefit over a server-level restriction is locality: the deny is scoped, audit-visible inside its room, and doesn't affect other rooms.
+**The announcements pattern uses a room-scoped deny** against
+`everyone.message.post`. This blocks normal members while allowing a named role
+with its own posting grant. The deny is local and audit-visible inside its room.
 
 ### Moderation actions
 

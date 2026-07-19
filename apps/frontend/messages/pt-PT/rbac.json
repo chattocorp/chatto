@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Permissões do utilizador",
-          "description": "Controle a conta do utilizador e as operações de permissão por utilizador. Qualquer negação de não proprietário cancela concessões"
+          "description": "Controle a conta do utilizador e as operações de permissão por utilizador"
         }
       }
     },

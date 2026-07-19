@@ -1255,7 +1255,7 @@ type PermissionTraceEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Level at which this decision was observed.
 	Level PermissionDecisionLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.admin.v1.PermissionDecisionLevel" json:"level,omitempty"`
-	// Role name or policy marker that produced the decision.
+	// Role name, user ID, or policy marker that produced the decision.
 	RoleName string `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	// Decision observed at this trace step.
 	Decision PermissionDecision `protobuf:"varint,3,opt,name=decision,proto3,enum=chatto.admin.v1.PermissionDecision" json:"decision,omitempty"`
@@ -1328,11 +1328,11 @@ type PermissionExplanation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Overall decision after applying deny-wins resolution.
+	// Overall decision after resolving named subjects and the everyone baseline.
 	State PermissionDecision `protobuf:"varint,2,opt,name=state,proto3,enum=chatto.admin.v1.PermissionDecision" json:"state,omitempty"`
 	// Level of the winning decision, when state is not NONE.
 	DecidedAt PermissionDecisionLevel `protobuf:"varint,3,opt,name=decided_at,json=decidedAt,proto3,enum=chatto.admin.v1.PermissionDecisionLevel" json:"decided_at,omitempty"`
-	// Role name or policy marker that produced the winning decision.
+	// Role name, user ID, or policy marker that produced the winning decision.
 	DecidedByRole string `protobuf:"bytes,4,opt,name=decided_by_role,json=decidedByRole,proto3" json:"decided_by_role,omitempty"`
 	// Ordered decision trace. The first entry is the winning decision.
 	Trace         []*PermissionTraceEntry `protobuf:"bytes,5,rep,name=trace,proto3" json:"trace,omitempty"`

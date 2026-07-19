@@ -10,9 +10,9 @@ Chatto's permissions system is built around two ideas: **roles** group people, a
 The current model is intentionally simple:
 
 - **Owners are always allowed.** A user is an owner if they have the durable `owner` role or a verified email listed in `owners.emails`.
-- **Everyone else is permission-based.** A non-owner action is allowed only when at least one applicable grant exists and no applicable deny exists.
-- **Any deny wins.** A deny attached to the user or to any of their roles blocks the action, regardless of other grants.
-- **Room settings are local exceptions.** Configure room-specific behavior in the room's permissions first; use server-scope permissions for global defaults or global restrictions.
+- **Named roles decide before `everyone`.** Direct-user and explicitly assigned role decisions are combined first. A deny from any of those subjects wins; otherwise an allow wins.
+- **`everyone` is the baseline.** Chatto consults `everyone` only when the user and their named roles have no decision. This lets a named role opt into something denied to ordinary members.
+- **The nearest scope wins for each subject.** A room value replaces that same user or role's group and server values in the room; otherwise Chatto falls back through group to server.
 
 ## Built-in roles
 
@@ -21,8 +21,8 @@ Every Chatto server starts with four system roles. You cannot delete them.
 | Role          | Default behavior |
 | ------------- | ---------------- |
 | **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account. |
-| **moderator** | Adds server-wide moderation defaults: viewing users, managing messages, and banning room members. |
-| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit/system views, and `message.manage`. |
+| **moderator** | Adds server-wide moderation defaults for managing messages and banning room members. |
+| **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. System diagnostics remain owner-only. |
 | **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants. |
 
 Roles still have a numeric position for display order and legacy event compatibility, but position is not an authorization rank.
@@ -31,14 +31,17 @@ Roles still have a numeric position for display order and legacy event compatibi
 
 When a user tries to do something, Chatto resolves the decision like this:
 
-1. **DM privacy boundary.** Some moderation-style permissions are always denied inside DMs. Owners do not get to browse or moderate other people's private conversations.
-2. **Owner override.** Effective owners are allowed for every normal RBAC permission.
-3. **Deny-wins resolution.** For non-owners, Chatto collects applicable user and role decisions at server, group, and room scope. If any applicable decision is a deny, the action is denied.
-4. **Allow if granted.** If there is no deny and at least one applicable allow, the action is allowed.
-5. **Default deny.** If nothing grants the permission, the action is denied.
+1. **Owner override.** Effective owners are allowed every known RBAC permission. Membership checks still prevent owners from reading DMs they do not participate in.
+2. **DM boundary.** For non-owners, fixed privacy and category restrictions deny channel-style moderation and room-management actions inside DMs.
+3. **Nearest decision per subject.** For the direct user and each explicitly assigned named role, Chatto uses the nearest explicit value: room, then group, then server.
+4. **Combine named subjects.** Any deny among those decisions wins; otherwise any allow grants the permission. Role position is not considered.
+5. **Fall back to `everyone`.** Only if no direct-user or named-role decision applies, Chatto uses `everyone`'s nearest value.
+6. **Default deny.** If nothing decides, the action is denied.
+
+For example, `admin: allow` plus `everyone: deny` resolves to **allow**. `admin: allow` plus `suspended: deny` resolves to **deny**.
 
 <Aside type="tip">
-  Prefer room permissions for local policy. Use server-scope grants for defaults that should apply broadly, and server-scope denies only when you really mean "block this everywhere for this role or user."
+  Prefer room permissions for local policy. Use `everyone` for ordinary-member defaults, named roles for reusable access, and a direct-user or restriction-role deny for a hard restriction.
 </Aside>
 
 ## Scopes
@@ -50,6 +53,8 @@ Permissions can be configured at different scopes:
 | **Server** | Global defaults or restrictions across the whole server. |
 | **Group** | Defaults or restrictions for a room group. |
 | **Room** | Local exceptions for one room. |
+
+Each scope value has three states: **Allow**, **Deny**, and **Inherit**. Inherit means "use this same subject's next less-specific value"; it does not inherit a different role's value.
 
 Room-relevant permissions such as `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
@@ -79,23 +84,35 @@ The full list is visible in the admin UI.
 
 ## Common patterns
 
-### Owner-only announcements
+### Read-only announcements for normal members
 
 Fresh servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
 
-Because every authenticated user has `everyone` and any deny wins, this blocks root posting for all non-owner users, including admins and moderators. Owners can still post because owner permissions are virtual and cannot be denied through RBAC.
+This blocks normal members who have no named posting decision. Owners can post, and a named role with its own `message.post` grant can post too.
 
 If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
 
-### One-room lockdown
+### Only one role can see and join a room
 
-To temporarily freeze a room for all non-owner users:
+To make a room available only to a role such as `engineering`:
+
+1. Create the `engineering` role and assign it to the intended members.
+2. In the room's permissions, deny `room.list` and `room.join` for `everyone`.
+3. In the same room, allow `room.list` and `room.join` for `engineering`.
+4. Enable **Universal** if role assignment should automatically make eligible users room members. Otherwise, eligible users can see the room and join it themselves.
+5. Remove any explicit room members who should no longer have access. Existing explicit members can still see their joined room even when `room.list` is denied.
+
+Removing the role removes Universal-derived membership, but it does not delete an explicit membership record created by joining or by an admin.
+
+### Normal-member room lockdown
+
+To temporarily freeze a room for users who rely on the `everyone` baseline:
 
 1. Open the room's permissions.
 2. Deny `message.post` for `everyone`.
 3. Optionally deny `message.post-in-thread`, `message.attach`, and `message.react` as well.
 
-Clear the room-level denials to restore the normal server defaults.
+Clear the room-level denials to restore the normal server defaults. Named roles or direct-user grants still allow posting; add a deny to the relevant restriction role or user if those subjects must also be blocked.
 
 ### Suspending a non-owner user
 
@@ -105,7 +122,7 @@ To stop one non-owner user from posting without changing their roles:
 2. Under permission overrides, deny `message.post` at server scope.
 3. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
 
-User-level denies beat role grants for non-owners. They do not restrict effective owners.
+User-level denies beat named-role grants for non-owners. They do not restrict effective owners.
 
 ### Giving one user a room-specific moderation grant
 
@@ -114,7 +131,7 @@ To let one non-owner user moderate one room:
 1. Open the user's member details.
 2. Grant `message.manage` scoped to that room.
 
-This works as long as no applicable deny blocks `message.manage` for that user. If a deny exists on the user or one of their roles, clear that deny instead of adding more grants.
+This works as long as no named role or direct-user decision denies `message.manage`. An `everyone` deny does not block the grant because `everyone` is only the fallback baseline.
 
 ### Custom roles
 
@@ -124,20 +141,20 @@ Use custom roles for repeated patterns across multiple users:
 2. Assign permissions to that role.
 3. Assign the role to users.
 
-Custom roles are permission bundles. They do not take precedence over other roles, and they cannot override a deny from another role the user also has.
+Custom roles are permission bundles. They can override the `everyone` baseline, but they do not take precedence over other named roles. A deny from another named role the user also has still wins.
 
 ## Owner vs admin
 
 Owners and admins are deliberately different:
 
 - **Owners** always receive all permissions and cannot be locked out through RBAC state. Owner permission rows are shown as read-only green checks in the UI.
-- **Admins** receive broad default grants, but they are still ordinary non-owner users for permission resolution. A deny can restrict an admin.
+- **Admins** receive broad default grants, but they are still ordinary non-owner users for permission resolution. A direct-user deny or a deny from another named role can restrict an admin. An `everyone` deny alone cannot.
 
 Use `owners.emails` in `chatto.toml` as the recovery path. The email must be verified before it makes the user an effective owner.
 
 ## DM privacy
 
-DMs use the same permission names where they make sense, but Chatto keeps a hard privacy boundary around private conversations. Moderation and room-administration permissions such as `message.manage`, `message.echo`, `room.manage`, `room.list`, and `room.create` are denied in DMs regardless of role grants.
+DMs use the same permission names where they make sense, but Chatto keeps a hard boundary around private conversations. For non-owners, channel-style actions such as `message.manage`, `message.echo`, `room.manage`, `room.ban-member`, `room.create`, and `message.post-in-thread` are denied in DMs regardless of role grants.
 
 Access to a DM comes from being a participant in that conversation. Owners cannot read into DMs or moderate DM contents unless they are a participant and the action is a normal participant action.
 
@@ -154,6 +171,10 @@ Access to a DM comes from being a participant in that conversation. Owners canno
 
 <Aside type="caution">
   Treat `owners.emails` as the lockout recovery path. Chatto does not expose an operator command to wipe and reseed RBAC state in normal deployments.
+</Aside>
+
+<Aside type="caution" title="Authorization behavior changed">
+  When upgrading from the older literal deny-wins resolver, review configurations that combine an `everyone` deny with a named-role or direct-user allow. Those allows now win over the baseline and can widen access. Put hard restrictions on the affected user or on a named restriction role such as `suspended`.
 </Aside>
 
 <LinkCard

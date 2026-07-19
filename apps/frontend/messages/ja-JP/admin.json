@@ -141,8 +141,7 @@
       "everyone_implicit": "すべてのサーバー メンバーは暗黙的にEveryone ロールを持ちます。",
       "no_users_with_role": "このロールを持つユーザーはいません",
       "server_tier_intro": "このページはサーバー層ロールの権限に関するものです。ルーム固有の上書きの前に適用される広範なデフォルトです。",
-      "server_tier_rooms_hint": "グループごとおよびルームごとの上書きにはルームを使用します。",
-      "server_tier_denies_hint": "拒否は意図的に使用してください。ルーム内の全員を拒否すると、その層で継承されたすべての許可がブロックされます。"
+      "server_tier_rooms_hint": "グループごとおよびルームごとの上書きにはルームを使用します。"
     },
     "rooms_admin": {
       "title": "部屋",

@@ -2,6 +2,11 @@
 
 **Date:** 2026-06-15
 
+> **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
+> The effective-owner override, permission-only gates, and non-ranking role
+> positions remain active. ADR-052 replaces the literal all-subject,
+> all-scope deny-wins combination rule.
+
 ## Context
 
 Chatto's earlier RBAC resolver used role position as part of authorization:

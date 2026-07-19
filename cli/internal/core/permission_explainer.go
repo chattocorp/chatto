@@ -43,11 +43,6 @@ func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, us
 		}
 	}
 
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny(LevelServer)
-		return exp, nil
-	}
-
 	err := r.collectFullTrace(ctx, userID, kind, "", perm, &exp)
 	return exp, err
 }
@@ -61,18 +56,14 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny(LevelRoom)
-		return exp, nil
-	}
-
 	err := r.collectFullTrace(ctx, userID, kind, roomID, perm, &exp)
 	return exp, err
 }
 
-// collectFullTrace populates the explanation by collecting every applicable
-// user and role decision. Mirrors Resolve's deny-wins model while preserving
-// the full trace for the inspector.
+// collectFullTrace mirrors Resolve while preserving the nearest decision for
+// each direct-user/named-role subject plus the everyone baseline. The baseline
+// remains visible in the trace even when a named subject decides, but it is not
+// marked as the winning decision in that case.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
@@ -98,6 +89,15 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		}
 	}
 
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		level := LevelServer
+		if roomID != "" {
+			level = LevelRoom
+		}
+		exp.applyDMBoundaryDeny(level)
+		return nil
+	}
+
 	groupID := ""
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
 		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
@@ -105,8 +105,24 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		}
 	}
 
-	if err := r.visitApplicableDecisions(ctx, userID, kind, roomID, groupID, perm, exp.collect()); err != nil {
+	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	if err != nil {
 		return err
+	}
+	exp.Trace = append(exp.Trace, decisions.named...)
+	state, winner, decided := resolveDecisionEntries(decisions.named)
+	if decisions.everyone != nil {
+		exp.Trace = append(exp.Trace, *decisions.everyone)
+		if !decided {
+			state = decisions.everyone.Decision
+			winner = *decisions.everyone
+			decided = true
+		}
+	}
+	if decided {
+		exp.State = state
+		exp.DecidedAt = winner.Level
+		exp.DecidedByRole = winner.RoleName
 	}
 	if exp.State == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
 		exp.State = DecisionAllow
@@ -161,24 +177,6 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 	}
 
 	return results, nil
-}
-
-// collect returns a visitFunc that appends every visited entry to the
-// explanation's trace and applies the resolver's any-deny / any-allow rule.
-func (exp *PermissionExplanation) collect() visitFunc {
-	return func(entry TraceEntry) visitOutcome {
-		if entry.Decision == DecisionDeny {
-			exp.State = DecisionDeny
-			exp.DecidedAt = entry.Level
-			exp.DecidedByRole = entry.RoleName
-		} else if exp.State == DecisionNone {
-			exp.State = entry.Decision
-			exp.DecidedAt = entry.Level
-			exp.DecidedByRole = entry.RoleName
-		}
-		exp.Trace = append(exp.Trace, entry)
-		return visitContinue
-	}
 }
 
 // applyDMBoundaryDeny fills in the explanation for a permission that is

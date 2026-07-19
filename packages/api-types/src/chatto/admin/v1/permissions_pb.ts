@@ -1088,7 +1088,7 @@ export class PermissionTraceEntry extends Message<PermissionTraceEntry> {
   level = PermissionDecisionLevel.UNSPECIFIED;
 
   /**
-   * Role name or policy marker that produced the decision.
+   * Role name, user ID, or policy marker that produced the decision.
    *
    * @generated from field: string role_name = 2;
    */
@@ -1153,7 +1153,7 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
   permission = "";
 
   /**
-   * Overall decision after applying deny-wins resolution.
+   * Overall decision after resolving named subjects and the everyone baseline.
    *
    * @generated from field: chatto.admin.v1.PermissionDecision state = 2;
    */
@@ -1167,7 +1167,7 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
   decidedAt = PermissionDecisionLevel.UNSPECIFIED;
 
   /**
-   * Role name or policy marker that produced the winning decision.
+   * Role name, user ID, or policy marker that produced the winning decision.
    *
    * @generated from field: string decided_by_role = 4;
    */

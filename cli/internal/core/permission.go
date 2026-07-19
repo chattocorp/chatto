@@ -324,15 +324,15 @@ func DefaultAnnouncementsEveryonePermissions() []Permission {
 }
 
 // DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
-// built-in announcements room. Under deny-wins, this blocks root posts for all
-// non-owner users because every authenticated user carries the everyone role.
+// built-in announcements room. This blocks root posts for users who have no
+// named-role or direct-user decision of their own.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }
 
 // DefaultAnnouncementsPosterPermissions returns room-scope staff poster grants
-// for announcements. Deny-wins means the everyone denial still blocks
-// non-owner staff, so there are no default staff poster grants.
+// for announcements. Named-role server grants already override the everyone
+// baseline, so no room-local staff grants are needed.
 func DefaultAnnouncementsPosterPermissions() []Permission {
 	return nil
 }

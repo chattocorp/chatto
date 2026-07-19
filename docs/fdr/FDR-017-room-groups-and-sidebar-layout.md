@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-06-18
+**Last reviewed:** 2026-07-19
 
 ## Overview
 
@@ -32,13 +32,13 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 2. Per-room overrides are sparse, not full configurations
 
-**Decision:** A room's permission config stores only the (role, permission) pairs that differ from its group. The rest are inherited.
+**Decision:** A room's permission config stores only the (subject, permission) pairs that differ from its group. For that same subject, a room decision replaces the group and server value; everything else inherits independently.
 **Why:** Storing a full copy per room would multiply KV entries and make group-level tweaks awkward (every room would need to be touched). Sparse overrides keep the model both compact and operator-friendly.
-**Tradeoff:** The permission resolver has to walk the inheritance chain (room → group → server) for every check. Acceptable; the chain is short and cached.
+**Tradeoff:** The permission resolver has to walk the inheritance chain (room → group → server) once per direct user or named role. Acceptable; the chain is short and cached.
 
 ### 3. Server scope cascades as a global default
 
-**Decision:** When a permission isn't decided at group or room scope, the resolver falls back to the server-scope grant. This gives operators a single "global default" to adjust once.
+**Decision:** When a subject's permission isn't decided at group or room scope, the resolver falls back to that subject's server decision. If no direct-user or named-role subject decides, the resolver then uses `everyone` as the baseline. This gives operators a single global default while still allowing role-specific rooms.
 **Why:** Without server-scope cascade, every group would need a full set of grants from scratch — a worse onboarding experience and a worse story for DMs (which aren't in any group). The cascade restores a sensible default tier. See ADR-031.
 **Tradeoff:** The ADR's headline "groups are the permission container" is slightly softer than it sounded — server scope still matters as a backstop. In practice operators rarely need to think about server scope unless they want a global default different from the seed.
 
@@ -88,5 +88,5 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

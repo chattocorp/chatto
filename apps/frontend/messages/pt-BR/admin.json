@@ -141,8 +141,7 @@
       "everyone_implicit": "Todos os membros do servidor têm implicitamente a função de todos.",
       "no_users_with_role": "Nenhum usuário tem esta função",
       "server_tier_intro": "Esta página é para permissões de função na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
-      "server_tier_rooms_hint": "Use Salas para substituições por grupo e por sala.",
-      "server_tier_denies_hint": "Use negações deliberadamente: negar a todos em uma sala bloqueia todas as permissões herdadas naquele nível."
+      "server_tier_rooms_hint": "Use Salas para substituições por grupo e por sala."
     },
     "rooms_admin": {
       "title": "Quartos",

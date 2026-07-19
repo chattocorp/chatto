@@ -1197,9 +1197,9 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after applying deny-wins resolution. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
-| `decided_by_role` | `string` | Role name or policy marker that produced the winning decision. |
+| `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
 
 <a id="chatto-admin-v1-PermissionMatrixCell"></a>
@@ -1248,7 +1248,7 @@ One explicit decision encountered while explaining a permission.
 | Field | Type | Description |
 | --- | --- | --- |
 | `level` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
-| `role_name` | `string` | Role name or policy marker that produced the decision. |
+| `role_name` | `string` | Role name, user ID, or policy marker that produced the decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Decision observed at this trace step. |
 | `applied` | `bool` | Whether this entry is the winning decision. |
 

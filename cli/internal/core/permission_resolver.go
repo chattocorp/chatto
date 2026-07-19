@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"slices"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -11,15 +10,18 @@ import (
 //
 //  1. Effective owners are allowed every known RBAC permission.
 //  2. For everyone else, DM boundary denies win for category/privacy mismatches.
-//  3. For everyone else, any applicable deny wins.
-//  4. If there is no deny, any applicable allow grants the permission.
+//  3. Each direct-user or explicitly assigned role contributes its nearest
+//     decision (room, then group, then server). Across those decisions, any
+//     deny wins; otherwise any allow grants the permission.
+//  4. The implicit everyone role is consulted only when neither the user nor
+//     any explicitly assigned role contributes a decision.
 //  5. No decision is denied at the API boundary.
 //
-// Applicable decisions include user-level overrides and all roles assigned to
-// the user, including the implicit everyone role. For room checks, server,
-// group, and room scopes can all contribute. Server-scope message/room
-// decisions therefore act as global defaults/overrides, while room/group
-// decisions are local exceptions.
+// This makes everyone a baseline rather than an absolute restriction: a named
+// role can grant access that everyone lacks, while a deny from another named
+// role (for example suspended) still blocks the action. Scope specificity is
+// evaluated independently for each subject, so a room decision replaces that
+// subject's group/server decision for the room.
 type PermissionResolver struct {
 	core *ChattoCore
 }
@@ -57,19 +59,6 @@ type TraceEntry struct {
 	ObjectID string       // "any" for server scope; groupID for group scope; roomID for room overrides
 }
 
-// visitOutcome is returned by a visitFunc to control walker iteration.
-type visitOutcome int
-
-const (
-	visitContinue visitOutcome = iota
-	visitStop
-)
-
-// visitFunc is invoked once per explicit allow/deny decision. The first
-// invocation corresponds to the entry the bool path would short-circuit on;
-// the explain path keeps walking and records every entry.
-type visitFunc func(entry TraceEntry) visitOutcome
-
 // Resolve is the single resolver entry point. Returns the effective decision
 // (allow / deny / none) for the user-permission pair. Both the bool authorizer
 // (Has*Permission) and the inspector go through this — there is no parallel
@@ -81,8 +70,9 @@ type visitFunc func(entry TraceEntry) visitOutcome
 //  2. DM boundary deny-list (for kind == KindDM only) — permissions in
 //     dmBoundaryDeniedPermissions are unconditionally denied regardless of
 //     grants for non-owners. This is the privacy/category-mismatch floor.
-//  3. Collect applicable user and role decisions across all valid scopes.
-//     Any deny beats any allow; any allow beats no decision.
+//  3. Resolve the nearest decision for the user and each named role. Any deny
+//     beats any allow across those subjects.
+//  4. If those subjects do not decide, resolve the implicit everyone baseline.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
 }
@@ -117,96 +107,18 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		}
 	}
 
-	result := DecisionNone
-	err := r.visitApplicableDecisions(ctx, userID, kind, roomID, groupID, perm, func(entry TraceEntry) visitOutcome {
-		if entry.Decision == DecisionDeny {
-			result = DecisionDeny
-			return visitStop
-		}
-		if result == DecisionNone {
-			result = DecisionAllow
-		}
-		return visitContinue
-	})
+	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	if err != nil {
+		return DecisionNone, err
+	}
+	result, _, _ := resolveDecisionEntries(decisions.named)
+	if result == DecisionNone && decisions.everyone != nil {
+		result = decisions.everyone.Decision
+	}
 	if err == nil && result == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
 		result = DecisionAllow
 	}
 	return result, err
-}
-
-// probeUserLevel checks for an explicit user-level grant/deny.
-//
-// Walk order:
-//   - Channel room (roomID set): room R → group G → server (fallback only if
-//     the perm has ScopeServer in addition to ScopeRoom).
-//   - Channel group only (groupID set, no roomID): group G → server (fallback
-//     only if the perm has ScopeServer in addition to ScopeGroup).
-//   - Otherwise (DMs, pure server checks): server allow/deny.
-//
-// Returns DecisionNone if no user-level decision exists.
-func (r *PermissionResolver) probeUserLevel(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, error) {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
-		return DecisionNone, nil
-	}
-	hasServerScope := PermissionAppliesAtScope(perm, ScopeServer)
-
-	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		got, err := r.probeRoomOnce(ctx, userID, parts, roomID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if got != DecisionNone {
-			return got, nil
-		}
-		if groupID != "" {
-			got, err := r.probeSetOnce(ctx, userID, parts, groupID)
-			if err != nil {
-				return DecisionNone, err
-			}
-			if got != DecisionNone {
-				return got, nil
-			}
-		}
-		if hasServerScope {
-			return r.probeServerOnce(ctx, userID, parts)
-		}
-		return DecisionNone, nil
-	}
-
-	if kind == KindChannel && groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
-		got, err := r.probeSetOnce(ctx, userID, parts, groupID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if got != DecisionNone {
-			return got, nil
-		}
-		if hasServerScope {
-			return r.probeServerOnce(ctx, userID, parts)
-		}
-		return DecisionNone, nil
-	}
-
-	return r.probeServerOnce(ctx, userID, parts)
-}
-
-// probeServerOnce checks the server-scope decision for a subject. Used for
-// server-scope checks and DM rooms.
-func (r *PermissionResolver) probeServerOnce(_ context.Context, subject string, parts PermissionKeyParts) (DecisionKind, error) {
-	return r.decisionFor(ScopeServer, "", subject, parts), nil
-}
-
-// probeRoomOnce checks the per-room decision for a subject against a specific
-// roomID.
-func (r *PermissionResolver) probeRoomOnce(_ context.Context, subject string, parts PermissionKeyParts, roomID string) (DecisionKind, error) {
-	return r.decisionFor(ScopeRoom, roomID, subject, parts), nil
-}
-
-// probeSetOnce checks the set-scope decision for a subject against a specific
-// groupID.
-func (r *PermissionResolver) probeSetOnce(_ context.Context, subject string, parts PermissionKeyParts, groupID string) (DecisionKind, error) {
-	return r.decisionFor(ScopeGroup, groupID, subject, parts), nil
 }
 
 // HasServerPermission checks a server-only permission (no room context).
@@ -231,8 +143,8 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID stri
 }
 
 // HasRoomPermission checks a permission with a room context. Room-scoped
-// grants/denials, group decisions, and server decisions all contribute; any
-// applicable deny wins for non-owners.
+// grants/denials, group decisions, and server decisions contribute according
+// to subject specificity and the everyone fallback rules above.
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
 	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
@@ -261,55 +173,92 @@ type permissionScopeTarget struct {
 	id    string
 }
 
-// visitApplicableDecisions emits every projection-backed decision that can
-// affect this permission check. The caller decides how to combine those
-// decisions; Resolve uses deny-wins, Explain records the full trace.
-func (r *PermissionResolver) visitApplicableDecisions(
-	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission, visit visitFunc,
-) error {
+type applicablePermissionDecisions struct {
+	named    []TraceEntry
+	everyone *TraceEntry
+}
+
+// applicableDecisions returns at most one decision per subject: the nearest
+// explicit decision at room, group, or server scope. Direct-user and named-role
+// decisions are kept separate from the implicit everyone baseline because the
+// baseline applies only when none of the more specific subjects decide.
+func (r *PermissionResolver) applicableDecisions(
+	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
+) (applicablePermissionDecisions, error) {
+	var out applicablePermissionDecisions
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
-		return nil
+		return out, nil
 	}
 
 	scopes := r.applicableScopeTargets(kind, roomID, groupID, perm)
 	if len(scopes) == 0 {
-		return nil
+		return out, nil
 	}
-	roles, err := r.getUserServerRoles(ctx, userID)
+	roles, err := r.core.GetUserRoles(ctx, userID)
 	if err != nil {
-		return err
+		return out, fmt.Errorf("failed to get user roles: %w", err)
 	}
 	subjects := append([]string{userID}, roles...)
 
 	for _, subject := range subjects {
-		for _, target := range scopes {
-			switch r.decisionFor(target.scope, target.id, subject, parts) {
-			case DecisionAllow:
-				if visit(TraceEntry{Level: target.level, RoleName: subject, Decision: DecisionAllow, ObjectID: target.objectID()}) == visitStop {
-					return nil
-				}
-			case DecisionDeny:
-				if visit(TraceEntry{Level: target.level, RoleName: subject, Decision: DecisionDeny, ObjectID: target.objectID()}) == visitStop {
-					return nil
-				}
-			}
+		if entry, ok := r.nearestDecision(subject, parts, scopes); ok {
+			out.named = append(out.named, entry)
 		}
 	}
 
-	return nil
+	if entry, ok := r.nearestDecision(RoleEveryone, parts, scopes); ok {
+		out.everyone = &entry
+	}
+	return out, nil
+}
+
+func (r *PermissionResolver) nearestDecision(subject string, parts PermissionKeyParts, scopes []permissionScopeTarget) (TraceEntry, bool) {
+	for _, target := range scopes {
+		decision := r.decisionFor(target.scope, target.id, subject, parts)
+		if decision == DecisionNone {
+			continue
+		}
+		return TraceEntry{
+			Level:    target.level,
+			RoleName: subject,
+			Decision: decision,
+			ObjectID: target.objectID(),
+		}, true
+	}
+	return TraceEntry{}, false
+}
+
+// resolveDecisionEntries applies deny-wins across direct-user and named-role
+// decisions. It returns the winning entry so the explainer can identify the
+// exact subject and scope that determined the result.
+func resolveDecisionEntries(entries []TraceEntry) (DecisionKind, TraceEntry, bool) {
+	var firstAllow *TraceEntry
+	for i := range entries {
+		entry := entries[i]
+		if entry.Decision == DecisionDeny {
+			return DecisionDeny, entry, true
+		}
+		if entry.Decision == DecisionAllow && firstAllow == nil {
+			firstAllow = &entries[i]
+		}
+	}
+	if firstAllow != nil {
+		return DecisionAllow, *firstAllow, true
+	}
+	return DecisionNone, TraceEntry{}, false
 }
 
 func (r *PermissionResolver) applicableScopeTargets(kind RoomKind, roomID, groupID string, perm Permission) []permissionScopeTarget {
 	var targets []permissionScopeTarget
-	if PermissionAppliesAtScope(perm, ScopeServer) {
-		targets = append(targets, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	if roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
+		targets = append(targets, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
 	}
 	if kind == KindChannel && groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
 		targets = append(targets, permissionScopeTarget{scope: ScopeGroup, level: LevelGroup, id: groupID})
 	}
-	if roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
-		targets = append(targets, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
+	if PermissionAppliesAtScope(perm, ScopeServer) {
+		targets = append(targets, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
 	}
 	return targets
 }
@@ -373,19 +322,4 @@ func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject
 		return DecisionNone
 	}
 	return r.core.RBAC.GetDecision(scope, scopeID, subject, perm)
-}
-
-// getUserServerRoles returns the user's roles (including implicit ones).
-func (r *PermissionResolver) getUserServerRoles(ctx context.Context, userID string) ([]string, error) {
-	roles, err := r.core.GetUserRoles(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user roles: %w", err)
-	}
-
-	// Always include "everyone" for authenticated users
-	if !slices.Contains(roles, RoleEveryone) {
-		roles = append(roles, RoleEveryone)
-	}
-
-	return roles, nil
 }

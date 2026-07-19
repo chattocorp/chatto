@@ -209,7 +209,7 @@ enum PermissionDecisionLevel {
 message PermissionTraceEntry {
   // Level at which this decision was observed.
   PermissionDecisionLevel level = 1;
-  // Role name or policy marker that produced the decision.
+  // Role name, user ID, or policy marker that produced the decision.
   string role_name = 2;
   // Decision observed at this trace step.
   PermissionDecision decision = 3;
@@ -221,11 +221,11 @@ message PermissionTraceEntry {
 message PermissionExplanation {
   // Permission identifier.
   string permission = 1;
-  // Overall decision after applying deny-wins resolution.
+  // Overall decision after resolving named subjects and the everyone baseline.
   PermissionDecision state = 2;
   // Level of the winning decision, when state is not NONE.
   PermissionDecisionLevel decided_at = 3;
-  // Role name or policy marker that produced the winning decision.
+  // Role name, user ID, or policy marker that produced the winning decision.
   string decided_by_role = 4;
   // Ordered decision trace. The first entry is the winning decision.
   repeated PermissionTraceEntry trace = 5;

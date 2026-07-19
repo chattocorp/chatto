@@ -141,8 +141,7 @@
       "everyone_implicit": "All server members have the everyone role implicitly.",
       "no_users_with_role": "No users have this role",
       "server_tier_intro": "This page is for server-tier role permissions: broad defaults that apply before room-specific overrides.",
-      "server_tier_rooms_hint": "Use Rooms for per-group and per-room overrides.",
-      "server_tier_denies_hint": "Use denies deliberately: denying everyone in a room blocks all inherited allows at that tier."
+      "server_tier_rooms_hint": "Use Rooms for per-group and per-room overrides."
     },
     "rooms_admin": {
       "title": "Rooms",

@@ -141,8 +141,7 @@
       "everyone_implicit": "Alle serverleden hebben impliciet de rol Iedereen.",
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
-      "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "server_tier_denies_hint": "Gebruik opzettelijk weigeren: iedereen in een kamer weigeren blokkeert alle geërfde toestemmingen op dat niveau."
+      "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer."
     },
     "rooms_admin": {
       "title": "Kamers",

@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Användarbehörigheter",
-          "description": "Kontrollera användarkonto och per-användares behörighetsoperationer. Varje nekande av icke-ägare annullerar bidrag"
+          "description": "Kontrollera användarkonto och per-användares behörighetsoperationer"
         }
       }
     },

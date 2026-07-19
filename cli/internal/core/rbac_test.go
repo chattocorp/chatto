@@ -574,7 +574,7 @@ func TestChattoCore_HasUserPermissionViaRoles(t *testing.T) {
 // Deny-Wins Tests
 // ============================================================================
 
-func TestChattoCore_DenyWins_EveryoneDenyBeatsAdminGrant(t *testing.T) {
+func TestChattoCore_EveryoneFallback_AdminGrantWins(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -587,13 +587,13 @@ func TestChattoCore_DenyWins_EveryoneDenyBeatsAdminGrant(t *testing.T) {
 		t.Fatalf("Failed to deny permission: %v", err)
 	}
 
-	t.Run("HasServerPermission denies despite admin grant", func(t *testing.T) {
+	t.Run("HasServerPermission allows from admin grant", func(t *testing.T) {
 		has, err := core.HasServerPermission(ctx, userID, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("HasServerPermission error: %v", err)
 		}
-		if has {
-			t.Error("Expected HasServerPermission to return false: everyone deny should beat admin grant")
+		if !has {
+			t.Error("Expected HasServerPermission to return true: admin grant should override everyone baseline deny")
 		}
 	})
 
@@ -602,8 +602,8 @@ func TestChattoCore_DenyWins_EveryoneDenyBeatsAdminGrant(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HasUserPermissionViaRoles error: %v", err)
 		}
-		if has {
-			t.Error("Expected HasUserPermissionViaRoles to return false: everyone deny should beat admin grant")
+		if !has {
+			t.Error("Expected HasUserPermissionViaRoles to return true: admin grant should override everyone baseline deny")
 		}
 	})
 
@@ -612,12 +612,12 @@ func TestChattoCore_DenyWins_EveryoneDenyBeatsAdminGrant(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HasUserPermissionDeniedViaRoles error: %v", err)
 		}
-		if !denied {
-			t.Error("Expected HasUserPermissionDeniedViaRoles to return true: everyone deny should beat admin grant")
+		if denied {
+			t.Error("Expected HasUserPermissionDeniedViaRoles to return false: ignored everyone baseline is not the effective decision")
 		}
 	})
 
-	t.Run("GetUserServerPermissions excludes the permission", func(t *testing.T) {
+	t.Run("GetUserServerPermissions includes the permission", func(t *testing.T) {
 		perms, err := core.GetUserServerPermissions(ctx, userID)
 		if err != nil {
 			t.Fatalf("GetUserServerPermissions error: %v", err)
@@ -629,8 +629,8 @@ func TestChattoCore_DenyWins_EveryoneDenyBeatsAdminGrant(t *testing.T) {
 				break
 			}
 		}
-		if found {
-			t.Error("Expected GetUserServerPermissions to exclude admin.view-users: everyone deny should beat admin grant")
+		if !found {
+			t.Error("Expected GetUserServerPermissions to include admin.view-users from the admin role")
 		}
 	})
 }

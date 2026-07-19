@@ -141,8 +141,7 @@
       "everyone_implicit": "Alla servermedlemmar har implicit rollen alla.",
       "no_users_with_role": "Inga användare har den här rollen",
       "server_tier_intro": "Den här sidan är för rollbehörigheter på servernivå: breda standardinställningar som gäller före rumsspecifika åsidosättningar.",
-      "server_tier_rooms_hint": "Använd rum för åsidosättningar per grupp och per rum.",
-      "server_tier_denies_hint": "Använd nekar medvetet: att neka alla i ett rum blockerar allt ärvt tillåter på den nivån."
+      "server_tier_rooms_hint": "Använd rum för åsidosättningar per grupp och per rum."
     },
     "rooms_admin": {
       "title": "Rum",

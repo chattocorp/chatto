@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Autorisations utilisateur",
-          "description": "Contrôlez les opérations de compte utilisateur et d'autorisation par utilisateur. Tout refus d'un non-propriétaire annule les subventions"
+          "description": "Contrôlez les opérations de compte utilisateur et d'autorisation par utilisateur"
         }
       }
     },

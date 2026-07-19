@@ -120,7 +120,7 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 	}
 
 	// User now has: denytest (deny message.post), everyone (grant message.post).
-	// Any applicable deny should win.
+	// A named-role deny should win over the everyone baseline grant.
 	has, err = core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
 	if err != nil {
 		t.Fatalf("HasServerPermission() error = %v", err)
@@ -142,7 +142,7 @@ func TestPermissionResolver_HasServerPermission_CustomDenyRole(t *testing.T) {
 	}
 }
 
-func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
+func TestPermissionResolver_HasServerPermission_EveryoneFallbackAndNamedRoleDenies(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -150,7 +150,7 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	_ = core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin)
 
-	t.Run("everyone denial beats admin grant", func(t *testing.T) {
+	t.Run("admin grant overrides everyone baseline denial", func(t *testing.T) {
 		// Deny message.post for everyone.
 		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
@@ -167,8 +167,8 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
-		if has {
-			t.Error("Expected everyone deny to win over admin grant")
+		if !has {
+			t.Error("Expected admin grant to override everyone baseline deny")
 		}
 
 		// Cleanup
@@ -176,7 +176,7 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 		core.ClearServerPermissionState(ctx, SystemActorID, RoleAdmin, PermMessagePost)
 	})
 
-	t.Run("admin denial beats everyone grant", func(t *testing.T) {
+	t.Run("admin denial beats everyone baseline grant", func(t *testing.T) {
 		// Grant message.post for everyone.
 		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
@@ -200,6 +200,29 @@ func TestPermissionResolver_HasServerPermission_DenyWins(t *testing.T) {
 		// Cleanup
 		core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		core.ClearServerPermissionState(ctx, SystemActorID, RoleAdmin, PermMessagePost)
+	})
+
+	t.Run("suspended role denial beats admin grant", func(t *testing.T) {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "suspended", "Suspended", "Restricts suspended users"); err != nil {
+			t.Fatalf("CreateServerRole: %v", err)
+		}
+		if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermMessagePost); err != nil {
+			t.Fatalf("GrantServerPermission admin: %v", err)
+		}
+		if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermMessagePost); err != nil {
+			t.Fatalf("DenyServerPermission suspended: %v", err)
+		}
+		if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "suspended"); err != nil {
+			t.Fatalf("AssignServerRole suspended: %v", err)
+		}
+
+		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermMessagePost)
+		if err != nil {
+			t.Fatalf("HasServerPermission: %v", err)
+		}
+		if has {
+			t.Error("expected suspended named-role deny to beat admin named-role grant")
+		}
 	})
 
 }
@@ -500,7 +523,7 @@ func TestPermissionResolver_HasRoomPermission_DenyWins(t *testing.T) {
 		// Assign muted role to member
 		core.AssignServerRole(ctx, spaceAdmin.Id, member.Id, "muted")
 
-		// Member should NOT have permission because any applicable deny wins.
+		// Member should NOT have permission because the named muted-role deny wins.
 		has, err := core.permissionResolver.HasRoomPermission(ctx, member.Id, KindChannel, room.Id, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasRoomPermission() error = %v", err)
@@ -586,7 +609,7 @@ func TestPermissionResolver_HasRoomPermission_RoomDenialOverridesSpaceGrant(t *t
 	}
 }
 
-func TestPermissionResolver_HasRoomPermission_ServerDenialBeatsRoomGrantForSameRole(t *testing.T) {
+func TestPermissionResolver_HasRoomPermission_NearestDecisionForSameRole(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -601,8 +624,8 @@ func TestPermissionResolver_HasRoomPermission_ServerDenialBeatsRoomGrantForSameR
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if has {
-		t.Error("expected server deny to beat room grant for the same role")
+	if !has {
+		t.Error("expected room grant to override server deny for the same role")
 	}
 }
 
@@ -633,8 +656,8 @@ func TestPermissionResolver_HasRoomPermission_ConflictingRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if has {
-		t.Error("Expected everyone denial to beat poster role grant at room level")
+	if !has {
+		t.Error("Expected poster role grant to override the everyone baseline denial")
 	}
 }
 
@@ -855,7 +878,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("role set-level deny beats user-level room grant for the same user", func(t *testing.T) {
+	t.Run("user-level room grant overrides everyone group baseline deny", func(t *testing.T) {
 		user, _ := core.CreateUser(ctx, SystemActorID, "user-room-grant", "User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "private", "Private")
 		groupID := room.GroupId
@@ -872,8 +895,8 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		has, _ = core.permissionResolver.HasRoomPermission(ctx, user.Id, KindChannel, room.Id, PermMessagePost)
-		if has {
-			t.Error("expected everyone-role set deny to beat user-level room grant")
+		if !has {
+			t.Error("expected user-level room grant to override everyone group baseline deny")
 		}
 	})
 
@@ -1041,7 +1064,7 @@ func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.
 }
 
 // ============================================================================
-// Room/group/server scope tests for deny-wins permission resolution.
+// Room/group/server scope tests for nearest-scope permission resolution.
 // ============================================================================
 
 func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
@@ -1053,7 +1076,7 @@ func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 
 	member, _ := core.CreateUser(ctx, "system", "hiermember", "Member User", "password123")
 
-	t.Run("server deny beats room grant on the same role", func(t *testing.T) {
+	t.Run("room grant overrides server deny on the same role", func(t *testing.T) {
 		if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReact); err != nil {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
@@ -1065,8 +1088,8 @@ func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 		if err != nil {
 			t.Fatalf("HasRoomPermission: %v", err)
 		}
-		if has {
-			t.Error("expected server deny to beat room grant for the same role")
+		if !has {
+			t.Error("expected room grant to override server deny for the same role")
 		}
 	})
 

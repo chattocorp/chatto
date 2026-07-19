@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Brukertillatelser",
-          "description": "Kontroller brukerkontoer og tillatelsesoperasjoner per bruker. Enhver ikke-eier nekter kansellerer tilskudd"
+          "description": "Kontroller brukerkontoer og tillatelsesoperasjoner per bruker"
         }
       }
     },

@@ -141,8 +141,7 @@
       "everyone_implicit": "Tous les membres du serveur ont implicitement le rôle Tout le monde.",
       "no_users_with_role": "Aucun utilisateur n'a ce rôle",
       "server_tier_intro": "Cette page concerne les autorisations de rôle au niveau du serveur : valeurs par défaut générales qui s'appliquent avant les remplacements spécifiques à la salle.",
-      "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle.",
-      "server_tier_denies_hint": "Utilisez les refus délibérément : refuser à toutes les personnes présentes dans une pièce tous les permis hérités à ce niveau."
+      "server_tier_rooms_hint": "Utilisez les salles pour les remplacements par groupe et par salle."
     },
     "rooms_admin": {
       "title": "Chambres",

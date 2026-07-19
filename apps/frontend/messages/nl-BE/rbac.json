@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Gebruikersrechten",
-          "description": "Beheer bewerkingen voor gebruikersaccounts en machtigingen per gebruiker. Elke weigering die geen eigenaar is, annuleert de subsidies"
+          "description": "Beheer bewerkingen voor gebruikersaccounts en machtigingen per gebruiker"
         }
       }
     },

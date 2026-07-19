@@ -7,13 +7,12 @@ import (
 
 // TestPermissionExplainer_AgreesWithHas asserts that for every fixture and every
 // applicable permission, Has*Permission and Explain*Permission produce the same
-// bool result. This is the safety net guaranteeing the visitor walker can't drift
-// from the bool path: both share the same walk*Permission function, but a future
-// refactor that breaks one must break the other equally.
+// bool result. This is the safety net guaranteeing the explanation can't drift
+// from the bool path: both share the same applicable-decision collector.
 //
-// It also asserts trace structure under the deny-wins model: if any trace
-// entry is a deny, the explanation state is deny; otherwise any allow trace
-// produces allow.
+// It also asserts that the explanation identifies one trace entry as the
+// resolver's winning decision. The trace may include an ignored everyone
+// baseline after a direct-user or named-role decision.
 func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -117,6 +116,57 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	})
 }
 
+func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-baseline", "Explainer Baseline", "password123")
+	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
+		t.Fatalf("assign admin: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
+		t.Fatalf("deny everyone: %v", err)
+	}
+
+	exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission: %v", err)
+	}
+	if exp.State != DecisionAllow || exp.DecidedByRole != RoleAdmin {
+		t.Fatalf("decision = %s by %q, want allow by admin; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
+	}
+	if !traceContains(exp.Trace, RoleEveryone, LevelServer, DecisionDeny) {
+		t.Fatalf("expected ignored everyone deny in trace, got %+v", exp.Trace)
+	}
+
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "suspended", "Suspended", "Blocks capabilities"); err != nil {
+		t.Fatalf("create suspended: %v", err)
+	}
+	if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermAdminUsersView); err != nil {
+		t.Fatalf("deny suspended: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "suspended"); err != nil {
+		t.Fatalf("assign suspended: %v", err)
+	}
+
+	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission with suspended role: %v", err)
+	}
+	if exp.State != DecisionDeny || exp.DecidedByRole != "suspended" {
+		t.Fatalf("decision = %s by %q, want deny by suspended; trace=%+v", exp.State, exp.DecidedByRole, exp.Trace)
+	}
+}
+
+func traceContains(trace []TraceEntry, subject string, level PermissionLevel, decision DecisionKind) bool {
+	for _, entry := range trace {
+		if entry.RoleName == subject && entry.Level == level && entry.Decision == decision {
+			return true
+		}
+	}
+	return false
+}
+
 // assertAgreement verifies Has*Permission and Explain*Permission produce
 // consistent results for a single (user, scope, permission) tuple.
 func assertAgreement(
@@ -160,22 +210,19 @@ func assertAgreement(
 			perm, userID, spaceID, roomID, hasResult, exp.State, exp.DecidedAt, exp.DecidedByRole)
 	}
 
-	// State / DecidedAt / DecidedByRole must match the winning trace entry.
+	// State / DecidedAt / DecidedByRole must identify a trace entry. Do not
+	// infer the winner by scanning for any deny: an everyone deny is an ignored
+	// fallback when a direct-user or named-role decision exists.
 	if len(exp.Trace) > 0 {
-		winning := exp.Trace[0]
+		foundWinner := false
 		for _, entry := range exp.Trace {
-			if entry.Decision == DecisionDeny {
-				winning = entry
+			if entry.Decision == exp.State && entry.Level == exp.DecidedAt && entry.RoleName == exp.DecidedByRole {
+				foundWinner = true
+				break
 			}
 		}
-		if exp.State != winning.Decision {
-			t.Errorf("perm %s: State=%s but winning trace decision=%s", perm, exp.State, winning.Decision)
-		}
-		if exp.DecidedAt != winning.Level {
-			t.Errorf("perm %s: DecidedAt=%s but winning trace level=%s", perm, exp.DecidedAt, winning.Level)
-		}
-		if exp.DecidedByRole != winning.RoleName {
-			t.Errorf("perm %s: DecidedByRole=%s but winning trace role=%s", perm, exp.DecidedByRole, winning.RoleName)
+		if !foundWinner {
+			t.Errorf("perm %s: winner state=%s level=%s subject=%s missing from trace %+v", perm, exp.State, exp.DecidedAt, exp.DecidedByRole, exp.Trace)
 		}
 	} else {
 		if exp.State != DecisionNone {

@@ -141,8 +141,7 @@
       "everyone_implicit": "Alle servermedlemmer har alle-rollen implisitt.",
       "no_users_with_role": "Ingen brukere har denne rollen",
       "server_tier_intro": "Denne siden er for rolletillatelser på servernivå: brede standarder som gjelder før romspesifikke overstyringer.",
-      "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom.",
-      "server_tier_denies_hint": "Bruk nekter bevisst: å nekte alle i et rom blokkerer alt som er arvet tillater på det nivået."
+      "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom."
     },
     "rooms_admin": {
       "title": "Rom",

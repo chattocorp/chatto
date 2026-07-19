@@ -556,7 +556,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("announcements room does not store staff message.post overrides", func(t *testing.T) {
+	t.Run("announcements room does not need room-local staff message.post overrides", func(t *testing.T) {
 		for _, roleName := range []string{RoleAdmin, RoleModerator} {
 			if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, roleName, PermMessagePost); got != DecisionNone {
 				t.Errorf("room decision for %s = %s, want %s", roleName, got, DecisionNone)
@@ -586,7 +586,7 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("owner can post in announcements, regular member cannot", func(t *testing.T) {
+	t.Run("owner and named admin can post in announcements, regular member cannot", func(t *testing.T) {
 		// Owner should be able to post
 		canOwner, err := core.CanPostMessage(ctx, user.Id, KindChannel, annRoom.Id)
 		if err != nil {
@@ -594,6 +594,24 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		}
 		if !canOwner {
 			t.Error("Owner should be able to post in announcements room")
+		}
+
+		admin, err := core.CreateUser(ctx, SystemActorID, "ann-admin", "Announcements Admin", "password")
+		if err != nil {
+			t.Fatalf("CreateUser (admin) failed: %v", err)
+		}
+		if err := core.AssignServerRole(ctx, SystemActorID, admin.Id, RoleAdmin); err != nil {
+			t.Fatalf("AssignServerRole (admin): %v", err)
+		}
+		if err := core.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermMessagePost); err != nil {
+			t.Fatalf("GrantServerPermission (admin): %v", err)
+		}
+		canAdmin, err := core.CanPostMessage(ctx, admin.Id, KindChannel, annRoom.Id)
+		if err != nil {
+			t.Fatalf("CanPostMessage (admin) failed: %v", err)
+		}
+		if !canAdmin {
+			t.Error("Admin named-role grant should override the everyone baseline denial")
 		}
 
 		// Create a regular member

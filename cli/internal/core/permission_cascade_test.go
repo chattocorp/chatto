@@ -206,7 +206,7 @@ func TestServerTierCascadeIntoChannelRooms(t *testing.T) {
 		}
 	})
 
-	t.Run("group-scope deny wins over server-scope allow (same role)", func(t *testing.T) {
+	t.Run("group-scope deny overrides server-scope allow for the same role", func(t *testing.T) {
 		if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, perm); err != nil {
 			t.Fatalf("GrantServerPermission: %v", err)
 		}

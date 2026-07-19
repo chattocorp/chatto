@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Uprawnienia użytkownika",
-          "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników. Każda odmowa niebędąca właścicielem powoduje anulowanie dotacji"
+          "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników"
         }
       }
     },

@@ -1,17 +1,18 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-07-19
 
 ## Overview
 
-Admins can inspect why a specific user has (or doesn't have) a permission, at server or room scope. The tool surfaces a trace of every grant and deny the resolver considered, in the order it considered them, with the winning decision highlighted. It's the only way to debug "why can this user post in #announcements?" without reading code.
+Admins can inspect why a specific user has (or doesn't have) a permission, at server or room scope. The tool surfaces each direct-user and role decision that contributes to the check, with the winning decision highlighted. It's the only way to debug "why can this user post in #announcements?" without reading code.
 
 ## Behavior
 
 - The admin UI exposes a "Permission Explainer" tool: pick a user, optionally pick a room, pick a permission, and see the full resolution trace.
 - The ConnectRPC permission-inspection API keeps the inspector in the RBAC tooling namespace while preserving its admin/tooling-only authorization gate.
-- The trace lists every (subject, scope) entry the resolver evaluated. The first entry that produced an allow or deny is marked as the winning decision; subsequent entries show what the resolver *would* have looked at next if the winning entry hadn't fired.
+- The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry, even when a named decision means that baseline is ignored.
+- Denies win across direct-user and named-role entries; otherwise an allow wins. The `everyone` row is marked as winning only when no direct-user or named-role entry decides.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
 
@@ -19,7 +20,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 1. Trace, not just final decision
 
-**Decision:** The tool returns the entire ordered list of considered entries, not just the boolean outcome.
+**Decision:** The tool returns the complete set of effective subject entries, not just the boolean outcome. Less-specific entries shadowed by the same subject's nearer decision are omitted; an ignored `everyone` baseline is retained so operators can see why it did not apply.
 **Why:** "Did the resolver allow this?" is a question the resolver itself answers. "Why?" requires showing the decision path so operators can spot misconfigurations — e.g., "this user gets `message.post` because their custom role has it granted at server scope, even though we denied it on `everyone`". A boolean wouldn't help debug a misconfig.
 **Tradeoff:** Bigger response payloads. Acceptable for an admin tool that's used sparingly.
 
@@ -53,5 +54,5 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-017 (Room Groups & Sidebar Layout), FDR-021 (Admin Dashboard & System Monitoring)
