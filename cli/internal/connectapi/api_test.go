@@ -1567,6 +1567,33 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if everyone == nil || !stringSliceContains(everyone.GetOverride().GetPermissionDenials(), string(core.PermMessageReact)) {
 		t.Fatalf("everyone room override = %+v, want message.react denial", everyone)
 	}
+	groupManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-group-manager", "Permission Group Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser group manager: %v", err)
+	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, room.GetGroupId(), groupManager.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.manage: %v", err)
+	}
+	groupManagerCtx := withCaller(env.ctx, groupManager)
+	if _, err := env.permissions.SetRolePermission(groupManagerCtx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleEveryone,
+		Permission: string(core.PermMessageReact),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   room.GetGroupId(),
+		},
+	})); err != nil {
+		t.Fatalf("SetRolePermission group manager deny: %v", err)
+	}
+	if _, err := env.permissions.GetRolePermissionTierMatrix(groupManagerCtx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
+		Scope: &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   room.GetGroupId(),
+		},
+	})); err != nil {
+		t.Fatalf("GetRolePermissionTierMatrix group manager: %v", err)
+	}
 	roomExplainResp, err := env.permissions.ExplainPermissions(ctx, connect.NewRequest(&adminv1.ExplainPermissionsRequest{
 		UserId: target.Id,
 		RoomId: room.Id,
@@ -1759,9 +1786,23 @@ func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %q missing from group items", link.Id)
 	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.manage: %v", err)
+	}
+	resp, err = env.directory.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
+	if err != nil {
+		t.Fatalf("ListRoomGroups after room.manage grant: %v", err)
+	}
+	group = findDirectoryGroup(resp.Msg.GetGroups(), groupID)
+	if group == nil {
+		t.Fatalf("group %q missing after room.manage grant", groupID)
+	}
+	if !apiRoomGroupPermissionGranted(group, core.PermRoomManage) {
+		t.Fatalf("group room.manage viewer grant = %+v, want granted", group.GetViewerState())
+	}
 }
 
-func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
+func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoomManage(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "layout-member", "Layout Member", "password")
 	if err != nil {
@@ -1777,8 +1818,8 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
 	}))
 	requireConnectCode(t, err, connect.CodePermissionDenied)
 
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
-		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserPermission room.manage: %v", err)
 	}
 	if _, err := env.adminLayout.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListRoomGroupsRequest{})); err != nil {
 		t.Fatalf("ListRoomGroups: %v", err)
@@ -1807,6 +1848,61 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
 	}
 	if got := partialResp.Msg.GetGroup(); got.GetName() != "Operations" || got.GetDescription() != "Updated operations description" {
 		t.Fatalf("partial group = %+v, want preserved name and updated description", got)
+	}
+}
+
+func TestAdminRoomLayoutServiceManagementReadsDoNotRequireDirectoryVisibility(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	groupID := env.defaultRoomGroupID(t)
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, groupID, "private-managed-room", "Private")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission room.list: %v", err)
+	}
+	roleManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "private-role-manager", "Private Role Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser role manager: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleManager.Id, core.PermRoleManage); err != nil {
+		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	ctx := withCaller(env.ctx, roleManager)
+	if _, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: room.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("directory GetRoom code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	roomResp, err := env.adminLayout.GetRoom(ctx, connect.NewRequest(&adminv1.GetRoomRequest{RoomId: room.Id}))
+	if err != nil {
+		t.Fatalf("admin layout GetRoom: %v", err)
+	}
+	if roomResp.Msg.GetRoom().GetId() != room.Id || roomResp.Msg.GetViewerCanManageRoom() || !roomResp.Msg.GetViewerCanManagePermissions() {
+		t.Fatalf("GetRoom response = %+v, want permission-only management access", roomResp.Msg)
+	}
+	groupResp, err := env.adminLayout.GetRoomGroup(ctx, connect.NewRequest(&adminv1.GetRoomGroupRequest{GroupId: groupID}))
+	if err != nil {
+		t.Fatalf("admin layout GetRoomGroup role manager: %v", err)
+	}
+	if groupResp.Msg.GetViewerCanManageGroup() || !groupResp.Msg.GetViewerCanManagePermissions() {
+		t.Fatalf("GetRoomGroup role-manager capabilities = %+v", groupResp.Msg)
+	}
+	if len(groupResp.Msg.GetGroup().GetItems()) != 0 {
+		t.Fatalf("GetRoomGroup exposed %d private layout items to role manager", len(groupResp.Msg.GetGroup().GetItems()))
+	}
+
+	groupManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "private-group-manager", "Private Group Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser group manager: %v", err)
+	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, groupManager.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.manage: %v", err)
+	}
+	groupResp, err = env.adminLayout.GetRoomGroup(withCaller(env.ctx, groupManager), connect.NewRequest(&adminv1.GetRoomGroupRequest{GroupId: groupID}))
+	if err != nil {
+		t.Fatalf("admin layout GetRoomGroup group manager: %v", err)
+	}
+	if !groupResp.Msg.GetViewerCanManageGroup() || !groupResp.Msg.GetViewerCanManagePermissions() {
+		t.Fatalf("GetRoomGroup group-manager capabilities = %+v", groupResp.Msg)
 	}
 }
 
@@ -2549,6 +2645,12 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
 		t.Fatalf("GrantUserPermission role.assign: %v", err)
 	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermMessageManage); err != nil {
+		t.Fatalf("GrantUserPermission message.manage: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberBan); err != nil {
+		t.Fatalf("GrantUserPermission room.ban-member: %v", err)
+	}
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
@@ -2574,6 +2676,22 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	}
 	if stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
+	}
+	if _, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
+		UserId:   target.Id,
+		RoleName: core.RoleOwner,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign-only owner assignment code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	memberDetails, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
+		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
+	}))
+	if err != nil {
+		t.Fatalf("GetMember assignment limits: %v", err)
+	}
+	if !memberDetails.Msg.GetRoleAssignmentLimitsEnforced() || !stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleModerator) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleOwner) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleEveryone) || stringSliceContains(memberDetails.Msg.GetRevocableRoleNames(), core.RoleEveryone) {
+		t.Fatalf("assignment limits = enforced:%v assignable:%v revocable:%v, want moderator but neither owner nor everyone", memberDetails.Msg.GetRoleAssignmentLimitsEnforced(), memberDetails.Msg.GetAssignableRoleNames(), memberDetails.Msg.GetRevocableRoleNames())
 	}
 
 	assignResp, err := env.adminUsers.AssignRole(adminCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
@@ -3771,8 +3889,8 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %s missing from group items", link.Id)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
-		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserPermission room.manage: %v", err)
 	}
 	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, env.viewer.Id, core.PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserGroupPermission admin room.create: %v", err)

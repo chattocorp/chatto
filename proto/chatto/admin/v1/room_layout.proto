@@ -33,6 +33,40 @@ message AdminRoomLayoutGroup {
   bool can_create_room = 6;
 }
 
+// Request for management-authorized channel room metadata.
+message GetRoomRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Channel room metadata and the caller's management capabilities.
+message GetRoomResponse {
+  // Requested channel room. This read does not require ordinary directory
+  // visibility when the caller can configure the room's role permissions.
+  chatto.api.v1.Room room = 1;
+  // Whether the caller can update the room's general settings.
+  bool viewer_can_manage_room = 2;
+  // Whether the caller can configure role permissions for the room.
+  bool viewer_can_manage_permissions = 3;
+}
+
+// Request for management-authorized room group metadata.
+message GetRoomGroupRequest {
+  // Required room group ID.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Room group metadata and the caller's management capabilities.
+message GetRoomGroupResponse {
+  // Requested room group metadata. Ordered room and link entries are omitted so
+  // role permission managers do not gain visibility into private room names.
+  AdminRoomLayoutGroup group = 1;
+  // Whether the caller can update the room group's general settings.
+  bool viewer_can_manage_group = 2;
+  // Whether the caller can configure role permissions for the room group.
+  bool viewer_can_manage_permissions = 3;
+}
+
 // Request for the server-admin room group layout.
 message ListRoomGroupsRequest {}
 
@@ -231,17 +265,22 @@ message MoveSidebarLinkToGroupResponse {
 
 // Reads and mutates the server-admin room layout.
 service AdminRoomLayoutService {
-  // Lists the editable room group layout. Requires role.manage and returns
-  // visible room entries, including archived rooms for administrative actions
-  // such as unarchiving.
+  // Gets management-authorized channel room metadata. Requires role.manage or
+  // effective room.manage for the room.
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  // Gets management-authorized room group metadata. Requires role.manage or
+  // effective room.manage for the group.
+  rpc GetRoomGroup(GetRoomGroupRequest) returns (GetRoomGroupResponse);
+  // Lists the editable room group layout. Requires server-scope room.manage
+  // and includes archived rooms for administrative actions such as unarchiving.
   rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
-  // Creates a room group. Requires role.manage.
+  // Creates a room group. Requires server-scope room.manage.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);
-  // Updates a room group's metadata. Requires role.manage.
+  // Updates a room group's metadata. Requires effective room.manage for the group.
   rpc UpdateRoomGroup(UpdateRoomGroupRequest) returns (UpdateRoomGroupResponse);
-  // Deletes an empty room group. Requires role.manage.
+  // Deletes an empty room group. Requires effective room.manage for the group.
   rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
-  // Replaces the global room group order. Requires role.manage.
+  // Replaces the global room group order. Requires server-scope room.manage.
   rpc ReorderRoomGroups(ReorderRoomGroupsRequest) returns (ReorderRoomGroupsResponse);
   // Moves a channel room to another room group. Requires room.manage in both
   // source and destination groups.

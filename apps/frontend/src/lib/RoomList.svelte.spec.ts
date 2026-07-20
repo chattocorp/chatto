@@ -103,7 +103,10 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
+    path
+      .replace('[serverId]', params?.serverId ?? '')
+      .replace('[roomId]', params?.roomId ?? '')
+      .replace('[groupId]', params?.groupId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -190,6 +193,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: true,
       viewerNotificationCount: 0,
       members: []
     },
@@ -200,6 +204,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: []
     },
@@ -210,6 +215,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: false,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: []
     },
@@ -220,6 +226,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
     },
@@ -230,6 +237,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
@@ -341,6 +349,33 @@ describe('RoomList', () => {
     await vi.waitFor(() =>
       expect(mocks.store.roomDirectory.joinRoom).toHaveBeenCalledWith('joinable-channel')
     );
+  });
+
+  it('offers room settings to a non-member room manager alongside Join', async () => {
+    const rooms = mocks.store.rooms.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'joinable-channel');
+    if (!channel) throw new Error('Missing mocked room joinable-channel');
+    channel.viewerCanManageRoom = true;
+
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    await expect.element(join ?? null).toBeEnabled();
+    await expect.element(settings ?? null).toBeInTheDocument();
+
+    settings!.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
   });
 
   it('shows a disabled join action for a visible restricted room', async () => {
@@ -479,6 +514,39 @@ describe('RoomList', () => {
     expect(mocks.pushState).toHaveBeenCalledWith('', {
       modal: { type: 'leaveRoom', roomId: 'channel-1', roomName: 'general' }
     });
+  });
+
+  it('opens room settings for viewers who can manage the room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    settings!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/channel-1');
+  });
+
+  it('hides room settings without room.manage', async () => {
+    const rooms = mocks.store.rooms.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'channel-1');
+    if (!channel) throw new Error('Missing mocked room channel-1');
+    channel.viewerCanManageRoom = false;
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave room'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    expect(settings).toBeUndefined();
   });
 
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
@@ -703,6 +771,7 @@ describe('RoomList', () => {
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -723,11 +792,34 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
+  it('keeps an empty manageable group visible with a settings link', async () => {
+    mocks.store.rooms.rooms = [];
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'private-group',
+        name: 'Private Group',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(
+      container,
+      '[href="/chat/-/manage/room-groups/private-group"]'
+    ) as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('aria-label')).toBe('Settings for Private Group');
+  });
+
   it('renders active-server host sidebar links as same-tab anchors', async () => {
     mocks.store.rooms.roomGroups = [
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -756,6 +848,7 @@ describe('RoomList', () => {
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {

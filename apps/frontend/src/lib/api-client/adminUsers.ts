@@ -53,6 +53,8 @@ export type AdminMemberDetails = {
   viewerCanAssignRoles: boolean;
   viewerCanManageRoles: boolean;
   viewerCanManageUserPermissions: boolean;
+  assignableRoleNames: string[] | null;
+  revocableRoleNames: string[] | null;
 };
 
 export type AdminUpdateUserInput = {
@@ -125,6 +127,12 @@ export function createAdminUserManagementAPI(
         viewerCanAssignRoles: response.viewerCanAssignRoles,
         viewerCanManageRoles: response.viewerCanManageRoles,
         viewerCanManageUserPermissions: response.viewerCanManageUserPermissions,
+        assignableRoleNames: response.roleAssignmentLimitsEnforced
+          ? [...response.assignableRoleNames]
+          : null,
+        revocableRoleNames: response.roleAssignmentLimitsEnforced
+          ? [...response.revocableRoleNames]
+          : null,
       };
     },
 

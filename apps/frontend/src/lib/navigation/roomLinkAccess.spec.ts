@@ -11,6 +11,7 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
     isUniversal: false,
     viewerIsMember: true,
     viewerCanJoinRoom: true,
+    viewerCanManageRoom: false,
     viewerNotificationCount: 0,
     members: [],
     ...overrides

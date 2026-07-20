@@ -16,6 +16,8 @@
     "mark_as_read": "既読にする",
     "remove_server": "サーバーを削除",
     "leave_room": "ルームから退出",
+    "room_settings": "ルーム設定",
+    "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
     "room_actions": "#{room}のアクション"
   }

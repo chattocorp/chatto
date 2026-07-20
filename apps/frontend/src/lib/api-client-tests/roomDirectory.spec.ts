@@ -127,7 +127,8 @@ describe('createRoomDirectoryAPI', () => {
         isUniversal: true,
         isMember: true,
         hasUnread: true,
-        canJoinRoom: false
+        canJoinRoom: false,
+        canManageRoom: false
       },
       {
         id: 'room-2',
@@ -138,7 +139,8 @@ describe('createRoomDirectoryAPI', () => {
         isUniversal: false,
         isMember: true,
         hasUnread: false,
-        canJoinRoom: true
+        canJoinRoom: true,
+        canManageRoom: false
       }
     ]);
   });
@@ -322,6 +324,7 @@ describe('createRoomDirectoryAPI', () => {
         id: 'g1',
         name: 'Lobby',
         canCreateRoom: true,
+        canManageGroup: false,
         roomIds: ['general', 'random'],
         items: [
           {
@@ -465,12 +468,16 @@ function roomViewerState(
   };
 }
 
-function groupViewerState(canCreateRoom: boolean) {
+function groupViewerState(canCreateRoom: boolean, canManageGroup = false) {
   return {
     permissions: [
       {
         permission: Permission.CreateRoom,
         granted: canCreateRoom
+      },
+      {
+        permission: Permission.ManageRoom,
+        granted: canManageGroup
       }
     ]
   };

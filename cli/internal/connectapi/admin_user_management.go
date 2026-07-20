@@ -86,6 +86,9 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 		ViewerCanAssignRoles:           details.ViewerCanAssignRoles,
 		ViewerCanManageRoles:           details.ViewerCanManageRoles,
 		ViewerCanManageUserPermissions: details.ViewerCanManageUserPermissions,
+		AssignableRoleNames:            details.AssignableRoleNames,
+		RevocableRoleNames:             details.RevocableRoleNames,
+		RoleAssignmentLimitsEnforced:   true,
 	}
 	return connect.NewResponse(response), nil
 }

@@ -146,7 +146,14 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Admin And Settings UI
 
-- Server admin routes live under `/chat/[serverId]/server-admin/`.
+- Management routes live under `/chat/[serverId]/manage/`: server-scoped pages
+  under `manage/server/`, rooms under `manage/rooms/`, and room groups under
+  `manage/room-groups/`.
+- SvelteKit reuses resource pages when only a route parameter changes. Fence
+  async loads and saves by both resource ID and load generation so late
+  responses cannot update the next resource's form state.
+- Send sparse patches from settings forms: omit unchanged fields so stale form
+  values cannot overwrite concurrent updates or emit misleading durable facts.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until

@@ -2,7 +2,8 @@
 @component
 
 Shared actions shown when a server icon or room row is right-clicked or long-pressed.
-The parent owns membership and read behavior so this component stays presentation-only.
+The parent owns membership, read, configuration, and leave behavior so this component stays
+presentation-only.
 -->
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
@@ -13,10 +14,12 @@ The parent owns membership and read behavior so this component stays presentatio
     canJoin = false,
     canMarkRead,
     canSearch = false,
+    canConfigure = false,
     canLeave = true,
     onJoin = () => {},
     onMarkRead,
     onSearch = () => {},
+    onConfigure,
     onLeave
   }: {
     kind: 'server' | 'room';
@@ -24,10 +27,12 @@ The parent owns membership and read behavior so this component stays presentatio
     canJoin?: boolean;
     canMarkRead: boolean;
     canSearch?: boolean;
+    canConfigure?: boolean;
     canLeave?: boolean;
     onJoin?: () => void;
     onMarkRead: () => void;
     onSearch?: () => void;
+    onConfigure?: () => void;
     onLeave: () => void;
   } = $props();
 </script>
@@ -61,6 +66,13 @@ The parent owns membership and read behavior so this component stays presentatio
       >
         <span class="sidebar-icon iconify uil--check-circle" aria-hidden="true"></span>
         {m['room_list.mark_as_read']()}
+      </button>
+    {/if}
+
+    {#if canConfigure && onConfigure}
+      <button type="button" class="sidebar-item" onclick={onConfigure} role="menuitem">
+        <span class="sidebar-icon iconify uil--setting" aria-hidden="true"></span>
+        {m['room_list.room_settings']()}
       </button>
     {/if}
 

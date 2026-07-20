@@ -16,6 +16,8 @@
     "mark_as_read": "Marquer comme lu",
     "remove_server": "Retirer le serveur",
     "leave_room": "Quitter le salon",
+    "room_settings": "Paramètres du salon",
+    "group_settings": "Paramètres de {group}",
     "server_actions": "Actions pour {server}",
     "room_actions": "Actions pour #{room}"
   }

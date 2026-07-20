@@ -34,7 +34,7 @@
       onUserClick(user);
     } else {
       goto(
-        resolve('/chat/[serverId]/server-admin/members/[userId]', {
+        resolve('/chat/[serverId]/manage/server/members/[userId]', {
           serverId: serverIdToSegment(getActiveServer()),
           userId: user.id
         })

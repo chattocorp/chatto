@@ -23,12 +23,14 @@
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const activeStore = $derived(serverRegistry.getStore(getActiveServer()));
 
-  // Detect if we're in server admin mode based on URL (use startsWith to avoid
-  // false positives from rooms or other paths that happen to contain "admin")
-  const adminPrefix = $derived(
-    resolve('/chat/[serverId]/server-admin', { serverId: serverSegment })
+  // All server- and resource-scoped management screens share one shell.
+  const serverManagementPrefix = $derived(
+    resolve('/chat/[serverId]/manage/server', { serverId: serverSegment })
   );
-  const isAdminMode = $derived(page.url.pathname.startsWith(adminPrefix));
+  const managementPrefix = $derived(serverManagementPrefix.slice(0, -'/server'.length));
+  const isManageMode = $derived(
+    page.url.pathname === managementPrefix || page.url.pathname.startsWith(`${managementPrefix}/`)
+  );
 
   // Detect if we're in user settings mode
   const settingsPrefix = $derived(
@@ -137,12 +139,48 @@
       server: serverPerms.current
     })
   );
+  const managedRoom = $derived(
+    page.params.roomId
+      ? (activeStore.rooms.rooms.find((room) => room.id === page.params.roomId) ?? null)
+      : null
+  );
+  const managedGroup = $derived(
+    page.params.groupId
+      ? (activeStore.rooms.roomGroups?.find((group) => group.id === page.params.groupId) ?? null)
+      : null
+  );
+  const managementNavItems = $derived(
+    adminNavItems.length > 0
+      ? adminNavItems
+      : managedRoom?.viewerCanManageRoom
+        ? [
+            {
+              href: resolve('/chat/[serverId]/manage/rooms/[roomId]', {
+                serverId: serverSegment,
+                roomId: managedRoom.id
+              }),
+              label: m['room_list.room_settings'](),
+              icon: 'iconify uil--setting'
+            }
+          ]
+        : managedGroup?.viewerCanManageGroup
+          ? [
+              {
+                href: resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+                  serverId: serverSegment,
+                  groupId: managedGroup.id
+                }),
+                label: m['room_list.group_settings']({ group: managedGroup.name }),
+                icon: 'iconify uil--setting'
+              }
+            ]
+        : []
+  );
   const adminHref = $derived(adminNavItems[0]?.href);
 
   function isAdminNavActive(href: string, _items: unknown): boolean {
     return page.url.pathname.startsWith(href);
   }
-
 </script>
 
 <ServerEventProvider>
@@ -178,10 +216,10 @@
           </div>
         {/each}
       </ScrollFader>
-    {:else if isAdminMode}
+    {:else if isManageMode}
       <SidebarNav
         title={serverName ?? m['chat.server_nav.server_fallback']()}
-        items={adminNavItems}
+        items={managementNavItems}
         backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
         backLabel={m['chat.server_nav.back_to_server']()}
         isActive={isAdminNavActive}

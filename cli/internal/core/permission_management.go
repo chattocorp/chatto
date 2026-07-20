@@ -2,8 +2,11 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type MatrixDecision string
@@ -126,11 +129,14 @@ func (c *ChattoCore) GetRolePermissionTierMatrix(ctx context.Context, actorID, r
 		}
 		return c.buildTierRoles(ctx, ScopeRoom, roomID, "")
 	}
+	if groupID != "" {
+		if err := c.requireCanManageRolePermissionsForGroup(ctx, actorID, groupID); err != nil {
+			return nil, err
+		}
+		return c.buildTierRoles(ctx, ScopeGroup, "", groupID)
+	}
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
-	}
-	if groupID != "" {
-		return c.buildTierRoles(ctx, ScopeGroup, "", groupID)
 	}
 	return c.buildTierRoles(ctx, ScopeServer, "", "")
 }
@@ -158,34 +164,74 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	}
 	switch normalizePermissionScope(scope).Kind {
 	case MatrixScopeGroup:
-		if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
-			return err
-		}
 		if scope.ID == "" {
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
 		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeGroup, scope.ID, roleName, perm, state)
+		check := func() error {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room-group projection: %w", err)
+			}
+			return c.requireCanManageRolePermissionsForGroup(ctx, actorID, scope.ID)
+		}
+		if err := check(); err != nil {
+			return err
+		}
+		return c.applyRolePermissionState(ctx, actorID, ScopeGroup, scope.ID, roleName, perm, state, check)
 	case MatrixScopeRoom:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: room id is required", ErrInvalidArgument)
 		}
-		if err := c.requireCanManageRolePermissionsForRoom(ctx, actorID, scope.ID); err != nil {
+		check := func() error {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room-group projection: %w", err)
+			}
+			if err := c.rooms().waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room directory projection: %w", err)
+			}
+			return c.requireCanManageRolePermissionsForRoom(ctx, actorID, scope.ID)
+		}
+		if err := check(); err != nil {
 			return err
 		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeRoom, scope.ID, roleName, perm, state)
+		return c.applyRolePermissionState(ctx, actorID, ScopeRoom, scope.ID, roleName, perm, state, check)
 	default:
-		if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
+		check := func() error { return c.requireCanManageAdminRoles(ctx, actorID) }
+		if err := check(); err != nil {
 			return err
 		}
-		return c.applyRolePermissionState(ctx, actorID, ScopeServer, "", roleName, perm, state)
+		return c.applyRolePermissionState(ctx, actorID, ScopeServer, "", roleName, perm, state, check)
 	}
+}
+
+func (c *ChattoCore) requireCanManageRolePermissionsForGroup(ctx context.Context, actorID, groupID string) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	canManage, err := c.CanManageRoles(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check role.manage: %w", err)
+	}
+	if canManage {
+		_, err := c.GetRoomGroup(ctx, groupID)
+		return err
+	}
+	hasRoomManage, err := c.CanManageRoomGroup(ctx, actorID, groupID)
+	if err != nil {
+		return fmt.Errorf("check room.manage: %w", err)
+	}
+	if !hasRoomManage {
+		return ErrPermissionDenied
+	}
+	_, err = c.GetRoomGroup(ctx, groupID)
+	return err
 }
 
 func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if userID == "" {
 		return fmt.Errorf("%w: user id is required", ErrInvalidArgument)
 	}
-	if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
+	check := func() error { return c.requireCanManageUserPermissionTarget(ctx, actorID) }
+	if err := check(); err != nil {
 		return err
 	}
 	switch normalizePermissionScope(scope).Kind {
@@ -193,14 +239,14 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 		if scope.ID == "" {
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
 		}
-		return c.applyUserPermissionState(ctx, actorID, ScopeGroup, scope.ID, userID, perm, state)
+		return c.applyUserPermissionState(ctx, actorID, ScopeGroup, scope.ID, userID, perm, state, check)
 	case MatrixScopeRoom:
 		if scope.ID == "" {
 			return fmt.Errorf("%w: room id is required", ErrInvalidArgument)
 		}
-		return c.applyUserPermissionState(ctx, actorID, ScopeRoom, scope.ID, userID, perm, state)
+		return c.applyUserPermissionState(ctx, actorID, ScopeRoom, scope.ID, userID, perm, state, check)
 	default:
-		return c.applyUserPermissionState(ctx, actorID, ScopeServer, "", userID, perm, state)
+		return c.applyUserPermissionState(ctx, actorID, ScopeServer, "", userID, perm, state, check)
 	}
 }
 
@@ -270,70 +316,102 @@ func normalizePermissionScope(scope PermissionTargetScope) PermissionTargetScope
 	return scope
 }
 
-func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, roleName string, perm Permission, state PermissionState) error {
-	switch scope {
-	case ScopeGroup:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantGroupPermission(ctx, actorID, scopeID, roleName, perm)
-		case PermissionStateDeny:
-			return c.DenyGroupPermission(ctx, actorID, scopeID, roleName, perm)
-		case PermissionStateNone:
-			return c.ClearGroupPermissionState(ctx, actorID, scopeID, roleName, perm)
-		}
-	case ScopeRoom:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantRoomPermission(ctx, actorID, scopeID, roleName, perm)
-		case PermissionStateDeny:
-			return c.DenyRoomPermission(ctx, actorID, scopeID, roleName, perm)
-		case PermissionStateNone:
-			return c.ClearRoomPermissionState(ctx, actorID, scopeID, roleName, perm)
-		}
-	default:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantServerPermission(ctx, actorID, roleName, perm)
-		case PermissionStateDeny:
-			return c.DenyServerPermission(ctx, actorID, roleName, perm)
-		case PermissionStateNone:
-			return c.ClearServerPermissionState(ctx, actorID, roleName, perm)
-		}
+func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, roleName string, perm Permission, state PermissionState, authorize func() error) error {
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
-	return fmt.Errorf("%w: unknown permission state %q", ErrInvalidArgument, state)
+	if scope == ScopeRoom && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	}
+	if scope == ScopeGroup && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	}
+
+	var event *corev1.Event
+	switch state {
+	case PermissionStateAllow:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+			RbacPermissionGranted: rbacRolePermissionGrantedEvent(scope, scopeID, roleName, perm),
+		}})
+	case PermissionStateDeny:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+			RbacPermissionDenied: rbacRolePermissionDeniedEvent(scope, scopeID, roleName, perm),
+		}})
+	case PermissionStateNone:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+			RbacPermissionCleared: rbacRolePermissionClearedEvent(scope, scopeID, roleName, perm),
+		}})
+	default:
+		return fmt.Errorf("%w: unknown permission state %q", ErrInvalidArgument, state)
+	}
+
+	_, err := c.appendRBACEvent(ctx, event, func() error {
+		if authorize != nil {
+			if err := authorize(); err != nil {
+				return err
+			}
+		}
+		current := c.RBAC.GetDecision(scope, scopeID, roleName, perm)
+		if (state == PermissionStateAllow && current == DecisionAllow) ||
+			(state == PermissionStateDeny && current == DecisionDeny) ||
+			(state == PermissionStateNone && current == DecisionNone) {
+			return errRBACNoop
+		}
+		return nil
+	})
+	if errors.Is(err, errRBACNoop) {
+		return nil
+	}
+	return err
 }
 
-func (c *ChattoCore) applyUserPermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, userID string, perm Permission, state PermissionState) error {
-	switch scope {
-	case ScopeGroup:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantUserGroupPermission(ctx, actorID, scopeID, userID, perm)
-		case PermissionStateDeny:
-			return c.DenyUserGroupPermission(ctx, actorID, scopeID, userID, perm)
-		case PermissionStateNone:
-			return c.ClearUserGroupPermissionState(ctx, actorID, scopeID, userID, perm)
-		}
-	case ScopeRoom:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantUserRoomPermission(ctx, actorID, scopeID, userID, perm)
-		case PermissionStateDeny:
-			return c.DenyUserRoomPermission(ctx, actorID, scopeID, userID, perm)
-		case PermissionStateNone:
-			return c.ClearUserRoomPermissionState(ctx, actorID, scopeID, userID, perm)
-		}
-	default:
-		switch state {
-		case PermissionStateAllow:
-			return c.GrantUserPermission(ctx, actorID, userID, perm)
-		case PermissionStateDeny:
-			return c.DenyUserPermission(ctx, actorID, userID, perm)
-		case PermissionStateNone:
-			return c.ClearUserPermissionState(ctx, actorID, userID, perm)
-		}
+func (c *ChattoCore) applyUserPermissionState(ctx context.Context, actorID string, scope PermissionScope, scopeID, userID string, perm Permission, state PermissionState, authorize func() error) error {
+	if err := ValidatePermission(perm); err != nil {
+		return err
 	}
-	return fmt.Errorf("%w: unknown permission state %q", ErrInvalidArgument, state)
+	if scope == ScopeRoom && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at room scope", perm)
+	}
+	if scope == ScopeGroup && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
+		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	}
+
+	var event *corev1.Event
+	switch state {
+	case PermissionStateAllow:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+			RbacPermissionGranted: rbacUserPermissionGrantedEvent(scope, scopeID, userID, perm),
+		}})
+	case PermissionStateDeny:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+			RbacPermissionDenied: rbacUserPermissionDeniedEvent(scope, scopeID, userID, perm),
+		}})
+	case PermissionStateNone:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+			RbacPermissionCleared: rbacUserPermissionClearedEvent(scope, scopeID, userID, perm),
+		}})
+	default:
+		return fmt.Errorf("%w: unknown permission state %q", ErrInvalidArgument, state)
+	}
+
+	_, err := c.appendRBACEvent(ctx, event, func() error {
+		if authorize != nil {
+			if err := authorize(); err != nil {
+				return err
+			}
+		}
+		current := c.RBAC.GetDecision(scope, scopeID, userID, perm)
+		if (state == PermissionStateAllow && current == DecisionAllow) ||
+			(state == PermissionStateDeny && current == DecisionDeny) ||
+			(state == PermissionStateNone && current == DecisionNone) {
+			return errRBACNoop
+		}
+		return nil
+	})
+	if errors.Is(err, errRBACNoop) {
+		return nil
+	}
+	return err
 }
 
 func (c *ChattoCore) buildTierRoles(ctx context.Context, scope PermissionScope, roomID, groupID string) (*TierRoles, error) {

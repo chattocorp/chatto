@@ -50,7 +50,7 @@ func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (boo
 }
 
 // CanAdminAuditView checks if a user can view the audit log (event log)
-// page in admin. The event-log inspection view in /server-admin/event-log
+// page in admin. The event-log inspection view in /manage/server/event-log
 // is the first concrete use; future log exports / search endpoints gate
 // on the same permission.
 func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool, error) {

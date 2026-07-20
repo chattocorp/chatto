@@ -23,6 +23,11 @@ export type AdminRoomInfo = {
   isUniversal: boolean;
 };
 
+export type AdminManagedRoom = AdminRoomInfo & {
+  canManageRoom: boolean;
+  canManagePermissions: boolean;
+};
+
 export type AdminSidebarLinkInfo = {
   id: string;
   label: string;
@@ -44,9 +49,16 @@ export type AdminSidebarItem =
 export type AdminRoomGroup = {
   id: string;
   name: string;
+  description?: string | null;
   canCreateRoom: boolean;
   rooms: AdminRoomInfo[];
   items: AdminSidebarItem[];
+};
+
+export type AdminManagedRoomGroup = {
+  group: AdminRoomGroup;
+  canManageGroup: boolean;
+  canManagePermissions: boolean;
 };
 
 export type AdminRoomLayoutItemMutationInput = {
@@ -58,6 +70,36 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   const layout = createChattoClient(AdminRoomLayoutService, config);
   const headers = () => authHeaders(config);
   return {
+    async getRoom(roomId: string): Promise<AdminManagedRoom | null> {
+      try {
+        const response = await layout.getRoom({ roomId }, { headers: headers() });
+        return response.room
+          ? {
+              ...mapAdminRoom(response.room),
+              canManageRoom: response.viewerCanManageRoom,
+              canManagePermissions: response.viewerCanManagePermissions
+            }
+          : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async getRoomGroup(groupId: string): Promise<AdminManagedRoomGroup | null> {
+      try {
+        const response = await layout.getRoomGroup({ groupId }, { headers: headers() });
+        return response.group
+          ? {
+              group: mapAdminRoomLayoutGroup(response.group),
+              canManageGroup: response.viewerCanManageGroup,
+              canManagePermissions: response.viewerCanManagePermissions
+            }
+          : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
     async listRoomGroups(): Promise<AdminRoomGroup[]> {
       try {
         const response = await layout.listRoomGroups({}, { headers: headers() });
@@ -84,7 +126,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
 
     async updateRoomGroup(input: {
       groupId: string;
-      name: string;
+      name?: string;
       description?: string | null;
     }): Promise<AdminRoomGroup | null> {
       try {
@@ -92,7 +134,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           {
             groupId: input.groupId,
             name: input.name,
-            description: input.description ?? ''
+            description: input.description === null ? '' : input.description
           },
           { headers: headers() }
         );
@@ -211,6 +253,7 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
+    description: group.description || null,
     canCreateRoom: group.canCreateRoom ?? false,
     rooms: roomsFromSidebarItems(items),
     items

@@ -67,6 +67,17 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
+Authorization-sensitive mutations use the singleton
+`evt.authorization.server.fence_advanced` OCC lane. Every RBAC change,
+room-group/layout change, and user lifecycle change that can alter effective
+authority advances this lane atomically with its domain facts. Before evaluating
+bounded scoped authority, writers wait the relevant RBAC, room directory,
+room-group layout, and user projections through the captured EVT boundary. A
+concurrent authorization change then conflicts and retries the complete
+authorization decision, while unrelated messages and reactions do not contend.
+The fence event carries no policy state; the owning domain projections remain
+authoritative.
+
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
 authorization through `AssetProjection`, using the scope on `AssetCreatedEvent`
@@ -123,6 +134,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
 | `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.authorization.server.fence_advanced`        | Singleton OCC fence for changes that can alter mutation authority               |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
@@ -251,6 +263,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
 | `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
 | `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent`                  |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 

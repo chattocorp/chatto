@@ -21,20 +21,25 @@ const (
 
 // Aggregate type segments. Stable identifiers; once written, never renamed.
 const (
-	AggregateRoom   = "room"
-	AggregateConfig = "config"
-	AggregateGroup  = "group"
-	AggregateLayout = "layout"
-	AggregateUser   = "user"
-	AggregateAsset  = "asset"
-	AggregateRBAC   = "rbac"
-	AggregateAuth   = "auth"
+	AggregateRoom          = "room"
+	AggregateConfig        = "config"
+	AggregateGroup         = "group"
+	AggregateLayout        = "layout"
+	AggregateUser          = "user"
+	AggregateAsset         = "asset"
+	AggregateRBAC          = "rbac"
+	AggregateAuthorization = "authorization"
+	AggregateAuth          = "auth"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
 // (ADR-034 singleton convention: server-scoped aggregates use a stable
 // sentinel rather than introducing a different subject shape).
 const ConfigSingletonID = "server"
+
+// AuthorizationSingletonID is the sentinel aggregate ID for the server-wide
+// authorization concurrency fence.
+const AuthorizationSingletonID = "server"
 
 // LayoutSingletonID is the sentinel aggregate ID for the singleton
 // sidebar layout. Same convention as ConfigSingletonID.
@@ -167,6 +172,9 @@ const (
 	EventRBACPermissionGranted      = "permission_granted"
 	EventRBACPermissionDenied       = "permission_denied"
 	EventRBACPermissionCleared      = "permission_cleared"
+
+	// Authorization concurrency fence
+	EventAuthorizationFenceAdvanced = "fence_advanced"
 
 	// Auth/security audit
 	EventRegistrationVerificationCodeIssued = "registration_verification_code_issued"
@@ -364,6 +372,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRBACRoleDescriptionChanged
 	case *corev1.Event_RbacRolePingableChanged:
 		return EventRBACRolePingableChanged
+	case *corev1.Event_AuthorizationFenceAdvanced:
+		return EventAuthorizationFenceAdvanced
 	case *corev1.Event_RbacRoleDeleted:
 		return EventRBACRoleDeleted
 	case *corev1.Event_RbacRolesReordered:
@@ -520,6 +530,12 @@ func RBACScopedAggregate(scopeID string) Aggregate {
 	return Aggregate{Type: AggregateRBAC, ID: scopeID}
 }
 
+// AuthorizationAggregate is the singleton concurrency lane advanced by
+// authorization-changing facts and authorization-protected mutations.
+func AuthorizationAggregate() Aggregate {
+	return Aggregate{Type: AggregateAuthorization, ID: AuthorizationSingletonID}
+}
+
 // AuthAggregate is the typed constructor for server-wide auth audit facts.
 func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
@@ -566,6 +582,13 @@ func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
 // event.
 // Pattern: evt.rbac.>
 func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
+
+// AuthorizationSubjectFilter returns the narrow concurrency boundary shared
+// by authorization-changing and authorization-protected writes.
+// Pattern: evt.authorization.>
+func AuthorizationSubjectFilter() string {
+	return SubjectRoot + AggregateAuthorization + ".>"
+}
 
 // AuthSubjectFilter returns the wildcard filter matching server-wide auth
 // audit facts.

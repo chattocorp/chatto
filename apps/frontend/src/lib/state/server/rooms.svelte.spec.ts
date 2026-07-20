@@ -32,7 +32,8 @@ function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): Di
     isUniversal: overrides.isUniversal ?? false,
     isMember: overrides.isMember ?? true,
     hasUnread: overrides.hasUnread ?? false,
-    canJoinRoom: overrides.canJoinRoom ?? true
+    canJoinRoom: overrides.canJoinRoom ?? true,
+    canManageRoom: overrides.canManageRoom ?? false
   };
 }
 
@@ -176,6 +177,7 @@ describe('RoomsStore - refresh', () => {
           id: 'g1',
           name: 'Lobby',
           canCreateRoom: false,
+          canManageGroup: false,
           roomIds: ['public'],
           items: [makeGroupRoomItem('public')]
         }
@@ -565,6 +567,7 @@ describe('RoomsStore - refresh', () => {
             id: 'g1',
             name: 'Lobby',
             canCreateRoom: false,
+            canManageGroup: false,
             roomIds: ['general'],
             items: [
               {
@@ -585,6 +588,7 @@ describe('RoomsStore - refresh', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        viewerCanManageGroup: false,
         roomIds: ['general'],
         items: [
           {

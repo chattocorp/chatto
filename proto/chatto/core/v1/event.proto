@@ -4,6 +4,7 @@ package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/auth_events.proto";
+import "chatto/core/v1/authorization_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/moderation_events.proto";
@@ -189,6 +190,9 @@ message Event {
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
     RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+
+    // ----- Authorization concurrency fence (830-839, durable) -----
+    AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830;
 
     // ----- Moderation (840-899, durable, room-owned) -----
     RoomMemberBannedEvent room_member_banned = 840;

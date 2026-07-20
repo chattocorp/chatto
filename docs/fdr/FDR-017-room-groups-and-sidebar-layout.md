@@ -9,11 +9,11 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
-- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
-- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded. A viewer with effective group `room.manage` also sees a settings action on that group header, including when no rooms in the group are otherwise visible.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Every visible room row exposes a context menu. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`.
-- Server admins can create, rename, reorder, and delete groups via the admin UI.
+- Every visible room row exposes a context menu. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
+- Server-wide room managers can create and reorder groups from the room-layout overview. Its edit action opens the room group's resource page in the shared management area. Effective group `room.manage` holders can edit or delete that group, while either they or server-wide `role.manage` holders can configure its role permission matrix.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar.
@@ -22,6 +22,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).
 - Creating, editing, moving, deleting, or reordering sidebar links requires `room.manage` for the affected group. Moving a sidebar link between groups requires `room.manage` in both the source and target groups, matching room moves.
 - Room-scope permissions (`message.post`, `room.join`, `message.react`, etc.) can be configured per group, with per-room overrides on top.
+- Management-authorized group metadata reads are distinct from the user-facing room directory: `room.manage` and `role.manage` holders can load the selected group's settings even when they do not otherwise have room visibility. This read omits the group's ordered room/link entries so role permission managers do not gain private-room visibility through the settings page.
 
 ## Design Decisions
 
@@ -51,9 +52,9 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 5. Moves require authorization in both ends
 
-**Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in *both* A and B. The UI previews affected users before confirming room moves.
+**Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in _both_ A and B. The UI previews affected users before confirming room moves.
 **Why:** Moving across groups changes the effective permission set for everyone using the room. An admin authorized only in A shouldn't be able to dump rooms into B and grant a different audience access. Requiring both ends makes the privilege boundary symmetric.
-**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch.
+**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch. User-authorized group/layout mutations also share the narrow authorization fence with RBAC changes, so a concurrent permission revocation forces the complete authorization check to rerun.
 
 ### 6. Sidebar links extend the existing group aggregate
 
@@ -82,7 +83,9 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 ## Permissions
 
 - `room.create` — configured per group (or at server scope as a default).
-- `room.manage` — required in both source and target groups when moving a room.
+- Server-scope `room.manage` — create and globally reorder room groups.
+- Effective group `room.manage` — edit or delete a group and manage its sidebar entries; required in both source and target groups when moving a room or link.
+- `role.manage` — configure role permission decisions at group scope without granting authority to change the group's general settings.
 - `room.list` — controls whether a channel room appears in the sidebar and room directory for non-members.
 - `room.join` — controls whether a non-member can join a visible channel room directly.
 - All channel-room-scope permissions (`message.post`, `room.join`, etc.) are configurable per group with per-room overrides.

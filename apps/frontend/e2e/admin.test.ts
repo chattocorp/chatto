@@ -242,7 +242,7 @@ test.describe('Admin Users Page', () => {
   });
 
   // The previous "admin can see verified emails for multiple OAuth users"
-  // test was retired when /admin/users folded into the server-admin Members
+  // test was retired when /admin/users folded into the manage/server Members
   // page. The Members page intentionally doesn't surface email addresses —
   // that level of identity is a deliberate scope reduction.
 });
@@ -280,7 +280,7 @@ test.describe('Admin Navigation', () => {
     await adminPage.expectSidebarLinkActive('General');
   });
 
-  test('admin pages use the dedicated server-admin sidebar shell', async ({ page, adminPage }) => {
+  test('admin pages use the dedicated manage/server sidebar shell', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.gotoUsers();
@@ -547,8 +547,8 @@ test.describe('Role Assignment', () => {
   // The "instance-admin" / instance-role assignment tests previously lived
   // here. They targeted the legacy /admin/users/[id] and /admin/roles/[name]
   // pages, which used a separate RBAC engine for instance-scoped roles.
-  // After the instance-admin → server-admin consolidation, instance roles
-  // are not surfaced in the unified server-admin role detail; merging the
+  // After the instance-admin → manage/server consolidation, instance roles
+  // are not surfaced in the unified manage/server role detail; merging the
   // two RBAC engines lands in the planned PR(c). Restore equivalent
   // coverage there once the role concepts unify.
 

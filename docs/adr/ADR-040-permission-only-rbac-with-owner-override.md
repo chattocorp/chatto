@@ -32,6 +32,8 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Effective owners are users with the durable `owner` role or a verified email
   matching `owners.emails` in Chatto configuration. Owners are always granted
   all permissions regardless of stored allow/deny state.
+- Every other role, including `admin`, confers only its explicit permission
+  decisions. Runtime code does not attach additional authority to role names.
 - For non-owners, permission resolution is deny-wins: any applicable user or
   role deny blocks the permission; otherwise any applicable allow grants it;
   otherwise the result is no decision and the API treats it as denied.
@@ -41,6 +43,11 @@ Use a permission-only RBAC model for everyone except effective owners.
   `role.assign` gates role assignment, `user.manage-accounts` gates account
   lifecycle and recovery actions, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
+- Authorization-sensitive writes evaluate permission checks inside their OCC
+  retry. RBAC, relevant user lifecycle, and room-group/layout changes advance a
+  narrow durable authorization fence atomically with their domain facts, so a
+  concurrent authority change forces the complete check to rerun without
+  contending with ordinary chat traffic.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
@@ -64,3 +71,6 @@ This supersedes ADR-005.
 - Existing role position fields and protobuf event fields remain for
   compatibility. Removing or reserving them can be considered separately if the
   persisted event contract is migrated.
+- The authorization fence adds an empty operational fact to protected batches.
+  During a mixed-version rollout, its full concurrency guarantee starts only
+  after all writing replicas understand and advance the fence.

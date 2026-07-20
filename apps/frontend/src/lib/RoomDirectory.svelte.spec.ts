@@ -25,6 +25,7 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
   isUniversal: overrides.isUniversal ?? false,
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerCanManageRoom: overrides.viewerCanManageRoom ?? false,
   viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
   members: overrides.members ?? []
 });
@@ -166,7 +167,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('r1', { name: 'general' }), room('r2', { name: 'random' })],
         joinedRooms: [],
-        roomGroups: [{ id: 'sec', name: 'Important', roomIds: ['r1'] }]
+        roomGroups: [{ id: 'sec', name: 'Important', viewerCanManageGroup: false, roomIds: ['r1'] }]
       }
     });
     flushSync();
@@ -182,7 +183,9 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [],
-        roomGroups: [{ id: 'g1', name: 'Group One', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          { id: 'g1', name: 'Group One', viewerCanManageGroup: false, roomIds: ['a', 'b'] }
+        ]
       }
     });
     flushSync();
@@ -194,7 +197,9 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [joined('a'), joined('b')],
-        roomGroups: [{ id: 'g1', name: 'All Joined', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          { id: 'g1', name: 'All Joined', viewerCanManageGroup: false, roomIds: ['a', 'b'] }
+        ]
       }
     });
     flushSync();
@@ -209,7 +214,14 @@ describe('RoomDirectory', () => {
           room('b', { viewerCanJoinRoom: false })
         ],
         joinedRooms: [],
-        roomGroups: [{ id: 'g1', name: 'Restricted Only', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          {
+            id: 'g1',
+            name: 'Restricted Only',
+            viewerCanManageGroup: false,
+            roomIds: ['a', 'b']
+          }
+        ]
       }
     });
     flushSync();
@@ -226,7 +238,9 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [joined('b')],
-        roomGroups: [{ id: 'g1', name: 'Mixed', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          { id: 'g1', name: 'Mixed', viewerCanManageGroup: false, roomIds: ['a', 'b'] }
+        ]
       }
     });
     flushSync();

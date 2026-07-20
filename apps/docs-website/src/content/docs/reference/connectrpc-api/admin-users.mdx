@@ -93,6 +93,9 @@ Server-admin member detail payload.
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
+| `assignable_role_names` | `repeated string` | Roles the caller may assign without granting authority the caller does not possess. Populated when assignment limits are enforced. |
+| `revocable_role_names` | `repeated string` | Roles the caller may revoke without removing restrictions or authority beyond the caller's own. Populated when assignment limits are enforced. |
+| `role_assignment_limits_enforced` | `bool` | True when assignable_role_names and revocable_role_names are authoritative. Older servers leave this false and clients may retain legacy behaviour. |
 
 
 <a id="chatto-admin-v1-AdminUserService-BatchGetMembers"></a>
@@ -132,7 +135,8 @@ Batch server-admin member response.
 
 ### AssignRole
 
-Assigns a role to a user. Requires role.assign.
+Assigns a role to a user. Requires role.assign, and non-owner callers may
+only assign roles whose granted authority they already possess.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -165,7 +169,8 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user. Requires role.assign.
+Revokes a role from a user. Requires role.assign, and non-owner callers may
+only revoke roles whose permission decisions are within their authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole

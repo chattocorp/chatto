@@ -1090,7 +1090,7 @@ func TestChattoCore_GetUserServerRoles(t *testing.T) {
 // Instance Role Assignment Tests
 // ============================================================================
 
-func TestChattoCore_AssignServerRole_PermissionOnly(t *testing.T) {
+func TestChattoCore_AssignServerRole_BoundedAuthority(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1118,10 +1118,10 @@ func TestChattoCore_AssignServerRole_PermissionOnly(t *testing.T) {
 		t.Fatalf("Failed to create target: %v", err)
 	}
 
-	t.Run("admin can assign owner role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot assign owner role", func(t *testing.T) {
 		err := core.AssignServerRole(ctx, admin.Id, target.Id, RoleOwner)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1146,10 +1146,10 @@ func TestChattoCore_AssignServerRole_PermissionOnly(t *testing.T) {
 		}
 	})
 
-	t.Run("admin can self-assign owner when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot self-assign owner", func(t *testing.T) {
 		err := core.AssignServerRole(ctx, admin.Id, admin.Id, RoleOwner)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -1176,7 +1176,7 @@ func TestChattoCore_AssignServerRole_PermissionOnly(t *testing.T) {
 	})
 }
 
-func TestChattoCore_RevokeServerRole_PermissionOnly(t *testing.T) {
+func TestChattoCore_RevokeServerRole_BoundedAuthority(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1216,10 +1216,10 @@ func TestChattoCore_RevokeServerRole_PermissionOnly(t *testing.T) {
 		t.Fatalf("Failed to assign moderator: %v", err)
 	}
 
-	t.Run("admin can revoke owner role when API gate permits the call", func(t *testing.T) {
+	t.Run("admin cannot revoke owner role", func(t *testing.T) {
 		err := core.RevokeServerRole(ctx, admin.Id, owner.Id, RoleOwner)
-		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -2578,7 +2578,7 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 // Role Assignment Tests
 // ============================================================================
 
-func TestChattoCore_AssignRole_PermissionOnly(t *testing.T) {
+func TestChattoCore_AssignRole_BoundedAuthority(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2604,19 +2604,19 @@ func TestChattoCore_AssignRole_PermissionOnly(t *testing.T) {
 		core.RevokeServerRole(ctx, owner, regular, RoleModerator)
 	})
 
-	t.Run("moderator can assign owner role when caller gate permits the call", func(t *testing.T) {
+	t.Run("moderator cannot assign owner role", func(t *testing.T) {
 		err := core.AssignServerRole(ctx, mod, regular, RoleOwner)
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
-	t.Run("regular member can assign custom role when caller gate permits the call", func(t *testing.T) {
+	t.Run("regular member needs role.assign even for an empty custom role", func(t *testing.T) {
 		core.CreateServerRole(ctx, SystemActorID, "helper", "Helper", "Can help")
 
 		err := core.AssignServerRole(ctx, regular, mod, "helper")
-		if err != nil {
-			t.Fatalf("AssignServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AssignServerRole error = %v, want permission denied", err)
 		}
 	})
 
@@ -2663,7 +2663,7 @@ func TestChattoCore_RevokeRole_CannotDemoteSelf(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RevokeRole_PeersCanRevokeWhenAPIGatePermits(t *testing.T) {
+func TestChattoCore_RevokeRole_RemovingRoleAlsoRemovesAssignmentAuthority(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2684,14 +2684,14 @@ func TestChattoCore_RevokeRole_PeersCanRevokeWhenAPIGatePermits(t *testing.T) {
 		}
 	})
 
-	t.Run("vice versa - B can demote A", func(t *testing.T) {
+	t.Run("B cannot demote A after losing the granting role", func(t *testing.T) {
 		err := core.RevokeServerRole(ctx, modB, modA, RoleModerator)
-		if err != nil {
-			t.Fatalf("RevokeServerRole: %v", err)
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("RevokeServerRole error = %v, want permission denied", err)
 		}
 	})
 
-	// Verify both roles were revoked.
+	// B lost the moderator role; A retained it because B no longer had authority.
 	rolesA, _ := core.GetUserRoles(ctx, modA)
 	rolesB, _ := core.GetUserRoles(ctx, modB)
 
@@ -2704,8 +2704,8 @@ func TestChattoCore_RevokeRole_PeersCanRevokeWhenAPIGatePermits(t *testing.T) {
 		return false
 	}
 
-	if hasMod(rolesA) {
-		t.Error("Moderator A should no longer have moderator role")
+	if !hasMod(rolesA) {
+		t.Error("Moderator A should retain moderator role")
 	}
 	if hasMod(rolesB) {
 		t.Error("Moderator B should no longer have moderator role")

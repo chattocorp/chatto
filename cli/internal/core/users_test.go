@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -1797,6 +1798,26 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if _, err := c.BatchGetAdminMembers(ctx, regular.Id, []string{target.Id}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("BatchGetAdminMembers regular err = %v, want ErrPermissionDenied", err)
 	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermAdminUsersView); err != nil {
+		t.Fatalf("GrantUserPermission admin.view-users: %v", err)
+	}
+	regularDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
+	if err != nil {
+		t.Fatalf("GetAdminMemberDetails list-only viewer: %v", err)
+	}
+	if regularDetails.Member.LastLoginChange != nil {
+		t.Fatal("list-only viewer received username-change timestamp without user.manage-accounts")
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermUserManageAccounts); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	}
+	accountManagerDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
+	if err != nil {
+		t.Fatalf("GetAdminMemberDetails account manager: %v", err)
+	}
+	if accountManagerDetails.Member.LastLoginChange == nil {
+		t.Fatal("account manager did not receive username-change timestamp")
+	}
 
 	list, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{Search: "target", Limit: 10})
 	if err != nil {
@@ -1977,6 +1998,13 @@ func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 		}
 		if err := c.AdminRevokeServerRole(ctx, admin.Id, admin.Id, RoleOwner); !errors.Is(err, ErrCannotRevokeSelfAdmin) {
 			t.Fatalf("AdminRevokeServerRole owner err = %v, want ErrCannotRevokeSelfAdmin", err)
+		}
+		details, err := c.GetAdminMemberDetails(ctx, admin.Id, admin.Id)
+		if err != nil {
+			t.Fatalf("GetAdminMemberDetails self: %v", err)
+		}
+		if slices.Contains(details.RevocableRoleNames, RoleAdmin) || slices.Contains(details.RevocableRoleNames, RoleOwner) {
+			t.Fatalf("self revocable roles = %v, must omit protected admin and owner roles", details.RevocableRoleNames)
 		}
 	})
 }

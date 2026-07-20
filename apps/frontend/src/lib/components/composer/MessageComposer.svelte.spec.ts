@@ -945,7 +945,7 @@ describe('MessageComposer', () => {
 
       await expect.element(editor).toHaveTextContent('before <b>x</b>');
       expect(editor.querySelector('strong')).toBeNull();
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() => {

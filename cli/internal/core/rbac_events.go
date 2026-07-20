@@ -118,6 +118,10 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 	filter := events.RBACSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("read authorization fence seq: %w", err)
+		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
@@ -131,9 +135,17 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 			}
 		}
 		subject := rbacSubjectForEvent(event)
+		entries := []events.BatchEntry{{
+			Subject:       subject,
+			Event:         event,
+			HasOCC:        true,
+			ExpectedSeq:   filterSeq,
+			FilterSubject: filter,
+		}}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
 		if err == nil {
+			seq := seqs[0]
 			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}
@@ -152,29 +164,60 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID string, event *corev1.Event, check func() error) (uint64, error) {
-	filter := events.EventSubjectFilter()
+// appendRoleAssignmentEvent fences every projection used by role-assignment
+// authorization against the narrow authorization boundary. Unrelated chat
+// traffic does not advance that lane or force retries.
+func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *corev1.Event, check func() error) (uint64, error) {
+	filter := events.RBACSubjectFilter()
 	userFilter := events.UserAggregate(userID).AllEventsFilter()
+	actorID := event.GetActorId()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
-		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
 		if err != nil {
-			return 0, fmt.Errorf("read event OCC filter seq: %w", err)
-		}
-		if err := c.userModel.waitForUsersCurrent(ctx, "role target user", userFilter); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("read authorization fence seq: %w", err)
 		}
 
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		groupPos, err := c.EventPublisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read room-group projection position: %w", err)
+		}
+		if err := c.rooms().waitForGroupLayout(ctx, groupPos); err != nil {
+			return 0, fmt.Errorf("wait for room-group projection: %w", err)
+		}
+
+		roomPos, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read room directory projection position: %w", err)
+		}
+		if err := c.rooms().waitForDirectory(ctx, roomPos); err != nil {
+			return 0, fmt.Errorf("wait for room directory projection: %w", err)
+		}
+
+		if actorID != "" && actorID != SystemActorID {
+			actorFilter := events.UserAggregate(actorID).AllEventsFilter()
+			if err := c.userModel.waitForUsersCurrent(ctx, "role assignment actor", actorFilter); err != nil {
+				return 0, err
+			}
+		}
+		if requireExistingUser {
+			if err := c.userModel.waitForUsersCurrent(ctx, "role target user", userFilter); err != nil {
+				return 0, err
+			}
+		}
+
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
 		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(filter, rbacSeq)); err != nil {
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return 0, err
+		if requireExistingUser {
+			if _, err := c.GetUser(ctx, userID); err != nil {
+				return 0, err
+			}
 		}
 		if check != nil {
 			if err := check(); err != nil {
@@ -182,9 +225,17 @@ func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID st
 			}
 		}
 		subject := rbacSubjectForEvent(event)
+		entries := []events.BatchEntry{{
+			Subject:       subject,
+			Event:         event,
+			HasOCC:        true,
+			ExpectedSeq:   rbacSeq,
+			FilterSubject: filter,
+		}}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {
+			seq := seqs[0]
 			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}
@@ -200,13 +251,17 @@ func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID st
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return 0, fmt.Errorf("RBAC user OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+	return 0, fmt.Errorf("role assignment OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
 func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {
 	filter := events.EventSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("read authorization fence seq: %w", err)
+		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read mentionable OCC filter seq: %w", err)
@@ -229,9 +284,17 @@ func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, ev
 			}
 		}
 		subject := rbacSubjectForEvent(event)
+		entries := []events.BatchEntry{{
+			Subject:       subject,
+			Event:         event,
+			HasOCC:        true,
+			ExpectedSeq:   filterSeq,
+			FilterSubject: filter,
+		}}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
 		if err == nil {
+			seq := seqs[0]
 			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}
@@ -260,6 +323,10 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 	filter := events.RBACSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("read authorization fence seq: %w", err)
+		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read RBAC OCC filter seq: %w", err)
@@ -278,10 +345,12 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 		chunk[0].ExpectedSeq = filterSeq
 		chunk[0].FilterSubject = filter
 
-		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
+		actorID := chunk[0].Event.GetActorId()
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, chunk, authorizationSeq)
 		if err == nil {
-			lastSeq := seqs[len(seqs)-1]
-			lastSubject := chunk[len(chunk)-1].Subject
+			lastDomainIndex := len(chunk) - 1
+			lastSeq := seqs[lastDomainIndex]
+			lastSubject := chunk[lastDomainIndex].Subject
 			if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 			}

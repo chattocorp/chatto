@@ -158,7 +158,7 @@ test.describe('Server Admin Members', () => {
       // Should see admin's login
       await expect(page.getByText(`@${admin.login}`)).toBeVisible();
 
-      // The refreshed summary should show server-admin-relevant account facts.
+      // The refreshed summary should show manage/server-relevant account facts.
       await expect(page.getByText('Space Roles')).not.toBeVisible();
       await expect(page.getByText('Roles', { exact: true })).toBeVisible();
       await expect(page.getByText('Joined')).toBeVisible();

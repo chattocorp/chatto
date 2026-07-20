@@ -116,6 +116,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
   }
 
+  function handleConfigureRoom(room: RoomsListItem): void {
+    closeRoomContextMenu();
+    void goto(
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
+        serverId: serverSegment,
+        roomId: room.id
+      })
+    );
+  }
+
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     closeRoomContextMenu();
     const result = await stores.roomDirectory.joinRoom(room.id);
@@ -151,14 +161,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
-  // Sets that have at least one channel the viewer is a member of
+  // Keep manageable groups discoverable even when none of their rooms are
+  // visible to the viewer.
   let visibleSets = $derived.by(() => {
     const sets = roomsStore.roomGroups;
     if (!sets) return [];
-    return sets.filter((s) => getSetItems(s).length > 0);
+    return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
   });
-
-  const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
 
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
@@ -471,7 +480,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
+{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
     {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
@@ -491,7 +500,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
-        />
+        >
+          {#snippet actions()}
+            {#if set.viewerCanManageGroup}
+              <a
+                href={resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+                  serverId: serverSegment,
+                  groupId: set.id
+                })}
+                class="icon-action shrink-0"
+                aria-label={m['room_list.group_settings']({ group: set.name })}
+              >
+                <span class="iconify uil--setting" aria-hidden="true"></span>
+              </a>
+            {/if}
+          {/snippet}
+        </CollapsibleGroup>
       {/each}
     {:else if sortedRooms.length > 0}
       <!-- No layout configured yet — alphabetical fallback. -->
@@ -532,10 +556,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
+      canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomType.Dm}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
       canSearch={canSearchMessages}
       onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
+      onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
       onSearch={() => handleSearchRoom(contextRoom)}
     />
