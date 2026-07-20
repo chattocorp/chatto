@@ -246,6 +246,9 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 		attachment.Height = height
 	}
 	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+		if errors.Is(err, ErrAssetCommitUnknown) {
+			return nil, err
+		}
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), attachmentWriteCompensationTimeout)
 		defer cancel()
 		if cleanupErr := c.DeleteAttachmentFromStorage(cleanupCtx, attachment); cleanupErr != nil {

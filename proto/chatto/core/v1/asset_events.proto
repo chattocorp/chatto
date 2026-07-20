@@ -148,6 +148,23 @@ message AssetProcessingFailedEvent {
   repeated string cleanup_asset_ids = 4;
 }
 
+// AssetDerivativeCleanupRequestedEvent records generated assets that are not
+// referenced by the winning terminal processing outcome and must be removed.
+message AssetDerivativeCleanupRequestedEvent {
+  string source_asset_id = 1;
+  repeated string cleanup_asset_ids = 2;
+}
+
+// AssetProcessingCommitReconciliationRequestedEvent records a processing
+// success whose durable append could not be confirmed before its caller's
+// deadline. Cleanup waits until the attempted event is known to be absent.
+message AssetProcessingCommitReconciliationRequestedEvent {
+  string source_asset_id = 1;
+  string attempted_event_id = 2;
+  repeated string cleanup_asset_ids = 3;
+  string message_event_id = 4;
+}
+
 // AssetProcessedVideo is the per-asset video manifest carried by
 // AssetProcessingSucceededEvent. Derivative assets (thumbnail + variants)
 // are referenced by id and have their own AssetCreatedEvent records.

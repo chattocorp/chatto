@@ -562,7 +562,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
 	}
 	if err != nil {
-		if errors.Is(err, core.ErrAssetProcessingCommitUnknown) {
+		if errors.Is(err, core.ErrAssetCommitUnknown) {
 			s.logger.Warn("Video processing success commit could not be confirmed; retaining generated output for recovery",
 				"asset_id", req.AssetID,
 				"error", err)

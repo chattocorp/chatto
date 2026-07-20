@@ -160,6 +160,8 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.asset.{assetId}.asset_processing_succeeded`             | `AssetProcessingSucceededEvent`                     |
 | `evt.asset.{assetId}.asset_processing_failed`                | `AssetProcessingFailedEvent`                        |
 | `evt.asset.{assetId}.asset_deleted`                          | `AssetDeletedEvent`                                 |
+| `evt.asset.{assetId}.asset_derivative_cleanup_requested`     | `AssetDerivativeCleanupRequestedEvent`              |
+| `evt.asset.{assetId}.asset_processing_commit_reconciliation_requested` | `AssetProcessingCommitReconciliationRequestedEvent` |
 | `evt.config.{subject}.server_name_changed`                   | `ServerNameChangedEvent`                            |
 | `evt.config.{subject}.server_description_changed`            | `ServerDescriptionChangedEvent`                     |
 | `evt.config.{subject}.server_welcome_message_changed`        | `ServerWelcomeMessageChangedEvent`                  |
@@ -239,6 +241,10 @@ Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/e
 `AssetProcessingFailedEvent.cleanup_asset_ids` is an additive durable cleanup
 intent. Current writers include derivatives created by that failed attempt;
 the elected asset-cleanup worker ignores the absent field on historical events.
+Losing terminal attempts use `AssetDerivativeCleanupRequestedEvent`, while an
+unconfirmed success append uses a delayed reconciliation request that retains
+the output if its exact event ID appears and otherwise records failure before
+cleanup.
 
 ## Transient live subjects
 

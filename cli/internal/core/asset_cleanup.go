@@ -70,15 +70,98 @@ func (s *AssetModel) runAssetCleanupPass(ctx context.Context) {
 }
 
 func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
-	if s == nil || s.cleanupConsumer == nil || s.failedVideoCleanupConsumer == nil {
+	if s == nil || s.cleanupConsumer == nil || s.failedVideoCleanupConsumer == nil || s.derivativeCleanupConsumer == nil || s.processingCommitReconciliationConsumer == nil {
 		return fmt.Errorf("asset cleanup consumer is not configured")
 	}
 	// Failed generations publish their durable cleanup intent first. Process it
 	// before deletion facts so newly appended tombstones can remove bytes in the
 	// same pass.
 	failureErr := s.failedVideoCleanupConsumer.Consume(ctx)
+	requestErr := s.derivativeCleanupConsumer.Consume(ctx)
+	reconciliationErr := s.processingCommitReconciliationConsumer.Consume(ctx)
 	deletionErr := s.cleanupConsumer.Consume(ctx)
-	return errors.Join(failureErr, deletionErr)
+	return errors.Join(failureErr, requestErr, reconciliationErr, deletionErr)
+}
+
+func (s *AssetModel) reconcileUnknownVideoProcessingCommit(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+	event := subjectEvent.Event
+	requested := event.GetAssetProcessingCommitReconciliationRequested()
+	if requested == nil || requested.GetSourceAssetId() == "" || requested.GetAttemptedEventId() == "" {
+		return nil
+	}
+	sourceAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	if !ok || sourceAssetID != requested.GetSourceAssetId() {
+		return fmt.Errorf(
+			"asset processing reconciliation subject %q does not match payload source id %q",
+			subjectEvent.Subject,
+			requested.GetSourceAssetId(),
+		)
+	}
+	createdAt := event.GetCreatedAt()
+	if createdAt == nil || !createdAt.IsValid() {
+		return fmt.Errorf("asset processing reconciliation %s has no valid creation time", event.GetId())
+	}
+	if readyAt := createdAt.AsTime().Add(assetCommitReconciliationGrace); time.Now().Before(readyAt) {
+		return fmt.Errorf("asset processing reconciliation %s is waiting for commit grace period", event.GetId())
+	}
+	committed, err := s.assetEventIDExists(ctx, sourceAssetID, events.EventAssetProcessingSucceeded, requested.GetAttemptedEventId())
+	if err != nil {
+		return err
+	}
+	if committed {
+		return nil
+	}
+	roomID, err := s.durableAssetRoomID(ctx, sourceAssetID)
+	if err != nil {
+		return err
+	}
+	err = s.recordAssetProcessingFailedWithCleanup(
+		ctx,
+		event.GetActorId(),
+		roomID,
+		requested.GetMessageEventId(),
+		sourceAssetID,
+		corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED,
+		requested.GetCleanupAssetIds(),
+	)
+	if errors.Is(err, ErrAssetLifecycleSkipped) {
+		committed, confirmErr := s.assetEventIDExists(ctx, sourceAssetID, events.EventAssetProcessingSucceeded, requested.GetAttemptedEventId())
+		if confirmErr != nil {
+			return confirmErr
+		}
+		if committed {
+			return nil
+		}
+		return s.RecordAssetDerivativeCleanupRequested(ctx, event.GetActorId(), sourceAssetID, requested.GetCleanupAssetIds())
+	}
+	if err != nil {
+		return err
+	}
+	return s.cleanupVideoDerivativeIDs(ctx, event.GetActorId(), sourceAssetID, requested.GetCleanupAssetIds())
+}
+
+func (s *AssetModel) assetEventIDExists(ctx context.Context, assetID, eventType, eventID string) (bool, error) {
+	published, _, err := s.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(assetID).Subject(eventType))
+	if err != nil {
+		return false, fmt.Errorf("read durable %s events for asset %s: %w", eventType, assetID, err)
+	}
+	for _, candidate := range published {
+		if candidate.GetId() == eventID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *AssetModel) durableAssetRoomID(ctx context.Context, assetID string) (string, error) {
+	created, _, err := s.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(assetID).Subject(events.EventAssetCreated))
+	if err != nil {
+		return "", fmt.Errorf("read creation fact for asset %s: %w", assetID, err)
+	}
+	if len(created) == 0 || created[len(created)-1].GetAssetCreated().GetRoomId() == "" {
+		return "", fmt.Errorf("asset %s has no durable room scope", assetID)
+	}
+	return created[len(created)-1].GetAssetCreated().GetRoomId(), nil
 }
 
 func (s *AssetModel) cleanupFailedVideoDerivatives(ctx context.Context, subjectEvent *events.SubjectEvent) error {
@@ -95,7 +178,27 @@ func (s *AssetModel) cleanupFailedVideoDerivatives(ctx context.Context, subjectE
 			failed.GetAssetId(),
 		)
 	}
-	actorID := event.GetActorId()
+	return s.cleanupVideoDerivativeIDs(ctx, event.GetActorId(), sourceAssetID, failed.GetCleanupAssetIds())
+}
+
+func (s *AssetModel) cleanupRequestedVideoDerivatives(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+	event := subjectEvent.Event
+	requested := event.GetAssetDerivativeCleanupRequested()
+	if requested == nil || requested.GetSourceAssetId() == "" {
+		return nil
+	}
+	sourceAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	if !ok || sourceAssetID != requested.GetSourceAssetId() {
+		return fmt.Errorf(
+			"asset derivative cleanup subject %q does not match payload source id %q",
+			subjectEvent.Subject,
+			requested.GetSourceAssetId(),
+		)
+	}
+	return s.cleanupVideoDerivativeIDs(ctx, event.GetActorId(), sourceAssetID, requested.GetCleanupAssetIds())
+}
+
+func (s *AssetModel) cleanupVideoDerivativeIDs(ctx context.Context, actorID, sourceAssetID string, cleanupAssetIDs []string) error {
 	if actorID == "" {
 		actorID = SystemActorID
 	}
@@ -114,7 +217,7 @@ func (s *AssetModel) cleanupFailedVideoDerivatives(ctx context.Context, subjectE
 		return fmt.Errorf("failed source creation id %q does not match aggregate %q", sourceCreated.GetAsset().GetId(), sourceAssetID)
 	}
 	sourceRoomID := sourceCreated.GetRoomId()
-	for _, assetID := range failed.GetCleanupAssetIds() {
+	for _, assetID := range cleanupAssetIDs {
 		if assetID == "" {
 			continue
 		}

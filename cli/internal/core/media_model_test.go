@@ -573,6 +573,77 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 }
 
+func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "derivative-ambiguous", "Derivative ambiguous")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	service := core.assetLifecycle()
+	service.waitForAssetsOverride = func(waitCtx context.Context, pos events.StreamPosition) error {
+		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetCreated) {
+			return context.DeadlineExceeded
+		}
+		return core.AssetsProjector.WaitFor(waitCtx, pos)
+	}
+	t.Cleanup(func() { service.waitForAssetsOverride = nil })
+
+	segment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment after committed append: %v", err)
+	}
+	created, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetCreated))
+	if err != nil {
+		t.Fatalf("read derivative creation: %v", err)
+	}
+	if len(created) != 1 {
+		t.Fatalf("derivative creation events = %d, want 1", len(created))
+	}
+	reader, _, err := core.media().GetAttachmentReader(ctx, segment)
+	if err != nil {
+		t.Fatalf("committed derivative became unreadable: %v", err)
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		closer.Close()
+	}
+}
+
+func TestLosingVideoGenerationRecordsDurableCleanupIntent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "video-losing-generation", "Video losing generation")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, &corev1.AssetProcessedHLS{}); err != nil {
+		t.Fatalf("record winning generation: %v", err)
+	}
+	loser, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "loser.ts", "video/mp2t", bytes.NewReader([]byte("loser")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+	losingHLS := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Segments: []*corev1.AssetHLSSegment{{AssetId: loser.GetId(), DurationMs: 1000}}}}}
+	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, losingHLS); err != nil {
+		t.Fatalf("record losing generation: %v", err)
+	}
+	requests, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetDerivativeCleanupRequested))
+	if err != nil {
+		t.Fatalf("read derivative cleanup requests: %v", err)
+	}
+	if len(requests) != 1 || len(requests[0].GetAssetDerivativeCleanupRequested().GetCleanupAssetIds()) != 1 || requests[0].GetAssetDerivativeCleanupRequested().GetCleanupAssetIds()[0] != loser.GetId() {
+		t.Fatalf("cleanup requests = %+v, want losing derivative %s", requests, loser.GetId())
+	}
+}
+
 func TestAssetModelRecordAssetDeletedRequiresActor(t *testing.T) {
 	core, _ := setupTestCore(t)
 	service := core.assetLifecycle()

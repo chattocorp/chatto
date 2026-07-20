@@ -195,6 +195,88 @@ func TestAssetCleanupReplaysFailedVideoDerivativeIntent(t *testing.T) {
 	}
 }
 
+func TestAssetCleanupReconcilesUncommittedVideoSuccess(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-reconcile-video", "Reconcile video cleanup")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	segment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+	previousGrace := assetCommitReconciliationGrace
+	assetCommitReconciliationGrace = 0
+	t.Cleanup(func() { assetCommitReconciliationGrace = previousGrace })
+	if err := core.assetLifecycle().RecordAssetProcessingCommitReconciliationRequested(ctx, SystemActorID, original.GetId(), "E-message", "EVT-never-committed", []string{segment.GetId()}); err != nil {
+		t.Fatalf("RecordAssetProcessingCommitReconciliationRequested: %v", err)
+	}
+
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup reconciliation: %v", err)
+	}
+	manifest, ok := core.Assets.VideoAttachmentManifest(original.GetId())
+	if !ok || manifest.Failed == nil {
+		t.Fatalf("video manifest after reconciliation = %+v, want failed", manifest)
+	}
+	if _, _, err := core.media().GetAttachmentReader(ctx, segment); err == nil {
+		t.Fatal("uncommitted generation derivative remained readable")
+	}
+}
+
+func TestAssetCleanupReconciliationRetainsCommittedVideoSuccess(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-retain-video", "Retain video output")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	segment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 1000}}}}}
+	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, hls); err != nil {
+		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
+	}
+	successes, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	if err != nil || len(successes) != 1 {
+		t.Fatalf("processing success events = %d, %v; want 1, nil", len(successes), err)
+	}
+	previousGrace := assetCommitReconciliationGrace
+	assetCommitReconciliationGrace = 0
+	t.Cleanup(func() { assetCommitReconciliationGrace = previousGrace })
+	if err := core.assetLifecycle().RecordAssetProcessingCommitReconciliationRequested(ctx, SystemActorID, original.GetId(), "E-message", successes[0].GetId(), []string{segment.GetId()}); err != nil {
+		t.Fatalf("RecordAssetProcessingCommitReconciliationRequested: %v", err)
+	}
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup reconciliation: %v", err)
+	}
+	reader, _, err := core.media().GetAttachmentReader(ctx, segment)
+	if err != nil {
+		t.Fatalf("committed generation derivative became unreadable: %v", err)
+	}
+	if closer, ok := reader.(interface{ Close() error }); ok {
+		closer.Close()
+	}
+	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetDeleted))
+	if err != nil {
+		t.Fatalf("read segment deletions: %v", err)
+	}
+	if len(deleted) != 0 {
+		t.Fatalf("segment deletion events = %d, want 0", len(deleted))
+	}
+}
+
 func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

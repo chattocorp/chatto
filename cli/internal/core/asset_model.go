@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	ErrAssetLifecycleSkipped        = errors.New("asset lifecycle event skipped")
-	ErrAssetProcessingCommitUnknown = errors.New("asset processing event commit status unknown")
+	ErrAssetLifecycleSkipped       = errors.New("asset lifecycle event skipped")
+	ErrAssetCommitUnknown          = errors.New("asset event commit status unknown")
+	errAssetEventCommitted         = errors.New("asset event committed before follow-up failure")
+	assetCommitReconciliationGrace = time.Minute
 )
 
 const (
@@ -41,13 +43,15 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease               *lease.Lease
-	cleanupConsumer            *events.IncrementalEffectConsumer
-	failedVideoCleanupConsumer *events.IncrementalEffectConsumer
-	cleanupPollEvery           time.Duration
-	waitForAssetsOverride      func(context.Context, events.StreamPosition) error
-	cleanupStatusMu            sync.RWMutex
-	cleanupPass                assetCleanupPassStatus
+	cleanupLease                           *lease.Lease
+	cleanupConsumer                        *events.IncrementalEffectConsumer
+	failedVideoCleanupConsumer             *events.IncrementalEffectConsumer
+	derivativeCleanupConsumer              *events.IncrementalEffectConsumer
+	processingCommitReconciliationConsumer *events.IncrementalEffectConsumer
+	cleanupPollEvery                       time.Duration
+	waitForAssetsOverride                  func(context.Context, events.StreamPosition) error
+	cleanupStatusMu                        sync.RWMutex
+	cleanupPass                            assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
@@ -62,6 +66,16 @@ func NewAssetModel(core *ChattoCore) *AssetModel {
 			core.EventPublisher,
 			events.AssetEventTypeFilter(events.EventAssetProcessingFailed),
 			model.cleanupFailedVideoDerivatives,
+		)
+		model.derivativeCleanupConsumer = events.NewIncrementalEffectConsumerWithSubject(
+			core.EventPublisher,
+			events.AssetEventTypeFilter(events.EventAssetDerivativeCleanupRequested),
+			model.cleanupRequestedVideoDerivatives,
+		)
+		model.processingCommitReconciliationConsumer = events.NewIncrementalEffectConsumerWithSubject(
+			core.EventPublisher,
+			events.AssetEventTypeFilter(events.EventAssetProcessingCommitReconciliationRequested),
+			model.reconcileUnknownVideoProcessingCommit,
 		)
 	}
 	return model
@@ -135,6 +149,19 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 		Event: &corev1.Event_AssetCreated{AssetCreated: created},
 	})
 	if err := s.appendAssetEventEventually(ctx, attachment.GetId(), event); err != nil {
+		if errors.Is(err, errAssetEventCommitted) {
+			return nil
+		}
+		committed, confirmErr := s.assetEventCommitted(ctx, attachment.GetId(), event)
+		if confirmErr != nil {
+			return errors.Join(
+				fmt.Errorf("publish asset creation event: %w", err),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+			)
+		}
+		if committed {
+			return nil
+		}
 		return fmt.Errorf("publish asset creation event: %w", err)
 	}
 	return nil
@@ -426,14 +453,31 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 	})
 	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
 		if errors.Is(err, ErrAssetLifecycleSkipped) {
-			s.cleanupVideoDerivativeOutputs(ctx, actorID, roomID, attachmentID, thumbnail, variants, hls)
+			cleanupAssetIDs := videoDerivativeOutputIDs(thumbnail, variants, hls)
+			intentCtx, intentCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+			intentErr := s.RecordAssetDerivativeCleanupRequested(intentCtx, actorID, attachmentID, cleanupAssetIDs)
+			intentCancel()
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+			s.cleanupVideoDerivativeOutputs(cleanupCtx, actorID, roomID, attachmentID, thumbnail, variants, hls)
+			cleanupCancel()
+			if intentErr != nil {
+				return fmt.Errorf("record skipped video generation cleanup: %w", intentErr)
+			}
 			return nil
 		}
-		committed, confirmErr := s.assetProcessingEventCommitted(ctx, attachmentID, event)
+		if errors.Is(err, errAssetEventCommitted) {
+			return nil
+		}
+		committed, confirmErr := s.assetEventCommitted(ctx, attachmentID, event)
 		if confirmErr != nil {
+			cleanupAssetIDs := videoDerivativeOutputIDs(thumbnail, variants, hls)
+			reconcileCtx, reconcileCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+			reconcileErr := s.RecordAssetProcessingCommitReconciliationRequested(reconcileCtx, actorID, attachmentID, messageEventID, event.GetId(), cleanupAssetIDs)
+			reconcileCancel()
 			return errors.Join(
 				fmt.Errorf("publish asset processing event: %w", err),
-				fmt.Errorf("%w: %v", ErrAssetProcessingCommitUnknown, confirmErr),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+				reconcileErr,
 			)
 		}
 		if committed {
@@ -444,7 +488,20 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 	return nil
 }
 
-func (s *AssetModel) assetProcessingEventCommitted(ctx context.Context, assetID string, event *corev1.Event) (bool, error) {
+func videoDerivativeOutputIDs(thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) []string {
+	var ids []string
+	if thumbnail != nil && thumbnail.GetId() != "" {
+		ids = append(ids, thumbnail.GetId())
+	}
+	for _, variant := range variants {
+		if variant != nil && variant.GetAttachment().GetId() != "" {
+			ids = append(ids, variant.GetAttachment().GetId())
+		}
+	}
+	return append(ids, hlsDerivativeAssetIDs(hls)...)
+}
+
+func (s *AssetModel) assetEventCommitted(ctx context.Context, assetID string, event *corev1.Event) (bool, error) {
 	confirmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
 	defer cancel()
 	eventType := events.EventTypeOf(event)
@@ -562,7 +619,10 @@ func (s *AssetModel) appendAssetEventEventually(ctx context.Context, assetID str
 		return err
 	}
 	pos := events.SubjectPosition(subject, seq)
-	return s.waitForAssets(ctx, pos)
+	if err := s.waitForAssets(ctx, pos); err != nil {
+		return errors.Join(errAssetEventCommitted, err)
+	}
+	return nil
 }
 
 func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID string, event *corev1.Event) error {
@@ -587,7 +647,10 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 		subject := agg.SubjectFor(event)
 		seq, err := s.EventPublisher.AppendAtFilter(ctx, subject, event, filter, tail.Seq)
 		if err == nil {
-			return s.waitForAssets(ctx, events.SubjectPosition(subject, seq))
+			if err := s.waitForAssets(ctx, events.SubjectPosition(subject, seq)); err != nil {
+				return errors.Join(errAssetEventCommitted, err)
+			}
+			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err
@@ -668,6 +731,16 @@ func (s *AssetModel) RecordAssetProcessingFailed(ctx context.Context, actorID st
 // with every derivative created by that failed attempt. The cleanup ids make
 // incomplete compensation discoverable after restart or lease handover.
 func (s *AssetModel) RecordAssetProcessingFailedWithCleanup(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode, cleanupAssetIDs []string) error {
+	err := s.recordAssetProcessingFailedWithCleanup(ctx, actorID, roomID, messageEventID, attachmentID, failureCode, cleanupAssetIDs)
+	if errors.Is(err, ErrAssetLifecycleSkipped) {
+		intentCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+		defer cancel()
+		return s.RecordAssetDerivativeCleanupRequested(intentCtx, actorID, attachmentID, cleanupAssetIDs)
+	}
+	return err
+}
+
+func (s *AssetModel) recordAssetProcessingFailedWithCleanup(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode, cleanupAssetIDs []string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
@@ -680,19 +753,75 @@ func (s *AssetModel) RecordAssetProcessingFailedWithCleanup(ctx context.Context,
 	})
 	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
 		if errors.Is(err, ErrAssetLifecycleSkipped) {
+			return ErrAssetLifecycleSkipped
+		}
+		if errors.Is(err, errAssetEventCommitted) {
 			return nil
 		}
-		committed, confirmErr := s.assetProcessingEventCommitted(ctx, attachmentID, event)
+		committed, confirmErr := s.assetEventCommitted(ctx, attachmentID, event)
 		if confirmErr != nil {
 			return errors.Join(
 				fmt.Errorf("publish asset processing event: %w", err),
-				fmt.Errorf("%w: %v", ErrAssetProcessingCommitUnknown, confirmErr),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
 			)
 		}
 		if committed {
 			return nil
 		}
 		return fmt.Errorf("publish asset processing event: %w", err)
+	}
+	return nil
+}
+
+// RecordAssetDerivativeCleanupRequested durably identifies an unused generated
+// output set, including a processing attempt that lost terminal OCC.
+func (s *AssetModel) RecordAssetDerivativeCleanupRequested(ctx context.Context, actorID, sourceAssetID string, cleanupAssetIDs []string) error {
+	if actorID == "" {
+		return fmt.Errorf("derivative cleanup request missing actor id")
+	}
+	if sourceAssetID == "" {
+		return fmt.Errorf("derivative cleanup request missing source asset id")
+	}
+	if len(cleanupAssetIDs) == 0 {
+		return nil
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_AssetDerivativeCleanupRequested{
+			AssetDerivativeCleanupRequested: &corev1.AssetDerivativeCleanupRequestedEvent{
+				SourceAssetId:   sourceAssetID,
+				CleanupAssetIds: append([]string(nil), cleanupAssetIDs...),
+			},
+		},
+	})
+	subject := events.AssetAggregate(sourceAssetID).SubjectFor(event)
+	if _, err := s.EventPublisher.AppendEventually(ctx, subject, event); err != nil {
+		return fmt.Errorf("publish derivative cleanup request: %w", err)
+	}
+	return nil
+}
+
+// RecordAssetProcessingCommitReconciliationRequested durably schedules a
+// later decision for a success append whose commit could not be confirmed.
+func (s *AssetModel) RecordAssetProcessingCommitReconciliationRequested(ctx context.Context, actorID, sourceAssetID, messageEventID, attemptedEventID string, cleanupAssetIDs []string) error {
+	if actorID == "" {
+		return fmt.Errorf("processing commit reconciliation request missing actor id")
+	}
+	if sourceAssetID == "" || attemptedEventID == "" {
+		return fmt.Errorf("processing commit reconciliation request missing source asset or attempted event id")
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_AssetProcessingCommitReconciliationRequested{
+			AssetProcessingCommitReconciliationRequested: &corev1.AssetProcessingCommitReconciliationRequestedEvent{
+				SourceAssetId:    sourceAssetID,
+				AttemptedEventId: attemptedEventID,
+				CleanupAssetIds:  append([]string(nil), cleanupAssetIDs...),
+				MessageEventId:   messageEventID,
+			},
+		},
+	})
+	subject := events.AssetAggregate(sourceAssetID).SubjectFor(event)
+	if _, err := s.EventPublisher.AppendEventually(ctx, subject, event); err != nil {
+		return fmt.Errorf("publish processing commit reconciliation request: %w", err)
 	}
 	return nil
 }

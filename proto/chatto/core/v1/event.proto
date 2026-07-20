@@ -109,6 +109,8 @@ message Event {
     AssetProcessingSucceededEvent asset_processing_succeeded = 452;
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
+    AssetDerivativeCleanupRequestedEvent asset_derivative_cleanup_requested = 455;
+    AssetProcessingCommitReconciliationRequestedEvent asset_processing_commit_reconciliation_requested = 456;
 
     // ----- Config / preferences (500-599, durable) -----
     // These variants live on the EVT stream (subjects under evt.config.>)
