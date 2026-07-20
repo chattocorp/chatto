@@ -63,6 +63,9 @@ message QueryHit {
   string message_id = 1;
   // Room containing the matching message.
   string room_id = 2;
+  // MessageBodyEvent ID whose plaintext matched this candidate. Chatto drops
+  // the hit when it no longer matches the current projected body revision.
+  string body_event_id = 3;
 }
 
 // QueryResponse contains one provider page. Providers use deterministic tie

@@ -43,8 +43,9 @@ type MessageSearchScope struct {
 
 // MessageSearchHit is one untrusted provider candidate.
 type MessageSearchHit struct {
-	MessageID string
-	RoomID    string
+	MessageID   string
+	RoomID      string
+	BodyEventID string
 }
 
 // MessageSearchResult is one current message that survived authorization and
@@ -146,6 +147,10 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 		}
 		candidate, ok := current[key]
 		if !ok {
+			continue
+		}
+		body, retracted, bodyKnown := s.core.rooms().latestBody(hit.MessageID)
+		if !bodyKnown || retracted || body == nil || body.GetBodyEventId() != hit.BodyEventID {
 			continue
 		}
 		seen[key] = struct{}{}

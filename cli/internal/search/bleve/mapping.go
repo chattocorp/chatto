@@ -42,6 +42,7 @@ func newIndexMapping() mapping.IndexMapping {
 	document.AddFieldMappingsAt("message_id", keyword(false))
 	document.AddFieldMappingsAt("room_id", keyword(true))
 	document.AddFieldMappingsAt("author_id", keyword(false))
+	document.AddFieldMappingsAt("body_event_id", keyword(true))
 	document.AddFieldMappingsAt("body", searchBodyFields()...)
 	document.AddFieldMappingsAt("created_at", date)
 	document.AddFieldMappingsAt("updated_at", date)

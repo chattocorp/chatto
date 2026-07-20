@@ -93,7 +93,7 @@ func validateQueryResponse(response *searchv1.QueryResponse, pageSize uint32) er
 		return fmt.Errorf("%w: provider cursor exceeds %d bytes", ErrInvalidResponse, maxCursorBytes)
 	}
 	for _, hit := range response.GetHits() {
-		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes {
+		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || hit.GetBodyEventId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes || len(hit.GetBodyEventId()) > maxIDBytes {
 			return fmt.Errorf("%w: provider returned an invalid hit", ErrInvalidResponse)
 		}
 	}

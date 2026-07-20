@@ -44,7 +44,7 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 
 	pageSize := int(request.GetPageSize())
 	searchRequest := blevesearch.NewSearchRequestOptions(query, pageSize+1, 0, false)
-	searchRequest.Fields = []string{"room_id"}
+	searchRequest.Fields = []string{"room_id", "body_event_id"}
 	switch request.GetOrder() {
 	case searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE:
 		searchRequest.SortBy([]string{"-_score", "-created_at", "_id"})
@@ -72,7 +72,10 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 	response := &searchv1.QueryResponse{Hits: make([]*searchv1.QueryHit, 0, len(hits))}
 	for _, hit := range hits {
 		roomID, _ := hit.Fields["room_id"].(string)
-		response.Hits = append(response.Hits, &searchv1.QueryHit{MessageId: strings.TrimPrefix(hit.ID, "message:"), RoomId: roomID})
+		bodyEventID, _ := hit.Fields["body_event_id"].(string)
+		response.Hits = append(response.Hits, &searchv1.QueryHit{
+			MessageId: strings.TrimPrefix(hit.ID, "message:"), RoomId: roomID, BodyEventId: bodyEventID,
+		})
 	}
 	if hasMore {
 		last := hits[len(hits)-1]

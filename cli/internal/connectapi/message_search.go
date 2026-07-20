@@ -98,7 +98,7 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	hits := make([]core.MessageSearchHit, 0, len(providerResponse.GetHits()))
 	for _, hit := range providerResponse.GetHits() {
 		if hit != nil {
-			hits = append(hits, core.MessageSearchHit{MessageID: hit.GetMessageId(), RoomID: hit.GetRoomId()})
+			hits = append(hits, core.MessageSearchHit{MessageID: hit.GetMessageId(), RoomID: hit.GetRoomId(), BodyEventID: hit.GetBodyEventId()})
 		}
 	}
 	current, err := s.api.core.MessageSearchReads().HydrateHits(ctx, caller.UserID, scope, hits)

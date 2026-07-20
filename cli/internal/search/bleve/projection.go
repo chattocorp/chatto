@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	checkpointContractID  = "bleve-message-index-v3"
+	checkpointContractID  = "bleve-message-index-v4"
 	checkpointInternalKey = "chatto/search/checkpoint"
 	dekInternalKey        = "chatto/search/deks"
 	messageStatePrefix    = "chatto/search/message/"
@@ -46,6 +46,7 @@ type messageDocument struct {
 	RoomID         string    `json:"room_id"`
 	AuthorID       string    `json:"author_id"`
 	Body           string    `json:"body"`
+	BodyEventID    string    `json:"body_event_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	HasAttachments bool      `json:"has_attachments"`
@@ -135,6 +136,10 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 				state.MessageID = bodyEvent.GetEventId()
 				state.RoomID = bodyEvent.GetRoomId()
 				state.AuthorID = body.GetAuthorId()
+				state.BodyEventID = body.GetBodyEventId()
+				if state.BodyEventID == "" {
+					state.BodyEventID = event.GetId()
+				}
 				state.Body = string(plaintext)
 				state.HasAttachments = len(body.GetAttachments()) > 0 || len(body.GetAssetIds()) > 0
 				if body.GetCreatedAt() != nil {

@@ -66,7 +66,7 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	provider := &testProvider{
 		queryResult: &searchv1.QueryResponse{
-			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one"}},
+			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one"}},
 			NextCursor: []byte("provider-page-2"),
 		},
 		status: &searchv1.GetStatusResponse{

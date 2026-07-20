@@ -272,7 +272,10 @@ type QueryHit struct {
 	// Matching message ID.
 	MessageId string `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// Room containing the matching message.
-	RoomId        string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// MessageBodyEvent ID whose plaintext matched this candidate. Chatto drops
+	// the hit when it no longer matches the current projected body revision.
+	BodyEventId   string `protobuf:"bytes,3,opt,name=body_event_id,json=bodyEventId,proto3" json:"body_event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -317,6 +320,13 @@ func (x *QueryHit) GetMessageId() string {
 func (x *QueryHit) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
+	}
+	return ""
+}
+
+func (x *QueryHit) GetBodyEventId() string {
+	if x != nil {
+		return x.BodyEventId
 	}
 	return ""
 }
@@ -508,11 +518,12 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x05order\x18\b \x01(\x0e2\x1d.chatto.search.v1.SearchOrderR\x05order\x12\x1b\n" +
 	"\tpage_size\x18\t \x01(\rR\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\n" +
-	" \x01(\fR\x06cursor\"B\n" +
+	" \x01(\fR\x06cursor\"f\n" +
 	"\bQueryHit\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"`\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\"\n" +
+	"\rbody_event_id\x18\x03 \x01(\tR\vbodyEventId\"`\n" +
 	"\rQueryResponse\x12.\n" +
 	"\x04hits\x18\x01 \x03(\v2\x1a.chatto.search.v1.QueryHitR\x04hits\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\fR\n" +

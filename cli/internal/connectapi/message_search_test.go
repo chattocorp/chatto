@@ -136,6 +136,9 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	require.NoError(t, err)
 	message, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "current searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
+	messageBody, retracted, ok := env.core.RoomTimeline.LatestBody(message.Id)
+	require.True(t, ok)
+	require.False(t, retracted)
 	stale, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "removed searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
 	require.NoError(t, env.core.DeleteMessage(ctx, env.viewer.Id, core.KindChannel, visible.Id, stale.Id))
@@ -144,9 +147,9 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	provider := &fakeMessageSearchProvider{}
 	provider.query = func(request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
 		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{
-			{MessageId: stale.Id, RoomId: visible.Id},
-			{MessageId: "hidden-message", RoomId: hidden.Id},
-			{MessageId: message.Id, RoomId: visible.Id},
+			{MessageId: stale.Id, RoomId: visible.Id, BodyEventId: "stale-body"},
+			{MessageId: "hidden-message", RoomId: hidden.Id, BodyEventId: "hidden-body"},
+			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBody.GetBodyEventId()},
 		}}
 		if len(request.GetCursor()) == 0 {
 			response.NextCursor = providerCursor
