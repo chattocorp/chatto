@@ -88,6 +88,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   to authorize and assemble its public operations. Capture a durable boundary,
   wait for the serving projections through it, and fail the catch-up instead of
   publishing stale state at a newer cursor.
+- Realtime transition metadata needed to update another projection must come
+  from the immutable signal, not depend on the triggering row still appearing
+  in a rebuilt current-state page; another client may already have removed it.
 - Treat projected authorization loss as a persistent privacy boundary. Purge
   every copied content-bearing or room-sensitive mirror, reject older async
   responses, and reopen the resource only after an explicit positive grant.
