@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	checkpointContractID  = "bleve-message-index-v2"
+	checkpointContractID  = "bleve-message-index-v3"
 	checkpointInternalKey = "chatto/search/checkpoint"
 	dekInternalKey        = "chatto/search/deks"
 	messageStatePrefix    = "chatto/search/message/"
@@ -332,7 +332,15 @@ func (p *Projection) open() error {
 		p.index = index
 		return nil
 	}
-	if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
+	if errors.Is(err, blevesearch.ErrorIndexMetaMissing) || errors.Is(err, blevesearch.ErrorIndexMetaCorrupt) {
+		// The index is a disposable projection. If an existing index cannot be
+		// opened because its metadata is positively corrupt, discard it so the
+		// projector can replay EVT. Operational I/O failures return untouched.
+		p.logger.Warn("Discarding unreadable search index", "stage", "index_recovery", "error", err)
+		if removeErr := os.RemoveAll(p.directory); removeErr != nil {
+			return fmt.Errorf("remove unreadable search index after %v: %w", err, removeErr)
+		}
+	} else if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
 		return fmt.Errorf("open search index: %w", err)
 	}
 	index, err = blevesearch.New(p.directory, newIndexMapping())

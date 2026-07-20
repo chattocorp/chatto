@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // ParsedQuery is the provider-neutral meaning of Chatto's public message
@@ -37,8 +38,14 @@ func ParseQuery(input string) (ParsedQuery, error) {
 		if value == "" {
 			return ParsedQuery{}, fmt.Errorf("search query contains an empty token")
 		}
+		if !containsSearchableRune(value) {
+			return ParsedQuery{}, fmt.Errorf("search query contains a token without letters or numbers")
+		}
 		if token.quoted {
 			parsed.RequiredPhrases = append(parsed.RequiredPhrases, value)
+			if len(parsed.RequiredTerms)+len(parsed.RequiredPhrases) > maxQueryParts {
+				return ParsedQuery{}, fmt.Errorf("search query exceeds %d terms and phrases", maxQueryParts)
+			}
 			continue
 		}
 		if strings.EqualFold(value, "AND") {
@@ -53,12 +60,18 @@ func ParseQuery(input string) (ParsedQuery, error) {
 					return ParsedQuery{}, fmt.Errorf("in filter requires a room")
 				}
 				parsed.RoomSelectors = appendUniqueFold(parsed.RoomSelectors, operand)
+				if len(parsed.RoomSelectors) > maxFilterIDs {
+					return ParsedQuery{}, fmt.Errorf("search query exceeds %d room filters", maxFilterIDs)
+				}
 				continue
 			case "from":
 				if operand == "" {
 					return ParsedQuery{}, fmt.Errorf("from filter requires an author")
 				}
 				parsed.AuthorSelectors = appendUniqueFold(parsed.AuthorSelectors, operand)
+				if len(parsed.AuthorSelectors) > maxFilterIDs {
+					return ParsedQuery{}, fmt.Errorf("search query exceeds %d author filters", maxFilterIDs)
+				}
 				continue
 			case "after":
 				bound, err := parseQueryTime(operand)
@@ -86,6 +99,9 @@ func ParseQuery(input string) (ParsedQuery, error) {
 			}
 		}
 		parsed.RequiredTerms = append(parsed.RequiredTerms, value)
+		if len(parsed.RequiredTerms)+len(parsed.RequiredPhrases) > maxQueryParts {
+			return ParsedQuery{}, fmt.Errorf("search query exceeds %d terms and phrases", maxQueryParts)
+		}
 	}
 	if len(parsed.RequiredTerms) == 0 && len(parsed.RequiredPhrases) == 0 {
 		return ParsedQuery{}, fmt.Errorf("search query requires a term or quoted phrase")
@@ -94,6 +110,12 @@ func ParseQuery(input string) (ParsedQuery, error) {
 		return ParsedQuery{}, fmt.Errorf("after filter must precede before filter")
 	}
 	return parsed, nil
+}
+
+func containsSearchableRune(value string) bool {
+	return strings.IndexFunc(value, func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsNumber(r)
+	}) >= 0
 }
 
 func scanQueryTokens(input string) ([]queryToken, error) {

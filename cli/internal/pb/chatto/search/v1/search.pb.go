@@ -323,7 +323,8 @@ func (x *QueryHit) GetRoomId() string {
 
 // QueryResponse contains one provider page. Providers use deterministic tie
 // breaking within the selected order. The cursor is opaque to Chatto's
-// provider client and must only be reused with the same normalized query.
+// provider client, must only be reused with the same normalized query, and
+// must be usable by every equivalent provider replica in the NATS queue group.
 type QueryResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Ordered provider matches.

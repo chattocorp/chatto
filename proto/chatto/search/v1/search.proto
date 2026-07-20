@@ -67,7 +67,8 @@ message QueryHit {
 
 // QueryResponse contains one provider page. Providers use deterministic tie
 // breaking within the selected order. The cursor is opaque to Chatto's
-// provider client and must only be reused with the same normalized query.
+// provider client, must only be reused with the same normalized query, and
+// must be usable by every equivalent provider replica in the NATS queue group.
 message QueryResponse {
   // Ordered provider matches.
   repeated QueryHit hits = 1;

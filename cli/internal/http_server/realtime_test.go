@@ -1548,6 +1548,51 @@ func TestRealtimeProjectionThreadFollowReplacesStateForUnretainedRoom(t *testing
 	}
 }
 
+func TestRealtimeProjectionRefreshesSearchForEditedUnretainedMessage(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.config.Search.Enabled = true
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-search-viewer", "RT Search Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-search-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	event := core.NewEVTEventEnvelope(&corev1.Event{
+		Id: "edit-1", ActorId: viewer.Id,
+		Event: &corev1.Event_MessageEdited{MessageEdited: &corev1.MessageEditedEvent{
+			RoomId: room.Id, EventId: "message-1",
+		}},
+	})
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, event, map[string]struct{}{})
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEventWithRooms: %v", err)
+	}
+	refresh := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert()
+	if !handled || refresh == nil {
+		t.Fatalf("search refresh fence = %+v, handled=%v", refresh, handled)
+	}
+
+	env.httpServer.config.Search.Enabled = false
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, event, map[string]struct{}{})
+	if err != nil {
+		t.Fatalf("disabled realtimeProjectionFrameForEventWithRooms: %v", err)
+	}
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if operation.GetServerStateUpsert() != nil {
+			t.Fatal("search-disabled server emitted a search refresh fence")
+		}
+	}
+	if !handled {
+		t.Fatal("durable edit cursor was not handled with Search disabled")
+	}
+}
+
 func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-read-viewer", "RT Read Viewer", "password123")

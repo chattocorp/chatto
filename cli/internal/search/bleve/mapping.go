@@ -2,24 +2,33 @@ package bleve
 
 import (
 	blevesearch "github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/lang/cjk"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/lang/en"
+	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
+	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	bleveindex "github.com/blevesearch/bleve_index_api"
 )
 
 const (
-	bodyExactField   = "body_exact"
-	bodyEnglishField = "body_en"
-	bodyGermanField  = "body_de"
-	bodyCJKField     = "body_cjk"
+	bodyExactField    = "body_exact"
+	bodyEnglishField  = "body_en"
+	bodyGermanField   = "body_de"
+	bodyCJKField      = "body_cjk"
+	bodyExactAnalyzer = "chatto_exact"
 )
 
 func newIndexMapping() mapping.IndexMapping {
 	indexMapping := blevesearch.NewIndexMapping()
 	indexMapping.ScoringModel = bleveindex.BM25Scoring
+	if err := indexMapping.AddCustomAnalyzer(bodyExactAnalyzer, map[string]interface{}{
+		"type": custom.Name, "tokenizer": unicode.Name,
+		"token_filters": []string{lowercase.Name},
+	}); err != nil {
+		panic("register static Chatto search analyzer: " + err.Error())
+	}
 	document := blevesearch.NewDocumentStaticMapping()
 
 	keyword := func(stored bool) *mapping.FieldMapping {
@@ -58,7 +67,7 @@ func searchBodyFields() []*mapping.FieldMapping {
 		return mapped
 	}
 	return []*mapping.FieldMapping{
-		field(bodyExactField, simple.Name, true),
+		field(bodyExactField, bodyExactAnalyzer, true),
 		field(bodyEnglishField, en.AnalyzerName, false),
 		field(bodyGermanField, de.AnalyzerName, false),
 		field(bodyCJKField, cjk.AnalyzerName, true),

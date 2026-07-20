@@ -48,7 +48,7 @@ projection's startup without deleting potentially valid state. A successful
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`, consumes
 `evt.room.>` and `evt.user.>`, and atomically commits each Bleve mutation with
-checkpoint contract `bleve-message-index-v2` and projector key
+checkpoint contract `bleve-message-index-v3` and projector key
 `message_search`.
 
 The index stores current decrypted message text and message/room/author/filter

@@ -60,6 +60,9 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if len(req.Msg.GetRoomIds()) > 100 || len(req.Msg.GetAuthorIds()) > 100 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("message search accepts at most 100 room and author filters"))
+	}
 	var providerCursor []byte
 	if req.Msg.GetCursor() != "" {
 		providerCursor, err = s.api.openMessageSearchCursor(caller.UserID, req.Msg)

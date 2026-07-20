@@ -275,6 +275,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 </script>

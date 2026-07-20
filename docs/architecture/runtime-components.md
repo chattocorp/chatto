@@ -12,7 +12,9 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 registration supplies the same `runtimeunit.Unit` used by its standalone
 command plus a config predicate controlling whether it starts in the main
 process. The exporter and bundled search provider are registered units;
-independently deployable providers use this catalogue rather than adding
+an embedded unit failure is logged and degrades that optional capability without
+stopping the core server, while the same failure still exits a standalone unit.
+Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
 `ChattoCore` keeps a core model inventory with stable machine-readable keys such as `config_manager`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`; `chatto_service_info` remains a deprecated compatibility alias that emits the previous `*_service` label values. Display names remain operator-facing text only.

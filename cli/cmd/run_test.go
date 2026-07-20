@@ -1,13 +1,24 @@
 package cmd
 
 import (
+	"context"
+	"errors"
+	"io"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/testutil"
 )
+
+type failingRuntimeUnit struct{}
+
+func (failingRuntimeUnit) Name() string { return "failing" }
+func (failingRuntimeUnit) Run(context.Context, runtimeunit.Env) error {
+	return errors.New("unit failed")
+}
 
 func TestEffectiveLogFormat(t *testing.T) {
 	tests := []struct {
@@ -44,6 +55,15 @@ func TestShouldPrintBannerOnlyForTextLogs(t *testing.T) {
 	}
 	if shouldPrintBanner("auto", false) {
 		t.Fatal("expected auto logs off terminal to suppress banner")
+	}
+}
+
+func TestOptionalRuntimeUnitFailureDoesNotStopServer(t *testing.T) {
+	err := runOptionalRuntimeUnit(context.Background(), runtimeunit.Env{
+		Logger: log.New(io.Discard),
+	}, failingRuntimeUnit{})
+	if err != nil {
+		t.Fatalf("runOptionalRuntimeUnit() = %v, want nil", err)
 	}
 }
 

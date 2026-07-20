@@ -6,6 +6,7 @@ in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
+  import { tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -67,9 +68,26 @@ in the active server store so browser Back can restore the current search.
 
   function loadMoreWhenVisible(node: HTMLElement): ReturnType<Attachment> {
     if (typeof IntersectionObserver === 'undefined') return;
+    let loadingVisiblePages = false;
+    const loadVisiblePages = async (): Promise<void> => {
+      if (loadingVisiblePages) return;
+      loadingVisiblePages = true;
+      try {
+        do {
+          const cursor = store.nextCursor;
+          await store.loadMore();
+          await tick();
+          if (store.error || store.nextCursor === cursor) break;
+          const bounds = node.getBoundingClientRect();
+          if (bounds.top > window.innerHeight + 160 || bounds.bottom < -160) break;
+        } while (store.nextCursor && node.isConnected);
+      } finally {
+        loadingVisiblePages = false;
+      }
+    };
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void store.loadMore();
+        if (entries.some((entry) => entry.isIntersecting)) void loadVisiblePages();
       },
       { rootMargin: '160px 0px' }
     );

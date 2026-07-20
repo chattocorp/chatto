@@ -173,6 +173,12 @@ cursor, so one global resume position can advance without making unhydrated
 timeline history part of client state. On reconnect the client resends retained
 IDs; a compacted reset includes only those room windows.
 
+When Search is enabled, message edits and retractions in an unretained room
+reuse the content-free `server_state_upsert` operation as a search refresh fence.
+This lets new browsers refetch transient hydrated search plaintext without
+materialising room timelines, while older projection-v1 clients safely reapply
+the familiar state and advance their cursor.
+
 Effective membership changes are authoritative timeline boundaries. When a
 universal room stops granting membership, live mapping pairs its current room
 state with an empty replacement for any retained timeline plus authoritative

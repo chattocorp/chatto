@@ -121,6 +121,51 @@ export class MessageSearchStore {
     this.order = MessageSearchOrder.RELEVANCE;
   }
 
+  /** Purge one room's retained plaintext and fence older responses. */
+  invalidateRoom(roomId: string): void {
+    this.refreshAfterInvalidation((result) => result.roomId === roomId, false);
+  }
+
+  /** Re-run the search after projected room access is revoked. */
+  revokeRoom(roomId: string): void {
+    this.refreshAfterInvalidation((result) => result.roomId === roomId, true);
+  }
+
+  /** Purge one message's retained plaintext and fence older responses. */
+  invalidateMessage(roomId: string, messageId: string, force = false): void {
+    this.refreshAfterInvalidation(
+      (result) => result.roomId === roomId && result.id === messageId,
+      force
+    );
+  }
+
+  /** Purge one author's retained plaintext after projected account removal. */
+  invalidateAuthor(authorId: string): void {
+    this.refreshAfterInvalidation((result) => result.actorId === authorId, true);
+  }
+
+  /** Refetch retained results after a content-free realtime refresh fence. */
+  refreshRetainedResults(): void {
+    this.refreshAfterInvalidation(() => false, true);
+  }
+
+  private refreshAfterInvalidation(
+    matches: (result: MessageSearchResult) => boolean,
+    force: boolean
+  ): void {
+    const remaining = this.results.filter((result) => !matches(result));
+    if (!force && remaining.length === this.results.length) return;
+    const input = this.activeInput;
+    this.requestId++;
+    this.results = remaining;
+    this.nextCursor = null;
+    this.activeInput = null;
+    this.loading = false;
+    this.loadingMore = false;
+    this.error = false;
+    if (input && this.hasSearched) void this.search(input);
+  }
+
   reset(): void {
     this.clearResults();
     this.status = EMPTY_STATUS;

@@ -1,6 +1,8 @@
 package search
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +31,7 @@ func TestParseQueryUsesStrictestRepeatedDateBounds(t *testing.T) {
 func TestParseQueryRejectsInvalidSyntax(t *testing.T) {
 	tests := []string{
 		`"unterminated`,
+		`"!!!"`,
 		"in:room has:attachments",
 		"search in:",
 		"search after:not-a-date",
@@ -46,4 +49,16 @@ func TestParseQueryKeepsUnknownFiltersAsTerms(t *testing.T) {
 	parsed, err := ParseQuery("search future:value")
 	require.NoError(t, err)
 	require.Equal(t, []string{"search", "future:value"}, parsed.RequiredTerms)
+}
+
+func TestParseQueryRejectsLimitsBeforeScopeResolution(t *testing.T) {
+	_, err := ParseQuery(strings.Repeat("term ", maxQueryParts+1))
+	require.ErrorContains(t, err, "terms and phrases")
+
+	filters := make([]string, maxFilterIDs+1)
+	for index := range filters {
+		filters[index] = fmt.Sprintf("in:room-%d", index)
+	}
+	_, err = ParseQuery("search " + strings.Join(filters, " "))
+	require.ErrorContains(t, err, "room filters")
 }

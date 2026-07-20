@@ -244,7 +244,7 @@ func runServer(configPath string) {
 			return
 		}
 		g.Go(func() error {
-			return runtimeunit.Run(ctx, env, unit)
+			return runOptionalRuntimeUnit(ctx, env, unit)
 		})
 	}
 
@@ -286,6 +286,16 @@ func runServer(configPath string) {
 		log.Error("Server failed", "error", err)
 		exitCode = 1
 	}
+}
+
+func runOptionalRuntimeUnit(ctx context.Context, env runtimeunit.Env, unit runtimeunit.Unit) error {
+	err := runtimeunit.Run(ctx, env, unit)
+	if err != nil && ctx.Err() == nil {
+		env.Logger.Error("Optional runtime unit stopped", "error", err)
+	}
+	// Units composed into chatto run are optional capabilities. Their failure
+	// must not cancel the core server; standalone commands call Run directly.
+	return nil
 }
 
 func printBanner() {

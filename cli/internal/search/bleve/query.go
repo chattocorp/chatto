@@ -9,6 +9,8 @@ import (
 	"time"
 
 	blevesearch "github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
+	unicodetokenizer "github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	blevequery "github.com/blevesearch/bleve/v2/search/query"
 	"google.golang.org/protobuf/proto"
 
@@ -123,7 +125,7 @@ func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
 
 func bodyTermQuery(term string) blevequery.Query {
 	queries := []blevequery.Query{
-		boostedMatchQuery(term, bodyExactField, exactMatchBoost),
+		exactBodyTermQuery(term),
 		boostedMatchQuery(term, bodyEnglishField, stemMatchBoost),
 		boostedMatchQuery(term, bodyGermanField, stemMatchBoost),
 		boostedMatchQuery(term, bodyCJKField, stemMatchBoost),
@@ -131,8 +133,11 @@ func bodyTermQuery(term string) blevequery.Query {
 	// One edit is useful for ordinary words but creates surprising matches for
 	// short chat tokens, initials, and identifiers. Requiring a shared prefix
 	// also keeps the fuzzy term dictionary scan bounded.
-	if len([]rune(term)) >= 5 {
-		fuzzy := boostedMatchQuery(term, bodyExactField, fuzzyMatchBoost)
+	exactTokens := exactBodyTokens(term)
+	if len(exactTokens) == 1 && len([]rune(exactTokens[0])) >= 5 {
+		fuzzy := blevesearch.NewFuzzyQuery(exactTokens[0])
+		fuzzy.SetField(bodyExactField)
+		fuzzy.SetBoost(fuzzyMatchBoost)
 		fuzzy.SetFuzziness(1)
 		fuzzy.SetPrefix(2)
 		queries = append(queries, fuzzy)
@@ -140,14 +145,35 @@ func bodyTermQuery(term string) blevequery.Query {
 	return blevesearch.NewDisjunctionQuery(queries...)
 }
 
+func exactBodyTermQuery(term string) blevequery.Query {
+	tokens := exactBodyTokens(term)
+	queries := make([]blevequery.Query, 0, len(tokens))
+	for _, token := range tokens {
+		query := blevesearch.NewTermQuery(token)
+		query.SetField(bodyExactField)
+		query.SetBoost(exactMatchBoost)
+		queries = append(queries, query)
+	}
+	return blevesearch.NewConjunctionQuery(queries...)
+}
+
 func bodyPhraseQuery(phrase string) blevequery.Query {
-	exact := blevesearch.NewMatchPhraseQuery(phrase)
-	exact.SetField(bodyExactField)
+	exact := blevesearch.NewPhraseQuery(exactBodyTokens(phrase), bodyExactField)
 	exact.SetBoost(exactMatchBoost)
 	cjkPhrase := blevesearch.NewMatchPhraseQuery(phrase)
 	cjkPhrase.SetField(bodyCJKField)
 	cjkPhrase.SetBoost(stemMatchBoost)
 	return blevesearch.NewDisjunctionQuery(exact, cjkPhrase)
+}
+
+func exactBodyTokens(value string) []string {
+	stream := unicodetokenizer.NewUnicodeTokenizer().Tokenize([]byte(value))
+	stream = lowercase.NewLowerCaseFilter().Filter(stream)
+	terms := make([]string, 0, len(stream))
+	for _, token := range stream {
+		terms = append(terms, string(token.Term))
+	}
+	return terms
 }
 
 func boostedMatchQuery(term, field string, boost float64) *blevequery.MatchQuery {

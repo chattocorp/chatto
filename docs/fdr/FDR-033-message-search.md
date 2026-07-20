@@ -91,11 +91,11 @@ requires operators to protect the provider volume.
 
 **Decision:** Chatto defines and parses the user-facing query syntax before
 issuing normalized provider requests.
-**Why:** Search behavior should remain stable when an operator replaces Bleve
-with another provider, and third-party clients should not need to emit a
-backend-specific query language.
-**Tradeoff:** Provider-specific query features are unavailable until promoted
-into the common contract.
+**Why:** Query syntax, required-term semantics, and filters should remain stable
+when an operator replaces Bleve with another provider, and third-party clients
+should not need to emit a backend-specific query language.
+**Tradeoff:** Recall and ranking may still vary by provider because analysis
+features such as stemming and typo tolerance are implementation details.
 
 ### 7. Search has a dedicated server page
 

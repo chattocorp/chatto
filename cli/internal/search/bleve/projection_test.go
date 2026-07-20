@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -254,6 +256,10 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	applyLegacyMessage(t, projection, key, "typo", "B3", "R1", "U1", "deployment status", time.Unix(300, 0), 5)
 	applyLegacyMessage(t, projection, key, "short", "B4", "R1", "U1", "cat", time.Unix(400, 0), 7)
 	applyLegacyMessage(t, projection, key, "phrase", "B5", "R1", "U1", "the quick brown fox", time.Unix(500, 0), 9)
+	applyLegacyMessage(t, projection, key, "version-two", "B6", "R1", "U1", "the v2 rollout", time.Unix(600, 0), 11)
+	applyLegacyMessage(t, projection, key, "version-three", "B7", "R1", "U1", "the v3 rollout", time.Unix(700, 0), 13)
+	applyLegacyMessage(t, projection, key, "stop-phrase", "B8", "R1", "U1", "to be or not to be", time.Unix(800, 0), 15)
+	applyLegacyMessage(t, projection, key, "stop-distractor", "B9", "R1", "U1", "be ready", time.Unix(900, 0), 17)
 	applyLegacyMessage(t, projection, key, "cjk", "B6", "R1", "U1", "検索機能は便利です", time.Unix(600, 0), 11)
 
 	tests := []struct {
@@ -268,6 +274,9 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 		{name: "CJK terms", request: relevanceRequest([]string{"検索"}, nil), want: []string{"cjk"}},
 		{name: "exact phrase", request: relevanceRequest(nil, []string{"quick brown"}), want: []string{"phrase"}},
 		{name: "non-contiguous phrase", request: relevanceRequest(nil, []string{"quick fox"}), want: []string{}},
+		{name: "numeric exact phrase", request: relevanceRequest(nil, []string{"v2 rollout"}), want: []string{"version-two"}},
+		{name: "stop words remain exact", request: relevanceRequest(nil, []string{"to be"}), want: []string{"stop-phrase"}},
+		{name: "stop-word term", request: relevanceRequest([]string{"to"}, nil), want: []string{"stop-phrase"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -276,6 +285,32 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 			require.Equal(t, test.want, hitIDs(response))
 		})
 	}
+}
+
+func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
+	directory := t.TempDir() + "/index"
+	require.NoError(t, os.MkdirAll(directory, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(directory, "index_meta.json"), []byte("not json"), 0o600))
+
+	projection, err := NewProjection(directory, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	require.NoError(t, projection.Close())
+	_, err = os.Stat(filepath.Join(directory, "index_meta.json"))
+	require.NoError(t, err)
+}
+
+func TestProjectionDoesNotDeleteIndexForUnclassifiedOpenFailure(t *testing.T) {
+	directory := t.TempDir() + "/index"
+	require.NoError(t, os.MkdirAll(directory, 0o755))
+	metadata := []byte(`{"storage":"scorch","index_type":"unknown"}`)
+	metadataPath := filepath.Join(directory, "index_meta.json")
+	require.NoError(t, os.WriteFile(metadataPath, metadata, 0o600))
+
+	_, err := NewProjection(directory, nil, nil, nil, log.New(nil))
+	require.Error(t, err)
+	retained, readErr := os.ReadFile(metadataPath)
+	require.NoError(t, readErr)
+	require.Equal(t, metadata, retained)
 }
 
 func TestProjectionRanksLiteralMatchesAboveStemmedMatches(t *testing.T) {
