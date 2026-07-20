@@ -17,6 +17,7 @@
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
+  import { buildRoomSettingsUpdate } from './roomSettings';
   import * as m from '$lib/i18n/messages';
 
   const roomId = $derived(page.params.roomId!);
@@ -106,12 +107,17 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const updated = await api.updateRoom({
-        roomId,
-        name: name.trim(),
-        description: description.trim() || null,
-        universal
-      });
+      const updated = await api.updateRoom(
+        buildRoomSettingsUpdate(
+          roomId,
+          { name, description, universal },
+          {
+            name: originalName,
+            description: originalDescription,
+            universal: originalUniversal
+          }
+        )
+      );
       if (!updated || !room) throw new Error('Room update returned no room');
 
       applyRoom({
