@@ -20,17 +20,20 @@ import {
   RoomTimelineEvent,
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
   ListNotificationsResponse,
   NotificationItem,
+  ReplyNotification,
   RoomNotificationCount
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionNotificationChange,
   RealtimeProjectionOperation,
   RealtimeProjectionPresencesReplace,
   RealtimeProjectionThreadViewerState,
@@ -210,6 +213,77 @@ describe('ServerProjectionStore', () => {
     );
     expect(store.threadViewerStates.size).toBe(0);
     expect(store.hasUnreadFollowedThreads()).toBe(false);
+  });
+
+  it('marks only an already-followed thread unread from a created reply notification', () => {
+    const store = new ServerProjectionStore();
+    const room = operation({
+      case: 'roomUpsert',
+      value: new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'R1' }),
+          viewerState: new RoomViewerState({ isMember: true })
+        })
+      })
+    });
+    const threadStates = (isFollowing: boolean) =>
+      operation({
+        case: 'threadViewerStatesReplace',
+        value: new RealtimeProjectionThreadViewerStatesReplace({
+          states: [
+            new RealtimeProjectionThreadViewerState({
+              roomId: 'R1',
+              threadRootEventId: 'ROOT',
+              viewerState: new ThreadViewerState({ isFollowing, hasUnread: false })
+            })
+          ]
+        })
+      });
+    const createdReply = operation({
+      case: 'notificationsReplace',
+      value: new RealtimeProjectionNotificationsReplace({
+        page: new ListNotificationsResponse({
+          notifications: [
+            new NotificationItem({
+              id: 'N1',
+              kind: {
+                case: 'reply',
+                value: new ReplyNotification({
+                  room: new RoomSummary({ id: 'R1' }),
+                  threadRootEventId: 'ROOT'
+                })
+              }
+            })
+          ]
+        }),
+        change: new RealtimeProjectionNotificationChange({
+          action: RealtimeProjectionNotificationAction.CREATED,
+          notificationId: 'N1'
+        })
+      })
+    });
+
+    store.apply(event(room, threadStates(false), createdReply));
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+
+    store.apply(event(threadStates(true), createdReply));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({
+            page: new ListNotificationsResponse(),
+            change: new RealtimeProjectionNotificationChange({
+              action: RealtimeProjectionNotificationAction.DISMISSED,
+              notificationId: 'N1'
+            })
+          })
+        })
+      )
+    );
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
   });
 
   it('reconciles complete transient presence without changing user profiles', () => {

@@ -8,9 +8,13 @@ import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ListNotificationsResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionRoom
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   RealtimeProjectionEvent,
+  RealtimeProjectionNotificationsReplace,
   RealtimeProjectionServerState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -95,7 +99,8 @@ export class ServerProjectionStore {
               this.timelineEventCursors.delete(roomId);
               this.removeActiveCallRoom(roomId);
               this.removeThreadViewerStatesForRoom(roomId);
-            } else if (room.room?.viewerState?.isMember === true) this.revokedRoomIds.delete(roomId);
+            } else if (room.room?.viewerState?.isMember === true)
+              this.revokedRoomIds.delete(roomId);
           }
           break;
         }
@@ -136,6 +141,7 @@ export class ServerProjectionStore {
         case 'notificationsReplace': {
           const replacement = operation.operation.value;
           this.notifications = replacement.page ?? null;
+          this.markCreatedNotificationThreadUnread(replacement);
           const counts = Object.fromEntries(
             replacement.roomCounts.map((count) => [count.roomId, count.totalCount])
           );
@@ -280,14 +286,51 @@ export class ServerProjectionStore {
     this.revokedRoomIds.clear();
   }
 
-  /** Whether an accessible room contains a followed thread with unread replies. */
-  hasUnreadFollowedThreads(): boolean {
+  /** Whether an included accessible room contains a followed thread with unread replies. */
+  hasUnreadFollowedThreads(includeRoom: (roomId: string) => boolean = () => true): boolean {
     for (const [key, state] of this.threadViewerStates) {
       if (!state.isFollowing || !state.hasUnread) continue;
       const roomId = key.slice(0, key.indexOf('\u0000'));
-      if (this.rooms.get(roomId)?.room?.viewerState?.isMember === true) return true;
+      if (this.rooms.get(roomId)?.room?.viewerState?.isMember === true && includeRoom(roomId))
+        return true;
     }
     return false;
+  }
+
+  private markCreatedNotificationThreadUnread(
+    replacement: RealtimeProjectionNotificationsReplace
+  ): void {
+    const change = replacement.change;
+    if (
+      !this.hasThreadViewerStatesSnapshot ||
+      change?.action !== RealtimeProjectionNotificationAction.CREATED
+    )
+      return;
+    const notification = replacement.page?.notifications.find(
+      (candidate) => candidate.id === change.notificationId
+    );
+    if (!notification) return;
+
+    let roomId = '';
+    let threadRootEventId = '';
+    switch (notification.kind.case) {
+      case 'mention':
+        roomId = notification.kind.value.room?.id ?? '';
+        threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+        break;
+      case 'reply':
+        roomId = notification.kind.value.room?.id ?? '';
+        threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+        break;
+    }
+    if (!roomId || !threadRootEventId) return;
+
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    const current = this.threadViewerStates.get(key);
+    if (!current?.isFollowing) return;
+    const next = current.clone();
+    next.hasUnread = true;
+    this.threadViewerStates.set(key, next);
   }
 
   private removeThreadViewerStatesForRoom(roomId: string): void {

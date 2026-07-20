@@ -559,7 +559,9 @@ export class ServerStateStore {
 
   private synchronizeUnreadFollowedThreads(): void {
     if (!this.projection.hasThreadViewerStatesSnapshot) return;
-    this.rooms.setHasUnreadFollowedThreads(this.projection.hasUnreadFollowedThreads());
+    this.rooms.setHasUnreadFollowedThreads(
+      this.projection.hasUnreadFollowedThreads((roomId) => !this.rooms.isRoomMuted(roomId))
+    );
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */

@@ -777,6 +777,14 @@ describe('ServerStateStore live server updates', () => {
     dispatch(roomState(true), threadStates(true, true));
     expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
 
+    // Muted rooms keep their thread state but do not contribute sidebar unread.
+    store.notificationLevels.setRoomPreference('R1', 'MUTED' as never, 'MUTED' as never);
+    dispatch(threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+    store.notificationLevels.setRoomPreference('R1', 'NORMAL' as never, 'NORMAL' as never);
+    dispatch(threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
     // Access loss clears cached state even before a complete replacement arrives.
     dispatch(
       new RealtimeProjectionOperation({

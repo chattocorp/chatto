@@ -284,6 +284,22 @@ describe('RoomsStore - refresh', () => {
     expect(store.hasUnreadFollowedThreads).toBe(false);
   });
 
+  it('does not let a delayed refresh overwrite newer realtime thread unread state', async () => {
+    let resolveViewer!: (viewer: ViewerState) => void;
+    const store = makeStore({
+      viewerStateLoader: vi.fn(
+        () => new Promise<ViewerState>((resolve) => (resolveViewer = resolve))
+      )
+    });
+
+    const refresh = store.refresh();
+    store.setHasUnreadFollowedThreads(true);
+    resolveViewer(makeViewer({ hasUnreadFollowedThreads: false }));
+    await refresh;
+
+    expect(store.hasUnreadFollowedThreads).toBe(true);
+  });
+
   it('clears followed-thread unread state during projection reset', () => {
     const store = makeStore();
     store.setHasUnreadFollowedThreads(true);

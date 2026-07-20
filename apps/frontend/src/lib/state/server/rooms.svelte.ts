@@ -210,6 +210,7 @@ export class RoomsStore {
 
   private loadId = 0;
   private notificationCountsLoadId = 0;
+  private unreadFollowedThreadsRevision = 0;
 
   constructor(
     private readonly roomDirectoryAPI: RoomDirectoryAPI,
@@ -227,6 +228,7 @@ export class RoomsStore {
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
     const unreadSnapshotRevision = this.roomUnread.captureSnapshotRevision();
+    const unreadFollowedThreadsRevision = this.unreadFollowedThreadsRevision;
     const [viewer, rooms, roomGroups] = await Promise.all([
       this.viewerStateLoader(),
       this.roomDirectoryAPI.listRooms(RoomDirectoryScope.ALL),
@@ -235,7 +237,9 @@ export class RoomsStore {
     if (this.loadId !== thisLoad) return;
 
     this.currentUserId = viewer.user.id;
-    this.hasUnreadFollowedThreads = viewer.hasUnreadFollowedThreads;
+    if (this.unreadFollowedThreadsRevision === unreadFollowedThreadsRevision) {
+      this.setHasUnreadFollowedThreads(viewer.hasUnreadFollowedThreads);
+    }
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
       viewer.serverNotificationPreference.effectiveLevel
@@ -301,7 +305,7 @@ export class RoomsStore {
   ): void {
     this.loadId++;
     this.currentUserId = viewer.user.id;
-    this.hasUnreadFollowedThreads = viewer.hasUnreadFollowedThreads;
+    this.setHasUnreadFollowedThreads(viewer.hasUnreadFollowedThreads);
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
       viewer.serverNotificationPreference.effectiveLevel
@@ -338,13 +342,19 @@ export class RoomsStore {
     this.rooms = [];
     this.roomGroups = [];
     this.currentUserId = null;
-    this.hasUnreadFollowedThreads = false;
+    this.setHasUnreadFollowedThreads(false);
     this.isInitialLoading = true;
   }
 
-  /** Replace the exact unread state derived from complete projected thread viewer states. */
+  /** Replace unread state and invalidate older asynchronous viewer snapshots. */
   setHasUnreadFollowedThreads(hasUnread: boolean): void {
+    this.unreadFollowedThreadsRevision++;
     this.hasUnreadFollowedThreads = hasUnread;
+  }
+
+  /** Whether room-level or inherited server preferences suppress unread UI. */
+  isRoomMuted(roomId: string): boolean {
+    return this.notificationLevels.isRoomMuted(roomId);
   }
 
   private roomListItem(room: DirectoryRoomSummary, members: UserAvatarUserView[]): RoomsListItem {

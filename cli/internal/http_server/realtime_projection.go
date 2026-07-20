@@ -261,6 +261,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
+			// Muting hides thread unread state while unmuting may reveal replies
+			// accumulated during the mute. Preference changes are rare and
+			// user-scoped, so replace the complete set here rather than on each
+			// room reply.
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, err
+			}
 		case *corev1.LiveEvent_NotificationCreated:
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
@@ -445,9 +452,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 			NotificationsReplace: realtimeProjectionNotifications(notifications),
 		}})
-		if err := appendThreadViewerStates(); err != nil {
-			return fmt.Errorf("assemble thread viewer states after room access change: %w", err)
-		}
 		return nil
 	}
 	appendSourceTimeline := func(roomID string) error {
@@ -488,8 +492,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomActivity{
 				RoomActivity: &realtimev1.RealtimeProjectionRoomActivity{RoomId: roomID},
 			}})
-		} else if err := appendThreadViewerStates(); err != nil {
-			return nil, false, fmt.Errorf("assemble thread viewer states after reply: %w", err)
 		}
 		if err := appendTimeline(roomID, evt.GetId(), nil); err != nil {
 			return nil, false, err
@@ -615,7 +617,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 	case *corev1.Event_RoomUnarchived:
 		roomID := payload.RoomUnarchived.GetRoomId()
-		if err := appendRoom(roomID); err != nil {
+		room, err := appendRoomResult(roomID)
+		if err != nil {
 			return nil, false, err
 		}
 		if err := appendRoomTimelineIfMember(roomID); err != nil {
@@ -623,6 +626,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
+		}
+		if room != nil && room.Room.GetViewerState().GetIsMember() {
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room unarchive: %w", err)
+			}
 		}
 	case *corev1.Event_RoomUniversalChanged:
 		roomID := payload.RoomUniversalChanged.GetRoomId()
@@ -641,6 +649,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
 			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after universal room access gain: %w", err)
+			}
 		} else {
 			// A universal-membership revocation must remove already-decrypted
 			// timeline state in the same ordered projection event as metadata.
@@ -657,6 +668,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if evt.GetActorId() == viewerID {
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
+			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room join: %w", err)
 			}
 		}
 		if err := appendSourceTimeline(roomID); err != nil {
@@ -684,6 +698,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if payload.RoomMemberAdded.GetUserId() == viewerID {
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
+			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room membership add: %w", err)
 			}
 		}
 	case *corev1.Event_RoomMemberRemoved:
