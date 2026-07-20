@@ -503,6 +503,16 @@ describe('Room local message echo', () => {
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 
+  it('starts with the desktop room sidebar closed', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await tick();
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
   it('does not load files selected only in the hidden mobile layout', async () => {
     appUi.openMobileRoomSidebarPanel('files');
 

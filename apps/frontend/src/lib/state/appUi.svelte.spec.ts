@@ -2,25 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppUiState } from './appUi.svelte';
 
 const mocks = vi.hoisted(() => ({
-  roomSidebarPanel: new Map<string, string>(),
-  getRoomSidebarPanelState: vi.fn((serverId: string, roomId: string) => {
-    return mocks.roomSidebarPanel.get(`${serverId}:${roomId}`) ?? 'members';
-  }),
-  setRoomSidebarPanelState: vi.fn((serverId: string, roomId: string, panel: string | null) => {
-    if (panel) mocks.roomSidebarPanel.set(`${serverId}:${roomId}`, panel);
-  })
+  setRoomSidebarPanelState: vi.fn()
 }));
 
 vi.mock('$lib/storage/roomSidebarPanel', () => ({
-  ROOM_SIDEBAR_DEFAULT_PANEL: 'members',
-  getRoomSidebarPanelState: mocks.getRoomSidebarPanelState,
   setRoomSidebarPanelState: mocks.setRoomSidebarPanelState
 }));
 
 describe('AppUiState', () => {
   beforeEach(() => {
-    mocks.roomSidebarPanel.clear();
-    mocks.getRoomSidebarPanelState.mockClear();
     mocks.setRoomSidebarPanelState.mockClear();
   });
 
@@ -49,24 +39,38 @@ describe('AppUiState', () => {
     expect(appUi.isRoomCallWide).toBe(false);
   });
 
-  it('tracks the active room sidebar panel inside the active room scope', () => {
+  it('defaults each desktop room sidebar to closed for a fresh session', () => {
     const appUi = new AppUiState();
 
     appUi.setActiveRoomScope('server-a', 'room-1');
 
-    expect(appUi.selectedDesktopRoomSidebarPanel).toBe('members');
-    expect(appUi.activeDesktopRoomSidebarPanel).toBe('members');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
+
+    appUi.setActiveRoomScope('server-a', 'room-2');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
+  });
+
+  it('remembers explicit desktop sidebar state per room for the session', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
 
     appUi.openDesktopRoomSidebarPanel('files');
 
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
     expect(mocks.setRoomSidebarPanelState).toHaveBeenCalledWith('server-a', 'room-1', 'files');
 
-    appUi.closeDesktopRoomSidebarPanel();
-    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
-
     appUi.setActiveRoomScope('server-a', 'room-2');
+    appUi.openDesktopRoomSidebarPanel('members');
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('members');
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+
+    appUi.closeDesktopRoomSidebarPanel();
+    appUi.setActiveRoomScope('server-a', 'room-2');
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
   });
 
   it('scopes mobile room sidebar state to the active room', () => {
