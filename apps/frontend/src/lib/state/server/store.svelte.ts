@@ -256,6 +256,7 @@ export class ServerStateStore {
         delete this.#threadMessageRefCounts[key];
       }
     }
+    this.synchronizeUnreadFollowedThreads();
   }
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
@@ -558,11 +559,7 @@ export class ServerStateStore {
 
   private synchronizeUnreadFollowedThreads(): void {
     if (!this.projection.hasThreadViewerStatesSnapshot) return;
-    this.rooms.setHasUnreadFollowedThreads(
-      [...this.projection.threadViewerStates.values()].some(
-        (state) => state.isFollowing && state.hasUnread
-      )
-    );
+    this.rooms.setHasUnreadFollowedThreads(this.projection.hasUnreadFollowedThreads());
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */

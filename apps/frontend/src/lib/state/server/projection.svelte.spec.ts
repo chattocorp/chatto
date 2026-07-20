@@ -155,6 +155,63 @@ describe('ServerProjectionStore', () => {
     expect(store.hasThreadViewerStatesSnapshot).toBe(false);
   });
 
+  it('purges followed-thread state when room access is revoked or removed', () => {
+    const store = new ServerProjectionStore();
+    const room = (isMember: boolean) =>
+      operation({
+        case: 'roomUpsert',
+        value: new RealtimeProjectionRoom({
+          room: new RoomWithViewerState({
+            room: new Room({ id: 'R1' }),
+            viewerState: new RoomViewerState({ isMember })
+          })
+        })
+      });
+    const unreadThread = operation({
+      case: 'threadViewerStatesReplace',
+      value: new RealtimeProjectionThreadViewerStatesReplace({
+        states: [
+          new RealtimeProjectionThreadViewerState({
+            roomId: 'R1',
+            threadRootEventId: 'ROOT',
+            viewerState: new ThreadViewerState({ isFollowing: true, hasUnread: true })
+          })
+        ]
+      })
+    });
+
+    store.apply(event(room(true), unreadThread));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: false })
+          })
+        })
+      )
+    );
+    expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+
+    store.apply(event(room(true), unreadThread));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'R1' })
+        })
+      )
+    );
+    expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+  });
+
   it('reconciles complete transient presence without changing user profiles', () => {
     const store = new ServerProjectionStore();
     store.apply(

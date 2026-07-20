@@ -94,6 +94,7 @@ export class ServerProjectionStore {
               this.timelines.delete(roomId);
               this.timelineEventCursors.delete(roomId);
               this.removeActiveCallRoom(roomId);
+              this.removeThreadViewerStatesForRoom(roomId);
             } else if (room.room?.viewerState?.isMember === true) this.revokedRoomIds.delete(roomId);
           }
           break;
@@ -104,6 +105,7 @@ export class ServerProjectionStore {
           this.timelines.delete(operation.operation.value.roomId);
           this.timelineEventCursors.delete(operation.operation.value.roomId);
           this.removeActiveCallRoom(operation.operation.value.roomId);
+          this.removeThreadViewerStatesForRoom(operation.operation.value.roomId);
           break;
         case 'roomGroupsReplace':
           this.roomGroups = [...operation.operation.value.groups];
@@ -172,6 +174,7 @@ export class ServerProjectionStore {
             this.timelines.delete(replacement.roomId);
             this.timelineEventCursors.delete(replacement.roomId);
             this.removeActiveCallRoom(replacement.roomId);
+            this.removeThreadViewerStatesForRoom(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.revokedRoomIds.delete(replacement.roomId);
           }
@@ -275,6 +278,23 @@ export class ServerProjectionStore {
     this.timelines.clear();
     this.timelineEventCursors.clear();
     this.revokedRoomIds.clear();
+  }
+
+  /** Whether an accessible room contains a followed thread with unread replies. */
+  hasUnreadFollowedThreads(): boolean {
+    for (const [key, state] of this.threadViewerStates) {
+      if (!state.isFollowing || !state.hasUnread) continue;
+      const roomId = key.slice(0, key.indexOf('\u0000'));
+      if (this.rooms.get(roomId)?.room?.viewerState?.isMember === true) return true;
+    }
+    return false;
+  }
+
+  private removeThreadViewerStatesForRoom(roomId: string): void {
+    const prefix = `${roomId}\u0000`;
+    for (const key of this.threadViewerStates.keys()) {
+      if (key.startsWith(prefix)) this.threadViewerStates.delete(key);
+    }
   }
 
   /**

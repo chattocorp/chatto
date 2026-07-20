@@ -28,6 +28,7 @@ import {
   RealtimeProjectionNotificationsReplace,
   RealtimeProjectionOperation,
   RealtimeProjectionRoomActivity,
+  RealtimeProjectionRoomRemove,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionReactionChange,
   RealtimeProjectionRoomTimelineEventRemove,
@@ -722,13 +723,25 @@ describe('ServerStateStore live server updates', () => {
           })
         }
       });
+    const roomState = (isMember: boolean) =>
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({ isMember })
+            })
+          })
+        }
+      });
 
     // Initial projection: an unread unfollowed thread is outside My Threads.
-    dispatch(threadStates(false, true));
+    dispatch(roomState(true), threadStates(false, true));
     expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
 
     // Follow, read-marker, and unfollow replacements are exact latest-value state.
-    dispatch(threadStates(true, true));
+    dispatch(roomState(true), threadStates(true, true));
     expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
 
     // Dismissing its notification does not make the followed thread read.
@@ -761,8 +774,35 @@ describe('ServerStateStore live server updates', () => {
     );
     expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
 
-    dispatch(threadStates(true, true));
+    dispatch(roomState(true), threadStates(true, true));
     expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    // Access loss clears cached state even before a complete replacement arrives.
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: false })
+          })
+        }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    dispatch(roomState(true), threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'R1' })
+        }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
   });
 
   it('purges removed users from navigation and retained render stores', () => {

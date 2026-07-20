@@ -176,14 +176,16 @@ IDs; a compacted reset includes only those room windows.
 Effective membership changes are authoritative timeline boundaries. When a
 universal room stops granting membership, live mapping pairs its current room
 state with an empty replacement for any retained timeline plus authoritative
-active-call and notification replacements; loss of room
-visibility uses `room_remove`, which has the same eviction effect. The browser
-also scrubs canonical rows, mounted room stores, open thread stores, optimistic
-state, call and notification mirrors, and in-flight reads as soon as projected
-membership becomes false. It also disconnects local call media for that room
-without issuing a redundant leave command. The privacy fence stays closed until an explicit
-positive membership operation arrives, so delayed pagination, previews,
-read-your-writes responses, and timeline replacements cannot restore plaintext.
+active-call, notification, and followed-thread viewer-state replacements; loss
+of room visibility uses `room_remove`, which has the same eviction effect.
+
+The browser also scrubs canonical rows, mounted room stores, open thread stores,
+optimistic state, call and notification mirrors, cached thread viewer states,
+and in-flight reads as soon as projected membership becomes false. It also
+disconnects local call media for that room without issuing a redundant leave
+command. The privacy fence stays closed until an explicit positive membership
+operation arrives, so delayed pagination, previews, read-your-writes responses,
+and timeline replacements cannot restore plaintext.
 
 The browser keeps only the non-plaintext retained-room intent. If membership
 later returns, the server rematerialises the current window only for that
@@ -286,10 +288,12 @@ list for existing viewers.
 Message facts carry lightweight replacements of the affected room summary and
 viewer state alongside timeline mutations. Root messages also carry a
 content-free `room_activity` operation, allowing unretained DMs to reorder
-without exposing or materialising their message. Notification counts converge
-through notification signals and the finite resume replacement. Message
-delivery does not reassemble or retransmit complete channel membership. Echo
-tombstone upserts explicitly distinguish
+without exposing or materialising their message. Thread replies additionally
+replace the complete followed-thread viewer-state set, independently of
+notification delivery, so muted followed threads update unread navigation
+immediately. Notification counts converge through notification signals and the
+finite resume replacement. Message delivery does not reassemble or retransmit
+complete channel membership. Echo tombstone upserts explicitly distinguish
 canonical-reply deletion from direct echo removal.
 
 Room-read signals emit a `RoomViewerStateReplace` for the affected room and a

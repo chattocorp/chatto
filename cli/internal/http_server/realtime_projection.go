@@ -204,6 +204,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		_, ok := retainedRooms[roomID]
 		return ok
 	}
+	appendThreadViewerStates := func() error {
+		threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+		if err != nil {
+			return err
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+			ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+		}})
+		return nil
+	}
 	if evt == nil {
 		live := event.LiveEvent()
 		if live == nil {
@@ -265,19 +275,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
-			// Reply notifications are also the live signal that a followed
-			// thread became unread. Replace the complete latest-value set so
-			// unretained rooms and the My Threads view converge without a
-			// ConnectRPC refresh.
-			if payload.NotificationCreated.GetInReplyToId() != "" {
-				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-				if err != nil {
-					return nil, false, err
-				}
-				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-				}})
-			}
 		case *corev1.LiveEvent_NotificationDismissed:
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
@@ -311,13 +308,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
-			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-			if err != nil {
+			if err := appendThreadViewerStates(); err != nil {
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-				ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-			}})
 			if retainsTimeline(thread.GetRoomId()) {
 				timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
 				if err != nil {
@@ -452,6 +445,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 			NotificationsReplace: realtimeProjectionNotifications(notifications),
 		}})
+		if err := appendThreadViewerStates(); err != nil {
+			return fmt.Errorf("assemble thread viewer states after room access change: %w", err)
+		}
 		return nil
 	}
 	appendSourceTimeline := func(roomID string) error {
@@ -487,10 +483,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendRoomViewerState(roomID); err != nil {
 			return nil, false, err
 		}
-		if payload.MessagePosted.GetInThread() == "" {
+		threadRootID := payload.MessagePosted.GetInThread()
+		if threadRootID == "" {
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomActivity{
 				RoomActivity: &realtimev1.RealtimeProjectionRoomActivity{RoomId: roomID},
 			}})
+		} else if err := appendThreadViewerStates(); err != nil {
+			return nil, false, fmt.Errorf("assemble thread viewer states after reply: %w", err)
 		}
 		if err := appendTimeline(roomID, evt.GetId(), nil); err != nil {
 			return nil, false, err
@@ -498,8 +497,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		// Deliver the reply before the authoritative root summary. Existing
 		// reducers optimistically increment a root when ingesting a reply; the
 		// following root upsert then converges that count instead of doubling it.
-		if rootID := payload.MessagePosted.GetInThread(); rootID != "" {
-			if err := appendTimeline(roomID, rootID, nil); err != nil {
+		if threadRootID != "" {
+			if err := appendTimeline(roomID, threadRootID, nil); err != nil {
 				return nil, false, err
 			}
 		}
