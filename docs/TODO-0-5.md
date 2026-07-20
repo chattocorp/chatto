@@ -67,7 +67,7 @@ Notes and TODOs:
 	- [ ] Orthogonally to that, remote servers can be placed into the origin server's directory, where they will be advertised prominently (eg. in "Add Server", or in the leftmost sidebar)
 	- [ ] Origin server provides a push notification gateway for connected remote servers
 - **Search**
-	- [ ] A first iteration, local, Bleve
+	- [x] A first iteration, local, Bleve
 	- `in:#testing from:freakynit "bot" AND "awesome"`
 - **Safety Features**
 	- [ ] Slow Mode

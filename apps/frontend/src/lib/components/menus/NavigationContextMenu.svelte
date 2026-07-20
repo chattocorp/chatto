@@ -13,12 +13,10 @@ presentation-only.
     isRoomMember = true,
     canJoin = false,
     canMarkRead,
-    canSearch = false,
     canConfigure = false,
     canLeave = true,
     onJoin = () => {},
     onMarkRead,
-    onSearch = () => {},
     onConfigure,
     onLeave
   }: {
@@ -26,12 +24,10 @@ presentation-only.
     isRoomMember?: boolean;
     canJoin?: boolean;
     canMarkRead: boolean;
-    canSearch?: boolean;
     canConfigure?: boolean;
     canLeave?: boolean;
     onJoin?: () => void;
     onMarkRead: () => void;
-    onSearch?: () => void;
     onConfigure?: () => void;
     onLeave: () => void;
   } = $props();
@@ -51,12 +47,6 @@ presentation-only.
         {m['room.join.action']()}
       </button>
     {:else}
-      {#if kind === 'room' && canSearch}
-        <button type="button" class="sidebar-item" onclick={onSearch} role="menuitem">
-          <span class="sidebar-icon iconify uil--search" aria-hidden="true"></span>
-          {m['search.in_room']()}
-        </button>
-      {/if}
       <button
         type="button"
         class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"

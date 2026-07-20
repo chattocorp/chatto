@@ -17,6 +17,12 @@ import (
 
 var errInvalidCursor = fmt.Errorf("invalid search cursor")
 
+const (
+	exactMatchBoost = 4
+	stemMatchBoost  = 2
+	fuzzyMatchBoost = 0.35
+)
+
 type cursor struct {
 	QueryHash string   `json:"query_hash"`
 	Sort      []string `json:"sort"`
@@ -83,14 +89,10 @@ func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
 	visible.SetField("visible")
 	conjuncts = append(conjuncts, visible)
 	for _, term := range request.GetRequiredTerms() {
-		q := blevesearch.NewMatchQuery(term)
-		q.SetField("body")
-		conjuncts = append(conjuncts, q)
+		conjuncts = append(conjuncts, bodyTermQuery(term))
 	}
 	for _, phrase := range request.GetRequiredPhrases() {
-		q := blevesearch.NewMatchPhraseQuery(phrase)
-		q.SetField("body")
-		conjuncts = append(conjuncts, q)
+		conjuncts = append(conjuncts, bodyPhraseQuery(phrase))
 	}
 	if len(request.GetRoomIds()) > 0 {
 		conjuncts = append(conjuncts, termsQuery("room_id", request.GetRoomIds()))
@@ -117,6 +119,42 @@ func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
 		conjuncts = append(conjuncts, q)
 	}
 	return blevesearch.NewConjunctionQuery(conjuncts...), nil
+}
+
+func bodyTermQuery(term string) blevequery.Query {
+	queries := []blevequery.Query{
+		boostedMatchQuery(term, bodyExactField, exactMatchBoost),
+		boostedMatchQuery(term, bodyEnglishField, stemMatchBoost),
+		boostedMatchQuery(term, bodyGermanField, stemMatchBoost),
+		boostedMatchQuery(term, bodyCJKField, stemMatchBoost),
+	}
+	// One edit is useful for ordinary words but creates surprising matches for
+	// short chat tokens, initials, and identifiers. Requiring a shared prefix
+	// also keeps the fuzzy term dictionary scan bounded.
+	if len([]rune(term)) >= 5 {
+		fuzzy := boostedMatchQuery(term, bodyExactField, fuzzyMatchBoost)
+		fuzzy.SetFuzziness(1)
+		fuzzy.SetPrefix(2)
+		queries = append(queries, fuzzy)
+	}
+	return blevesearch.NewDisjunctionQuery(queries...)
+}
+
+func bodyPhraseQuery(phrase string) blevequery.Query {
+	exact := blevesearch.NewMatchPhraseQuery(phrase)
+	exact.SetField(bodyExactField)
+	exact.SetBoost(exactMatchBoost)
+	cjkPhrase := blevesearch.NewMatchPhraseQuery(phrase)
+	cjkPhrase.SetField(bodyCJKField)
+	cjkPhrase.SetBoost(stemMatchBoost)
+	return blevesearch.NewDisjunctionQuery(exact, cjkPhrase)
+}
+
+func boostedMatchQuery(term, field string, boost float64) *blevequery.MatchQuery {
+	query := blevesearch.NewMatchQuery(term)
+	query.SetField(field)
+	query.SetBoost(boost)
+	return query
 }
 
 func termsQuery(field string, values []string) blevequery.Query {

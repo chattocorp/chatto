@@ -48,15 +48,17 @@ projection's startup without deleting potentially valid state. A successful
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`, consumes
 `evt.room.>` and `evt.user.>`, and atomically commits each Bleve mutation with
-checkpoint contract `bleve-message-index-v1` and projector key
+checkpoint contract `bleve-message-index-v2` and projector key
 `message_search`.
 
 The index stores current decrypted message text and message/room/author/filter
-metadata. It also stores non-plaintext DEK event metadata required to decrypt
-later EVT tail records after restart. Retraction, room deletion, and user key
-shredding remove matching documents. Key shredding additionally persists a
-privacy-compaction marker and forces Bleve to reclaim deleted segments; an
-interrupted compaction retries before a restored provider serves queries.
+metadata. Message bodies use BM25 scoring over separate language-neutral,
+English-stemmed, German-stemmed, and CJK analysis fields. The index also stores
+non-plaintext DEK event metadata required to decrypt later EVT tail records
+after restart. Retraction, room deletion, and user key shredding remove matching
+documents. Key shredding additionally persists a privacy-compaction marker and
+forces Bleve to reclaim deleted segments; an interrupted compaction retries
+before a restored provider serves queries.
 
 The directory is a privileged, disposable local cache. It is excluded from
 Chatto backups, and invalid checkpoint metadata causes the complete directory

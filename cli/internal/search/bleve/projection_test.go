@@ -242,6 +242,64 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 	}
 }
 
+func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessage(t, projection, key, "english", "B1", "R1", "U1", "the runner was running quickly", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "german", "B2", "R1", "U1", "die Häuser stehen am Fluss", time.Unix(200, 0), 3)
+	applyLegacyMessage(t, projection, key, "typo", "B3", "R1", "U1", "deployment status", time.Unix(300, 0), 5)
+	applyLegacyMessage(t, projection, key, "short", "B4", "R1", "U1", "cat", time.Unix(400, 0), 7)
+	applyLegacyMessage(t, projection, key, "phrase", "B5", "R1", "U1", "the quick brown fox", time.Unix(500, 0), 9)
+	applyLegacyMessage(t, projection, key, "cjk", "B6", "R1", "U1", "検索機能は便利です", time.Unix(600, 0), 11)
+
+	tests := []struct {
+		name    string
+		request *searchv1.QueryRequest
+		want    []string
+	}{
+		{name: "English stemming", request: relevanceRequest([]string{"run"}, nil), want: []string{"english"}},
+		{name: "German stemming", request: relevanceRequest([]string{"Haus"}, nil), want: []string{"german"}},
+		{name: "single edit typo", request: relevanceRequest([]string{"deploymant"}, nil), want: []string{"typo"}},
+		{name: "short terms stay exact", request: relevanceRequest([]string{"bat"}, nil), want: []string{}},
+		{name: "CJK terms", request: relevanceRequest([]string{"検索"}, nil), want: []string{"cjk"}},
+		{name: "exact phrase", request: relevanceRequest(nil, []string{"quick brown"}), want: []string{"phrase"}},
+		{name: "non-contiguous phrase", request: relevanceRequest(nil, []string{"quick fox"}), want: []string{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := projection.query(context.Background(), test.request)
+			require.NoError(t, err)
+			require.Equal(t, test.want, hitIDs(response))
+		})
+	}
+}
+
+func TestProjectionRanksLiteralMatchesAboveStemmedMatches(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessage(t, projection, key, "literal", "B1", "R1", "U1", "run", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "stemmed", "B2", "R1", "U1", "running", time.Unix(200, 0), 3)
+
+	response, err := projection.query(context.Background(), relevanceRequest([]string{"run"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"literal", "stemmed"}, hitIDs(response))
+}
+
+func relevanceRequest(terms, phrases []string) *searchv1.QueryRequest {
+	return &searchv1.QueryRequest{
+		RequiredTerms: terms, RequiredPhrases: phrases,
+		Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+	}
+}
+
 func TestProjectionRejectsMalformedOrForeignCursors(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)

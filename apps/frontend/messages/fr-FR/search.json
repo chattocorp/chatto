@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "Aucun message trouvé",
-      "description": "Essayez d’autres mots ou élargissez la portée des salons."
+      "description": "Essayez d’autres mots ou filtres."
     },
     "error": {
       "title": "Échec de la recherche",

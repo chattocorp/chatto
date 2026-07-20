@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "Fant ingen meldinger",
-      "description": "Prøv andre ord eller utvid romomfanget."
+      "description": "Prøv andre ord eller filtre."
     },
     "error": {
       "title": "Søket mislyktes",

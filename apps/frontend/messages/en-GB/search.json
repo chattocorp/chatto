@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "No messages found",
-      "description": "Try different words or widen the room scope."
+      "description": "Try different words or filters."
     },
     "error": {
       "title": "Search failed",

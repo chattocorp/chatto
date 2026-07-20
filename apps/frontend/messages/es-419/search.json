@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "No se encontraron mensajes",
-      "description": "Prueba con otras palabras o amplía el ámbito de salas."
+      "description": "Prueba con otras palabras o filtros."
     },
     "error": {
       "title": "La búsqueda falló",

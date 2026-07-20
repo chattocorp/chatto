@@ -19,10 +19,13 @@ provider supplies results.
   servers registered in the client.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
+- Relevance favours literal word matches while allowing common English and
+  German inflections, CJK token matching, and conservative one-character
+  spelling mistakes in longer words.
 - Structured filters support a room (`in:`), author (`from:`), messages before
   or after a date, and messages with attachments.
-- Global search opens without a room filter. Opening search from a room starts
-  with that room selected while allowing the user to widen the scope.
+- Search is a server-level page reached from the server sidebar between
+  Overview and My Threads. It starts without a room filter.
 - Results show the current message, author, room, and timestamp. They load more
   automatically and can be ordered by relevance or newest first.
 - Selecting a result opens the message in its historical room or thread context
@@ -93,6 +96,15 @@ with another provider, and third-party clients should not need to emit a
 backend-specific query language.
 **Tradeoff:** Provider-specific query features are unavailable until promoted
 into the common contract.
+
+### 7. Search has a dedicated server page
+
+**Decision:** Search lives in the server sidebar and opens as a full page rather
+than a modal or part of the quick switcher.
+**Why:** Searching message history is an extended reading task whose query,
+results, filters, and future conversation context need durable screen space.
+**Tradeoff:** Opening a result leaves the Search page; the transient search is
+retained in memory so browser Back can restore it.
 
 ## Related
 

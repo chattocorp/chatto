@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "Nie znaleziono wiadomości",
-      "description": "Spróbuj innych słów lub rozszerz zakres pokojów."
+      "description": "Spróbuj innych słów lub filtrów."
     },
     "error": {
       "title": "Wyszukiwanie nie powiodło się",

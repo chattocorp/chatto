@@ -15,6 +15,8 @@
   import ServerEventProvider from './ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
+  import { MESSAGE_SEARCH_CAPABILITY } from '$lib/state/server/compatibility';
+  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getAdminNavItems } from './adminNav';
   import * as m from '$lib/i18n/messages';
 
@@ -66,6 +68,25 @@
   const isHomeActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/overview', { serverId: serverSegment })
   );
+
+  const searchHref = $derived(
+    resolve('/chat/[serverId]/search', { serverId: serverSegment })
+  );
+  const isSearchActive = $derived(page.url.pathname === searchHref);
+  const supportsMessageSearch = $derived(
+    activeStore.serverInfo.supportsProtocolCapability(MESSAGE_SEARCH_CAPABILITY)
+  );
+  const messageSearchAvailable = $derived(
+    supportsMessageSearch &&
+      !activeStore.messageSearch.statusLoading &&
+      (activeStore.messageSearch.statusError ||
+        (activeStore.messageSearch.statusLoaded &&
+          activeStore.messageSearch.status.state !== MessageSearchState.DISABLED))
+  );
+
+  $effect(() => {
+    if (supportsMessageSearch) void activeStore.messageSearch.ensureStatus();
+  });
 
   // Detect if we're on the My Threads page
   const isMyThreadsActive = $derived(
@@ -242,6 +263,12 @@
             <span class="sidebar-icon iconify uil--estate"></span>
             {m['chat.overview.title']()}
           </a>
+          {#if messageSearchAvailable}
+            <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
+              <span class="sidebar-icon iconify uil--search" aria-hidden="true"></span>
+              {m['search.action']()}
+            </a>
+          {/if}
           <MyThreadsNavItem active={isMyThreadsActive} />
         </nav>
 

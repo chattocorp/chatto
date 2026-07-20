@@ -69,6 +69,8 @@ describe('MessageSearchStore', () => {
     expect(client.searchMessages).toHaveBeenNthCalledWith(2, { ...input, cursor: 'next' });
     expect(store.results.map((item) => item.id)).toEqual(['one', 'two']);
     expect(store.nextCursor).toBeNull();
+    expect(store.query).toBe('hello');
+    expect(store.order).toBe(MessageSearchOrder.RELEVANCE);
   });
 
   it('ignores an older response after a newer query starts', async () => {
@@ -103,5 +105,7 @@ describe('MessageSearchStore', () => {
     expect(store.results).toEqual([]);
     expect(store.nextCursor).toBeNull();
     expect(store.loading).toBe(false);
+    expect(store.query).toBe('');
+    expect(store.order).toBe(MessageSearchOrder.RELEVANCE);
   });
 });

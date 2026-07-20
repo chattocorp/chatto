@@ -31,7 +31,7 @@
     },
     "no_results": {
       "title": "Inga meddelanden hittades",
-      "description": "Prova andra ord eller utöka rumsomfånget."
+      "description": "Prova andra ord eller filter."
     },
     "error": {
       "title": "Sökningen misslyckades",

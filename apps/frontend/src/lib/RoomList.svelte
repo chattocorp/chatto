@@ -47,8 +47,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
-  import { MESSAGE_SEARCH_CAPABILITY } from '$lib/state/server/compatibility';
-  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -67,13 +65,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   const roomsStore = $derived(stores.rooms);
   const roomUnreadStore = $derived(stores.roomUnread);
-  const canSearchMessages = $derived(
-    stores.serverInfo.supportsProtocolCapability?.(MESSAGE_SEARCH_CAPABILITY) === true &&
-      stores.messageSearch?.statusLoading !== true &&
-      (stores.messageSearch?.statusError === true ||
-        (stores.messageSearch?.statusLoaded === true &&
-          stores.messageSearch.status.state !== MessageSearchState.DISABLED))
-  );
 
   let activeRoomId = $derived(page.params.roomId);
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
@@ -98,18 +89,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     pushState('', {
       modal: {
         type: 'leaveRoom',
-        roomId: room.id,
-        roomName: room.name
-      }
-    });
-  }
-
-  function handleSearchRoom(room: RoomsListItem): void {
-    closeRoomContextMenu();
-    pushState('', {
-      modal: {
-        type: 'messageSearch',
-        serverId: activeServerId,
         roomId: room.id,
         roomName: room.name
       }
@@ -296,7 +275,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
 </script>
@@ -558,12 +536,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         contextRoom.viewerNotificationCount > 0}
       canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomType.Dm}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
-      canSearch={canSearchMessages}
       onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
-      onSearch={() => handleSearchRoom(contextRoom)}
     />
   </ContextMenu>
 {/if}

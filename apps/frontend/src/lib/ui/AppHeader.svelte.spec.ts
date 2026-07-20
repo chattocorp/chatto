@@ -6,18 +6,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
     activeServer: '',
-    activeStore: undefined as
-      | {
-          serverInfo: { supportsProtocolCapability: () => boolean };
-          messageSearch: {
-            statusLoading: boolean;
-            statusError: boolean;
-            statusLoaded: boolean;
-            status: { state: number };
-            ensureStatus: ReturnType<typeof vi.fn>;
-          };
-        }
-      | undefined,
+    activeStore: undefined as undefined,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -91,28 +80,5 @@ describe('AppHeader', () => {
     (container.querySelector('button[aria-label="About Chatto"]') as HTMLButtonElement).click();
 
     expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'aboutChatto' } });
-  });
-
-  it('opens message search for the active server', () => {
-    mocks.activeServer = 'remote';
-    mocks.servers = [{ id: 'remote' }];
-    mocks.activeStore = {
-      serverInfo: { supportsProtocolCapability: () => true },
-      messageSearch: {
-        statusLoading: false,
-        statusError: false,
-        statusLoaded: true,
-        status: { state: 4 },
-        ensureStatus: vi.fn()
-      }
-    };
-    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
-    const { container } = render(AppHeader);
-
-    (container.querySelector('button[aria-label="Search messages"]') as HTMLButtonElement).click();
-
-    expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'messageSearch', serverId: 'remote' }
-    });
   });
 });
