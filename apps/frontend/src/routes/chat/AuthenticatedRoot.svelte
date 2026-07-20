@@ -2,7 +2,6 @@
   import { untrack, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
-  import NotificationSync from '$lib/components/NotificationSync.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
@@ -72,7 +71,6 @@
   });
 </script>
 
-<NotificationSync />
 <AuthStatusNotice />
 
 <AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>

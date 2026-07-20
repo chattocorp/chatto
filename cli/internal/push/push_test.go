@@ -150,6 +150,9 @@ func TestPayloadMarshal(t *testing.T) {
 		if result["mutable"] != true {
 			t.Errorf("Expected mutable true, got %v", result["mutable"])
 		}
+		if result["app_badge"] != "7" {
+			t.Errorf("Expected top-level app_badge '7', got %v", result["app_badge"])
+		}
 
 		notification, ok := result["notification"].(map[string]interface{})
 		if !ok {
@@ -215,8 +218,9 @@ func TestPayloadMarshal(t *testing.T) {
 
 	t.Run("dismiss payload stays imperative only", func(t *testing.T) {
 		payload := &Payload{
-			Action: "dismiss",
-			Tag:    "test-tag",
+			Action:   "dismiss",
+			Tag:      "test-tag",
+			AppBadge: "2",
 		}
 
 		data, err := json.Marshal(payload)
@@ -234,6 +238,9 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 		if result["tag"] != "test-tag" {
 			t.Errorf("Expected tag 'test-tag', got %v", result["tag"])
+		}
+		if result["app_badge"] != "2" {
+			t.Errorf("Expected dismiss app_badge '2', got %v", result["app_badge"])
 		}
 		if _, ok := result["web_push"]; ok {
 			t.Error("Expected dismiss payload to omit web_push")

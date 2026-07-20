@@ -11,35 +11,25 @@
 
 import { build, files, version } from '$service-worker';
 import { OFFLINE_SHELL_PATH, classifyServiceWorkerRequest } from '$lib/pwa/serviceWorkerPolicy';
+import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
-import {
-  normalizeUnknownBadgeIntent,
-  ServiceWorkerBadgeCoordinator,
-  createCacheForegroundBadgeIntentStorage,
-  type ServiceWorkerBadgeIntent
-} from '$lib/pwa/notificationBadge.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
-const CACHE_PREFIX = 'chatto-shell';
-const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
-const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
-
 type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
-  clearAppBadge?: () => Promise<void>;
 };
 
-const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
-  self.registration,
-  navigator as ServiceWorkerAppBadgeNavigator,
-  createCacheForegroundBadgeIntentStorage(caches, BADGE_STATE_CACHE_NAME)
-);
+const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
+
+const CACHE_PREFIX = 'chatto-shell';
+const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
+const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
+const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
+const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
 /**
  * Immediately activate new service worker versions.
@@ -61,17 +51,15 @@ self.addEventListener('activate', (event) => {
       await Promise.all(
         cacheNames
           .filter(
-            (cacheName) => cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME
+            (cacheName) =>
+              (cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME) ||
+              RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
       );
       await self.clients.claim();
     })()
   );
-});
-
-self.addEventListener('message', (event) => {
-  handleBadgeStateMessage(event);
 });
 
 /**
@@ -149,6 +137,7 @@ interface PushPayload {
   tag?: string;
   notificationId?: string;
   url?: string;
+  app_badge?: string | number;
   // "dismiss" action is used to close notifications on other devices
   action?: 'dismiss';
 }
@@ -176,7 +165,6 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
-  appBadgeIntent: ServiceWorkerBadgeIntent;
 };
 
 type DeclarativePushEventNotification = Pick<
@@ -184,31 +172,11 @@ type DeclarativePushEventNotification = Pick<
   'title' | 'body' | 'icon' | 'tag' | 'data'
 > & {
   badge?: string;
-  app_badge?: string | number;
 };
 
 type PushEventWithDeclarativeNotification = PushEvent & {
   notification?: DeclarativePushEventNotification | null;
 };
-
-function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
-  const message = event.data as Record<string, unknown> | undefined;
-  if (!message || message.type !== 'chatto-badge-state') return false;
-
-  const badgeIntent =
-    normalizeUnknownBadgeIntent(message.badgeIntent) ??
-    (typeof message.notificationCount === 'number'
-      ? legacyBadgeIntentFromCount(message.notificationCount)
-      : null);
-  if (!badgeIntent) return false;
-
-  event.waitUntil(
-    badgeCoordinator.applyForegroundBadgeIntent(badgeIntent, {
-      serviceWorkerAppBadgeEnabled: message.serviceWorkerAppBadgeEnabled === true
-    })
-  );
-  return true;
-}
 
 function normalizePushNotification(payload: DeclarativePushPayload): NormalizedPushNotification {
   const notification = payload.notification;
@@ -226,8 +194,7 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
         notificationId,
         url
       }
-    },
-    appBadgeIntent: declarativeAppBadgeIntent(notification?.app_badge)
+    }
   };
 }
 
@@ -240,30 +207,10 @@ function declarativePayloadFromEventNotification(
       body: notification.body,
       icon: notification.icon,
       badge: notification.badge,
-      app_badge: notification.app_badge,
       tag: notification.tag,
       data: notificationData(notification.data)
     }
   };
-}
-
-function legacyBadgeIntentFromCount(notificationCount: number): ServiceWorkerBadgeIntent {
-  if (!Number.isFinite(notificationCount)) return { kind: 'clear' };
-  const count = Math.max(0, Math.floor(notificationCount));
-  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
-}
-
-function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
-  if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
-    const count = Math.max(0, Math.floor(appBadge));
-    return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
-  }
-  if (typeof appBadge !== 'string' || appBadge.trim() === '') return { kind: 'flag' };
-
-  const count = Number(appBadge);
-  if (!Number.isFinite(count)) return { kind: 'flag' };
-  const normalized = Math.max(0, Math.floor(count));
-  return normalized > 0 ? { kind: 'count', count: normalized } : { kind: 'clear' };
 }
 
 function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
@@ -277,6 +224,55 @@ function notificationData(data: unknown): DeclarativeNotificationPayload['data']
 function stringProperty(record: object, key: string): string | undefined {
   const value = (record as Record<string, unknown>)[key];
   return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Apply the server's remaining origin count unless a visible page can provide
+ * the authoritative aggregate multi-server badge. Hidden clients may be
+ * suspended and cannot safely claim foreground ownership.
+ */
+async function updateClosedAppBadgeAfterDismiss(appBadge: unknown): Promise<void> {
+  const count = parseAppBadgeCount(appBadge);
+  if (count === undefined || !badgeNavigator.setAppBadge) return;
+
+  let windowClients: readonly WindowClient[];
+  try {
+    windowClients = (await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })) as WindowClient[];
+  } catch {
+    return;
+  }
+  if (windowClients.some((client) => client.visibilityState === 'visible')) return;
+
+  await badgeNavigator.setAppBadge(count).catch(() => {});
+}
+
+/** Ask visible pages to restore their authoritative aggregate after a regular push. */
+async function refreshVisibleAppBadges(): Promise<void> {
+  let windowClients: readonly WindowClient[];
+  try {
+    windowClients = (await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })) as WindowClient[];
+  } catch {
+    return;
+  }
+
+  for (const client of windowClients) {
+    if (client.visibilityState === 'visible') {
+      client.postMessage({ type: APP_BADGE_REFRESH_MESSAGE_TYPE });
+    }
+  }
+}
+
+function parseAppBadgeCount(value: unknown): number | undefined {
+  const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
+    ? count
+    : undefined;
 }
 
 /**
@@ -306,24 +302,19 @@ self.addEventListener('push', (event) => {
       (async () => {
         const notifications = await self.registration.getNotifications({ tag: payload.tag });
         notifications.forEach((n) => n.close());
-        await badgeCoordinator.reconcileAfterDismissPush();
+        await updateClosedAppBadgeAfterDismiss(payload.app_badge);
       })()
     );
     return;
   }
 
-  badgeCoordinator.recordRegularPush();
   const notification = normalizePushNotification(payload);
 
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(notification.title, notification.options),
-      notification.appBadgeIntent.kind === 'count'
-        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeIntent.count)
-        : notification.appBadgeIntent.kind === 'flag'
-          ? badgeCoordinator.setProvisionalPushFlagBadge()
-          : badgeCoordinator.setPushAppBadgeCount(0)
-    ])
+    (async () => {
+      await self.registration.showNotification(notification.title, notification.options);
+      await refreshVisibleAppBadges();
+    })()
   );
 });
 
@@ -339,18 +330,12 @@ self.addEventListener('notificationclick', (event) => {
   const rawUrl =
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
-    (async () => {
-      try {
-        await routeNotificationClick(
-          rawUrl,
-          self.location.origin,
-          self.clients as unknown as NotificationClickClients,
-          { logger: console }
-        );
-      } finally {
-        await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
-      }
-    })().catch((err) => {
+    routeNotificationClick(
+      rawUrl,
+      self.location.origin,
+      self.clients as unknown as NotificationClickClients,
+      { logger: console }
+    ).catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
   );
