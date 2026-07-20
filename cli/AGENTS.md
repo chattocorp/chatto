@@ -164,6 +164,10 @@ authorization, live events, backup/restore, and backend tests.
   by the target role's explicit scoped permission decisions; assigning requires
   every allow, revoking requires every allow and deny, and the `owner` role is
   owner-only.
+- Authorization-sensitive event writes must evaluate authorization inside the
+  OCC retry that commits the mutation. Fence every projection input that can
+  change the decision through the narrow authorization boundary; do not use
+  unrelated `evt.>` traffic as the concurrency boundary.
 
 ## Admin Interface
 
