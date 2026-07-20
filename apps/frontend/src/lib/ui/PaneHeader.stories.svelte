@@ -56,6 +56,16 @@
   </div>
 </Story>
 
+<Story name="Compact action inset" asChild>
+  <div class="w-64 rounded-md border border-border">
+    <PaneHeader title="Development" rightInset="compact">
+      {#snippet actions()}
+        <HeaderIconButton icon="uil--cog" label="Server settings" />
+      {/snippet}
+    </PaneHeader>
+  </div>
+</Story>
+
 <Story name="Loading" asChild>
   <div class="w-[480px] rounded-md border border-border">
     <PaneHeader title="" loading skeletonButtons={2} />

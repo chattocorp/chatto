@@ -15,7 +15,7 @@
 </script>
 
 {#if adminHref}
-  <PaneHeader title={serverName} {loading} skeletonButtons={1}>
+  <PaneHeader title={serverName} {loading} skeletonButtons={1} rightInset="compact">
     {#snippet actions()}
       <HeaderIconButton
         icon="uil--setting"

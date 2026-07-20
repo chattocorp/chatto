@@ -12,6 +12,8 @@ Design language:
   - Left padding is `pl-2` when a back affordance is shown, `pl-4`
     otherwise. The reduced left inset lines the back arrow up with the
     sidebar-nav items rendered below the header.
+  - Right padding defaults to `pr-4`. Use `rightInset="compact"` when
+    actions need to align with controls inside an adjacent `p-2` region.
   - Header icons use a fixed padded hit area so optional backgrounds do
     not change pane header height.
   - Right-side action icons are `<HeaderIconButton>` instances passed
@@ -40,6 +42,7 @@ choice).
     backHref,
     onBack,
     backLabel = m['ui.pane_header.back'](),
+    rightInset = 'default',
     // Deprecated: showMobileNav is no longer used since hamburger menu is always visible
     showMobileNav: _showMobileNav = false
   }: {
@@ -63,6 +66,8 @@ choice).
     onBack?: (event: MouseEvent) => void;
     /** Title attribute / aria-label for the back affordance. */
     backLabel?: string;
+    /** Right-side action inset. `compact` aligns actions with content inside a `p-2` region. */
+    rightInset?: 'default' | 'compact';
     showMobileNav?: boolean;
   } = $props();
 
@@ -71,7 +76,8 @@ choice).
 
 <div
   class={[
-    'flex h-14 shrink-0 items-center justify-between border-b border-border pr-4',
+    'flex h-14 shrink-0 items-center justify-between border-b border-border',
+    rightInset === 'compact' ? 'pr-2' : 'pr-4',
     hasBack ? 'pl-2' : 'pl-4'
   ]}
 >
