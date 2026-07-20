@@ -50,6 +50,17 @@ var banner = `
 
 var configFile string
 
+func runtimeUnitRegistrations() []runtimeunit.Registration {
+	return []runtimeunit.Registration{
+		{
+			Unit: exporter.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.Exporter.Enabled
+			},
+		},
+	}
+}
+
 var runCmd = &cobra.Command{
 	Use:     "run",
 	Aliases: []string{"start"},
@@ -208,15 +219,25 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	if cfg.Exporter.Enabled {
-		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix("exporter"), Version)
+	unitRegistrations := runtimeUnitRegistrations()
+	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {
+		log.Error("Failed to configure runtime units", "error", err)
+		exitCode = 1
+		return
+	}
+	for _, registration := range unitRegistrations {
+		if !registration.Enabled(cfg) {
+			continue
+		}
+		unit := registration.Unit
+		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix(unit.Name()), Version)
 		if err != nil {
-			log.Error("Failed to create exporter environment", "error", err)
+			log.Error("Failed to create runtime unit environment", "unit", unit.Name(), "error", err)
 			exitCode = 1
 			return
 		}
 		g.Go(func() error {
-			return runtimeunit.Run(ctx, env, exporter.Unit{})
+			return runtimeunit.Run(ctx, env, unit)
 		})
 	}
 

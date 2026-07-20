@@ -1,10 +1,12 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
-Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore`
-registers each top-level projector once with a stable machine-readable key, such
-as `content_keys`, and a human display name, such as `Content Keys`.
+Projections are derived read models rebuilt from `EVT`. Most live in memory;
+optional providers may own disposable locally checkpointed indexes.
+`NewChattoCore` registers each top-level core projector once with a stable
+machine-readable key, such as `content_keys`, and a human display name, such as
+`Content Keys`.
 
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
@@ -25,7 +27,27 @@ report both retained event-ID memory and whether compatibility mode is active.
 
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md), and
-[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md).
+[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md), and
+[ADR-054](../adr/ADR-054-locally-checkpointed-projections.md).
+
+## Local checkpoint support
+
+The projector framework also supports a projection-owned local checkpoint.
+The checkpoint contract binds the derived state and its highest atomically
+applied EVT sequence to a stable projection key, a projection contract ID, and
+the current EVT stream incarnation and retained sequence bounds. A valid
+checkpoint replays only the remaining EVT tail.
+
+A projection uses exactly one restore authority: either ADR-050 snapshots or a
+local checkpoint. Missing, corrupt, incompatible, future, or retention-gapped
+checkpoints are explicitly invalid and are reset before a full retained-history
+replay. Operational failures such as an unavailable local volume fail that
+projection's startup without deleting potentially valid state. A successful
+`Apply` must atomically commit its derived changes and supplied stream sequence.
+
+No locally checkpointed projection is currently registered with `ChattoCore`.
+The mechanism exists for runtime units whose disposable indexes are too large
+or expensive to keep solely in process memory.
 
 ## Snapshot support
 

@@ -46,7 +46,8 @@ const (
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
 // subclasses use for read/write coordination, plus no-op Snapshot/Restore
-// methods for projections that have not opted into snapshot persistence.
+// methods for compatibility with projections that have not opted into
+// snapshot persistence.
 //
 // Embed by value — the zero mutex is ready to use. Subclasses still
 // implement Subjects() and Apply(). Future non-memory projection types
@@ -55,16 +56,17 @@ type MemoryProjection struct {
 	sync.RWMutex
 }
 
-// Snapshot implements Projection. The Projector treats (nil, nil) as "skip
-// snapshot persistence".
+// Snapshot implements SnapshotProjection. The Projector treats (nil, nil) as
+// "skip snapshot persistence".
 func (*MemoryProjection) Snapshot() ([]byte, error) { return nil, nil }
 
-// Restore implements Projection. Called once before Run with nil/empty on a
-// cold start.
+// Restore implements SnapshotProjection. Called once before Run with nil/empty
+// on a cold start.
 func (*MemoryProjection) Restore(_ []byte) error { return nil }
 
-// Projection is the read side. Implementations are in-memory Go data
-// structures that consume events from a subject filter and serve reads.
+// Projection is the read side. Implementations consume events from a subject
+// filter and serve reads from derived state. Most projections are in-memory;
+// CheckpointedProjection supports disposable local disk-backed state.
 //
 // Concurrency contract: Apply is called from a single goroutine owned by
 // the Projector, in stream order. Implementations don't need internal
@@ -87,6 +89,12 @@ type Projection interface {
 	// Apply is called for every event matching Subjects(), in stream
 	// order. seq is the stream sequence of this event.
 	Apply(event *corev1.Event, seq uint64) error
+}
+
+// SnapshotProjection supports serializing and restoring projection state.
+// Snapshot persistence is optional and configured separately on Projector.
+type SnapshotProjection interface {
+	Projection
 
 	// Snapshot returns a serialized form of the current state.
 	// Returning (nil, nil) means "no snapshot support yet"; the Projector
@@ -106,7 +114,7 @@ type Projection interface {
 // whether restoring a snapshot is equivalent to replaying EVT through its
 // cutoff. Changing unrelated Chatto versions must not invalidate it.
 type SnapshotContractProjection interface {
-	Projection
+	SnapshotProjection
 	SnapshotContractID() string
 }
 
@@ -189,8 +197,14 @@ type Projector struct {
 	snapshotLoadTimeout  time.Duration
 	restoredSeq          uint64
 	restoredGenerationID string
+	snapshotRestored     bool
 	latestSnapshotSeq    uint64
 	latestSnapshotAt     time.Time
+
+	checkpointKey        string
+	checkpointContractID string
+	checkpointRestored   bool
+	checkpointCutoffSeq  uint64
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -207,6 +221,9 @@ type ProjectorStatus struct {
 	SnapshotRestored     bool
 	SnapshotCutoffSeq    uint64
 	SnapshotGenerationID string
+	CheckpointRestored   bool
+	CheckpointCutoffSeq  uint64
+	CheckpointContractID string
 	LatestSnapshotSeq    uint64
 	LatestSnapshotAt     time.Time
 
@@ -264,6 +281,9 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if p.started {
 		return fmt.Errorf("configure projection snapshots after projector start")
 	}
+	if p.checkpointKey != "" {
+		return fmt.Errorf("projection %q already uses a local checkpoint", key)
+	}
 	p.snapshotKey = key
 	p.snapshotContractID = contractID
 	p.snapshotSource = source
@@ -287,7 +307,11 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 
-	payload, err := p.proj.Snapshot()
+	projection, ok := p.proj.(SnapshotProjection)
+	if !ok {
+		return ProjectionSnapshot{}, fmt.Errorf("projection does not support snapshots")
+	}
+	payload, err := projection.Snapshot()
 	if err != nil {
 		return ProjectionSnapshot{}, err
 	}
@@ -342,15 +366,22 @@ func (p *Projector) Status() ProjectorStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	var snapshotCutoffSeq uint64
+	if p.snapshotRestored {
+		snapshotCutoffSeq = p.restoredSeq
+	}
 	status := ProjectorStatus{
 		Started:              p.started,
 		LastSeq:              p.lastSeq,
 		StartupTargetSeq:     p.startupTargetSeq,
 		StartupComplete:      p.startupCompleted,
 		StartupMessages:      p.startupMessages,
-		SnapshotRestored:     p.restoredSeq > 0 || p.restoredGenerationID != "",
-		SnapshotCutoffSeq:    p.restoredSeq,
+		SnapshotRestored:     p.snapshotRestored,
+		SnapshotCutoffSeq:    snapshotCutoffSeq,
 		SnapshotGenerationID: p.restoredGenerationID,
+		CheckpointRestored:   p.checkpointRestored,
+		CheckpointCutoffSeq:  p.checkpointCutoffSeq,
+		CheckpointContractID: p.checkpointContractID,
 		LatestSnapshotSeq:    p.latestSnapshotSeq,
 		LatestSnapshotAt:     p.latestSnapshotAt,
 	}
@@ -934,26 +965,26 @@ func (p *Projector) setStartupTarget(seq uint64) {
 
 func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	coldRestore := func() error {
-		if err := p.proj.Restore(nil); err != nil {
-			return fmt.Errorf("restore empty projection: %w", err)
+		if projection, ok := p.proj.(SnapshotProjection); ok {
+			if err := projection.Restore(nil); err != nil {
+				return fmt.Errorf("restore empty projection: %w", err)
+			}
 		}
-		p.mu.Lock()
-		p.lastSeq = 0
-		p.restoredSeq = 0
-		p.restoredGenerationID = ""
-		p.latestSnapshotSeq = 0
-		p.latestSnapshotAt = time.Time{}
-		p.mu.Unlock()
+		p.resetRestoreState()
 		return nil
 	}
 
 	p.mu.Lock()
 	source := p.snapshotSource
+	checkpointKey := p.checkpointKey
 	key := p.snapshotKey
 	contractID := p.snapshotContractID
 	streamIdentity := p.snapshotStreamID
 	loadTimeout := p.snapshotLoadTimeout
 	p.mu.Unlock()
+	if checkpointKey != "" {
+		return p.restoreCheckpointForRun(ctx, targetSeq)
+	}
 	if source == nil {
 		return coldRestore()
 	}
@@ -989,7 +1020,11 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"target_seq", targetSeq)
 		return coldRestore()
 	}
-	if err := p.proj.Restore(snapshot.Payload); err != nil {
+	projection, ok := p.proj.(SnapshotProjection)
+	if !ok {
+		return fmt.Errorf("projection %q no longer supports snapshots", key)
+	}
+	if err := projection.Restore(snapshot.Payload); err != nil {
 		p.logger.Warn("Projection snapshot restore failed; replaying EVT",
 			"projection", key,
 			"stage", "restore_apply",
@@ -1003,6 +1038,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	p.mu.Lock()
 	p.restoredSeq = snapshot.CutoffSequence
 	p.restoredGenerationID = snapshot.GenerationID
+	p.snapshotRestored = true
 	p.latestSnapshotSeq = snapshot.CutoffSequence
 	p.latestSnapshotAt = snapshot.CreatedAt
 	p.mu.Unlock()

@@ -3,8 +3,10 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -608,6 +610,59 @@ type countingSubjectsProjection struct {
 	subjectCalls int
 }
 
+type minimalProjection struct {
+	mu      sync.Mutex
+	count   int
+	subject string
+}
+
+func (p *minimalProjection) Subjects() []string { return []string{p.subject} }
+
+func (p *minimalProjection) Apply(*corev1.Event, uint64) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.count++
+	return nil
+}
+
+func (p *minimalProjection) Count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.count
+}
+
+type checkpointTrackingProjection struct {
+	*trackingProjection
+	contractID string
+	checkpoint uint64
+	restoreErr error
+	resetErr   error
+	request    ProjectionCheckpointRequest
+	resets     int
+}
+
+func newCheckpointTrackingProjection(subject string) *checkpointTrackingProjection {
+	return &checkpointTrackingProjection{
+		trackingProjection: newTrackingProjection(subject),
+		contractID:         "checkpoint-v1",
+	}
+}
+
+func (p *checkpointTrackingProjection) CheckpointContractID() string { return p.contractID }
+func (*checkpointTrackingProjection) SnapshotContractID() string     { return "snapshot-v1" }
+
+func (p *checkpointTrackingProjection) RestoreCheckpoint(_ context.Context, request ProjectionCheckpointRequest) (ProjectionCheckpoint, error) {
+	p.request = request
+	return ProjectionCheckpoint{CutoffSequence: p.checkpoint}, p.restoreErr
+}
+
+func (p *checkpointTrackingProjection) ResetCheckpoint(_ context.Context, request ProjectionCheckpointRequest) error {
+	p.request = request
+	p.resets++
+	p.checkpoint = 0
+	return p.resetErr
+}
+
 func newCountingSubjectsProjection(subs ...string) *countingSubjectsProjection {
 	return &countingSubjectsProjection{
 		trackingProjection: newTrackingProjection(subs...),
@@ -751,6 +806,177 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	}
 	if got := proj.ReplayCompletions(); got != 1 {
 		t.Errorf("startup replay completions = %d, want 1", got)
+	}
+}
+
+func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-minimal").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-minimal", "U1")); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	projection := &minimalProjection{subject: subject}
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if got := projection.Count(); got != 1 {
+		t.Fatalf("Apply count = %d, want 1", got)
+	}
+	if _, err := projector.CaptureSnapshot(); err == nil {
+		t.Fatal("CaptureSnapshot succeeded for projection without snapshot methods")
+	}
+}
+
+func TestProjectorRestoresLocalCheckpointAndReplaysTail(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for _, userID := range []string{"U1", "U2", "U3"} {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint", userID))
+		if err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seqs[1]
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	// Configuration captures the contract before the projection can change it.
+	projection.contractID = "checkpoint-v2"
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if got := projection.Count(); got != 1 {
+		t.Fatalf("tail Apply count = %d, want 1", got)
+	}
+	status := projector.Status()
+	if !status.CheckpointRestored || status.CheckpointCutoffSeq != seqs[1] || status.CheckpointContractID != "checkpoint-v1" {
+		t.Fatalf("checkpoint status = %+v", status)
+	}
+	if status.SnapshotRestored {
+		t.Fatalf("checkpoint restore reported as snapshot restore: %+v", status)
+	}
+	if projection.request.ProjectionKey != "search" || projection.request.ContractID != "checkpoint-v1" {
+		t.Fatalf("checkpoint request = %+v", projection.request)
+	}
+	if projection.request.StreamIdentity != testStreamIdentity(t, stream) || projection.request.FirstSequence != seqs[0] || projection.request.LastSequence != seqs[2] {
+		t.Fatalf("checkpoint stream request = %+v", projection.request)
+	}
+}
+
+func TestProjectorResetsInvalidLocalCheckpoint(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-reset").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-reset", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.restoreErr = fmt.Errorf("%w: contract mismatch", ErrProjectionCheckpointInvalid)
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if projection.resets != 1 || projection.Count() != 2 {
+		t.Fatalf("resets/count = %d/%d, want 1/2", projection.resets, projection.Count())
+	}
+	if projector.Status().CheckpointRestored {
+		t.Fatal("invalid checkpoint reported as restored")
+	}
+}
+
+func TestProjectorDoesNotResetCheckpointOnOperationalRestoreFailure(t *testing.T) {
+	js, stream := setupTestStream(t)
+	projection := newCheckpointTrackingProjection(RoomSubjectFilter())
+	projection.restoreErr = errors.New("local volume unavailable")
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+
+	err := projector.Run(testContext(t))
+	if err == nil || !strings.Contains(err.Error(), "local volume unavailable") {
+		t.Fatalf("Run error = %v, want local volume failure", err)
+	}
+	if projection.resets != 0 {
+		t.Fatalf("checkpoint resets = %d, want 0", projection.resets)
+	}
+}
+
+func TestProjectorResetsFutureLocalCheckpoint(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-future").Subject(EventUserJoinedRoom)
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-future", "U1"))
+	if err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seq + 1
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if projection.resets != 1 || projection.Count() != 1 {
+		t.Fatalf("resets/count = %d/%d, want 1/1", projection.resets, projection.Count())
+	}
+}
+
+func TestProjectorRejectsCompetingRestoreAuthorities(t *testing.T) {
+	js, stream := setupTestStream(t)
+	source := &staticSnapshotSource{}
+	identity := testStreamIdentity(t, stream)
+
+	checkpointFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
+	if err := checkpointFirst.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	if err := checkpointFirst.ConfigureSnapshots("search", source, identity); err == nil {
+		t.Fatal("ConfigureSnapshots succeeded after ConfigureCheckpoint")
+	}
+
+	snapshotFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
+	if err := snapshotFirst.ConfigureSnapshots("search", source, identity); err != nil {
+		t.Fatalf("ConfigureSnapshots: %v", err)
+	}
+	if err := snapshotFirst.ConfigureCheckpoint("search"); err == nil {
+		t.Fatal("ConfigureCheckpoint succeeded after ConfigureSnapshots")
 	}
 }
 
