@@ -41,6 +41,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import type { QuoteInsertionContent, SelectedQuoteBlock } from '$lib/state/room';
 
   const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
+  const markdownLinkPasteRegex = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
   const codeFenceLineRegex = /^```([\w-]+)?$/;
   const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
   const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
@@ -716,7 +717,37 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     );
   }
 
-  function createLiteralClipboardContent(
+  function createClipboardInlineContent(
+    text: string,
+    schema: Schema,
+    destinationMarks: readonly Mark[]
+  ): ProseMirrorNode[] {
+    const linkType = schema.marks.link;
+    if (!text || !linkType) return text ? [schema.text(text, destinationMarks)] : [];
+
+    const nodes: ProseMirrorNode[] = [];
+    const nonLinkMarks = destinationMarks.filter((mark) => mark.type !== linkType);
+    let index = 0;
+
+    for (const match of text.matchAll(markdownLinkPasteRegex)) {
+      const matchIndex = match.index;
+      const label = match[1];
+      const href = match[2];
+      if (!label || !href || text[matchIndex - 1] === '!' || text[matchIndex - 1] === '\\') {
+        continue;
+      }
+
+      if (matchIndex > index)
+        nodes.push(schema.text(text.slice(index, matchIndex), destinationMarks));
+      nodes.push(schema.text(label, [...nonLinkMarks, linkType.create({ href })]));
+      index = matchIndex + match[0].length;
+    }
+
+    if (index < text.length) nodes.push(schema.text(text.slice(index), destinationMarks));
+    return nodes;
+  }
+
+  function createClipboardContent(
     text: string,
     schema: Schema,
     destinationMarks: readonly Mark[]
@@ -731,7 +762,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         const lines = paragraphText.split('\n');
 
         lines.forEach((line, index) => {
-          if (line) inlineNodes.push(schema.text(line, paragraphMarks));
+          inlineNodes.push(...createClipboardInlineContent(line, schema, paragraphMarks));
           if (index < lines.length - 1) inlineNodes.push(hardBreakType.create());
         });
 
@@ -1356,12 +1387,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
                     markdown.parse.bind(markdown)
                   )
                 : null;
-
-              // Keep ordinary clipboard text literal. ProseMirror's default parser turns every
-              // pasted line into a paragraph, which creates an extra rendered blank line.
+              // Keep ordinary clipboard text literal while recognizing the same link syntax as
+              // typed input. ProseMirror's default parser also turns every pasted line into a
+              // paragraph, which creates an extra rendered blank line.
               const content =
                 fencedCode ??
-                createLiteralClipboardContent(normalizedText, view.state.schema, destinationMarks);
+                createClipboardContent(normalizedText, view.state.schema, destinationMarks);
               return Slice.maxOpen(content);
             },
             handlePaste: (view, event) => {

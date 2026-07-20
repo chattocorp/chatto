@@ -1232,6 +1232,44 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('preserves a labelled channel link across repeated edit and save cycles', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      let body = `[#announcements](${url})`;
+
+      for (let cycle = 1; cycle <= 3; cycle += 1) {
+        const eventId = `evt_channel_link_${cycle}`;
+        roomStateMock.editState.eventId = eventId;
+        roomStateMock.editState.originalBody = body;
+        const rendered = renderMessageComposer({ roomId: 'room_456' });
+        const editor = await findEditor(rendered.container);
+
+        await vi.waitFor(() => {
+          const link = editor.querySelector('a');
+          expect(link?.textContent).toBe('#announcements');
+          expect(link?.getAttribute('href')).toBe(url);
+        });
+        await placeCaretAtEditorEnd(editor);
+        document.execCommand('insertText', false, '!');
+        const editedBody = `${body}!`;
+        await vi.waitFor(() =>
+          expect(editor.textContent).toBe(`#announcements${'!'.repeat(cycle)}`)
+        );
+
+        (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+        expect(updateMessageConnectMock).toHaveBeenCalledWith({
+          roomId: expect.any(String),
+          eventId,
+          body: editedBody
+        });
+
+        body = editedBody;
+        rendered.unmount();
+        updateMessageConnectMock.mockClear();
+      }
+    });
+
     it('keeps an existing GFM table renderable after editing and saving', async () => {
       const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
       roomStateMock.editState.eventId = 'evt_table';
@@ -1612,6 +1650,66 @@ describe('MessageComposer', () => {
         roomId,
         body: '[example](https://example.com)'
       });
+    });
+
+    it('round-trips a pasted labelled Markdown channel link', async () => {
+      const body = '[#announcements](https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F)';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe('https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('round-trips a pasted Markdown channel link surrounded by prose', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      const body = `See [#announcements](${url}) for details`;
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('See #announcements for details');
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe(url);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('uses the Markdown link from plain text when pasted HTML is also available', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      const body = `[#announcements](${url})`;
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body, `<a href="https://wrong.example/">wrong label</a>`);
+
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe(url);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
     });
 
     it('preserves a single pasted line break without creating separate paragraphs', async () => {
