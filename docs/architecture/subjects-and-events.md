@@ -1,7 +1,7 @@
 # Subject and Event Inventory
 
 Key files: [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go),
-[`cli/internal/searchcontract/contract.go`](../../cli/internal/searchcontract/contract.go),
+[`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto), and
 [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)

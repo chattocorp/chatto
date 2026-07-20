@@ -1,6 +1,6 @@
-// Package searchcontract implements Chatto's trusted NATS boundary for
-// replaceable message-search providers.
-package searchcontract
+// Package search implements Chatto's trusted NATS boundary for replaceable
+// message-search providers.
+package search
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package searchcontract
+package search
 
 import (
 	"context"
