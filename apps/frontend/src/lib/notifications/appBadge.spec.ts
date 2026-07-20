@@ -10,15 +10,18 @@ describe('updateAppBadge', () => {
     vi.unstubAllGlobals();
   });
 
-  it('sets and clears the app badge with the notification count', async () => {
+  it('sets numeric, flag, and clear app badge intents', async () => {
     const setAppBadge = vi.fn(async () => {});
-    vi.stubGlobal('navigator', { setAppBadge });
+    const clearAppBadge = vi.fn(async () => {});
+    vi.stubGlobal('navigator', { setAppBadge, clearAppBadge });
 
-    await updateAppBadge(3);
-    await updateAppBadge(0);
+    await updateAppBadge({ kind: 'count', count: 3 });
+    await updateAppBadge({ kind: 'flag' });
+    await updateAppBadge({ kind: 'clear' });
 
     expect(setAppBadge).toHaveBeenNthCalledWith(1, 3);
-    expect(setAppBadge).toHaveBeenNthCalledWith(2, 0);
+    expect(setAppBadge).toHaveBeenNthCalledWith(2);
+    expect(clearAppBadge).toHaveBeenCalledOnce();
   });
 
   it('silently ignores badge failures', async () => {
@@ -28,7 +31,7 @@ describe('updateAppBadge', () => {
       })
     });
 
-    await expect(updateAppBadge(1)).resolves.toBeUndefined();
+    await expect(updateAppBadge({ kind: 'count', count: 1 })).resolves.toBeUndefined();
   });
 });
 

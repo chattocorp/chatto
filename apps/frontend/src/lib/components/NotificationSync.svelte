@@ -7,7 +7,7 @@ and installed-app badge updates.
 **Responsibilities:**
 - Listens for live notification transitions attached to authoritative projection replacements
 - Plays the user's selected sound for non-silent creations
-- Updates the installed app badge from the aggregate pending-notification count
+- Shows an exact DM count or a flag for other/incompletely loaded pending notifications
 
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
@@ -16,7 +16,12 @@ Include this component once in the application root so signed-out pages also cle
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
-  import { listenForAppBadgeRefresh, updateAppBadge } from '$lib/notifications/appBadge';
+  import {
+    listenForAppBadgeRefresh,
+    updateAppBadge,
+    type AppBadgeIntent
+  } from '$lib/notifications/appBadge';
+  import { NotificationItemKind } from '$lib/api-client/notifications';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
   import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -54,20 +59,39 @@ Include this component once in the application root so signed-out pages also cle
     };
   });
 
-  function syncAppBadge() {
-    let notificationCount = 0;
+  function appBadgeIntent(): AppBadgeIntent | null {
+    let dmCount = 0;
+    let hasNotification = false;
     let allStoresLoaded = true;
+    let hasCompleteNotificationPages = true;
 
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
-      notificationCount += stores.notifications.unreadNotificationCount;
-      if (!stores.notifications.hasLoaded) allStoresLoaded = false;
+      const notifications = stores.notifications.notifications;
+      const notificationTotal = stores.notifications.unreadNotificationCount;
+      dmCount += notifications.filter(
+        (notification) => notification.kind === NotificationItemKind.DirectMessage
+      ).length;
+      if (notificationTotal > 0 || notifications.length > 0) hasNotification = true;
+      if (!stores.notifications.hasLoaded) {
+        allStoresLoaded = false;
+        hasCompleteNotificationPages = false;
+      } else if (notificationTotal !== notifications.length) {
+        hasCompleteNotificationPages = false;
+      }
     }
 
-    if (notificationCount === 0 && !allStoresLoaded) return;
-    void updateAppBadge(notificationCount);
+    if (dmCount > 0 && hasCompleteNotificationPages) return { kind: 'count', count: dmCount };
+    if (hasNotification) return { kind: 'flag' };
+    if (!allStoresLoaded) return null;
+    return { kind: 'clear' };
+  }
+
+  function syncAppBadge() {
+    const intent = appBadgeIntent();
+    if (intent) void updateAppBadge(intent);
   }
 
   // Synchronize the external OS badge directly from authoritative notification stores.
