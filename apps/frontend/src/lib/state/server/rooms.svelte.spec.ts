@@ -177,6 +177,7 @@ describe('RoomsStore - refresh', () => {
           id: 'g1',
           name: 'Lobby',
           canCreateRoom: false,
+          canManageGroup: false,
           roomIds: ['public'],
           items: [makeGroupRoomItem('public')]
         }
@@ -566,6 +567,7 @@ describe('RoomsStore - refresh', () => {
             id: 'g1',
             name: 'Lobby',
             canCreateRoom: false,
+            canManageGroup: false,
             roomIds: ['general'],
             items: [
               {
@@ -586,6 +588,7 @@ describe('RoomsStore - refresh', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        viewerCanManageGroup: false,
         roomIds: ['general'],
         items: [
           {

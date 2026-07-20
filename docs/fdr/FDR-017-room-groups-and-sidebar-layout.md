@@ -9,8 +9,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
-- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
-- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded. A viewer with effective group `room.manage` also sees a settings action on that group header, including when no rooms in the group are otherwise visible.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Server-wide room managers can create and reorder groups from the room-layout overview. Its edit action opens the room group's resource page in the shared management area. Effective group `room.manage` holders can edit or delete that group, while either they or server-wide `role.manage` holders can configure its role permission matrix.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.

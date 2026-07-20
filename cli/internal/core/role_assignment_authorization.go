@@ -9,6 +9,9 @@ import (
 // CanAssignRole reports whether an actor with role.assign may grant a specific
 // role without granting authority they do not currently possess.
 func (c *ChattoCore) CanAssignRole(ctx context.Context, actorID, roleName string) (bool, error) {
+	if roleName == RoleEveryone {
+		return false, nil
+	}
 	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
 		if errors.Is(err, ErrPermissionDenied) {
 			return false, nil
@@ -22,6 +25,9 @@ func (c *ChattoCore) CanAssignRole(ctx context.Context, actorID, roleName string
 // specific role. Explicit denials are included because removing a restriction
 // can restore authority to the target user.
 func (c *ChattoCore) CanRevokeRole(ctx context.Context, actorID, roleName string) (bool, error) {
+	if roleName == RoleEveryone {
+		return false, nil
+	}
 	if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
 		if errors.Is(err, ErrPermissionDenied) {
 			return false, nil

@@ -100,7 +100,10 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
+    path
+      .replace('[serverId]', params?.serverId ?? '')
+      .replace('[roomId]', params?.roomId ?? '')
+      .replace('[groupId]', params?.groupId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -686,6 +689,7 @@ describe('RoomList', () => {
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -706,11 +710,33 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
+  it('keeps an empty manageable group visible with a settings link', async () => {
+    mocks.store.rooms.roomGroups = [
+      {
+        id: 'private-group',
+        name: 'Private Group',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const link = q(
+      container,
+      '[href="/chat/-/manage/room-groups/private-group"]'
+    ) as HTMLAnchorElement;
+    await expect.element(link).toBeInTheDocument();
+    expect(link.getAttribute('aria-label')).toBe('Settings for Private Group');
+  });
+
   it('renders active-server host sidebar links as same-tab anchors', async () => {
     mocks.store.rooms.roomGroups = [
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -739,6 +765,7 @@ describe('RoomList', () => {
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {

@@ -124,11 +124,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
-  // Sets that have at least one channel the viewer is a member of
+  // Keep manageable groups discoverable even when none of their rooms are
+  // visible to the viewer.
   let visibleSets = $derived.by(() => {
     const sets = roomsStore.roomGroups;
     if (!sets) return [];
-    return sets.filter((s) => getSetItems(s).length > 0);
+    return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
   });
 
   const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
@@ -464,7 +465,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
-        />
+        >
+          {#snippet actions()}
+            {#if set.viewerCanManageGroup}
+              <a
+                href={resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+                  serverId: serverSegment,
+                  groupId: set.id
+                })}
+                class="icon-action shrink-0"
+                aria-label={m['room_list.group_settings']({ group: set.name })}
+              >
+                <span class="iconify uil--setting" aria-hidden="true"></span>
+              </a>
+            {/if}
+          {/snippet}
+        </CollapsibleGroup>
       {/each}
     {:else if sortedRooms.length > 0}
       <!-- No layout configured yet — alphabetical fallback. -->

@@ -152,7 +152,10 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 	return 0, fmt.Errorf("RBAC OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID string, event *corev1.Event, check func() error) (uint64, error) {
+// appendRoleAssignmentEvent fences every projection used by role-assignment
+// authorization against one global EVT boundary. The global append OCC makes
+// a concurrent user, RBAC, or room-group change retry the complete decision.
+func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *corev1.Event, check func() error) (uint64, error) {
 	filter := events.EventSubjectFilter()
 	userFilter := events.UserAggregate(userID).AllEventsFilter()
 
@@ -161,8 +164,22 @@ func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID st
 		if err != nil {
 			return 0, fmt.Errorf("read event OCC filter seq: %w", err)
 		}
-		if err := c.userModel.waitForUsersCurrent(ctx, "role target user", userFilter); err != nil {
-			return 0, err
+
+		groupPos, err := c.EventPublisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read room-group projection position: %w", err)
+		}
+		if groupPos.Seq > filterSeq {
+			continue
+		}
+		if err := c.rooms().waitForGroupLayout(ctx, groupPos); err != nil {
+			return 0, fmt.Errorf("wait for room-group projection: %w", err)
+		}
+
+		if requireExistingUser {
+			if err := c.userModel.waitForUsersCurrent(ctx, "role target user", userFilter); err != nil {
+				return 0, err
+			}
 		}
 
 		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
@@ -173,8 +190,10 @@ func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID st
 			return 0, fmt.Errorf("wait for RBAC projection: %w", err)
 		}
 
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return 0, err
+		if requireExistingUser {
+			if _, err := c.GetUser(ctx, userID); err != nil {
+				return 0, err
+			}
 		}
 		if check != nil {
 			if err := check(); err != nil {
@@ -200,7 +219,7 @@ func (c *ChattoCore) appendRBACEventWithUserCheck(ctx context.Context, userID st
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return 0, fmt.Errorf("RBAC user OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
+	return 0, fmt.Errorf("role assignment OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
 func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {

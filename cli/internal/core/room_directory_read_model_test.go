@@ -57,6 +57,19 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if directoryRoomsContain(dirGroup.Rooms, hidden.Id) {
 		t.Fatalf("hidden room %s appeared in GetRoomGroup", hidden.Id)
 	}
+	if dirGroup.ViewerState.CanManageRoomGroup {
+		t.Fatal("CanManageRoomGroup = true before grant")
+	}
+	if err := core.GrantUserGroupPermission(ctx, SystemActorID, group.Id, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.manage: %v", err)
+	}
+	dirGroup, err = reads.GetRoomGroup(ctx, actor.Id, group.Id, RoomDirectoryGroupOptions{})
+	if err != nil {
+		t.Fatalf("GetRoomGroup after room.manage grant: %v", err)
+	}
+	if !dirGroup.ViewerState.CanManageRoomGroup {
+		t.Fatal("CanManageRoomGroup = false after grant")
+	}
 	if _, err := reads.GetRoomGroup(ctx, actor.Id, "missing-group", RoomDirectoryGroupOptions{}); !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Fatalf("GetRoomGroup missing error = %v, want ErrRoomGroupNotFound", err)
 	}

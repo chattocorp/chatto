@@ -65,6 +65,12 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
+Role assignment mutations use a global `evt.>` OCC boundary. Before evaluating
+the actor's bounded scoped authority, the writer waits the RBAC and room-group
+layout projections through positions covered by that boundary; existing-user
+operations also fence the target-user projection. Any concurrent EVT fact makes
+the append retry the complete authorization decision.
+
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
 authorization through `AssetProjection`, using the scope on `AssetCreatedEvent`

@@ -324,6 +324,7 @@ describe('createRoomDirectoryAPI', () => {
         id: 'g1',
         name: 'Lobby',
         canCreateRoom: true,
+        canManageGroup: false,
         roomIds: ['general', 'random'],
         items: [
           {
@@ -467,12 +468,16 @@ function roomViewerState(
   };
 }
 
-function groupViewerState(canCreateRoom: boolean) {
+function groupViewerState(canCreateRoom: boolean, canManageGroup = false) {
   return {
     permissions: [
       {
         permission: Permission.CreateRoom,
         granted: canCreateRoom
+      },
+      {
+        permission: Permission.ManageRoom,
+        granted: canManageGroup
       }
     ]
   };

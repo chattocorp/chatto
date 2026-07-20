@@ -1783,6 +1783,20 @@ func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %q missing from group items", link.Id)
 	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.manage: %v", err)
+	}
+	resp, err = env.directory.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
+	if err != nil {
+		t.Fatalf("ListRoomGroups after room.manage grant: %v", err)
+	}
+	group = findDirectoryGroup(resp.Msg.GetGroups(), groupID)
+	if group == nil {
+		t.Fatalf("group %q missing after room.manage grant", groupID)
+	}
+	if !apiRoomGroupPermissionGranted(group, core.PermRoomManage) {
+		t.Fatalf("group room.manage viewer grant = %+v, want granted", group.GetViewerState())
+	}
 }
 
 func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoomManage(t *testing.T) {
@@ -2673,8 +2687,8 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMember assignment limits: %v", err)
 	}
-	if !memberDetails.Msg.GetRoleAssignmentLimitsEnforced() || !stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleModerator) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleOwner) {
-		t.Fatalf("assignment limits = enforced:%v assignable:%v, want moderator but not owner", memberDetails.Msg.GetRoleAssignmentLimitsEnforced(), memberDetails.Msg.GetAssignableRoleNames())
+	if !memberDetails.Msg.GetRoleAssignmentLimitsEnforced() || !stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleModerator) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleOwner) || stringSliceContains(memberDetails.Msg.GetAssignableRoleNames(), core.RoleEveryone) || stringSliceContains(memberDetails.Msg.GetRevocableRoleNames(), core.RoleEveryone) {
+		t.Fatalf("assignment limits = enforced:%v assignable:%v revocable:%v, want moderator but neither owner nor everyone", memberDetails.Msg.GetRoleAssignmentLimitsEnforced(), memberDetails.Msg.GetAssignableRoleNames(), memberDetails.Msg.GetRevocableRoleNames())
 	}
 
 	assignResp, err := env.adminUsers.AssignRole(adminCtx, connect.NewRequest(&adminv1.AssignRoleRequest{

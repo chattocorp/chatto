@@ -144,6 +144,11 @@
       ? (activeStore.rooms.rooms.find((room) => room.id === page.params.roomId) ?? null)
       : null
   );
+  const managedGroup = $derived(
+    page.params.groupId
+      ? (activeStore.rooms.roomGroups?.find((group) => group.id === page.params.groupId) ?? null)
+      : null
+  );
   const managementNavItems = $derived(
     adminNavItems.length > 0
       ? adminNavItems
@@ -158,6 +163,17 @@
               icon: 'iconify uil--setting'
             }
           ]
+        : managedGroup?.viewerCanManageGroup
+          ? [
+              {
+                href: resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+                  serverId: serverSegment,
+                  groupId: managedGroup.id
+                }),
+                label: m['room_list.group_settings']({ group: managedGroup.name }),
+                icon: 'iconify uil--setting'
+              }
+            ]
         : []
   );
   const adminHref = $derived(adminNavItems[0]?.href);

@@ -59,7 +59,8 @@ type DirectoryRoomGroup struct {
 }
 
 type DirectoryRoomGroupViewerState struct {
-	CanCreateRoom bool
+	CanCreateRoom      bool
+	CanManageRoomGroup bool
 }
 
 type DirectoryRoomGroupItem struct {
@@ -367,7 +368,14 @@ func (s *RoomDirectoryReadModel) roomGroupViewerState(ctx context.Context, actor
 	if err != nil {
 		return DirectoryRoomGroupViewerState{}, err
 	}
-	return DirectoryRoomGroupViewerState{CanCreateRoom: canCreateRoom}, nil
+	canManageRoomGroup, err := s.core.CanManageRoomGroup(ctx, actorID, groupID)
+	if err != nil {
+		return DirectoryRoomGroupViewerState{}, err
+	}
+	return DirectoryRoomGroupViewerState{
+		CanCreateRoom:      canCreateRoom,
+		CanManageRoomGroup: canManageRoomGroup,
+	}, nil
 }
 
 func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *corev1.Room) (*DirectoryRoom, error) {

@@ -17,6 +17,7 @@
     "remove_server": "Ta bort server",
     "leave_room": "Lämna rum",
     "room_settings": "Rumsinställningar",
+    "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
     "room_actions": "Åtgärder för #{room}"
   }

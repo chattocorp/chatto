@@ -148,6 +148,9 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	revocableRoleNames := make([]string, 0, len(roles))
 	if canAssignRoles {
 		for _, role := range roles {
+			if role.Name == RoleEveryone {
+				continue
+			}
 			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
 			if err != nil {
 				return nil, err

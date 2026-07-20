@@ -43,6 +43,25 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	}
 }
 
+func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "implicit-role-actor", "Implicit Role Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoleAssign); err != nil {
+		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	}
+
+	if can, err := core.CanAssignRole(ctx, actor.Id, RoleEveryone); err != nil || can {
+		t.Fatalf("CanAssignRole(everyone) = %v, %v; want false, nil", can, err)
+	}
+	if can, err := core.CanRevokeRole(ctx, actor.Id, RoleEveryone); err != nil || can {
+		t.Fatalf("CanRevokeRole(everyone) = %v, %v; want false, nil", can, err)
+	}
+}
+
 func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

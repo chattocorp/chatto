@@ -216,7 +216,7 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
 		}
@@ -251,7 +251,7 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
 		if _, ok := c.RBAC.GetRole(roleName); !ok {
 			return ErrRoleNotFound
 		}
@@ -286,7 +286,7 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
@@ -318,7 +318,7 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}

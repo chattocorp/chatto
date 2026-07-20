@@ -10,6 +10,7 @@ The server-management section gives owners and admins visibility into the server
 ## Behavior
 
 - Management UI lives under `/chat/[serverId]/manage/`. Server-wide pages live below `/manage/server/`; individual room and room-group settings use sibling resource routes.
+- Legacy `/chat/[serverId]/server-admin/...` deep links permanently redirect to their equivalent management routes so bookmarks and shared links continue to work.
 - Admin-capable users enter server management through the gear icon in the server name pane header. The server sidebar switches from room navigation to management navigation with a Back to Server affordance.
 - Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.

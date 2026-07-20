@@ -65,6 +65,7 @@ export type DirectoryRoomGroup = {
   id: string;
   name: string;
   canCreateRoom: boolean;
+  canManageGroup: boolean;
   roomIds: string[];
   items: DirectoryRoomGroupItem[];
 };
@@ -199,6 +200,7 @@ export function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
     id: group.id,
     name: group.name,
     canCreateRoom: hasRoomGroupPermission(group.viewerState, RoomPermission.CreateRoom),
+    canManageGroup: hasRoomGroupPermission(group.viewerState, RoomPermission.ManageRoom),
     roomIds: uniqueRoomIds(group.items),
     items: sidebarItemsFromAPI(group)
   };

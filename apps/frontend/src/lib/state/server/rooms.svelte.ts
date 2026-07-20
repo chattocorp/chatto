@@ -32,6 +32,7 @@ export type RoomsListItem = {
 export type RoomsListGroup = {
   id: string;
   name: string;
+  viewerCanManageGroup: boolean;
   roomIds: string[];
   items?: RoomsListGroupItem[];
 };
@@ -158,6 +159,7 @@ function sameRoomGroup(a: RoomsListGroup, b: RoomsListGroup): boolean {
   return (
     a.id === b.id &&
     a.name === b.name &&
+    a.viewerCanManageGroup === b.viewerCanManageGroup &&
     sameStringArray(a.roomIds, b.roomIds) &&
     sameRoomGroupItems(a.items ?? [], b.items ?? [])
   );
@@ -267,6 +269,7 @@ export class RoomsStore {
     const nextRoomGroups = roomGroups.map((group) => ({
       id: group.id,
       name: group.name,
+      viewerCanManageGroup: group.canManageGroup,
       roomIds: group.roomIds,
       items: group.items.map(roomGroupItem)
     }));
@@ -307,6 +310,7 @@ export class RoomsStore {
     this.roomGroups = roomGroups.map((group) => ({
       id: group.id,
       name: group.name,
+      viewerCanManageGroup: group.canManageGroup,
       roomIds: group.roomIds,
       items: group.items.map(roomGroupItem)
     }));
