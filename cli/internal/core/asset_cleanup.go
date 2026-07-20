@@ -70,7 +70,7 @@ func (s *AssetModel) runAssetCleanupPass(ctx context.Context) {
 }
 
 func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
-	if s == nil || s.cleanupConsumer == nil || s.failedVideoCleanupConsumer == nil || s.derivativeCleanupConsumer == nil || s.processingCommitReconciliationConsumer == nil {
+	if s == nil || s.cleanupConsumer == nil || s.failedVideoCleanupConsumer == nil || s.derivativeCleanupConsumer == nil || s.processingCommitReconciliationConsumer == nil || s.derivativeCreationReconciliationConsumer == nil {
 		return fmt.Errorf("asset cleanup consumer is not configured")
 	}
 	// Failed generations publish their durable cleanup intent first. Process it
@@ -78,9 +78,62 @@ func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
 	// same pass.
 	failureErr := s.failedVideoCleanupConsumer.Consume(ctx)
 	requestErr := s.derivativeCleanupConsumer.Consume(ctx)
+	creationReconciliationErr := s.derivativeCreationReconciliationConsumer.Consume(ctx)
 	reconciliationErr := s.processingCommitReconciliationConsumer.Consume(ctx)
 	deletionErr := s.cleanupConsumer.Consume(ctx)
-	return errors.Join(failureErr, requestErr, reconciliationErr, deletionErr)
+	return errors.Join(failureErr, requestErr, creationReconciliationErr, reconciliationErr, deletionErr)
+}
+
+func (s *AssetModel) reconcileUnknownDerivativeCreationCommit(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+	event := subjectEvent.Event
+	requested := event.GetAssetDerivativeCreationCommitReconciliationRequested()
+	if requested == nil || requested.GetSourceAssetId() == "" || requested.GetAttemptedEventId() == "" || requested.GetAsset().GetId() == "" {
+		return nil
+	}
+	sourceAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	if !ok || sourceAssetID != requested.GetSourceAssetId() {
+		return fmt.Errorf(
+			"asset derivative creation reconciliation subject %q does not match payload source id %q",
+			subjectEvent.Subject,
+			requested.GetSourceAssetId(),
+		)
+	}
+	createdAt := event.GetCreatedAt()
+	if createdAt == nil || !createdAt.IsValid() {
+		return fmt.Errorf("asset derivative creation reconciliation %s has no valid creation time", event.GetId())
+	}
+	if readyAt := createdAt.AsTime().Add(assetCommitReconciliationGrace); time.Now().Before(readyAt) {
+		return fmt.Errorf("asset derivative creation reconciliation %s is waiting for commit grace period", event.GetId())
+	}
+	asset := requested.GetAsset()
+	if asset.GetId() == sourceAssetID || requested.GetDerivativeRole() == corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_UNSPECIFIED {
+		return fmt.Errorf("asset derivative creation reconciliation %s has invalid derivative identity", event.GetId())
+	}
+	if err := s.validateCleanupStorage(asset.GetId(), asset); err != nil {
+		return err
+	}
+	sourceRoomID, err := s.durableAssetRoomID(ctx, sourceAssetID)
+	if err != nil {
+		return err
+	}
+	if requested.GetRoomId() == "" || requested.GetRoomId() != sourceRoomID {
+		return fmt.Errorf("asset derivative creation reconciliation %s has invalid room scope", event.GetId())
+	}
+	committed, err := s.assetEventIDExists(ctx, asset.GetId(), events.EventAssetCreated, requested.GetAttemptedEventId())
+	if err != nil {
+		return err
+	}
+	if committed {
+		return s.cleanupVideoDerivativeIDs(ctx, event.GetActorId(), sourceAssetID, []string{asset.GetId()})
+	}
+	attachment := attachmentFromAsset(asset)
+	if attachment == nil {
+		return fmt.Errorf("asset derivative creation reconciliation %s has invalid storage metadata", event.GetId())
+	}
+	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		return fmt.Errorf("delete uncommitted derivative %s from storage: %w", asset.GetId(), err)
+	}
+	return nil
 }
 
 func (s *AssetModel) reconcileUnknownVideoProcessingCommit(ctx context.Context, subjectEvent *events.SubjectEvent) error {

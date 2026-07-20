@@ -43,15 +43,16 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease                           *lease.Lease
-	cleanupConsumer                        *events.IncrementalEffectConsumer
-	failedVideoCleanupConsumer             *events.IncrementalEffectConsumer
-	derivativeCleanupConsumer              *events.IncrementalEffectConsumer
-	processingCommitReconciliationConsumer *events.IncrementalEffectConsumer
-	cleanupPollEvery                       time.Duration
-	waitForAssetsOverride                  func(context.Context, events.StreamPosition) error
-	cleanupStatusMu                        sync.RWMutex
-	cleanupPass                            assetCleanupPassStatus
+	cleanupLease                             *lease.Lease
+	cleanupConsumer                          *events.IncrementalEffectConsumer
+	failedVideoCleanupConsumer               *events.IncrementalEffectConsumer
+	derivativeCleanupConsumer                *events.IncrementalEffectConsumer
+	processingCommitReconciliationConsumer   *events.IncrementalEffectConsumer
+	derivativeCreationReconciliationConsumer *events.IncrementalEffectConsumer
+	cleanupPollEvery                         time.Duration
+	waitForAssetsOverride                    func(context.Context, events.StreamPosition) error
+	cleanupStatusMu                          sync.RWMutex
+	cleanupPass                              assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
@@ -76,6 +77,11 @@ func NewAssetModel(core *ChattoCore) *AssetModel {
 			core.EventPublisher,
 			events.AssetEventTypeFilter(events.EventAssetProcessingCommitReconciliationRequested),
 			model.reconcileUnknownVideoProcessingCommit,
+		)
+		model.derivativeCreationReconciliationConsumer = events.NewIncrementalEffectConsumerWithSubject(
+			core.EventPublisher,
+			events.AssetEventTypeFilter(events.EventAssetDerivativeCreationCommitReconciliationRequested),
+			model.reconcileUnknownDerivativeCreationCommit,
 		)
 	}
 	return model
@@ -154,9 +160,24 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 		}
 		committed, confirmErr := s.assetEventCommitted(ctx, attachment.GetId(), event)
 		if confirmErr != nil {
+			var reconcileErr error
+			if deriv != nil {
+				reconcileCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+				reconcileErr = s.RecordAssetDerivativeCreationCommitReconciliationRequested(
+					reconcileCtx,
+					actorID,
+					deriv.parentAssetID,
+					event.GetId(),
+					attachment,
+					deriv.derivativeRole,
+					roomID,
+				)
+				cancel()
+			}
 			return errors.Join(
 				fmt.Errorf("publish asset creation event: %w", err),
 				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+				reconcileErr,
 			)
 		}
 		if committed {
@@ -451,9 +472,18 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 			},
 		},
 	})
+	cleanupAssetIDs := videoDerivativeOutputIDs(thumbnail, variants, hls)
+	// Commit the exact-event reconciliation guard before attempting success.
+	// A lost publish acknowledgement can therefore never strand output without
+	// a durable record that can decide whether to retain or remove it.
+	guardCtx, guardCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+	guardErr := s.RecordAssetProcessingCommitReconciliationRequested(guardCtx, actorID, attachmentID, messageEventID, event.GetId(), cleanupAssetIDs)
+	guardCancel()
+	if guardErr != nil {
+		return fmt.Errorf("record processing commit reconciliation guard: %w", guardErr)
+	}
 	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
 		if errors.Is(err, ErrAssetLifecycleSkipped) {
-			cleanupAssetIDs := videoDerivativeOutputIDs(thumbnail, variants, hls)
 			intentCtx, intentCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
 			intentErr := s.RecordAssetDerivativeCleanupRequested(intentCtx, actorID, attachmentID, cleanupAssetIDs)
 			intentCancel()
@@ -470,14 +500,9 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 		}
 		committed, confirmErr := s.assetEventCommitted(ctx, attachmentID, event)
 		if confirmErr != nil {
-			cleanupAssetIDs := videoDerivativeOutputIDs(thumbnail, variants, hls)
-			reconcileCtx, reconcileCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
-			reconcileErr := s.RecordAssetProcessingCommitReconciliationRequested(reconcileCtx, actorID, attachmentID, messageEventID, event.GetId(), cleanupAssetIDs)
-			reconcileCancel()
 			return errors.Join(
 				fmt.Errorf("publish asset processing event: %w", err),
 				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
-				reconcileErr,
 			)
 		}
 		if committed {
@@ -793,11 +818,7 @@ func (s *AssetModel) RecordAssetDerivativeCleanupRequested(ctx context.Context, 
 			},
 		},
 	})
-	subject := events.AssetAggregate(sourceAssetID).SubjectFor(event)
-	if _, err := s.EventPublisher.AppendEventually(ctx, subject, event); err != nil {
-		return fmt.Errorf("publish derivative cleanup request: %w", err)
-	}
-	return nil
+	return s.appendAssetRecoveryEvent(ctx, sourceAssetID, event, "derivative cleanup request")
 }
 
 // RecordAssetProcessingCommitReconciliationRequested durably schedules a
@@ -819,9 +840,51 @@ func (s *AssetModel) RecordAssetProcessingCommitReconciliationRequested(ctx cont
 			},
 		},
 	})
-	subject := events.AssetAggregate(sourceAssetID).SubjectFor(event)
-	if _, err := s.EventPublisher.AppendEventually(ctx, subject, event); err != nil {
-		return fmt.Errorf("publish processing commit reconciliation request: %w", err)
+	return s.appendAssetRecoveryEvent(ctx, sourceAssetID, event, "processing commit reconciliation request")
+}
+
+// RecordAssetDerivativeCreationCommitReconciliationRequested preserves the
+// exact creation attempt and storage handle for an ambiguously created child.
+func (s *AssetModel) RecordAssetDerivativeCreationCommitReconciliationRequested(ctx context.Context, actorID, sourceAssetID, attemptedEventID string, attachment *corev1.Attachment, derivativeRole corev1.AssetDerivativeRole, roomID string) error {
+	if actorID == "" {
+		return fmt.Errorf("derivative creation reconciliation request missing actor id")
 	}
-	return nil
+	if sourceAssetID == "" || attemptedEventID == "" || attachment.GetId() == "" {
+		return fmt.Errorf("derivative creation reconciliation request missing source, attempted event, or derivative asset id")
+	}
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_AssetDerivativeCreationCommitReconciliationRequested{
+			AssetDerivativeCreationCommitReconciliationRequested: &corev1.AssetDerivativeCreationCommitReconciliationRequestedEvent{
+				SourceAssetId:    sourceAssetID,
+				AttemptedEventId: attemptedEventID,
+				Asset:            assetFromAttachment(attachment),
+				DerivativeRole:   derivativeRole,
+				RoomId:           roomID,
+			},
+		},
+	})
+	return s.appendAssetRecoveryEvent(ctx, sourceAssetID, event, "derivative creation reconciliation request")
+}
+
+// appendAssetRecoveryEvent retries one recovery fact with a stable event ID.
+// Exact-ID confirmation makes an ambiguous acknowledgement idempotent.
+func (s *AssetModel) appendAssetRecoveryEvent(ctx context.Context, assetID string, event *corev1.Event, description string) error {
+	var errs []error
+	for attempt := 0; attempt < 3; attempt++ {
+		subject := events.AssetAggregate(assetID).SubjectFor(event)
+		if _, err := s.EventPublisher.AppendEventually(ctx, subject, event); err == nil {
+			return nil
+		} else {
+			errs = append(errs, err)
+		}
+		eventType := events.EventTypeOf(event)
+		committed, err := s.assetEventIDExists(ctx, assetID, eventType, event.GetId())
+		if err == nil && committed {
+			return nil
+		}
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return fmt.Errorf("publish %s: %w", description, errors.Join(errs...))
 }

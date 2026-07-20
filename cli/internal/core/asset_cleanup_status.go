@@ -26,19 +26,20 @@ type assetCleanupPassStatus struct {
 }
 
 type assetCleanupStatusRecord struct {
-	OwnerID                        string    `json:"ownerId"`
-	UpdatedAt                      time.Time `json:"updatedAt"`
-	InitialScanComplete            bool      `json:"initialScanComplete"`
-	PassInProgress                 bool      `json:"passInProgress"`
-	PendingCount                   int       `json:"pendingCount"`
-	OldestPendingAt                time.Time `json:"oldestPendingAt,omitempty"`
-	LastPassAt                     time.Time `json:"lastPassAt,omitempty"`
-	LastSuccessfulPassAt           time.Time `json:"lastSuccessfulPassAt,omitempty"`
-	LastPassFailed                 bool      `json:"lastPassFailed"`
-	LastInspectedSeq               uint64    `json:"lastInspectedSeq"`
-	LastInspectedFailureSeq        uint64    `json:"lastInspectedFailureSeq"`
-	LastInspectedCleanupRequestSeq uint64    `json:"lastInspectedCleanupRequestSeq"`
-	LastInspectedReconciliationSeq uint64    `json:"lastInspectedReconciliationSeq"`
+	OwnerID                                string    `json:"ownerId"`
+	UpdatedAt                              time.Time `json:"updatedAt"`
+	InitialScanComplete                    bool      `json:"initialScanComplete"`
+	PassInProgress                         bool      `json:"passInProgress"`
+	PendingCount                           int       `json:"pendingCount"`
+	OldestPendingAt                        time.Time `json:"oldestPendingAt,omitempty"`
+	LastPassAt                             time.Time `json:"lastPassAt,omitempty"`
+	LastSuccessfulPassAt                   time.Time `json:"lastSuccessfulPassAt,omitempty"`
+	LastPassFailed                         bool      `json:"lastPassFailed"`
+	LastInspectedSeq                       uint64    `json:"lastInspectedSeq"`
+	LastInspectedFailureSeq                uint64    `json:"lastInspectedFailureSeq"`
+	LastInspectedCleanupRequestSeq         uint64    `json:"lastInspectedCleanupRequestSeq"`
+	LastInspectedReconciliationSeq         uint64    `json:"lastInspectedReconciliationSeq"`
+	LastInspectedCreationReconciliationSeq uint64    `json:"lastInspectedCreationReconciliationSeq"`
 }
 
 type AssetCleanupHealth int
@@ -88,23 +89,25 @@ func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusR
 	failures := s.failedVideoCleanupConsumer.Status()
 	requests := s.derivativeCleanupConsumer.Status()
 	reconciliations := s.processingCommitReconciliationConsumer.Status()
+	creationReconciliations := s.derivativeCreationReconciliationConsumer.Status()
 	s.cleanupStatusMu.RLock()
 	pass := s.cleanupPass
 	s.cleanupStatusMu.RUnlock()
 	return assetCleanupStatusRecord{
-		OwnerID:                        s.cleanupLease.OwnerID(),
-		UpdatedAt:                      now.UTC(),
-		InitialScanComplete:            consumer.Initialized,
-		PassInProgress:                 pass.InProgress,
-		PendingCount:                   consumer.PendingCount,
-		OldestPendingAt:                consumer.OldestPendingAt,
-		LastPassAt:                     pass.LastPassAt,
-		LastSuccessfulPassAt:           pass.LastSuccessfulPassAt,
-		LastPassFailed:                 pass.LastPassFailed,
-		LastInspectedSeq:               consumer.AfterSeq,
-		LastInspectedFailureSeq:        failures.AfterSeq,
-		LastInspectedCleanupRequestSeq: requests.AfterSeq,
-		LastInspectedReconciliationSeq: reconciliations.AfterSeq,
+		OwnerID:                                s.cleanupLease.OwnerID(),
+		UpdatedAt:                              now.UTC(),
+		InitialScanComplete:                    consumer.Initialized,
+		PassInProgress:                         pass.InProgress,
+		PendingCount:                           consumer.PendingCount,
+		OldestPendingAt:                        consumer.OldestPendingAt,
+		LastPassAt:                             pass.LastPassAt,
+		LastSuccessfulPassAt:                   pass.LastSuccessfulPassAt,
+		LastPassFailed:                         pass.LastPassFailed,
+		LastInspectedSeq:                       consumer.AfterSeq,
+		LastInspectedFailureSeq:                failures.AfterSeq,
+		LastInspectedCleanupRequestSeq:         requests.AfterSeq,
+		LastInspectedReconciliationSeq:         reconciliations.AfterSeq,
+		LastInspectedCreationReconciliationSeq: creationReconciliations.AfterSeq,
 	}
 }
 
@@ -113,16 +116,17 @@ func (s *AssetModel) assetCleanupConsumerStatus() events.IncrementalEffectConsum
 	failures := s.failedVideoCleanupConsumer.Status()
 	requests := s.derivativeCleanupConsumer.Status()
 	reconciliations := s.processingCommitReconciliationConsumer.Status()
+	creationReconciliations := s.derivativeCreationReconciliationConsumer.Status()
 	oldest := time.Time{}
-	for _, candidate := range []time.Time{deletions.OldestPendingAt, failures.OldestPendingAt, requests.OldestPendingAt, reconciliations.OldestPendingAt} {
+	for _, candidate := range []time.Time{deletions.OldestPendingAt, failures.OldestPendingAt, requests.OldestPendingAt, reconciliations.OldestPendingAt, creationReconciliations.OldestPendingAt} {
 		if !candidate.IsZero() && (oldest.IsZero() || candidate.Before(oldest)) {
 			oldest = candidate
 		}
 	}
 	return events.IncrementalEffectConsumerStatus{
-		Initialized:     deletions.Initialized && failures.Initialized && requests.Initialized && reconciliations.Initialized,
+		Initialized:     deletions.Initialized && failures.Initialized && requests.Initialized && reconciliations.Initialized && creationReconciliations.Initialized,
 		AfterSeq:        deletions.AfterSeq,
-		PendingCount:    deletions.PendingCount + failures.PendingCount + requests.PendingCount + reconciliations.PendingCount,
+		PendingCount:    deletions.PendingCount + failures.PendingCount + requests.PendingCount + reconciliations.PendingCount + creationReconciliations.PendingCount,
 		OldestPendingAt: oldest,
 	}
 }
@@ -155,6 +159,7 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 	latestFailureSeq, failureSeqErr := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetProcessingFailed))
 	latestCleanupRequestSeq, cleanupRequestSeqErr := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetDerivativeCleanupRequested))
 	latestReconciliationSeq, reconciliationSeqErr := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetProcessingCommitReconciliationRequested))
+	latestCreationReconciliationSeq, creationReconciliationSeqErr := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetDerivativeCreationCommitReconciliationRequested))
 
 	var record assetCleanupStatusRecord
 	entry, err := s.storage.memoryCacheKV.Get(ctx, assetCleanupStatusKey)
@@ -203,9 +208,9 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		status.Health = AssetCleanupHealthStalled
 	case !record.InitialScanComplete:
 		status.Health = AssetCleanupHealthInitializing
-	case failureSeqErr != nil || cleanupRequestSeqErr != nil || reconciliationSeqErr != nil:
+	case failureSeqErr != nil || cleanupRequestSeqErr != nil || reconciliationSeqErr != nil || creationReconciliationSeqErr != nil:
 		status.Health = AssetCleanupHealthUnavailable
-	case record.PendingCount > 0 || record.LastPassFailed || record.LastInspectedSeq < latestSeq || record.LastInspectedFailureSeq < latestFailureSeq || record.LastInspectedCleanupRequestSeq < latestCleanupRequestSeq || record.LastInspectedReconciliationSeq < latestReconciliationSeq:
+	case record.PendingCount > 0 || record.LastPassFailed || record.LastInspectedSeq < latestSeq || record.LastInspectedFailureSeq < latestFailureSeq || record.LastInspectedCleanupRequestSeq < latestCleanupRequestSeq || record.LastInspectedReconciliationSeq < latestReconciliationSeq || record.LastInspectedCreationReconciliationSeq < latestCreationReconciliationSeq:
 		status.Health = AssetCleanupHealthRetrying
 	default:
 		status.Health = AssetCleanupHealthHealthy

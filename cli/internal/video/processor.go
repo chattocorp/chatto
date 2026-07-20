@@ -478,6 +478,9 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	if thumbPath != "" {
 		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
+			if thumb != nil {
+				return s.finalizeProcessingFailure(ctx, req, []*corev1.Attachment{thumb}, fmt.Errorf("upload thumbnail with ambiguous asset creation: %w", err))
+			}
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
 			thumbnailAttachment = thumb
@@ -604,10 +607,12 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 		}
 		for segmentIndex, segmentPath := range segmentPaths {
 			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", rendition.GetQuality(), segmentIndex), "video/mp2t", segmentPath)
+			if segment != nil {
+				uploaded = append(uploaded, segment)
+			}
 			if err != nil {
 				return nil, uploaded, fmt.Errorf("upload HLS segment: %w", err)
 			}
-			uploaded = append(uploaded, segment)
 			rendition.Segments = append(rendition.Segments, &corev1.AssetHLSSegment{AssetId: segment.GetId(), DurationMs: durations[segmentIndex]})
 		}
 		manifest.Renditions = append(manifest.Renditions, rendition)

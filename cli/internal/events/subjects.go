@@ -77,20 +77,21 @@ const (
 	// MessageEditedEvent / MessageRetractedEvent proto names; if those
 	// proto names are renamed in a future cleanup, subject tokens can
 	// stay as-is (subjects are stable once written).
-	EventMessagePosted                                = "message_posted"
-	EventMessageEdited                                = "message_edited"
-	EventMessageRetracted                             = "message_retracted"
-	EventMessageBody                                  = "message_body"
-	EventThreadCreated                                = "thread_created"
-	EventThreadFollowed                               = "thread_followed"
-	EventThreadUnfollowed                             = "thread_unfollowed"
-	EventAssetCreated                                 = "asset_created"
-	EventAssetProcessingStarted                       = "asset_processing_started"
-	EventAssetProcessingSucceeded                     = "asset_processing_succeeded"
-	EventAssetProcessingFailed                        = "asset_processing_failed"
-	EventAssetDeleted                                 = "asset_deleted"
-	EventAssetDerivativeCleanupRequested              = "asset_derivative_cleanup_requested"
-	EventAssetProcessingCommitReconciliationRequested = "asset_processing_commit_reconciliation_requested"
+	EventMessagePosted                                        = "message_posted"
+	EventMessageEdited                                        = "message_edited"
+	EventMessageRetracted                                     = "message_retracted"
+	EventMessageBody                                          = "message_body"
+	EventThreadCreated                                        = "thread_created"
+	EventThreadFollowed                                       = "thread_followed"
+	EventThreadUnfollowed                                     = "thread_unfollowed"
+	EventAssetCreated                                         = "asset_created"
+	EventAssetProcessingStarted                               = "asset_processing_started"
+	EventAssetProcessingSucceeded                             = "asset_processing_succeeded"
+	EventAssetProcessingFailed                                = "asset_processing_failed"
+	EventAssetDeleted                                         = "asset_deleted"
+	EventAssetDerivativeCleanupRequested                      = "asset_derivative_cleanup_requested"
+	EventAssetProcessingCommitReconciliationRequested         = "asset_processing_commit_reconciliation_requested"
+	EventAssetDerivativeCreationCommitReconciliationRequested = "asset_derivative_creation_commit_reconciliation_requested"
 
 	// Reactions (also under the room aggregate). Reaction state is
 	// derived from these durable events by the reaction projection.
@@ -260,6 +261,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventAssetDerivativeCleanupRequested
 	case *corev1.Event_AssetProcessingCommitReconciliationRequested:
 		return EventAssetProcessingCommitReconciliationRequested
+	case *corev1.Event_AssetDerivativeCreationCommitReconciliationRequested:
+		return EventAssetDerivativeCreationCommitReconciliationRequested
 
 	case *corev1.Event_ReactionAdded:
 		return EventReactionAdded
