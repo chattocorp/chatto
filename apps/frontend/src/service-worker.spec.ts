@@ -28,6 +28,7 @@ type TestNativeNotification = {
 type TestWindowClient = {
   id: string;
   visibilityState: 'hidden' | 'visible';
+  postMessage: ReturnType<typeof vi.fn>;
 };
 
 function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
@@ -175,6 +176,32 @@ describe('service worker notifications', () => {
     });
   });
 
+  it('asks a visible app to restore its aggregate badge after a regular push', async () => {
+    const worker = await importServiceWorker();
+    const visibleClient = {
+      id: 'visible-app',
+      visibilityState: 'visible' as const,
+      postMessage: vi.fn()
+    };
+    worker.clients.matchAll.mockResolvedValueOnce([visibleClient]);
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          app_badge: '2',
+          notification: {
+            title: 'Origin notification',
+            navigate: 'https://chatto.example/chat/-/room-1'
+          }
+        })
+      }
+    });
+
+    expect(visibleClient.postMessage).toHaveBeenCalledWith({ type: 'app-badge-refresh' });
+    expect(worker.setAppBadge).not.toHaveBeenCalled();
+  });
+
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
     const worker = await importServiceWorker();
 
@@ -299,7 +326,7 @@ describe('service worker notifications', () => {
   it('leaves dismiss badge updates to an open app client', async () => {
     const worker = await importServiceWorker();
     worker.clients.matchAll.mockResolvedValueOnce([
-      { id: 'open-app', visibilityState: 'visible' }
+      { id: 'open-app', visibilityState: 'visible', postMessage: vi.fn() }
     ]);
 
     await worker.dispatch('push', {
@@ -319,7 +346,7 @@ describe('service worker notifications', () => {
   it('updates a dismiss badge when the only app client is hidden', async () => {
     const worker = await importServiceWorker();
     worker.clients.matchAll.mockResolvedValueOnce([
-      { id: 'background-app', visibilityState: 'hidden' }
+      { id: 'background-app', visibilityState: 'hidden', postMessage: vi.fn() }
     ]);
 
     await worker.dispatch('push', {

@@ -16,7 +16,7 @@ Include this component once in the chat layout (unconditionally).
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
-  import { updateAppBadge } from '$lib/notifications/appBadge';
+  import { listenForAppBadgeRefresh, updateAppBadge } from '$lib/notifications/appBadge';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
   import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -54,9 +54,7 @@ Include this component once in the chat layout (unconditionally).
     };
   });
 
-  // Synchronize the external OS badge directly from authoritative notification stores.
-  // Avoid clearing an existing badge until every authenticated store has loaded.
-  $effect(() => {
+  function syncAppBadge() {
     let notificationCount = 0;
     let allStoresLoaded = true;
 
@@ -70,5 +68,15 @@ Include this component once in the chat layout (unconditionally).
 
     if (notificationCount === 0 && !allStoresLoaded) return;
     void updateAppBadge(notificationCount);
+  }
+
+  // Synchronize the external OS badge directly from authoritative notification stores.
+  // Avoid clearing an existing badge until every authenticated store has loaded.
+  $effect(syncAppBadge);
+
+  // Declarative Web Push may apply an origin-only count without changing a store.
+  // Reassert the existing aggregate when the worker reports a regular push.
+  $effect(() => {
+    return listenForAppBadgeRefresh(syncAppBadge);
   });
 </script>

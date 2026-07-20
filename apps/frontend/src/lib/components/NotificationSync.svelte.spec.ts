@@ -28,6 +28,7 @@ const { mocks } = vi.hoisted(() => {
     mocks: {
       bus,
       store,
+      badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
       updateAppBadge: vi.fn(async () => {})
     }
@@ -66,6 +67,10 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 }));
 
 vi.mock('$lib/notifications/appBadge', () => ({
+  listenForAppBadgeRefresh: vi.fn((handler: () => void) => {
+    mocks.badgeRefreshHandlers.add(handler);
+    return () => mocks.badgeRefreshHandlers.delete(handler);
+  }),
   updateAppBadge: mocks.updateAppBadge
 }));
 
@@ -90,11 +95,13 @@ function dispatch(change?: RealtimeProjectionNotificationChange) {
 async function renderAndWaitForSubscription() {
   render(NotificationSync);
   await vi.waitFor(() => expect(mocks.bus.projectionHandlers.size).toBe(1));
+  await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
 }
 
 describe('NotificationSync', () => {
   beforeEach(() => {
     mocks.bus.projectionHandlers.clear();
+    mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
 
     mocks.store.isAuthenticated = true;
@@ -150,6 +157,17 @@ describe('NotificationSync', () => {
     mocks.store.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(3));
+  });
+
+  it('reasserts the unchanged aggregate badge after a regular push', async () => {
+    mocks.store.notifications.unreadNotificationCount = 3;
+    await renderAndWaitForSubscription();
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(3));
+    mocks.updateAppBadge.mockClear();
+
+    for (const refresh of mocks.badgeRefreshHandlers) refresh();
 
     await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(3));
   });

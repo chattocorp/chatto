@@ -11,6 +11,7 @@
 
 import { build, files, version } from '$service-worker';
 import { OFFLINE_SHELL_PATH, classifyServiceWorkerRequest } from '$lib/pwa/serviceWorkerPolicy';
+import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
   type NotificationClickClients
@@ -248,6 +249,25 @@ async function updateClosedAppBadgeAfterDismiss(appBadge: unknown): Promise<void
   await badgeNavigator.setAppBadge(count).catch(() => {});
 }
 
+/** Ask visible pages to restore their authoritative aggregate after a regular push. */
+async function refreshVisibleAppBadges(): Promise<void> {
+  let windowClients: readonly WindowClient[];
+  try {
+    windowClients = (await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })) as WindowClient[];
+  } catch {
+    return;
+  }
+
+  for (const client of windowClients) {
+    if (client.visibilityState === 'visible') {
+      client.postMessage({ type: APP_BADGE_REFRESH_MESSAGE_TYPE });
+    }
+  }
+}
+
 function parseAppBadgeCount(value: unknown): number | undefined {
   const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
   return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
@@ -290,7 +310,12 @@ self.addEventListener('push', (event) => {
 
   const notification = normalizePushNotification(payload);
 
-  event.waitUntil(self.registration.showNotification(notification.title, notification.options));
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(notification.title, notification.options);
+      await refreshVisibleAppBadges();
+    })()
+  );
 });
 
 /**
