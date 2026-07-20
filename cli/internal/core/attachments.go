@@ -31,6 +31,7 @@ const (
 	// newly written unauthenticated public assets. Historical public objects use
 	// flat asset-ID keys and remain available through the legacy classifier.
 	PublicServerAssetObjectPrefix = "public/"
+	attachmentWriteCompensationTimeout = 5 * time.Second
 )
 
 // PublicServerAssetObjectKey returns the NATS object key for a new public
@@ -245,6 +246,11 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 		attachment.Height = height
 	}
 	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), attachmentWriteCompensationTimeout)
+		defer cancel()
+		if cleanupErr := c.DeleteAttachmentFromStorage(cleanupCtx, attachment); cleanupErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("delete unrecorded derivative binary: %w", cleanupErr))
+		}
 		return nil, err
 	}
 	return attachment, nil

@@ -38,6 +38,25 @@ func TestHLSSegmentMetadata(t *testing.T) {
 	}
 }
 
+func TestVideoProcessingFinalizationContextSurvivesCancelledParent(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	ctx, cancel := videoProcessingFinalizationContext(parent)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("finalization context inherited cancellation: %v", err)
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("finalization context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > videoProcessingFinalizationTimeout {
+		t.Fatalf("finalization deadline remaining = %v, want within (0, %v]", remaining, videoProcessingFinalizationTimeout)
+	}
+}
+
 func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
 	ffmpegPath, err := exec.LookPath("ffmpeg")
 	if err != nil {

@@ -309,6 +309,14 @@ type processedVariantOutput struct {
 	size    int64
 }
 
+// videoProcessingFinalizationTimeout bounds compensating cleanup and terminal
+// event publication after the processing context has expired or been cancelled.
+const videoProcessingFinalizationTimeout = 10 * time.Second
+
+func videoProcessingFinalizationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), videoProcessingFinalizationTimeout)
+}
+
 // packageHLSRendition segments a temporary MP4 rendition without re-encoding
 // it. The MP4 encoder forces aligned six-second keyframes, so
 // rendition switches occur at the same media boundaries.
@@ -421,16 +429,16 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
 	if err := s.downloadAttachment(ctx, req.Attachment, inputPath); err != nil {
-		return s.failProcessing(ctx, req, fmt.Errorf("failed to download original: %w", err))
+		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("failed to download original: %w", err))
 	}
 
 	// Probe metadata
 	probeResult, err := s.probe(ctx, inputPath, req.ContentType)
 	if err != nil {
-		return s.failProcessing(ctx, req, fmt.Errorf("failed to probe video: %w", err))
+		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("failed to probe video: %w", err))
 	}
 	if probeResult.Height == 0 {
-		return s.failProcessing(ctx, req, fmt.Errorf("no video stream found in file"))
+		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("no video stream found in file"))
 	}
 
 	s.logger.Info("Video probed",
@@ -515,10 +523,14 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	}
 
 	if len(variantOutputs) == 0 {
-		return s.failProcessing(ctx, req, fmt.Errorf("all variant transcodes failed"))
+		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("all variant transcodes failed"))
 	}
 
 	var hls *corev1.AssetProcessedHLS
+	var generatedAttachments []*corev1.Attachment
+	if thumbnailAttachment != nil {
+		generatedAttachments = append(generatedAttachments, thumbnailAttachment)
+	}
 	if probeResult.VideoCodec == "gif" {
 		// Converted GIFs intentionally keep a single MP4 derivative: native
 		// autoplay/loop playback is simpler and does not need seeking support.
@@ -526,35 +538,30 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 			filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), output.quality)
 			attachment, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", output.path, output.width, output.height)
 			if err != nil {
-				var uploaded []*corev1.Attachment
-				if thumbnailAttachment != nil {
-					uploaded = append(uploaded, thumbnailAttachment)
-				}
-				for _, variant := range variants {
-					uploaded = append(uploaded, variant.GetAttachment())
-				}
-				s.cleanupUploadedDerivatives(ctx, req, uploaded)
-				return s.failProcessing(ctx, req, fmt.Errorf("upload GIF video variant: %w", err))
+				return s.finalizeProcessingFailure(ctx, req, generatedAttachments, fmt.Errorf("upload GIF video variant: %w", err))
 			}
 			variants = append(variants, &corev1.VideoVariant{AttachmentId: attachment.Id, Quality: output.quality, Width: output.width, Height: output.height, Size: output.size, Attachment: attachment})
+			generatedAttachments = append(generatedAttachments, attachment)
 		}
 	} else {
-		hls, err = s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
+		var hlsAttachments []*corev1.Attachment
+		hls, hlsAttachments, err = s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
+		generatedAttachments = append(generatedAttachments, hlsAttachments...)
 		if err != nil {
-			if thumbnailAttachment != nil {
-				s.cleanupUploadedDerivatives(ctx, req, []*corev1.Attachment{thumbnailAttachment})
-			}
-			return s.failProcessing(ctx, req, err)
+			return s.finalizeProcessingFailure(ctx, req, generatedAttachments, err)
 		}
 	}
 
 	// Publish durable manifest. The original upload is retained as source
 	// content for future re-encoding; generated variants are derivatives.
-	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
+	finalizeCtx, finalizeCancel := videoProcessingFinalizationContext(ctx)
+	defer finalizeCancel()
+	kind, err := s.core.FindRoomKind(finalizeCtx, req.RoomID)
+	if err == nil {
+		err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
+	}
 	if err != nil {
-		s.logger.Warn("Failed to resolve room kind for video processed event", "error", err)
-	} else if err := s.core.RecordAssetProcessedWithHLS(ctx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls); err != nil {
-		s.logger.Warn("Failed to publish video processed event", "error", err)
+		return s.finalizeProcessingFailureWithContext(finalizeCtx, req, generatedAttachments, fmt.Errorf("publish video processed event: %w", err))
 	}
 
 	s.logger.Info("Video processing completed",
@@ -566,25 +573,20 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	return nil
 }
 
-func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, outputs []processedVariantOutput) (*corev1.AssetProcessedHLS, error) {
+func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, outputs []processedVariantOutput) (*corev1.AssetProcessedHLS, []*corev1.Attachment, error) {
 	hlsDir := filepath.Join(tmpDir, "hls")
 	manifest := &corev1.AssetProcessedHLS{}
 	var uploaded []*corev1.Attachment
-	cleanupOnError := func() {
-		s.cleanupUploadedDerivatives(ctx, req, uploaded)
-	}
 
 	for i, output := range outputs {
 		renditionDir := filepath.Join(hlsDir, fmt.Sprintf("rendition-%d", i))
 		playlistPath, segmentPaths, err := s.packageHLSRendition(ctx, output.path, renditionDir)
 		if err != nil {
-			cleanupOnError()
-			return nil, err
+			return nil, uploaded, err
 		}
 		bandwidth, durations, err := hlsSegmentMetadata(playlistPath, segmentPaths)
 		if err != nil {
-			cleanupOnError()
-			return nil, err
+			return nil, uploaded, err
 		}
 
 		rendition := &corev1.AssetHLSRendition{
@@ -596,8 +598,7 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 		for segmentIndex, segmentPath := range segmentPaths {
 			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", rendition.GetQuality(), segmentIndex), "video/mp2t", segmentPath)
 			if err != nil {
-				cleanupOnError()
-				return nil, fmt.Errorf("upload HLS segment: %w", err)
+				return nil, uploaded, fmt.Errorf("upload HLS segment: %w", err)
 			}
 			uploaded = append(uploaded, segment)
 			rendition.Segments = append(rendition.Segments, &corev1.AssetHLSSegment{AssetId: segment.GetId(), DurationMs: durations[segmentIndex]})
@@ -606,9 +607,9 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 	}
 
 	if len(manifest.GetRenditions()) == 0 {
-		return nil, fmt.Errorf("HLS generation produced no renditions")
+		return nil, uploaded, fmt.Errorf("HLS generation produced no renditions")
 	}
-	return manifest, nil
+	return manifest, uploaded, nil
 }
 
 func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
@@ -631,12 +632,20 @@ func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processReq
 	}
 }
 
-// failProcessing records a durable failed outcome and returns the original error.
-func (s *Service) failProcessing(ctx context.Context, req processRequest, originalErr error) error {
+// finalizeProcessingFailure cleans generated output and records a durable
+// failed outcome even when the processing context has already been cancelled.
+func (s *Service) finalizeProcessingFailure(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
+	finalizeCtx, cancel := videoProcessingFinalizationContext(ctx)
+	defer cancel()
+	return s.finalizeProcessingFailureWithContext(finalizeCtx, req, attachments, originalErr)
+}
+
+func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
 		"asset_id", req.AssetID,
 		"error", originalErr)
+	s.cleanupUploadedDerivatives(ctx, req, attachments)
 
 	// Publish durable failure event even on failure so frontend can update
 	// and replay can reconstruct the terminal state.

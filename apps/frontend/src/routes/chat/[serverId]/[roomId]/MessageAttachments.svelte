@@ -350,15 +350,23 @@
   ): Promise<string | null> {
     const key = `${attachment.id}:${role}`;
     if (failedAssetRefreshKeys.has(key)) return null;
-    failedAssetRefreshKeys.add(key);
+    if (role !== 'hls') failedAssetRefreshKeys.add(key);
     try {
       const freshUrls = await refreshAndApplyUrls();
-      assetRetrySalts.set(key, Date.now());
-      if (role !== 'hls') return null;
+      if (role !== 'hls') {
+        assetRetrySalts.set(key, Date.now());
+        return null;
+      }
 
-      const refreshed = freshUrls.get(attachment.id) ?? refreshedAttachmentUrls.get(attachment.id);
-      const value =
-        refreshed?.hlsMasterPlaylistUrl ?? attachment.videoProcessing?.hlsMasterPlaylistUrl;
+      // The refresh helper deliberately converts request failures into an
+      // empty map. Only consume HLS's one-shot media recovery after this
+      // specific request returned a usable replacement ticket; retrying the
+      // previous URL with a cache-buster cannot repair an expired ticket.
+      const value = freshUrls.get(attachment.id)?.hlsMasterPlaylistUrl;
+      if (!value?.url) return null;
+
+      failedAssetRefreshKeys.add(key);
+      assetRetrySalts.set(key, Date.now());
       return withRetrySalt(normalizeAssetUrl(value), attachment.id, role)?.url ?? null;
     } catch (error: unknown) {
       console.warn('Failed to refresh attachment URL after load error', error);
