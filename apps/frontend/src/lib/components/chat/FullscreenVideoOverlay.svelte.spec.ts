@@ -22,4 +22,20 @@ describe('FullscreenVideoOverlay', () => {
     closeButton.click();
     expect(fullscreenVideo.isOpen).toBe(false);
   });
+
+  it('replaces an HLS source with a freshly authorised URL after an error', async () => {
+    fullscreenVideo.open(
+      { src: 'https://chat.example.test/old.m3u8', type: 'application/vnd.apple.mpegurl' },
+      null,
+      0,
+      null,
+      async () => ({
+        src: 'https://chat.example.test/new.m3u8?retry=1',
+        type: 'application/vnd.apple.mpegurl'
+      })
+    );
+
+    await expect(fullscreenVideo.recover()).resolves.toBe(true);
+    expect(fullscreenVideo.source?.src).toBe('https://chat.example.test/new.m3u8?retry=1');
+  });
 });

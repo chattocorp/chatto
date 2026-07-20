@@ -41,7 +41,8 @@
     reasonCode = null,
     filename,
     autoLoop = false,
-    onMediaError
+    onMediaError,
+    onPosterError
   }: {
     status: VideoProcessingStatus;
     variants?: Variant[];
@@ -52,7 +53,8 @@
     reasonCode?: string | null;
     filename: string;
     autoLoop?: boolean;
-    onMediaError?: () => void;
+    onMediaError?: () => void | Promise<string | null>;
+    onPosterError?: () => void;
   } = $props();
 
   const MAX_WIDTH = 480;
@@ -197,11 +199,21 @@
         playbackSource.type === 'application/vnd.apple.mpegurl' && selectedVariant
           ? ({ src: selectedVariant.url, type: 'video/mp4' } as const)
           : null;
+      const refreshSource =
+        playbackSource.type === 'application/vnd.apple.mpegurl' && onMediaError
+          ? async () => {
+              const refreshedURL = await onMediaError();
+              return typeof refreshedURL === 'string'
+                ? ({ src: refreshedURL, type: 'application/vnd.apple.mpegurl' } as const)
+                : null;
+            }
+          : null;
       fullscreenVideo.open(
         playbackSource,
         thumbnailUrl ?? null,
         video?.currentTime ?? 0,
-        fallbackSource
+        fallbackSource,
+        refreshSource
       );
 
       // Request native fullscreen on the overlay after Svelte renders it.
@@ -264,7 +276,11 @@
     >
       <media-provider>
         {#if thumbnailUrl}
-          <media-poster class="vds-poster" src={thumbnailUrl} alt={filename} onerror={onMediaError}
+          <media-poster
+            class="vds-poster"
+            src={thumbnailUrl}
+            alt={filename}
+            onerror={onPosterError ?? onMediaError}
           ></media-poster>
         {/if}
       </media-provider>

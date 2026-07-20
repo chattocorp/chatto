@@ -93,7 +93,7 @@
       src={fullscreenVideo.source}
       autoplay
       playsinline
-      onerror={() => fullscreenVideo.useFallback()}
+      onerror={() => fullscreenVideo.recover()}
       class="h-full w-full"
     >
       <media-provider>

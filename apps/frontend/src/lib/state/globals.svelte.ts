@@ -247,10 +247,15 @@ export type FullscreenVideoSource = {
   type: 'video/mp4' | 'application/vnd.apple.mpegurl';
 };
 
+type FullscreenVideoSourceRefresher = () => Promise<FullscreenVideoSource | null>;
+
 let _source = $state<FullscreenVideoSource | null>(null);
 let _fallbackSource = $state<FullscreenVideoSource | null>(null);
 let _poster = $state<string | null>(null);
 let _startTime = $state(0);
+let _refreshSource: FullscreenVideoSourceRefresher | null = null;
+let _recoveryPromise: Promise<boolean> | null = null;
+let _generation = 0;
 
 export const fullscreenVideo = {
   get isOpen() {
@@ -270,17 +275,24 @@ export const fullscreenVideo = {
     source: FullscreenVideoSource | string,
     poster: string | null,
     startTime: number,
-    fallbackSource: FullscreenVideoSource | null = null
+    fallbackSource: FullscreenVideoSource | null = null,
+    refreshSource: FullscreenVideoSourceRefresher | null = null
   ) {
+    _generation++;
     _source = typeof source === 'string' ? { src: source, type: 'video/mp4' } : source;
     _fallbackSource = fallbackSource;
+    _refreshSource = refreshSource;
+    _recoveryPromise = null;
     _poster = poster;
     _startTime = startTime;
   },
 
   close() {
+    _generation++;
     _source = null;
     _fallbackSource = null;
+    _refreshSource = null;
+    _recoveryPromise = null;
     _poster = null;
     _startTime = 0;
   },
@@ -290,5 +302,24 @@ export const fullscreenVideo = {
     _source = _fallbackSource;
     _fallbackSource = null;
     return true;
+  },
+
+  recover(): Promise<boolean> {
+    if (this.useFallback()) return Promise.resolve(true);
+    if (!_refreshSource) return Promise.resolve(false);
+    if (_recoveryPromise) return _recoveryPromise;
+
+    const generation = _generation;
+    const refreshSource = _refreshSource;
+    _recoveryPromise = refreshSource()
+      .then((source) => {
+        if (!source || generation !== _generation || refreshSource !== _refreshSource) return false;
+        _source = source;
+        return true;
+      })
+      .finally(() => {
+        if (generation === _generation) _recoveryPromise = null;
+      });
+    return _recoveryPromise;
   }
 };

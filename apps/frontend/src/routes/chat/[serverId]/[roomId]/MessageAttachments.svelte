@@ -104,9 +104,7 @@
     );
     const hlsMasterPlaylistUrl = resolveUrl(
       'hls',
-      refreshed
-        ? refreshed.hlsMasterPlaylistUrl
-        : attachment.videoProcessing?.hlsMasterPlaylistUrl,
+      refreshed ? refreshed.hlsMasterPlaylistUrl : attachment.videoProcessing?.hlsMasterPlaylistUrl,
       'hls'
     );
 
@@ -346,17 +344,26 @@
     return refreshPromise;
   }
 
-  function refreshAfterAssetError(attachment: Attachment, role: string) {
+  async function refreshAfterAssetError(
+    attachment: Attachment,
+    role: string
+  ): Promise<string | null> {
     const key = `${attachment.id}:${role}`;
-    if (failedAssetRefreshKeys.has(key)) return;
+    if (failedAssetRefreshKeys.has(key)) return null;
     failedAssetRefreshKeys.add(key);
-    refreshAndApplyUrls()
-      .then(() => {
-        assetRetrySalts.set(key, Date.now());
-      })
-      .catch((error: unknown) => {
-        console.warn('Failed to refresh attachment URL after load error', error);
-      });
+    try {
+      const freshUrls = await refreshAndApplyUrls();
+      assetRetrySalts.set(key, Date.now());
+      if (role !== 'hls') return null;
+
+      const refreshed = freshUrls.get(attachment.id) ?? refreshedAttachmentUrls.get(attachment.id);
+      const value =
+        refreshed?.hlsMasterPlaylistUrl ?? attachment.videoProcessing?.hlsMasterPlaylistUrl;
+      return withRetrySalt(normalizeAssetUrl(value), attachment.id, role)?.url ?? null;
+    } catch (error: unknown) {
+      console.warn('Failed to refresh attachment URL after load error', error);
+      return null;
+    }
   }
 
   $effect(() => {
@@ -570,7 +577,12 @@
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
           filename={attachment.filename}
-          onMediaError={() => refreshAfterAssetError(attachment, 'video')}
+          onPosterError={() => refreshAfterAssetError(attachment, 'video')}
+          onMediaError={() =>
+            refreshAfterAssetError(
+              attachment,
+              attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+            )}
         />
         {#if canDeleteAttachment}
           <button
