@@ -6,6 +6,7 @@ import {
   type MessageSearchResult,
   type MessageSearchStatus
 } from '$lib/api-client/messageSearch';
+import { SvelteSet } from 'svelte/reactivity';
 
 const EMPTY_STATUS: MessageSearchStatus = {
   state: MessageSearchState.UNSPECIFIED,
@@ -91,7 +92,7 @@ export class MessageSearchStore {
     try {
       const page = await this.api.searchMessages({ ...this.activeInput, cursor });
       if (requestId !== this.requestId) return;
-      const seen = new Set(this.results.map((result) => result.id));
+      const seen = new SvelteSet(this.results.map((result) => result.id));
       this.results = [...this.results, ...page.results.filter((result) => !seen.has(result.id))];
       this.nextCursor = page.nextCursor;
     } catch {
