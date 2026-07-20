@@ -613,7 +613,7 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 }
 
-func TestLosingVideoGenerationRecordsDurableCleanupIntent(t *testing.T) {
+func TestLosingVideoGenerationCleansDerivativesPromptly(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "video-losing-generation", "Video losing generation")
@@ -635,12 +635,15 @@ func TestLosingVideoGenerationRecordsDurableCleanupIntent(t *testing.T) {
 	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, losingHLS); err != nil {
 		t.Fatalf("record losing generation: %v", err)
 	}
-	requests, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetDerivativeCleanupRequested))
+	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(loser.GetId()).Subject(events.EventAssetDeleted))
 	if err != nil {
-		t.Fatalf("read derivative cleanup requests: %v", err)
+		t.Fatalf("read derivative deletion events: %v", err)
 	}
-	if len(requests) != 1 || len(requests[0].GetAssetDerivativeCleanupRequested().GetCleanupAssetIds()) != 1 || requests[0].GetAssetDerivativeCleanupRequested().GetCleanupAssetIds()[0] != loser.GetId() {
-		t.Fatalf("cleanup requests = %+v, want losing derivative %s", requests, loser.GetId())
+	if len(deleted) != 1 {
+		t.Fatalf("derivative deletion events = %d, want 1", len(deleted))
+	}
+	if _, _, err := core.media().GetAttachmentReader(ctx, loser); err == nil {
+		t.Fatal("losing derivative remained readable after prompt cleanup")
 	}
 }
 
