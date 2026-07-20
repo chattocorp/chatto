@@ -24,6 +24,7 @@ import (
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	"hmans.de/chatto/internal/search"
 )
 
 // HTTPServerConfig holds configuration for creating an HTTPServer.
@@ -130,7 +131,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		nc:               cfg.NC,
 		router:           router,
 		core:             cfg.Core,
-		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version),
+		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC))),
 		mailer:           mailer,
 		mockMailer:       mockMailer,
 		addr:             cfg.Addr,

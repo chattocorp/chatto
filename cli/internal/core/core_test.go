@@ -100,6 +100,9 @@ func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	if core.RoomTimelineReads() == nil {
 		t.Fatal("RoomTimelineReads() = nil")
 	}
+	if core.MessageSearchReads() == nil {
+		t.Fatal("MessageSearchReads() = nil")
+	}
 	if core.ReadState() == nil {
 		t.Fatal("ReadState() = nil")
 	}

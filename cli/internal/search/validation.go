@@ -17,6 +17,12 @@ const (
 	maxPageSize       = 100
 )
 
+// ValidateQueryRequest verifies the trusted provider contract before a query
+// crosses the NATS boundary.
+func ValidateQueryRequest(request *searchv1.QueryRequest) error {
+	return validateQueryRequest(request)
+}
+
 func validateQueryRequest(request *searchv1.QueryRequest) error {
 	if request == nil {
 		return fmt.Errorf("request is required")

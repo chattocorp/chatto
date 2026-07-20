@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"math"
 	"net/http"
 
@@ -13,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
+	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -44,13 +46,36 @@ type Handler struct {
 // API owns Chatto's ConnectRPC service implementations. It deliberately has no
 // dependency on the Gin HTTP server so API methods stay transport-package local.
 type API struct {
-	core    *core.ChattoCore
-	config  config.ChattoConfig
-	version string
+	core           *core.ChattoCore
+	config         config.ChattoConfig
+	version        string
+	searchProvider MessageSearchProviderClient
 }
 
-func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API {
-	return &API{core: core, config: config, version: version}
+// MessageSearchProviderClient calls the trusted provider contract used behind
+// the authorized public MessageSearchService.
+type MessageSearchProviderClient interface {
+	Query(context.Context, *searchv1.QueryRequest) (*searchv1.QueryResponse, error)
+	GetStatus(context.Context) (*searchv1.GetStatusResponse, error)
+}
+
+// APIOption supplies an optional transport dependency to the public API.
+type APIOption func(*API)
+
+// WithMessageSearchProviderClient connects the public MessageSearchService to
+// the trusted NATS provider boundary.
+func WithMessageSearchProviderClient(client MessageSearchProviderClient) APIOption {
+	return func(api *API) { api.searchProvider = client }
+}
+
+func New(core *core.ChattoCore, config config.ChattoConfig, version string, options ...APIOption) *API {
+	api := &API{core: core, config: config, version: version}
+	for _, option := range options {
+		if option != nil {
+			option(api)
+		}
+	}
+	return api
 }
 
 // HandlerOptions returns the common Connect handler options used for Chatto's
@@ -107,6 +132,7 @@ func (a *API) Handlers() []Handler {
 	externalAuthPath, externalAuthHandler := authv1connect.NewExternalIdentityAuthServiceHandler(&externalIdentityAuthService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	messageSearchPath, messageSearchHandler := apiv1connect.NewMessageSearchServiceHandler(&messageSearchService{api: a}, options...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
@@ -128,6 +154,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: adminMemberPath, Handler: adminMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: externalAuthPath, Handler: externalAuthHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: messageSearchPath, Handler: messageSearchHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: notificationPath, Handler: notificationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverDiscoveryPath, Handler: serverDiscoveryHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

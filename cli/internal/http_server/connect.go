@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
+	"hmans.de/chatto/internal/search"
 )
 
 const connectAPIPrefix = connectapi.Prefix
@@ -39,7 +40,7 @@ func (s *HTTPServer) newOperatorAPIServer() *http.Server {
 func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := s.connectAPI
 	if api == nil {
-		api = connectapi.New(s.core, s.config, s.version)
+		api = connectapi.New(s.core, s.config, s.version, connectapi.WithMessageSearchProviderClient(search.NewClient(s.nc)))
 		s.connectAPI = api
 	}
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptionsForWebserver(s.config.Webserver)...)

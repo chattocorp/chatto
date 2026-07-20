@@ -50,6 +50,7 @@ type ChattoCore struct {
 	roomCommands             *RoomCommandModel
 	roomDirectoryReads       *RoomDirectoryReadModel
 	messageModel             *MessageModel
+	messageSearchReads       *MessageSearchReadModel
 	notificationPrefs        *NotificationPreferencesModel
 	roomTimelineReads        *RoomTimelineReadModel
 	readStateModel           *ReadStateModel
@@ -1478,6 +1479,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
+	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
 	core.readStateModel = &ReadStateModel{core: core}

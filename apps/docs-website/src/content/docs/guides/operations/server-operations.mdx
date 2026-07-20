@@ -100,6 +100,8 @@ directory = "./data/search"
 
 The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds it from retained `EVT` history if it is missing or incompatible.
 
+Search has separate protocol, configuration, and readiness states. Compatible clients can discover the protocol on every supporting server. With `search.enabled = false`, the status API reports Search as disabled and query requests are rejected. When enabled, the status progresses through provider startup/indexing to ready, or reports unavailable without affecting the rest of Chatto.
+
 To isolate indexing in another process, leave `search_provider.enabled = false` in the main process and run `chatto search-provider` against the same NATS account. A standalone unit needs `nats.client.url`; with embedded NATS, expose its TCP listener first. Do not run the embedded and standalone providers against the same index directory.
 
 ## Recovery And Bootstrap

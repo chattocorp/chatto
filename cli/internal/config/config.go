@@ -106,7 +106,7 @@ type ExporterConfig struct {
 
 // SearchConfig controls Chatto's consumer-facing search API and UI.
 type SearchConfig struct {
-	Enabled bool `toml:"enabled" env:"CHATTO_SEARCH_ENABLED" comment:"Enable Chatto's search API and advertise search to bundled clients. Default: false."`
+	Enabled bool `toml:"enabled" env:"CHATTO_SEARCH_ENABLED" comment:"Enable consumer-facing message search queries. Default: false."`
 }
 
 // SearchProviderConfig controls the bundled Bleve search provider.
