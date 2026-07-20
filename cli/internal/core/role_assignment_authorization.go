@@ -37,6 +37,20 @@ func (c *ChattoCore) CanRevokeRole(ctx context.Context, actorID, roleName string
 	return true, nil
 }
 
+// CanRevokeRoleFromUser reports whether a role revocation is available for a
+// concrete target. It includes target-specific safety rules that the generic
+// role-authority comparison cannot express.
+func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetUserID, roleName string) (bool, error) {
+	if isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
+		return false, nil
+	}
+	return c.CanRevokeRole(ctx, actorID, roleName)
+}
+
+func isProtectedSelfRoleRevocation(actorID, targetUserID, roleName string) bool {
+	return actorID == targetUserID && (roleName == RoleOwner || roleName == RoleAdmin)
+}
+
 func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, actorID, roleName string, includeDenials bool) error {
 	if actorID == SystemActorID {
 		return nil

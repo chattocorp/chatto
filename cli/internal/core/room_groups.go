@@ -55,6 +55,10 @@ var (
 // new group ID to the layout ordering via a RoomGroupsReorderedEvent.
 // Name is trimmed; description may be empty.
 func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, description string) (*corev1.RoomGroup, error) {
+	return c.createRoomGroup(ctx, actorID, name, description, nil)
+}
+
+func (c *ChattoCore) createRoomGroup(ctx context.Context, actorID, name, description string, authorize func() error) (*corev1.RoomGroup, error) {
 	name = strings.TrimSpace(name)
 	if err := validateRoomGroupMetadata(name, description); err != nil {
 		return nil, err
@@ -75,7 +79,7 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 			},
 		},
 	})
-	if _, err := c.rooms().appendGroupLayoutEventually(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
+	if _, err := c.appendGroupLayoutMutation(ctx, events.GroupAggregate(group.Id), createdEvent, authorize); err != nil {
 		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
 	}
 
@@ -95,33 +99,69 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 // UpdateRoomGroup publishes a RoomGroupUpdatedEvent. Layout ordering
 // is untouched; only metadata changes.
 func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*corev1.RoomGroup, error) {
-	name = strings.TrimSpace(name)
-	if err := validateRoomGroupMetadata(name, description); err != nil {
-		return nil, err
-	}
+	return c.updateRoomGroupFields(ctx, actorID, groupID, &name, &description, nil)
+}
 
-	if !c.RoomGroups.Exists(groupID) {
-		return nil, ErrRoomGroupNotFound
-	}
+// UpdateRoomGroupFields applies a sparse metadata patch. Each OCC retry
+// recomposes omitted fields from the latest group projection so a stale client
+// cannot overwrite a concurrent update to a field it did not submit.
+func (c *ChattoCore) UpdateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string) (*corev1.RoomGroup, error) {
+	return c.updateRoomGroupFields(ctx, actorID, groupID, name, description, nil)
+}
 
-	updatedEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomGroupUpdated{
-			RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
-				GroupId:     groupID,
-				Name:        name,
-				Description: description,
+func (c *ChattoCore) updateRoomGroupFields(ctx context.Context, actorID, groupID string, name, description *string, authorize func() error) (*corev1.RoomGroup, error) {
+	if name == nil && description == nil {
+		return nil, fmt.Errorf("%w: provide at least one room group field to update", ErrInvalidArgument)
+	}
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return nil, fmt.Errorf("wait for room group layout projection before update: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return nil, ErrRoomGroupNotFound
+			}
+		}
+
+		nextName := snapshot.Group.GetName()
+		if name != nil {
+			nextName = strings.TrimSpace(*name)
+		}
+		nextDescription := snapshot.Group.GetDescription()
+		if description != nil {
+			nextDescription = *description
+		}
+		if err := validateRoomGroupMetadata(nextName, nextDescription); err != nil {
+			return nil, err
+		}
+
+		updatedEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomGroupUpdated{
+				RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
+					GroupId:     groupID,
+					Name:        nextName,
+					Description: nextDescription,
+				},
 			},
-		},
-	})
-	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), updatedEvent); err != nil {
-		return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), updatedEvent, snapshot.Seq, authorize); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after update OCC conflict"); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
+		}
+
+		c.logger.Info("Updated room group", "group_id", groupID, "name", nextName, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "update_group")
+		updated, _ := c.RoomGroups.Get(groupID)
+		return updated, nil
 	}
-
-	c.logger.Info("Updated room group", "group_id", groupID, "name", name, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "update_group")
-
-	updated, _ := c.RoomGroups.Get(groupID)
-	return updated, nil
+	return nil, fmt.Errorf("update-room-group OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
 }
 
 func validateRoomGroupMetadata(name, description string) error {
@@ -227,17 +267,95 @@ func sidebarLinkFromGroup(group *corev1.RoomGroup, linkID string) *corev1.Sideba
 	return nil
 }
 
-func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg events.Aggregate, event *corev1.Event, expectedSeq uint64) (events.StreamPosition, error) {
+func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg events.Aggregate, event *corev1.Event, expectedSeq uint64, check func() error) (events.StreamPosition, error) {
+	authorizationSeq, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		return events.StreamPosition{}, fmt.Errorf("read authorization fence seq: %w", err)
+	}
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+	if err != nil {
+		return events.StreamPosition{}, fmt.Errorf("read RBAC OCC filter seq: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+		return events.StreamPosition{}, fmt.Errorf("wait for RBAC projection: %w", err)
+	}
+	if check != nil {
+		if err := check(); err != nil {
+			return events.StreamPosition{}, err
+		}
+	}
 	subject := agg.SubjectFor(event)
-	seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, events.GroupSubjectFilter(), expectedSeq)
+	filter := events.GroupSubjectFilter()
+	if agg.Type == events.AggregateLayout {
+		filter = events.LayoutSubjectFilter()
+	}
+	entries := []events.BatchEntry{{
+		Subject:       subject,
+		Event:         event,
+		HasOCC:        true,
+		ExpectedSeq:   expectedSeq,
+		FilterSubject: filter,
+	}}
+	seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
+	seq := seqs[0]
 	pos := events.SubjectPosition(subject, seq)
 	if err := c.rooms().waitForGroupLayout(ctx, pos); err != nil {
 		return pos, err
 	}
 	return pos, nil
+}
+
+func (c *ChattoCore) appendGroupLayoutMutation(ctx context.Context, agg events.Aggregate, event *corev1.Event, check func() error) (events.StreamPosition, error) {
+	filter := events.GroupSubjectFilter()
+	if agg.Type == events.AggregateLayout {
+		filter = events.LayoutSubjectFilter()
+	}
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		position, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return events.StreamPosition{}, fmt.Errorf("read room-group OCC position: %w", err)
+		}
+		if err := c.rooms().waitForGroupLayout(ctx, position); err != nil {
+			return events.StreamPosition{}, fmt.Errorf("wait for room-group projection: %w", err)
+		}
+		committed, err := c.appendGroupLayoutAtFilter(ctx, agg, event, position.Seq, check)
+		if err == nil {
+			return committed, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return events.StreamPosition{}, err
+		}
+		if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after authorization OCC conflict"); err != nil {
+			return events.StreamPosition{}, err
+		}
+	}
+	return events.StreamPosition{}, fmt.Errorf("room-group authorization OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) roomGroupAuthorityCheck(ctx context.Context, actorID string, groupIDs ...string) func() error {
+	return func() error {
+		if actorID == SystemActorID {
+			return nil
+		}
+		for _, groupID := range groupIDs {
+			if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func (c *ChattoCore) anyRoomAuthorityCheck(ctx context.Context, actorID string) func() error {
+	return func() error {
+		if actorID == SystemActorID {
+			return nil
+		}
+		return c.requireCanManageAnyRoom(ctx, actorID)
+	}
 }
 
 func (c *ChattoCore) waitForGroupOCCRetry(ctx context.Context, attempt int, message string) error {
@@ -257,6 +375,10 @@ func (c *ChattoCore) waitForGroupOCCRetry(ctx context.Context, attempt int, mess
 // sidebar links. The layout ordering is updated via a follow-up
 // RoomGroupsReorderedEvent.
 func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
+	return c.deleteRoomGroup(ctx, actorID, groupID, nil)
+}
+
+func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID string, authorize func() error) error {
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
 		snapshot := c.RoomGroups.Snapshot(groupID)
 		if !snapshot.Exists {
@@ -279,7 +401,7 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), deletedEvent, snapshot.Seq); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), deletedEvent, snapshot.Seq, authorize); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after delete-group OCC conflict"); err != nil {
 					return err
@@ -311,7 +433,7 @@ func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID strin
 // Authorization for the source and target groups must be checked by
 // the caller — see ADR-031's two-group rule.
 func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) error {
-	return c.moveRoomToGroup(ctx, actorID, roomID, "", targetGroupID, false)
+	return c.moveRoomToGroup(ctx, actorID, roomID, "", targetGroupID, false, nil)
 }
 
 // MoveRoomToGroupFromSource moves a room only if the room's current source
@@ -319,12 +441,16 @@ func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targe
 // group before calling core should use this variant so a concurrent move
 // cannot swap the source group between authorization and append.
 func (c *ChattoCore) MoveRoomToGroupFromSource(ctx context.Context, actorID, roomID, sourceGroupID, targetGroupID string) error {
-	return c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true)
+	return c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true, nil)
 }
 
-func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, authorizedSourceGroupID, targetGroupID string, bindSource bool) error {
+func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, authorizedSourceGroupID, targetGroupID string, bindSource bool, authorize func(sourceGroupID, targetGroupID string) error) error {
 	occFilter := events.GroupSubjectFilter()
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return fmt.Errorf("read authorization fence seq: %w", err)
+		}
 		snapshot := c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
 		if !snapshot.TargetExists {
 			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
@@ -357,6 +483,11 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			}
 			// Already in the target group; idempotent no-op.
 			return nil
+		}
+		if authorize != nil {
+			if err := authorize(sourceGroupID, targetGroupID); err != nil {
+				return err
+			}
 		}
 
 		// Build the move as an atomic batch (ADR-034 Approach A): the
@@ -404,7 +535,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			entries[0].FilterSubject = occFilter
 		}
 
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {
 			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
 			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
@@ -412,8 +543,9 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			// Wait on the final seq — the projector applies in stream order
 			// so reaching the last batch entry's seq implies every earlier
 			// entry's Apply has also landed.
-			lastSubject := entries[len(entries)-1].Subject
-			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+			lastDomainIndex := len(entries) - 1
+			lastSubject := entries[lastDomainIndex].Subject
+			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[lastDomainIndex])); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
 			return nil
@@ -440,6 +572,10 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 // the current set of groups in the RoomGroups projection — extras,
 // duplicates, or missing IDs return ErrRoomGroupOrderMismatch.
 func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
+	return c.reorderRoomGroups(ctx, actorID, orderedGroupIDs, nil)
+}
+
+func (c *ChattoCore) reorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string, authorize func() error) error {
 	current := c.RoomGroups.All()
 	currentIDs := make(map[string]struct{}, len(current))
 	for _, g := range current {
@@ -460,7 +596,7 @@ func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orde
 		seen[id] = struct{}{}
 	}
 
-	if err := c.publishLayoutOrdering(ctx, actorID, orderedGroupIDs); err != nil {
+	if err := c.publishLayoutOrdering(ctx, actorID, orderedGroupIDs, authorize); err != nil {
 		return err
 	}
 
@@ -508,7 +644,7 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 			},
 		},
 	})
-	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), reorderedEvent); err != nil {
+	if _, err := c.appendGroupLayoutMutation(ctx, events.GroupAggregate(groupID), reorderedEvent, nil); err != nil {
 		return fmt.Errorf("publish RoomsInGroupReorderedEvent: %w", err)
 	}
 
@@ -518,6 +654,10 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 }
 
 func (c *ChattoCore) CreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*corev1.SidebarLink, error) {
+	return c.createSidebarLink(ctx, actorID, groupID, label, rawURL, nil)
+}
+
+func (c *ChattoCore) createSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string, authorize func() error) (*corev1.SidebarLink, error) {
 	label, rawURL, err := validateSidebarLink(label, rawURL)
 	if err != nil {
 		return nil, err
@@ -549,7 +689,7 @@ func (c *ChattoCore) CreateSidebarLink(ctx context.Context, actorID, groupID, la
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq, authorize); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link create OCC conflict"); err != nil {
 					return nil, err
@@ -575,6 +715,10 @@ func (c *ChattoCore) UpdateSidebarLink(ctx context.Context, actorID, linkID, lab
 }
 
 func (c *ChattoCore) UpdateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string) (*corev1.SidebarLink, error) {
+	return c.updateSidebarLinkInGroup(ctx, actorID, groupID, linkID, label, rawURL, nil)
+}
+
+func (c *ChattoCore) updateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string, authorize func() error) (*corev1.SidebarLink, error) {
 	label, rawURL, err := validateSidebarLink(label, rawURL)
 	if err != nil {
 		return nil, err
@@ -604,7 +748,7 @@ func (c *ChattoCore) UpdateSidebarLinkInGroup(ctx context.Context, actorID, grou
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq, authorize); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link update OCC conflict"); err != nil {
 					return nil, err
@@ -630,6 +774,10 @@ func (c *ChattoCore) DeleteSidebarLink(ctx context.Context, actorID, linkID stri
 }
 
 func (c *ChattoCore) DeleteSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID string) error {
+	return c.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, nil)
+}
+
+func (c *ChattoCore) deleteSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID string, authorize func() error) error {
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
 		snapshot := c.RoomGroups.Snapshot(groupID)
 		if !snapshot.Exists {
@@ -653,7 +801,7 @@ func (c *ChattoCore) DeleteSidebarLinkInGroup(ctx context.Context, actorID, grou
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq, authorize); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link delete OCC conflict"); err != nil {
 					return err
@@ -679,7 +827,15 @@ func (c *ChattoCore) MoveSidebarLinkToGroup(ctx context.Context, actorID, linkID
 }
 
 func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, linkID, sourceGroupID, targetGroupID string) error {
+	return c.moveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID, nil)
+}
+
+func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, linkID, sourceGroupID, targetGroupID string, authorize func(sourceGroupID, targetGroupID string) error) error {
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return fmt.Errorf("read authorization fence seq: %w", err)
+		}
 		snapshot := c.RoomGroups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
 		if !snapshot.TargetExists {
 			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
@@ -704,6 +860,11 @@ func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 		}
 		if snapshot.SourceGroupID == targetGroupID {
 			return nil
+		}
+		if authorize != nil {
+			if err := authorize(snapshot.SourceGroupID, targetGroupID); err != nil {
+				return err
+			}
 		}
 
 		removed := newEvent(actorID, &corev1.Event{
@@ -737,10 +898,11 @@ func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 				Event:   added,
 			},
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {
-			lastSubject := entries[len(entries)-1].Subject
-			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+			lastDomainIndex := len(entries) - 1
+			lastSubject := entries[lastDomainIndex].Subject
+			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[lastDomainIndex])); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
 			c.logger.Info("Moved sidebar link", "link_id", linkID, "source_group_id", snapshot.SourceGroupID, "target_group_id", targetGroupID, "actor_id", actorID)
@@ -758,6 +920,10 @@ func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 }
 
 func (c *ChattoCore) ReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*corev1.SidebarGroupEntry) error {
+	return c.reorderSidebarItemsInGroup(ctx, actorID, groupID, orderedEntries, nil)
+}
+
+func (c *ChattoCore) reorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*corev1.SidebarGroupEntry, authorize func() error) error {
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
 		snapshot := c.RoomGroups.Snapshot(groupID)
 		if !snapshot.Exists {
@@ -780,7 +946,7 @@ func (c *ChattoCore) ReorderSidebarItemsInGroup(ctx context.Context, actorID, gr
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq, authorize); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-item reorder OCC conflict"); err != nil {
 					return err
@@ -900,7 +1066,7 @@ func (c *ChattoCore) GetRoomLayoutOrder(_ context.Context) ([]string, error) {
 
 // publishLayoutOrdering writes a RoomGroupsReorderedEvent on the
 // singleton layout aggregate and waits for the group/layout projection.
-func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, groupIDs []string) error {
+func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, groupIDs []string, authorize func() error) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomGroupsReordered{
 			RoomGroupsReordered: &corev1.RoomGroupsReorderedEvent{
@@ -908,7 +1074,7 @@ func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, 
 			},
 		},
 	})
-	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.LayoutAggregate(), event); err != nil {
+	if _, err := c.appendGroupLayoutMutation(ctx, events.LayoutAggregate(), event, authorize); err != nil {
 		return fmt.Errorf("publish RoomGroupsReorderedEvent: %w", err)
 	}
 	return nil
@@ -921,7 +1087,7 @@ func (c *ChattoCore) appendGroupToLayout(ctx context.Context, actorID, groupID s
 	if slices.Contains(current, groupID) {
 		return nil
 	}
-	return c.publishLayoutOrdering(ctx, actorID, append(current, groupID))
+	return c.publishLayoutOrdering(ctx, actorID, append(current, groupID), nil)
 }
 
 // removeGroupFromLayout removes groupID from the current layout
@@ -932,7 +1098,7 @@ func (c *ChattoCore) removeGroupFromLayout(ctx context.Context, actorID, groupID
 		return nil
 	}
 	next := slices.DeleteFunc(current, func(id string) bool { return id == groupID })
-	return c.publishLayoutOrdering(ctx, actorID, next)
+	return c.publishLayoutOrdering(ctx, actorID, next, nil)
 }
 
 // notifyRoomLayoutChanged is the central place every room-layout

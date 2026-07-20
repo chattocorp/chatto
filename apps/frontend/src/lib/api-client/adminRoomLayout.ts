@@ -126,7 +126,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
 
     async updateRoomGroup(input: {
       groupId: string;
-      name: string;
+      name?: string;
       description?: string | null;
     }): Promise<AdminRoomGroup | null> {
       try {
@@ -134,7 +134,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           {
             groupId: input.groupId,
             name: input.name,
-            description: input.description ?? ''
+            description: input.description === null ? '' : input.description
           },
           { headers: headers() }
         );

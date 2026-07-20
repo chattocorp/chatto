@@ -187,7 +187,7 @@ describe('createAdminRoomLayoutAPI', () => {
       callOptions
     );
     expect(mocks.updateRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g2', name: 'Renamed', description: '' },
+      { groupId: 'g2', name: 'Renamed', description: undefined },
       callOptions
     );
     expect(mocks.deleteRoomGroup).toHaveBeenCalledWith({ groupId: 'g2' }, callOptions);

@@ -3,6 +3,8 @@ package core
 import (
 	"errors"
 	"testing"
+
+	"hmans.de/chatto/internal/events"
 )
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
@@ -134,5 +136,52 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 	}
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, "room-moderator"); err != nil {
 		t.Fatalf("assign room-moderator within scoped authority: %v", err)
+	}
+}
+
+func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	assigner, err := core.CreateUser(ctx, SystemActorID, "chat-independent-assigner", "Chat Independent Assigner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser assigner: %v", err)
+	}
+	target, err := core.CreateUser(ctx, SystemActorID, "chat-independent-target", "Chat Independent Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+	if err != nil || len(groups) == 0 {
+		t.Fatalf("ListRoomGroupsOrdered groups=%d err=%v", len(groups), err)
+	}
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, groups[0].GetId(), "assignment-chat-traffic", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, assigner.Id, KindChannel, assigner.Id, room.GetId()); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	for _, permission := range []Permission{PermRoleAssign, PermMessageManage, PermRoomMemberBan} {
+		if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, permission); err != nil {
+			t.Fatalf("GrantUserPermission %s: %v", permission, err)
+		}
+	}
+
+	before, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	if err != nil {
+		t.Fatalf("authorization fence before post: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.GetId(), assigner.Id, "unrelated traffic", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	after, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	if err != nil {
+		t.Fatalf("authorization fence after post: %v", err)
+	}
+	if after != before {
+		t.Fatalf("authorization fence advanced from %d to %d for unrelated chat traffic", before, after)
+	}
+	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); err != nil {
+		t.Fatalf("AdminAssignServerRole after chat traffic: %v", err)
 	}
 }

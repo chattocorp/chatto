@@ -13,6 +13,7 @@
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
+  import { EmptyState } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -20,6 +21,7 @@
   import { toast } from '$lib/ui/toast';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
+  import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { buildRoomSettingsUpdate } from './roomSettings';
   import * as m from '$lib/i18n/messages';
 
@@ -31,6 +33,8 @@
 
   let room = $state<AdminManagedRoom | null>(null);
   let loading = $state(true);
+  let accessDenied = $state(false);
+  let loadFailure = $state<string | null>(null);
   let saving = $state(false);
   let name = $state('');
   let description = $state('');
@@ -78,6 +82,8 @@
     loading = true;
     saving = false;
     room = null;
+    accessDenied = false;
+    loadFailure = null;
     try {
       const conn = connection();
       const adminAPI = createAdminRoomLayoutAPI({
@@ -110,9 +116,19 @@
           : null;
       }
       if (thisId !== loadId) return;
-      if (nextRoom) applyRoom(nextRoom);
-    } catch {
-      if (thisId === loadId) room = null;
+      if (nextRoom) {
+        applyRoom(nextRoom);
+      } else {
+        accessDenied = true;
+      }
+    } catch (error) {
+      if (thisId !== loadId) return;
+      const classified = classifyManagementLoadError(error);
+      if (classified.kind === 'access-denied') {
+        accessDenied = true;
+      } else {
+        loadFailure = classified.message;
+      }
     } finally {
       if (thisId === loadId) loading = false;
     }
@@ -178,7 +194,16 @@
 
 {#if loading}
   <!-- The management shell remains visible while the room capability loads. -->
-{:else if !room || !canManagePermissions}
+{:else if loadFailure}
+  <EmptyState icon="uil--exclamation-triangle" title={m['common.error.generic']()}>
+    <div class="flex flex-col items-center gap-4">
+      <p>{loadFailure}</p>
+      <Button variant="secondary" onclick={() => void loadRoom(roomId)}>
+        {m['common.retry']()}
+      </Button>
+    </div>
+  </EmptyState>
+{:else if accessDenied || !room || !canManagePermissions}
   <AccessDenied
     message={m['ui.access_denied.message']()}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}

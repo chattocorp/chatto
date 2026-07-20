@@ -158,7 +158,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 			if canAssign {
 				assignableRoleNames = append(assignableRoleNames, role.Name)
 			}
-			canRevoke, err := c.CanRevokeRole(ctx, actorID, role.Name)
+			canRevoke, err := c.CanRevokeRoleFromUser(ctx, actorID, targetUserID, role.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -248,7 +248,7 @@ func (c *ChattoCore) AdminRevokeServerRole(ctx context.Context, actorID, targetU
 	if err := c.requireCanAssignAdminRole(ctx, actorID, targetUserID, roleName); err != nil {
 		return err
 	}
-	if actorID == targetUserID && (roleName == RoleOwner || roleName == RoleAdmin) {
+	if isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
 		return ErrCannotRevokeSelfAdmin
 	}
 	return c.RevokeServerRoleFromExistingUser(ctx, actorID, targetUserID, roleName)
@@ -343,14 +343,7 @@ func (c *ChattoCore) canViewAdminMemberLastLoginChange(ctx context.Context, acto
 	if actorID == targetUserID {
 		return true, nil
 	}
-	isOwner, err := c.IsServerOwner(ctx, actorID)
-	if err != nil {
-		return false, err
-	}
-	if isOwner {
-		return true, nil
-	}
-	return c.IsServerAdmin(ctx, actorID)
+	return c.CanManageUserAccounts(ctx, actorID)
 }
 
 func adminMemberPagination(limit, offset int) (int, int) {

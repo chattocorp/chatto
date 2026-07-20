@@ -32,6 +32,8 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Effective owners are users with the durable `owner` role or a verified email
   matching `owners.emails` in Chatto configuration. Owners are always granted
   all permissions regardless of stored allow/deny state.
+- Every other role, including `admin`, confers only its explicit permission
+  decisions. Runtime code does not attach additional authority to role names.
 - For non-owners, permission resolution is deny-wins: any applicable user or
   role deny blocks the permission; otherwise any applicable allow grants it;
   otherwise the result is no decision and the API treats it as denied.

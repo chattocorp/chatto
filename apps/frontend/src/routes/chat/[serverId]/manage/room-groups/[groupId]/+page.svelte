@@ -14,12 +14,15 @@
   import { Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
+  import { EmptyState } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
+  import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
+  import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import * as m from '$lib/i18n/messages';
 
   const groupId = $derived(page.params.groupId!);
@@ -30,6 +33,8 @@
 
   let group = $state<AdminRoomGroup | null>(null);
   let loading = $state(true);
+  let accessDenied = $state(false);
+  let loadFailure = $state<string | null>(null);
   let saving = $state(false);
   let name = $state('');
   let description = $state('');
@@ -55,6 +60,8 @@
     loading = true;
     saving = false;
     group = null;
+    accessDenied = false;
+    loadFailure = null;
     canManageGroup = false;
     canManagePermissions = false;
     try {
@@ -80,9 +87,17 @@
         canManageGroup = details.canManageGroup;
         canManagePermissions = details.canManagePermissions;
         applyGroup(details.group);
+      } else {
+        accessDenied = true;
       }
-    } catch {
-      if (thisId === loadId) group = null;
+    } catch (error) {
+      if (thisId !== loadId) return;
+      const classified = classifyManagementLoadError(error);
+      if (classified.kind === 'access-denied') {
+        accessDenied = true;
+      } else {
+        loadFailure = classified.message;
+      }
     } finally {
       if (thisId === loadId) loading = false;
     }
@@ -97,11 +112,11 @@
     if (!canManageGroup || saving || !name.trim() || !changed) return;
 
     const target = { resourceId: groupId, generation: loadId };
-    const update = {
-      groupId: target.resourceId,
-      name: name.trim(),
-      description: description.trim() || null
-    };
+    const update = buildRoomGroupSettingsUpdate(
+      target.resourceId,
+      { name, description },
+      { name: originalName, description: originalDescription }
+    );
     saving = true;
     try {
       const conn = connection();
@@ -140,7 +155,16 @@
 
 {#if loading}
   <!-- The management shell remains visible while the room group loads. -->
-{:else if !group || !canManagePermissions}
+{:else if loadFailure}
+  <EmptyState icon="uil--exclamation-triangle" title={m['common.error.generic']()}>
+    <div class="flex flex-col items-center gap-4">
+      <p>{loadFailure}</p>
+      <Button variant="secondary" onclick={() => void loadGroup(groupId)}>
+        {m['common.retry']()}
+      </Button>
+    </div>
+  </EmptyState>
+{:else if accessDenied || !group || !canManagePermissions}
   <AccessDenied
     message={m['ui.access_denied.message']()}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}

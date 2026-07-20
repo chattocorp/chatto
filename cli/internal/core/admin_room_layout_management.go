@@ -76,7 +76,7 @@ func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, de
 	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.CreateRoomGroup(ctx, actorID, name, description)
+	return c.createRoomGroup(ctx, actorID, name, description, c.anyRoomAuthorityCheck(ctx, actorID))
 }
 
 func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*corev1.RoomGroup, error) {
@@ -86,33 +86,21 @@ func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID 
 	if name == nil && description == nil {
 		return nil, fmt.Errorf("%w: provide at least one room group field to update", ErrInvalidArgument)
 	}
-	group, err := c.GetRoomGroup(ctx, groupID)
-	if err != nil {
-		return nil, err
-	}
-	nextName := group.GetName()
-	if name != nil {
-		nextName = *name
-	}
-	nextDescription := group.GetDescription()
-	if description != nil {
-		nextDescription = *description
-	}
-	return c.UpdateRoomGroup(ctx, actorID, groupID, nextName, nextDescription)
+	return c.updateRoomGroupFields(ctx, actorID, groupID, name, description, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
 func (c *ChattoCore) AdminDeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return err
 	}
-	return c.DeleteRoomGroup(ctx, actorID, groupID)
+	return c.deleteRoomGroup(ctx, actorID, groupID, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
 func (c *ChattoCore) AdminReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
 	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return err
 	}
-	return c.ReorderRoomGroups(ctx, actorID, orderedGroupIDs)
+	return c.reorderRoomGroups(ctx, actorID, orderedGroupIDs, c.anyRoomAuthorityCheck(ctx, actorID))
 }
 
 func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*corev1.Room, error) {
@@ -131,7 +119,10 @@ func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, 
 		if err := c.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
 			return nil, err
 		}
-		if err := c.MoveRoomToGroupFromSource(ctx, actorID, roomID, sourceGroupID, targetGroupID); err != nil {
+		authorize := func(sourceGroupID, targetGroupID string) error {
+			return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
+		}
+		if err := c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true, authorize); err != nil {
 			if errors.Is(err, ErrRoomMoveSourceChanged) {
 				continue
 			}
@@ -146,7 +137,7 @@ func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorI
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
-	if err := c.ReorderSidebarItemsInGroup(ctx, actorID, groupID, orderedEntries); err != nil {
+	if err := c.reorderSidebarItemsInGroup(ctx, actorID, groupID, orderedEntries, c.roomGroupAuthorityCheck(ctx, actorID, groupID)); err != nil {
 		return nil, err
 	}
 	return c.GetRoomGroup(ctx, groupID)
@@ -156,7 +147,7 @@ func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupI
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
-	return c.CreateSidebarLink(ctx, actorID, groupID, label, rawURL)
+	return c.createSidebarLink(ctx, actorID, groupID, label, rawURL, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
 func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*corev1.SidebarLink, error) {
@@ -186,7 +177,7 @@ func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID
 	if rawURL != nil {
 		nextURL = *rawURL
 	}
-	return c.UpdateSidebarLinkInGroup(ctx, actorID, groupID, linkID, nextLabel, nextURL)
+	return c.updateSidebarLinkInGroup(ctx, actorID, groupID, linkID, nextLabel, nextURL, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
 func (c *ChattoCore) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID string) error {
@@ -197,7 +188,7 @@ func (c *ChattoCore) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return err
 	}
-	return c.DeleteSidebarLinkInGroup(ctx, actorID, groupID, linkID)
+	return c.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
 func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*corev1.SidebarLink, error) {
@@ -211,7 +202,10 @@ func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, l
 	if err := c.requireCanManageRoomGroup(ctx, actorID, targetGroupID); err != nil {
 		return nil, err
 	}
-	if err := c.MoveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID); err != nil {
+	authorize := func(sourceGroupID, targetGroupID string) error {
+		return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, targetGroupID)()
+	}
+	if err := c.moveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID, authorize); err != nil {
 		return nil, err
 	}
 	targetGroup, err := c.GetRoomGroup(ctx, targetGroupID)

@@ -65,11 +65,16 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
-Role assignment mutations use a global `evt.>` OCC boundary. Before evaluating
-the actor's bounded scoped authority, the writer waits the RBAC, room directory,
-room-group layout, and actor-user projections through positions covered by that
-boundary; existing-user operations also fence the target-user projection. Any
-concurrent EVT fact makes the append retry the complete authorization decision.
+Authorization-sensitive mutations use the singleton
+`evt.authorization.server.fence_advanced` OCC lane. Every RBAC change,
+room-group/layout change, and user lifecycle change that can alter effective
+authority advances this lane atomically with its domain facts. Before evaluating
+bounded scoped authority, writers wait the relevant RBAC, room directory,
+room-group layout, and user projections through the captured EVT boundary. A
+concurrent authorization change then conflicts and retries the complete
+authorization decision, while unrelated messages and reactions do not contend.
+The fence event carries no policy state; the owning domain projections remain
+authoritative.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -127,6 +132,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
 | `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.authorization.server.fence_advanced`        | Singleton OCC fence for changes that can alter mutation authority               |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
@@ -236,6 +242,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
 | `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
 | `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent`                  |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
