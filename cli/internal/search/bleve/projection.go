@@ -123,6 +123,9 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_MessageBody:
 		bodyEvent := payload.MessageBody
 		if bodyEvent != nil && bodyEvent.GetBody() != nil {
+			if claimed := bodyEvent.GetBody().GetBodyEventId(); claimed != "" && claimed != event.GetId() {
+				break
+			}
 			state, err := p.loadMessage(bodyEvent.GetEventId())
 			if err != nil {
 				return err
@@ -136,10 +139,7 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 				state.MessageID = bodyEvent.GetEventId()
 				state.RoomID = bodyEvent.GetRoomId()
 				state.AuthorID = body.GetAuthorId()
-				state.BodyEventID = body.GetBodyEventId()
-				if state.BodyEventID == "" {
-					state.BodyEventID = event.GetId()
-				}
+				state.BodyEventID = event.GetId()
 				state.Body = string(plaintext)
 				state.HasAttachments = len(body.GetAttachments()) > 0 || len(body.GetAssetIds()) > 0
 				if body.GetCreatedAt() != nil {

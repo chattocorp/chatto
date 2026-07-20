@@ -299,6 +299,34 @@ func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestProjectionIgnoresMismatchedBodyRevisionID(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	applyLegacyMessage(t, projection, key, "M1", "B1", "R1", "U1", "original body", time.Unix(100, 0), 1)
+
+	encrypted, err := encryption.Encrypt(key, []byte("poisoned revision"))
+	require.NoError(t, err)
+	require.NoError(t, projection.Apply(&corev1.Event{
+		Id: "B2",
+		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+			RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{
+				AuthorId: "U1", BodyEventId: "B1",
+				EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce,
+			},
+		}},
+	}, 3))
+
+	poisoned, err := projection.query(context.Background(), relevanceRequest([]string{"poisoned"}, nil))
+	require.NoError(t, err)
+	require.Empty(t, poisoned.GetHits())
+	original, err := projection.query(context.Background(), relevanceRequest([]string{"original"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(original))
+}
+
 func TestProjectionDoesNotDeleteIndexForUnclassifiedOpenFailure(t *testing.T) {
 	directory := t.TempDir() + "/index"
 	require.NoError(t, os.MkdirAll(directory, 0o755))
