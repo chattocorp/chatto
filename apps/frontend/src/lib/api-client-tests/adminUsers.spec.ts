@@ -145,7 +145,10 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: ['room.manage', 'message.post'],
       viewerCanAssignRoles: true,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: true
+      viewerCanManageUserPermissions: true,
+      assignableRoleNames: ['moderator'],
+      revocableRoleNames: ['moderator'],
+      roleAssignmentLimitsEnforced: true
     });
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 
@@ -181,7 +184,9 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: ['room.manage', 'message.post'],
       viewerCanAssignRoles: true,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: true
+      viewerCanManageUserPermissions: true,
+      assignableRoleNames: ['moderator'],
+      revocableRoleNames: ['moderator']
     });
   });
 
@@ -192,7 +197,8 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: [],
       viewerCanAssignRoles: false,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: false
+      viewerCanManageUserPermissions: false,
+      roleAssignmentLimitsEnforced: false
     });
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 

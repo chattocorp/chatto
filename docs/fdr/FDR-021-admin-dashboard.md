@@ -59,7 +59,7 @@ The server-management section gives owners and admins visibility into the server
 
 ### 7. Admin APIs use service-level grouping with field-specific capability gates
 
-**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, owner-only diagnostics) before returning data.
+**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, scoped `room.manage`, owner-only diagnostics) before returning data.
 **Why:** Dedicated service grouping gives the API obvious admin-tooling namespaces, and method-level checks let operators delegate user, system, audit, and RBAC-editor visibility independently.
 **Tradeoff:** A user may be able to enter the admin area but see permission denials or empty panels for specific sections. The UI has to reflect that capability split clearly.
 
@@ -74,7 +74,9 @@ The server-management section gives owners and admins visibility into the server
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - System diagnostics are owner-only; `admin.view-system` is exposed only as a viewer capability key, not as a grantable RBAC permission.
 - `admin.view-audit` — gates admin event log, event type, and event detail reads.
-- `role.assign` — gates user role assignment and revocation.
+- `role.manage` — configures roles and role permission decisions, including scoped room and room-group matrices without granting general room-management authority.
+- `role.assign` — gates user role assignment and revocation; non-owner assignments remain bounded by the actor's own scoped authority.
+- `room.manage` — gates general room and room-group settings at the effective resource scope; server-scope grants also gate global room-group creation and ordering.
 - `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.
 
 ## Related

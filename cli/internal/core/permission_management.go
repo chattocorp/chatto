@@ -126,11 +126,14 @@ func (c *ChattoCore) GetRolePermissionTierMatrix(ctx context.Context, actorID, r
 		}
 		return c.buildTierRoles(ctx, ScopeRoom, roomID, "")
 	}
+	if groupID != "" {
+		if err := c.requireCanManageRolePermissionsForGroup(ctx, actorID, groupID); err != nil {
+			return nil, err
+		}
+		return c.buildTierRoles(ctx, ScopeGroup, "", groupID)
+	}
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
-	}
-	if groupID != "" {
-		return c.buildTierRoles(ctx, ScopeGroup, "", groupID)
 	}
 	return c.buildTierRoles(ctx, ScopeServer, "", "")
 }
@@ -158,11 +161,11 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	}
 	switch normalizePermissionScope(scope).Kind {
 	case MatrixScopeGroup:
-		if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
-			return err
-		}
 		if scope.ID == "" {
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
+		}
+		if err := c.requireCanManageRolePermissionsForGroup(ctx, actorID, scope.ID); err != nil {
+			return err
 		}
 		return c.applyRolePermissionState(ctx, actorID, ScopeGroup, scope.ID, roleName, perm, state)
 	case MatrixScopeRoom:
@@ -179,6 +182,29 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 		}
 		return c.applyRolePermissionState(ctx, actorID, ScopeServer, "", roleName, perm, state)
 	}
+}
+
+func (c *ChattoCore) requireCanManageRolePermissionsForGroup(ctx context.Context, actorID, groupID string) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	canManage, err := c.CanManageRoles(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check role.manage: %w", err)
+	}
+	if canManage {
+		_, err := c.GetRoomGroup(ctx, groupID)
+		return err
+	}
+	hasRoomManage, err := c.CanManageRoomGroup(ctx, actorID, groupID)
+	if err != nil {
+		return fmt.Errorf("check room.manage: %w", err)
+	}
+	if !hasRoomManage {
+		return ErrPermissionDenied
+	}
+	_, err = c.GetRoomGroup(ctx, groupID)
+	return err
 }
 
 func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {

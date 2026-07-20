@@ -65,6 +65,8 @@ type AdminMemberDetails struct {
 	ViewerCanAssignRoles           bool
 	ViewerCanManageRoles           bool
 	ViewerCanManageUserPermissions bool
+	AssignableRoleNames            []string
+	RevocableRoleNames             []string
 }
 
 func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input AdminMemberListInput) (*AdminMemberList, error) {
@@ -142,6 +144,27 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		return nil, err
 	}
 
+	assignableRoleNames := make([]string, 0, len(roles))
+	revocableRoleNames := make([]string, 0, len(roles))
+	if canAssignRoles {
+		for _, role := range roles {
+			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
+			if err != nil {
+				return nil, err
+			}
+			if canAssign {
+				assignableRoleNames = append(assignableRoleNames, role.Name)
+			}
+			canRevoke, err := c.CanRevokeRole(ctx, actorID, role.Name)
+			if err != nil {
+				return nil, err
+			}
+			if canRevoke {
+				revocableRoleNames = append(revocableRoleNames, role.Name)
+			}
+		}
+	}
+
 	return &AdminMemberDetails{
 		Member:                         member,
 		Roles:                          adminMemberRoles(roles),
@@ -149,6 +172,8 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		ViewerCanAssignRoles:           canAssignRoles,
 		ViewerCanManageRoles:           canManageRoles,
 		ViewerCanManageUserPermissions: canManageUserPermissions,
+		AssignableRoleNames:            assignableRoleNames,
+		RevocableRoleNames:             revocableRoleNames,
 	}, nil
 }
 

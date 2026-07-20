@@ -49,6 +49,8 @@
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
   let canManageUserPermissions = $state(false);
+  let assignableRoleNames = $state<string[] | null>(null);
+  let revocableRoleNames = $state<string[] | null>(null);
   let loading = $state(true);
   let updating = $state<string | null>(null);
   let error = $state<string | null>(null);
@@ -77,6 +79,8 @@
       canAssignRoles = resp.viewerCanAssignRoles;
       canManageRoles = resp.viewerCanManageRoles;
       canManageUserPermissions = resp.viewerCanManageUserPermissions;
+      assignableRoleNames = resp.assignableRoleNames;
+      revocableRoleNames = resp.revocableRoleNames;
       editLogin = resp.member?.login ?? '';
       editDisplayName = resp.member?.displayName ?? '';
       lastLoginChange = resp.member?.lastLoginChange ? new Date(resp.member.lastLoginChange) : null;
@@ -568,12 +572,22 @@
             {@const isUpdating = updating === role.name}
             {@const isSelfProtectedRole =
               isSelf && (role.name === 'admin' || role.name === 'owner') && has}
-            {@const isDisabled = !canAssignRoles || isImplicit || isUpdating || isSelfProtectedRole}
+            {@const isWithinAssignmentAuthority = has
+              ? revocableRoleNames === null || revocableRoleNames.includes(role.name)
+              : assignableRoleNames === null || assignableRoleNames.includes(role.name)}
+            {@const isDisabled =
+              !canAssignRoles ||
+              isImplicit ||
+              isUpdating ||
+              isSelfProtectedRole ||
+              !isWithinAssignmentAuthority}
             {@const tooltip = isImplicit
               ? m['admin.members.implicit_role_tooltip']()
               : isSelfProtectedRole
                 ? m['admin.members.cannot_revoke_own_role']({ role: role.displayName })
-                : ''}
+                : !isWithinAssignmentAuthority
+                  ? m['ui.access_denied.message']()
+                  : ''}
 
             <div class="flex items-center gap-3">
               <div class="min-w-0 flex-1" title={tooltip}>

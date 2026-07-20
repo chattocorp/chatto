@@ -49,9 +49,9 @@
     }
     if (pathname.startsWith(`${roomsBase}/`)) return () => true;
 
-    // Room-group settings and permission overrides both require role.manage.
+    // Resource-scoped room-group pages enforce access after loading the group.
     if (pathname.startsWith(`${roomGroupsBase}/`)) {
-      return () => chromePermissions.current.canManageRoles;
+      return () => true;
     }
 
     // Moderation pages: the resolver enforces server-scope room.ban-member.

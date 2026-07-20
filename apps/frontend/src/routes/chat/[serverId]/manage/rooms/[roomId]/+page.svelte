@@ -4,7 +4,9 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { createRoomDirectoryAPI, type DirectoryRoomDetails } from '$lib/api-client/roomDirectory';
+  import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -17,6 +19,7 @@
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
+  import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import { buildRoomSettingsUpdate } from './roomSettings';
   import * as m from '$lib/i18n/messages';
 
@@ -26,7 +29,7 @@
   const connection = useConnection();
   const chromePermissions = getChromePermissions();
 
-  let room = $state<DirectoryRoomDetails | null>(null);
+  let room = $state<AdminManagedRoom | null>(null);
   let loading = $state(true);
   let saving = $state(false);
   let name = $state('');
@@ -38,7 +41,7 @@
   let loadId = 0;
 
   const canManageRoom = $derived(room?.canManageRoom ?? false);
-  const canManagePermissions = $derived(canManageRoom || chromePermissions.current.canManageRoles);
+  const canManagePermissions = $derived(room?.canManagePermissions ?? false);
   const backHref = $derived(
     chromePermissions.current.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
@@ -60,7 +63,7 @@
       universal !== originalUniversal
   );
 
-  function applyRoom(nextRoom: DirectoryRoomDetails): void {
+  function applyRoom(nextRoom: AdminManagedRoom): void {
     room = nextRoom;
     name = nextRoom.name;
     description = nextRoom.description ?? '';
@@ -73,15 +76,39 @@
   async function loadRoom(targetRoomId: string): Promise<void> {
     const thisId = ++loadId;
     loading = true;
+    saving = false;
     room = null;
     try {
       const conn = connection();
-      const api = createRoomDirectoryAPI({
+      const adminAPI = createAdminRoomLayoutAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const nextRoom = await api.getRoom(targetRoomId);
+      let nextRoom: AdminManagedRoom | null;
+      try {
+        nextRoom = await adminAPI.getRoom(targetRoomId);
+      } catch (error) {
+        if (ConnectError.from(error).code !== Code.Unimplemented) throw error;
+        const directoryAPI = createRoomDirectoryAPI({
+          serverId: conn.serverId,
+          baseUrl: conn.connectBaseUrl,
+          bearerToken: conn.bearerToken
+        });
+        const legacyRoom: DirectoryRoomDetails | null = await directoryAPI.getRoom(targetRoomId);
+        nextRoom = legacyRoom
+          ? {
+              id: legacyRoom.id,
+              name: legacyRoom.name,
+              description: legacyRoom.description,
+              archived: legacyRoom.archived,
+              isUniversal: legacyRoom.isUniversal,
+              canManageRoom: legacyRoom.canManageRoom,
+              canManagePermissions:
+                legacyRoom.canManageRoom || chromePermissions.current.canManageRoles
+            }
+          : null;
+      }
       if (thisId !== loadId) return;
       if (nextRoom) applyRoom(nextRoom);
     } catch {
@@ -99,6 +126,16 @@
     event.preventDefault();
     if (!canManageRoom || saving || nameError || !name.trim() || !changed) return;
 
+    const target = { resourceId: roomId, generation: loadId };
+    const update = buildRoomSettingsUpdate(
+      target.resourceId,
+      { name, description, universal },
+      {
+        name: originalName,
+        description: originalDescription,
+        universal: originalUniversal
+      }
+    );
     saving = true;
     try {
       const conn = connection();
@@ -107,17 +144,8 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const updated = await api.updateRoom(
-        buildRoomSettingsUpdate(
-          roomId,
-          { name, description, universal },
-          {
-            name: originalName,
-            description: originalDescription,
-            universal: originalUniversal
-          }
-        )
-      );
+      const updated = await api.updateRoom(update);
+      if (!isCurrentResourceOperation(target, roomId, loadId)) return;
       if (!updated || !room) throw new Error('Room update returned no room');
 
       applyRoom({
@@ -130,13 +158,14 @@
       void serverRegistry.getStore(activeServerId).rooms.refresh();
       toast.success(m['admin.rooms_admin.room_updated']());
     } catch (error) {
+      if (!isCurrentResourceOperation(target, roomId, loadId)) return;
       toast.error(
         m['admin.rooms_admin.update_room_failed']({
           error: error instanceof Error ? error.message : String(error)
         })
       );
     } finally {
-      saving = false;
+      if (isCurrentResourceOperation(target, roomId, loadId)) saving = false;
     }
   }
 

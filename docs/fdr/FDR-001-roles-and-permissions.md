@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-07-19
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -19,6 +19,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Owners are always granted all permissions. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
+- Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
@@ -55,11 +56,11 @@ Chatto controls who can do what through role-based access control. Every authent
 **Why:** The config is the emergency recovery path. Even if the durable `owner` role is removed, a verified configured owner remains able to recover access.
 **Tradeoff:** Removing an email from `owners.emails` now matters at the next permission check; durable owner role assignments may still need separate cleanup.
 
-### 6. Target-user mutations are permission-gated
+### 6. Target-user mutations are permission-gated and role assignment is bounded
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`; account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
-**Why:** The single-server model no longer needs rank hierarchy to protect separate spaces. Concrete permissions are easier to audit and explain.
-**Tradeoff:** Permissions must be granted thoughtfully: a user with `role.assign` can assign roles to any target, and a user with `room.ban-member` can ban any non-owner-protected room member.
+**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
+**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy, while bounding `role.assign` prevents delegated role managers from granting authority they do not possess or removing restrictions they cannot control.
+**Tradeoff:** A delegated assigner may need the target role's underlying permissions even when they only administer membership. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rule during a rolling upgrade until they are replaced.
 
 ### 7. RBAC state is event-sourced
 
@@ -85,8 +86,8 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
 
-- `role.manage` — create, edit, delete roles and the permissions attached to them.
-- `role.assign` — assign roles to users.
+- `role.manage` — configure role definitions and the permissions attached to them.
+- `role.assign` — assign or revoke roles, bounded for non-owners by the target role's explicit scoped permission decisions.
 - `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.

@@ -160,7 +160,10 @@ authorization, live events, backup/restore, and backend tests.
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
   `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`.
+  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
+  by the target role's explicit scoped permission decisions; assigning requires
+  every allow, revoking requires every allow and deny, and the `owner` role is
+  owner-only.
 
 ## Admin Interface
 

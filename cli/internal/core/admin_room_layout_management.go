@@ -8,15 +8,79 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+type AdminRoomManagementDetails struct {
+	Room                 *corev1.Room
+	CanManageRoom        bool
+	CanManagePermissions bool
+}
+
+type AdminRoomGroupManagementDetails struct {
+	Group                *corev1.RoomGroup
+	CanManageGroup       bool
+	CanManagePermissions bool
+}
+
+func (c *ChattoCore) GetAdminRoom(ctx context.Context, actorID, roomID string) (*AdminRoomManagementDetails, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	room, err := c.GetRoom(ctx, KindChannel, roomID)
+	if err != nil {
+		return nil, err
+	}
+	canManageRoom, err := c.PermResolver().HasRoomPermission(ctx, actorID, KindChannel, roomID, PermRoomManage)
+	if err != nil {
+		return nil, err
+	}
+	canManageRoles, err := c.CanManageRoles(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !canManageRoom && !canManageRoles {
+		return nil, ErrPermissionDenied
+	}
+	return &AdminRoomManagementDetails{
+		Room:                 room,
+		CanManageRoom:        canManageRoom,
+		CanManagePermissions: canManageRoom || canManageRoles,
+	}, nil
+}
+
+func (c *ChattoCore) GetAdminRoomGroup(ctx context.Context, actorID, groupID string) (*AdminRoomGroupManagementDetails, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	group, err := c.GetRoomGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	canManageGroup, err := c.CanManageRoomGroup(ctx, actorID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	canManageRoles, err := c.CanManageRoles(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !canManageGroup && !canManageRoles {
+		return nil, ErrPermissionDenied
+	}
+	return &AdminRoomGroupManagementDetails{
+		Group:                group,
+		CanManageGroup:       canManageGroup,
+		CanManagePermissions: canManageGroup || canManageRoles,
+	}, nil
+}
+
 func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*corev1.RoomGroup, error) {
-	if err := c.requireCanManageRoles(ctx, actorID); err != nil {
+	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return nil, err
 	}
 	return c.CreateRoomGroup(ctx, actorID, name, description)
 }
 
 func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*corev1.RoomGroup, error) {
-	if err := c.requireCanManageRoles(ctx, actorID); err != nil {
+	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
 	if name == nil && description == nil {
@@ -38,14 +102,14 @@ func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID 
 }
 
 func (c *ChattoCore) AdminDeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
-	if err := c.requireCanManageRoles(ctx, actorID); err != nil {
+	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return err
 	}
 	return c.DeleteRoomGroup(ctx, actorID, groupID)
 }
 
 func (c *ChattoCore) AdminReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
-	if err := c.requireCanManageRoles(ctx, actorID); err != nil {
+	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return err
 	}
 	return c.ReorderRoomGroups(ctx, actorID, orderedGroupIDs)
@@ -161,11 +225,11 @@ func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, l
 	return link, nil
 }
 
-func (c *ChattoCore) requireCanManageRoles(ctx context.Context, actorID string) error {
+func (c *ChattoCore) requireCanManageAnyRoom(ctx context.Context, actorID string) error {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return err
 	}
-	ok, err := c.CanManageRoles(ctx, actorID)
+	ok, err := c.CanManageAnyRoom(ctx, actorID)
 	if err != nil {
 		return err
 	}

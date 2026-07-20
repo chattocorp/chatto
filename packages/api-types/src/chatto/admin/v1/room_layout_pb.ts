@@ -172,6 +172,204 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
 }
 
 /**
+ * Request for management-authorized channel room metadata.
+ *
+ * @generated from message chatto.admin.v1.GetRoomRequest
+ */
+export class GetRoomRequest extends Message<GetRoomRequest> {
+  /**
+   * Required channel room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<GetRoomRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetRoomRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomRequest {
+    return new GetRoomRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomRequest {
+    return new GetRoomRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomRequest {
+    return new GetRoomRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomRequest | PlainMessage<GetRoomRequest> | undefined, b: GetRoomRequest | PlainMessage<GetRoomRequest> | undefined): boolean {
+    return proto3.util.equals(GetRoomRequest, a, b);
+  }
+}
+
+/**
+ * Channel room metadata and the caller's management capabilities.
+ *
+ * @generated from message chatto.admin.v1.GetRoomResponse
+ */
+export class GetRoomResponse extends Message<GetRoomResponse> {
+  /**
+   * Requested channel room. This read does not require ordinary directory
+   * visibility when the caller can configure the room's role permissions.
+   *
+   * @generated from field: chatto.api.v1.Room room = 1;
+   */
+  room?: Room;
+
+  /**
+   * Whether the caller can update the room's general settings.
+   *
+   * @generated from field: bool viewer_can_manage_room = 2;
+   */
+  viewerCanManageRoom = false;
+
+  /**
+   * Whether the caller can configure role permissions for the room.
+   *
+   * @generated from field: bool viewer_can_manage_permissions = 3;
+   */
+  viewerCanManagePermissions = false;
+
+  constructor(data?: PartialMessage<GetRoomResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetRoomResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: Room },
+    { no: 2, name: "viewer_can_manage_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "viewer_can_manage_permissions", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomResponse {
+    return new GetRoomResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomResponse {
+    return new GetRoomResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomResponse {
+    return new GetRoomResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomResponse | PlainMessage<GetRoomResponse> | undefined, b: GetRoomResponse | PlainMessage<GetRoomResponse> | undefined): boolean {
+    return proto3.util.equals(GetRoomResponse, a, b);
+  }
+}
+
+/**
+ * Request for management-authorized room group metadata.
+ *
+ * @generated from message chatto.admin.v1.GetRoomGroupRequest
+ */
+export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
+  /**
+   * Required room group ID.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  constructor(data?: PartialMessage<GetRoomGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetRoomGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomGroupRequest {
+    return new GetRoomGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomGroupRequest {
+    return new GetRoomGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomGroupRequest {
+    return new GetRoomGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomGroupRequest | PlainMessage<GetRoomGroupRequest> | undefined, b: GetRoomGroupRequest | PlainMessage<GetRoomGroupRequest> | undefined): boolean {
+    return proto3.util.equals(GetRoomGroupRequest, a, b);
+  }
+}
+
+/**
+ * Room group metadata and the caller's management capabilities.
+ *
+ * @generated from message chatto.admin.v1.GetRoomGroupResponse
+ */
+export class GetRoomGroupResponse extends Message<GetRoomGroupResponse> {
+  /**
+   * Requested room group metadata. Ordered room and link entries are omitted so
+   * role permission managers do not gain visibility into private room names.
+   *
+   * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
+   */
+  group?: AdminRoomLayoutGroup;
+
+  /**
+   * Whether the caller can update the room group's general settings.
+   *
+   * @generated from field: bool viewer_can_manage_group = 2;
+   */
+  viewerCanManageGroup = false;
+
+  /**
+   * Whether the caller can configure role permissions for the room group.
+   *
+   * @generated from field: bool viewer_can_manage_permissions = 3;
+   */
+  viewerCanManagePermissions = false;
+
+  constructor(data?: PartialMessage<GetRoomGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetRoomGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
+    { no: 2, name: "viewer_can_manage_group", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "viewer_can_manage_permissions", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomGroupResponse {
+    return new GetRoomGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomGroupResponse {
+    return new GetRoomGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomGroupResponse {
+    return new GetRoomGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomGroupResponse | PlainMessage<GetRoomGroupResponse> | undefined, b: GetRoomGroupResponse | PlainMessage<GetRoomGroupResponse> | undefined): boolean {
+    return proto3.util.equals(GetRoomGroupResponse, a, b);
+  }
+}
+
+/**
  * Request for the server-admin room group layout.
  *
  * @generated from message chatto.admin.v1.ListRoomGroupsRequest

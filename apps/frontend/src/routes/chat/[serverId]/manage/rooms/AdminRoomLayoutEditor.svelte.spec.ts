@@ -73,6 +73,8 @@ function roomAPI(): Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchi
 
 function makeLayout(): AdminRoomLayoutStore {
   const layoutAPI = {
+    getRoom: vi.fn().mockResolvedValue(null),
+    getRoomGroup: vi.fn().mockResolvedValue(null),
     listRoomGroups: vi.fn().mockResolvedValue([]),
     createRoomGroup: vi.fn().mockResolvedValue(null),
     updateRoomGroup: vi.fn().mockResolvedValue(null),
