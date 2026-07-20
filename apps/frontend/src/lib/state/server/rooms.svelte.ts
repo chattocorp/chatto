@@ -211,6 +211,7 @@ export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
   roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
+  hasUnreadFollowedThreads = $state(false);
   // The viewer's user ID, captured from the same sidebar bootstrap query that
   // produced DM `room.members`. Use this in preference to a global auth
   // context when filtering self out of DM labels and avatars.
@@ -218,6 +219,9 @@ export class RoomsStore {
 
   private loadId = 0;
   private notificationCountsLoadId = 0;
+  private threadUnreadRefreshPromise: Promise<void> | null = null;
+  private threadUnreadRefreshQueued = false;
+  private threadUnreadRevision = 0;
 
   constructor(
     private readonly roomDirectoryAPI: RoomDirectoryAPI,
@@ -235,6 +239,7 @@ export class RoomsStore {
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
     const unreadSnapshotRevision = this.roomUnread.captureSnapshotRevision();
+    const threadUnreadSnapshotRevision = this.threadUnreadRevision;
     const [viewer, rooms, roomGroups] = await Promise.all([
       this.viewerStateLoader(),
       this.roomDirectoryAPI.listRooms(RoomDirectoryScope.ALL),
@@ -243,6 +248,9 @@ export class RoomsStore {
     if (this.loadId !== thisLoad) return;
 
     this.currentUserId = viewer.user.id;
+    if (this.threadUnreadRevision === threadUnreadSnapshotRevision) {
+      this.hasUnreadFollowedThreads = viewer.viewerHasUnreadFollowedThreads;
+    }
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
       viewer.serverNotificationPreference.effectiveLevel
@@ -361,6 +369,36 @@ export class RoomsStore {
     }
   }
 
+  /**
+   * Refresh the exact backend-derived unread state for followed threads.
+   * Concurrent triggers collapse into the current request plus at most one
+   * follow-up so activity that lands during a request cannot be missed.
+   */
+  refreshUnreadFollowedThreads(): Promise<void> {
+    this.threadUnreadRefreshQueued = true;
+    if (this.threadUnreadRefreshPromise) return this.threadUnreadRefreshPromise;
+
+    this.threadUnreadRefreshPromise = (async () => {
+      while (this.threadUnreadRefreshQueued) {
+        this.threadUnreadRefreshQueued = false;
+        try {
+          const viewer = await this.viewerStateLoader();
+          this.threadUnreadRevision += 1;
+          this.hasUnreadFollowedThreads = viewer.viewerHasUnreadFollowedThreads;
+        } catch (err) {
+          console.warn('failed to refresh followed-thread unread state', err);
+        }
+      }
+    })().finally(() => {
+      this.threadUnreadRefreshPromise = null;
+      if (this.threadUnreadRefreshQueued) {
+        void this.refreshUnreadFollowedThreads();
+      }
+    });
+
+    return this.threadUnreadRefreshPromise;
+  }
+
   // -------------------------------------------------------------------------
   // Per-room flag mutations
   // -------------------------------------------------------------------------
@@ -433,9 +471,17 @@ export class RoomsStore {
   ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): void {
     const event = serverEvent.event;
     if (!event) return;
+    const kind = roomEventKind(event);
     if (isRoomStateRefreshEvent(event)) {
       void this.refresh();
       return;
+    }
+    if (
+      kind === RoomEventKind.ThreadFollowChanged ||
+      kind === RoomEventKind.NotificationDismissed ||
+      (isMessagePostedEvent(event) && !!event.threadRootEventId)
+    ) {
+      void this.refreshUnreadFollowedThreads();
     }
     if (isMessagePostedEvent(event)) {
       const roomId = event.roomId;

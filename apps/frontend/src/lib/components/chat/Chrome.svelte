@@ -328,7 +328,10 @@
             <span class="sidebar-icon iconify uil--estate"></span>
             {m['chat.overview.title']()}
           </a>
-          <MyThreadsNavItem active={isMyThreadsActive} />
+          <MyThreadsNavItem
+            active={isMyThreadsActive}
+            hasUnread={serverRegistry.getStore(getActiveServer()).rooms.hasUnreadFollowedThreads}
+          />
         </nav>
 
         <hr class="border-border" />

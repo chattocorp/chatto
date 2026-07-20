@@ -61,7 +61,8 @@
 
   const connection = useConnection();
   const members = $derived(getRoomMembers());
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const serverStore = $derived(serverRegistry.getStore(getActiveServer()));
+  const currentUser = $derived(serverStore.currentUser);
 
   const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
   onDestroy(() => store.dispose());
@@ -307,11 +308,13 @@
   ): Promise<MarkThreadAsReadResult | null> {
     try {
       const conn = connection();
-      return await createReadStateAPI({
+      const result = await createReadStateAPI({
         serverId: conn.serverId ?? getActiveServer(),
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+      void serverStore.rooms.refreshUnreadFollowedThreads();
+      return result;
     } catch (err) {
       console.error('Failed to mark thread as read:', err);
       return null;
