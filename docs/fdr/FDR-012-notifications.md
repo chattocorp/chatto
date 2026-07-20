@@ -5,7 +5,7 @@
 
 ## Overview
 
-Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions of users/roles/virtual groups, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per server and per room.
+Chatto has a persistent notification system surfaced through a bell icon and notification center. Notifications represent things the user should pay attention to: DMs, @mentions of users/roles/virtual groups, replies to their own messages, new posts in threads they follow, and (optionally) all messages in rooms they've subscribed to. Notification levels are configurable per server and per joined channel room; DMs inherit the server level.
 
 ## Behavior
 
@@ -14,15 +14,17 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - Mention notifications may come from direct `@username`, role `@role`, `@all`, or `@here` mentions. The bundled composer asks for confirmation before sending role, `@all`, or `@here` mentions, while API callers can post authorized messages directly.
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
-- A notification sound plays and the in-app and installed PWA notification badges update in real time as new notifications arrive.
-- While the installed PWA is visible, its app-icon badge shows the exact pending DM count when known. Other pending notifications, or an incomplete notification page that cannot provide an exact DM count, show a non-numeric attention flag. Ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
+- Marking a room or thread read dismisses pending notifications whose source messages are covered by that read position.
+- A notification sound plays for non-silent creations, and in-app and installed PWA notification badges update as authoritative pending state changes.
+- While the installed PWA is visible, its app-icon badge shows the aggregate pending DM count when every authenticated server's current notification page is complete and at least one DM is pending, even if other notification kinds are also present. A non-numeric attention flag appears when only non-DM notifications are pending or any page is incomplete. Ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
+- Initial load and reconnect replace the current pending-notification page and room counts from server state, so a missed live transition does not permanently leave client badges out of sync.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
-- Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
+- Sidebar notification badges aggregate pending mentions, replies, DMs, and all-message subscriptions by room.
 - A recipient's Do Not Disturb presence still stores new notifications and updates counts, but those creation events are silent: no notification sound and no web push while DND is active.
 
 ## Notification Levels
 
-Per server and per room, the user picks one of four levels:
+Per server and per joined channel room, the user picks one of four levels. DMs inherit the server level.
 
 - **DEFAULT** — inherit from the parent (room → server → system default of NORMAL).
 - **MUTED** — suppress everything for this scope, including @mentions. The room doesn't even show as unread in the sidebar.
@@ -32,6 +34,7 @@ Per server and per room, the user picks one of four levels:
 ## Thread Follow
 
 - Posting a reply in a thread automatically subscribes the user to that thread's reply notifications.
+- The thread-root author is subscribed when the first reply is posted unless they previously made an explicit follow choice.
 - A direct `@username` mention in a thread subscribes the mentioned user if they have never followed or explicitly unfollowed that thread before. Role mentions, `@all`, and `@here` notify according to mention rules but do not subscribe recipients.
 - Thread followers can manually unfollow, and non-posters can manually follow.
 - Followers receive a notification for new replies in the thread (skipping their own).
@@ -39,11 +42,11 @@ Per server and per room, the user picks one of four levels:
 
 ## Design Decisions
 
-### 1. Persistent notification model with live-event sync
+### 1. Persistent notification model with authoritative projection sync
 
-**Decision:** Notifications are persistent objects stored per user in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`), with a 90-day per-key TTL. Live events fire on create and dismiss to keep all the user's connected sessions in sync.
-**Why:** Notifications need to survive a tab close (so the badge count is right when you come back tomorrow), and they need to be the same across devices. They are pending user-runtime state, not reconstructable content history, so `RUNTIME_STATE` is the right home. See ADR-012, ADR-028, and ADR-036.
-**Tradeoff:** A notification dismissal anywhere clears it everywhere, even if the user wanted to dismiss only locally. The simpler model wins here — "I've seen it" is not device-specific.
+**Decision:** Notifications are persistent per-user objects in `RUNTIME_STATE` with a 90-day TTL. Internal create and dismiss signals cause authoritative pending-page and room-count replacements on the resumable client projection; every subscription also reconciles that finite current state.
+**Why:** Notifications need to survive a tab close, agree across devices, and recover after a client misses a transient signal. They are pending user-runtime state rather than content history. See ADR-012, ADR-028, ADR-036, and ADR-051.
+**Tradeoff:** The projected list is a finite newest page even though its total and room counts are authoritative. A client that cannot classify every pending item must use a generic attention indicator instead of inventing an exact kind-specific count.
 
 ### 2. Mute suppresses notifications AND unread
 
@@ -86,9 +89,9 @@ from API callers.
 
 ### 8. No parallel mention-status flag
 
-**Decision:** @mention orange dots are derived from pending mention notifications. Chatto does not maintain a separate `room_mention_status.*` flag.
+**Decision:** A mention's contribution to the aggregate room badge is derived from pending notifications. Chatto does not maintain a separate `room_mention_status.*` flag.
 **Why:** The separate flag duplicated notification state and had to be cleared in lockstep with notification dismissals and room reads. A single pending-notification model gives one source of truth for mention, reply, DM, and all-message attention indicators.
-**Tradeoff:** Pending mention dots now have the same retention and dismissal semantics as notifications. This is deliberate: a mention that is no longer a pending notification is no longer pending attention.
+**Tradeoff:** Mention attention now has the same retention and dismissal semantics as notifications. Removing one mention's contribution does not clear the aggregate room badge while other pending notifications remain.
 
 ### 9. Notification sound choice and shaping are local
 
@@ -98,17 +101,23 @@ from API callers.
 
 ### 10. Do Not Disturb silences alert delivery
 
-**Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto still creates the persistent notification and publishes a silent live sync event, but it suppresses legacy attention live events, notification sounds, and web push delivery.
+**Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto still creates the persistent notification and publishes silent transition metadata with the authoritative replacement, but it suppresses legacy attention hints, notification sounds, and Web Push delivery.
 **Why:** DND means "do not interrupt me now", not "discard things I should review later". Storing the notification preserves missed activity in the notification center and sidebar counts, while the silent marker lets clients update state without making noise.
 **Tradeoff:** A user may see badge/sidebar changes while actively viewing Chatto in DND. That is less disruptive than sound or push, and it avoids losing important mentions or DMs.
 
+### 11. Reading resolves attention through its read boundary
+
+**Decision:** Advancing a room or thread read position dismisses pending notifications whose source messages are covered by that position. Explicit dismissal remains a separate acknowledgement action.
+**Why:** Opening and consuming content should resolve the attention it generated without clearing newer messages or unrelated rooms and threads.
+**Tradeoff:** The current read-side cleanup cannot catch a notification created after the read scan has already completed. ADR-053 adds the complementary creation-side read check required for convergence in either order.
+
 ## Permissions
 
-Notification preferences are user-scoped and don't require special permissions to manage. There's no permission gating the ability to mute or change levels.
+Notification preferences require no RBAC permission string and are always self-scoped. Room-level preferences require current membership in the channel room.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-053 (convergent notification policy and pending state)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-053 (convergent notification policy and pending state)
 - **FDRs:** FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)
 
 ## Open Questions

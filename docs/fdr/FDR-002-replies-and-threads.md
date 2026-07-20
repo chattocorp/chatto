@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -10,6 +10,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 ## Behavior
 
 - A message in a room can optionally reference another message as the one it's in reply to.
+- Reply attribution notifies the referenced author unless they sent the reply, muted the room, or already receive the message as a direct mention.
 - DMs keep replies in their single room timeline and do not offer thread actions. Historical DM threads remain readable but cannot receive new replies.
 - A reply renders with a byline above the message body: the referenced author's small avatar, name, and a single-line excerpt of the referenced message.
 - Clicking the byline transports the user to the referenced message and briefly highlights it.
@@ -18,7 +19,8 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
-- A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread — each gated by separate permissions, so a room can be configured for many threading styles.
+- A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread. Two location-based permissions control those shapes: one for the room timeline and one for channel-room threads; reply attribution adds no separate gate.
+- Posting in a thread follows it. On the first reply, the thread-root author is also followed unless they previously made an explicit follow choice.
 
 ## Design Decisions
 
@@ -31,26 +33,26 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 ### 2. Posting permissions are split by location only, not by reply attribution
 
 **Decision:** Two posting permissions: `message.post` (room timeline) and `message.post-in-thread` (inside a thread). Reply attribution (`inReplyTo`) is **not** separately gated — anyone who can post can reply.
-**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. A separate "can reply with attribution" gate was considered (and shipped in earlier versions as `message.reply`) but later removed: its only real effect was firing a reply-notification to the original author, which `@mention` under `message.post` already achieves. The matrix noise wasn't paying for a meaningful moderation surface.
+**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. A separate reply-attribution gate was considered and shipped in earlier versions, but it added permission-matrix complexity without defining a useful moderation boundary. Reply notifications remain a consequence of attribution, not a separate posting capability.
 **Tradeoff:** Operators who genuinely wanted to disable reply attribution as a UI affordance can't do so via permissions. In practice nobody asked.
 
 ### 3. Reply attribution doesn't change storage
 
-**Decision:** A reply is a normal message with an extra `inReplyTo` field. It's not stored differently.
-**Why:** Reply attribution is a presentation concern. Special-casing the storage would mean every read path has to handle two flavors of message.
+**Decision:** A reply is a normal message with an extra `inReplyTo` field. That attribution drives reply rendering, navigation, and notification policy without creating a separate message type.
+**Why:** Special-casing storage would make every read path handle two flavours of message even though ordinary messages and replies share the same lifecycle.
 **Tradeoff:** Bulk operations (deleting a message, etc.) need to consider whether replies still make sense after the target is gone. The UI handles this by gracefully degrading the byline.
 
-### 4. Thread replies use a cursor-paginated event connection
+### 4. Thread replies are paginated separately from the root
 
-**Decision:** `MessagePostedEvent.threadReplies(limit, before, after)` returns a `RoomEventsConnection` page of replies, in chronological order, excluding the root event. Cursors use the same opaque sequence shape as `Room.events`.
-**Why:** Threads are append-only timelines and can grow large. A connection keeps the release API from baking in an unbounded reply list while matching the room timeline pagination model clients already understand.
-**Tradeoff:** Thread panes now load reply pages rather than a bare array. The current UI still asks for the default page, and can add older/newer reply paging without another schema change.
+**Decision:** The thread root is resolved separately, while replies load as bounded chronological pages.
+**Why:** Threads can grow large. Keeping the root distinct and paginating replies avoids an unbounded list while matching the room timeline's loading model.
+**Tradeoff:** Opening a thread requires both its root and a reply page rather than one self-contained array.
 
 ### 5. Anchored thread reads preserve the visible window
 
-**Decision:** `MessagePostedEvent.threadRepliesAround(eventId, limit)` returns a reply page centered around a reply event ID, or around the top of the thread when the root event ID is supplied. The root event itself is still resolved separately and is not included in the reply connection.
-**Why:** Reconnect and wake refreshes need to reload the current thread window without jumping the reader to the newest replies. Anchoring by event ID lets the UI preserve scroll position in the same way room timelines use `eventsAround`.
-**Tradeoff:** This adds a second thread read shape, but keeps the existing forward/backward pagination API simple and avoids teaching cursor pagination how to express "refresh around this visible row."
+**Decision:** A thread can reload a bounded reply page around a focused reply, or around the top of the thread when the root is the focus. The root remains separate from the reply page.
+**Why:** Reconnect and wake refreshes need to reload the current thread window without jumping the reader to the newest replies. A stable focused event preserves the reader's position.
+**Tradeoff:** The server and client support an anchored page in addition to ordinary older/newer pagination.
 
 ### 6. Thread message links identify both the thread and focused message
 
