@@ -234,6 +234,11 @@ message RealtimeProjectionRoom {
   repeated string member_user_ids = 2;
   // Current pending notifications targeting this room for the viewer.
   uint32 viewer_notification_count = 3;
+  // Whether this DM room has ever received a root message. False means the
+  // durable room exists only so its initiator can compose the first message.
+  // Once true, message deletion does not reset it. Absent for channel rooms
+  // and servers that predate this field.
+  optional bool has_message_history = 4;
 }
 
 // Root-message activity that affects lightweight room navigation state.

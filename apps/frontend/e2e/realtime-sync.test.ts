@@ -10,7 +10,7 @@ import {
 } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { SettingsPage } from './pages';
+import { RoomPage, SettingsPage } from './pages';
 
 test.describe('Real-time synchronization', () => {
   test('room list updates when user joins a room from another session', async ({
@@ -202,6 +202,8 @@ test.describe('Real-time synchronization', () => {
       // Join the room via Browse Rooms, then navigate to it
       await joinRoomFromOverview(page2, 'test-room');
       await chatPage2.enterRoom('test-room');
+      const roomPage2 = new RoomPage(page2);
+      await roomPage2.openMembersPanel();
 
       // User 1: Send a message now that both users are in the room
       await roomPage.sendMessage('Hello from User 1');
@@ -227,7 +229,7 @@ test.describe('Real-time synchronization', () => {
       // Note: Live events may take a few seconds to propagate across users
       // Poll for the update with a longer timeout since WebSocket events can be delayed
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
+        const memberListText = await roomPage2.memberList.textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 
@@ -272,6 +274,8 @@ test.describe('Real-time synchronization', () => {
       // Join the room via Browse Rooms, then navigate to it
       await joinRoomFromOverview(page2, 'error-test');
       await chatPage2.enterRoom('error-test');
+      const roomPage2 = new RoomPage(page2);
+      await roomPage2.openMembersPanel();
 
       // Wait for room to be ready (connection established)
       await expect(page2.getByText('Real-time updates paused')).not.toBeVisible({
@@ -287,7 +291,7 @@ test.describe('Real-time synchronization', () => {
       // Wait for the event to propagate to User 2
       // Check member list for the update
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
+        const memberListText = await roomPage2.memberList.textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 
@@ -320,7 +324,7 @@ test.describe('Real-time synchronization', () => {
     const roomPage = await chatPage.enterRoom('general');
 
     // User A should see themselves in the member list
-    await expect(roomPage.memberList).toBeVisible();
+    await roomPage.openMembersPanel();
     await roomPage.expectMemberVisible(userA.login);
 
     // User B: Create account and open the server

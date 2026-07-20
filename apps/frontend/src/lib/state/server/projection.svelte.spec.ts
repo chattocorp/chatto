@@ -506,7 +506,8 @@ describe('ServerProjectionStore', () => {
         operation({
           case: 'roomUpsert',
           value: new RealtimeProjectionRoom({
-            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) })
+            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) }),
+            hasMessageHistory: false
           })
         }),
         operation({
@@ -531,6 +532,7 @@ describe('ServerProjectionStore', () => {
     );
 
     expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+    expect(store.rooms.get('R2')?.hasMessageHistory).toBe(true);
 
     store.apply(
       eventWithId(
@@ -561,7 +563,8 @@ describe('ServerProjectionStore', () => {
         operation({
           case: 'roomUpsert',
           value: new RealtimeProjectionRoom({
-            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) })
+            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) }),
+            hasMessageHistory: false
           })
         })
       )
@@ -577,6 +580,7 @@ describe('ServerProjectionStore', () => {
     );
 
     expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
+    expect(store.rooms.get('R2')?.hasMessageHistory).toBe(true);
     expect(store.timelines.has('R2')).toBe(false);
   });
 

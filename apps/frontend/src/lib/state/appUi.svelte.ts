@@ -1,7 +1,5 @@
 import { createContext } from 'svelte';
 import {
-  getRoomSidebarPanelState,
-  ROOM_SIDEBAR_DEFAULT_PANEL,
   setRoomSidebarPanelState,
   type RoomSidebarPanel,
   type RoomSidebarPanelState
@@ -71,12 +69,10 @@ export class AppUiState {
     this.#activeRoomId = null;
   }
 
-  get selectedDesktopRoomSidebarPanel(): RoomSidebarPanel {
-    return this.#desktopRoomSidebarPanelForActiveRoom ?? ROOM_SIDEBAR_DEFAULT_PANEL;
-  }
-
   get activeDesktopRoomSidebarPanel(): RoomSidebarPanelState {
-    return this.#desktopRoomSidebarPanelForActiveRoom;
+    const scope = this.#activeRoomScopeKey;
+    if (!scope) return null;
+    return this.#desktopRoomSidebarSessionState[scope] ?? null;
   }
 
   get mobileRoomSidebarPanel(): RoomSidebarPanelState {
@@ -178,18 +174,6 @@ export class AppUiState {
   get #activeRoomScopeKey(): string | null {
     if (!this.#activeServerId || !this.#activeRoomId) return null;
     return roomScopeKey(this.#activeServerId, this.#activeRoomId);
-  }
-
-  get #desktopRoomSidebarPanelForActiveRoom(): RoomSidebarPanelState {
-    const scope = this.activeRoomScope;
-    if (!scope) return null;
-
-    const key = roomScopeKey(scope.serverId, scope.roomId);
-    if (key in this.#desktopRoomSidebarSessionState) {
-      return this.#desktopRoomSidebarSessionState[key] ?? null;
-    }
-
-    return getRoomSidebarPanelState(scope.serverId, scope.roomId);
   }
 
   #setDesktopRoomSidebarPanel(panel: RoomSidebarPanelState): void {

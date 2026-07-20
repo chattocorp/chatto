@@ -1363,8 +1363,13 @@ type RealtimeProjectionRoom struct {
 	MemberUserIds []string `protobuf:"bytes,2,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
 	// Current pending notifications targeting this room for the viewer.
 	ViewerNotificationCount uint32 `protobuf:"varint,3,opt,name=viewer_notification_count,json=viewerNotificationCount,proto3" json:"viewer_notification_count,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Whether this DM room has ever received a root message. False means the
+	// durable room exists only so its initiator can compose the first message.
+	// Once true, message deletion does not reset it. Absent for channel rooms
+	// and servers that predate this field.
+	HasMessageHistory *bool `protobuf:"varint,4,opt,name=has_message_history,json=hasMessageHistory,proto3,oneof" json:"has_message_history,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RealtimeProjectionRoom) Reset() {
@@ -1416,6 +1421,13 @@ func (x *RealtimeProjectionRoom) GetViewerNotificationCount() uint32 {
 		return x.ViewerNotificationCount
 	}
 	return 0
+}
+
+func (x *RealtimeProjectionRoom) GetHasMessageHistory() bool {
+	if x != nil && x.HasMessageHistory != nil {
+		return *x.HasMessageHistory
+	}
+	return false
 }
 
 // Root-message activity that affects lightweight room navigation state.
@@ -3157,11 +3169,13 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x1dRealtimeProjectionServerState\x12\x17\n" +
 	"\x04motd\x18\x01 \x01(\tH\x00R\x04motd\x88\x01\x01\x12<\n" +
 	"\aruntime\x18\x02 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntimeB\a\n" +
-	"\x05_motd\"\xb4\x01\n" +
+	"\x05_motd\"\x81\x02\n" +
 	"\x16RealtimeProjectionRoom\x126\n" +
 	"\x04room\x18\x01 \x01(\v2\".chatto.api.v1.RoomWithViewerStateR\x04room\x12&\n" +
 	"\x0fmember_user_ids\x18\x02 \x03(\tR\rmemberUserIds\x12:\n" +
-	"\x19viewer_notification_count\x18\x03 \x01(\rR\x17viewerNotificationCount\"9\n" +
+	"\x19viewer_notification_count\x18\x03 \x01(\rR\x17viewerNotificationCount\x123\n" +
+	"\x13has_message_history\x18\x04 \x01(\bH\x00R\x11hasMessageHistory\x88\x01\x01B\x16\n" +
+	"\x14_has_message_history\"9\n" +
 	"\x1eRealtimeProjectionRoomActivity\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"7\n" +
 	"\x1cRealtimeProjectionUserRemove\x12\x17\n" +
@@ -3482,6 +3496,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeProjectionOperation_RoomActivity)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[11].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[12].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[21].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[23].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[31].OneofWrappers = []any{}

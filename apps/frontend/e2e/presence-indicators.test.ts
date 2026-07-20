@@ -31,7 +31,7 @@ test.describe('Presence indicators', () => {
     const roomPage = await chatPage.enterRoom('general');
 
     // User A should see themselves in the member list with online indicator
-    await expect(roomPage.memberList).toBeVisible();
+    await roomPage.openMembersPanel();
 
     // User A should be in the member list
     await roomPage.expectMemberVisible(userA.login);
@@ -300,6 +300,7 @@ test.describe('Member list grouping', () => {
     await chatPage.goto();
 
     const roomPage = await chatPage.enterRoom('general');
+    await roomPage.openMembersPanel();
 
     // Initially only User A is online; the bootstrap admin has no live
     // presence record.

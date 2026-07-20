@@ -25,9 +25,16 @@ export type RoomsListItem = {
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
   viewerNotificationCount: number;
+  // Null means the connected server predates projection support for this
+  // distinction; only an explicit false hides an empty DM from navigation.
+  hasMessageHistory?: boolean | null;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserView[];
 };
+
+export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
+  return room.type !== RoomType.Dm || room.hasMessageHistory !== false;
+}
 
 export type RoomsListGroup = {
   id: string;
@@ -129,6 +136,7 @@ function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
     a.viewerCanJoinRoom === b.viewerCanJoinRoom &&
     a.viewerCanManageRoom === b.viewerCanManageRoom &&
     a.viewerNotificationCount === b.viewerNotificationCount &&
+    a.hasMessageHistory === b.hasMessageHistory &&
     sameAvatarUsers(a.members, b.members)
   );
 }
@@ -286,7 +294,8 @@ export class RoomsStore {
     rooms: DirectoryRoomSummary[],
     roomGroups: DirectoryRoomGroup[],
     membersByRoomId: ReadonlyMap<string, UserAvatarUserView[]> = new SvelteMap(),
-    notificationCountsByRoomId: ReadonlyMap<string, number> = new SvelteMap()
+    notificationCountsByRoomId: ReadonlyMap<string, number> = new SvelteMap(),
+    messageHistoryByRoomId: ReadonlyMap<string, boolean | null> = new SvelteMap()
   ): void {
     this.loadId++;
     this.currentUserId = viewer.user.id;
@@ -302,7 +311,9 @@ export class RoomsStore {
     this.applyRooms(
       visibleRooms.map((room) => ({
         ...this.roomListItem(room, membersByRoomId.get(room.id) ?? []),
-        viewerNotificationCount: notificationCountsByRoomId.get(room.id) ?? 0
+        viewerNotificationCount: notificationCountsByRoomId.get(room.id) ?? 0,
+        hasMessageHistory:
+          room.kind === RoomKind.DM ? (messageHistoryByRoomId.get(room.id) ?? null) : null
       })),
       false
     );
@@ -338,6 +349,7 @@ export class RoomsStore {
       viewerCanJoinRoom: room.canJoinRoom,
       viewerCanManageRoom: room.canManageRoom,
       viewerNotificationCount: 0,
+      hasMessageHistory: room.kind === RoomKind.DM ? true : null,
       members
     };
   }

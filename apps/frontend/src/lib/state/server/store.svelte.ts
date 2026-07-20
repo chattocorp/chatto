@@ -531,6 +531,7 @@ export class ServerStateStore {
       ReturnType<typeof avatarUserFromDirectoryMember>[]
     >();
     const notificationCountsByRoomId = new SvelteMap<string, number>();
+    const messageHistoryByRoomId = new SvelteMap<string, boolean | null>();
     for (const entry of this.projection.rooms.values()) {
       const roomId = entry.room?.room?.id;
       if (!roomId) continue;
@@ -540,13 +541,15 @@ export class ServerStateStore {
       });
       membersByRoomId.set(roomId, members);
       notificationCountsByRoomId.set(roomId, entry.viewerNotificationCount);
+      messageHistoryByRoomId.set(roomId, entry.hasMessageHistory ?? null);
     }
     this.rooms.replaceProjection(
       viewer,
       rooms,
       groups,
       membersByRoomId,
-      notificationCountsByRoomId
+      notificationCountsByRoomId,
+      messageHistoryByRoomId
     );
     this.roomDirectory.replaceProjection(rooms);
   }

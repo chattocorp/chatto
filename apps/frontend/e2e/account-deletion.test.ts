@@ -262,6 +262,8 @@ test.describe('Account Deletion', () => {
           // count among general's members.
           await page.reload();
           await waitForRoomReady(page, 'general');
+          await roomPage.openMembersPanel();
+          await roomPage2.openMembersPanel();
           await expect(roomPage.memberCount).toHaveText('Members (3)');
           await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
@@ -276,6 +278,7 @@ test.describe('Account Deletion', () => {
           // User B refreshes to see updated state
           await page2.reload();
           await waitForRoomReady(page2, 'general');
+          await roomPage2.openMembersPanel();
 
           // User B should see e2eadmin + themselves (not 0, not 3)
           await expect(roomPage2.memberCount).toHaveText('Members (2)', {
@@ -292,6 +295,7 @@ test.describe('Account Deletion', () => {
             async ({ page: page3, user: userC, chatPage: chatPage3, roomPage: roomPage3 }) => {
               await chatPage3.enterRoom('general');
               await waitForRoomReady(page3, 'general');
+              await roomPage3.openMembersPanel();
 
               // User C should see 3 members (e2eadmin + User B + themselves)
               await expect(roomPage3.memberCount).toHaveText('Members (3)');
@@ -299,6 +303,7 @@ test.describe('Account Deletion', () => {
               // User B refreshes and should also see 3 members
               await page2.reload();
               await waitForRoomReady(page2, 'general');
+              await roomPage2.openMembersPanel();
               await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
               // Both User B and User C should be visible in the member list

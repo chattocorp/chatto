@@ -1535,6 +1535,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror h5),
   :global(.tiptap-editor .ProseMirror h6) {
     margin: 0;
+    /* Stable wrapping is essential while editing: `pretty` and `balance`
+       may move an earlier line break whenever the document changes. */
+    text-wrap: wrap;
   }
 
   :global(.tiptap-editor .ProseMirror > p),

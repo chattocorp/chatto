@@ -110,6 +110,14 @@ export class RoomPage {
     return this.page.locator('aside[aria-label="Room extras"] nav[aria-label="Members"]');
   }
 
+  /** Open the room's Members panel when it is currently closed. */
+  async openMembersPanel(): Promise<void> {
+    if (await this.memberList.isVisible()) return;
+
+    await this.page.getByRole('button', { name: 'Show members' }).click();
+    await expect(this.memberList).toBeVisible();
+  }
+
   /**
    * Get a member's list item by their display name or login.
    */
@@ -365,6 +373,7 @@ export class RoomPage {
    * Assert that a member is visible in the member list.
    */
   async expectMemberVisible(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMember(name)).toBeVisible(options);
   }
 
@@ -372,6 +381,7 @@ export class RoomPage {
    * Assert that a member has an avatar image (not initials).
    */
   async expectMemberHasAvatar(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberAvatarImage(name)).toBeVisible(options);
   }
 
@@ -379,6 +389,7 @@ export class RoomPage {
    * Assert that a member has initials (no avatar image).
    */
   async expectMemberHasInitials(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberAvatarInitials(name)).toBeVisible(options);
     await expect(this.getMemberAvatarImage(name)).not.toBeVisible();
   }
@@ -391,6 +402,7 @@ export class RoomPage {
     expectedDisplayName: string,
     options?: { timeout?: number }
   ): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberDisplayName(memberIdentifier)).toHaveText(
       expectedDisplayName,
       options
@@ -405,6 +417,7 @@ export class RoomPage {
     expectedLogin: string,
     options?: { timeout?: number }
   ): Promise<void> {
+    await this.openMembersPanel();
     const usernameElement = this.getMemberUsername(memberIdentifier);
     await expect(usernameElement).toHaveText(`@${expectedLogin}`, options);
     await expect(usernameElement).toHaveClass(/text-muted/);
@@ -415,6 +428,7 @@ export class RoomPage {
    * Returns an array of display name strings.
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
+    await this.openMembersPanel();
     const memberItems = this.memberList.locator('button.sidebar-item');
     const count = await memberItems.count();
     const displayNames: string[] = [];

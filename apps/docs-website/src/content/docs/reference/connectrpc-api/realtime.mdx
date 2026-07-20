@@ -333,6 +333,7 @@ Canonical lightweight room state retained by a server-scoped projection.
 | `room` | `chatto.api.v1.RoomWithViewerState` | Public room metadata and viewer-specific state. |
 | `member_user_ids` | `repeated string` | Current room membership expressed as references into the projection's server-wide user directory. DM participants are always present. Channel membership is empty in a cold room summary and complete after that room's timeline has been materialised. |
 | `viewer_notification_count` | `uint32` | Current pending notifications targeting this room for the viewer. |
+| `has_message_history` | `optional bool` | Whether this DM room has ever received a root message. False means the durable room exists only so its initiator can compose the first message. Once true, message deletion does not reset it. Absent for channel rooms and servers that predate this field. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionRoomActivity"></a>
 

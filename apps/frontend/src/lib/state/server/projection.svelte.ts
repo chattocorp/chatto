@@ -141,7 +141,8 @@ export class ServerProjectionStore {
               new RealtimeProjectionRoom({
                 room: current.room,
                 memberUserIds: [...current.memberUserIds],
-                viewerNotificationCount: Math.max(0, counts[roomId] ?? 0)
+                viewerNotificationCount: Math.max(0, counts[roomId] ?? 0),
+                hasMessageHistory: current.hasMessageHistory
               })
             );
           }
@@ -159,7 +160,8 @@ export class ServerProjectionStore {
                   viewerState: replacement.viewerState
                 }),
                 memberUserIds: [...current.memberUserIds],
-                viewerNotificationCount: current.viewerNotificationCount
+                viewerNotificationCount: current.viewerNotificationCount,
+                hasMessageHistory: current.hasMessageHistory
               })
             );
           }
@@ -230,7 +232,7 @@ export class ServerProjectionStore {
           break;
         }
         case 'roomActivity':
-          this.bumpRoom(operation.operation.value.roomId);
+          this.activateRoom(operation.operation.value.roomId);
           break;
         case undefined:
           throw new Error('unsupported realtime projection operation');
@@ -250,7 +252,8 @@ export class ServerProjectionStore {
       new RealtimeProjectionRoom({
         room: room.room,
         memberUserIds: [],
-        viewerNotificationCount: room.viewerNotificationCount
+        viewerNotificationCount: room.viewerNotificationCount,
+        hasMessageHistory: room.hasMessageHistory
       })
     );
   }
@@ -285,7 +288,8 @@ export class ServerProjectionStore {
         new RealtimeProjectionRoom({
           room: room.room,
           memberUserIds: room.memberUserIds.filter((candidate) => candidate !== userId),
-          viewerNotificationCount: room.viewerNotificationCount
+          viewerNotificationCount: room.viewerNotificationCount,
+          hasMessageHistory: room.hasMessageHistory
         })
       );
     }
@@ -390,10 +394,20 @@ export class ServerProjectionStore {
     );
   }
 
-  /** Retain newest-activity-first DM ordering across later room-state replacements. */
-  private bumpRoom(roomId: string): void {
-    const room = this.rooms.get(roomId);
-    if (!room || this.rooms.keys().next().value === roomId) return;
+  /** Activate first-message visibility and retain newest-activity-first ordering. */
+  private activateRoom(roomId: string): void {
+    const current = this.rooms.get(roomId);
+    if (!current) return;
+    const room = new RealtimeProjectionRoom({
+      room: current.room,
+      memberUserIds: [...current.memberUserIds],
+      viewerNotificationCount: current.viewerNotificationCount,
+      hasMessageHistory: true
+    });
+    if (this.rooms.keys().next().value === roomId) {
+      this.rooms.set(roomId, room);
+      return;
+    }
     const remaining = [...this.rooms.entries()].filter(([id]) => id !== roomId);
     this.rooms.clear();
     this.rooms.set(roomId, room);

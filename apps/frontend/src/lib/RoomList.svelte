@@ -33,6 +33,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
+    isNavigationVisibleRoom,
     type RoomsListItem,
     type RoomsListGroup,
     type RoomsListGroupItem
@@ -109,7 +110,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Room sets only apply to channels — DM rooms always render in their
   // own group below.
   let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Channel));
-  let dmRooms = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Dm));
+  let dmRooms = $derived(
+    roomsStore.rooms.filter((r) => r.type === RoomType.Dm && isNavigationVisibleRoom(r))
+  );
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 

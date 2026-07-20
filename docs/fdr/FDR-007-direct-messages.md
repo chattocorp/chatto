@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -11,6 +11,7 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks).
 - Starting a DM with a user (or set of users) navigates to the resulting DM room. If a DM with the same participant set already exists, the user lands in that room rather than creating a duplicate.
+- Starting a DM creates the durable room and participant memberships immediately so the complete composer is available, but the empty conversation stays out of every participant's navigation until its first message is sent.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
@@ -59,6 +60,12 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 **Decision:** Even users with admin/moderator roles cannot edit others' messages, delete others' messages, or otherwise moderate inside a DM room. The deny-list is unconditional regardless of role.
 **Why:** DMs are private by design. An admin who could moderate DMs would have a privacy boundary problem. Treating the deny as a static rule (not a configurable permission) prevents accidental misconfiguration.
 **Tradeoff:** Genuine abuse inside DMs has no in-product moderation path — operators have to address it at the user level (suspend, kick from server) instead. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`.
+
+### 7. Empty rooms are latent conversations
+
+**Decision:** Starting a DM creates its deterministic room and memberships immediately, but navigation surfaces show it only after the first root message. Once activated, retracting every message does not hide the conversation again.
+**Why:** Early creation keeps routing, permissions, attachments, previews, and the ordinary room composer simple while avoiding an unsolicited empty conversation in another participant's UI.
+**Tradeoff:** Empty DM rooms remain in durable history and authorized client state even though they are absent from navigation. This small amount of latent state avoids a separate draft-conversation model and disappears automatically from presentation after replay.
 
 ## Permissions
 
