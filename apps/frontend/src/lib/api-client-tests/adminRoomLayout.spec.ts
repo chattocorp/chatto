@@ -59,6 +59,7 @@ describe('createAdminRoomLayoutAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
+          description: 'Main rooms',
           canCreateRoom: true,
           items: [
             {
@@ -75,7 +76,9 @@ describe('createAdminRoomLayoutAPI', () => {
         }
       ]
     });
-    mocks.createRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Projects', items: [] } });
+    mocks.createRoomGroup.mockResolvedValue({
+      group: { id: 'g2', name: 'Projects', description: 'Project rooms', items: [] }
+    });
     mocks.updateRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
     mocks.deleteRoomGroup.mockResolvedValue({ deleted: true });
     mocks.reorderRoomGroups.mockResolvedValue({ groups: [] });
@@ -99,6 +102,7 @@ describe('createAdminRoomLayoutAPI', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        description: 'Main rooms',
         canCreateRoom: true,
         rooms: [
           {
@@ -127,6 +131,7 @@ describe('createAdminRoomLayoutAPI', () => {
     await expect(api.createRoomGroup({ name: 'Projects' })).resolves.toEqual({
       id: 'g2',
       name: 'Projects',
+      description: 'Project rooms',
       canCreateRoom: false,
       rooms: [],
       items: []
