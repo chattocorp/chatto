@@ -76,6 +76,9 @@ const { mocks } = vi.hoisted(() => ({
         incrementUnreadNotification: vi.fn(),
         refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
       },
+      roomDirectory: {
+        joinRoom: vi.fn()
+      },
       pendingHighlights: {
         set: vi.fn()
       },
@@ -279,6 +282,7 @@ beforeEach(() => {
   });
   mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
   mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
+  mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
   mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
 
@@ -319,6 +323,72 @@ describe('RoomList', () => {
     markRead!.click();
 
     expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
+  });
+
+  it('offers a join action for a visible non-member room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    const markRead = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Mark as read'
+    );
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    await expect.element(join ?? null).toBeEnabled();
+    expect(markRead).toBeUndefined();
+    expect(leave).toBeUndefined();
+
+    join!.click();
+    await vi.waitFor(() =>
+      expect(mocks.store.roomDirectory.joinRoom).toHaveBeenCalledWith('joinable-channel')
+    );
+  });
+
+  it('offers room settings to a non-member room manager alongside Join', async () => {
+    const rooms = mocks.store.rooms.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'joinable-channel');
+    if (!channel) throw new Error('Missing mocked room joinable-channel');
+    channel.viewerCanManageRoom = true;
+
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    await expect.element(join ?? null).toBeEnabled();
+    await expect.element(settings ?? null).toBeInTheDocument();
+
+    settings!.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
+  });
+
+  it('shows a disabled join action for a visible restricted room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    await expect.element(join ?? null).toBeDisabled();
   });
 
   it('opens room actions after a touch long-press and suppresses its synthetic click', async () => {
