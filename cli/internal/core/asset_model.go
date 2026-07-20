@@ -43,16 +43,15 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease                             *lease.Lease
-	cleanupConsumer                          *events.IncrementalEffectConsumer
-	failedVideoCleanupConsumer               *events.IncrementalEffectConsumer
-	derivativeCleanupConsumer                *events.IncrementalEffectConsumer
-	processingCommitReconciliationConsumer   *events.IncrementalEffectConsumer
-	derivativeCreationReconciliationConsumer *events.IncrementalEffectConsumer
-	cleanupPollEvery                         time.Duration
-	waitForAssetsOverride                    func(context.Context, events.StreamPosition) error
-	cleanupStatusMu                          sync.RWMutex
-	cleanupPass                              assetCleanupPassStatus
+	cleanupLease                           *lease.Lease
+	cleanupConsumer                        *events.IncrementalEffectConsumer
+	failedVideoCleanupConsumer             *events.IncrementalEffectConsumer
+	derivativeCleanupConsumer              *events.IncrementalEffectConsumer
+	processingCommitReconciliationConsumer *events.IncrementalEffectConsumer
+	cleanupPollEvery                       time.Duration
+	waitForAssetsOverride                  func(context.Context, events.StreamPosition) error
+	cleanupStatusMu                        sync.RWMutex
+	cleanupPass                            assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
@@ -77,11 +76,6 @@ func NewAssetModel(core *ChattoCore) *AssetModel {
 			core.EventPublisher,
 			events.AssetEventTypeFilter(events.EventAssetProcessingCommitReconciliationRequested),
 			model.reconcileUnknownVideoProcessingCommit,
-		)
-		model.derivativeCreationReconciliationConsumer = events.NewIncrementalEffectConsumerWithSubject(
-			core.EventPublisher,
-			events.AssetEventTypeFilter(events.EventAssetDerivativeCreationCommitReconciliationRequested),
-			model.reconcileUnknownDerivativeCreationCommit,
 		)
 	}
 	return model
@@ -160,24 +154,9 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 		}
 		committed, confirmErr := s.assetEventCommitted(ctx, attachment.GetId(), event)
 		if confirmErr != nil {
-			var reconcileErr error
-			if deriv != nil {
-				reconcileCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
-				reconcileErr = s.RecordAssetDerivativeCreationCommitReconciliationRequested(
-					reconcileCtx,
-					actorID,
-					deriv.parentAssetID,
-					event.GetId(),
-					attachment,
-					deriv.derivativeRole,
-					roomID,
-				)
-				cancel()
-			}
 			return errors.Join(
 				fmt.Errorf("publish asset creation event: %w", err),
 				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
-				reconcileErr,
 			)
 		}
 		if committed {
@@ -841,29 +820,6 @@ func (s *AssetModel) RecordAssetProcessingCommitReconciliationRequested(ctx cont
 		},
 	})
 	return s.appendAssetRecoveryEvent(ctx, sourceAssetID, event, "processing commit reconciliation request")
-}
-
-// RecordAssetDerivativeCreationCommitReconciliationRequested preserves the
-// exact creation attempt and storage handle for an ambiguously created child.
-func (s *AssetModel) RecordAssetDerivativeCreationCommitReconciliationRequested(ctx context.Context, actorID, sourceAssetID, attemptedEventID string, attachment *corev1.Attachment, derivativeRole corev1.AssetDerivativeRole, roomID string) error {
-	if actorID == "" {
-		return fmt.Errorf("derivative creation reconciliation request missing actor id")
-	}
-	if sourceAssetID == "" || attemptedEventID == "" || attachment.GetId() == "" {
-		return fmt.Errorf("derivative creation reconciliation request missing source, attempted event, or derivative asset id")
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetDerivativeCreationCommitReconciliationRequested{
-			AssetDerivativeCreationCommitReconciliationRequested: &corev1.AssetDerivativeCreationCommitReconciliationRequestedEvent{
-				SourceAssetId:    sourceAssetID,
-				AttemptedEventId: attemptedEventID,
-				Asset:            assetFromAttachment(attachment),
-				DerivativeRole:   derivativeRole,
-				RoomId:           roomID,
-			},
-		},
-	})
-	return s.appendAssetRecoveryEvent(ctx, sourceAssetID, event, "derivative creation reconciliation request")
 }
 
 // appendAssetRecoveryEvent retries one recovery fact with a stable event ID.

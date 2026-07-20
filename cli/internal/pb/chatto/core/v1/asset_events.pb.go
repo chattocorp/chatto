@@ -644,86 +644,6 @@ func (x *AssetProcessingCommitReconciliationRequestedEvent) GetMessageEventId() 
 	return ""
 }
 
-// AssetDerivativeCreationCommitReconciliationRequestedEvent preserves the
-// storage handle for a derivative whose AssetCreated append could not be
-// confirmed. Recovery tombstones a committed creation or directly removes an
-// uncommitted binary using the recorded canonical storage metadata.
-type AssetDerivativeCreationCommitReconciliationRequestedEvent struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	SourceAssetId    string                 `protobuf:"bytes,1,opt,name=source_asset_id,json=sourceAssetId,proto3" json:"source_asset_id,omitempty"`
-	AttemptedEventId string                 `protobuf:"bytes,2,opt,name=attempted_event_id,json=attemptedEventId,proto3" json:"attempted_event_id,omitempty"`
-	Asset            *AssetRecord           `protobuf:"bytes,3,opt,name=asset,proto3" json:"asset,omitempty"`
-	DerivativeRole   AssetDerivativeRole    `protobuf:"varint,4,opt,name=derivative_role,json=derivativeRole,proto3,enum=chatto.core.v1.AssetDerivativeRole" json:"derivative_role,omitempty"`
-	RoomId           string                 `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) Reset() {
-	*x = AssetDerivativeCreationCommitReconciliationRequestedEvent{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AssetDerivativeCreationCommitReconciliationRequestedEvent) ProtoMessage() {}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AssetDerivativeCreationCommitReconciliationRequestedEvent.ProtoReflect.Descriptor instead.
-func (*AssetDerivativeCreationCommitReconciliationRequestedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) GetSourceAssetId() string {
-	if x != nil {
-		return x.SourceAssetId
-	}
-	return ""
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) GetAttemptedEventId() string {
-	if x != nil {
-		return x.AttemptedEventId
-	}
-	return ""
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) GetAsset() *AssetRecord {
-	if x != nil {
-		return x.Asset
-	}
-	return nil
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) GetDerivativeRole() AssetDerivativeRole {
-	if x != nil {
-		return x.DerivativeRole
-	}
-	return AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_UNSPECIFIED
-}
-
-func (x *AssetDerivativeCreationCommitReconciliationRequestedEvent) GetRoomId() string {
-	if x != nil {
-		return x.RoomId
-	}
-	return ""
-}
-
 // AssetProcessedVideo is the per-asset video manifest carried by
 // AssetProcessingSucceededEvent. Derivative assets (thumbnail + variants)
 // are referenced by id and have their own AssetCreatedEvent records.
@@ -742,7 +662,7 @@ type AssetProcessedVideo struct {
 
 func (x *AssetProcessedVideo) Reset() {
 	*x = AssetProcessedVideo{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +674,7 @@ func (x *AssetProcessedVideo) String() string {
 func (*AssetProcessedVideo) ProtoMessage() {}
 
 func (x *AssetProcessedVideo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +687,7 @@ func (x *AssetProcessedVideo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessedVideo.ProtoReflect.Descriptor instead.
 func (*AssetProcessedVideo) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AssetProcessedVideo) GetDurationMs() int64 {
@@ -822,7 +742,7 @@ type AssetVideoVariant struct {
 
 func (x *AssetVideoVariant) Reset() {
 	*x = AssetVideoVariant{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -834,7 +754,7 @@ func (x *AssetVideoVariant) String() string {
 func (*AssetVideoVariant) ProtoMessage() {}
 
 func (x *AssetVideoVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -847,7 +767,7 @@ func (x *AssetVideoVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetVideoVariant.ProtoReflect.Descriptor instead.
 func (*AssetVideoVariant) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AssetVideoVariant) GetQuality() string {
@@ -876,7 +796,7 @@ type AssetProcessedHLS struct {
 
 func (x *AssetProcessedHLS) Reset() {
 	*x = AssetProcessedHLS{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +808,7 @@ func (x *AssetProcessedHLS) String() string {
 func (*AssetProcessedHLS) ProtoMessage() {}
 
 func (x *AssetProcessedHLS) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +821,7 @@ func (x *AssetProcessedHLS) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessedHLS.ProtoReflect.Descriptor instead.
 func (*AssetProcessedHLS) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{10}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AssetProcessedHLS) GetRenditions() []*AssetHLSRendition {
@@ -924,7 +844,7 @@ type AssetHLSRendition struct {
 
 func (x *AssetHLSRendition) Reset() {
 	*x = AssetHLSRendition{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -936,7 +856,7 @@ func (x *AssetHLSRendition) String() string {
 func (*AssetHLSRendition) ProtoMessage() {}
 
 func (x *AssetHLSRendition) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[11]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -949,7 +869,7 @@ func (x *AssetHLSRendition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetHLSRendition.ProtoReflect.Descriptor instead.
 func (*AssetHLSRendition) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{11}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AssetHLSRendition) GetQuality() string {
@@ -998,7 +918,7 @@ type AssetHLSSegment struct {
 
 func (x *AssetHLSSegment) Reset() {
 	*x = AssetHLSSegment{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1010,7 +930,7 @@ func (x *AssetHLSSegment) String() string {
 func (*AssetHLSSegment) ProtoMessage() {}
 
 func (x *AssetHLSSegment) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[12]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1023,7 +943,7 @@ func (x *AssetHLSSegment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetHLSSegment.ProtoReflect.Descriptor instead.
 func (*AssetHLSSegment) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{12}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AssetHLSSegment) GetAssetId() string {
@@ -1077,13 +997,7 @@ const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\x0fsource_asset_id\x18\x01 \x01(\tR\rsourceAssetId\x12,\n" +
 	"\x12attempted_event_id\x18\x02 \x01(\tR\x10attemptedEventId\x12*\n" +
 	"\x11cleanup_asset_ids\x18\x03 \x03(\tR\x0fcleanupAssetIds\x12(\n" +
-	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventId\"\xab\x02\n" +
-	"9AssetDerivativeCreationCommitReconciliationRequestedEvent\x12&\n" +
-	"\x0fsource_asset_id\x18\x01 \x01(\tR\rsourceAssetId\x12,\n" +
-	"\x12attempted_event_id\x18\x02 \x01(\tR\x10attemptedEventId\x121\n" +
-	"\x05asset\x18\x03 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\x12L\n" +
-	"\x0fderivative_role\x18\x04 \x01(\x0e2#.chatto.core.v1.AssetDerivativeRoleR\x0ederivativeRole\x12\x17\n" +
-	"\aroom_id\x18\x05 \x01(\tR\x06roomId\"\x86\x02\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventId\"\x86\x02\n" +
 	"\x13AssetProcessedVideo\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x03R\n" +
 	"durationMs\x12\x14\n" +
@@ -1133,43 +1047,40 @@ func file_chatto_core_v1_asset_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_asset_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_chatto_core_v1_asset_events_proto_goTypes = []any{
-	(AssetDerivativeRole)(0),                                          // 0: chatto.core.v1.AssetDerivativeRole
-	(AssetProcessingFailureCode)(0),                                   // 1: chatto.core.v1.AssetProcessingFailureCode
-	(*AssetCreatedEvent)(nil),                                         // 2: chatto.core.v1.AssetCreatedEvent
-	(*AssetDeletedEvent)(nil),                                         // 3: chatto.core.v1.AssetDeletedEvent
-	(*AssetProcessingStartedEvent)(nil),                               // 4: chatto.core.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil),                             // 5: chatto.core.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),                                // 6: chatto.core.v1.AssetProcessingFailedEvent
-	(*AssetDerivativeCleanupRequestedEvent)(nil),                      // 7: chatto.core.v1.AssetDerivativeCleanupRequestedEvent
-	(*AssetProcessingCommitReconciliationRequestedEvent)(nil),         // 8: chatto.core.v1.AssetProcessingCommitReconciliationRequestedEvent
-	(*AssetDerivativeCreationCommitReconciliationRequestedEvent)(nil), // 9: chatto.core.v1.AssetDerivativeCreationCommitReconciliationRequestedEvent
-	(*AssetProcessedVideo)(nil),                                       // 10: chatto.core.v1.AssetProcessedVideo
-	(*AssetVideoVariant)(nil),                                         // 11: chatto.core.v1.AssetVideoVariant
-	(*AssetProcessedHLS)(nil),                                         // 12: chatto.core.v1.AssetProcessedHLS
-	(*AssetHLSRendition)(nil),                                         // 13: chatto.core.v1.AssetHLSRendition
-	(*AssetHLSSegment)(nil),                                           // 14: chatto.core.v1.AssetHLSSegment
-	(*AssetRecord)(nil),                                               // 15: chatto.core.v1.AssetRecord
-	(*timestamppb.Timestamp)(nil),                                     // 16: google.protobuf.Timestamp
+	(AssetDerivativeRole)(0),                                  // 0: chatto.core.v1.AssetDerivativeRole
+	(AssetProcessingFailureCode)(0),                           // 1: chatto.core.v1.AssetProcessingFailureCode
+	(*AssetCreatedEvent)(nil),                                 // 2: chatto.core.v1.AssetCreatedEvent
+	(*AssetDeletedEvent)(nil),                                 // 3: chatto.core.v1.AssetDeletedEvent
+	(*AssetProcessingStartedEvent)(nil),                       // 4: chatto.core.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),                     // 5: chatto.core.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),                        // 6: chatto.core.v1.AssetProcessingFailedEvent
+	(*AssetDerivativeCleanupRequestedEvent)(nil),              // 7: chatto.core.v1.AssetDerivativeCleanupRequestedEvent
+	(*AssetProcessingCommitReconciliationRequestedEvent)(nil), // 8: chatto.core.v1.AssetProcessingCommitReconciliationRequestedEvent
+	(*AssetProcessedVideo)(nil),                               // 9: chatto.core.v1.AssetProcessedVideo
+	(*AssetVideoVariant)(nil),                                 // 10: chatto.core.v1.AssetVideoVariant
+	(*AssetProcessedHLS)(nil),                                 // 11: chatto.core.v1.AssetProcessedHLS
+	(*AssetHLSRendition)(nil),                                 // 12: chatto.core.v1.AssetHLSRendition
+	(*AssetHLSSegment)(nil),                                   // 13: chatto.core.v1.AssetHLSSegment
+	(*AssetRecord)(nil),                                       // 14: chatto.core.v1.AssetRecord
+	(*timestamppb.Timestamp)(nil),                             // 15: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_asset_events_proto_depIdxs = []int32{
-	15, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	14, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
 	0,  // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
-	16, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
-	10, // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
+	15, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
 	1,  // 4: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
-	15, // 5: chatto.core.v1.AssetDerivativeCreationCommitReconciliationRequestedEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	0,  // 6: chatto.core.v1.AssetDerivativeCreationCommitReconciliationRequestedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
-	11, // 7: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
-	12, // 8: chatto.core.v1.AssetProcessedVideo.hls:type_name -> chatto.core.v1.AssetProcessedHLS
-	13, // 9: chatto.core.v1.AssetProcessedHLS.renditions:type_name -> chatto.core.v1.AssetHLSRendition
-	14, // 10: chatto.core.v1.AssetHLSRendition.segments:type_name -> chatto.core.v1.AssetHLSSegment
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	10, // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
+	11, // 6: chatto.core.v1.AssetProcessedVideo.hls:type_name -> chatto.core.v1.AssetProcessedHLS
+	12, // 7: chatto.core.v1.AssetProcessedHLS.renditions:type_name -> chatto.core.v1.AssetHLSRendition
+	13, // 8: chatto.core.v1.AssetHLSRendition.segments:type_name -> chatto.core.v1.AssetHLSSegment
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_asset_events_proto_init() }
@@ -1184,7 +1095,7 @@ func file_chatto_core_v1_asset_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_asset_events_proto_rawDesc), len(file_chatto_core_v1_asset_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

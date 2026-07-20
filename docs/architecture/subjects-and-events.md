@@ -162,7 +162,6 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.asset.{assetId}.asset_deleted`                          | `AssetDeletedEvent`                                 |
 | `evt.asset.{assetId}.asset_derivative_cleanup_requested`     | `AssetDerivativeCleanupRequestedEvent`              |
 | `evt.asset.{assetId}.asset_processing_commit_reconciliation_requested` | `AssetProcessingCommitReconciliationRequestedEvent` |
-| `evt.asset.{assetId}.asset_derivative_creation_commit_reconciliation_requested` | `AssetDerivativeCreationCommitReconciliationRequestedEvent` |
 | `evt.config.{subject}.server_name_changed`                   | `ServerNameChangedEvent`                            |
 | `evt.config.{subject}.server_description_changed`            | `ServerDescriptionChangedEvent`                     |
 | `evt.config.{subject}.server_welcome_message_changed`        | `ServerWelcomeMessageChangedEvent`                  |
@@ -245,9 +244,7 @@ the elected asset-cleanup worker ignores the absent field on historical events.
 Losing terminal attempts use `AssetDerivativeCleanupRequestedEvent`, while an
 processing success is preceded by a delayed exact-event reconciliation guard
 that retains the output if its success event ID appears and otherwise records
-failure before cleanup. Ambiguous derivative creation preserves canonical
-storage metadata in a separate reconciliation fact, allowing recovery to
-tombstone a committed child or directly remove an uncommitted binary.
+failure before cleanup.
 
 ## Transient live subjects
 

@@ -165,18 +165,6 @@ message AssetProcessingCommitReconciliationRequestedEvent {
   string message_event_id = 4;
 }
 
-// AssetDerivativeCreationCommitReconciliationRequestedEvent preserves the
-// storage handle for a derivative whose AssetCreated append could not be
-// confirmed. Recovery tombstones a committed creation or directly removes an
-// uncommitted binary using the recorded canonical storage metadata.
-message AssetDerivativeCreationCommitReconciliationRequestedEvent {
-  string source_asset_id = 1;
-  string attempted_event_id = 2;
-  AssetRecord asset = 3;
-  AssetDerivativeRole derivative_role = 4;
-  string room_id = 5;
-}
-
 // AssetProcessedVideo is the per-asset video manifest carried by
 // AssetProcessingSucceededEvent. Derivative assets (thumbnail + variants)
 // are referenced by id and have their own AssetCreatedEvent records.

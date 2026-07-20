@@ -284,68 +284,6 @@ func TestAssetCleanupReconciliationRetainsCommittedVideoSuccess(t *testing.T) {
 	}
 }
 
-func TestAssetCleanupReconcilesCommittedDerivativeCreation(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "cleanup-created-derivative", "Created derivative cleanup")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
-	if err != nil {
-		t.Fatalf("UploadAttachment: %v", err)
-	}
-	segment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
-	if err != nil {
-		t.Fatalf("UploadDerivativeAttachment: %v", err)
-	}
-	created, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetCreated))
-	if err != nil || len(created) != 1 {
-		t.Fatalf("derivative creation events = %d, %v; want 1, nil", len(created), err)
-	}
-	previousGrace := assetCommitReconciliationGrace
-	assetCommitReconciliationGrace = 0
-	t.Cleanup(func() { assetCommitReconciliationGrace = previousGrace })
-	if err := core.assetLifecycle().RecordAssetDerivativeCreationCommitReconciliationRequested(ctx, SystemActorID, original.GetId(), created[0].GetId(), segment, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId()); err != nil {
-		t.Fatalf("RecordAssetDerivativeCreationCommitReconciliationRequested: %v", err)
-	}
-	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
-		t.Fatalf("consumeAssetCleanup creation reconciliation: %v", err)
-	}
-	if _, _, err := core.media().GetAttachmentReader(ctx, segment); err == nil {
-		t.Fatal("committed but unused derivative remained readable")
-	}
-}
-
-func TestAssetCleanupReconcilesUncommittedDerivativeCreation(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "cleanup-uncommitted", "Uncommitted derivative cleanup")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
-	if err != nil {
-		t.Fatalf("UploadAttachment: %v", err)
-	}
-	segment, err := core.media().uploadAttachmentBinary(ctx, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
-	if err != nil {
-		t.Fatalf("uploadAttachmentBinary: %v", err)
-	}
-	previousGrace := assetCommitReconciliationGrace
-	assetCommitReconciliationGrace = 0
-	t.Cleanup(func() { assetCommitReconciliationGrace = previousGrace })
-	if err := core.assetLifecycle().RecordAssetDerivativeCreationCommitReconciliationRequested(ctx, SystemActorID, original.GetId(), "EVT-never-committed", segment, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId()); err != nil {
-		t.Fatalf("RecordAssetDerivativeCreationCommitReconciliationRequested: %v", err)
-	}
-	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
-		t.Fatalf("consumeAssetCleanup creation reconciliation: %v", err)
-	}
-	if _, _, err := core.media().GetAttachmentReader(ctx, segment); err == nil {
-		t.Fatal("uncommitted derivative remained readable")
-	}
-}
-
 func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

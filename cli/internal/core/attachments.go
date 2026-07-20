@@ -248,8 +248,6 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
 		if errors.Is(err, ErrAssetCommitUnknown) {
 			// Preserve the storage handle so the worker can attempt prompt cleanup.
-			// AssetModel has also recorded an exact-event reconciliation request
-			// that can finish cleanup after a crash or ambiguous publication.
 			return attachment, err
 		}
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), attachmentWriteCompensationTimeout)
