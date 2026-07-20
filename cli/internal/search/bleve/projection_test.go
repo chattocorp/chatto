@@ -3,6 +3,7 @@ package bleve
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -172,22 +173,174 @@ func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 	require.Empty(t, response.GetHits())
 }
 
+func TestProjectionIndexesMessagesInEitherEventOrder(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyBody(t, projection, key, "M1", "B1", "R1", "U1", "sequenceword body first", time.Unix(100, 0), nil, 1)
+	applyMessagePosted(t, projection, "M1", "R1", "U1", time.Unix(100, 0), 2)
+	applyMessagePosted(t, projection, "M2", "R1", "U2", time.Unix(200, 0), 3)
+	applyLegacyBody(t, projection, key, "M2", "B2", "R1", "U2", "sequenceword post first", time.Unix(200, 0), nil, 4)
+
+	response, err := projection.query(context.Background(), &searchv1.QueryRequest{
+		RequiredTerms: []string{"sequenceword"}, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"M2", "M1"}, hitIDs(response))
+}
+
+func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessageWithAssets(t, projection, key, "M1", "B1", "R1", "U1", "shared filter term", time.Unix(100, 0), []string{"A1"}, 1)
+	applyLegacyMessage(t, projection, key, "M2", "B2", "R1", "U2", "shared filter term", time.Unix(200, 0), 3)
+	applyLegacyMessageWithAssets(t, projection, key, "M3", "B3", "R2", "U1", "shared filter term", time.Unix(300, 0), []string{"A2"}, 5)
+
+	tests := []struct {
+		name    string
+		request *searchv1.QueryRequest
+		want    []string
+	}{
+		{
+			name: "author",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U2"},
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M2"},
+		},
+		{
+			name: "creation window",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(150, 0)),
+				CreatedBefore: timestamppb.New(time.Unix(250, 0)), Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M2"},
+		},
+		{
+			name: "attachments",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, HasAttachments: true,
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M3", "M1"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := projection.query(context.Background(), test.request)
+			require.NoError(t, err)
+			require.Equal(t, test.want, hitIDs(response))
+		})
+	}
+}
+
+func TestProjectionRejectsMalformedOrForeignCursors(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessage(t, projection, key, "M1", "B1", "R1", "U1", "cursor search", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "M2", "B2", "R1", "U1", "cursor search", time.Unix(200, 0), 3)
+	firstPage, err := projection.query(context.Background(), &searchv1.QueryRequest{
+		RequiredTerms: []string{"cursor"}, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 1,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, firstPage.GetNextCursor())
+	request := &searchv1.QueryRequest{
+		RequiredTerms: []string{"cursor"}, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 1,
+	}
+	hash, err := queryHash(request)
+	require.NoError(t, err)
+	wrongSortCursor, err := json.Marshal(cursor{QueryHash: hash, Sort: []string{"too-short"}})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name   string
+		cursor []byte
+		terms  []string
+	}{
+		{name: "malformed", cursor: []byte("not-json"), terms: []string{"cursor"}},
+		{name: "different query", cursor: firstPage.GetNextCursor(), terms: []string{"search"}},
+		{name: "wrong sort shape", cursor: wrongSortCursor, terms: []string{"cursor"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := projection.query(context.Background(), &searchv1.QueryRequest{
+				RequiredTerms: test.terms, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST,
+				PageSize: 1, Cursor: test.cursor,
+			})
+			require.ErrorIs(t, err, errInvalidCursor)
+		})
+	}
+}
+
+func TestProjectionKeyShreddingRemovesIndexedMessages(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessage(t, projection, key, "M1", "B1", "R1", "U1", "privacy boundary", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "M2", "B2", "R1", "U2", "privacy boundary", time.Unix(200, 0), 3)
+	require.NoError(t, projection.Apply(&corev1.Event{
+		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"}},
+	}, 5))
+
+	response, err := projection.query(context.Background(), &searchv1.QueryRequest{
+		RequiredTerms: []string{"privacy"}, Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"M2"}, hitIDs(response))
+	state, err := projection.index.GetInternal(messageStateKey("M1"))
+	require.NoError(t, err)
+	require.Empty(t, state)
+	pending, err := projection.index.GetInternal([]byte(privacyCompactionKey))
+	require.NoError(t, err)
+	require.Empty(t, pending)
+}
+
 func applyLegacyMessage(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, startSeq uint64) {
+	t.Helper()
+	applyLegacyMessageWithAssets(t, projection, key, messageID, bodyEventID, roomID, authorID, text, createdAt, nil, startSeq)
+}
+
+func applyLegacyMessageWithAssets(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string, startSeq uint64) {
+	t.Helper()
+	applyLegacyBody(t, projection, key, messageID, bodyEventID, roomID, authorID, text, createdAt, assetIDs, startSeq)
+	applyMessagePosted(t, projection, messageID, roomID, authorID, createdAt, startSeq+1)
+}
+
+func applyLegacyBody(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string, seq uint64) {
 	t.Helper()
 	encrypted, err := encryption.Encrypt(key, []byte(text))
 	require.NoError(t, err)
 	body := &corev1.MessageBody{
 		AuthorId: authorID, CreatedAt: timestamppb.New(createdAt), BodyEventId: bodyEventID,
-		EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce,
+		EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce, AssetIds: assetIDs,
 	}
 	require.NoError(t, projection.Apply(&corev1.Event{
 		Id: bodyEventID, CreatedAt: timestamppb.New(createdAt), ActorId: authorID,
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: roomID, EventId: messageID, Body: body}},
-	}, startSeq))
+	}, seq))
+}
+
+func applyMessagePosted(t *testing.T, projection *Projection, messageID, roomID, authorID string, createdAt time.Time, seq uint64) {
+	t.Helper()
 	require.NoError(t, projection.Apply(&corev1.Event{
 		Id: messageID, CreatedAt: timestamppb.New(createdAt), ActorId: authorID,
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}},
-	}, startSeq+1))
+	}, seq))
 }
 
 func applyV2MessageBody(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, timestamp time.Time, seq uint64) {
