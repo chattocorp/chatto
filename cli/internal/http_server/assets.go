@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -28,6 +29,9 @@ func (s *HTTPServer) setupAssetRoutes() {
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
 	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
 	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
+	s.router.GET("/assets/hls/:assetID/master.m3u8", s.serveHLSMasterPlaylist)
+	s.router.GET("/assets/hls/:assetID/renditions/:rendition/playlist.m3u8", s.serveHLSMediaPlaylist)
+	s.router.GET("/assets/hls/:assetID/renditions/:rendition/segments/:segment", s.serveHLSSegment)
 }
 
 // transformRequest holds the parameters for a transformed asset request.
@@ -311,7 +315,10 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 	if !ok {
 		return nil, false
 	}
+	return s.resolveAttachmentForViewer(c, ctx, assetID, userID)
+}
 
+func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Context, assetID, userID string) (*corev1.Attachment, bool) {
 	declared, ok := s.core.Assets.AssetCreation(assetID)
 	if !ok || declared == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
@@ -348,6 +355,178 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 	}
 	attachment.RoomId = roomID
 	return attachment, true
+}
+
+func (s *HTTPServer) resolveHLS(c *gin.Context) (*corev1.AssetProcessedHLS, string, bool) {
+	assetID := c.Param("assetID")
+	access := c.Query("access")
+	if assetID == "" || access == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "HLS access ticket required"})
+		return nil, "", false
+	}
+	ticket, err := signedurl.ParseSignedHLSAccessTicket(s.config.Core.Assets.SigningSecret, access)
+	if err != nil {
+		s.logger.Warn("Invalid HLS access ticket", "error", err, "asset_id", assetID)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid HLS access ticket"})
+		return nil, "", false
+	}
+	if ticket.Expired(time.Now().Unix()) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "HLS access ticket expired"})
+		return nil, "", false
+	}
+	if ticket.AssetID != assetID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "HLS access ticket does not match asset"})
+		return nil, "", false
+	}
+	if _, ok := s.resolveAttachmentForViewer(c, c.Request.Context(), assetID, ticket.UserID); !ok {
+		return nil, "", false
+	}
+	manifest, ok := s.core.Assets.VideoAttachmentManifest(assetID)
+	if !ok || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo().GetHls() == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS generation not found"})
+		return nil, "", false
+	}
+	return manifest.Succeeded.GetVideo().GetHls(), access, true
+}
+
+func parseHLSIndex(c *gin.Context, name string, size int) (int, bool) {
+	index, err := strconv.Atoi(c.Param(name))
+	if err != nil || index < 0 || index >= size {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
+		return 0, false
+	}
+	return index, true
+}
+
+func hlsChildPath(assetID, access, suffix string) string {
+	values := url.Values{}
+	values.Set("access", access)
+	return fmt.Sprintf("/assets/hls/%s/%s?%s", url.PathEscape(assetID), suffix, values.Encode())
+}
+
+func renderHLSMasterPlaylist(hls *corev1.AssetProcessedHLS, childURL func(index int) string) ([]byte, error) {
+	if hls == nil || len(hls.GetRenditions()) == 0 {
+		return nil, fmt.Errorf("HLS manifest contains no renditions")
+	}
+	var playlist strings.Builder
+	playlist.WriteString("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n")
+	for i, rendition := range hls.GetRenditions() {
+		if rendition == nil || rendition.GetBandwidth() < 1 || rendition.GetWidth() < 1 || rendition.GetHeight() < 1 || len(rendition.GetSegments()) == 0 {
+			return nil, fmt.Errorf("HLS rendition %d is incomplete", i)
+		}
+		fmt.Fprintf(&playlist, "#EXT-X-STREAM-INF:BANDWIDTH=%d,RESOLUTION=%dx%d\n%s\n", rendition.GetBandwidth(), rendition.GetWidth(), rendition.GetHeight(), childURL(i))
+	}
+	return []byte(playlist.String()), nil
+}
+
+func renderHLSMediaPlaylist(rendition *corev1.AssetHLSRendition, segmentURL func(index int) string) ([]byte, error) {
+	if rendition == nil || len(rendition.GetSegments()) == 0 {
+		return nil, fmt.Errorf("HLS rendition contains no segments")
+	}
+	var targetDuration int64
+	for i, segment := range rendition.GetSegments() {
+		if segment == nil || segment.GetAssetId() == "" || segment.GetDurationMs() < 1 {
+			return nil, fmt.Errorf("HLS segment %d is incomplete", i)
+		}
+		seconds := (segment.GetDurationMs() + 999) / 1000
+		if seconds > targetDuration {
+			targetDuration = seconds
+		}
+	}
+	var playlist strings.Builder
+	fmt.Fprintf(&playlist, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:%d\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-INDEPENDENT-SEGMENTS\n", targetDuration)
+	for i, segment := range rendition.GetSegments() {
+		fmt.Fprintf(&playlist, "#EXTINF:%.3f,\n%s\n", float64(segment.GetDurationMs())/1000, segmentURL(i))
+	}
+	playlist.WriteString("#EXT-X-ENDLIST\n")
+	return []byte(playlist.String()), nil
+}
+
+func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string, role corev1.AssetDerivativeRole) (*corev1.Attachment, bool) {
+	declared, ok := s.core.Assets.AssetCreation(assetID)
+	if !ok || declared == nil || declared.GetParentAssetId() != originAssetID || declared.GetDerivativeRole() != role {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
+		return nil, false
+	}
+	attachment := core.AttachmentFromAsset(declared.GetAsset())
+	if attachment == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
+		return nil, false
+	}
+	return attachment, true
+}
+
+func (s *HTTPServer) serveGeneratedHLSPlaylist(c *gin.Context, playlist []byte, err error) {
+	if err != nil {
+		s.logger.Error("Invalid durable HLS manifest", "error", err, "asset_id", c.Param("assetID"))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid HLS manifest"})
+		return
+	}
+	c.Header("Cache-Control", protectedAssetCacheControl)
+	c.Header("Vary", "Origin")
+	c.Data(http.StatusOK, "application/vnd.apple.mpegurl", playlist)
+}
+
+func (s *HTTPServer) serveHLSMasterPlaylist(c *gin.Context) {
+	hls, access, ok := s.resolveHLS(c)
+	if !ok {
+		return
+	}
+	assetID := c.Param("assetID")
+	playlist, err := renderHLSMasterPlaylist(hls, func(index int) string {
+		return hlsChildPath(assetID, access, fmt.Sprintf("renditions/%d/playlist.m3u8", index))
+	})
+	s.serveGeneratedHLSPlaylist(c, playlist, err)
+}
+
+func (s *HTTPServer) serveHLSMediaPlaylist(c *gin.Context) {
+	hls, access, ok := s.resolveHLS(c)
+	if !ok {
+		return
+	}
+	renditionIndex, ok := parseHLSIndex(c, "rendition", len(hls.GetRenditions()))
+	if !ok {
+		return
+	}
+	assetID := c.Param("assetID")
+	rendition := hls.GetRenditions()[renditionIndex]
+	playlist, err := renderHLSMediaPlaylist(rendition, func(index int) string {
+		return hlsChildPath(assetID, access, fmt.Sprintf("renditions/%d/segments/%d.ts", renditionIndex, index))
+	})
+	s.serveGeneratedHLSPlaylist(c, playlist, err)
+}
+
+func (s *HTTPServer) serveHLSSegment(c *gin.Context) {
+	hls, _, ok := s.resolveHLS(c)
+	if !ok {
+		return
+	}
+	renditionIndex, ok := parseHLSIndex(c, "rendition", len(hls.GetRenditions()))
+	if !ok {
+		return
+	}
+	rendition := hls.GetRenditions()[renditionIndex]
+	segmentText := strings.TrimSuffix(c.Param("segment"), ".ts")
+	segmentIndex, err := strconv.Atoi(segmentText)
+	if err != nil || segmentIndex < 0 || segmentIndex >= len(rendition.GetSegments()) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
+		return
+	}
+	attachment, ok := s.hlsDerivative(c, c.Param("assetID"), rendition.GetSegments()[segmentIndex].GetAssetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	if !ok {
+		return
+	}
+	reader, info, err := s.core.GetAttachmentReader(c.Request.Context(), attachment)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
+		return
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+	c.Header("Cache-Control", protectedAssetCacheControl)
+	c.Header("Vary", "Origin")
+	c.DataFromReader(http.StatusOK, info.Size, "video/mp2t", reader, nil)
 }
 
 func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, params *signedurl.TransformParams) (string, bool) {

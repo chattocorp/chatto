@@ -100,6 +100,9 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 		// Beta room-scoped histories cannot be located from the asset ID alone.
 		return nil
 	}
+	if err := s.reconcileDeletedAssetHLSDerivatives(ctx, event, deleted.GetAssetId()); err != nil {
+		return err
+	}
 	created := createdEvents[len(createdEvents)-1].GetAssetCreated()
 	if created.GetAsset().GetId() != deleted.GetAssetId() {
 		return fmt.Errorf(
@@ -117,6 +120,74 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	}
 	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		return fmt.Errorf("delete asset %s from storage: %w", deleted.GetAssetId(), err)
+	}
+	return nil
+}
+
+// reconcileDeletedAssetHLSDerivatives repairs mixed-version deletion. An older
+// replica can read an additive HLS manifest as MP4-only and tombstone the source
+// without tombstoning the HLS children. The durable cleanup consumer can still
+// recover those child IDs from the source aggregate after an upgrade and append
+// their deletion facts before removing the source bytes.
+func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *corev1.Event, sourceAssetID string) error {
+	processedEvents, _, err := s.EventPublisher.SubjectEvents(
+		ctx,
+		events.AssetAggregate(sourceAssetID).Subject(events.EventAssetProcessingSucceeded),
+	)
+	if err != nil {
+		return fmt.Errorf("read processing manifest for deleted asset %s: %w", sourceAssetID, err)
+	}
+	if len(processedEvents) == 0 {
+		return nil
+	}
+	processed := processedEvents[len(processedEvents)-1].GetAssetProcessingSucceeded()
+	if processed.GetAssetId() != sourceAssetID {
+		return fmt.Errorf("processing manifest id %q does not match deleted asset %q", processed.GetAssetId(), sourceAssetID)
+	}
+	hls := processed.GetVideo().GetHls()
+	if hls == nil {
+		return nil
+	}
+
+	type derivativeRef struct {
+		assetID string
+		role    corev1.AssetDerivativeRole
+	}
+	var refs []derivativeRef
+	for _, rendition := range hls.GetRenditions() {
+		if rendition == nil {
+			continue
+		}
+		for _, segment := range rendition.GetSegments() {
+			if segment == nil {
+				continue
+			}
+			refs = append(refs, derivativeRef{
+				assetID: segment.GetAssetId(),
+				role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
+			})
+		}
+	}
+
+	actorID := sourceEvent.GetActorId()
+	if actorID == "" {
+		actorID = SystemActorID
+	}
+	for _, ref := range refs {
+		if ref.assetID == "" {
+			continue
+		}
+		declared, ok := s.AssetCreation(ref.assetID)
+		if !ok {
+			// The child was already tombstoned by an HLS-aware replica.
+			continue
+		}
+		if declared.GetParentAssetId() != sourceAssetID || declared.GetDerivativeRole() != ref.role {
+			return fmt.Errorf("deleted asset %s has invalid HLS derivative reference %s", sourceAssetID, ref.assetID)
+		}
+		if err := s.DeleteAsset(ctx, actorID, ref.assetID); err != nil {
+			return fmt.Errorf("tombstone HLS derivative %s of deleted asset %s: %w", ref.assetID, sourceAssetID, err)
+		}
 	}
 	return nil
 }

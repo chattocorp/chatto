@@ -30,7 +30,8 @@ const (
 	// PublicServerAssetObjectPrefix is the explicit SERVER_ASSETS namespace for
 	// newly written unauthenticated public assets. Historical public objects use
 	// flat asset-ID keys and remain available through the legacy classifier.
-	PublicServerAssetObjectPrefix = "public/"
+	PublicServerAssetObjectPrefix      = "public/"
+	attachmentWriteCompensationTimeout = 5 * time.Second
 )
 
 // PublicServerAssetObjectKey returns the NATS object key for a new public
@@ -245,6 +246,15 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 		attachment.Height = height
 	}
 	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+		if errors.Is(err, ErrAssetCommitUnknown) {
+			// Preserve the storage handle so the worker can attempt prompt cleanup.
+			return attachment, err
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), attachmentWriteCompensationTimeout)
+		defer cancel()
+		if cleanupErr := c.DeleteAttachmentFromStorage(cleanupCtx, attachment); cleanupErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("delete unrecorded derivative binary: %w", cleanupErr))
+		}
 		return nil, err
 	}
 	return attachment, nil
@@ -733,6 +743,28 @@ func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableA
 		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
 		ExpiresAt: expiresAt,
 	}
+}
+
+// GetStableHLSMasterPlaylistAssetURL returns the authorised entry point for
+// one processed video's HLS generation.
+func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) StableAssetURL {
+	if assetID == "" || userID == "" {
+		return StableAssetURL{}
+	}
+	expiresAt := c.assetAccessTicketExpiry()
+	ticket, err := signedurl.SignedHLSAccessTicket(c.config.Assets.SigningSecret, signedurl.HLSAccessTicket{
+		AssetID:   assetID,
+		UserID:    userID,
+		ExpiresAt: expiresAt.Unix(),
+	})
+	if err != nil {
+		c.logger.Warn("Failed to sign HLS access ticket", "error", err, "asset_id", assetID, "user_id", userID)
+		return StableAssetURL{}
+	}
+	values := url.Values{}
+	values.Set("access", ticket)
+	path := fmt.Sprintf("/assets/hls/%s/master.m3u8?%s", url.PathEscape(assetID), values.Encode())
+	return StableAssetURL{URL: c.assetURL(path), ExpiresAt: expiresAt}
 }
 
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived

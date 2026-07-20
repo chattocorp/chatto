@@ -242,16 +242,27 @@ export const quickSwitcher = new QuickSwitcherState();
  *
  * No OS-level fullscreen is used — the overlay is a CSS full-viewport div.
  */
-let _src = $state<string | null>(null);
+export type FullscreenVideoSource = {
+  src: string;
+  type: 'video/mp4' | 'application/vnd.apple.mpegurl';
+};
+
+type FullscreenVideoSourceRefresher = () => Promise<FullscreenVideoSource | null>;
+
+let _source = $state<FullscreenVideoSource | null>(null);
+let _fallbackSource = $state<FullscreenVideoSource | null>(null);
 let _poster = $state<string | null>(null);
 let _startTime = $state(0);
+let _refreshSource: FullscreenVideoSourceRefresher | null = null;
+let _recoveryPromise: Promise<boolean> | null = null;
+let _generation = 0;
 
 export const fullscreenVideo = {
   get isOpen() {
-    return _src !== null;
+    return _source !== null;
   },
-  get src() {
-    return _src;
+  get source() {
+    return _source;
   },
   get poster() {
     return _poster;
@@ -260,15 +271,55 @@ export const fullscreenVideo = {
     return _startTime;
   },
 
-  open(src: string, poster: string | null, startTime: number) {
-    _src = src;
+  open(
+    source: FullscreenVideoSource | string,
+    poster: string | null,
+    startTime: number,
+    fallbackSource: FullscreenVideoSource | null = null,
+    refreshSource: FullscreenVideoSourceRefresher | null = null
+  ) {
+    _generation++;
+    _source = typeof source === 'string' ? { src: source, type: 'video/mp4' } : source;
+    _fallbackSource = fallbackSource;
+    _refreshSource = refreshSource;
+    _recoveryPromise = null;
     _poster = poster;
     _startTime = startTime;
   },
 
   close() {
-    _src = null;
+    _generation++;
+    _source = null;
+    _fallbackSource = null;
+    _refreshSource = null;
+    _recoveryPromise = null;
     _poster = null;
     _startTime = 0;
+  },
+
+  useFallback() {
+    if (!_fallbackSource) return false;
+    _source = _fallbackSource;
+    _fallbackSource = null;
+    return true;
+  },
+
+  recover(): Promise<boolean> {
+    if (this.useFallback()) return Promise.resolve(true);
+    if (!_refreshSource) return Promise.resolve(false);
+    if (_recoveryPromise) return _recoveryPromise;
+
+    const generation = _generation;
+    const refreshSource = _refreshSource;
+    _recoveryPromise = refreshSource()
+      .then((source) => {
+        if (!source || generation !== _generation || refreshSource !== _refreshSource) return false;
+        _source = source;
+        return true;
+      })
+      .finally(() => {
+        if (generation === _generation) _recoveryPromise = null;
+      });
+    return _recoveryPromise;
   }
 };

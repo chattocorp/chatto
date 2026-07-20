@@ -52,6 +52,84 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-hls-version-skew", "HLS version skew")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	uploadDerivative := func(filename, contentType string, role corev1.AssetDerivativeRole) *corev1.Attachment {
+		t.Helper()
+		attachment, err := core.media().UploadDerivativeAttachment(
+			ctx,
+			original.GetId(),
+			role,
+			room.GetId(),
+			filename,
+			contentType,
+			bytes.NewReader([]byte(filename)),
+		)
+		if err != nil {
+			t.Fatalf("UploadDerivativeAttachment(%s): %v", filename, err)
+		}
+		return attachment
+	}
+	segment := uploadDerivative("480p-00000.ts", "video/mp2t", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	hls := &corev1.AssetProcessedHLS{
+		Renditions: []*corev1.AssetHLSRendition{{
+			Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 2000}},
+		}},
+	}
+	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(
+		ctx,
+		SystemActorID,
+		room.GetId(),
+		"E-message",
+		original.GetId(),
+		2_000,
+		320,
+		240,
+		nil,
+		nil,
+		hls,
+	); err != nil {
+		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
+	}
+
+	// Simulate an HLS-unaware replica: it tombstones only the source because
+	// the additive HLS manifest field is unknown to its cleanup code.
+	if err := core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, room.GetId(), original.GetId()); err != nil {
+		t.Fatalf("RecordAssetDeleted source: %v", err)
+	}
+	for _, derivative := range []*corev1.Attachment{segment} {
+		if _, ok := core.Assets.AssetCreation(derivative.GetId()); !ok {
+			t.Fatalf("HLS derivative %s was unexpectedly tombstoned before reconciliation", derivative.GetId())
+		}
+	}
+
+	// A new-version durable cleanup consumer replays the source tombstone,
+	// recovers HLS child IDs from the source aggregate, and deletes the children.
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup reconciliation: %v", err)
+	}
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup child deletion: %v", err)
+	}
+	for _, derivative := range []*corev1.Attachment{segment} {
+		if _, ok := core.Assets.AssetCreation(derivative.GetId()); ok {
+			t.Fatalf("HLS derivative %s remained projected after reconciliation", derivative.GetId())
+		}
+		if _, _, err := core.media().GetAttachmentReader(ctx, derivative); err == nil {
+			t.Fatalf("HLS derivative %s remained readable after reconciliation", derivative.GetId())
+		}
+	}
+}
+
 func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

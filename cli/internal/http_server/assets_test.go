@@ -1701,6 +1701,182 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 	}
 }
 
+func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		setup func(*testing.T) *assetTestEnv
+	}{
+		{name: "NATS", setup: setupAssetTestServer},
+		{name: "S3", setup: setupAssetTestServerWithS3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := tt.setup(t)
+			login := "hls-" + strings.ToLower(tt.name)
+			viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, "HLS Viewer", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", login+"-room", "HLS Room")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("JoinRoom: %v", err)
+			}
+
+			original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+			if err != nil {
+				t.Fatalf("UploadAttachment: %v", err)
+			}
+			segment, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment-bytes")))
+			if err != nil {
+				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
+			}
+			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId()); err != nil {
+				t.Fatalf("RecordAssetProcessingStarted: %v", err)
+			}
+			hls := &corev1.AssetProcessedHLS{
+				Renditions: []*corev1.AssetHLSRendition{{
+					Width: 640, Height: 360, Bandwidth: 500000,
+					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
+				}},
+			}
+			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
+				t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
+			}
+
+			masterURL := env.core.GetStableHLSMasterPlaylistAssetURL(original.GetId(), viewer.Id).URL
+			plainClient := &http.Client{}
+			masterResp, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET master: %v", err)
+			}
+			masterBody, _ := io.ReadAll(masterResp.Body)
+			masterResp.Body.Close()
+			if masterResp.StatusCode != http.StatusOK {
+				t.Fatalf("master status = %d, body = %s", masterResp.StatusCode, masterBody)
+			}
+			mediaURL := firstHLSURI(t, masterBody)
+			if !strings.Contains(mediaURL, "/renditions/0/playlist.m3u8?access=") {
+				t.Fatalf("rewritten media URL = %q", mediaURL)
+			}
+
+			mediaResp, err := plainClient.Get(env.server.URL + mediaURL)
+			if err != nil {
+				t.Fatalf("GET media: %v", err)
+			}
+			mediaBody, _ := io.ReadAll(mediaResp.Body)
+			mediaResp.Body.Close()
+			if mediaResp.StatusCode != http.StatusOK {
+				t.Fatalf("media status = %d, body = %s", mediaResp.StatusCode, mediaBody)
+			}
+			segmentURL := firstHLSURI(t, mediaBody)
+			segmentResp, err := plainClient.Get(env.server.URL + segmentURL)
+			if err != nil {
+				t.Fatalf("GET segment: %v", err)
+			}
+			segmentBody, _ := io.ReadAll(segmentResp.Body)
+			segmentResp.Body.Close()
+			if segmentResp.StatusCode != http.StatusOK || string(segmentBody) != "segment-bytes" {
+				t.Fatalf("segment status/body = %d/%q", segmentResp.StatusCode, segmentBody)
+			}
+
+			if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("LeaveRoom: %v", err)
+			}
+			revoked, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET revoked master: %v", err)
+			}
+			revoked.Body.Close()
+			if revoked.StatusCode != http.StatusForbidden {
+				t.Fatalf("revoked master status = %d, want 403", revoked.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHLSDerivativeRequiresExpectedParentAndRole(t *testing.T) {
+	env := setupAssetTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "hls-derivative", "HLS Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "hls-derivative-room", "HLS Room")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(original): %v", err)
+	}
+	otherOriginal, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "other.mp4", "video/mp4", bytes.NewReader([]byte("other source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(other): %v", err)
+	}
+	wrongParent, err := env.core.UploadDerivativeAttachment(env.ctx, otherOriginal.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "other-segment.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong parent): %v", err)
+	}
+	wrongRole, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong role): %v", err)
+	}
+
+	server := &HTTPServer{core: env.core}
+	for _, tt := range []struct {
+		name    string
+		assetID string
+	}{
+		{name: "wrong parent", assetID: wrongParent.GetId()},
+		{name: "wrong role", assetID: wrongRole.GetId()},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			if _, ok := server.hlsDerivative(c, original.GetId(), tt.assetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT); ok {
+				t.Fatal("hlsDerivative accepted an unrelated derivative")
+			}
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404", recorder.Code)
+			}
+		})
+	}
+}
+
+func firstHLSURI(t *testing.T, playlist []byte) string {
+	t.Helper()
+	for line := range strings.SplitSeq(string(playlist), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return line
+		}
+	}
+	t.Fatal("playlist contained no URI")
+	return ""
+}
+
+func TestRenderHLSPlaylistsFromManifest(t *testing.T) {
+	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
+		Width: 640, Height: 360, Bandwidth: 500_000,
+		Segments: []*corev1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
+	}}}
+	master, err := renderHLSMasterPlaylist(hls, func(index int) string { return fmt.Sprintf("/rendition/%d", index) })
+	if err != nil {
+		t.Fatalf("render master: %v", err)
+	}
+	if got := string(master); !strings.Contains(got, "BANDWIDTH=500000,RESOLUTION=640x360\n/rendition/0") {
+		t.Fatalf("master playlist = %q", got)
+	}
+	media, err := renderHLSMediaPlaylist(hls.GetRenditions()[0], func(index int) string { return fmt.Sprintf("/segment/%d", index) })
+	if err != nil {
+		t.Fatalf("render media: %v", err)
+	}
+	if got := string(media); !strings.Contains(got, "#EXT-X-TARGETDURATION:6") || !strings.Contains(got, "#EXTINF:1.500,\n/segment/1") || !strings.HasSuffix(got, "#EXT-X-ENDLIST\n") {
+		t.Fatalf("media playlist = %q", got)
+	}
+}
+
 // TestAsset_RevokedMembership_RevokesStableURL covers the "kick / leave"
 // path under the per-user access-ticket model.
 func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {

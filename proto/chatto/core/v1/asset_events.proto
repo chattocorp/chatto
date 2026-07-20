@@ -41,6 +41,8 @@ enum AssetDerivativeRole {
   ASSET_DERIVATIVE_ROLE_THUMBNAIL = 1;
   // A transcoded video rendition (e.g. a 480p variant) of the parent.
   ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT = 2;
+  // One bounded HLS media segment generated for a parent video rendition.
+  ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT = 3;
 }
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
@@ -151,9 +153,31 @@ message AssetProcessedVideo {
   int32 height = 3;
   string thumbnail_asset_id = 4;
   repeated AssetVideoVariant variants = 5;
+  // HLS adaptive-streaming manifest. Absent on historical MP4-only results.
+  AssetProcessedHLS hls = 6;
 }
 
 message AssetVideoVariant {
   string quality = 1;  // e.g., "720p", "480p"
   string asset_id = 2;
+}
+
+// AssetProcessedHLS contains enough durable metadata to render HLS playlists
+// on demand. Only media segments are stored as derivative assets; clients
+// receive an authorised master-playlist URL rather than these relationships.
+message AssetProcessedHLS {
+  repeated AssetHLSRendition renditions = 1;
+}
+
+message AssetHLSRendition {
+  int32 width = 2;
+  int32 height = 3;
+  int64 bandwidth = 4;
+  repeated AssetHLSSegment segments = 5;
+}
+
+message AssetHLSSegment {
+  string asset_id = 1;
+  // Exact EXTINF duration, rounded to milliseconds during packaging.
+  int64 duration_ms = 2;
 }

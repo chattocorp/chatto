@@ -5,7 +5,7 @@ description: How to enable and configure video processing in Chatto.
 
 import { Aside } from '@astrojs/starlight/components';
 
-Chatto can transcode uploaded videos into multiple quality variants for adaptive playback. When a user uploads a video, the server generates optimized versions (e.g. 720p, 480p) and a thumbnail, then serves them through a built-in video player.
+Chatto can transcode uploaded videos into multiple quality renditions for adaptive HLS playback. When a user uploads a video, the server stores HLS segments and a thumbnail, generates playlists on demand, and serves them through a built-in video player.
 
 ## Prerequisites
 
@@ -87,14 +87,20 @@ ffprobe_path = "/usr/local/bin/ffprobe"
 1. A user uploads a video through the chat composer
 2. The original file is stored immediately and the message is posted
 3. The video appears with a "Processing..." indicator
-4. In the background, Chatto transcodes the video into multiple quality variants and generates a thumbnail
-5. Once processing completes, the player switches to adaptive playback with quality selection
+4. In the background, Chatto creates temporary MP4 renditions, packages them into six-second HLS segments, and generates a thumbnail
+5. Once processing completes, Chatto generates authorised playlists on demand and the player uses adaptive HLS playback
 
 If processing fails (e.g. corrupt file, unsupported codec), the user sees an error message and can try uploading again.
 
 ## Storage Considerations
 
-Video transcoding generates multiple output files per upload (quality variants + thumbnail). If you expect significant video usage, consider:
+Video transcoding persists the original upload, a thumbnail, and HLS segments. The temporary MP4 renditions and generated playlists do not consume durable asset storage. If you expect significant video usage, consider:
 
 - **Using S3 storage** for assets (`core.assets.storage_backend = "s3"`) to avoid filling up NATS JetStream storage
 - **Providing a fast temp directory** with enough free space for in-progress transcoding jobs
+
+Processed videos are seekable on both NATS ObjectStore and S3 because HLS uses bounded segments instead of byte ranges into one large object. Videos processed before HLS support are not backfilled; they continue using their existing MP4 variants.
+
+<Aside type="caution">
+  During an upgrade to an HLS-capable release, update every Chatto replica behind the same endpoint before allowing new video uploads. Older replicas cannot expose HLS metadata or serve the playlist and segment routes required by newly processed HLS-only videos.
+</Aside>

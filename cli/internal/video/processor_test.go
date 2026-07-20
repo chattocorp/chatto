@@ -2,12 +2,95 @@ package video
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
 )
+
+func TestHLSSegmentMetadata(t *testing.T) {
+	tmp := t.TempDir()
+	playlist := filepath.Join(tmp, "index.m3u8")
+	if err := os.WriteFile(playlist, []byte("#EXTM3U\n#EXTINF:6.0,\none.ts\n#EXTINF:2.0,\ntwo.ts\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile playlist: %v", err)
+	}
+	segments := []string{filepath.Join(tmp, "one.ts"), filepath.Join(tmp, "two.ts")}
+	if err := os.WriteFile(segments[0], make([]byte, 6000), 0o600); err != nil {
+		t.Fatalf("WriteFile first segment: %v", err)
+	}
+	if err := os.WriteFile(segments[1], make([]byte, 4000), 0o600); err != nil {
+		t.Fatalf("WriteFile second segment: %v", err)
+	}
+	got, durations, err := hlsSegmentMetadata(playlist, segments)
+	if err != nil {
+		t.Fatalf("hlsSegmentMetadata: %v", err)
+	}
+	if got != 16_000 {
+		t.Fatalf("bandwidth = %d, want 16000", got)
+	}
+	if len(durations) != 2 || durations[0] != 6000 || durations[1] != 2000 {
+		t.Fatalf("durations = %v, want [6000 2000]", durations)
+	}
+}
+
+func TestVideoProcessingFinalizationContextSurvivesCancelledParent(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	ctx, cancel := videoProcessingFinalizationContext(parent)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("finalization context inherited cancellation: %v", err)
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("finalization context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > videoProcessingFinalizationTimeout {
+		t.Fatalf("finalization deadline remaining = %v, want within (0, %v]", remaining, videoProcessingFinalizationTimeout)
+	}
+}
+
+func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	tmp := t.TempDir()
+	input := filepath.Join(tmp, "input.mp4")
+	generate := exec.Command(
+		ffmpegPath,
+		"-f", "lavfi", "-i", "testsrc=size=160x90:rate=24:duration=13",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+		"-force_key_frames", "expr:gte(t,n_forced*6)", "-sc_threshold", "0",
+		"-y", input,
+	)
+	if output, err := generate.CombinedOutput(); err != nil {
+		t.Fatalf("generate ffmpeg fixture: %v\n%s", err, output)
+	}
+
+	service := &Service{ffmpegPath: ffmpegPath}
+	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), input, filepath.Join(tmp, "hls"))
+	if err != nil {
+		t.Fatalf("packageHLSRendition: %v", err)
+	}
+	if len(segmentPaths) != 3 {
+		t.Fatalf("segment count = %d, want 3", len(segmentPaths))
+	}
+	raw, err := os.ReadFile(playlistPath)
+	if err != nil {
+		t.Fatalf("ReadFile playlist: %v", err)
+	}
+	if !strings.Contains(string(raw), "#EXT-X-INDEPENDENT-SEGMENTS") || !strings.Contains(string(raw), "#EXT-X-ENDLIST") {
+		t.Fatalf("unexpected media playlist: %s", raw)
+	}
+}
 
 func TestSelectVariantHeights(t *testing.T) {
 	tests := []struct {

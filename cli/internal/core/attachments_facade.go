@@ -101,6 +101,10 @@ func (c *ChattoCore) GetStableAttachmentAssetURL(assetID, userID string) StableA
 	return c.media().GetStableAttachmentAssetURL(assetID, userID)
 }
 
+func (c *ChattoCore) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) StableAssetURL {
+	return c.media().GetStableHLSMasterPlaylistAssetURL(assetID, userID)
+}
+
 func (c *ChattoCore) GetStableTransformedAttachmentURL(assetID, userID string, width, height int, fit string) string {
 	return c.media().GetStableTransformedAttachmentURL(assetID, userID, width, height, fit)
 }
@@ -155,6 +159,10 @@ func (c *ChattoCore) PublishAssetProcessing(ctx context.Context, kind RoomKind, 
 
 func (c *ChattoCore) RecordAssetProcessed(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
 	return c.assetLifecycle().RecordAssetProcessed(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants)
+}
+
+func (c *ChattoCore) RecordAssetProcessedWithHLS(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) error {
+	return c.assetLifecycle().RecordAssetProcessedWithHLS(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants, hls)
 }
 
 func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) error {

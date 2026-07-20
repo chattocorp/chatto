@@ -102,6 +102,11 @@
       refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl,
       'video'
     );
+    const hlsMasterPlaylistUrl = resolveUrl(
+      'hls',
+      refreshed ? refreshed.hlsMasterPlaylistUrl : attachment.videoProcessing?.hlsMasterPlaylistUrl,
+      'hls'
+    );
 
     return {
       ...attachment,
@@ -114,6 +119,8 @@
             ...attachment.videoProcessing,
             thumbnailAssetUrl: videoThumbnailAssetUrl,
             thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
+            hlsMasterPlaylistUrl,
+            hlsUrl: hlsMasterPlaylistUrl?.url ?? null,
             variants: attachment.videoProcessing.variants.flatMap((variant) => {
               const variantAssetUrl = resolveUrl(
                 `variant:${variant.quality}`,
@@ -272,6 +279,7 @@
       attachment.assetUrl,
       attachment.thumbnailAssetUrl,
       attachment.videoProcessing?.thumbnailAssetUrl,
+      attachment.videoProcessing?.hlsMasterPlaylistUrl,
       ...(attachment.videoProcessing?.variants.map((variant) => variant.assetUrl) ?? [])
     ];
   }
@@ -336,17 +344,34 @@
     return refreshPromise;
   }
 
-  function refreshAfterAssetError(attachment: Attachment, role: string) {
+  async function refreshAfterAssetError(
+    attachment: Attachment,
+    role: string
+  ): Promise<string | null> {
     const key = `${attachment.id}:${role}`;
-    if (failedAssetRefreshKeys.has(key)) return;
-    failedAssetRefreshKeys.add(key);
-    refreshAndApplyUrls()
-      .then(() => {
+    if (failedAssetRefreshKeys.has(key)) return null;
+    if (role !== 'hls') failedAssetRefreshKeys.add(key);
+    try {
+      const freshUrls = await refreshAndApplyUrls();
+      if (role !== 'hls') {
         assetRetrySalts.set(key, Date.now());
-      })
-      .catch((error: unknown) => {
-        console.warn('Failed to refresh attachment URL after load error', error);
-      });
+        return null;
+      }
+
+      // The refresh helper deliberately converts request failures into an
+      // empty map. Only consume HLS's one-shot media recovery after this
+      // specific request returned a usable replacement ticket; retrying the
+      // previous URL with a cache-buster cannot repair an expired ticket.
+      const value = freshUrls.get(attachment.id)?.hlsMasterPlaylistUrl;
+      if (!value?.url) return null;
+
+      failedAssetRefreshKeys.add(key);
+      assetRetrySalts.set(key, Date.now());
+      return withRetrySalt(normalizeAssetUrl(value), attachment.id, role)?.url ?? null;
+    } catch (error: unknown) {
+      console.warn('Failed to refresh attachment URL after load error', error);
+      return null;
+    }
   }
 
   $effect(() => {
@@ -527,6 +552,7 @@
           status={attachment.videoProcessing.status}
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          hlsUrl={attachment.videoProcessing.hlsUrl}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
@@ -554,11 +580,17 @@
           status={attachment.videoProcessing.status}
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          hlsUrl={attachment.videoProcessing.hlsUrl}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
           filename={attachment.filename}
-          onMediaError={() => refreshAfterAssetError(attachment, 'video')}
+          onPosterError={() => refreshAfterAssetError(attachment, 'video')}
+          onMediaError={() =>
+            refreshAfterAssetError(
+              attachment,
+              attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+            )}
         />
         {#if canDeleteAttachment}
           <button

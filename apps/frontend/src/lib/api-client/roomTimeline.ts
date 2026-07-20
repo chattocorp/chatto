@@ -2,11 +2,7 @@ import { notifyUserSummaries } from './hooks.js';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { RawEvent, EventConnectionPage, UserSummaryForCache } from './events.js';
 import { RoomEventKind } from './eventKinds.js';
-import {
-  PresenceStatus,
-  type RoomEventView,
-  type SocialPostPreviewView
-} from './renderTypes.js';
+import { PresenceStatus, type RoomEventView, type SocialPostPreviewView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
@@ -416,6 +412,7 @@ function videoProcessingView(processing?: MessageVideoProcessing) {
     sourceAvailable: processing.sourceAvailable,
     reasonCode: processing.reasonCode || null,
     thumbnailAssetUrl: assetUrlView(processing.thumbnailAssetUrl),
+    hlsMasterPlaylistUrl: assetUrlView(processing.hls?.masterPlaylistUrl),
     variants: processing.variants.map((variant) => ({
       quality: variant.quality,
       width: variant.width,
@@ -485,8 +482,7 @@ function socialPostPreviewView(
       width: image.width || null,
       height: image.height || null
     })),
-    quotedPost:
-      quoteDepth === 0 ? socialPostPreviewView(post.quotedPost, quoteDepth + 1) : null
+    quotedPost: quoteDepth === 0 ? socialPostPreviewView(post.quotedPost, quoteDepth + 1) : null
   };
 }
 

@@ -319,7 +319,8 @@ func (idx *roomTimelineAssetIndex) unmanifestedVideoAttachments(retractedFlags m
 		if asset == nil {
 			continue
 		}
-		if _, hasManifest := idx.videoManifests[assetID]; hasManifest {
+		manifest, hasManifest := idx.videoManifests[assetID]
+		if hasManifest && manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
 			continue
 		}
 		contentType := asset.GetContentType()

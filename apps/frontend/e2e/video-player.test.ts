@@ -23,10 +23,17 @@ test.describe('video player @ffmpeg', () => {
     // Track JS errors so that subscription callback failures are caught.
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
+    const hlsResponses: Array<{ pathname: string; status: number }> = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('response', (response) => {
+      const pathname = new URL(response.url()).pathname;
+      if (pathname.includes('/assets/hls/')) {
+        hlsResponses.push({ pathname, status: response.status() });
+      }
+    });
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -61,6 +68,53 @@ test.describe('video player @ffmpeg', () => {
 
         // Verify Vidstack rendered its default video layout with controls.
         await expect(roomPage.mediaControls).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+        // The embedded-NATS server cannot seek within one stored object. Verify
+        // that the player instead loads the authorised HLS hierarchy, exposes a
+        // finite duration, and can seek backwards through its media timeline.
+        const video = roomPage.mediaPlayer.locator('video');
+        await expect(video).toBeAttached({ timeout: TIMEOUTS.UI_STANDARD });
+        const seekResult = await video.evaluate(async (element) => {
+          if (element.readyState < HTMLMediaElement.HAVE_METADATA) {
+            await new Promise<void>((resolve) =>
+              element.addEventListener('loadedmetadata', () => resolve(), { once: true })
+            );
+          }
+
+          const seek = async (time: number) => {
+            await new Promise<void>((resolve) => {
+              element.addEventListener('seeked', () => resolve(), { once: true });
+              element.currentTime = time;
+            });
+            return element.currentTime;
+          };
+
+          const forwardTime = await seek(element.duration * 0.75);
+          const backwardTime = await seek(element.duration * 0.2);
+          return { duration: element.duration, forwardTime, backwardTime };
+        });
+        expect(seekResult.duration).toBeGreaterThan(0);
+        expect(Number.isFinite(seekResult.duration)).toBe(true);
+        expect(seekResult.forwardTime).toBeGreaterThan(seekResult.backwardTime);
+
+        await expect
+          .poll(() => hlsResponses, { timeout: TIMEOUTS.UI_STANDARD })
+          .toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/master\.m3u8$/),
+                status: 200
+              }),
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/renditions\/\d+\/playlist\.m3u8$/),
+                status: 200
+              }),
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/renditions\/\d+\/segments\/\d+\.ts$/),
+                status: 200
+              })
+            ])
+          );
 
         const mediaBox = await roomPage.mediaPlayer.boundingBox();
         expect(mediaBox).not.toBeNull();

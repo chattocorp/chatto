@@ -14,7 +14,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var ErrAssetLifecycleSkipped = errors.New("asset lifecycle event skipped")
+var (
+	ErrAssetLifecycleSkipped = errors.New("asset lifecycle event skipped")
+	ErrAssetCommitUnknown    = errors.New("asset event commit status unknown")
+	errAssetEventCommitted   = errors.New("asset event committed before follow-up failure")
+)
 
 const (
 	assetCleanupLeaseName       = "asset_cleanup"
@@ -22,6 +26,7 @@ const (
 	assetCleanupLeaseRenewEvery = 15 * time.Second
 	assetCleanupLeaseRetryEvery = 5 * time.Second
 	assetCleanupPollEvery       = 30 * time.Second
+	assetCommitCheckTimeout     = 5 * time.Second
 )
 
 // derivativeContext records that an upload is a derivative of another asset.
@@ -37,11 +42,12 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease     *lease.Lease
-	cleanupConsumer  *events.IncrementalEffectConsumer
-	cleanupPollEvery time.Duration
-	cleanupStatusMu  sync.RWMutex
-	cleanupPass      assetCleanupPassStatus
+	cleanupLease          *lease.Lease
+	cleanupConsumer       *events.IncrementalEffectConsumer
+	cleanupPollEvery      time.Duration
+	waitForAssetsOverride func(context.Context, events.StreamPosition) error
+	cleanupStatusMu       sync.RWMutex
+	cleanupPass           assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
@@ -124,6 +130,19 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 		Event: &corev1.Event_AssetCreated{AssetCreated: created},
 	})
 	if err := s.appendAssetEventEventually(ctx, attachment.GetId(), event); err != nil {
+		if errors.Is(err, errAssetEventCommitted) {
+			return nil
+		}
+		committed, confirmErr := s.assetEventCommitted(ctx, attachment.GetId(), event)
+		if confirmErr != nil {
+			return errors.Join(
+				fmt.Errorf("publish asset creation event: %w", err),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+			)
+		}
+		if committed {
+			return nil
+		}
 		return fmt.Errorf("publish asset creation event: %w", err)
 	}
 	return nil
@@ -168,6 +187,9 @@ func (s *AssetModel) DeleteVideoDerivativesForAttachment(ctx context.Context, ac
 	deleteDerivative(video.GetThumbnailAssetId())
 	for _, variant := range video.Variants {
 		deleteDerivative(variant.GetAssetId())
+	}
+	for _, assetID := range hlsDerivativeAssetIDs(video.GetHls()) {
+		deleteDerivative(assetID)
 	}
 }
 
@@ -319,7 +341,8 @@ func (s *AssetModel) UnmanifestedVideoAttachments() []VideoProcessingRequest {
 		if asset == nil {
 			continue
 		}
-		if _, hasManifest := s.VideoAttachmentManifest(owner.AssetID); hasManifest {
+		manifest, hasManifest := s.VideoAttachmentManifest(owner.AssetID)
+		if hasManifest && manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil) {
 			continue
 		}
 		contentType := asset.GetContentType()
@@ -370,9 +393,15 @@ func (s *AssetModel) publishAssetProcessing(ctx context.Context, roomID string, 
 
 // RecordAssetProcessed builds and publishes a durable processed-video
 // manifest for an original video attachment. If the terminal manifest is
-// skipped because another terminal/deleted state already won, derivative
-// outputs passed to this call are tombstoned and storage-cleaned.
+// skipped because another terminal/deleted state already won, it makes a
+// bounded best-effort attempt to tombstone and storage-clean the unused output.
 func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) error {
+	return s.RecordAssetProcessedWithHLS(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants, nil)
+}
+
+// RecordAssetProcessedWithHLS publishes a terminal video manifest containing
+// the compatibility MP4 renditions and, when generated, one HLS generation.
+func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) error {
 	thumbnailAssetID := ""
 	if thumbnail != nil {
 		thumbnailAssetID = thumbnail.GetId()
@@ -398,13 +427,29 @@ func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, r
 					Height:           height,
 					ThumbnailAssetId: thumbnailAssetID,
 					Variants:         assetVariants,
+					Hls:              hls,
 				},
 			},
 		},
 	})
 	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
 		if errors.Is(err, ErrAssetLifecycleSkipped) {
-			s.cleanupVideoDerivativeOutputs(ctx, actorID, roomID, attachmentID, thumbnail, variants)
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+			s.cleanupVideoDerivativeOutputs(cleanupCtx, actorID, roomID, attachmentID, thumbnail, variants, hls)
+			cleanupCancel()
+			return nil
+		}
+		if errors.Is(err, errAssetEventCommitted) {
+			return nil
+		}
+		committed, confirmErr := s.assetEventCommitted(ctx, attachmentID, event)
+		if confirmErr != nil {
+			return errors.Join(
+				fmt.Errorf("publish asset processing event: %w", err),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+			)
+		}
+		if committed {
 			return nil
 		}
 		return fmt.Errorf("publish asset processing event: %w", err)
@@ -412,7 +457,26 @@ func (s *AssetModel) RecordAssetProcessed(ctx context.Context, actorID string, r
 	return nil
 }
 
-func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID string, roomID, originAssetID string, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant) {
+func (s *AssetModel) assetEventCommitted(ctx context.Context, assetID string, event *corev1.Event) (bool, error) {
+	confirmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
+	defer cancel()
+	eventType := events.EventTypeOf(event)
+	if eventType == "" {
+		return false, fmt.Errorf("resolve asset processing event type")
+	}
+	published, _, err := s.EventPublisher.SubjectEvents(confirmCtx, events.AssetAggregate(assetID).Subject(eventType))
+	if err != nil {
+		return false, fmt.Errorf("read durable asset processing events: %w", err)
+	}
+	for _, candidate := range published {
+		if candidate.GetId() == event.GetId() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID string, roomID, originAssetID string, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) {
 	s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, thumbnail)
 	for _, variant := range variants {
 		if variant == nil {
@@ -420,6 +484,31 @@ func (s *AssetModel) cleanupVideoDerivativeOutputs(ctx context.Context, actorID 
 		}
 		s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, variant.GetAttachment())
 	}
+	for _, assetID := range hlsDerivativeAssetIDs(hls) {
+		declared, ok := s.AssetCreation(assetID)
+		if !ok || declared == nil {
+			continue
+		}
+		s.cleanupVideoDerivativeOutput(ctx, actorID, roomID, originAssetID, attachmentFromAsset(declared.GetAsset()))
+	}
+}
+
+func hlsDerivativeAssetIDs(hls *corev1.AssetProcessedHLS) []string {
+	if hls == nil {
+		return nil
+	}
+	var ids []string
+	for _, rendition := range hls.GetRenditions() {
+		if rendition == nil {
+			continue
+		}
+		for _, segment := range rendition.GetSegments() {
+			if segment != nil && segment.GetAssetId() != "" {
+				ids = append(ids, segment.GetAssetId())
+			}
+		}
+	}
+	return ids
 }
 
 func (s *AssetModel) cleanupVideoDerivativeOutput(ctx context.Context, actorID string, fallbackRoomID, originAssetID string, attachment *corev1.Attachment) {
@@ -486,7 +575,10 @@ func (s *AssetModel) appendAssetEventEventually(ctx context.Context, assetID str
 		return err
 	}
 	pos := events.SubjectPosition(subject, seq)
-	return s.waitForAssets(ctx, pos)
+	if err := s.waitForAssets(ctx, pos); err != nil {
+		return errors.Join(errAssetEventCommitted, err)
+	}
+	return nil
 }
 
 func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID string, event *corev1.Event) error {
@@ -511,7 +603,10 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 		subject := agg.SubjectFor(event)
 		seq, err := s.EventPublisher.AppendAtFilter(ctx, subject, event, filter, tail.Seq)
 		if err == nil {
-			return s.waitForAssets(ctx, events.SubjectPosition(subject, seq))
+			if err := s.waitForAssets(ctx, events.SubjectPosition(subject, seq)); err != nil {
+				return errors.Join(errAssetEventCommitted, err)
+			}
+			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return err
@@ -521,6 +616,9 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 }
 
 func (s *AssetModel) waitForAssets(ctx context.Context, pos events.StreamPosition) error {
+	if s.waitForAssetsOverride != nil {
+		return s.waitForAssetsOverride(ctx, pos)
+	}
 	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.AssetsProjector))
 }
 
@@ -582,6 +680,14 @@ func (s *AssetModel) shouldAppendAssetProcessingEvent(assetID string, event *cor
 // RecordAssetProcessingFailed builds and publishes a durable failed
 // video-processing outcome.
 func (s *AssetModel) RecordAssetProcessingFailed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
+	err := s.recordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
+	if errors.Is(err, ErrAssetLifecycleSkipped) {
+		return nil
+	}
+	return err
+}
+
+func (s *AssetModel) recordAssetProcessingFailed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
@@ -591,5 +697,24 @@ func (s *AssetModel) RecordAssetProcessingFailed(ctx context.Context, actorID st
 			},
 		},
 	})
-	return s.PublishAssetProcessing(ctx, roomID, event)
+	if err := s.publishAssetProcessing(ctx, roomID, event); err != nil {
+		if errors.Is(err, ErrAssetLifecycleSkipped) {
+			return ErrAssetLifecycleSkipped
+		}
+		if errors.Is(err, errAssetEventCommitted) {
+			return nil
+		}
+		committed, confirmErr := s.assetEventCommitted(ctx, attachmentID, event)
+		if confirmErr != nil {
+			return errors.Join(
+				fmt.Errorf("publish asset processing event: %w", err),
+				fmt.Errorf("%w: %v", ErrAssetCommitUnknown, confirmErr),
+			)
+		}
+		if committed {
+			return nil
+		}
+		return fmt.Errorf("publish asset processing event: %w", err)
+	}
+	return nil
 }

@@ -1158,6 +1158,10 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	if err != nil {
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
 	}
+	hlsSegment, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("Failed to upload HLS segment derivative: %v", err)
+	}
 	inheritedRoomDerivativeID := "A-inherited-room-derivative"
 	inheritedCreated := &corev1.Event{
 		Id: "E-inherited-room-derivative-created",
@@ -1192,8 +1196,11 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 3 {
+	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 4 {
 		t.Fatalf("Expected original and derivative assets to be deleted, got %d", deleted)
+	}
+	if _, _, err := core.GetAttachment(ctx, hlsSegment.Id); err == nil {
+		t.Fatal("HLS segment binary still exists after owned asset cleanup")
 	}
 
 	if roomID, ok := core.Assets.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {

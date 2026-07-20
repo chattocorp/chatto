@@ -417,6 +417,16 @@ user has reacted with the same emoji.
 | `has_reacted` | `bool` | True when the current user reacted with this emoji. |
 | `preview_user_ids` | `repeated string` | Preview of up to five user IDs that reacted with this emoji. |
 
+<a id="chatto-api-v1-MessageVideoHLS"></a>
+
+### MessageVideoHLS
+
+HLS adaptive-streaming metadata for a processed video.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `master_playlist_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the HLS master playlist. The URL authorises all playlists and segments in this video generation and expires with the attachment URL. |
+
 <a id="chatto-api-v1-MessageVideoProcessing"></a>
 
 ### MessageVideoProcessing
@@ -437,6 +447,7 @@ state.
 | `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
 | `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the generated thumbnail, when available. |
 | `variants` | repeated [`MessageVideoVariant`](#chatto-api-v1-MessageVideoVariant) | Available transcoded renditions. |
+| `hls` | [`MessageVideoHLS`](#chatto-api-v1-MessageVideoHLS) | Adaptive-streaming metadata. Absent on MP4-only historical results and servers that do not support HLS processing. |
 
 <a id="chatto-api-v1-MessageVideoVariant"></a>
 
