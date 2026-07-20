@@ -54,10 +54,13 @@ checkpoint contract `bleve-message-index-v1` and projector key
 The index stores current decrypted message text and message/room/author/filter
 metadata. It also stores non-plaintext DEK event metadata required to decrypt
 later EVT tail records after restart. Retraction, room deletion, and user key
-shredding remove matching documents. The directory is a privileged,
-disposable local cache: it is excluded from Chatto backups, and invalid
-checkpoint metadata causes the complete directory to be recreated from
-retained EVT history.
+shredding remove matching documents. Key shredding additionally persists a
+privacy-compaction marker and forces Bleve to reclaim deleted segments; an
+interrupted compaction retries before a restored provider serves queries.
+
+The directory is a privileged, disposable local cache. It is excluded from
+Chatto backups, and invalid checkpoint metadata causes the complete directory
+to be recreated from retained EVT history.
 
 ## Snapshot support
 

@@ -108,6 +108,21 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Empty(t, response.GetHits())
+	require.NoError(t, projection.Apply(&corev1.Event{
+		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"}},
+	}, 7))
+	pending, err := projection.index.GetInternal([]byte(privacyCompactionKey))
+	require.NoError(t, err)
+	require.Empty(t, pending)
+	require.NoError(t, projection.index.SetInternal([]byte(privacyCompactionKey), []byte{1}))
+	require.NoError(t, projection.Close())
+	projection, err = NewProjection(directory, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	_, err = projection.RestoreCheckpoint(context.Background(), request)
+	require.NoError(t, err)
+	pending, err = projection.index.GetInternal([]byte(privacyCompactionKey))
+	require.NoError(t, err)
+	require.Empty(t, pending)
 }
 
 func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
