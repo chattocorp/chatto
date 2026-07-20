@@ -9,6 +9,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
   import SignOutDialog from './SignOutDialog.svelte';
+  import MessageSearchDialog from './MessageSearchDialog.svelte';
 
   const activeInstanceId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
@@ -308,6 +309,8 @@
       </div>
     </div>
   </Dialog>
+{:else if modalType === 'messageSearch'}
+  <MessageSearchDialog serverId={modalServerId} {roomId} {roomName} onclose={closeModal} />
 {:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
     title={m['room.leave.title']()}
@@ -335,8 +338,7 @@
         href={resolve('/chat/[serverId]/settings/account', {
           serverId: serverIdToSegment(modalServerId)
         })}
-        class="link"
-        >{m['room.server.remove_account_link']()}</a
+        class="link">{m['room.server.remove_account_link']()}</a
       >{m['room.server.remove_account_suffix']()}
     </p>
   </ConfirmDialog>

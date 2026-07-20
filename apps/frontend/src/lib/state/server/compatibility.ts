@@ -5,6 +5,7 @@ import valid from 'semver/functions/valid.js';
 export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
 export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
 export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
+export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
 
 export const REQUIRED_PROTOCOL_CAPABILITIES = [
   'chatto.api.v1',

@@ -9,11 +9,29 @@
   import * as m from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import MotdContent from '$lib/ui/MotdContent.svelte';
+  import { MESSAGE_SEARCH_CAPABILITY } from '$lib/state/server/compatibility';
+  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
+  const activeServerId = $derived(getActiveServer());
+  const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
+  const supportsMessageSearch = $derived(
+    activeStore?.serverInfo.supportsProtocolCapability(MESSAGE_SEARCH_CAPABILITY) === true
+  );
+  const messageSearchAvailable = $derived(
+    supportsMessageSearch &&
+      activeStore?.messageSearch.statusLoading !== true &&
+      (activeStore?.messageSearch.statusError === true ||
+        (activeStore?.messageSearch.statusLoaded === true &&
+          activeStore.messageSearch.status.state !== MessageSearchState.DISABLED))
+  );
+
+  $effect(() => {
+    if (supportsMessageSearch) void activeStore?.messageSearch.ensureStatus();
+  });
 
   // Aggregate notification count across all servers.
   const totalNotificationCount = $derived(
@@ -32,6 +50,10 @@
 
   function showAboutChatto() {
     pushState('', { modal: { type: 'aboutChatto' } });
+  }
+
+  function showMessageSearch() {
+    pushState('', { modal: { type: 'messageSearch', serverId: activeServerId } });
   }
 </script>
 
@@ -75,6 +97,18 @@
         title={m['ui.quick_switcher_shortcut']()}
       >
         <span class="iconify text-lg uil--apps"></span>
+      </button>
+    {/if}
+
+    {#if messageSearchAvailable}
+      <button
+        type="button"
+        class="app-header-icon"
+        onclick={showMessageSearch}
+        aria-label={m['search.open']()}
+        title={m['search.open']()}
+      >
+        <span class="iconify text-lg uil--search" aria-hidden="true"></span>
       </button>
     {/if}
 
