@@ -46,6 +46,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type ContextMenuTriggerDetails
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
+  import { toast } from '$lib/ui/toast';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -94,6 +95,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         roomName: room.name
       }
     });
+  }
+
+  async function handleJoinRoom(room: RoomsListItem): Promise<void> {
+    closeRoomContextMenu();
+    const result = await stores.roomDirectory.joinRoom(room.id);
+    if (result.ok) {
+      toast.success(m['room.join.success']({ room: room.name }));
+      return;
+    }
+
+    toast.error(m['room.join.failed']());
+    console.error('Error joining room:', result.error);
   }
 
   // --- Derived layout helpers ---
@@ -331,7 +344,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
-    {@attach isJoined && roomMenuTrigger(room)}
+    {@attach roomMenuTrigger(room)}
   >
     {#if isJoined}
       <span class={['sidebar-icon', hasUnreadAttention ? 'text-text-top' : 'text-muted']}>#</span>
@@ -496,9 +509,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <NavigationContextMenu
       kind="room"
+      isRoomMember={contextRoom.viewerIsMember}
+      canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
+      onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
