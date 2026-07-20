@@ -711,6 +711,7 @@ describe('RoomList', () => {
   });
 
   it('keeps an empty manageable group visible with a settings link', async () => {
+    mocks.store.rooms.rooms = [];
     mocks.store.rooms.roomGroups = [
       {
         id: 'private-group',

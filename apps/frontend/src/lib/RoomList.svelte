@@ -132,8 +132,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
   });
 
-  const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
-
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
 
@@ -445,7 +443,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
+{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
     {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
