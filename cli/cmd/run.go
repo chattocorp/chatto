@@ -24,6 +24,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/runtimeunit"
+	searchbleve "hmans.de/chatto/internal/search/bleve"
 	"hmans.de/chatto/internal/video"
 )
 
@@ -56,6 +57,12 @@ func runtimeUnitRegistrations() []runtimeunit.Registration {
 			Unit: exporter.Unit{},
 			StartWithRun: func(cfg config.ChattoConfig) bool {
 				return cfg.Exporter.Enabled
+			},
+		},
+		{
+			Unit: searchbleve.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.SearchProvider.Enabled
 			},
 		},
 	}

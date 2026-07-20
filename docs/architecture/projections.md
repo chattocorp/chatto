@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -45,9 +45,19 @@ replay. Operational failures such as an unavailable local volume fail that
 projection's startup without deleting potentially valid state. A successful
 `Apply` must atomically commit its derived changes and supplied stream sequence.
 
-No locally checkpointed projection is currently registered with `ChattoCore`.
-The mechanism exists for runtime units whose disposable indexes are too large
-or expensive to keep solely in process memory.
+The bundled search provider owns the first locally checkpointed projection. It
+is registered by its runtime unit rather than by `ChattoCore`, consumes
+`evt.room.>` and `evt.user.>`, and atomically commits each Bleve mutation with
+checkpoint contract `bleve-message-index-v1` and projector key
+`message_search`.
+
+The index stores current decrypted message text and message/room/author/filter
+metadata. It also stores non-plaintext DEK event metadata required to decrypt
+later EVT tail records after restart. Retraction, room deletion, and user key
+shredding remove matching documents. The directory is a privileged,
+disposable local cache: it is excluded from Chatto backups, and invalid
+checkpoint metadata causes the complete directory to be recreated from
+retained EVT history.
 
 ## Snapshot support
 

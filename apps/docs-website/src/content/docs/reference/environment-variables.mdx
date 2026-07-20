@@ -143,6 +143,22 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
+## Message Search
+
+The consumer-facing feature and bundled provider have separate switches. This lets you expose Search through Chatto while running a compatible provider separately, or embed the bundled Bleve provider in `chatto run` for a single-process deployment.
+
+<EnvVar name="CHATTO_SEARCH_ENABLED" toml="search.enabled" default="false">
+  Enable Chatto's consumer-facing message search API and advertise Search to compatible clients.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_ENABLED" toml="search_provider.enabled" default="false">
+  Start the bundled Bleve provider inside `chatto run`. This does not by itself expose the consumer-facing Search feature.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_DIRECTORY" toml="search_provider.directory" default="./data/search">
+  Directory for the bundled provider's disposable local index. Protect this directory like message data: it contains plaintext-derived search content, is not included in Chatto backups, and can be rebuilt from retained `EVT` history. Do not set it to the embedded NATS data directory or one of its parent directories.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

@@ -28,6 +28,9 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES", "8192")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_SEARCH_ENABLED", "true")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_ENABLED", "true")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_DIRECTORY", "./custom-search")
 
 	// ReadConfig should succeed even without chatto.toml
 	cfg, err := ReadConfig("")
@@ -56,6 +59,12 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 	if cfg.Webserver.Shields.Enabled {
 		t.Errorf("expected shields to default disabled")
+	}
+	if !cfg.Search.Enabled || !cfg.SearchProvider.Enabled {
+		t.Error("expected search and bundled provider enabled from environment")
+	}
+	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./custom-search" {
+		t.Errorf("search provider directory = %q, want %q", got, "./custom-search")
 	}
 }
 
@@ -149,6 +158,13 @@ projection_snapshot_s3_cleanup = false
 
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+[search]
+enabled = true
+
+[search_provider]
+enabled = true
+directory = "./search-index"
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -172,6 +188,19 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
 		t.Error("expected S3 snapshot cleanup to be disabled from file")
+	}
+	if !cfg.Search.Enabled || !cfg.SearchProvider.Enabled {
+		t.Error("expected search and bundled provider enabled from config file")
+	}
+	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./search-index" {
+		t.Errorf("search provider directory = %q, want %q", got, "./search-index")
+	}
+}
+
+func TestSearchProviderDirectoryDefault(t *testing.T) {
+	var cfg SearchProviderConfig
+	if got := cfg.DirectoryOrDefault(); got != "./data/search" {
+		t.Fatalf("DirectoryOrDefault() = %q, want %q", got, "./data/search")
 	}
 }
 
@@ -1303,6 +1332,26 @@ func validTestConfig() ChattoConfig {
 				SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 			},
 		},
+	}
+}
+
+func TestChattoConfigValidateSearchProviderDirectory(t *testing.T) {
+	for _, directory := range []string{".", "./data", "/"} {
+		t.Run(directory, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.SearchProvider = SearchProviderConfig{Enabled: true, Directory: directory}
+			cfg.NATS.Embedded.DataDir = "./data"
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "search_provider.directory") {
+				t.Fatalf("Validate() error = %v, want unsafe search provider directory error", err)
+			}
+		})
+	}
+
+	cfg := validTestConfig()
+	cfg.SearchProvider = SearchProviderConfig{Enabled: true, Directory: "./data/search"}
+	cfg.NATS.Embedded.DataDir = "./data"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() unexpected error: %v", err)
 	}
 }
 

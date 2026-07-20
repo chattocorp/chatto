@@ -66,6 +66,16 @@ func TestRootRegistersExporterCommand(t *testing.T) {
 	}
 }
 
+func TestRootRegistersSearchProviderCommand(t *testing.T) {
+	command, _, err := rootCmd.Find([]string{"search-provider"})
+	if err != nil {
+		t.Fatalf("find search-provider command: %v", err)
+	}
+	if command != searchProviderCmd {
+		t.Fatalf("found command %q, want search-provider", command.Name())
+	}
+}
+
 func TestRootRegistersOperatorUserCommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"operator", "user", "create", "--help"},

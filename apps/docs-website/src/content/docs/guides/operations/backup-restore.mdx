@@ -35,6 +35,7 @@ Certain streams are intentionally excluded:
 | LiveKit E2EE call keys | Stored in `ENCRYPTION_KEYS` and excluded unless key backups are explicitly included; active calls cannot be recovered without them |
 | Link preview cache | Regeneratable on demand |
 | Asset cache | Regeneratable (resized image variants) |
+| Bundled Bleve search index | Privileged plaintext-derived local cache. Protect its volume separately or rebuild it from retained `EVT` history. |
 | S3-backed assets and projection snapshot generations | Stored outside NATS; protect them through the deployment's S3 backup policy. The encrypted snapshot pointer remains in `RUNTIME_STATE`, but is disposable without its generation object |
 
 <Aside type="tip">
