@@ -33,6 +33,7 @@ path = [
   "proto/chatto/discovery/**",
   "proto/chatto/operator/**",
   "proto/chatto/realtime/**",
+  "proto/chatto/search/**",
 ]
 SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
 SPDX-License-Identifier = "Apache-2.0"

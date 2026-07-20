@@ -4,6 +4,8 @@ Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
 [`cli/internal/http_server/assets.go`](../../cli/internal/http_server/assets.go),
 [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go),
+[`cli/internal/searchcontract/service.go`](../../cli/internal/searchcontract/service.go),
+[`cli/internal/searchcontract/client.go`](../../cli/internal/searchcontract/client.go),
 [`proto/chatto/`](../../proto/chatto/)
 
 This inventory records mounted transport and service boundaries. The generated
@@ -11,8 +13,9 @@ This inventory records mounted transport and service boundaries. The generated
 is authoritative for individual RPCs, request and response messages, and public
 method documentation.
 
-Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md) and
-[ADR-045](../adr/ADR-045-public-api-stability-tiers.md).
+Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
+[ADR-045](../adr/ADR-045-public-api-stability-tiers.md), and
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
 
 ## Transport boundaries
 
@@ -22,6 +25,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md) a
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
+| Trusted NATS services | `svc.chatto.>` and `svc.chatto_ext.>` | Versioned protobuf request/reply through NATS micro services | NATS account permissions; extension providers receive only their configured service and upstream Core subjects |
 | Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
 
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
@@ -46,6 +50,20 @@ socket.
 | Package | Service | Access policy |
 | ------- | ------- | ------------- |
 | `chatto.operator.v1` | `OperatorUserService` | Root-equivalent access over the private Unix socket |
+
+## Trusted NATS services
+
+The `chatto.search.v1` provider contract defines normalized query and readiness
+messages on `svc.chatto_ext.search.v1.query` and
+`svc.chatto_ext.search.v1.status`. `searchcontract.Client` validates both sides
+of request/reply, maps NATS micro error headers, and treats missing responders
+as provider unavailability. `searchcontract.AddService` registers compatible
+providers in one queue group for replica load balancing.
+
+This is a trusted server-side integration surface, not a public client API.
+Query responses contain thin message and room IDs; a future Core-owned public
+Search API remains responsible for current-state hydration and authorization.
+No search provider service is started by the current runtime catalogue yet.
 
 `ServerDiscoveryService.GetServer` is the only Connect method for which the
 bundled client enables side-effect-free GET. It also receives wildcard public
