@@ -100,3 +100,7 @@ Video transcoding persists the original upload, a thumbnail, and HLS segments. T
 - **Providing a fast temp directory** with enough free space for in-progress transcoding jobs
 
 Processed videos are seekable on both NATS ObjectStore and S3 because HLS uses bounded segments instead of byte ranges into one large object. Videos processed before HLS support are not backfilled; they continue using their existing MP4 variants.
+
+<Aside type="caution">
+  During an upgrade to an HLS-capable release, update every Chatto replica behind the same endpoint before allowing new video uploads. Older replicas cannot expose HLS metadata or serve the playlist and segment routes required by newly processed HLS-only videos.
+</Aside>

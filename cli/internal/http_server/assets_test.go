@@ -1796,6 +1796,54 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 	}
 }
 
+func TestHLSDerivativeRequiresExpectedParentAndRole(t *testing.T) {
+	env := setupAssetTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "hls-derivative", "HLS Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "hls-derivative-room", "HLS Room")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(original): %v", err)
+	}
+	otherOriginal, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "other.mp4", "video/mp4", bytes.NewReader([]byte("other source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(other): %v", err)
+	}
+	wrongParent, err := env.core.UploadDerivativeAttachment(env.ctx, otherOriginal.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "other-segment.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong parent): %v", err)
+	}
+	wrongRole, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong role): %v", err)
+	}
+
+	server := &HTTPServer{core: env.core}
+	for _, tt := range []struct {
+		name    string
+		assetID string
+	}{
+		{name: "wrong parent", assetID: wrongParent.GetId()},
+		{name: "wrong role", assetID: wrongRole.GetId()},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			if _, ok := server.hlsDerivative(c, original.GetId(), tt.assetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT); ok {
+				t.Fatal("hlsDerivative accepted an unrelated derivative")
+			}
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404", recorder.Code)
+			}
+		})
+	}
+}
+
 func firstHLSURI(t *testing.T, playlist []byte) string {
 	t.Helper()
 	for line := range strings.SplitSeq(string(playlist), "\n") {
