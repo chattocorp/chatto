@@ -158,6 +158,7 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *corev1.Event, check func() error) (uint64, error) {
 	filter := events.EventSubjectFilter()
 	userFilter := events.UserAggregate(userID).AllEventsFilter()
+	actorID := event.GetActorId()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -176,6 +177,23 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 			return 0, fmt.Errorf("wait for room-group projection: %w", err)
 		}
 
+		roomPos, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		if err != nil {
+			return 0, fmt.Errorf("read room directory projection position: %w", err)
+		}
+		if roomPos.Seq > filterSeq {
+			continue
+		}
+		if err := c.rooms().waitForDirectory(ctx, roomPos); err != nil {
+			return 0, fmt.Errorf("wait for room directory projection: %w", err)
+		}
+
+		if actorID != "" && actorID != SystemActorID {
+			actorFilter := events.UserAggregate(actorID).AllEventsFilter()
+			if err := c.userModel.waitForUsersCurrent(ctx, "role assignment actor", actorFilter); err != nil {
+				return 0, err
+			}
+		}
 		if requireExistingUser {
 			if err := c.userModel.waitForUsersCurrent(ctx, "role target user", userFilter); err != nil {
 				return 0, err
