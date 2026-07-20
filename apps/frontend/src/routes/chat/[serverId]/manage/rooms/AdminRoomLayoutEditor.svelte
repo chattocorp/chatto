@@ -15,10 +15,9 @@
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
-  import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
-  import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { flip } from 'svelte/animate';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import * as m from '$lib/i18n/messages';
@@ -69,15 +68,6 @@
     toast.success(m['admin.rooms_admin.group_created']());
   }
 
-  async function renameGroup(groupId: string, newName: string) {
-    const result = await layout.renameGroup(groupId, newName);
-    if (!result.ok) {
-      toast.error(m['admin.rooms_admin.rename_group_failed']({ error: result.error }));
-      return;
-    }
-    toast.success(m['admin.rooms_admin.group_renamed']());
-  }
-
   let deleteGroupConfirmDialogVisible = $state(false);
   let deleteGroupConfirm = $state<GroupState | null>(null);
 
@@ -126,11 +116,7 @@
   }
 
   function handleGroupConsider(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
-    roomDragGeneration = layout.handleRoomDragConsider(
-      groupId,
-      e.detail.items,
-      roomDragGeneration
-    );
+    roomDragGeneration = layout.handleRoomDragConsider(groupId, e.detail.items, roomDragGeneration);
   }
 
   async function handleGroupFinalize(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
@@ -141,11 +127,7 @@
     queueMicrotask(() => {
       if (roomDragGeneration === dragGeneration) roomDragGeneration = null;
     });
-    const result = await layout.handleRoomDragFinalize(
-      groupId,
-      e.detail.items,
-      dragGeneration
-    );
+    const result = await layout.handleRoomDragFinalize(groupId, e.detail.items, dragGeneration);
     handleRoomMoveResult(result);
   }
 
@@ -162,97 +144,6 @@
     groupDragGeneration = null;
     const result = await layout.handleGroupsFinalize(e.detail.items, dragGeneration);
     handleGroupReorderResult(result);
-  }
-
-  // --- Set rename modal ---
-
-  let editGroupDialogVisible = $state(false);
-  let editGroupId = $state('');
-  let editGroupName = $state('');
-
-  function openEditGroup(group: GroupState) {
-    editGroupId = group.id;
-    editGroupName = group.name;
-    editGroupDialogVisible = true;
-  }
-
-  function handleEditGroupSubmit(e: Event) {
-    e.preventDefault();
-    if (editGroupId && editGroupName.trim()) {
-      void renameGroup(editGroupId, editGroupName.trim());
-    }
-    editGroupDialogVisible = false;
-  }
-
-  // --- Room editing ---
-
-  let editRoomDialogVisible = $state(false);
-  let editRoomId = $state('');
-  let editRoomName = $state('');
-  let editRoomDescription = $state('');
-  let editRoomUniversal = $state(false);
-  let editRoomOriginalName = $state('');
-  let editRoomOriginalDescription = $state('');
-  let editRoomOriginalUniversal = $state(false);
-
-  let editRoomNameError = $derived.by(() => {
-    if (!editRoomName) return undefined;
-    if (editRoomName.trim() === '') return m['admin.rooms_admin.room_name_empty']();
-    if (editRoomName !== editRoomName.trim()) return m['admin.rooms_admin.room_name_trim']();
-    if (!/^[a-zA-Z0-9_-]+$/.test(editRoomName.trim())) {
-      return m['admin.rooms_admin.room_name_charset']();
-    }
-    if (editRoomName.length > 30) {
-      return m['admin.rooms_admin.room_name_too_long']();
-    }
-    return undefined;
-  });
-
-  let editRoomMetadataChanged = $derived(
-    editRoomName.trim() !== editRoomOriginalName ||
-      editRoomDescription.trim() !== editRoomOriginalDescription
-  );
-  let editRoomUniversalChanged = $derived(editRoomUniversal !== editRoomOriginalUniversal);
-  let editRoomChanged = $derived(editRoomMetadataChanged || editRoomUniversalChanged);
-  let editRoomSaving = $derived(layout.updatingRoom || layout.universalRoomId === editRoomId);
-
-  function openEditRoom(room: RoomInfo) {
-    editRoomId = room.id;
-    editRoomName = room.name;
-    editRoomDescription = room.description ?? '';
-    editRoomUniversal = room.isUniversal;
-    editRoomOriginalName = room.name;
-    editRoomOriginalDescription = room.description ?? '';
-    editRoomOriginalUniversal = room.isUniversal;
-    editRoomDialogVisible = true;
-  }
-
-  async function handleEditRoomSubmit(e: Event) {
-    e.preventDefault();
-    if (editRoomNameError || !editRoomName.trim()) return;
-
-    if (editRoomMetadataChanged) {
-      const result = await layout.updateRoom(
-        editRoomId,
-        editRoomName.trim(),
-        editRoomDescription.trim() || null
-      );
-      if (!result.ok) {
-        toast.error(m['admin.rooms_admin.update_room_failed']({ error: result.error }));
-        return;
-      }
-    }
-
-    if (editRoomUniversalChanged) {
-      const result = await layout.updateRoomUniversal(editRoomId, editRoomUniversal);
-      if (!result.ok) {
-        toast.error(m['admin.rooms_admin.update_room_failed']({ error: result.error }));
-        return;
-      }
-    }
-
-    toast.success(m['admin.rooms_admin.room_updated']());
-    editRoomDialogVisible = false;
   }
 
   // --- Room archiving ---
@@ -312,20 +203,20 @@
     archiveConfirmRoom = null;
   }
 
-  // --- Permissions navigation ---
+  // --- Resource settings navigation ---
 
-  function openGroupPermissions(group: GroupState) {
+  function openGroupSettings(group: GroupState) {
     goto(
-      resolve('/chat/[serverId]/server-admin/rooms/group/[groupId]', {
+      resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
         serverId: serverSegment,
         groupId: group.id
       })
     );
   }
 
-  function openRoomPermissions(room: RoomInfo) {
+  function openRoomSettings(room: RoomInfo) {
     goto(
-      resolve('/chat/[serverId]/server-admin/rooms/room/[roomId]', {
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
         serverId: serverSegment,
         roomId: room.id
       })
@@ -447,12 +338,12 @@
     {@render iconButton({
       icon: 'uil--pen',
       title: m['admin.rooms_admin.edit_room_action'](),
-      onclick: () => openEditRoom(roomInfo)
+      onclick: () => openRoomSettings(roomInfo)
     })}
     {@render iconButton({
       icon: 'uil--shield',
       title: m['admin.rooms_admin.room_permissions_title_fallback'](),
-      onclick: () => openRoomPermissions(roomInfo)
+      onclick: () => openRoomSettings(roomInfo)
     })}
     {#if roomInfo.archived}
       {@render iconButton({
@@ -554,12 +445,12 @@
                   {@render iconButton({
                     icon: 'uil--pen',
                     title: m['admin.rooms_admin.rename_group_action'](),
-                    onclick: () => openEditGroup(group)
+                    onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--shield',
                     title: m['admin.rooms_admin.group_permissions'](),
-                    onclick: () => openGroupPermissions(group)
+                    onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
                     icon: 'uil--trash-alt',
@@ -670,44 +561,6 @@
 </Dialog>
 
 <FormDialog
-  bind:visible={editRoomDialogVisible}
-  title={m['admin.rooms_admin.edit_room']()}
-  size="sm"
-  submitLabel={m['admin.permissions.save_changes']()}
-  submitLoadingText={m['rbac.role_form.saving']()}
-  loading={editRoomSaving}
-  disabled={!editRoomName.trim() || !!editRoomNameError || !editRoomChanged}
-  onsubmit={handleEditRoomSubmit}
-  onclose={() => (editRoomDialogVisible = false)}
->
-  <TextInput
-    id="edit-room-name"
-    label={m['rbac.role_form.name']()}
-    bind:value={editRoomName}
-    required
-    disabled={editRoomSaving}
-    error={editRoomNameError}
-  />
-
-  <TextArea
-    id="edit-room-description"
-    label={m['rbac.role_form.description']()}
-    bind:value={editRoomDescription}
-    rows={3}
-    disabled={editRoomSaving}
-    placeholder={m['admin.rooms_admin.room_description_placeholder']()}
-  />
-
-  <Checkbox
-    id="edit-room-universal"
-    bind:checked={editRoomUniversal}
-    disabled={editRoomSaving}
-    label={m['admin.rooms_admin.universal_room']()}
-    description={UNIVERSAL_ROOM_HELP_TEXT}
-  />
-</FormDialog>
-
-<FormDialog
   bind:visible={createGroupDialogVisible}
   title={m['admin.rooms_admin.create_group']()}
   size="sm"
@@ -722,22 +575,6 @@
     label={m['admin.rooms_admin.group_name']()}
     bind:value={newGroupName}
     placeholder={m['admin.rooms_admin.group_name_placeholder']()}
-  />
-</FormDialog>
-
-<FormDialog
-  bind:visible={editGroupDialogVisible}
-  title={m['admin.rooms_admin.rename_group']()}
-  size="sm"
-  submitLabel={m['rbac.role_form.save']()}
-  disabled={!editGroupName.trim()}
-  onsubmit={handleEditGroupSubmit}
-  onclose={() => (editGroupDialogVisible = false)}
->
-  <TextInput
-    id="edit-group-name"
-    label={m['admin.rooms_admin.group_name']()}
-    bind:value={editGroupName}
   />
 </FormDialog>
 

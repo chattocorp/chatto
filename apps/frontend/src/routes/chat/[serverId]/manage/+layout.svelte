@@ -14,20 +14,22 @@
   const chromePermissions = getChromePermissions();
   const serverPerms = getServerPermissions();
 
-  // Map routes to required permissions
-  // Returns the permission check function for each route prefix
+  // Server management routes are gated here. Resource-scoped room routes
+  // perform their own checks after loading the target resource.
   function getRoutePermissionCheck(pathname: string): () => boolean {
     const seg = serverIdToSegment(getActiveServer());
     const params = { serverId: seg };
-    const adminBase = resolve('/chat/[serverId]/server-admin', params);
-    const generalBase = resolve('/chat/[serverId]/server-admin/general', params);
-    const membersBase = resolve('/chat/[serverId]/server-admin/members', params);
-    const roomsBase = adminBase + '/rooms';
-    const moderationBase = adminBase + '/moderation';
-    const permissionsBase = adminBase + '/permissions';
-    const securityBase = adminBase + '/security';
-    const systemBase = adminBase + '/system';
-    const eventLogBase = adminBase + '/event-log';
+    const serverBase = resolve('/chat/[serverId]/manage/server', params);
+    const manageBase = serverBase.slice(0, -'/server'.length);
+    const generalBase = serverBase + '/general';
+    const membersBase = serverBase + '/members';
+    const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
+    const roomGroupsBase = manageBase + '/room-groups';
+    const moderationBase = serverBase + '/moderation';
+    const permissionsBase = serverBase + '/permissions';
+    const securityBase = serverBase + '/security';
+    const systemBase = serverBase + '/system';
+    const eventLogBase = serverBase + '/event-log';
 
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
@@ -40,9 +42,16 @@
       return () => serverPerms.current.canAdminViewUsers;
     }
 
-    // Rooms pages require room.manage permission
-    if (pathname.startsWith(roomsBase)) {
+    // The room collection is a server-wide layout editor. Individual room
+    // pages allow delegated managers and enforce access after loading the room.
+    if (pathname === roomsBase || pathname === `${roomsBase}/`) {
       return () => chromePermissions.current.canManageRooms;
+    }
+    if (pathname.startsWith(`${roomsBase}/`)) return () => true;
+
+    // Room-group settings and permission overrides both require role.manage.
+    if (pathname.startsWith(`${roomGroupsBase}/`)) {
+      return () => chromePermissions.current.canManageRoles;
     }
 
     // Moderation pages: the resolver enforces server-scope room.ban-member.
@@ -71,7 +80,7 @@
       return () => serverPerms.current.canAdminViewAudit;
     }
 
-    // Default: require server manage for any other admin route
+    // Default: require server manage for unknown management routes.
     return () => chromePermissions.current.canManage;
   }
 

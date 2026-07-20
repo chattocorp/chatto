@@ -20,7 +20,7 @@
   const entryPromise = $derived(eventLog.getEvent(sequence));
 
   const backHref = $derived(
-    resolve('/chat/[serverId]/server-admin/event-log', {
+    resolve('/chat/[serverId]/manage/server/event-log', {
       serverId: serverIdToSegment(getActiveServer())
     })
   );

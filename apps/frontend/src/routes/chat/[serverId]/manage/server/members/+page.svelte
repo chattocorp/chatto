@@ -186,7 +186,7 @@
             loadingMoreMessage={m['admin.members.loading_more']()}
             onRowClick={(user) =>
               goto(
-                resolve('/chat/[serverId]/server-admin/members/[userId]', {
+                resolve('/chat/[serverId]/manage/server/members/[userId]', {
                   serverId: serverIdToSegment(getActiveServer()),
                   userId: user.id
                 })

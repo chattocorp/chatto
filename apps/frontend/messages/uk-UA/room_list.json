@@ -16,6 +16,7 @@
     "mark_as_read": "Позначити як прочитане",
     "remove_server": "Видалити сервер",
     "leave_room": "Залишити кімнату",
+    "room_settings": "Налаштування кімнати",
     "server_actions": "Дії для {server}",
     "room_actions": "Дії для #{room}"
   }

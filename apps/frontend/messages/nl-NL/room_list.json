@@ -16,6 +16,7 @@
     "mark_as_read": "Markeren als gelezen",
     "remove_server": "Server verwijderen",
     "leave_room": "Ruimte verlaten",
+    "room_settings": "Ruimte-instellingen",
     "server_actions": "Acties voor {server}",
     "room_actions": "Acties voor #{room}"
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import { goto } from '$app/navigation';
 import { q } from '$lib/test-utils';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
@@ -157,58 +158,33 @@ describe('AdminRoomLayoutEditor', () => {
     });
   });
 
-  it('keeps Save disabled and shows validation when a room name has leading whitespace', async () => {
+  it('opens the room edit page from the room edit action without showing a dialog', async () => {
     const layout = makeLayout();
     layout.initialized = true;
     layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
-    const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
     const { container } = renderEditor(layout);
 
     const edit = container.querySelector('[title="Edit room"]');
     if (!(edit instanceof HTMLButtonElement)) throw new Error('edit button not found');
     edit.click();
-    flushSync();
 
-    const input = q(container, '#edit-room-name') as HTMLInputElement;
-    fill(input, ' bad-name');
-
-    expect(container.textContent).toContain('Room name cannot have leading or trailing whitespace');
-    const save = buttonByText(container, 'Save Changes');
-    expect(save.disabled).toBe(true);
-    save.click();
-    await Promise.resolve();
-    expect(updateRoom).not.toHaveBeenCalled();
+    expect(goto).toHaveBeenCalledWith('/chat/-/manage/rooms/r1');
+    expect(container.querySelector('#edit-room-name')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('edits the Universal flag from the room edit modal, not a row action', async () => {
+  it('opens the room-group edit page from the group edit action without showing a dialog', async () => {
     const layout = makeLayout();
     layout.initialized = true;
-    layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
-    const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
-    const updateRoomUniversal = vi
-      .spyOn(layout, 'updateRoomUniversal')
-      .mockResolvedValue({ ok: true });
+    layout.groups = [group('g1', [], 'Lobby')];
     const { container } = renderEditor(layout);
 
-    expect(container.querySelector('[title="Make universal room"]')).toBeNull();
-
-    const edit = container.querySelector('[title="Edit room"]');
+    const edit = container.querySelector('[title="Rename group"]');
     if (!(edit instanceof HTMLButtonElement)) throw new Error('edit button not found');
     edit.click();
-    flushSync();
 
-    const checkbox = q(container, '#edit-room-universal') as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
-    checkbox.click();
-    flushSync();
-
-    const save = buttonByText(container, 'Save Changes');
-    expect(save.disabled).toBe(false);
-    save.click();
-
-    await vi.waitFor(() => {
-      expect(updateRoomUniversal).toHaveBeenCalledWith('r1', true);
-    });
-    expect(updateRoom).not.toHaveBeenCalled();
+    expect(goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/g1');
+    expect(container.querySelector('#edit-group-name')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 });

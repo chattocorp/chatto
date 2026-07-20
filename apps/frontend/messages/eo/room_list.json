@@ -16,6 +16,7 @@
     "mark_as_read": "Marki kiel legitan",
     "remove_server": "Forigi servilon",
     "leave_room": "Forlasi ĉambron",
+    "room_settings": "Agordoj de ĉambro",
     "server_actions": "Agoj por {server}",
     "room_actions": "Agoj por #{room}"
   }

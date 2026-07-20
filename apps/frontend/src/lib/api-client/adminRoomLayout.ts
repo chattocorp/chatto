@@ -44,6 +44,7 @@ export type AdminSidebarItem =
 export type AdminRoomGroup = {
   id: string;
   name: string;
+  description?: string | null;
   canCreateRoom: boolean;
   rooms: AdminRoomInfo[];
   items: AdminSidebarItem[];
@@ -211,6 +212,7 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
+    description: group.description || null,
     canCreateRoom: group.canCreateRoom ?? false,
     rooms: roomsFromSidebarItems(items),
     items

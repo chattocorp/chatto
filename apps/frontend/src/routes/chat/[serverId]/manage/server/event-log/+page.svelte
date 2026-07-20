@@ -140,8 +140,8 @@
     goto(
       resolve(
         query
-          ? `/chat/[serverId]/server-admin/event-log?${query}`
-          : '/chat/[serverId]/server-admin/event-log',
+          ? `/chat/[serverId]/manage/server/event-log?${query}`
+          : '/chat/[serverId]/manage/server/event-log',
         {
           serverId: serverIdToSegment(activeServerId)
         }
@@ -152,7 +152,7 @@
 
   function openEntry(entry: AdminEventLogEntry) {
     goto(
-      resolve('/chat/[serverId]/server-admin/event-log/[sequence]', {
+      resolve('/chat/[serverId]/manage/server/event-log/[sequence]', {
         serverId: serverIdToSegment(activeServerId),
         sequence: entry.sequence
       })

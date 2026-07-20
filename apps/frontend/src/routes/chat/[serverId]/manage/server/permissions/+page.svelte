@@ -23,7 +23,7 @@
 
   function openRoleDetail(role: { roleName: string }) {
     goto(
-      resolve('/chat/[serverId]/server-admin/permissions/[name]', {
+      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
         serverId: serverSegment,
         name: role.roleName
       })
@@ -54,7 +54,7 @@
           <Button
             variant="neutral"
             size="sm"
-            href={resolve('/chat/[serverId]/server-admin/permissions/new', {
+            href={resolve('/chat/[serverId]/manage/server/permissions/new', {
               serverId: serverSegment
             })}
           >
@@ -70,7 +70,7 @@
           <p>
             {m['admin.permissions.server_tier_rooms_hint']()}
             <a
-              href={resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment })}
+              href={resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })}
               class="link">{m['admin.common.rooms']()}</a
             >
           </p>

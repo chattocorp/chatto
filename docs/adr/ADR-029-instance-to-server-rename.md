@@ -41,7 +41,7 @@ Drop the prefix entirely when there's nothing left to disambiguate against (sing
 3. **Proto field-number stability**: message/field names rename; field numbers stay. Binary wire compat preserved — existing stored payloads decode unchanged. Verified at the end via a backup/restore round-trip.
 4. **`live.*` NATS subjects in scope**: `live.instance.user.{userId}.*` → `live.server.user.{userId}.*`, `live.instance.space.{spaceId}.*` → `live.server.space.{spaceId}.*`. Live events don't persist, so subject rename is free.
 5. **Frontend module path**: `$lib/instance/*` → `$lib/chatto/*` (not `$lib/server/*` — SvelteKit reserves that name for server-only modules).
-6. **Routes**: the admin tree is already consolidated under `chat/[instanceId]/(chrome)/server-admin/*` (no `/admin/instance/*` exists). What remains is the `[instanceId]` route param everywhere under `chat/` and the top-level `/instances` and `/instances/callback` paths. These rename to `[serverId]` and `/servers` / `/servers/callback`, with SvelteKit redirects from the old paths for ~one release cycle.
+6. **Routes**: the administration tree is consolidated under `chat/[instanceId]/(chrome)/manage/*`, with server-only pages below `manage/server/*` and resource-scoped pages beside them. What remains is the `[instanceId]` route param everywhere under `chat/` and the top-level `/instances` and `/instances/callback` paths. These rename to `[serverId]` and `/servers` / `/servers/callback`, with SvelteKit redirects from the old paths for ~one release cycle.
 
 ## Consequences
 

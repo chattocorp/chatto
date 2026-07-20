@@ -21,7 +21,8 @@ function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): Di
     isUniversal: overrides.isUniversal ?? false,
     isMember: overrides.isMember ?? false,
     hasUnread: overrides.hasUnread ?? false,
-    canJoinRoom: overrides.canJoinRoom ?? true
+    canJoinRoom: overrides.canJoinRoom ?? true,
+    canManageRoom: overrides.canManageRoom ?? false
   };
 }
 

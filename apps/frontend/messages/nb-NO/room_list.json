@@ -16,6 +16,7 @@
     "mark_as_read": "Merk som lest",
     "remove_server": "Fjern server",
     "leave_room": "Forlat rom",
+    "room_settings": "Rominnstillinger",
     "server_actions": "Handlinger for {server}",
     "room_actions": "Handlinger for #{room}"
   }

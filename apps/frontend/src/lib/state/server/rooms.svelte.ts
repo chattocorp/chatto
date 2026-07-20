@@ -23,6 +23,7 @@ export type RoomsListItem = {
   isUniversal: boolean;
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
+  viewerCanManageRoom: boolean;
   viewerNotificationCount: number;
   // Populated for DM rooms only — used to derive the display name in the sidebar.
   members: UserAvatarUserView[];
@@ -125,6 +126,7 @@ function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
     a.isUniversal === b.isUniversal &&
     a.viewerIsMember === b.viewerIsMember &&
     a.viewerCanJoinRoom === b.viewerCanJoinRoom &&
+    a.viewerCanManageRoom === b.viewerCanManageRoom &&
     a.viewerNotificationCount === b.viewerNotificationCount &&
     sameAvatarUsers(a.members, b.members)
   );
@@ -330,6 +332,7 @@ export class RoomsStore {
       isUniversal: room.isUniversal,
       viewerIsMember: room.isMember,
       viewerCanJoinRoom: room.canJoinRoom,
+      viewerCanManageRoom: room.canManageRoom,
       viewerNotificationCount: 0,
       members
     };

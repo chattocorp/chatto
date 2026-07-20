@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-07-19
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -12,7 +12,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Server admins can create, rename, reorder, and delete groups via the admin UI.
+- Server-wide room managers can create, reorder, and delete groups from the room-layout overview. Its edit action opens the room group's resource page in the shared management area, where managers edit the group's name and description alongside its permission settings.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar.

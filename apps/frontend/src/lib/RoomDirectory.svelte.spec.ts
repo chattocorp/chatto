@@ -25,6 +25,7 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
   isUniversal: overrides.isUniversal ?? false,
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerCanManageRoom: overrides.viewerCanManageRoom ?? false,
   viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
   members: overrides.members ?? []
 });

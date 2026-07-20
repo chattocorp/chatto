@@ -152,7 +152,7 @@ export class ChatPage {
     await logoutCurrentUser(this.page);
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
-    await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
+    await expect(this.page).toHaveURL(/\/manage\/rooms/);
     await this.page.getByRole('button', { name: 'New Room' }).click();
     await expect(this.roomNameInput).toBeVisible();
   }

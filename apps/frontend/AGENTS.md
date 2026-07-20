@@ -146,7 +146,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Admin And Settings UI
 
-- Server admin routes live under `/chat/[serverId]/server-admin/`.
+- Management routes live under `/chat/[serverId]/manage/`: server-scoped pages
+  under `manage/server/`, rooms under `manage/rooms/`, and room groups under
+  `manage/room-groups/`.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until

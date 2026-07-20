@@ -187,6 +187,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: true,
       viewerNotificationCount: 0,
       members: []
     },
@@ -197,6 +198,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: []
     },
@@ -207,6 +209,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: false,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: []
     },
@@ -217,6 +220,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
     },
@@ -227,6 +231,7 @@ function setRooms() {
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
@@ -424,6 +429,39 @@ describe('RoomList', () => {
     expect(mocks.pushState).toHaveBeenCalledWith('', {
       modal: { type: 'leaveRoom', roomId: 'channel-1', roomName: 'general' }
     });
+  });
+
+  it('opens room settings for viewers who can manage the room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    settings!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/channel-1');
+  });
+
+  it('hides room settings without room.manage', async () => {
+    const rooms = mocks.store.rooms.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'channel-1');
+    if (!channel) throw new Error('Missing mocked room channel-1');
+    channel.viewerCanManageRoom = false;
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave room'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    expect(settings).toBeUndefined();
   });
 
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {

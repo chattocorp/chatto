@@ -166,8 +166,9 @@ authorization, live events, backup/restore, and backend tests.
 
 - Owners/admins can see operational metadata, not user content. Message/file
   visibility for moderation must be an explicit audited feature.
-- Server admin routes live under `/chat/[serverId]/server-admin/`.
-- The shared admin `Panel` component is used in both server-admin and settings
+- Management routes live under `/chat/[serverId]/manage/`, with server-only
+  pages under `manage/server/` and delegated room/group pages beside it.
+- The shared admin `Panel` component is used in both management and settings
   surfaces; changes affect both.
 - Implicit roles such as `everyone` must not be editable as normal assignments.
 

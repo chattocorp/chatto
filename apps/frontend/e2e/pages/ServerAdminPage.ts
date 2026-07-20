@@ -10,12 +10,12 @@ export class ServerAdminPage {
 
   // --- Locators ---
 
-  /** The server-admin gear link in the server header. */
+  /** The manage/server gear link in the server header. */
   get adminLink(): Locator {
     return this.page.getByRole('link', { name: 'Server administration' });
   }
 
-  /** Dedicated server-admin sidebar link container. */
+  /** Dedicated manage/server sidebar link container. */
   get adminLinks(): Locator {
     return this.page.locator('nav').first();
   }

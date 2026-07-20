@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Server Admin Rooms page (/chat/-/{spaceId}/admin/rooms).
+ * Page object for the Rooms management page (/chat/{serverId}/manage/rooms).
  * Covers room listing, archiving/unarchiving, global-room toggle, groups, and CRUD.
  */
 export class ServerAdminRoomsPage {
@@ -96,30 +96,34 @@ export class ServerAdminRoomsPage {
     await this.dialog.getByRole('button', { name: 'Unarchive Room' }).click();
   }
 
-  /** Click the Edit button on a room row (opens edit dialog). */
+  /** Click the Edit button on a room row and open its settings page. */
   async clickEdit(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
     await row.getByTitle('Edit room').click();
-    await expect(this.dialog).toBeVisible();
+    await expect(this.page.locator('#room-settings-name')).toBeVisible();
+    await expect(this.dialog).not.toBeVisible();
   }
 
   /**
-   * Edit a room's name and/or description via the edit dialog.
-   * Opens the dialog, fills fields, and saves.
+   * Edit a room's name and/or description on its settings page, then return
+   * to the rooms overview.
    */
   async editRoom(currentName: string, newName: string, description?: string): Promise<void> {
     await this.clickEdit(currentName);
 
-    const nameInput = this.dialog.getByLabel('Name');
+    const nameInput = this.page.locator('#room-settings-name');
     await nameInput.clear();
     await nameInput.fill(newName);
 
     if (description !== undefined) {
-      const descInput = this.dialog.getByLabel('Description');
+      const descInput = this.page.locator('#room-settings-description');
       await descInput.fill(description);
     }
 
-    await this.dialog.getByRole('button', { name: 'Save Changes' }).click();
+    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(this.page.getByText('Room updated')).toBeVisible();
+    await this.page.goto(routes.serverAdminRooms);
+    await expect(this.pageHeading).toBeVisible();
   }
 
   // --- Group Actions ---
@@ -133,16 +137,20 @@ export class ServerAdminRoomsPage {
   }
 
   /**
-   * Rename a group: clicks the rename icon on the named group's header
-   * row, fills the new name, saves. Scoped to `currentName` because the
-   * seed "Lobby" group always has its own Rename button.
+   * Rename a group on its settings page, then return to the rooms overview.
+   * The action is scoped to `currentName` because the seed "Lobby" group
+   * always has its own Rename button.
    */
   async renameGroup(currentName: string, newName: string): Promise<void> {
     await this.groupHeaderRow(currentName).getByTitle('Rename group').click();
-    await expect(this.dialog).toBeVisible();
-    await this.dialog.getByLabel('Group name').clear();
-    await this.dialog.getByLabel('Group name').fill(newName);
-    await this.dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(this.page.locator('#room-group-settings-name')).toBeVisible();
+    await expect(this.dialog).not.toBeVisible();
+    await this.page.locator('#room-group-settings-name').clear();
+    await this.page.locator('#room-group-settings-name').fill(newName);
+    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(this.page.getByText('Group renamed')).toBeVisible();
+    await this.page.goto(routes.serverAdminRooms);
+    await expect(this.pageHeading).toBeVisible();
   }
 
   /**
@@ -202,5 +210,4 @@ export class ServerAdminRoomsPage {
   async expectGroupNotVisible(name: string): Promise<void> {
     await expect(this.groupHeader(name)).not.toBeVisible();
   }
-
 }

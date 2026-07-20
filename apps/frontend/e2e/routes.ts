@@ -66,12 +66,12 @@ export const preferences = `/chat/${HOME}/preferences`;
 // gone for the time being while we re-think the cross-server consolidated
 // view.
 
-// --- Server admin (the unified admin surface) ---
+// --- Management surfaces ---
 
 export const serverAdmin = (sub?: string) =>
-  sub ? `/chat/${HOME}/server-admin/${sub}` : `/chat/${HOME}/server-admin`;
+  sub ? `/chat/${HOME}/manage/server/${sub}` : `/chat/${HOME}/manage/server`;
 export const serverAdminGeneral = serverAdmin('general');
-export const serverAdminRooms = serverAdmin('rooms');
+export const serverAdminRooms = `/chat/${HOME}/manage/rooms`;
 export const serverAdminPermissions = serverAdmin('permissions');
 export const serverAdminPermissionsNew = serverAdmin('permissions/new');
 export const serverAdminPermission = (roleName: string) => serverAdmin(`permissions/${roleName}`);
@@ -118,19 +118,19 @@ export const patterns = {
   /** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
   chatRedirect: /\/chat\/(-|notifications)/,
   /** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
-  anyRoom: /\/chat\/-\/[a-zA-Z0-9]+$/,
+  anyRoom: /\/chat\/-\/(?!manage$)[a-zA-Z0-9]+$/,
   /** Any thread page: /chat/-/{roomId}/{threadId} */
-  anyThread: /\/chat\/-\/[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
-  /** Any admin user page: /chat/-/server-admin/members/{id} */
-  anyAdminUser: /\/chat\/-\/server-admin\/members\/[a-zA-Z0-9]+/,
+  anyThread: /\/chat\/-\/(?!manage\/)[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
+  /** Any admin user page: /chat/-/manage/server/members/{id} */
+  anyAdminUser: /\/chat\/-\/manage\/server\/members\/[a-zA-Z0-9]+/,
   /** Any non-admin chat route (home instance or instance-agnostic) */
-  nonAdmin: /\/chat\/(?:-(?:\/(?!server-admin)|$)|notifications)/,
+  nonAdmin: /\/chat\/(?:-(?:\/(?!manage(?:\/|$))|$)|notifications)/,
   /** Chat root or any room (used after redirects) */
-  chatRootOrRoom: /\/chat\/-(?:\/[a-zA-Z0-9]+)?$/,
+  chatRootOrRoom: /\/chat\/-(?:\/(?!manage$)[a-zA-Z0-9]+)?$/,
   /** Chat root or any room, allowing query params */
-  chatRootOrRoomWithQuery: /\/chat\/-(?:\/[a-zA-Z0-9]+)?(?:\?.*)?$/,
+  chatRootOrRoomWithQuery: /\/chat\/-(?:\/(?!manage(?:\?|$))[a-zA-Z0-9]+)?(?:\?.*)?$/,
   /** Any room with query params (e.g. ?highlight=) */
-  anyRoomWithQuery: /\/chat\/-\/[a-zA-Z0-9]+/,
+  anyRoomWithQuery: /\/chat\/-\/(?!manage(?:\/|\?|$))[a-zA-Z0-9]+/,
   /** Browse rooms — folded into the server overview at /chat/-/overview */
   browseRooms: /\/chat\/-\/overview$/,
   /** Email verified redirect */

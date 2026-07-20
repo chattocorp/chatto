@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   loadFirstPage: vi.fn(),
   loadMore: vi.fn(),
   loadEventTypes: vi.fn(),
-  currentUrl: new URL('https://chat.example.test/chat/-/server-admin/event-log'),
+  currentUrl: new URL('https://chat.example.test/chat/-/manage/server/event-log'),
   eventLog: {
     entries: [] as Entry[],
     totalCount: '0',
@@ -203,7 +203,7 @@ describe('server admin event log filters', () => {
     mocks.loadFirstPage.mockReset();
     mocks.loadMore.mockReset();
     mocks.loadEventTypes.mockReset();
-    mocks.currentUrl = new URL('https://chat.example.test/chat/-/server-admin/event-log');
+    mocks.currentUrl = new URL('https://chat.example.test/chat/-/manage/server/event-log');
     mocks.eventLog.entries = [
       entry('102', 'UserJoinedRoomEvent'),
       entry('101', 'LoginSucceededEvent')
@@ -231,7 +231,7 @@ describe('server admin event log filters', () => {
 
   it('loads from URL filters and auto-loads older entries from the table sentinel', async () => {
     mocks.currentUrl = new URL(
-      'https://chat.example.test/chat/-/server-admin/event-log?eventType=LoginSucceededEvent&actorId=user-1'
+      'https://chat.example.test/chat/-/manage/server/event-log?eventType=LoginSucceededEvent&actorId=user-1'
     );
 
     const { container } = render(EventLogPage);
@@ -291,7 +291,7 @@ describe('server admin event log filters', () => {
     await settle();
 
     expect(mocks.goto).toHaveBeenCalledWith(
-      '/chat/-/server-admin/event-log?eventType=UserJoinedRoomEvent',
+      '/chat/-/manage/server/event-log?eventType=UserJoinedRoomEvent',
       { keepFocus: true, noScroll: true }
     );
   });

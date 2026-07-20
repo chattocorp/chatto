@@ -65,9 +65,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const roomUnreadStore = $derived(stores.roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
-  let roomContextMenu = $state<
-    (ContextMenuTriggerDetails & { room: RoomsListItem }) | null
-  >(null);
+  let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
 
   function roomMenuTrigger(room: RoomsListItem) {
     return contextMenuTrigger((details) => {
@@ -93,6 +91,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         roomName: room.name
       }
     });
+  }
+
+  function handleConfigureRoom(room: RoomsListItem): void {
+    closeRoomContextMenu();
+    void goto(
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
+        serverId: serverSegment,
+        roomId: room.id
+      })
+    );
   }
 
   // --- Derived layout helpers ---
@@ -495,8 +503,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       kind="room"
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
+      canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomType.Dm}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
+      onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
   </ContextMenu>

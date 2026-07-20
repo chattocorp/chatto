@@ -140,7 +140,7 @@
     }
 
     // Navigate back to permissions list
-    goto(resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }));
+    goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
   }
 
   function roleAPI() {
@@ -152,7 +152,7 @@
   }
 
   const permissionsHref = $derived(
-    resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment })
+    resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })
   );
 
   const metadataChanged = $derived(
@@ -291,7 +291,7 @@
             emptyMessage={m['admin.permissions.no_users_with_role']()}
             onUserClick={(user) =>
               goto(
-                resolve('/chat/[serverId]/server-admin/members/[userId]', {
+                resolve('/chat/[serverId]/manage/server/members/[userId]', {
                   serverId: serverSegment,
                   userId: user.id
                 })

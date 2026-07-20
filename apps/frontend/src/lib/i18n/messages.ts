@@ -966,6 +966,7 @@ const msg_room_list_empty_suffix = (): LocalizedString => messages().room_list_e
 const msg_room_list_mark_as_read = (): LocalizedString => messages().room_list_mark_as_read(empty());
 const msg_room_list_remove_server = (): LocalizedString => messages().room_list_remove_server(empty());
 const msg_room_list_leave_room = (): LocalizedString => messages().room_list_leave_room(empty());
+const msg_room_list_room_settings = (): LocalizedString => messages().room_list_room_settings(empty());
 const msg_room_list_server_actions = (
   inputs: Parameters<LocaleMessages['room_list_server_actions']>[0]
 ): LocalizedString => messages().room_list_server_actions(inputs);
@@ -2373,6 +2374,7 @@ export { msg_room_list_empty_suffix as 'room_list.empty_suffix' };
 export { msg_room_list_mark_as_read as 'room_list.mark_as_read' };
 export { msg_room_list_remove_server as 'room_list.remove_server' };
 export { msg_room_list_leave_room as 'room_list.leave_room' };
+export { msg_room_list_room_settings as 'room_list.room_settings' };
 export { msg_room_list_server_actions as 'room_list.server_actions' };
 export { msg_room_list_room_actions as 'room_list.room_actions' };
 export { msg_voice_connecting as 'voice.connecting' };

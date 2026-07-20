@@ -127,7 +127,8 @@ describe('createRoomDirectoryAPI', () => {
         isUniversal: true,
         isMember: true,
         hasUnread: true,
-        canJoinRoom: false
+        canJoinRoom: false,
+        canManageRoom: false
       },
       {
         id: 'room-2',
@@ -138,7 +139,8 @@ describe('createRoomDirectoryAPI', () => {
         isUniversal: false,
         isMember: true,
         hasUnread: false,
-        canJoinRoom: true
+        canJoinRoom: true,
+        canManageRoom: false
       }
     ]);
   });

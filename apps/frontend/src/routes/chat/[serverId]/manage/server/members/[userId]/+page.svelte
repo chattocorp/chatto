@@ -329,7 +329,7 @@
   <PaneHeader
     title={m['admin.members.member_details']()}
     subtitle={member?.displayName ?? m['common.loading']()}
-    backHref={resolve('/chat/[serverId]/server-admin/members', {
+    backHref={resolve('/chat/[serverId]/manage/server/members', {
       serverId: serverIdToSegment(getActiveServer())
     })}
     backLabel={m['admin.members.back_to_members']()}
@@ -594,7 +594,7 @@
               </div>
               {#if canManageRoles}
                 <a
-                  href={resolve('/chat/[serverId]/server-admin/permissions/[name]', {
+                  href={resolve('/chat/[serverId]/manage/server/permissions/[name]', {
                     serverId: serverIdToSegment(getActiveServer()),
                     name: role.name
                   })}

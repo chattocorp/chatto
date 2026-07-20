@@ -61,7 +61,7 @@
 
     // Navigate to the new role's detail page
     goto(
-      resolve('/chat/[serverId]/server-admin/permissions/[name]', {
+      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
         serverId: serverIdToSegment(getActiveServer()),
         name: name.trim()
       })
@@ -87,7 +87,7 @@
   <PaneHeader
     title={m['admin.permissions.create_role_title']()}
     subtitle={m['admin.permissions.create_role_subtitle']()}
-    backHref={resolve('/chat/[serverId]/server-admin/permissions', {
+    backHref={resolve('/chat/[serverId]/manage/server/permissions', {
       serverId: serverIdToSegment(getActiveServer())
     })}
     backLabel={m['admin.permissions.back_to_permissions']()}
