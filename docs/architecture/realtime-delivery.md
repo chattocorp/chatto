@@ -296,6 +296,9 @@ without exposing or materialising their message. A created reply or mention
 notification marks its exact already-followed thread unread in the browser's
 latest-value set. This keeps live reply work bounded and naturally excludes
 muted rooms, which do not create notifications or sidebar unread state.
+The created transition carries that target independently of the pending page,
+so a concurrent dismissal on another device cannot erase the unread signal.
+
 Follow/read mutations, notification-level changes, access restoration, and the
 finite resume replacement still send authoritative complete thread state.
 Notification counts converge through notification signals and the finite

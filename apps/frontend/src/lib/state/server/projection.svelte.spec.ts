@@ -262,11 +262,23 @@ describe('ServerProjectionStore', () => {
         })
       })
     });
+    const createdAfterConcurrentDismissal = operation({
+      case: 'notificationsReplace',
+      value: new RealtimeProjectionNotificationsReplace({
+        page: new ListNotificationsResponse(),
+        change: new RealtimeProjectionNotificationChange({
+          action: RealtimeProjectionNotificationAction.CREATED,
+          notificationId: 'N1',
+          roomId: 'R1',
+          threadRootEventId: 'ROOT'
+        })
+      })
+    });
 
     store.apply(event(room, threadStates(false), createdReply));
     expect(store.hasUnreadFollowedThreads()).toBe(false);
 
-    store.apply(event(threadStates(true), createdReply));
+    store.apply(event(threadStates(true), createdAfterConcurrentDismissal));
     expect(store.hasUnreadFollowedThreads()).toBe(true);
 
     store.apply(

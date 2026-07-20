@@ -274,11 +274,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			replacement := realtimeProjectionNotifications(notifications)
-			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
+			change := &realtimev1.RealtimeProjectionNotificationChange{
 				Action:         realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED,
 				NotificationId: payload.NotificationCreated.GetNotificationId(),
 				Silent:         payload.NotificationCreated.GetSilent(),
 			}
+			if roomID, threadRootID := s.realtimeNotificationThreadTarget(ctx, payload.NotificationCreated); threadRootID != "" {
+				change.RoomId = roomID
+				change.ThreadRootEventId = threadRootID
+			}
+			replacement.Change = change
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
@@ -793,6 +798,24 @@ func realtimeProjectionRoom(room *connectapi.RealtimeProjectionRoom) *realtimev1
 		ViewerNotificationCount: room.ViewerNotificationCount,
 		HasMessageHistory:       room.HasMessageHistory,
 	}
+}
+
+// realtimeNotificationThreadTarget resolves the immutable message target from
+// the creation signal, rather than relying on the notification still being
+// pending when a slower socket maps the signal.
+func (s *HTTPServer) realtimeNotificationThreadTarget(ctx context.Context, created *corev1.NotificationCreatedEvent) (string, string) {
+	if created == nil || created.GetRoomId() == "" || created.GetEventId() == "" {
+		return "", ""
+	}
+	event, err := s.core.GetRoomEventByEventID(ctx, core.KindChannel, created.GetRoomId(), created.GetEventId())
+	if err != nil || event == nil {
+		return "", ""
+	}
+	threadRootID := event.GetMessagePosted().GetInThread()
+	if threadRootID == "" {
+		return "", ""
+	}
+	return created.GetRoomId(), threadRootID
 }
 
 func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectionNotifications) *realtimev1.RealtimeProjectionNotificationsReplace {

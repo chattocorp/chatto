@@ -306,22 +306,23 @@ export class ServerProjectionStore {
       change?.action !== RealtimeProjectionNotificationAction.CREATED
     )
       return;
-    const notification = replacement.page?.notifications.find(
-      (candidate) => candidate.id === change.notificationId
-    );
-    if (!notification) return;
-
-    let roomId = '';
-    let threadRootEventId = '';
-    switch (notification.kind.case) {
-      case 'mention':
-        roomId = notification.kind.value.room?.id ?? '';
-        threadRootEventId = notification.kind.value.threadRootEventId ?? '';
-        break;
-      case 'reply':
-        roomId = notification.kind.value.room?.id ?? '';
-        threadRootEventId = notification.kind.value.threadRootEventId ?? '';
-        break;
+    let roomId = change.roomId;
+    let threadRootEventId = change.threadRootEventId;
+    if (!roomId || !threadRootEventId) {
+      const notification = replacement.page?.notifications.find(
+        (candidate) => candidate.id === change.notificationId
+      );
+      if (!notification) return;
+      switch (notification.kind.case) {
+        case 'mention':
+          roomId = notification.kind.value.room?.id ?? '';
+          threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+          break;
+        case 'reply':
+          roomId = notification.kind.value.room?.id ?? '';
+          threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+          break;
+      }
     }
     if (!roomId || !threadRootEventId) return;
 

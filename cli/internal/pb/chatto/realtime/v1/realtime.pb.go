@@ -2061,9 +2061,13 @@ type RealtimeProjectionNotificationChange struct {
 	Action         RealtimeProjectionNotificationAction `protobuf:"varint,1,opt,name=action,proto3,enum=chatto.realtime.v1.RealtimeProjectionNotificationAction" json:"action,omitempty"`
 	NotificationId string                               `protobuf:"bytes,2,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
 	// True when a created notification must not produce an alert.
-	Silent        bool `protobuf:"varint,3,opt,name=silent,proto3" json:"silent,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Silent bool `protobuf:"varint,3,opt,name=silent,proto3" json:"silent,omitempty"`
+	// Exact followed-thread target of a created reply or mention, when present.
+	// This remains available even if the notification was concurrently dismissed.
+	RoomId            string `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string `protobuf:"bytes,5,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RealtimeProjectionNotificationChange) Reset() {
@@ -2115,6 +2119,20 @@ func (x *RealtimeProjectionNotificationChange) GetSilent() bool {
 		return x.Silent
 	}
 	return false
+}
+
+func (x *RealtimeProjectionNotificationChange) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RealtimeProjectionNotificationChange) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
 }
 
 // Lightweight current viewer state for one projected room.
@@ -3218,11 +3236,13 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\vroom_counts\x18\x02 \x03(\v2$.chatto.api.v1.RoomNotificationCountR\n" +
 	"roomCounts\x12U\n" +
 	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01B\t\n" +
-	"\a_change\"\xb9\x01\n" +
+	"\a_change\"\x83\x02\n" +
 	"$RealtimeProjectionNotificationChange\x12P\n" +
 	"\x06action\x18\x01 \x01(\x0e28.chatto.realtime.v1.RealtimeProjectionNotificationActionR\x06action\x12'\n" +
 	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x16\n" +
-	"\x06silent\x18\x03 \x01(\bR\x06silent\"\x86\x01\n" +
+	"\x06silent\x18\x03 \x01(\bR\x06silent\x12\x17\n" +
+	"\aroom_id\x18\x04 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x05 \x01(\tR\x11threadRootEventId\"\x86\x01\n" +
 	"(RealtimeProjectionRoomViewerStateReplace\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12A\n" +
 	"\fviewer_state\x18\x02 \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerState\"W\n" +

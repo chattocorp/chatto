@@ -1532,30 +1532,38 @@ func TestRealtimeProjectionNotificationChangesReplaceStateAndCarryLiveTransition
 		t.Fatalf("CreateRoom: %v", err)
 	}
 	for _, userID := range []string{viewer.Id, author.Id} {
-		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, userID, room.Id); err != nil {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.Id); err != nil {
 			t.Fatalf("JoinRoom %q: %v", userID, err)
 		}
 	}
-	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "notify me", nil, "", "", nil, false)
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "notification thread root", nil, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("PostMessage root: %v", err)
 	}
-	if err := env.core.FollowThread(env.ctx, core.KindChannel, viewer.Id, room.Id, message.Id); err != nil {
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "notification thread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	if err := env.core.FollowThread(env.ctx, core.KindChannel, viewer.Id, room.Id, root.Id); err != nil {
 		t.Fatalf("FollowThread: %v", err)
 	}
 	notification, err := env.core.CreateNotification(env.ctx, viewer.Id, author.Id, &corev1.Notification{
 		Notification: &corev1.Notification_Reply{Reply: &corev1.ReplyNotification{
-			RoomId: room.Id, EventId: message.Id, InReplyToId: message.Id, InThread: message.Id,
+			RoomId: room.Id, EventId: reply.Id, InReplyToId: root.Id, InThread: root.Id,
 		}},
 	})
 	if err != nil {
 		t.Fatalf("CreateNotification: %v", err)
 	}
 
+	dismissed, err := env.core.DismissNotification(env.ctx, viewer.Id, notification.Id)
+	if err != nil || !dismissed {
+		t.Fatalf("DismissNotification before creation mapping: dismissed=%v err=%v", dismissed, err)
+	}
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id: "notification-created-1", ActorId: author.Id,
 		Event: &corev1.LiveEvent_NotificationCreated{NotificationCreated: &corev1.NotificationCreatedEvent{
-			NotificationId: notification.Id, RoomId: room.Id, EventId: message.Id, InReplyToId: message.Id, Silent: true,
+			NotificationId: notification.Id, RoomId: room.Id, EventId: reply.Id, InReplyToId: root.Id, Silent: true,
 		}},
 	}))
 	if err != nil {
@@ -1565,21 +1573,17 @@ func TestRealtimeProjectionNotificationChangesReplaceStateAndCarryLiveTransition
 		t.Fatal("notification-created event was not handled as a projection mutation")
 	}
 	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
-	if replacement == nil || len(replacement.GetPage().GetNotifications()) != 1 {
-		t.Fatalf("notification replacement = %+v, want authoritative one-row page", replacement)
+	if replacement == nil || len(replacement.GetPage().GetNotifications()) != 0 {
+		t.Fatalf("notification replacement = %+v, want authoritative empty page after concurrent dismissal", replacement)
 	}
 	change := replacement.GetChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != notification.Id || !change.GetSilent() {
+	if change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != notification.Id || !change.GetSilent() || change.GetRoomId() != room.Id || change.GetThreadRootEventId() != root.Id {
 		t.Fatalf("notification transition = %+v", change)
 	}
 	if operations := frame.GetProjectionEvent().GetOperations(); len(operations) != 1 {
 		t.Fatalf("notification-created operations = %d, want only notification replacement", len(operations))
 	}
 
-	dismissed, err := env.core.DismissNotification(env.ctx, viewer.Id, notification.Id)
-	if err != nil || !dismissed {
-		t.Fatalf("DismissNotification: dismissed=%v err=%v", dismissed, err)
-	}
 	dismissFrame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id: "notification-dismissed-1", ActorId: viewer.Id,
 		Event: &corev1.LiveEvent_NotificationDismissed{NotificationDismissed: &corev1.NotificationDismissedEvent{
