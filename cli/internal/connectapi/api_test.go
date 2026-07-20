@@ -6106,9 +6106,10 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	if bytes.Contains(envelope, sequenceBytes) {
 		t.Fatal("cursor envelope exposes raw JetStream sequence bytes")
 	}
-	tampered := []byte(cursor)
-	tampered[len(tampered)-1] ^= 1
-	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", string(tampered)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	tamperedEnvelope := append([]byte(nil), envelope...)
+	tamperedEnvelope[len(tamperedEnvelope)-1] ^= 1
+	tampered := roomTimelineCursorOpaquePrefix + base64.RawURLEncoding.EncodeToString(tamperedEnvelope)
+	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", tampered); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("tampered cursor code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	for _, invalid := range []string{"bad", "seq:42", "tl:not-base64", "tl:AQ"} {
