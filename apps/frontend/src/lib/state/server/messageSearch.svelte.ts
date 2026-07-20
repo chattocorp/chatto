@@ -26,6 +26,7 @@ export class MessageSearchStore {
   loading = $state(false);
   loadingMore = $state(false);
   error = $state(false);
+  hasSearched = $state(false);
   query = $state('');
   order = $state(MessageSearchOrder.RELEVANCE);
 
@@ -69,6 +70,7 @@ export class MessageSearchStore {
   async search(input: Omit<MessageSearchInput, 'cursor'>): Promise<void> {
     const requestId = ++this.requestId;
     this.activeInput = { ...input, roomIds: [...input.roomIds] };
+    this.hasSearched = true;
     this.query = input.query;
     this.order = input.order;
     this.results = [];
@@ -114,6 +116,7 @@ export class MessageSearchStore {
     this.loading = false;
     this.loadingMore = false;
     this.error = false;
+    this.hasSearched = false;
     this.query = '';
     this.order = MessageSearchOrder.RELEVANCE;
   }

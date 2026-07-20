@@ -71,6 +71,7 @@ describe('MessageSearchStore', () => {
     expect(store.nextCursor).toBeNull();
     expect(store.query).toBe('hello');
     expect(store.order).toBe(MessageSearchOrder.RELEVANCE);
+    expect(store.hasSearched).toBe(true);
   });
 
   it('ignores an older response after a newer query starts', async () => {
@@ -96,6 +97,19 @@ describe('MessageSearchStore', () => {
     expect(store.results.map((item) => item.id)).toEqual(['new']);
   });
 
+  it('retains empty-search state for browser Back restoration', async () => {
+    const store = new MessageSearchStore(
+      api({ searchMessages: vi.fn().mockResolvedValue(page([], null)) })
+    );
+
+    await store.search({ query: 'nothing', roomIds: [], order: MessageSearchOrder.NEWEST });
+
+    expect(store.hasSearched).toBe(true);
+    expect(store.query).toBe('nothing');
+    expect(store.order).toBe(MessageSearchOrder.NEWEST);
+    expect(store.results).toEqual([]);
+  });
+
   it('clears plaintext results and invalidates in-flight work', async () => {
     const store = new MessageSearchStore(api());
     await store.search({ query: 'hello', roomIds: [], order: MessageSearchOrder.RELEVANCE });
@@ -107,5 +121,6 @@ describe('MessageSearchStore', () => {
     expect(store.loading).toBe(false);
     expect(store.query).toBe('');
     expect(store.order).toBe(MessageSearchOrder.RELEVANCE);
+    expect(store.hasSearched).toBe(false);
   });
 });

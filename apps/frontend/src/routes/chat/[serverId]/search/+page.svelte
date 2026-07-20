@@ -37,9 +37,6 @@ in the active server store so browser Back can restore the current search.
   let query = $state(store.query);
   // svelte-ignore state_referenced_locally
   let order = $state(store.order);
-  // svelte-ignore state_referenced_locally
-  let hasSearched = $state(store.results.length > 0 || store.error);
-
   $effect(() => {
     void store.ensureStatus();
   });
@@ -48,13 +45,12 @@ in the active server store so browser Back can restore the current search.
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed || !store.available) return;
-    hasSearched = true;
     void store.search({ query: trimmed, roomIds: [], order });
   }
 
   function setOrder(nextOrder: MessageSearchOrder): void {
     order = nextOrder;
-    if (hasSearched && query.trim()) {
+    if (store.hasSearched && query.trim()) {
       void store.search({ query: query.trim(), roomIds: [], order });
     }
   }
@@ -191,11 +187,11 @@ in the active server store so browser Back can restore the current search.
             <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
               {m['search.error.description']()}
             </EmptyState>
-          {:else if hasSearched && store.results.length === 0}
+          {:else if store.hasSearched && store.results.length === 0}
             <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
               {m['search.no_results.description']()}
             </EmptyState>
-          {:else if !hasSearched}
+          {:else if !store.hasSearched}
             <EmptyState icon="uil--search" title={m['search.prompt.title']()}>
               {m['search.prompt.description']()}
             </EmptyState>

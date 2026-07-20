@@ -42,6 +42,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         loading: false,
         loadingMore: false,
         error: false,
+        hasSearched: false,
         ensureStatus: mocks.ensureStatus,
         refreshStatus: vi.fn(),
         search: mocks.search,
