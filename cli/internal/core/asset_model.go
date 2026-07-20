@@ -443,18 +443,16 @@ func hlsDerivativeAssetIDs(hls *corev1.AssetProcessedHLS) []string {
 	if hls == nil {
 		return nil
 	}
-	ids := make([]string, 0, 1+len(hls.GetRenditions())*2)
-	if id := hls.GetMasterPlaylistAssetId(); id != "" {
-		ids = append(ids, id)
-	}
+	var ids []string
 	for _, rendition := range hls.GetRenditions() {
 		if rendition == nil {
 			continue
 		}
-		if id := rendition.GetPlaylistAssetId(); id != "" {
-			ids = append(ids, id)
+		for _, segment := range rendition.GetSegments() {
+			if segment != nil && segment.GetAssetId() != "" {
+				ids = append(ids, segment.GetAssetId())
+			}
 		}
-		ids = append(ids, rendition.GetSegmentAssetIds()...)
 	}
 	return ids
 }

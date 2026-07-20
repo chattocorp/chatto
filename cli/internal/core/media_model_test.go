@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net/url"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -461,10 +460,9 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 		{Quality: "720p", Attachment: &corev1.Attachment{Id: "A-variant"}},
 	}
 	hls := &corev1.AssetProcessedHLS{
-		MasterPlaylistAssetId: "A-hls-master",
 		Renditions: []*corev1.AssetHLSRendition{{
 			Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_500_000,
-			PlaylistAssetId: "A-hls-media", SegmentAssetIds: []string{"A-hls-segment-1", "A-hls-segment-2"},
+			Segments: []*corev1.AssetHLSSegment{{AssetId: "A-hls-segment-1", DurationMs: 1000}, {AssetId: "A-hls-segment-2", DurationMs: 200}},
 		}},
 	}
 	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, variants, hls); err != nil {
@@ -480,11 +478,8 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	if got := manifest.Succeeded.GetVideo().GetVariants()[0].GetAssetId(); got != "A-variant" {
 		t.Fatalf("variant asset id = %q, want A-variant", got)
 	}
-	if got := manifest.Succeeded.GetVideo().GetHls().GetMasterPlaylistAssetId(); got != "A-hls-master" {
-		t.Fatalf("HLS master asset id = %q, want A-hls-master", got)
-	}
-	if got := manifest.Succeeded.GetVideo().GetHls().GetRenditions()[0].GetSegmentAssetIds(); !slices.Equal(got, []string{"A-hls-segment-1", "A-hls-segment-2"}) {
-		t.Fatalf("HLS segment asset ids = %q", got)
+	if got := manifest.Succeeded.GetVideo().GetHls().GetRenditions()[0].GetSegments(); len(got) != 2 || got[0].GetAssetId() != "A-hls-segment-1" || got[1].GetDurationMs() != 200 {
+		t.Fatalf("HLS segments = %v", got)
 	}
 
 	if err := service.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {

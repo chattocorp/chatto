@@ -7033,11 +7033,6 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment variant: %v", err)
 	}
-	hlsMaster, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, room.Id, "master.m3u8", "application/vnd.apple.mpegurl", bytes.NewReader([]byte("#EXTM3U\n")))
-	if err != nil {
-		t.Fatalf("UploadDerivativeAttachment HLS master: %v", err)
-	}
-
 	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "video", []string{original.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
@@ -7051,7 +7046,7 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 			Size:         variant.Size,
 			Attachment:   variant,
 		},
-	}, &corev1.AssetProcessedHLS{MasterPlaylistAssetId: hlsMaster.Id}); err != nil {
+	}, &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_000_000, Segments: []*corev1.AssetHLSSegment{{AssetId: "A-segment", DurationMs: 1234}}}}}); err != nil {
 		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
 	}
 

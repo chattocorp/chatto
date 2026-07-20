@@ -303,11 +303,14 @@ func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, h
 
 type processedVariantOutput struct {
 	path    string
-	variant *corev1.VideoVariant
+	quality string
+	width   int32
+	height  int32
+	size    int64
 }
 
-// packageHLSRendition segments an MP4 compatibility rendition without
-// re-encoding it. The MP4 encoder forces aligned six-second keyframes, so
+// packageHLSRendition segments a temporary MP4 rendition without re-encoding
+// it. The MP4 encoder forces aligned six-second keyframes, so
 // rendition switches occur at the same media boundaries.
 func (s *Service) packageHLSRendition(ctx context.Context, inputPath, outputDir string) (string, []string, error) {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
@@ -343,10 +346,10 @@ func (s *Service) packageHLSRendition(ctx context.Context, inputPath, outputDir 
 	return playlistPath, segmentPaths, nil
 }
 
-func hlsPeakBandwidth(playlistPath string, segmentPaths []string) (int64, error) {
+func hlsSegmentMetadata(playlistPath string, segmentPaths []string) (int64, []int64, error) {
 	raw, err := os.ReadFile(playlistPath)
 	if err != nil {
-		return 0, fmt.Errorf("read HLS media playlist: %w", err)
+		return 0, nil, fmt.Errorf("read HLS media playlist: %w", err)
 	}
 	var durations []float64
 	for line := range strings.SplitSeq(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
@@ -357,19 +360,24 @@ func hlsPeakBandwidth(playlistPath string, segmentPaths []string) (int64, error)
 		value = strings.TrimSuffix(value, ",")
 		duration, err := strconv.ParseFloat(value, 64)
 		if err != nil || duration <= 0 {
-			return 0, fmt.Errorf("invalid HLS segment duration %q", value)
+			return 0, nil, fmt.Errorf("invalid HLS segment duration %q", value)
 		}
 		durations = append(durations, duration)
 	}
 	if len(durations) != len(segmentPaths) {
-		return 0, fmt.Errorf("HLS playlist contains %d segment durations, want %d", len(durations), len(segmentPaths))
+		return 0, nil, fmt.Errorf("HLS playlist contains %d segment durations, want %d", len(durations), len(segmentPaths))
 	}
 
 	var peak int64
+	durationMillis := make([]int64, len(durations))
 	for i, segmentPath := range segmentPaths {
+		durationMillis[i] = int64(math.Round(durations[i] * 1000))
+		if durationMillis[i] < 1 {
+			return 0, nil, fmt.Errorf("HLS segment duration rounds to zero")
+		}
 		info, err := os.Stat(segmentPath)
 		if err != nil {
-			return 0, fmt.Errorf("stat HLS segment: %w", err)
+			return 0, nil, fmt.Errorf("stat HLS segment: %w", err)
 		}
 		bandwidth := int64(math.Ceil(float64(info.Size()*8) / durations[i]))
 		if bandwidth > peak {
@@ -377,22 +385,9 @@ func hlsPeakBandwidth(playlistPath string, segmentPaths []string) (int64, error)
 		}
 	}
 	if peak < 1 {
-		return 0, fmt.Errorf("HLS peak bandwidth is zero")
+		return 0, nil, fmt.Errorf("HLS peak bandwidth is zero")
 	}
-	return peak, nil
-}
-
-func writeHLSMasterPlaylist(path string, renditions []*corev1.AssetHLSRendition) error {
-	var playlist strings.Builder
-	playlist.WriteString("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n")
-	for i, rendition := range renditions {
-		if rendition == nil {
-			continue
-		}
-		fmt.Fprintf(&playlist, "#EXT-X-STREAM-INF:BANDWIDTH=%d,RESOLUTION=%dx%d,NAME=\"%s\"\n", rendition.GetBandwidth(), rendition.GetWidth(), rendition.GetHeight(), rendition.GetQuality())
-		fmt.Fprintf(&playlist, "rendition-%d.m3u8\n", i)
-	}
-	return os.WriteFile(path, []byte(playlist.String()), 0o600)
+	return peak, durationMillis, nil
 }
 
 // selectVariantHeights decides which quality levels to produce based on source resolution.
@@ -511,37 +506,46 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 			continue
 		}
 
-		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
-		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
-		variant, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", outputPath, variantProbe.Width, variantProbe.Height)
-		if err != nil {
-			s.logger.Error("Failed to upload variant", "height", h, "error", err)
-			continue
+		output := processedVariantOutput{
+			path: outputPath, quality: quality, width: variantProbe.Width,
+			height: variantProbe.Height, size: info.Size(),
 		}
-
-		processedVariant := &corev1.VideoVariant{
-			AttachmentId: variant.Id,
-			Quality:      quality,
-			Width:        variantProbe.Width,
-			Height:       variantProbe.Height,
-			Size:         info.Size(),
-			Attachment:   variant,
-		}
-		variants = append(variants, processedVariant)
-		variantOutputs = append(variantOutputs, processedVariantOutput{path: outputPath, variant: processedVariant})
+		variantOutputs = append(variantOutputs, output)
 	}
 
-	if len(variants) == 0 {
+	if len(variantOutputs) == 0 {
 		return s.failProcessing(ctx, req, fmt.Errorf("all variant transcodes failed"))
 	}
 
-	hls, err := s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
-	if err != nil {
-		// MP4 variants remain a complete compatibility result. HLS is additive,
-		// so a packaging/storage failure must not make the posted video unusable.
-		s.logger.Warn("HLS generation failed; keeping MP4 compatibility variants", "asset_id", req.AssetID, "error", err)
-		hls = nil
+	var hls *corev1.AssetProcessedHLS
+	if probeResult.VideoCodec == "gif" {
+		// Converted GIFs intentionally keep a single MP4 derivative: native
+		// autoplay/loop playback is simpler and does not need seeking support.
+		for _, output := range variantOutputs {
+			filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), output.quality)
+			attachment, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", output.path, output.width, output.height)
+			if err != nil {
+				var uploaded []*corev1.Attachment
+				if thumbnailAttachment != nil {
+					uploaded = append(uploaded, thumbnailAttachment)
+				}
+				for _, variant := range variants {
+					uploaded = append(uploaded, variant.GetAttachment())
+				}
+				s.cleanupUploadedDerivatives(ctx, req, uploaded)
+				return s.failProcessing(ctx, req, fmt.Errorf("upload GIF video variant: %w", err))
+			}
+			variants = append(variants, &corev1.VideoVariant{AttachmentId: attachment.Id, Quality: output.quality, Width: output.width, Height: output.height, Size: output.size, Attachment: attachment})
+		}
+	} else {
+		hls, err = s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
+		if err != nil {
+			if thumbnailAttachment != nil {
+				s.cleanupUploadedDerivatives(ctx, req, []*corev1.Attachment{thumbnailAttachment})
+			}
+			return s.failProcessing(ctx, req, err)
+		}
 	}
 
 	// Publish durable manifest. The original upload is retained as source
@@ -555,7 +559,8 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 
 	s.logger.Info("Video processing completed",
 		"asset_id", req.AssetID,
-		"variants", len(variants),
+		"mp4_variants", len(variants),
+		"hls_renditions", len(hls.GetRenditions()),
 	)
 
 	return nil
@@ -566,29 +571,26 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 	manifest := &corev1.AssetProcessedHLS{}
 	var uploaded []*corev1.Attachment
 	cleanupOnError := func() {
-		s.cleanupUploadedHLSDerivatives(ctx, req, uploaded)
+		s.cleanupUploadedDerivatives(ctx, req, uploaded)
 	}
 
 	for i, output := range outputs {
-		if output.variant == nil || output.variant.GetAttachment() == nil {
-			continue
-		}
 		renditionDir := filepath.Join(hlsDir, fmt.Sprintf("rendition-%d", i))
 		playlistPath, segmentPaths, err := s.packageHLSRendition(ctx, output.path, renditionDir)
 		if err != nil {
 			cleanupOnError()
 			return nil, err
 		}
-		bandwidth, err := hlsPeakBandwidth(playlistPath, segmentPaths)
+		bandwidth, durations, err := hlsSegmentMetadata(playlistPath, segmentPaths)
 		if err != nil {
 			cleanupOnError()
 			return nil, err
 		}
 
 		rendition := &corev1.AssetHLSRendition{
-			Quality:   output.variant.GetQuality(),
-			Width:     output.variant.GetWidth(),
-			Height:    output.variant.GetHeight(),
+			Quality:   output.quality,
+			Width:     output.width,
+			Height:    output.height,
 			Bandwidth: bandwidth,
 		}
 		for segmentIndex, segmentPath := range segmentPaths {
@@ -598,36 +600,18 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 				return nil, fmt.Errorf("upload HLS segment: %w", err)
 			}
 			uploaded = append(uploaded, segment)
-			rendition.SegmentAssetIds = append(rendition.SegmentAssetIds, segment.GetId())
+			rendition.Segments = append(rendition.Segments, &corev1.AssetHLSSegment{AssetId: segment.GetId(), DurationMs: durations[segmentIndex]})
 		}
-		playlistAsset, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST, req.RoomID, rendition.GetQuality()+".m3u8", "application/vnd.apple.mpegurl", playlistPath)
-		if err != nil {
-			cleanupOnError()
-			return nil, fmt.Errorf("upload HLS media playlist: %w", err)
-		}
-		uploaded = append(uploaded, playlistAsset)
-		rendition.PlaylistAssetId = playlistAsset.GetId()
 		manifest.Renditions = append(manifest.Renditions, rendition)
 	}
 
 	if len(manifest.GetRenditions()) == 0 {
 		return nil, fmt.Errorf("HLS generation produced no renditions")
 	}
-	masterPath := filepath.Join(hlsDir, "master.m3u8")
-	if err := writeHLSMasterPlaylist(masterPath, manifest.GetRenditions()); err != nil {
-		cleanupOnError()
-		return nil, fmt.Errorf("write HLS master playlist: %w", err)
-	}
-	master, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, req.RoomID, "master.m3u8", "application/vnd.apple.mpegurl", masterPath)
-	if err != nil {
-		cleanupOnError()
-		return nil, fmt.Errorf("upload HLS master playlist: %w", err)
-	}
-	manifest.MasterPlaylistAssetId = master.GetId()
 	return manifest, nil
 }
 
-func (s *Service) cleanupUploadedHLSDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
+func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
 	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
 	if err != nil {
 		s.logger.Warn("Failed to resolve room kind while cleaning partial HLS output", "asset_id", req.AssetID, "error", err)

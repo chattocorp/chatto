@@ -46,12 +46,8 @@ const (
 	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL AssetDerivativeRole = 1
 	// A transcoded video rendition (e.g. a 480p variant) of the parent.
 	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT AssetDerivativeRole = 2
-	// An HLS master playlist generated for the parent video.
-	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST AssetDerivativeRole = 3
-	// One HLS media playlist generated for a parent video rendition.
-	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST AssetDerivativeRole = 4
 	// One bounded HLS media segment generated for a parent video rendition.
-	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT AssetDerivativeRole = 5
+	AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT AssetDerivativeRole = 3
 )
 
 // Enum value maps for AssetDerivativeRole.
@@ -60,17 +56,13 @@ var (
 		0: "ASSET_DERIVATIVE_ROLE_UNSPECIFIED",
 		1: "ASSET_DERIVATIVE_ROLE_THUMBNAIL",
 		2: "ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT",
-		3: "ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST",
-		4: "ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST",
-		5: "ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT",
+		3: "ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT",
 	}
 	AssetDerivativeRole_value = map[string]int32{
-		"ASSET_DERIVATIVE_ROLE_UNSPECIFIED":         0,
-		"ASSET_DERIVATIVE_ROLE_THUMBNAIL":           1,
-		"ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT":       2,
-		"ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST": 3,
-		"ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST":  4,
-		"ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT":   5,
+		"ASSET_DERIVATIVE_ROLE_UNSPECIFIED":       0,
+		"ASSET_DERIVATIVE_ROLE_THUMBNAIL":         1,
+		"ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT":     2,
+		"ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT": 3,
 	}
 )
 
@@ -657,15 +649,14 @@ func (x *AssetVideoVariant) GetAssetId() string {
 	return ""
 }
 
-// AssetProcessedHLS describes one stored HLS generation. Playlists and
-// segments are derivative assets; clients receive only an authorised master
-// playlist URL rather than these internal relationships.
+// AssetProcessedHLS contains enough durable metadata to render HLS playlists
+// on demand. Only media segments are stored as derivative assets; clients
+// receive an authorised master-playlist URL rather than these relationships.
 type AssetProcessedHLS struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	MasterPlaylistAssetId string                 `protobuf:"bytes,1,opt,name=master_playlist_asset_id,json=masterPlaylistAssetId,proto3" json:"master_playlist_asset_id,omitempty"`
-	Renditions            []*AssetHLSRendition   `protobuf:"bytes,2,rep,name=renditions,proto3" json:"renditions,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Renditions    []*AssetHLSRendition   `protobuf:"bytes,1,rep,name=renditions,proto3" json:"renditions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetProcessedHLS) Reset() {
@@ -698,13 +689,6 @@ func (*AssetProcessedHLS) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *AssetProcessedHLS) GetMasterPlaylistAssetId() string {
-	if x != nil {
-		return x.MasterPlaylistAssetId
-	}
-	return ""
-}
-
 func (x *AssetProcessedHLS) GetRenditions() []*AssetHLSRendition {
 	if x != nil {
 		return x.Renditions
@@ -713,15 +697,14 @@ func (x *AssetProcessedHLS) GetRenditions() []*AssetHLSRendition {
 }
 
 type AssetHLSRendition struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Quality         string                 `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
-	Width           int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	Height          int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Bandwidth       int64                  `protobuf:"varint,4,opt,name=bandwidth,proto3" json:"bandwidth,omitempty"`
-	PlaylistAssetId string                 `protobuf:"bytes,5,opt,name=playlist_asset_id,json=playlistAssetId,proto3" json:"playlist_asset_id,omitempty"`
-	SegmentAssetIds []string               `protobuf:"bytes,6,rep,name=segment_asset_ids,json=segmentAssetIds,proto3" json:"segment_asset_ids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Quality       string                 `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
+	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	Bandwidth     int64                  `protobuf:"varint,4,opt,name=bandwidth,proto3" json:"bandwidth,omitempty"`
+	Segments      []*AssetHLSSegment     `protobuf:"bytes,5,rep,name=segments,proto3" json:"segments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetHLSRendition) Reset() {
@@ -782,18 +765,64 @@ func (x *AssetHLSRendition) GetBandwidth() int64 {
 	return 0
 }
 
-func (x *AssetHLSRendition) GetPlaylistAssetId() string {
+func (x *AssetHLSRendition) GetSegments() []*AssetHLSSegment {
 	if x != nil {
-		return x.PlaylistAssetId
+		return x.Segments
+	}
+	return nil
+}
+
+type AssetHLSSegment struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Exact EXTINF duration, rounded to milliseconds during packaging.
+	DurationMs    int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetHLSSegment) Reset() {
+	*x = AssetHLSSegment{}
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetHLSSegment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetHLSSegment) ProtoMessage() {}
+
+func (x *AssetHLSSegment) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetHLSSegment.ProtoReflect.Descriptor instead.
+func (*AssetHLSSegment) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AssetHLSSegment) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
 	}
 	return ""
 }
 
-func (x *AssetHLSRendition) GetSegmentAssetIds() []string {
+func (x *AssetHLSSegment) GetDurationMs() int64 {
 	if x != nil {
-		return x.SegmentAssetIds
+		return x.DurationMs
 	}
-	return nil
+	return 0
 }
 
 var File_chatto_core_v1_asset_events_proto protoreflect.FileDescriptor
@@ -835,26 +864,26 @@ const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\x03hls\x18\x06 \x01(\v2!.chatto.core.v1.AssetProcessedHLSR\x03hls\"H\n" +
 	"\x11AssetVideoVariant\x12\x18\n" +
 	"\aquality\x18\x01 \x01(\tR\aquality\x12\x19\n" +
-	"\basset_id\x18\x02 \x01(\tR\aassetId\"\x8f\x01\n" +
-	"\x11AssetProcessedHLS\x127\n" +
-	"\x18master_playlist_asset_id\x18\x01 \x01(\tR\x15masterPlaylistAssetId\x12A\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\"V\n" +
+	"\x11AssetProcessedHLS\x12A\n" +
 	"\n" +
-	"renditions\x18\x02 \x03(\v2!.chatto.core.v1.AssetHLSRenditionR\n" +
-	"renditions\"\xd1\x01\n" +
+	"renditions\x18\x01 \x03(\v2!.chatto.core.v1.AssetHLSRenditionR\n" +
+	"renditions\"\xb6\x01\n" +
 	"\x11AssetHLSRendition\x12\x18\n" +
 	"\aquality\x18\x01 \x01(\tR\aquality\x12\x14\n" +
 	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x1c\n" +
-	"\tbandwidth\x18\x04 \x01(\x03R\tbandwidth\x12*\n" +
-	"\x11playlist_asset_id\x18\x05 \x01(\tR\x0fplaylistAssetId\x12*\n" +
-	"\x11segment_asset_ids\x18\x06 \x03(\tR\x0fsegmentAssetIds*\x94\x02\n" +
+	"\tbandwidth\x18\x04 \x01(\x03R\tbandwidth\x12;\n" +
+	"\bsegments\x18\x05 \x03(\v2\x1f.chatto.core.v1.AssetHLSSegmentR\bsegments\"M\n" +
+	"\x0fAssetHLSSegment\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1f\n" +
+	"\vduration_ms\x18\x02 \x01(\x03R\n" +
+	"durationMs*\xb7\x01\n" +
 	"\x13AssetDerivativeRole\x12%\n" +
 	"!ASSET_DERIVATIVE_ROLE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fASSET_DERIVATIVE_ROLE_THUMBNAIL\x10\x01\x12'\n" +
-	"#ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT\x10\x02\x12-\n" +
-	")ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST\x10\x03\x12,\n" +
-	"(ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST\x10\x04\x12+\n" +
-	"'ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT\x10\x05*\xb2\x01\n" +
+	"#ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT\x10\x02\x12+\n" +
+	"'ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT\x10\x03*\xb2\x01\n" +
 	"\x1aAssetProcessingFailureCode\x12-\n" +
 	")ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED\x10\x00\x123\n" +
 	"/ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED\x10\x01\x120\n" +
@@ -874,7 +903,7 @@ func file_chatto_core_v1_asset_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_asset_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_chatto_core_v1_asset_events_proto_goTypes = []any{
 	(AssetDerivativeRole)(0),              // 0: chatto.core.v1.AssetDerivativeRole
 	(AssetProcessingFailureCode)(0),       // 1: chatto.core.v1.AssetProcessingFailureCode
@@ -887,23 +916,25 @@ var file_chatto_core_v1_asset_events_proto_goTypes = []any{
 	(*AssetVideoVariant)(nil),             // 8: chatto.core.v1.AssetVideoVariant
 	(*AssetProcessedHLS)(nil),             // 9: chatto.core.v1.AssetProcessedHLS
 	(*AssetHLSRendition)(nil),             // 10: chatto.core.v1.AssetHLSRendition
-	(*AssetRecord)(nil),                   // 11: chatto.core.v1.AssetRecord
-	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
+	(*AssetHLSSegment)(nil),               // 11: chatto.core.v1.AssetHLSSegment
+	(*AssetRecord)(nil),                   // 12: chatto.core.v1.AssetRecord
+	(*timestamppb.Timestamp)(nil),         // 13: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_asset_events_proto_depIdxs = []int32{
-	11, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	12, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
 	0,  // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
-	12, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
+	13, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
 	7,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
 	1,  // 4: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
 	8,  // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
 	9,  // 6: chatto.core.v1.AssetProcessedVideo.hls:type_name -> chatto.core.v1.AssetProcessedHLS
 	10, // 7: chatto.core.v1.AssetProcessedHLS.renditions:type_name -> chatto.core.v1.AssetHLSRendition
-	8,  // [8:8] is the sub-list for method output_type
-	8,  // [8:8] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	11, // 8: chatto.core.v1.AssetHLSRendition.segments:type_name -> chatto.core.v1.AssetHLSSegment
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_asset_events_proto_init() }
@@ -918,7 +949,7 @@ func file_chatto_core_v1_asset_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_asset_events_proto_rawDesc), len(file_chatto_core_v1_asset_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

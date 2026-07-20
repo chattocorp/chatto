@@ -11,35 +11,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestWriteHLSMasterPlaylist(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "master.m3u8")
-	err := writeHLSMasterPlaylist(path, []*corev1.AssetHLSRendition{
-		{Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_500_000},
-		{Quality: "480p", Width: 854, Height: 480, Bandwidth: 800_000},
-	})
-	if err != nil {
-		t.Fatalf("writeHLSMasterPlaylist: %v", err)
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	playlist := string(raw)
-	for _, want := range []string{
-		"#EXT-X-INDEPENDENT-SEGMENTS",
-		"BANDWIDTH=1500000,RESOLUTION=1280x720,NAME=\"720p\"\nrendition-0.m3u8",
-		"BANDWIDTH=800000,RESOLUTION=854x480,NAME=\"480p\"\nrendition-1.m3u8",
-	} {
-		if !strings.Contains(playlist, want) {
-			t.Fatalf("playlist %q does not contain %q", playlist, want)
-		}
-	}
-}
-
-func TestHLSPeakBandwidth(t *testing.T) {
+func TestHLSSegmentMetadata(t *testing.T) {
 	tmp := t.TempDir()
 	playlist := filepath.Join(tmp, "index.m3u8")
 	if err := os.WriteFile(playlist, []byte("#EXTM3U\n#EXTINF:6.0,\none.ts\n#EXTINF:2.0,\ntwo.ts\n"), 0o600); err != nil {
@@ -52,12 +26,15 @@ func TestHLSPeakBandwidth(t *testing.T) {
 	if err := os.WriteFile(segments[1], make([]byte, 4000), 0o600); err != nil {
 		t.Fatalf("WriteFile second segment: %v", err)
 	}
-	got, err := hlsPeakBandwidth(playlist, segments)
+	got, durations, err := hlsSegmentMetadata(playlist, segments)
 	if err != nil {
-		t.Fatalf("hlsPeakBandwidth: %v", err)
+		t.Fatalf("hlsSegmentMetadata: %v", err)
 	}
 	if got != 16_000 {
-		t.Fatalf("hlsPeakBandwidth = %d, want 16000", got)
+		t.Fatalf("bandwidth = %d, want 16000", got)
+	}
+	if len(durations) != 2 || durations[0] != 6000 || durations[1] != 2000 {
+		t.Fatalf("durations = %v, want [6000 2000]", durations)
 	}
 }
 

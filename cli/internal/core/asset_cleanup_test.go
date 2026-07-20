@@ -79,15 +79,11 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 		}
 		return attachment
 	}
-	master := uploadDerivative("master.m3u8", "application/vnd.apple.mpegurl", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST)
-	playlist := uploadDerivative("480p.m3u8", "application/vnd.apple.mpegurl", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST)
 	segment := uploadDerivative("480p-00000.ts", "video/mp2t", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
 	hls := &corev1.AssetProcessedHLS{
-		MasterPlaylistAssetId: master.GetId(),
 		Renditions: []*corev1.AssetHLSRendition{{
-			Quality:         "480p",
-			PlaylistAssetId: playlist.GetId(),
-			SegmentAssetIds: []string{segment.GetId()},
+			Quality:  "480p",
+			Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 2000}},
 		}},
 	}
 	if err := core.assetLifecycle().RecordAssetProcessedWithHLS(
@@ -111,7 +107,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 	if err := core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, room.GetId(), original.GetId()); err != nil {
 		t.Fatalf("RecordAssetDeleted source: %v", err)
 	}
-	for _, derivative := range []*corev1.Attachment{master, playlist, segment} {
+	for _, derivative := range []*corev1.Attachment{segment} {
 		if _, ok := core.Assets.AssetCreation(derivative.GetId()); !ok {
 			t.Fatalf("HLS derivative %s was unexpectedly tombstoned before reconciliation", derivative.GetId())
 		}
@@ -125,7 +121,7 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
 		t.Fatalf("consumeAssetCleanup child deletion: %v", err)
 	}
-	for _, derivative := range []*corev1.Attachment{master, playlist, segment} {
+	for _, derivative := range []*corev1.Attachment{segment} {
 		if _, ok := core.Assets.AssetCreation(derivative.GetId()); ok {
 			t.Fatalf("HLS derivative %s remained projected after reconciliation", derivative.GetId())
 		}

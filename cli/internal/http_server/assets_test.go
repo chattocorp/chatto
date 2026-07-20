@@ -1732,22 +1732,13 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
 			}
-			media, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST, room.Id, "media.m3u8", "application/vnd.apple.mpegurl", strings.NewReader("#EXTM3U\n#EXTINF:6.0,\nsegment-00000.ts\n#EXT-X-ENDLIST\n"))
-			if err != nil {
-				t.Fatalf("UploadDerivativeAttachment(media): %v", err)
-			}
-			master, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, room.Id, "master.m3u8", "application/vnd.apple.mpegurl", strings.NewReader("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000,RESOLUTION=640x360\nmedia.m3u8\n"))
-			if err != nil {
-				t.Fatalf("UploadDerivativeAttachment(master): %v", err)
-			}
 			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId()); err != nil {
 				t.Fatalf("RecordAssetProcessingStarted: %v", err)
 			}
 			hls := &corev1.AssetProcessedHLS{
-				MasterPlaylistAssetId: master.GetId(),
 				Renditions: []*corev1.AssetHLSRendition{{
 					Quality: "360p", Width: 640, Height: 360, Bandwidth: 500000,
-					PlaylistAssetId: media.GetId(), SegmentAssetIds: []string{segment.GetId()},
+					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
 				}},
 			}
 			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
@@ -1817,20 +1808,24 @@ func firstHLSURI(t *testing.T, playlist []byte) string {
 	return ""
 }
 
-func TestRewriteHLSPlaylistRequiresExactManifestShape(t *testing.T) {
-	replacement := func(index int) string { return fmt.Sprintf("/child/%d", index) }
-	rewritten, err := rewriteHLSPlaylist([]byte("#EXTM3U\r\n#EXTINF:6,\r\none.ts\r\n#EXTINF:6,\r\ntwo.ts\r\n"), 2, replacement)
+func TestRenderHLSPlaylistsFromManifest(t *testing.T) {
+	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
+		Quality: "360p", Width: 640, Height: 360, Bandwidth: 500_000,
+		Segments: []*corev1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
+	}}}
+	master, err := renderHLSMasterPlaylist(hls, func(index int) string { return fmt.Sprintf("/rendition/%d", index) })
 	if err != nil {
-		t.Fatalf("rewriteHLSPlaylist: %v", err)
+		t.Fatalf("render master: %v", err)
 	}
-	if got := string(rewritten); !strings.Contains(got, "/child/0\n") || !strings.Contains(got, "/child/1\n") {
-		t.Fatalf("rewritten playlist = %q", got)
+	if got := string(master); !strings.Contains(got, "BANDWIDTH=500000,RESOLUTION=640x360\n/rendition/0") {
+		t.Fatalf("master playlist = %q", got)
 	}
-	if _, err := rewriteHLSPlaylist([]byte("#EXTM3U\none.ts\n"), 2, replacement); err == nil {
-		t.Fatal("playlist with missing URI unexpectedly passed")
+	media, err := renderHLSMediaPlaylist(hls.GetRenditions()[0], func(index int) string { return fmt.Sprintf("/segment/%d", index) })
+	if err != nil {
+		t.Fatalf("render media: %v", err)
 	}
-	if _, err := rewriteHLSPlaylist([]byte("#EXTM3U\none.ts\ntwo.ts\n"), 1, replacement); err == nil {
-		t.Fatal("playlist with extra URI unexpectedly passed")
+	if got := string(media); !strings.Contains(got, "#EXT-X-TARGETDURATION:6") || !strings.Contains(got, "#EXTINF:1.500,\n/segment/1") || !strings.HasSuffix(got, "#EXT-X-ENDLIST\n") {
+		t.Fatalf("media playlist = %q", got)
 	}
 }
 

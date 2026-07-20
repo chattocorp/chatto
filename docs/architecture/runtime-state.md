@@ -181,12 +181,13 @@ There is no transient NATS Core worker subject or `video_processed` live
 signal. Boot recovery derives missed work from EVT projections and calls the
 same local path.
 
-Successful processing records thumbnail and MP4 variant asset IDs plus an
-optional HLS manifest containing the master playlist, rendition playlists, and
-ordered segment asset IDs. Each derivative binary is separately declared with
-`AssetCreatedEvent`, a role, and an owner pointing to the original asset. HLS
-manifests are additive: histories created before HLS remain MP4-only and are
-not backfilled. `AssetProcessingFailedEvent.failure_code` records failed or
+Successful processing records a thumbnail plus either historical/animated-GIF
+MP4 variant IDs or an HLS manifest containing rendition metadata and ordered
+segment IDs with durations. Only segment binaries are durable HLS derivatives;
+HTTP handlers generate playlists from the manifest. Each derivative binary is
+separately declared with `AssetCreatedEvent`, a role, and an owner pointing to
+the original asset. Histories created before HLS remain MP4-only and are not
+backfilled. `AssetProcessingFailedEvent.failure_code` records failed or
 unavailable outcomes.
 
 Account deletion follows the projected message asset graph. It appends

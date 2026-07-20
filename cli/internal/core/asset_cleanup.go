@@ -153,21 +153,17 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 		assetID string
 		role    corev1.AssetDerivativeRole
 	}
-	refs := []derivativeRef{{
-		assetID: hls.GetMasterPlaylistAssetId(),
-		role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST,
-	}}
+	var refs []derivativeRef
 	for _, rendition := range hls.GetRenditions() {
 		if rendition == nil {
 			continue
 		}
-		refs = append(refs, derivativeRef{
-			assetID: rendition.GetPlaylistAssetId(),
-			role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST,
-		})
-		for _, segmentAssetID := range rendition.GetSegmentAssetIds() {
+		for _, segment := range rendition.GetSegments() {
+			if segment == nil {
+				continue
+			}
 			refs = append(refs, derivativeRef{
-				assetID: segmentAssetID,
+				assetID: segment.GetAssetId(),
 				role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
 			})
 		}

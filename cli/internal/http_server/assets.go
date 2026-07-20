@@ -404,24 +404,42 @@ func hlsChildPath(assetID, access, suffix string) string {
 	return fmt.Sprintf("/assets/hls/%s/%s?%s", url.PathEscape(assetID), suffix, values.Encode())
 }
 
-func rewriteHLSPlaylist(raw []byte, expectedURIs int, replacement func(index int) string) ([]byte, error) {
-	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
-	uriIndex := 0
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if uriIndex >= expectedURIs {
-			return nil, fmt.Errorf("playlist contains more media URIs than its manifest")
-		}
-		lines[i] = replacement(uriIndex)
-		uriIndex++
+func renderHLSMasterPlaylist(hls *corev1.AssetProcessedHLS, childURL func(index int) string) ([]byte, error) {
+	if hls == nil || len(hls.GetRenditions()) == 0 {
+		return nil, fmt.Errorf("HLS manifest contains no renditions")
 	}
-	if uriIndex != expectedURIs {
-		return nil, fmt.Errorf("playlist contains %d media URIs, want %d", uriIndex, expectedURIs)
+	var playlist strings.Builder
+	playlist.WriteString("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n")
+	for i, rendition := range hls.GetRenditions() {
+		if rendition == nil || rendition.GetBandwidth() < 1 || rendition.GetWidth() < 1 || rendition.GetHeight() < 1 || len(rendition.GetSegments()) == 0 {
+			return nil, fmt.Errorf("HLS rendition %d is incomplete", i)
+		}
+		fmt.Fprintf(&playlist, "#EXT-X-STREAM-INF:BANDWIDTH=%d,RESOLUTION=%dx%d\n%s\n", rendition.GetBandwidth(), rendition.GetWidth(), rendition.GetHeight(), childURL(i))
 	}
-	return []byte(strings.Join(lines, "\n")), nil
+	return []byte(playlist.String()), nil
+}
+
+func renderHLSMediaPlaylist(rendition *corev1.AssetHLSRendition, segmentURL func(index int) string) ([]byte, error) {
+	if rendition == nil || len(rendition.GetSegments()) == 0 {
+		return nil, fmt.Errorf("HLS rendition contains no segments")
+	}
+	var targetDuration int64
+	for i, segment := range rendition.GetSegments() {
+		if segment == nil || segment.GetAssetId() == "" || segment.GetDurationMs() < 1 {
+			return nil, fmt.Errorf("HLS segment %d is incomplete", i)
+		}
+		seconds := (segment.GetDurationMs() + 999) / 1000
+		if seconds > targetDuration {
+			targetDuration = seconds
+		}
+	}
+	var playlist strings.Builder
+	fmt.Fprintf(&playlist, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:%d\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-INDEPENDENT-SEGMENTS\n", targetDuration)
+	for i, segment := range rendition.GetSegments() {
+		fmt.Fprintf(&playlist, "#EXTINF:%.3f,\n%s\n", float64(segment.GetDurationMs())/1000, segmentURL(i))
+	}
+	playlist.WriteString("#EXT-X-ENDLIST\n")
+	return []byte(playlist.String()), nil
 }
 
 func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string, role corev1.AssetDerivativeRole) (*corev1.Attachment, bool) {
@@ -438,33 +456,15 @@ func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string
 	return attachment, true
 }
 
-func (s *HTTPServer) serveRewrittenHLSPlaylist(c *gin.Context, originAssetID, assetID string, role corev1.AssetDerivativeRole, expectedURIs int, replacement func(index int) string) {
-	attachment, ok := s.hlsDerivative(c, originAssetID, assetID, role)
-	if !ok {
-		return
-	}
-	reader, _, err := s.core.GetAttachmentReader(c.Request.Context(), attachment)
+func (s *HTTPServer) serveGeneratedHLSPlaylist(c *gin.Context, playlist []byte, err error) {
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
-		return
-	}
-	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
-	}
-	raw, err := io.ReadAll(io.LimitReader(reader, 1<<20))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read HLS playlist"})
-		return
-	}
-	rewritten, err := rewriteHLSPlaylist(raw, expectedURIs, replacement)
-	if err != nil {
-		s.logger.Error("Invalid stored HLS playlist", "error", err, "asset_id", assetID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid HLS playlist"})
+		s.logger.Error("Invalid durable HLS manifest", "error", err, "asset_id", c.Param("assetID"))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid HLS manifest"})
 		return
 	}
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("Vary", "Origin")
-	c.Data(http.StatusOK, "application/vnd.apple.mpegurl", rewritten)
+	c.Data(http.StatusOK, "application/vnd.apple.mpegurl", playlist)
 }
 
 func (s *HTTPServer) serveHLSMasterPlaylist(c *gin.Context) {
@@ -473,9 +473,10 @@ func (s *HTTPServer) serveHLSMasterPlaylist(c *gin.Context) {
 		return
 	}
 	assetID := c.Param("assetID")
-	s.serveRewrittenHLSPlaylist(c, assetID, hls.GetMasterPlaylistAssetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MASTER_PLAYLIST, len(hls.GetRenditions()), func(index int) string {
+	playlist, err := renderHLSMasterPlaylist(hls, func(index int) string {
 		return hlsChildPath(assetID, access, fmt.Sprintf("renditions/%d/playlist.m3u8", index))
 	})
+	s.serveGeneratedHLSPlaylist(c, playlist, err)
 }
 
 func (s *HTTPServer) serveHLSMediaPlaylist(c *gin.Context) {
@@ -489,9 +490,10 @@ func (s *HTTPServer) serveHLSMediaPlaylist(c *gin.Context) {
 	}
 	assetID := c.Param("assetID")
 	rendition := hls.GetRenditions()[renditionIndex]
-	s.serveRewrittenHLSPlaylist(c, assetID, rendition.GetPlaylistAssetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_PLAYLIST, len(rendition.GetSegmentAssetIds()), func(index int) string {
+	playlist, err := renderHLSMediaPlaylist(rendition, func(index int) string {
 		return hlsChildPath(assetID, access, fmt.Sprintf("renditions/%d/segments/%d.ts", renditionIndex, index))
 	})
+	s.serveGeneratedHLSPlaylist(c, playlist, err)
 }
 
 func (s *HTTPServer) serveHLSSegment(c *gin.Context) {
@@ -506,11 +508,11 @@ func (s *HTTPServer) serveHLSSegment(c *gin.Context) {
 	rendition := hls.GetRenditions()[renditionIndex]
 	segmentText := strings.TrimSuffix(c.Param("segment"), ".ts")
 	segmentIndex, err := strconv.Atoi(segmentText)
-	if err != nil || segmentIndex < 0 || segmentIndex >= len(rendition.GetSegmentAssetIds()) {
+	if err != nil || segmentIndex < 0 || segmentIndex >= len(rendition.GetSegments()) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
 		return
 	}
-	attachment, ok := s.hlsDerivative(c, c.Param("assetID"), rendition.GetSegmentAssetIds()[segmentIndex], corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	attachment, ok := s.hlsDerivative(c, c.Param("assetID"), rendition.GetSegments()[segmentIndex].GetAssetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
 	if !ok {
 		return
 	}

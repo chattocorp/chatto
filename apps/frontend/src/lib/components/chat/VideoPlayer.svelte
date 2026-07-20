@@ -63,7 +63,6 @@
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
   let measuredMedia = $state<{ src: string; width: number; height: number } | null>(null);
-  let failedHLSUrl = $state<string | null>(null);
 
   // Pick the best variant (highest quality available)
   const selectedVariant = $derived(
@@ -73,7 +72,7 @@
   );
 
   const playbackSource = $derived.by(() => {
-    if (!autoLoop && hlsUrl && failedHLSUrl !== hlsUrl) {
+    if (!autoLoop && hlsUrl) {
       return { src: hlsUrl, type: 'application/vnd.apple.mpegurl' as const };
     }
     return selectedVariant ? { src: selectedVariant.url, type: 'video/mp4' as const } : undefined;
@@ -151,10 +150,6 @@
   }
 
   function handlePlayerError() {
-    if (playbackSource?.type === 'application/vnd.apple.mpegurl' && hlsUrl) {
-      failedHLSUrl = hlsUrl;
-      return;
-    }
     onMediaError?.();
   }
 
@@ -258,7 +253,7 @@
       <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
     </video>
   </div>
-{:else if status === 'COMPLETED' && selectedVariant && elementsReady}
+{:else if status === 'COMPLETED' && (hlsUrl || selectedVariant) && elementsReady}
   <div class="embed-frame" style={frameStyle}>
     <media-player
       {@attach attachMediaPlayer}

@@ -63,7 +63,7 @@ Switching to S3 affects new assets. Existing NATS-stored assets continue to work
 
 ## Video And Animated GIF Processing
 
-Video processing is optional and disabled by default. When enabled, Chatto requires `ffmpeg` and `ffprobe`, stores the original upload, generates a thumbnail and web-friendly MP4 compatibility variants, then packages adaptive HLS playlists and six-second segments.
+Video processing is optional and disabled by default. When enabled, Chatto requires `ffmpeg` and `ffprobe`, stores the original upload, generates a thumbnail, and packages temporary renditions into durable six-second HLS segments. Chatto generates the small HLS playlists on demand rather than storing them.
 
 Enable it only when the server has CPU and temporary disk space for transcoding:
 

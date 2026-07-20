@@ -353,7 +353,7 @@ func (h *timelineHydrator) videoProcessing(attachment *corev1.Attachment) *apiv1
 				AssetUrl: assetURLView(h.api.core.GetStableAttachmentAssetURL(variant.GetAssetId(), h.viewerID)),
 			})
 		}
-		if hls := video.GetHls(); hls != nil && hls.GetMasterPlaylistAssetId() != "" {
+		if hls := video.GetHls(); hls != nil && len(hls.GetRenditions()) > 0 {
 			result.Hls = &apiv1.MessageVideoHLS{
 				MasterPlaylistUrl: assetURLView(h.api.core.GetStableHLSMasterPlaylistAssetURL(attachment.GetId(), h.viewerID)),
 			}
