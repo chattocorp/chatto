@@ -26,16 +26,17 @@ type assetCleanupPassStatus struct {
 }
 
 type assetCleanupStatusRecord struct {
-	OwnerID              string    `json:"ownerId"`
-	UpdatedAt            time.Time `json:"updatedAt"`
-	InitialScanComplete  bool      `json:"initialScanComplete"`
-	PassInProgress       bool      `json:"passInProgress"`
-	PendingCount         int       `json:"pendingCount"`
-	OldestPendingAt      time.Time `json:"oldestPendingAt,omitempty"`
-	LastPassAt           time.Time `json:"lastPassAt,omitempty"`
-	LastSuccessfulPassAt time.Time `json:"lastSuccessfulPassAt,omitempty"`
-	LastPassFailed       bool      `json:"lastPassFailed"`
-	LastInspectedSeq     uint64    `json:"lastInspectedSeq"`
+	OwnerID                 string    `json:"ownerId"`
+	UpdatedAt               time.Time `json:"updatedAt"`
+	InitialScanComplete     bool      `json:"initialScanComplete"`
+	PassInProgress          bool      `json:"passInProgress"`
+	PendingCount            int       `json:"pendingCount"`
+	OldestPendingAt         time.Time `json:"oldestPendingAt,omitempty"`
+	LastPassAt              time.Time `json:"lastPassAt,omitempty"`
+	LastSuccessfulPassAt    time.Time `json:"lastSuccessfulPassAt,omitempty"`
+	LastPassFailed          bool      `json:"lastPassFailed"`
+	LastInspectedSeq        uint64    `json:"lastInspectedSeq"`
+	LastInspectedFailureSeq uint64    `json:"lastInspectedFailureSeq"`
 }
 
 type AssetCleanupHealth int
@@ -82,20 +83,22 @@ func (s *AssetModel) setAssetCleanupPassFinished(err error) {
 
 func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusRecord {
 	consumer := s.assetCleanupConsumerStatus()
+	failures := s.failedVideoCleanupConsumer.Status()
 	s.cleanupStatusMu.RLock()
 	pass := s.cleanupPass
 	s.cleanupStatusMu.RUnlock()
 	return assetCleanupStatusRecord{
-		OwnerID:              s.cleanupLease.OwnerID(),
-		UpdatedAt:            now.UTC(),
-		InitialScanComplete:  consumer.Initialized,
-		PassInProgress:       pass.InProgress,
-		PendingCount:         consumer.PendingCount,
-		OldestPendingAt:      consumer.OldestPendingAt,
-		LastPassAt:           pass.LastPassAt,
-		LastSuccessfulPassAt: pass.LastSuccessfulPassAt,
-		LastPassFailed:       pass.LastPassFailed,
-		LastInspectedSeq:     consumer.AfterSeq,
+		OwnerID:                 s.cleanupLease.OwnerID(),
+		UpdatedAt:               now.UTC(),
+		InitialScanComplete:     consumer.Initialized,
+		PassInProgress:          pass.InProgress,
+		PendingCount:            consumer.PendingCount,
+		OldestPendingAt:         consumer.OldestPendingAt,
+		LastPassAt:              pass.LastPassAt,
+		LastSuccessfulPassAt:    pass.LastSuccessfulPassAt,
+		LastPassFailed:          pass.LastPassFailed,
+		LastInspectedSeq:        consumer.AfterSeq,
+		LastInspectedFailureSeq: failures.AfterSeq,
 	}
 }
 
@@ -139,6 +142,10 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		return status, fmt.Errorf("read latest asset deletion sequence: %w", err)
 	}
 	status.LatestDeletionSeq = latestSeq
+	latestFailureSeq, err := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetProcessingFailed))
+	if err != nil {
+		return status, fmt.Errorf("read latest asset processing failure sequence: %w", err)
+	}
 
 	var record assetCleanupStatusRecord
 	entry, err := s.storage.memoryCacheKV.Get(ctx, assetCleanupStatusKey)
@@ -187,7 +194,7 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		status.Health = AssetCleanupHealthStalled
 	case !record.InitialScanComplete:
 		status.Health = AssetCleanupHealthInitializing
-	case record.PendingCount > 0 || record.LastPassFailed || record.LastInspectedSeq < latestSeq:
+	case record.PendingCount > 0 || record.LastPassFailed || record.LastInspectedSeq < latestSeq || record.LastInspectedFailureSeq < latestFailureSeq:
 		status.Health = AssetCleanupHealthRetrying
 	default:
 		status.Health = AssetCleanupHealthHealthy
