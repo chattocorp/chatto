@@ -15,7 +15,7 @@ cleared when the dialog closes so plaintext is not retained beyond the task.
   import TextInput from '$lib/ui/form/TextInput.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { formatDateTime } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
@@ -33,8 +33,16 @@ cleared when the dialog closes so plaintext is not retained beyond the task.
     onclose: () => void;
   } = $props();
 
-  const store = $derived(serverRegistry.getStore(serverId).messageSearch);
-  const userSettings = getUserSettings();
+  const serverStore = $derived(serverRegistry.getStore(serverId));
+  const store = $derived(serverStore.messageSearch);
+  const timeFormatSettings = $derived.by(() => {
+    const settings = serverStore.currentUser.user?.settings;
+    return {
+      effectiveTimezone: settings?.timezone || undefined,
+      effectiveHour12:
+        settings?.timeFormat === undefined ? undefined : hour12ForTimeFormat(settings.timeFormat)
+    };
+  });
   const activeLocale = $derived(getLocale());
   let query = $state('');
   // The modal is recreated for each shallow-routed invocation, so the scope is
@@ -110,7 +118,7 @@ cleared when the dialog closes so plaintext is not retained beyond the task.
   }
 
   function formatTimestamp(value: string): string {
-    return value ? formatDateTime(value, userSettings, activeLocale) : '';
+    return value ? formatDateTime(value, timeFormatSettings, activeLocale) : '';
   }
 
   function progressPercent(): number | null {

@@ -5,6 +5,19 @@ import AppHeader from './AppHeader.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
+    activeServer: '',
+    activeStore: undefined as
+      | {
+          serverInfo: { supportsProtocolCapability: () => boolean };
+          messageSearch: {
+            statusLoading: boolean;
+            statusError: boolean;
+            statusLoaded: boolean;
+            status: { state: number };
+            ensureStatus: ReturnType<typeof vi.fn>;
+          };
+        }
+      | undefined,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -15,7 +28,9 @@ const { mocks } = vi.hoisted(() => ({
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
-vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => mocks.activeServer
+}));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     get servers() {
@@ -25,7 +40,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       return undefined;
     },
     getStore: mocks.getStore,
-    tryGetStore: () => undefined
+    tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
   }
 }));
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
@@ -49,6 +64,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
 describe('AppHeader', () => {
   beforeEach(() => {
     mocks.servers = [];
+    mocks.activeServer = '';
+    mocks.activeStore = undefined;
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });
@@ -74,5 +91,28 @@ describe('AppHeader', () => {
     (container.querySelector('button[aria-label="About Chatto"]') as HTMLButtonElement).click();
 
     expect(mocks.pushState).toHaveBeenCalledWith('', { modal: { type: 'aboutChatto' } });
+  });
+
+  it('opens message search for the active server', () => {
+    mocks.activeServer = 'remote';
+    mocks.servers = [{ id: 'remote' }];
+    mocks.activeStore = {
+      serverInfo: { supportsProtocolCapability: () => true },
+      messageSearch: {
+        statusLoading: false,
+        statusError: false,
+        statusLoaded: true,
+        status: { state: 4 },
+        ensureStatus: vi.fn()
+      }
+    };
+    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
+    const { container } = render(AppHeader);
+
+    (container.querySelector('button[aria-label="Search messages"]') as HTMLButtonElement).click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'messageSearch', serverId: 'remote' }
+    });
   });
 });
