@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     toggleReaction: vi.fn(),
     startEdit: vi.fn(),
     openDeleteConfirmation: vi.fn(),
+    copyMessageText: vi.fn(),
     copyMessageLink: vi.fn()
   }
 }));
@@ -71,8 +72,18 @@ describe('MessageActionSheet', () => {
       'Reply',
       'Reply in thread',
       'Edit',
+      'Copy text',
       'Copy link',
       'Delete'
+    ]);
+    expect(
+      Array.from(container.querySelectorAll('nav')).map((section) =>
+        Array.from(section.querySelectorAll('button')).map((button) => button.textContent?.trim())
+      )
+    ).toEqual([
+      ['Reply', 'Reply in thread', 'Edit'],
+      ['Copy text', 'Copy link'],
+      ['Delete']
     ]);
   });
 
@@ -84,13 +95,24 @@ describe('MessageActionSheet', () => {
       replyThreadLabel: 'Open thread'
     });
 
-    expect(actionLabels(container)).toEqual(['Reply in thread', 'Open thread', 'Copy link']);
+    expect(actionLabels(container)).toEqual([
+      'Reply in thread',
+      'Open thread',
+      'Copy text',
+      'Copy link'
+    ]);
   });
 
   it('keeps flat replies while omitting the thread action when threading is unavailable', () => {
     const { container } = renderSheet({ onReplyInRoom: vi.fn() });
 
-    expect(actionLabels(container)).toEqual(['Reply', 'Copy link']);
+    expect(actionLabels(container)).toEqual(['Reply', 'Copy text', 'Copy link']);
+  });
+
+  it('omits copy text when the message has no text body', () => {
+    const { container } = renderSheet({ messageBody: '' });
+
+    expect(actionLabels(container)).toEqual(['Copy link']);
   });
 
   it('closes after invoking sheet actions', async () => {
@@ -139,6 +161,17 @@ describe('MessageActionSheet', () => {
       expect.objectContaining({ eventId: 'event-1', messageBody: 'Hello' })
     );
     expect(baseProps.onClose).toHaveBeenCalledOnce();
+
+    baseProps.onClose.mockClear();
+    Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))
+      .find((button) => button.textContent?.includes('Copy text'))!
+      .click();
+    expect(mocks.actions.copyMessageText).toHaveBeenCalledWith(
+      expect.objectContaining({ messageBody: 'Hello' })
+    );
+    await vi.waitFor(() => {
+      expect(baseProps.onClose).toHaveBeenCalledOnce();
+    });
 
     baseProps.onClose.mockClear();
     Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))

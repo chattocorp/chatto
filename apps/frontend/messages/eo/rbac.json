@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Permesoj de uzanto",
-          "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn. Ajna neposedanto neas nuligas subvenciojn"
+          "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn"
         }
       }
     },

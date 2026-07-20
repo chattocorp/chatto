@@ -59,6 +59,22 @@ async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
   return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
 }
 
+async function navigateClientSide(page: Page, href: string): Promise<void> {
+  const link = page.getByTestId('e2e-client-navigation');
+  await page.evaluate((target) => {
+    document.querySelector('[data-testid="e2e-client-navigation"]')?.remove();
+    const anchor = document.createElement('a');
+    anchor.dataset.testid = 'e2e-client-navigation';
+    anchor.href = target;
+    anchor.textContent = 'Navigate';
+    anchor.style.position = 'fixed';
+    anchor.style.inset = '0 auto auto 0';
+    anchor.style.zIndex = '2147483647';
+    document.body.append(anchor);
+  }, href);
+  await link.click();
+}
+
 async function expectMessageCentered(page: Page, eventId: string): Promise<void> {
   const message = page.locator(`[data-event-id="${eventId}"]`);
   const container = page.getByTestId('messages-container').first();
@@ -380,10 +396,10 @@ test.describe('jump to message', () => {
     await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const deferred = await deferNextAroundRequest(page);
-    await page.goto(routes.messageLink(roomId, firstEventId));
+    await navigateClientSide(page, routes.messageLink(roomId, firstEventId));
     await deferred.waitUntilBlocked();
 
-    await page.goto(routes.messageLink(roomId, secondEventId));
+    await navigateClientSide(page, routes.messageLink(roomId, secondEventId));
     await expectMessageCentered(page, secondEventId);
     deferred.release();
     await deferred.waitUntilDelivered();

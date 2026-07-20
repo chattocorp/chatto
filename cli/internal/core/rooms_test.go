@@ -47,7 +47,7 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 	}
 }
 
-func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *testing.T) {
+func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -57,6 +57,9 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *t
 	}
 	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
+	}
+	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
+		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
 	}
 
 	created, createdSeq, err := core.EventPublisher.SubjectEvents(
@@ -73,11 +76,18 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *t
 	if err != nil {
 		t.Fatalf("read room default denial: %v", err)
 	}
-	if len(created) != 1 || len(denied) != 1 {
-		t.Fatalf("created events = %d, denied events = %d; want 1 each", len(created), len(denied))
+	granted, grantedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		events.RBACScopedAggregate(room.Id).Subject(events.EventRBACPermissionGranted),
+	)
+	if err != nil {
+		t.Fatalf("read room default grant: %v", err)
 	}
-	if deniedSeq != createdSeq+1 {
-		t.Fatalf("room default seq = %d, want contiguous seq %d after RoomCreated", deniedSeq, createdSeq+1)
+	if len(created) != 1 || len(denied) != 1 || len(granted) != 1 {
+		t.Fatalf("created events = %d, denied events = %d, granted events = %d; want 1 each", len(created), len(denied), len(granted))
+	}
+	if grantedSeq != createdSeq+1 || deniedSeq != grantedSeq+1 {
+		t.Fatalf("room default sequences = created %d, denied %d, granted %d; want one contiguous batch", createdSeq, deniedSeq, grantedSeq)
 	}
 }
 

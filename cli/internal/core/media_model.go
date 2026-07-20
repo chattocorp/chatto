@@ -1,5 +1,7 @@
 package core
 
+import "time"
+
 // MediaModel owns attachment/media storage, media URL generation, and resize
 // cache operations.
 //
@@ -9,10 +11,11 @@ package core
 // PresenceModel.
 type MediaModel struct {
 	*ChattoCore
+	now func() time.Time
 }
 
 func NewMediaModel(core *ChattoCore) *MediaModel {
-	return &MediaModel{ChattoCore: core}
+	return &MediaModel{ChattoCore: core, now: time.Now}
 }
 
 func (c *ChattoCore) media() *MediaModel {

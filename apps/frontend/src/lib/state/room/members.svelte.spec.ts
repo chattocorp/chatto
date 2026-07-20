@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus } from '$lib/render/types';
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
@@ -319,31 +317,18 @@ describe('RoomMembersStore', () => {
     expect(store.totalCount).toBe(3);
   });
 
-  it('refreshes from room membership events using local event kind', async () => {
-    const fakeAPI = new FakeMemberDirectoryAPI([
-      pageResult([user('u1', 'initial')], false, 1),
-      pageResult([user('u2', 'joined')], false, 1)
-    ]);
-    const store = new RoomMembersStore(fakeAPI);
+  it('distinguishes pending projection membership from a complete empty roster', () => {
+    const store = new RoomMembersStore(null);
 
-    store.setRoom('room-1');
-    await store.loadInitial();
+    store.awaitProjection('room-1');
+    expect(store.isInitialLoading).toBe(true);
+    expect(store.hasFirstPage).toBe(false);
+    expect(store.hasLoadedAll).toBe(false);
 
-    store.ingestServerEvent({
-      id: 'evt-1',
-      roomId: 'room-1',
-      actorId: 'u2',
-      createdAt: new Date().toISOString(),
-      event: {
-        kind: RoomEventKind.UserJoinedRoom,
-        roomId: 'room-1'
-      }
-    } as EventEnvelope);
-
-    await vi.waitFor(() => {
-      expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
-      expect(store.members.map((member) => member.login)).toEqual(['joined']);
-    });
+    store.replaceProjection('room-1', []);
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.hasFirstPage).toBe(true);
+    expect(store.hasLoadedAll).toBe(true);
   });
 
   it('publishes a refreshed first page when later refresh hydration fails', async () => {

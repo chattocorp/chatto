@@ -1,8 +1,11 @@
 import { expect } from '@playwright/test';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdmin } from './fixtures/testUser';
 import {
   connectPost,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
   getRoomIdByNameViaConnect,
+  joinRoomViaConnect,
   waitForRoomReadViaConnect,
   waitForRoomUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -154,6 +157,85 @@ test.describe('Multi-window unread sync', () => {
 });
 
 test.describe('Unread indicators', () => {
+  test('a message in another room does not resurrect a room that was read', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000);
+
+    await loginAsAdmin(page);
+    await chatPage.goto();
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    const otherRoomName = `unread-scope-${Date.now()}`;
+    const roomGroupId = await getDefaultRoomGroupIdViaConnect(page);
+    const otherRoomId = await createRoomViaConnect(page, otherRoomName, roomGroupId);
+    await joinRoomViaConnect(page, otherRoomId);
+
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await waitForRoomReadViaConnect(page, generalRoomId);
+    await chatPage.enterRoom(otherRoomName);
+    await waitForRoomReady(page, otherRoomName);
+    await waitForRoomReadViaConnect(page, otherRoomId);
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2 }) => {
+        await joinRoomViaConnect(page2, generalRoomId);
+        await joinRoomViaConnect(page2, otherRoomId);
+        await chatPage2.enterRoom(otherRoomName);
+        await waitForRoomReady(page2, otherRoomName);
+        await waitForRoomReadViaConnect(page2, otherRoomId);
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+
+        const generalPost = await connectPost<{ message?: { id?: string } }>(
+          page2,
+          'chatto.api.v1.MessageService/CreateMessage',
+          { roomId: generalRoomId, body: `Make general unread ${Date.now()}` }
+        );
+        expect(generalPost.message?.id).toBeTruthy();
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        await chatPage.enterRoom('general');
+        await waitForRoomReady(page, 'general');
+        await waitForRoomReadViaConnect(page, generalRoomId);
+        await chatPage.enterRoom(otherRoomName);
+        await waitForRoomReady(page, otherRoomName);
+        await waitForRoomReadViaConnect(page, otherRoomId);
+
+        const otherRoomPost = await connectPost<{ message?: { id?: string } }>(
+          page,
+          'chatto.api.v1.MessageService/CreateMessage',
+          { roomId: otherRoomId, body: `Other room ${Date.now()}` }
+        );
+        expect(otherRoomPost.message?.id).toBeTruthy();
+        await waitForRoomUnreadViaConnect(page2, otherRoomId, true);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
+
+        const aliceGeneral = chatPage.roomList.locator('a', { hasText: '# general' });
+        const aliceOtherRoom = chatPage.roomList.locator('a', {
+          hasText: `# ${otherRoomName}`
+        });
+        const bobGeneral = chatPage2.roomList.locator('a', { hasText: '# general' });
+        const bobOtherRoom = chatPage2.roomList.locator('a', {
+          hasText: `# ${otherRoomName}`
+        });
+
+        await expect(async () => {
+          await expect(aliceGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
+          await expect(aliceOtherRoom.getByTestId('room-unread-dot')).not.toBeVisible();
+          await expect(bobGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
+          await expect(bobOtherRoom.getByTestId('room-unread-dot')).toBeVisible();
+        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: POLLING_INTERVALS });
+      }
+    );
+  });
+
   test('shows unread indicator when another user posts a message to a different room', async ({
     page,
     chatPage,

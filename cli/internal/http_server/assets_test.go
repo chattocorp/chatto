@@ -592,6 +592,9 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	if originalResp.StatusCode != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d", originalResp.StatusCode)
 	}
+	if got := originalResp.Header.Get("Accept-Ranges"); got != "none" {
+		t.Errorf("Expected Accept-Ranges: none, got %q", got)
+	}
 
 	// Should have correct content type
 	contentType := originalResp.Header.Get("Content-Type")
@@ -606,6 +609,32 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	}
 	if len(body) == 0 {
 		t.Error("Expected non-empty response body")
+	}
+
+	// Chatto-backed attachments intentionally ignore Range and return the full
+	// object. Deployments that need seekable media should use S3 redirects.
+	rangeRequest, err := http.NewRequest(http.MethodGet, env.server.URL+attachmentURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create range request: %v", err)
+	}
+	rangeRequest.Header.Set("Range", "bytes=1-2")
+	rangeResp, err := env.client.Do(rangeRequest)
+	if err != nil {
+		t.Fatalf("Failed to get ranged original attachment: %v", err)
+	}
+	defer rangeResp.Body.Close()
+	if rangeResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected full 200 response for Range request, got %d", rangeResp.StatusCode)
+	}
+	if got := rangeResp.Header.Get("Accept-Ranges"); got != "none" {
+		t.Fatalf("Expected Accept-Ranges: none, got %q", got)
+	}
+	rangeBody, err := io.ReadAll(rangeResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read ranged response body: %v", err)
+	}
+	if !bytes.Equal(rangeBody, imageData) {
+		t.Fatal("Range request did not return the complete attachment")
 	}
 }
 

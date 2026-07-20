@@ -50,10 +50,6 @@ vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
   useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
 
-vi.mock('$lib/hooks/useMayHaveMissedMessagesCallback.svelte', () => ({
-  useMayHaveMissedMessagesCallback: () => {}
-}));
-
 describe('EventList jump completion', () => {
   it('signals completion after highlighting a rendered target', async () => {
     const onComplete = vi.fn();

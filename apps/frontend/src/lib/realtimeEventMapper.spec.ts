@@ -29,17 +29,16 @@ describe('realtimeEventToEventEnvelope', () => {
     ) as unknown as {
       event: {
         kind: string;
-        room: { name: string };
-        actor: { id: string; displayName: string } | null;
+        roomName: string;
+        actorUserId: string;
+        actorDisplayName: string;
       };
     };
 
     expect(event.event.kind).toBe(RoomEventKind.MentionNotification);
-    expect(event.event.room.name).toBe('General');
-    expect(event.event.actor).toEqual({
-      id: 'user-1',
-      displayName: 'Ada Lovelace'
-    });
+    expect(event.event.roomName).toBe('General');
+    expect(event.event.actorUserId).toBe('user-1');
+    expect(event.event.actorDisplayName).toBe('Ada Lovelace');
   });
 
   it('preserves DM notification display data', () => {
@@ -63,16 +62,16 @@ describe('realtimeEventToEventEnvelope', () => {
       event: {
         kind: string;
         conversationName: string;
-        sender: { id: string; displayName: string; avatarUrl: string | null } | null;
+        senderId: string;
+        senderDisplayName: string;
+        senderAvatarUrl: string;
       };
     };
 
     expect(event.event.kind).toBe(RoomEventKind.NewDirectMessageNotification);
     expect(event.event.conversationName).toBe('Grace Hopper');
-    expect(event.event.sender).toEqual({
-      id: 'user-2',
-      displayName: 'Grace Hopper',
-      avatarUrl: '/assets/avatar.png'
-    });
+    expect(event.event.senderId).toBe('user-2');
+    expect(event.event.senderDisplayName).toBe('Grace Hopper');
+    expect(event.event.senderAvatarUrl).toBe('/assets/avatar.png');
   });
 });

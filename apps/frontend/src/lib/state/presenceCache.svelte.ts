@@ -36,6 +36,20 @@ export class PresenceCache {
     });
   }
 
+  /** Atomically replace every cached presence entry for one server. */
+  replaceServer(serverId: string, statuses: ReadonlyMap<string, PresenceStatus>) {
+    untrack(() => {
+      const prefix = `${serverId}\u0000`;
+      for (const key of this.#entries.keys()) {
+        if (key.startsWith(prefix)) this.#entries.delete(key);
+      }
+      for (const [userId, status] of statuses) {
+        this.#entries.set(presenceCacheKey({ serverId, userId }), status);
+      }
+      this.#version++;
+    });
+  }
+
   get(scope: PresenceCacheScope, fallback: PresenceStatus): PresenceStatus {
     void this.#version;
     return this.#entries.get(presenceCacheKey(scope)) ?? fallback;

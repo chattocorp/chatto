@@ -1,11 +1,13 @@
 <!--
 @component
 
-Test-only wrapper for `RoomSidebar`. Creates the room-member context through
-the real sync hook so browser specs can exercise pagination wiring without
-mounting the full chat room shell.
+Test-only wrapper for `RoomSidebar`. Creates the room-member context and uses
+the same attachment-driven store lifecycle as the room shell so browser specs
+can exercise pagination wiring without mounting the full chat room.
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { createPresenceCache, type PresenceCache } from '$lib/state/presenceCache.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -51,36 +53,40 @@ mounting the full chat room shell.
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);
   });
-  const roomFilesStore = new RoomFilesStore(connection());
+  const roomFilesStore = $derived(new RoomFilesStore(connection(), roomId));
   const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
 
-  $effect(() => {
-    if (activePanel !== 'files') return;
-    roomFilesStore.setRoom(roomId);
-  });
+  const syncMembersStore: Attachment = () => {
+    const selectedRoomId = roomId;
+    const active = activePanel === 'members';
+    untrack(() => {
+      roomMembersStore.setRoom(selectedRoomId);
+      if (active) roomMembersStore.ensureLoaded();
+    });
+  };
 
-  $effect(() => {
-    roomMembersStore.setRoom(roomId);
-    if (activePanel === 'members') {
-      roomMembersStore.ensureLoaded();
-    }
-  });
+  const syncFilesStore: Attachment = () => {
+    const active = activePanel === 'files';
+    if (active) return untrack(() => roomFilesStore.retain());
+  };
 </script>
 
-<RoomSidebar
-  {roomId}
-  {activePanel}
-  {presentation}
-  {maximized}
-  {hasActiveCall}
-  loading={false}
-  {canBanRoomMembers}
-  {currentUserId}
-  membersStore={roomMembersStore}
-  filesStore={roomFilesStore}
-  {livekitUrl}
-  {fileGroupingNow}
-  {onOpenFile}
-  {onToggleMaximized}
-  {onClose}
-/>
+<div class="contents" {@attach syncMembersStore} {@attach syncFilesStore}>
+  <RoomSidebar
+    {roomId}
+    {activePanel}
+    {presentation}
+    {maximized}
+    {hasActiveCall}
+    loading={false}
+    {canBanRoomMembers}
+    {currentUserId}
+    membersStore={roomMembersStore}
+    filesStore={roomFilesStore}
+    {livekitUrl}
+    {fileGroupingNow}
+    {onOpenFile}
+    {onToggleMaximized}
+    {onClose}
+  />
+</div>

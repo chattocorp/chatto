@@ -1,53 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
-import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import {
+  RealtimeProjectionEvent,
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionNotificationChange,
+  RealtimeProjectionNotificationsReplace,
+  RealtimeProjectionOperation
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
   const bus = {
-    handlers: new Set<EventHandler>(),
-    catchUpHandlers: new Set()
+    projectionHandlers: new Set<ProjectionHandler>()
   };
-  const store = {
+  const createStore = () => ({
     isAuthenticated: true,
     notifications: {
       notifications: [] as Array<{ kind: string }>,
       count: 0,
       unreadNotificationCount: 0,
-      hasLoaded: true,
-      addNotification: vi.fn(() => Promise.resolve()),
-      removeNotification: vi.fn(),
-      consumeLocalDismissal: vi.fn(),
-      fetch: vi.fn(() => Promise.resolve())
-    },
-    rooms: {
-      refreshNotificationCounts: vi.fn(() => Promise.resolve()),
-      incrementUnreadNotification: vi.fn(),
-      decrementUnreadNotification: vi.fn(),
-      refresh: vi.fn()
-    },
-    roomUnread: {
-      hasAnyUnread: false
+      hasLoaded: true
     }
+  });
+  const stores = {
+    origin: createStore(),
+    remote: createStore()
   };
 
   return {
     mocks: {
       bus,
-      store,
+      servers: [{ id: 'origin' }],
+      stores,
+      badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
-      updateBadge: vi.fn(() => Promise.resolve()),
-      clearBadge: vi.fn(() => Promise.resolve()),
-      syncServiceWorkerNotificationBadgeState: vi.fn()
+      updateAppBadge: vi.fn(async () => {})
     }
   };
 });
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    servers: [{ id: 'origin' }],
-    getStore: vi.fn(() => mocks.store)
+    get servers() {
+      return mocks.servers;
+    },
+    getStore: vi.fn((serverId: 'origin' | 'remote') => mocks.stores[serverId])
   }
 }));
 
@@ -76,196 +74,213 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 }));
 
 vi.mock('$lib/notifications/appBadge', () => ({
-  updateBadge: mocks.updateBadge,
-  clearBadge: mocks.clearBadge,
-  syncServiceWorkerNotificationBadgeState: mocks.syncServiceWorkerNotificationBadgeState
+  listenForAppBadgeRefresh: vi.fn((handler: () => void) => {
+    mocks.badgeRefreshHandlers.add(handler);
+    return () => mocks.badgeRefreshHandlers.delete(handler);
+  }),
+  updateAppBadge: mocks.updateAppBadge
 }));
 
-function dispatch(event: Record<string, unknown>) {
-  const envelope = {
+function dispatch(change?: RealtimeProjectionNotificationChange) {
+  const event = new RealtimeProjectionEvent({
     id: 'event-id',
-    createdAt: new Date().toISOString(),
-    actorId: 'actor-id',
-    actor: null,
-    event
-  } as EventEnvelope;
+    operations: [
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({ change })
+        }
+      })
+    ]
+  });
 
-  for (const handler of mocks.bus.handlers) {
-    handler(envelope);
+  for (const handler of mocks.bus.projectionHandlers) {
+    handler(event);
   }
 }
 
 async function renderAndWaitForSubscription() {
   render(NotificationSync);
-  await vi.waitFor(() => expect(mocks.bus.handlers.size).toBe(1));
+  const authenticatedServerCount = mocks.servers.filter(
+    ({ id }) => mocks.stores[id as keyof typeof mocks.stores].isAuthenticated
+  ).length;
+  await vi.waitFor(() =>
+    expect(mocks.bus.projectionHandlers.size).toBe(authenticatedServerCount)
+  );
+  await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
 }
 
 describe('NotificationSync', () => {
   beforeEach(() => {
-    mocks.bus.handlers.clear();
-    mocks.bus.catchUpHandlers.clear();
+    mocks.bus.projectionHandlers.clear();
+    mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
 
-    mocks.store.isAuthenticated = true;
-    mocks.store.notifications.notifications = [];
-    mocks.store.notifications.count = 0;
-    mocks.store.notifications.unreadNotificationCount = 0;
-    mocks.store.notifications.hasLoaded = true;
-    mocks.store.roomUnread.hasAnyUnread = false;
-    mocks.store.notifications.addNotification.mockResolvedValue(undefined);
-    mocks.store.notifications.removeNotification.mockReturnValue(null);
-    mocks.store.notifications.consumeLocalDismissal.mockReturnValue(false);
-    mocks.store.notifications.fetch.mockResolvedValue(undefined);
-    mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
+    mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
+    for (const store of Object.values(mocks.stores)) {
+      store.isAuthenticated = true;
+      store.notifications.notifications = [];
+      store.notifications.count = 0;
+      store.notifications.unreadNotificationCount = 0;
+      store.notifications.hasLoaded = true;
+    }
   });
 
-  it('reconciles authoritative counts on notification creation instead of incrementing locally', async () => {
+  it('plays a sound for a live non-silent notification creation', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationCreated,
-      notificationId: 'n1',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      inReplyToId: null,
-      silent: false
-    });
+    dispatch(
+      new RealtimeProjectionNotificationChange({
+        action: RealtimeProjectionNotificationAction.CREATED,
+        notificationId: 'n1',
+        silent: false
+      })
+    );
 
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
   });
 
-  it('reconciles silent notification creation without playing a sound', async () => {
+  it('does not play a sound for a silent notification creation', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationCreated,
-      notificationId: 'n1',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      inReplyToId: null,
-      silent: true
-    });
+    dispatch(
+      new RealtimeProjectionNotificationChange({
+        action: RealtimeProjectionNotificationAction.CREATED,
+        notificationId: 'n1',
+        silent: true
+      })
+    );
 
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
-    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('reconciles counts when a cached notification is dismissed elsewhere', async () => {
-    mocks.store.notifications.removeNotification.mockReturnValue('room-1');
+  it('does not play a sound for reconciliation or dismissal replacements', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch({
-      kind: RoomEventKind.NotificationDismissed,
-      notificationId: 'n1'
-    });
-
-    expect(mocks.store.notifications.removeNotification).toHaveBeenCalledWith('n1');
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
-    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
-  });
-
-  it('refetches notification state and counts when an uncached remote dismissal arrives', async () => {
-    mocks.store.notifications.removeNotification.mockReturnValue(null);
-    mocks.store.notifications.consumeLocalDismissal.mockReturnValue(false);
-    await renderAndWaitForSubscription();
-
-    dispatch({
-      kind: RoomEventKind.NotificationDismissed,
-      notificationId: 'unknown-notification'
-    });
-
-    expect(mocks.store.notifications.consumeLocalDismissal).toHaveBeenCalledWith(
-      'unknown-notification'
+    dispatch();
+    dispatch(
+      new RealtimeProjectionNotificationChange({
+        action: RealtimeProjectionNotificationAction.DISMISSED,
+        notificationId: 'n1'
+      })
     );
-    expect(mocks.store.notifications.fetch).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    expect(mocks.store.rooms.refresh).not.toHaveBeenCalled();
+
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('uses a numeric app badge for loaded DM notifications', async () => {
-    mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
-    mocks.store.notifications.count = 1;
-    mocks.store.notifications.unreadNotificationCount = 1;
+  it('uses an exact numeric badge for loaded DM notifications', async () => {
+    mocks.stores.origin.notifications.notifications = [
+      { kind: 'directMessage' },
+      { kind: 'directMessage' }
+    ];
+    mocks.stores.origin.notifications.unreadNotificationCount = 2;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 2 })
     );
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({
-      kind: 'count',
-      count: 1
-    });
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
-  it('uses a flag instead of a capped DM count when notifications are not fully loaded', async () => {
-    mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
-    mocks.store.notifications.count = 1;
-    mocks.store.notifications.unreadNotificationCount = 3;
+  it('uses a flag for non-DM notifications', async () => {
+    mocks.stores.origin.notifications.notifications = [{ kind: 'mention' }];
+    mocks.stores.origin.notifications.unreadNotificationCount = 1;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
+    );
   });
 
-  it('uses a flag app badge for channel notifications', async () => {
-    mocks.store.notifications.notifications = [{ kind: 'mention' }];
-    mocks.store.notifications.count = 1;
-    mocks.store.notifications.unreadNotificationCount = 1;
+  it('counts only DMs when a complete page also contains other notifications', async () => {
+    mocks.stores.origin.notifications.notifications = [
+      { kind: 'mention' },
+      { kind: 'directMessage' },
+      { kind: 'reply' }
+    ];
+    mocks.stores.origin.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+    );
   });
 
-  it('clears the app badge when there are no notifications or unread rooms', async () => {
-    await renderAndWaitForSubscription();
-
-    await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'clear' });
-    expect(mocks.updateBadge).not.toHaveBeenCalled();
-  });
-
-  it('does not treat startup zero as authoritative before notifications load', async () => {
-    mocks.store.notifications.hasLoaded = false;
-
-    await renderAndWaitForSubscription();
-
-    expect(mocks.syncServiceWorkerNotificationBadgeState).not.toHaveBeenCalled();
-    expect(mocks.updateBadge).not.toHaveBeenCalled();
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
-  });
-
-  it('still publishes a positive count before all stores are loaded', async () => {
-    mocks.store.notifications.hasLoaded = false;
-    mocks.store.notifications.unreadNotificationCount = 2;
+  it('aggregates exact DM counts across authenticated servers', async () => {
+    mocks.servers.push({ id: 'remote' });
+    mocks.stores.origin.notifications.notifications = [{ kind: 'directMessage' }];
+    mocks.stores.origin.notifications.unreadNotificationCount = 1;
+    mocks.stores.remote.notifications.notifications = [
+      { kind: 'directMessage' },
+      { kind: 'mention' }
+    ];
+    mocks.stores.remote.notifications.unreadNotificationCount = 2;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 2 })
+    );
   });
 
-  it('does not set a dock badge for unread-only rooms', async () => {
-    mocks.store.roomUnread.hasAnyUnread = true;
+  it('uses a flag when a notification page is truncated', async () => {
+    mocks.stores.origin.notifications.notifications = [{ kind: 'directMessage' }];
+    mocks.stores.origin.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'clear' });
-    expect(mocks.updateBadge).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
+    );
+  });
+
+  it('reasserts the unchanged aggregate badge after a regular push', async () => {
+    mocks.stores.origin.notifications.notifications = [{ kind: 'directMessage' }];
+    mocks.stores.origin.notifications.unreadNotificationCount = 1;
+    await renderAndWaitForSubscription();
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+    );
+    mocks.updateAppBadge.mockClear();
+
+    for (const refresh of mocks.badgeRefreshHandlers) refresh();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 1 })
+    );
+  });
+
+  it('clears a legacy app badge once empty notification stores have loaded', async () => {
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
+    );
+  });
+
+  it('owns a zero badge while signed out and reasserts it after a push', async () => {
+    mocks.stores.origin.isAuthenticated = false;
+    render(NotificationSync);
+    await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
+    );
+    mocks.updateAppBadge.mockClear();
+
+    for (const refresh of mocks.badgeRefreshHandlers) refresh();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
+    );
+  });
+
+  it('does not clear the app badge before notifications have loaded', async () => {
+    mocks.stores.origin.notifications.hasLoaded = false;
+
+    await renderAndWaitForSubscription();
+
+    expect(mocks.updateAppBadge).not.toHaveBeenCalled();
   });
 });

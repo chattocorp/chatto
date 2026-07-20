@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -495,6 +497,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.api.v1",
 		"chatto.admin.v1",
 		"chatto.realtime.v1",
+		"chatto.realtime.projection.v1",
 	}
 	if got := msg.GetCompatibility().GetProtocolCapabilities(); !slices.Equal(got, wantCapabilities) {
 		t.Fatalf("protocol capabilities = %v, want %v", got, wantCapabilities)
@@ -6040,7 +6043,7 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 	if page.StartCursor == "" || page.EndCursor == "" {
 		t.Fatalf("cursors = %q/%q, want non-empty cursors", page.StartCursor, page.EndCursor)
 	}
-	if strings.HasPrefix(page.StartCursor, roomTimelineCursorSeqPrefix) || strings.HasPrefix(page.EndCursor, roomTimelineCursorSeqPrefix) {
+	if !strings.HasPrefix(page.StartCursor, roomTimelineCursorOpaquePrefix) || !strings.HasPrefix(page.EndCursor, roomTimelineCursorOpaquePrefix) {
 		t.Fatalf("cursors = %q/%q, want opaque cursors", page.StartCursor, page.EndCursor)
 	}
 
@@ -6059,50 +6062,133 @@ func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing
 		t.Fatalf("older page HasNewer = false, want true")
 	}
 
-	startSeq, err := parseRoomTimelineCursor(page.StartCursor)
+	startSeq, err := env.api.parseRoomTimelineCursor(env.viewer.Id, room.Id, "", page.StartCursor)
 	if err != nil {
 		t.Fatalf("parse emitted start cursor: %v", err)
 	}
-	legacyResp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
-		RoomId: room.Id,
-		Limit:  10,
-		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomTimelineCursorSeqPrefix + strconv.FormatUint(startSeq, 10)},
-	}))
-	if err != nil {
-		t.Fatalf("GetRoomEvents before legacy cursor: %v", err)
-	}
-	if !timelinePageContains(legacyResp.Msg.GetPage(), m1.Id) {
-		t.Fatalf("legacy cursor page does not contain first message %s", m1.Id)
+	if startSeq == 0 {
+		t.Fatal("decoded emitted cursor has zero internal position")
 	}
 }
 
 func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
-	cursor := formatRoomTimelineCursor(42)
+	env := newConnectAPITestEnv(t)
+	cursor, err := env.api.formatRoomTimelineCursor(env.viewer.Id, "room-1", "", 42)
+	if err != nil {
+		t.Fatalf("formatRoomTimelineCursor: %v", err)
+	}
 	if cursor == "" {
 		t.Fatal("formatRoomTimelineCursor returned empty cursor")
 	}
-	if strings.HasPrefix(cursor, roomTimelineCursorSeqPrefix) || strings.Contains(cursor, "42") {
+	if !strings.HasPrefix(cursor, roomTimelineCursorOpaquePrefix) || strings.Contains(cursor, "42") {
 		t.Fatalf("cursor %q exposes raw sequence", cursor)
 	}
-	seq, err := parseRoomTimelineCursor(cursor)
+	seq, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", cursor)
 	if err != nil {
 		t.Fatalf("parse opaque cursor: %v", err)
 	}
 	if seq != 42 {
 		t.Fatalf("opaque cursor seq = %d, want 42", seq)
 	}
-	legacySeq, err := parseRoomTimelineCursor("seq:42")
+	second, err := env.api.formatRoomTimelineCursor(env.viewer.Id, "room-1", "", 42)
 	if err != nil {
-		t.Fatalf("parse legacy cursor: %v", err)
+		t.Fatalf("format second cursor: %v", err)
 	}
-	if legacySeq != 42 {
-		t.Fatalf("legacy cursor seq = %d, want 42", legacySeq)
+	if second == cursor {
+		t.Fatal("identical timeline positions produced identical ciphertext")
 	}
-	for _, invalid := range []string{"bad", "tl:not-base64", "tl:AQ"} {
-		if _, err := parseRoomTimelineCursor(invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	envelope, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(cursor, roomTimelineCursorOpaquePrefix))
+	if err != nil {
+		t.Fatalf("decode cursor envelope: %v", err)
+	}
+	sequenceBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(sequenceBytes, 42)
+	if bytes.Contains(envelope, sequenceBytes) {
+		t.Fatal("cursor envelope exposes raw JetStream sequence bytes")
+	}
+	tamperedEnvelope := append([]byte(nil), envelope...)
+	tamperedEnvelope[len(tamperedEnvelope)-1] ^= 1
+	tampered := roomTimelineCursorOpaquePrefix + base64.RawURLEncoding.EncodeToString(tamperedEnvelope)
+	if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", tampered); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("tampered cursor code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	for _, invalid := range []string{"bad", "seq:42", "tl:not-base64", "tl:AQ"} {
+		if _, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", invalid); connect.CodeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("parse invalid cursor %q code = %v, want invalid_argument", invalid, connect.CodeOf(err))
 		}
 	}
+}
+
+func TestRoomTimelineCursorsAreBoundToViewerAndResource(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("cursor-scope-room")
+	otherRoom := env.createJoinedRoom("cursor-scope-other")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	env.post(room.Id, env.viewer.Id, "latest", "")
+
+	ctx := withCaller(env.ctx, env.viewer)
+	roomPage, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  2,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	roomCursor := roomPage.Msg.GetPage().GetStartCursor()
+	if roomCursor == "" {
+		t.Fatal("room cursor is empty")
+	}
+
+	_, err = env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: otherRoom.Id,
+		Limit:  2,
+		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	_, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             2,
+		Cursor:            &apiv1.GetThreadEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	threadPage, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             2,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents: %v", err)
+	}
+	threadCursor := threadPage.Msg.GetPage().GetEndCursor()
+	if threadCursor == "" {
+		t.Fatal("thread cursor is empty")
+	}
+	otherRoot := env.post(room.Id, env.viewer.Id, "other root", "")
+	_, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: otherRoot.Id,
+		Limit:             2,
+		Cursor:            &apiv1.GetThreadEventsRequest_Before{Before: threadCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	otherViewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "cursor-other-viewer", "Other Viewer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other viewer: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, otherViewer.Id, core.KindChannel, otherViewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other viewer: %v", err)
+	}
+	_, err = env.rooms.GetRoomEvents(withCaller(env.ctx, otherViewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  2,
+		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomCursor},
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
 }
 
 func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *testing.T) {
@@ -6408,6 +6494,208 @@ func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 	if got := message.GetDeletedAt(); got == nil || !got.AsTime().Equal(deletedAt) {
 		t.Fatalf("account-shredded message deleted_at = %v, want %v", got, deletedAt)
 	}
+}
+
+func TestRealtimeProjectionSnapshotHonorsMessageDeletionAndCryptoErasure(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("realtime-projection-deletion")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-shredded-author", "Projection Shredded Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	retracted := env.post(room.Id, env.viewer.Id, "retracted secret", "")
+	shredded := env.post(room.Id, author.Id, "crypto-erased secret", "")
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, retracted.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+	if err := env.core.DeleteUser(env.ctx, env.viewer.Id, author.Id); err != nil {
+		t.Fatalf("DeleteUser author: %v", err)
+	}
+
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id, []string{room.Id})
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	var page *apiv1.RoomTimelinePage
+	var eventCursors map[string]string
+	for _, timeline := range snapshot.Timelines {
+		if timeline.RoomID == room.Id {
+			page = timeline.Page
+			eventCursors = timeline.EventCursors
+			break
+		}
+	}
+	if page == nil {
+		t.Fatalf("room %q missing from realtime snapshot", room.Id)
+	}
+	for _, eventID := range []string{retracted.Id, shredded.Id} {
+		if eventCursors[eventID] == "" {
+			t.Fatalf("message %q has no realtime timeline cursor", eventID)
+		}
+		message := timelinePageEvent(page, eventID).GetMessagePosted().GetMessage()
+		if message.GetDeletedAt() == nil {
+			t.Fatalf("message %q deleted_at is absent", eventID)
+		}
+		if message.GetBody() != "" {
+			t.Fatalf("message %q exposed deleted body %q", eventID, message.GetBody())
+		}
+	}
+}
+
+func TestBuildRealtimeProjectionPresencesReturnsLatestServerDirectoryState(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-presence", "Projection Presence", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.SetPresenceWithOptions(env.ctx, member.Id, core.PresenceStatusAway, true); err != nil {
+		t.Fatalf("SetPresenceWithOptions: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		statuses, err := env.api.BuildRealtimeProjectionPresences(env.ctx)
+		if err != nil {
+			t.Fatalf("BuildRealtimeProjectionPresences: %v", err)
+		}
+		if statuses[member.Id] == apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+			if _, ok := statuses[env.viewer.Id]; !ok {
+				t.Fatalf("viewer %q missing from complete presence map", env.viewer.Id)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("presence for %q never converged to AWAY: %v", member.Id, statuses[member.Id])
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestRealtimeProjectionSnapshotIncludesEmptyJoinedDM(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-empty-dm", "Projection Empty DM", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, env.viewer.Id, nil)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	for _, room := range snapshot.Rooms {
+		if room.Room.GetRoom().GetId() == dm.Id {
+			if len(room.MemberUserIDs) != 2 {
+				t.Fatalf("empty DM member references = %v, want two members", room.MemberUserIDs)
+			}
+			if room.HasMessageHistory == nil || *room.HasMessageHistory {
+				t.Fatalf("empty DM has_message_history = %v, want explicit false", room.HasMessageHistory)
+			}
+			goto foundEmpty
+		}
+	}
+	t.Fatalf("empty joined DM %s missing from realtime projection snapshot", dm.Id)
+
+foundEmpty:
+	message, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "first DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindDM, dm.Id, message.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+
+	room, err := env.api.BuildRealtimeProjectionRoomSummary(env.ctx, env.viewer.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomSummary: %v", err)
+	}
+	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
+		t.Fatalf("used DM has_message_history = %v, want true after message retraction", room.HasMessageHistory)
+	}
+}
+
+func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("projection-latest-viewer-state")
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-state-other", "Projection State Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, other.Id, "unread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	roomMessage, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, other.Id, "unread room message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage room: %v", err)
+	}
+
+	threadStates, err := env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionThreadViewerStates unread: %v", err)
+	}
+	foundUnreadThread := false
+	for _, state := range threadStates {
+		if state.ThreadRootEventID == root.Id {
+			foundUnreadThread = state.ViewerState.GetIsFollowing() && state.ViewerState.GetHasUnread()
+		}
+	}
+	if !foundUnreadThread {
+		t.Fatalf("followed thread %s missing unread viewer state: %+v", root.Id, threadStates)
+	}
+
+	roomStates, err := env.api.BuildRealtimeProjectionRoomViewerStates(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomViewerStates unread: %v", err)
+	}
+	if !realtimeRoomViewerState(roomStates, room.Id).GetHasUnread() {
+		t.Fatalf("room %s should be unread before latest-value reconciliation", room.Id)
+	}
+
+	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, env.viewer.Id, room.Id, roomMessage.Id); err != nil {
+		t.Fatalf("MarkRoomAsRead: %v", err)
+	}
+	if _, err := env.core.SetThreadLastReadEventID(env.ctx, core.KindChannel, env.viewer.Id, room.Id, root.Id, reply.Id); err != nil {
+		t.Fatalf("SetThreadLastReadEventID: %v", err)
+	}
+	roomStates, err = env.api.BuildRealtimeProjectionRoomViewerStates(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomViewerStates read: %v", err)
+	}
+	if realtimeRoomViewerState(roomStates, room.Id).GetHasUnread() {
+		t.Fatalf("room %s remained unread after cross-client marker advance", room.Id)
+	}
+	threadStates, err = env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionThreadViewerStates read: %v", err)
+	}
+	for _, state := range threadStates {
+		if state.ThreadRootEventID == root.Id && state.ViewerState.GetHasUnread() {
+			t.Fatalf("thread %s remained unread after marker advance", root.Id)
+		}
+	}
+}
+
+func realtimeRoomViewerState(states []*RealtimeProjectionRoomViewerState, roomID string) *apiv1.RoomViewerState {
+	for _, state := range states {
+		if state.RoomID == roomID {
+			return state.ViewerState
+		}
+	}
+	return nil
 }
 
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {

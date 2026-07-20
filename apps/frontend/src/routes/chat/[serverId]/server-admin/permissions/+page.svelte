@@ -74,9 +74,7 @@
               class="link">{m['admin.common.rooms']()}</a
             >
           </p>
-          <p>
-            {m['admin.permissions.server_tier_denies_hint']()}
-          </p>
+          <p>{m['admin.permissions.resolution_hint']()}</p>
         </div>
       </Hint>
       <PermissionMatrix onRoleClick={openRoleDetail} isRoleClickable={() => canManageRolesFull} />

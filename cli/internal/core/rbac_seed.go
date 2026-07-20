@@ -62,7 +62,7 @@ func defaultRBACRoles() map[string]*corev1.Role {
 		},
 		RoleModerator: {
 			Name:        RoleModerator,
-			Description: "View access to admin panels without management permissions",
+			Description: "Moderate messages and room membership",
 			DisplayName: "Moderator",
 			Position:    PositionModerator,
 			Pingable:    true,
@@ -84,7 +84,7 @@ func defaultRBACDecisions() []rbacSeedDecision {
 	}{
 		{RoleAdmin, DefaultAdminPermissions()},
 		{RoleModerator, DefaultModeratorPermissions()},
-		{RoleEveryone, DefaultSeedEveryonePermissions()},
+		{RoleEveryone, DefaultEveryonePermissions()},
 	}
 	var decisions []rbacSeedDecision
 	for _, spec := range roleDefaults {

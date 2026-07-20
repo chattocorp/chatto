@@ -20,6 +20,10 @@
       <span class="text-sm">action</span>
     </div>
     <div class="flex items-center gap-2">
+      <UnreadDot color="neutral" />
+      <span class="text-sm">neutral</span>
+    </div>
+    <div class="flex items-center gap-2">
       <UnreadDot color="muted" />
       <span class="text-sm">muted</span>
     </div>

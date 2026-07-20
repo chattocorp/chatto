@@ -21,6 +21,10 @@ type RoomDirectoryReadModel struct {
 type RoomDirectoryListOptions struct {
 	IncludeChannels bool
 	IncludeDMs      bool
+	// IncludeEmptyDMs is for exhaustive projection/authorization reads. Public
+	// directory lists keep the conversation-list policy of hiding DMs until
+	// they contain a message.
+	IncludeEmptyDMs bool
 }
 
 type RoomDirectoryGroupOptions struct {
@@ -77,7 +81,7 @@ func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, 
 		rooms = append(rooms, channelRooms...)
 	}
 	if opts.IncludeDMs {
-		dmRooms, err := s.visibleDMRooms(ctx, actorID)
+		dmRooms, err := s.visibleDMRooms(ctx, actorID, opts.IncludeEmptyDMs)
 		if err != nil {
 			return nil, err
 		}
@@ -273,9 +277,9 @@ func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorI
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string) ([]*DirectoryRoom, error) {
+func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string, includeEmpty bool) ([]*DirectoryRoom, error) {
 	rooms, err := s.core.ListMemberRooms(ctx, KindDM, actorID, MemberRoomListOptions{
-		RequireLastMessage:    true,
+		RequireLastMessage:    !includeEmpty,
 		SortByLastMessageDesc: true,
 	})
 	if err != nil {

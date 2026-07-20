@@ -24,7 +24,8 @@ vi.mock('$lib/api-client/roomTimeline', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/attachments', () => ({
+vi.mock('$lib/api-client/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: refreshAssetUrlsMock
   }))

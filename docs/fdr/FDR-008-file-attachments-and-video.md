@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-07-19
 
 ## Overview
 
@@ -21,10 +21,11 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. The room timeline displays every posted video uncropped at its measured aspect ratio, including unusual near-square dimensions and converted animated GIF loops. The player canvas is bounded to the available timeline width and a maximum height; for ratios beyond 9:16 or 16:9, it uses letterboxing so playback controls remain usable without cropping the video.
 - A thumbnail is generated from an early video frame using the same display dimensions, so non-square-pixel sources do not persist squished or pillarboxed poster images.
 - Opaque static attachment derivatives use JPEG quality 75. Derivatives that require transparency or animation use lossless WebP, and resized results can be held in the auto-expiring server cache.
-- Browser media uses direct signed asset URLs. Relative attachment URLs are resolved against the server that owns the message or room-file item, so remote-server images, audio, and video can load without cross-site cookies or bearer headers.
+- Browser media uses direct signed asset URLs. Relative attachment URLs are resolved against the server that owns the message or room-file item, so remote-server images, audio, and video can load without cross-site cookies or bearer headers. Chatto-streamed NATS objects are full, non-seekable responses; S3-backed passive media redirects to object storage for byte-range delivery.
 - Clients refresh expiring attachment URL fields through room-scoped `AssetService.GetAsset` / `BatchGetAssets`, or by refetching the relevant timeline or room attachment-list page. The timeline, previews, lightbox, downloads, and room-files surfaces refresh before expiry and retry after media load errors.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
 - The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
+- Each room's Files list starts empty and is loaded only when that panel is first opened. Once loaded, incoming message, edit, deletion, and processing updates keep the cached rows current without reloading the whole list; rooms whose Files panel has never opened make no attachment-list request.
 - Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. A single elected cleanup worker retries failed physical deletion after process restart or replica handover.
 
 ## Design Decisions
@@ -39,7 +40,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 **Decision:** Attachments can be stored in NATS ObjectStore (default, good for development and small deployments) or in an S3-compatible bucket (production-grade). Each asset records its storage backend and logical key at upload time; S3 deployments may add a configurable object-key prefix that is applied only at the S3 client boundary.
 **Why:** Self-hosters running a single binary shouldn't have to spin up S3 just to send a screenshot. Larger operators need durable, replicated object storage. Supporting both lets us serve both ends of the spectrum. See ADR-021.
-**Tradeoff:** Migration between backends or S3 prefixes is operator-managed. Stored asset keys remain prefix-free so moving objects between S3 base paths does not require rewriting Chatto metadata.
+**Tradeoff:** Migration between backends or S3 prefixes is operator-managed. Stored asset keys remain prefix-free so moving objects between S3 base paths does not require rewriting Chatto metadata. NATS ObjectStore does not expose offset-aware reads, so Chatto serves those videos as complete non-seekable responses; deployments that require reliable duration detection and seeking must use S3.
 
 ### 3. Video processing is in-process and best-effort
 
@@ -69,7 +70,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 **Decision:** Public attachment APIs expose attachment media as stable asset paths plus per-user access tickets: `/assets/files/{assetId}?access={ticket}` for originals and `/assets/files/{assetId}/image/{width}x{height}/{fit}?access={ticket}` for image derivatives. Attachment, thumbnail, video thumbnail, and variant URLs also expose the ticket expiry so the client can refresh before or after a lazy-load miss. Every fetch verifies the signed user is still a member of the asset's room.
 **Why:** Cross-origin `<img>` tags (used when the SPA loads attachments from a _remote_ registered server) can't carry session cookies (SameSite) or Authorization headers. A signed per-user access ticket lets browsers load remote attachments directly, while the room-membership check still auto-revokes access on kick/leave.
-**Tradeoff:** The access ticket is a bearer capability — anyone holding it can fetch until the expiry passes or the signed user loses room membership. `core.AssetAccessTicketTTL` is currently **24 hours** so normal rendering, lazy loading, deferred media startup, and lightbox use are reliable across long-lived room views; clients still refresh URL fields through projected timeline, message, or attachment-list reads when tickets approach expiry or a media load fails. Protected asset responses use `private, no-store`, so browser-visible protected bytes are not reused as authorization state. Chatto streams protected bytes by default, with short-lived S3 redirects reserved for heavy passive originals such as video, audio, and large files. Rotating `[core.assets].signing_secret` invalidates all outstanding access tickets.
+**Tradeoff:** The access ticket is a bearer capability — anyone holding it can fetch until the expiry passes or the signed user loses room membership. Tickets use hourly issuance buckets and retain **23–24 hours** of validity, so repeated reads within a bucket return the same URL while normal rendering, lazy loading, deferred media startup, and lightbox use remain reliable across long-lived room views. Timeline, preview, and room-files clients use the exposed expiry to refresh shortly before it; the lightbox refreshes after 22 hours to preserve roughly an hour of margin at minimum ticket validity. Media load errors also trigger refreshes. Protected asset responses use `private, no-store`, so browser-visible protected bytes are not reused as authorization state. Chatto streams protected bytes by default, with short-lived S3 redirects reserved for heavy passive originals such as video, audio, and large files. Rotating `[core.assets].signing_secret` invalidates all outstanding access tickets.
 
 ### 8. Active document attachments render in a browser sandbox
 
@@ -79,9 +80,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 9. Room Files panel is a read projection, not durable attachment state
 
-**Decision:** `Room.attachments` exposes a paginated list of current message attachments for a room. The read walks the visible room timeline projection, folds current message bodies, includes thread replies, preserves attachment order within each message, and sorts by newest message first.
-**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the list from the existing room/message projections keeps the panel consistent with the timeline without adding duplicate durable state.
-**Tradeoff:** There is no search or media filtering in this iteration. Clients page through the current list and refresh it after attachment-affecting live events.
+**Decision:** `Room.attachments` exposes a paginated list of current message attachments for a room. The read walks the visible room timeline projection, folds current message bodies, includes thread replies, preserves attachment order within each message, and sorts by newest message first. The bundled client owns one lazy file cache per room in its server-scoped state: opening Files hydrates it once, after which authoritative timeline message snapshots reconcile attachment rows already in the cache and newly posted attachments are inserted directly.
+**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the server read from the existing room/message projections and updating the client cache from the same realtime message snapshots keeps both surfaces consistent without duplicate durable state or repeated full-list reads.
+**Tradeoff:** There is no search or media filtering in this iteration. Hydrated room caches consume client memory for the server session, and attachment changes beyond a partially loaded page converge when that page is loaded.
 
 ### 10. Displayed images use bounded derivatives
 

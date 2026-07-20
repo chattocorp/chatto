@@ -20,9 +20,8 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent } from '$lib/hooks';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { onProjectionEvent } from '$lib/eventBus.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -40,6 +39,7 @@
   createMentionRoles();
 
   const connection = useConnection();
+  const serverStore = serverRegistry.getStore(getActiveServer());
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
@@ -131,22 +131,127 @@
     return [...existing, ...next.filter((thread) => !seen.has(thread.threadRootEventId))];
   }
 
+  function applyThreadSummary(
+    roomId: string,
+    threadRootEventId: string,
+    replyCount: number,
+    lastReplyAt: string | null,
+    hasUnread?: boolean
+  ) {
+    let changed = false;
+    const next = threads.map((thread) => {
+      if (
+        thread.roomId !== roomId ||
+        thread.threadRootEventId !== threadRootEventId ||
+        (thread.replyCount === replyCount &&
+          (hasUnread === undefined || thread.hasUnread === hasUnread))
+      ) {
+        return thread;
+      }
+      changed = true;
+      const rootMessage = thread.rootMessage;
+      return {
+        ...thread,
+        rootMessage:
+          rootMessage?.event?.kind === 'messagePosted'
+            ? {
+                ...rootMessage,
+                event: {
+                  ...rootMessage.event,
+                  replyCount,
+                  lastReplyAt: lastReplyAt ?? rootMessage.event.lastReplyAt
+                }
+              }
+            : rootMessage,
+        replyCount,
+        lastReplyAt: lastReplyAt ?? thread.lastReplyAt,
+        hasUnread: hasUnread ?? thread.hasUnread
+      };
+    });
+    if (changed) threads = next;
+  }
+
+  function reconcileThreadViewerStates(
+    states: ReadonlyMap<string, { hasUnread?: boolean }>
+  ): boolean {
+    const knownKeys = new Set(threads.map((thread) => `${thread.roomId}\u0000${thread.threadRootEventId}`));
+    let changed = false;
+    const next = threads.flatMap((thread) => {
+      const key = `${thread.roomId}\u0000${thread.threadRootEventId}`;
+      const state = states.get(key);
+      if (!state) {
+        changed = true;
+        return [];
+      }
+      if (thread.hasUnread === (state.hasUnread ?? false)) return [thread];
+      changed = true;
+      return [{ ...thread, hasUnread: state.hasUnread ?? false }];
+    });
+    if (changed) threads = next;
+    return [...states.keys()].some((key) => !knownKeys.has(key));
+  }
+
   $effect(() => {
     loadThreads();
   });
 
-  // Real-time: Refresh when thread follow state changes
-  $effect(() => onThreadFollowChanged(() => loadThreads()));
+  // Apply live root-message summaries directly from projection operations.
+  // The canonical store reconciliation below also covers summaries that
+  // arrived before this page mounted.
+  $effect(() =>
+    onProjectionEvent((event) => {
+      for (const operation of event.operations) {
+        if (operation.operation.case === 'threadViewerStatesReplace') {
+          const states = new Map(
+            operation.operation.value.states.map((state) => [
+              `${state.roomId}\u0000${state.threadRootEventId}`,
+              state.viewerState ?? {}
+            ])
+          );
+          if (reconcileThreadViewerStates(states)) void loadThreads();
+          continue;
+        }
+        if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+        const update = operation.operation.value;
+        const timelineEvent = update.event;
+        if (timelineEvent?.event.case !== 'messagePosted') continue;
+        const message = timelineEvent.event.value.message;
+        const summary = message?.thread;
+        if (!message || message.threadRootEventId || !summary) continue;
 
-  // Real-time: Refresh when a new thread reply arrives
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-    if (!event) return;
-    if (isMessagePostedEvent(event) && event.threadRootEventId) {
-      // Only refresh if it's a reply in a thread we're displaying
-      if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
-        loadThreads();
+        applyThreadSummary(
+          update.roomId,
+          timelineEvent.id,
+          summary.replyCount,
+          summary.lastReplyAt?.toDate().toISOString() ?? null,
+          summary.viewerState?.hasUnread
+        );
       }
+    })
+  );
+
+  // Reconcile followed-thread summaries from the same canonical room
+  // projection that feeds every room timeline.
+  $effect(() => {
+    if (!serverStore.realtimeSync.hasUsableProjection) return;
+    reconcileThreadViewerStates(serverStore.projection.threadViewerStates);
+  });
+
+  $effect(() => {
+    for (const thread of threads) {
+      const event = serverStore.projection.timelines
+        .get(thread.roomId)
+        ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
+      const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
+      const summary = message?.thread;
+      if (!summary || summary.replyCount === thread.replyCount) continue;
+      applyThreadSummary(
+        thread.roomId,
+        thread.threadRootEventId,
+        summary.replyCount,
+        summary.lastReplyAt?.toDate().toISOString() ?? null,
+        summary.viewerState?.hasUnread
+      );
     }
   });
 

@@ -213,10 +213,6 @@ vi.mock('livekit-client/e2ee-worker?worker', () => ({
 
 function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
-    listActiveCalls: vi.fn(async () => []),
-    getActiveCall: vi.fn(async () => null),
-    batchGetActiveCalls: vi.fn(async () => []),
-    listCallParticipants: vi.fn(async () => []),
     joinCall: vi.fn(async () => true),
     getCallToken: vi.fn(async () => ({
       token: 'livekit-token',
@@ -452,6 +448,23 @@ describe('VoiceCallState', () => {
 
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('disconnects local media without recording leave when room access is revoked', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
+
+    state.handleRoomAccessRevoked('R2');
+    expect(state.isInAnyCall).toBe(true);
+
+    state.handleRoomAccessRevoked('R1');
+
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(client.leaveCall).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();

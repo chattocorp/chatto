@@ -353,11 +353,11 @@ func TestEventFactsUserLiveEVT(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "login change is not delivered",
+			name: "login change refreshes the public user projection",
 			event: &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 				UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: "U1"},
 			}},
-			want: false,
+			want: true,
 		},
 	}
 	for _, tt := range tests {

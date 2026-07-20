@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { MediaQuery } from 'svelte/reactivity';
   import { goto, pushState, replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
@@ -10,7 +13,7 @@
   import {
     useRoomData,
     useRoomUnread,
-    useEvent,
+    useProjectionEvent,
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
@@ -20,8 +23,6 @@
     createComposerContext,
     createMentionRoles,
     getRoomMembers,
-    MessagesStore,
-    RoomFilesStore,
     RoomMembersStore,
     setRoomMembersStore,
     createRoomPermissions,
@@ -46,8 +47,7 @@
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import { onDestroy, tick } from 'svelte';
+  import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
@@ -55,7 +55,8 @@
   import {
     canBanMembersFromRoomSidebar,
     roomSidebarPanelForRoom,
-    roomSidebarPanelsForRoom
+    roomSidebarPanelsForRoom,
+    visibleRoomSidebarPanel
   } from './roomSidebarBehavior';
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
@@ -67,12 +68,13 @@
   }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
   const connection = useConnection();
-  const roomFilesStore = new RoomFilesStore(connection());
   const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
+  const roomFilesStore = $derived(stores.filesForRoom(roomId));
   const serverInfo = stores.serverInfo;
   const appUi = getAppUiState();
+  const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
@@ -112,10 +114,17 @@
   let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
+  const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
-  onDestroy(() => {
-    roomMessageStore.dispose();
+  $effect(() => {
+    const selectedRoomId = roomId;
+    untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    return () => {
+      // Invalidate any historical-window request before this room becomes
+      // inactive. Its late response must not replace the retained latest
+      // projection while another room is being rendered.
+      untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    };
   });
 
   $effect(() =>
@@ -184,26 +193,14 @@
 
   const unread = useRoomUnread(() => ({ roomId }));
 
-  $effect(() => {
-    roomFilesStore.setRoom(roomId);
-    roomMembersStore.setRoom(roomId);
-  });
-
-  $effect(() => {
-    if (room.roomData) {
-      roomMembersStore.ensureLoaded();
-    }
-  });
-
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
 
   createRoomPermissions(() => permissions);
 
-  // roomData === null means the server returned a clean response with no room
-  // (deleted, archived, no access). Transient network failures are filtered
-  // upstream in useRoomData, so reaching this branch is genuine — clear
+  // roomData === null means the ready projection contains no visible room
+  // (deleted, archived, or no access), so reaching this branch is genuine — clear
   // lastRoom so [spaceId]/+page.svelte's onMount doesn't redirect us right
   // back here in an infinite loop.
   $effect.pre(() => {
@@ -319,25 +316,19 @@
     }
   }
 
-  // Keep the server read cursor in sync with incoming root messages. Other
-  // users' messages mark the room read while the user is actually present;
-  // own messages are already auto-marked read by the post mutation.
-  useEvent((event) => {
-    roomFilesStore.ingestServerEvent(event);
-    roomMembersStore.ingestServerEvent(event);
-    if (!event.event) return;
-
-    if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
-      const actorId = event.actorId;
-
-      if (!event.event.threadRootEventId) {
-        if (actorId) {
-          typingIndicator.removeTypingUser(actorId);
-        }
-      }
-
-      if (!event.event.threadRootEventId && currentUser.user) {
-        if (actorId !== currentUser.user.id && appState.isPresent) {
+  // Durable message rows arrive only through projection operations. Keep
+  // presence/read side effects and the independent paginated files read model
+  // aligned with those authoritative row replacements.
+  useProjectionEvent((event) => {
+    for (const operation of event.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
+      const message = update.event.event.value.message;
+      if (!message?.threadRootEventId) {
+        const actorId = event.actorId;
+        if (actorId) typingIndicator.removeTypingUser(actorId);
+        if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
           unread.markRoomAsRead(roomId, event.id);
         }
       }
@@ -358,6 +349,13 @@
   const mobileRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(room.isDM, appUi.mobileRoomSidebarPanel, showVoiceCall)
   );
+  const roomFilesPanelActive = $derived(
+    visibleRoomSidebarPanel(
+      desktopRoomLayout.current,
+      activeRoomSidebarPanel,
+      mobileRoomSidebarPanel
+    ) === 'files'
+  );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
   const hasActiveRoomCall = $derived(
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
@@ -368,9 +366,36 @@
       appUi.isRoomCallWideFor(getActiveServer(), roomId)
   );
 
-  $effect(() => {
-    if (!hasActiveRoomCall) appUi.disableRoomCallWideFor(getActiveServer(), roomId);
-  });
+  const syncRoomMembers: Attachment = () => {
+    const selectedRoomId = roomId;
+    const hasCompleteMembership = stores.hasCompleteProjectedRoomMembership(selectedRoomId);
+    const projectedMembers = hasCompleteMembership
+      ? stores.projectedMembersForRoom(selectedRoomId)
+      : [];
+    untrack(() => {
+      roomMembersStore.setRoom(selectedRoomId);
+      if (hasCompleteMembership) {
+        roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
+      } else {
+        roomMembersStore.awaitProjection(selectedRoomId);
+      }
+    });
+  };
+
+  const syncRoomFiles: Attachment = () => {
+    const store = roomFilesStore;
+    const active = roomFilesPanelActive;
+    if (active) return untrack(() => store.retain());
+  };
+
+  const syncRoomCallWide: Attachment = () => {
+    const active = hasActiveRoomCall;
+    const serverId = getActiveServer();
+    const selectedRoomId = roomId;
+    if (!active) {
+      untrack(() => appUi.disableRoomCallWideFor(serverId, selectedRoomId));
+    }
+  };
 
   let leavingRoom = $state(false);
 
@@ -501,7 +526,12 @@
     <PageTitle title={pageTitle} />
   {/if}
 
-  <div class="flex min-h-0 min-w-0 flex-1">
+  <div
+    class="flex min-h-0 min-w-0 flex-1"
+    {@attach syncRoomMembers}
+    {@attach syncRoomFiles}
+    {@attach syncRoomCallWide}
+  >
     <div
       class={[
         'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',

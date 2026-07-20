@@ -6,10 +6,12 @@ import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
+  type MessageAttachment,
   MessageVideoProcessingStatus,
   type MessageAssetUrl,
   type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
+import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 
 export type AttachmentAPIConfig = {
   serverId?: string;
@@ -156,11 +158,24 @@ function roomFileItem(item: {
     messageEventId: item.messageEventId,
     threadRootEventId: item.threadRootEventId || null,
     createdAt: timestampToISO(item.createdAt),
-    attachment: attachment(item.attachment)
+    attachment: roomFileAttachment(item.attachment)
   };
 }
 
-function attachment(value?: Asset): RoomFileItem['attachment'] {
+/** Convert one authoritative timeline message into room-file cache rows. */
+export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFileItem[] {
+  if (event.event.case !== 'messagePosted') return [];
+  const message = event.event.value.message;
+  if (!message || message.deletedAt) return [];
+  return message.attachments.map((attachment) => ({
+    messageEventId: event.id,
+    threadRootEventId: message.threadRootEventId || null,
+    createdAt: timestampToISO(event.createdAt),
+    attachment: roomFileAttachment(attachment)
+  }));
+}
+
+function roomFileAttachment(value?: Asset | MessageAttachment): RoomFileItem['attachment'] {
   return {
     id: value?.id ?? '',
     filename: value?.filename ?? '',

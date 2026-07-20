@@ -6,7 +6,6 @@ import {
   RoomType,
   type UserAvatarUserView
 } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 import {
   RoomDirectoryScope,
@@ -21,7 +20,7 @@ import type { NotificationAPI } from '$lib/api-client/notifications';
 import type { ViewerState } from '$lib/api-client/viewer';
 import { NotificationLevelStore } from './notificationLevel.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
-import { isRoomStateRefreshEvent, RoomsStore, type ViewerStateLoader } from './rooms.svelte';
+import { RoomsStore, type ViewerStateLoader } from './rooms.svelte';
 
 function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): DirectoryRoomSummary {
   return {
@@ -495,6 +494,17 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms[1]).toMatchObject({ id: 'random', viewerNotificationCount: 3 });
   });
 
+  it('treats projected notification counts as authoritative replacements', () => {
+    const store = makeStore();
+    const room = makeRoom('general');
+
+    store.replaceProjection(makeViewer(), [room], [], new Map(), new Map([['general', 1]]));
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 1 }]);
+
+    store.replaceProjection(makeViewer(), [room], [], new Map(), new Map());
+    expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
+  });
+
   it('discards out-of-order notification count refresh responses', async () => {
     let countQueries = 0;
     let resolveOlder!: (value: Record<string, number>) => void;
@@ -616,57 +626,5 @@ describe('RoomsStore - refresh', () => {
         }
       }
     ]);
-  });
-});
-
-describe('RoomsStore - ingestServerEvent', () => {
-  function makeEvent(kind: RoomEventKind, extra: Record<string, unknown> = {}) {
-    return { event: { kind, ...extra } } as never;
-  }
-
-  it('uses one shared predicate for room state refresh events', () => {
-    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomCreated } as never)).toBe(true);
-    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomGroupsUpdated } as never)).toBe(true);
-    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.RoomUniversalChanged } as never)).toBe(
-      true
-    );
-    expect(isRoomStateRefreshEvent({ kind: RoomEventKind.ReactionAdded } as never)).toBe(false);
-  });
-
-  it('refreshes on RoomCreatedEvent', () => {
-    const store = makeStore();
-    store.refresh = vi.fn().mockResolvedValue(undefined);
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomCreated));
-
-    expect(store.refresh).toHaveBeenCalledOnce();
-  });
-
-  it('refreshes on RoomGroupsUpdatedEvent', () => {
-    const store = makeStore();
-    store.refresh = vi.fn().mockResolvedValue(undefined);
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomGroupsUpdated));
-
-    expect(store.refresh).toHaveBeenCalledOnce();
-  });
-
-  it('refreshes on UserJoinedRoomEvent', () => {
-    const store = makeStore();
-    store.refresh = vi.fn().mockResolvedValue(undefined);
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.UserJoinedRoom));
-
-    expect(store.refresh).toHaveBeenCalledOnce();
-  });
-
-  it('does not refresh on irrelevant event types', () => {
-    const store = makeStore();
-    store.refresh = vi.fn().mockResolvedValue(undefined);
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.ReactionAdded));
-    store.ingestServerEvent(makeEvent(RoomEventKind.Heartbeat));
-
-    expect(store.refresh).not.toHaveBeenCalled();
   });
 });

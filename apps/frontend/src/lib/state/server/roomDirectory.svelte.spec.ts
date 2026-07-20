@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RoomDirectoryScope,
   RoomKind,
@@ -272,81 +270,6 @@ describe('RoomDirectoryStore - refresh clears optimistic state', () => {
 
     expect(store.justJoinedIds.size).toBe(0);
     expect(store.justLeftIds.size).toBe(0);
-  });
-});
-
-describe('RoomDirectoryStore - ingestServerEvent', () => {
-  function makeEvent(kind: RoomEventKind): RoomEventView {
-    return { event: { kind } } as unknown as RoomEventView;
-  }
-
-  it('refreshes on UserJoinedRoomEvent', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.UserJoinedRoom));
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
-  });
-
-  it('refreshes on UserLeftRoomEvent', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.UserLeftRoom));
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
-  });
-
-  it('refreshes on room catalog and layout changes', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomCreated));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUpdated));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomArchived));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUnarchived));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomDeleted));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomGroupsUpdated));
-    await settle();
-
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(7);
-  });
-
-  it('does NOT refresh on irrelevant event types', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.MessagePosted));
-    store.ingestServerEvent(makeEvent(RoomEventKind.ReactionAdded));
-    await settle();
-
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
-  });
-
-  it('ingestRoomLayoutUpdated triggers a refresh', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestRoomLayoutUpdated();
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
   });
 });
 

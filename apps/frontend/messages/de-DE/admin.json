@@ -142,7 +142,7 @@
       "no_users_with_role": "Keine Benutzer haben diese Rolle",
       "server_tier_intro": "Diese Seite ist für serverweite Rollenberechtigungen: breite Vorgaben, die vor raumspezifischen Überschreibungen gelten.",
       "server_tier_rooms_hint": "Nutze Räume für Überschreibungen pro Gruppe und Raum.",
-      "server_tier_denies_hint": "Setze Verweigerungen gezielt ein: everyone in einem Raum zu verweigern blockiert alle geerbten Erlaubnisse auf dieser Ebene."
+      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene."
     },
     "rooms_admin": {
       "title": "Räume",

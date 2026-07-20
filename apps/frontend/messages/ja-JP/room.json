@@ -98,6 +98,8 @@
         "edit": "メッセージを編集",
         "more": "その他のアクション",
         "edit_short": "編集",
+        "copy_text": "テキストをコピー",
+        "copy_text_failed": "テキストをコピーできませんでした",
         "copy_link": "リンクをコピー"
       },
       "meta": {

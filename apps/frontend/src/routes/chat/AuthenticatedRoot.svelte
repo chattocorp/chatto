@@ -1,9 +1,8 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
-  import NotificationSync from '$lib/components/NotificationSync.svelte';
-  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
@@ -26,30 +25,52 @@
     children: Snippet;
   } = $props();
 
-  function startAuthenticatedBuses() {
-    if (shouldPauseLiveEventsForStoredPresence()) {
-      eventBusManager.pauseAll();
-      return;
-    }
-
-    for (const server of serverRegistry.servers) {
+  function realtimeRegistrations() {
+    return serverRegistry.servers.flatMap((server) => {
       const store = serverRegistry.tryGetStore(server.id);
-      if (store?.isAuthenticated) {
-        eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
-      }
-    }
+      return store?.isAuthenticated
+        ? [
+            {
+              serverId: server.id,
+              connection: serverConnectionManager.getClient(server.id),
+              projectionSupported: store.serverInfo.supportsRealtimeProjection,
+              sync: store.realtimeSync
+            }
+          ]
+        : [];
+    });
   }
 
-  // Run synchronously so child route layouts can provide an already-started
+  function synchronizeRealtimeTransports(
+    registrations: ReturnType<typeof realtimeRegistrations>,
+    activeServerId: string
+  ) {
+    eventBusManager.synchronizeAuthenticatedServers(registrations, activeServerId || null);
+  }
+
+  // Run synchronously so child route layouts can provide an already-registered
   // event bus during their own initialization.
-  startAuthenticatedBuses();
+  synchronizeRealtimeTransports(realtimeRegistrations(), getActiveServer());
+
+  // Materialize the complete registration inputs as derived state. In
+  // particular, a late discovery-capability update on a newly added remote
+  // server must retrigger ownership even when no route or auth field changes.
+  const registrations = $derived.by(realtimeRegistrations);
+  const activeServerId = $derived(getActiveServer());
 
   $effect(() => {
-    startAuthenticatedBuses();
+    const nextRegistrations = registrations;
+    const nextActiveServerId = activeServerId;
+
+    // Transport synchronization reads and mutates reactive connection state.
+    // Only the materialized registration inputs and active server should
+    // retrigger ownership; tracking transport internals creates feedback loops.
+    untrack(() => {
+      synchronizeRealtimeTransports(nextRegistrations, nextActiveServerId);
+    });
   });
 </script>
 
-<NotificationSync />
 <AuthStatusNotice />
 
 <AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>

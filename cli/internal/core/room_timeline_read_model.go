@@ -122,6 +122,22 @@ func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID,
 	return &MessageReadResult{Kind: kind, Event: event}, nil
 }
 
+// GetTimelineEvent returns a message's source event after applying current room
+// membership authorization. Unlike GetMessage, it deliberately permits a
+// deleted message whose encrypted body has already been erased so transports
+// can hydrate the durable timeline tombstone.
+func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, roomID, eventID string) (*MessageReadResult, error) {
+	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	event, err := s.timelineMessageEvent(ctx, kind, room.Id, eventID)
+	if err != nil {
+		return nil, err
+	}
+	return &MessageReadResult{Kind: kind, Event: event}, nil
+}
+
 func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, roomID string, eventIDs []string) (*BatchMessagesReadResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
@@ -222,6 +238,21 @@ func (s *RoomTimelineReadModel) threadRootEvent(ctx context.Context, kind RoomKi
 }
 
 func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+	event, err := s.timelineMessageEvent(ctx, kind, roomID, eventID)
+	if err != nil {
+		return nil, err
+	}
+	body, err := s.core.GetFullMessageBodyByEventID(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil {
+		return nil, ErrMessageNotFound
+	}
+	return event, nil
+}
+
+func (s *RoomTimelineReadModel) timelineMessageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
 	if strings.TrimSpace(eventID) == "" {
 		return nil, invalidArgument("event_id is required")
 	}
@@ -230,13 +261,6 @@ func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind,
 		return nil, err
 	}
 	if event == nil || event.GetMessagePosted() == nil {
-		return nil, ErrMessageNotFound
-	}
-	body, err := s.core.GetFullMessageBodyByEventID(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
-	if body == nil {
 		return nil, ErrMessageNotFound
 	}
 	return event, nil

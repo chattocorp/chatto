@@ -1,7 +1,9 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { serverRegistry } from './registry.svelte';
 
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
+
+const HIDDEN_RECONNECT_AFTER_MS = 30_000;
 
 export interface ServerConnectionConfig {
   /** Server base URL (relative for origin, absolute for remote). */
@@ -43,9 +45,7 @@ const ORIGIN_SERVER_URL = '/';
 
 export class ServerConnection {
   status = $state<ConnectionStatus>('connecting');
-  reconnectCount = $state(0);
   #failedAttempts = $state(0);
-  #wasDisconnected = false;
   #lastVisibleAt = Date.now();
   #visibilityHandler: (() => void) | null = null;
   #onlineHandler: (() => void) | null = null;
@@ -132,34 +132,24 @@ export class ServerConnection {
 
   setRealtimeConnectionStatus(status: ConnectionStatus, failedAttempts = 0): void {
     if (status === 'connecting') {
-      if (this.status === 'disconnected') {
-        this.#wasDisconnected = true;
-      }
       this.status = 'connecting';
       this.#failedAttempts = failedAttempts;
       return;
     }
 
     if (status === 'connected') {
-      console.log(
-        '[ws:%s] Connected (prev status: %s, wasDisconnected: %s)',
-        this.#host,
-        this.status,
-        this.#wasDisconnected
-      );
-      if (this.#wasDisconnected) {
-        this.#wasDisconnected = false;
-        this.reconnectCount++;
-        console.log('[ws:%s] Reconnected (count: %d)', this.#host, this.reconnectCount);
-      }
+      console.log('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
       return;
     }
 
-    if (this.status === 'connected') {
-      this.#wasDisconnected = true;
+    if (status === 'dormant') {
+      this.status = 'dormant';
+      this.#failedAttempts = 0;
+      return;
     }
+
     this.status = 'disconnected';
     this.#failedAttempts = failedAttempts;
   }
@@ -181,9 +171,11 @@ export class ServerConnection {
     this.#token = token;
     this.#serverId = serverId;
 
-    // Track tab visibility for diagnostics. Browser resume signals are handled
-    // by resumeCoordinator; liveness stays with actual close events and the
-    // heartbeat watchdog so a healthy hidden-tab socket is not torn down.
+    // A suspended browser can retain a locally "open" WebSocket long after the
+    // server has dropped it. Replace the active transport after a meaningful
+    // hidden interval so its retained projection resumes by cursor. If that
+    // cursor expired, the server responds on the same stream with a compacted
+    // reset; no component-level reload is needed.
     if (typeof document !== 'undefined') {
       this.#visibilityHandler = () => {
         if (document.visibilityState === 'visible') {
@@ -197,6 +189,9 @@ export class ServerConnection {
           );
 
           this.#lastVisibleAt = Date.now();
+          if (hiddenDuration >= HIDDEN_RECONNECT_AFTER_MS) {
+            this.forceReconnect(`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`);
+          }
         } else {
           this.#lastVisibleAt = Date.now();
         }

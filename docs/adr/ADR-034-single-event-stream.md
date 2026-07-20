@@ -74,9 +74,9 @@ The realtime websocket consumes `live.evt.>` server-side and turns it into the u
 
 Ordinary projectors must not publish live events from `Apply`. Every app replica has its own local projectors, so projector-side publish effects would multiply one committed EVT event by the number of Chatto replicas.
 
-Transient UI sync signals that are not durable facts use a separate `corev1.LiveEvent` wrapper on `live.sync.>`. The realtime websocket consumes these server-side, applies the same room/user/config authorization gates, and adapts them into the public protobuf live-event shape. This keeps the durable `Event` wrapper centered on EVT facts while still allowing non-durable signals such as typing, voice-call presence, notification sync, preferences, and config invalidations.
+Transient UI and latest-value sync signals that are not durable facts use a separate `corev1.LiveEvent` wrapper on `live.sync.>`. The realtime websocket consumes these server-side and applies the same room/user/config authorization gates. Genuinely transient activity such as typing and presence may become a public `RealtimeEventEnvelope`; notification, preference, profile, read-state, and layout signals instead trigger authoritative client-projection operations or a reset. The internal `LiveEvent` shape is not the public contract. Voice-call state is durable EVT state and converges through `active_calls_replace`.
 
-`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only live delivery roots for the public realtime stream: durable facts reach clients through EVT republish, and transient UI sync signals reach them through LiveEvent.
+`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the public realtime stream: durable facts reach the mapper through EVT republish, while ephemeral activity and latest-value invalidations reach it through `LiveEvent`. Both are converted to authorized public projection operations or explicitly transient envelopes.
 
 ### Replication and retention
 

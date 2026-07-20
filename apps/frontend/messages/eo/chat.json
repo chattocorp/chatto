@@ -35,7 +35,7 @@
       "version": "Versio {version}",
       "version_unknown": "Nekonata versio",
       "compatibility_degraded": "Kelkaj tujaj funkcioj ne disponeblas en ĉi tiu servilo.",
-      "compatibility_server_too_old": "Ĉi tiu servilo uzas pli malnovan version. Iuj funkcioj eble ne funkcios kiel atendite.",
+      "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",
       "compatibility_client_too_old": "Ĉi tiu aplikaĵo estas tro malnova por la servilo. Reŝargu aŭ ĝisdatigu ĝin.",
       "compatibility_unsupported": "Ĉi tiu servilo ne subtenas la protokolojn postulatajn de la aplikaĵo.",
       "compatibility_unknown": "Ĉi tiu servilo ne raportas informojn pri kongrueco."

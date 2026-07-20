@@ -4,6 +4,7 @@ import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { MessagesStore } from '$lib/state/room';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel
@@ -49,6 +50,7 @@ const { mocks } = vi.hoisted(() => {
         getThreadEvents: vi.fn(),
         getThreadEventsAround: vi.fn()
       },
+      roomFilesRetain: vi.fn(),
       livekitUrl: null as string | null,
       roomKind: 1,
       getAppUiState: vi.fn(),
@@ -67,7 +69,11 @@ const { mocks } = vi.hoisted(() => {
       rooms: {
         decrementUnreadNotification: vi.fn(),
         refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
-      }
+      },
+      messagesForRoom: vi.fn(),
+      restoreProjectedRoomWindow: vi.fn(),
+      projectedMembersForRoom: vi.fn(() => []),
+      hasCompleteProjectedRoomMembership: vi.fn(() => true)
     }
   };
 });
@@ -130,7 +136,7 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useEvent: vi.fn(),
+  useProjectionEvent: vi.fn(),
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
@@ -155,9 +161,13 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api-client/roomTimeline', () => ({
-  createRoomTimelineAPI: () => mocks.timeline
-}));
+vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
+  return {
+    ...actual,
+    createRoomTimelineAPI: () => mocks.timeline
+  };
+});
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
@@ -179,7 +189,12 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       voiceCall: {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
-      rooms: mocks.rooms
+      rooms: mocks.rooms,
+      messagesForRoom: mocks.messagesForRoom,
+      filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
+      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      projectedMembersForRoom: mocks.projectedMembersForRoom,
+      hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
     }),
     originServer: { id: 'server-1', url: 'https://chat.example.test' },
     getServer: () => ({ id: 'server-1', url: 'https://chat.example.test' })
@@ -307,6 +322,22 @@ function roomMessageEvent(id: string) {
   };
 }
 
+function stubMatchMedia(matches: boolean): void {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((media: string) => ({
+      matches,
+      media,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true)
+    }))
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -316,6 +347,11 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
+  mocks.roomFilesRetain.mockReset();
+  mocks.roomFilesRetain.mockReturnValue(vi.fn());
+  mocks.messagesForRoom.mockReturnValue(
+    new MessagesStore({} as never, () => 'test-user', mocks.timeline)
+  );
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.pendingHighlightConsume.mockReset();
@@ -331,10 +367,7 @@ beforeEach(() => {
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
   mocks.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => ({ matches: true }))
-  );
+  stubMatchMedia(true);
 });
 
 describe('Room local message echo', () => {
@@ -459,10 +492,7 @@ describe('Room local message echo', () => {
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn(() => ({ matches: false }))
-    );
+    stubMatchMedia(false);
     setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
@@ -471,6 +501,45 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('starts with the desktop room sidebar closed', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await tick();
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
+  it('does not load files selected only in the hidden mobile layout', async () => {
+    appUi.openMobileRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    expect(mocks.roomFilesRetain).not.toHaveBeenCalled();
+  });
+
+  it('does not load files selected only in the hidden desktop layout', async () => {
+    stubMatchMedia(false);
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    expect(mocks.roomFilesRetain).not.toHaveBeenCalled();
+  });
+
+  it('loads files selected in the visible desktop layout', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.roomFilesRetain).toHaveBeenCalledOnce();
+    });
   });
 
   it('keeps the thread open when pressing the app sidebar surface', async () => {

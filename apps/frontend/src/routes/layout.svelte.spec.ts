@@ -18,7 +18,8 @@ const { mocks } = vi.hoisted(() => ({
       showConnectionLostIcon: false,
       showConnectionLostBanner: false,
       forceReconnect: vi.fn()
-    }
+    },
+    updateAppBadge: vi.fn(async () => {})
   }
 }));
 
@@ -58,6 +59,11 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({
   prepareUiForNotificationPath: vi.fn(),
   prepareUiForNotificationTarget: vi.fn()
+}));
+
+vi.mock('$lib/notifications/appBadge', () => ({
+  listenForAppBadgeRefresh: vi.fn(() => vi.fn()),
+  updateAppBadge: mocks.updateAppBadge
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -125,7 +131,11 @@ function renderLayout() {
     bannerUrl: null,
     authProviders: [],
     compatibility: {
-      protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+      protocolCapabilities: [
+        'chatto.api.v1',
+        'chatto.realtime.v1',
+        'chatto.realtime.projection.v1'
+      ],
       minimumWebClientVersion: null
     }
   };
@@ -246,5 +256,21 @@ describe('root layout mobile sidebar animation', () => {
 
     expect(sidebarNav.isOpen).toBe(false);
     expect(panel.style.transform).toBe('translateX(-324px)');
+  });
+});
+
+describe('root layout notification synchronization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    installMobileMatchMedia();
+    resetSidebar();
+  });
+
+  it('mounts badge synchronization for a signed-out page', async () => {
+    renderLayout();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
+    );
   });
 });

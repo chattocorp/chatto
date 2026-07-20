@@ -3,22 +3,19 @@
  */
 
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
-import {
-  getAuthenticatedServerState,
-  type AuthenticatedServerState,
-  type ServerStateAPIConfig
-} from '$lib/api-client/serverState';
+import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
   evaluateServerCompatibility,
   hasProtocolCapability,
+  REALTIME_PROJECTION_CAPABILITY,
   type ServerCompatibilityResult
 } from './compatibility';
 
 export class ServerInfoState {
   #label: string;
   #getPublicServerInfo: (baseUrl: string) => Promise<PublicServerInfo>;
-  #apiConfig?: ServerStateAPIConfig;
-  #getAuthenticatedServerState: (config: ServerStateAPIConfig) => Promise<AuthenticatedServerState>;
+  #initializing: Promise<void> | null = null;
 
   name = $state('Chatto');
   version = $state('');
@@ -61,21 +58,19 @@ export class ServerInfoState {
     return hasProtocolCapability(this.protocolCapabilities, capability);
   }
 
+  /** Whether discovery confirmed the projection stream required by this client. */
+  get supportsRealtimeProjection(): boolean {
+    return this.supportsProtocolCapability(REALTIME_PROJECTION_CAPABILITY) === true;
+  }
+
   /**
    * Human-readable label for this server, used in log messages so console
    * errors can be traced back to a specific server. Pass the URL (or any
    * stable identifier) — used purely for diagnostics.
-  */
-  constructor(
-    label = 'unknown',
-    publicServerInfoLoader = getPublicServerInfo,
-    apiConfig?: ServerStateAPIConfig,
-    authenticatedServerStateLoader = getAuthenticatedServerState
-  ) {
+   */
+  constructor(label = 'unknown', publicServerInfoLoader = getPublicServerInfo) {
     this.#label = label;
     this.#getPublicServerInfo = publicServerInfoLoader;
-    this.#apiConfig = apiConfig;
-    this.#getAuthenticatedServerState = authenticatedServerStateLoader;
   }
 
   /**
@@ -87,17 +82,27 @@ export class ServerInfoState {
    * `chat/[serverId]/+page.svelte`).
    */
   async init(): Promise<void> {
-    this.loading = true;
-    this.error = null;
+    if (this.#initializing) return this.#initializing;
+
+    const initializing = (async () => {
+      this.loading = true;
+      this.error = null;
+      try {
+        await this.refreshProfile();
+      } catch (err) {
+        // Defensive: anything thrown during the query or above .then body.
+        // Don't re-throw — failure is isolated to this server.
+        this.error = err instanceof Error ? err.message : String(err);
+        console.error(`[server:${this.#label}] failed to load server info`, err);
+      } finally {
+        this.loading = false;
+      }
+    })();
+    this.#initializing = initializing;
     try {
-      await this.refreshProfile();
-    } catch (err) {
-      // Defensive: anything thrown during the query or above .then body.
-      // Don't re-throw — failure is isolated to this server.
-      this.error = err instanceof Error ? err.message : String(err);
-      console.error(`[server:${this.#label}] failed to load server info`, err);
+      await initializing;
     } finally {
-      this.loading = false;
+      if (this.#initializing === initializing) this.#initializing = null;
     }
   }
 
@@ -121,23 +126,44 @@ export class ServerInfoState {
     }
   }
 
-  /**
-   * Fetch authenticated server settings used by the in-app UI. This runs only
-   * after the store knows the viewer is authenticated.
-   */
-  async refreshAuthenticatedSettings(): Promise<void> {
-    if (!this.#apiConfig) {
-      throw new Error('authenticated server state Connect API config is not configured');
-    }
-    const info = await this.#getAuthenticatedServerState(this.#apiConfig);
+  /** Apply the public profile carried by the realtime projection stream. */
+  applyProjectionProfile(profile: ServerPublicProfile): void {
+    this.name = profile.name;
+    this.version = profile.version;
+    this.welcomeMessage = profile.welcomeMessage ?? null;
+    this.description = profile.description ?? null;
+    this.iconUrl = profile.logoUrl ?? null;
+    this.bannerUrl = profile.bannerUrl ?? null;
+    this.error = null;
+    this.loading = false;
+  }
 
-    this.motd = info.motd;
-    this.pushNotificationsEnabled = info.pushNotificationsEnabled;
-    this.vapidPublicKey = info.vapidPublicKey;
-    this.livekitUrl = info.livekitUrl;
-    this.videoProcessingEnabled = info.videoProcessingEnabled;
-    this.maxUploadSize = info.maxUploadSize;
-    this.maxVideoUploadSize = info.maxVideoUploadSize;
-    this.messageEditWindowSeconds = info.messageEditWindowSeconds;
+  /** Apply authenticated runtime state carried by the realtime projection. */
+  applyProjectionState(state: RealtimeProjectionServerState): void {
+    this.motd = state.motd ?? null;
+    const runtime = state.runtime;
+    if (!runtime) return;
+    this.pushNotificationsEnabled = runtime.pushNotificationsEnabled;
+    this.vapidPublicKey = runtime.vapidPublicKey ?? null;
+    this.livekitUrl = runtime.livekitUrl ?? null;
+    this.videoProcessingEnabled = runtime.videoProcessingEnabled;
+    this.maxUploadSize = Number(runtime.maxUploadSize);
+    this.maxVideoUploadSize = Number(runtime.maxVideoUploadSize);
+    this.messageEditWindowSeconds = runtime.messageEditWindowSeconds;
+  }
+
+  /**
+   * Clear authenticated projection state while preserving independently
+   * discovered public profile and protocol-compatibility information.
+   */
+  resetProjectionState(): void {
+    this.motd = null;
+    this.pushNotificationsEnabled = false;
+    this.vapidPublicKey = null;
+    this.livekitUrl = null;
+    this.videoProcessingEnabled = false;
+    this.maxUploadSize = 25 * 1024 * 1024;
+    this.maxVideoUploadSize = 25 * 1024 * 1024;
+    this.messageEditWindowSeconds = 3 * 60 * 60;
   }
 }

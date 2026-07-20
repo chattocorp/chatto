@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -15,7 +15,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
 - A notification sound plays and the in-app and installed PWA notification badges update in real time as new notifications arrive.
-- The installed PWA dock badge reflects pending notifications only; ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
+- While the installed PWA is visible, its app-icon badge shows the exact pending DM count when known. Other pending notifications, or an incomplete notification page that cannot provide an exact DM count, show a non-numeric attention flag. Ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
 - A recipient's Do Not Disturb presence still stores new notifications and updates counts, but those creation events are silent: no notification sound and no web push while DND is active.
@@ -108,13 +108,13 @@ Notification preferences are user-scoped and don't require special permissions t
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (convergent notification policy and pending state)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-053 (convergent notification policy and pending state)
 - **FDRs:** FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)
 
 ## Open Questions
 
 [Notifications 2.0](https://github.com/chattocorp/chatto/issues/1556) tracks a
-planned redesign of this feature under ADR-051. Before this FDR can describe
+planned redesign of this feature under ADR-053. Before this FDR can describe
 the replacement behavior, the project still needs to settle the user-facing
 names and defaults for cause-specific delivery intensities, the exact legacy
 preference mapping, and whether changing a preference clears existing pending

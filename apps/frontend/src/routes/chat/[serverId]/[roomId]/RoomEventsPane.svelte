@@ -1,29 +1,11 @@
 <script lang="ts">
-  import { useEvent, type UnreadMarkerWindow } from '$lib/hooks';
-  import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
-  import {
-    getComposerContext,
-    type RefreshCurrentWindowResult,
-    type RoomMember
-  } from '$lib/state/room';
+  import type { UnreadMarkerWindow } from '$lib/hooks';
+  import { getComposerContext, type RoomMember } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
-
-  type MessageRetractedEventPayload = {
-    roomId?: string | null;
-    messageEventId?: string | null;
-  };
-
-  function messageRetractedPayload(
-    event: RoomEventKindSource
-  ): MessageRetractedEventPayload | null {
-    if (roomEventKind(event) !== RoomEventKind.MessageRetracted) return null;
-    if (!event || typeof event !== 'object') return null;
-    return event as MessageRetractedEventPayload;
-  }
 
   let {
     roomId,
@@ -58,6 +40,17 @@
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
 
+  // Projection v2 folds retractions and crypto-erasure into the authoritative
+  // message row. Keep composer state aligned without requiring a second
+  // legacy event-envelope path.
+  $effect(() => {
+    const editingEventId = editState.eventId;
+    if (!editingEventId) return;
+    const editingEvent = roomEvents.find((event) => event.id === editingEventId);
+    const payload = editingEvent?.event;
+    if (payload && 'deletedAt' in payload && payload.deletedAt) editState.cancelEdit();
+  });
+
   // Wire jumpState handlers to the store
   if (jumpState) {
     jumpState.setJumpHandler((eventId: string) => store.jumpToMessage(eventId, jumpState));
@@ -70,46 +63,11 @@
     if (jumpState) jumpState.reset();
   });
 
-  // Drive store loads from roomId changes. Silent reconnect + tab-resume
-  // catch-ups refresh the current message window without resetting the store.
+  // Drive store loads from roomId changes. Reconnect convergence belongs to
+  // the resumable server projection and does not trigger a parallel room read.
   $effect(() => {
     store.setRoom(roomId);
   });
-
-  // Subscribe to server events: route to store, plus handle component-level
-  // concerns the store doesn't own (e.g. cancel an in-progress edit).
-  useEvent((serverEvent) => {
-    const eventData = messageRetractedPayload(serverEvent.event);
-    if (!eventData) {
-      store.ingestServerEvent(serverEvent);
-      return;
-    }
-
-    if (eventData.roomId === roomId && editState.eventId === eventData.messageEventId) {
-      editState.cancelEdit();
-    }
-
-    store.ingestServerEvent(serverEvent);
-  });
-
-  function handleSoftRefresh(result: RefreshCurrentWindowResult, anchored: boolean): void {
-    console.debug('[room-refresh] room pane refresh result', {
-      roomId,
-      anchored,
-      hasOlder: result.hasOlder,
-      hasNewer: result.hasNewer
-    });
-    if (!anchored || !jumpState) return;
-    jumpState.isJumpedMode = result.hasNewer;
-    jumpState.hasReachedEnd = !result.hasNewer;
-    jumpState.hasOlderMessages = result.hasOlder;
-    console.debug('[room-refresh] forward pagination state updated', {
-      roomId,
-      isJumpedMode: jumpState.isJumpedMode,
-      hasReachedEnd: jumpState.hasReachedEnd,
-      hasOlderMessages: jumpState.hasOlderMessages
-    });
-  }
 
   function handleReachedPresent(): void {
     if (!jumpState) return;
@@ -151,6 +109,5 @@
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
   onReachedPresent={handleReachedPresent}
   {onUnreadMarkerCleared}
-  onSoftRefresh={handleSoftRefresh}
   {pendingHighlightId}
 />

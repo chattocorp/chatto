@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import ThreadPane from './ThreadPane.svelte';
+import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -10,10 +12,12 @@ const { mocks } = vi.hoisted(() => {
       followThread: vi.fn(),
       unfollowThread: vi.fn(),
       setThread: vi.fn(),
+      retainMessagesForThread: vi.fn(),
+      releaseMessagesForThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
-      ingestServerEvent: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
+      setThreadRootFollowState: vi.fn(),
       loadMore: vi.fn(),
       applyLocalMessageDeletion: vi.fn(),
       refreshAnchorForMessageMutation: vi.fn(),
@@ -30,7 +34,8 @@ const { mocks } = vi.hoisted(() => {
       },
       appState: {
         isPresent: true
-      }
+      },
+      threadStore: null as ThreadPaneTestStore | null
     }
   };
 });
@@ -49,7 +54,7 @@ vi.mock('$lib/api-client/threads', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useEvent: vi.fn(),
+  useProjectionEvent: vi.fn(),
   useUnreadMarker: (
     getTargetId: () => string,
     options: { markAsRead: (targetId: string, upToEventId?: string) => unknown }
@@ -84,7 +89,22 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       notifications: mocks.notifications,
-      rooms: mocks.rooms
+      rooms: mocks.rooms,
+      retainMessagesForThread: mocks.retainMessagesForThread,
+      releaseMessagesForThread: mocks.releaseMessagesForThread,
+      messagesForThread: () =>
+        Object.assign(mocks.threadStore!, {
+          isLoadingMore: false,
+          hasReachedStart: true,
+          setThread: mocks.setThread,
+          dispose: mocks.disposeMessagesStore,
+          ingestEvent: mocks.ingestEvent,
+          refreshCurrentWindow: mocks.refreshCurrentWindow,
+          setThreadRootFollowState: mocks.setThreadRootFollowState,
+          loadMore: mocks.loadMore,
+          applyLocalMessageDeletion: mocks.applyLocalMessageDeletion,
+          refreshAnchorForMessageMutation: mocks.refreshAnchorForMessageMutation
+        })
     })
   }
 }));
@@ -123,9 +143,9 @@ vi.mock('$lib/state/room', () => ({
     hasReachedStart = true;
     setThread = mocks.setThread;
     dispose = mocks.disposeMessagesStore;
-    ingestServerEvent = mocks.ingestServerEvent;
     ingestEvent = mocks.ingestEvent;
     refreshCurrentWindow = mocks.refreshCurrentWindow;
+    setThreadRootFollowState = mocks.setThreadRootFollowState;
     loadMore = mocks.loadMore;
     applyLocalMessageDeletion = mocks.applyLocalMessageDeletion;
     refreshAnchorForMessageMutation = mocks.refreshAnchorForMessageMutation;
@@ -134,10 +154,6 @@ vi.mock('$lib/state/room', () => ({
 
 vi.mock('$lib/state/room/messageMutationEvents', () => ({
   onRoomMessageMutated: vi.fn(() => vi.fn())
-}));
-
-vi.mock('$lib/eventBus.svelte', () => ({
-  onThreadFollowChanged: vi.fn(() => vi.fn())
 }));
 
 vi.mock('./TimelineEventsPane.svelte', async () => {
@@ -153,6 +169,7 @@ vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.threadStore = new ThreadPaneTestStore();
     mocks.appState.isPresent = true;
     mocks.markThreadAsRead.mockResolvedValue({
       previousReadAt: null,
@@ -189,6 +206,32 @@ describe('ThreadPane', () => {
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
     expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
+  });
+
+  it('retains decrypted thread history only for the mounted pane lifetime', async () => {
+    const rendered = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    const mountedStore = mocks.threadStore;
+    expect(mocks.retainMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      mountedStore
+    );
+
+    rendered.unmount();
+    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      mountedStore
+    );
   });
 
   it('loads a highlighted reply outside the latest thread page before jumping to it', async () => {
@@ -271,6 +314,52 @@ describe('ThreadPane', () => {
       expect(
         (q(container, 'button[aria-label="Unfollow thread"]') as HTMLButtonElement).disabled
       ).toBe(false);
+    });
+  });
+
+  it('seeds follow state when the lazy thread root arrives after mount', async () => {
+    mocks.threadStore!.isInitialLoading = true;
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    expect(q(container, 'button[aria-label="Follow thread"]')).toBeTruthy();
+
+    mocks.threadStore!.threadEvents = [
+      {
+        id: 'thread-root',
+        createdAt: '2026-07-17T12:00:00Z',
+        actorId: 'test-user',
+        actor: null,
+        event: {
+          kind: RoomEventKind.MessagePosted,
+          roomId: 'room-1',
+          body: 'Thread root',
+          attachments: [],
+          linkPreview: null,
+          updatedAt: null,
+          inReplyTo: null,
+          threadRootEventId: null,
+          echoOfEventId: null,
+          echoFromThreadRootEventId: null,
+          channelEchoEventId: null,
+          replyCount: 1,
+          lastReplyAt: '2026-07-17T12:01:00Z',
+          threadParticipants: [],
+          viewerIsFollowingThread: true,
+          reactions: []
+        }
+      }
+    ];
+    mocks.threadStore!.isInitialLoading = false;
+
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Unfollow thread"]')).toBeTruthy();
     });
   });
 

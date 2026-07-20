@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
-import { ServerAdminPage } from './pages';
+import { ServerAdminPage, ServerAdminRoomsPage } from './pages';
 import { TIMEOUTS } from './constants';
 import {
   connectPost,
@@ -652,6 +652,23 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Admin UI', () => {
+    test('open room layout follows changes made in another tab', async ({
+      page,
+      serverAdminRoomsPage
+    }) => {
+      await createAndLoginTestUser(page);
+      const space = await usePrimaryServerViaAPI(page);
+      await serverAdminRoomsPage.goto(space.id);
+
+      const otherPage = await page.context().newPage();
+      const otherAdminRooms = new ServerAdminRoomsPage(otherPage);
+      await otherAdminRooms.goto(space.id);
+      await otherAdminRooms.createGroup('Remote Section');
+
+      await serverAdminRoomsPage.expectGroupVisible('Remote Section');
+      await otherPage.close();
+    });
+
     test('admin can navigate to rooms page and see layout editor', async ({
       page,
       serverAdminPage,

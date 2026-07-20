@@ -24,7 +24,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: [
+          'chatto.api.v1',
+          'chatto.realtime.v1',
+          'chatto.realtime.projection.v1'
+        ],
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -35,11 +39,11 @@ describe('server compatibility evaluation', () => {
     });
   });
 
-  it('degrades when realtime is unavailable but ConnectRPC remains usable', () => {
+  it('degrades when optional realtime support is unavailable', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1'],
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.projection.v1'],
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -61,6 +65,21 @@ describe('server compatibility evaluation', () => {
     ).toMatchObject({ status: 'unsupported', reason: 'missing-required-capabilities' });
   });
 
+  it('rejects a server without the required projection stream', () => {
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.5.0',
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        minimumWebClientVersion: null,
+        webClientVersion: '0.5.0'
+      })
+    ).toMatchObject({
+      status: 'unsupported',
+      reason: 'missing-required-capabilities',
+      missingCapabilities: ['chatto.realtime.projection.v1']
+    });
+  });
+
   it('uses the server version only for legacy discovery responses', () => {
     expect(
       evaluateServerCompatibility({
@@ -69,7 +88,7 @@ describe('server compatibility evaluation', () => {
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
-    ).toMatchObject({ status: 'degraded', reason: 'server-too-old' });
+    ).toMatchObject({ status: 'unsupported', reason: 'server-too-old' });
 
     expect(
       evaluateServerCompatibility({
@@ -85,7 +104,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.6.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: [
+          'chatto.api.v1',
+          'chatto.realtime.v1',
+          'chatto.realtime.projection.v1'
+        ],
         minimumWebClientVersion: '0.6.0',
         webClientVersion: '0.5.0'
       })
@@ -94,7 +117,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0-beta.3',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: [
+          'chatto.api.v1',
+          'chatto.realtime.v1',
+          'chatto.realtime.projection.v1'
+        ],
         minimumWebClientVersion: '0.5.0-beta.3',
         webClientVersion: '0.5.0-beta.1'
       })
@@ -103,7 +130,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: [
+          'chatto.api.v1',
+          'chatto.realtime.v1',
+          'chatto.realtime.projection.v1'
+        ],
         minimumWebClientVersion: '0.5.0',
         webClientVersion: '0.5.0-rc.1'
       })
@@ -114,7 +145,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: [
+          'chatto.api.v1',
+          'chatto.realtime.v1',
+          'chatto.realtime.projection.v1'
+        ],
         minimumWebClientVersion: null,
         unreachable: true
       })

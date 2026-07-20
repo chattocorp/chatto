@@ -17,7 +17,7 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 | ------- | ----------------- | ------- |
 | Public ConnectRPC API | `/api/connect/chatto.api.v1.*` | Normal client and integration behavior. |
 | Admin ConnectRPC API | `/api/connect/chatto.admin.v1.*` | Permission-gated administrative tooling on the public web listener. |
-| Realtime WebSocket | `/api/realtime` | Protobuf live event delivery for authenticated clients. |
+| Realtime WebSocket | `/api/realtime` | Protobuf live events and resumable server-projection delivery for authenticated clients. |
 | Operator API | Unix socket | Root-equivalent local automation and recovery. |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
@@ -41,7 +41,13 @@ Bearer tokens are opaque runtime credentials stored server-side. They are not JW
 
 ## Realtime Delivery
 
-Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. The stream is live-only. If a client disconnects or wakes from sleep, use projected ConnectRPC reads to reload room, thread, notification, and read-state windows.
+Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. The package name is the protobuf namespace; the only accepted behavioural protocol version is 2. It sends one ordered server-scoped projection stream for initial state, bounded replay after reconnect, lazy room-timeline hydration, and later live mutations. A subscription includes IDs for room timelines the client already retains; `hydrate_room` adds another joined room through the same projection reducer. Check for `chatto.realtime.projection.v1` in server discovery before connecting. Resume and timeline cursors are opaque capabilities: clients must store and return them unchanged and must not infer persistence coordinates from them. Timeline cursors are bound to the authenticated viewer and exact room or thread that issued them; cross-resource reuse is rejected.
+
+For 0.5, durable message, reaction, room, asset, and call changes are `RealtimeProjectionEvent` operations, not `RealtimeEventEnvelope` alternatives. The latter is reserved for transient, non-replayable signals. This is a breaking migration from the 0.4 live-event contract.
+
+Notification, viewer-preference, thread follow/read, profile, layout, and member changes also arrive as authoritative projection operations. A live notification replacement can carry optional transition metadata for effects such as sounds; bootstrap, resume reconciliation, and reset omit that metadata. The remaining transient envelopes are typing, presence, mention/new-DM attention hints, and session termination.
+
+The projection stream does not replace `chatto.api.v1`. Integrations should continue to use its resource-oriented ConnectRPC services for explicit reads, pagination, commands, and read-your-writes responses, and add realtime protocol 2 only when they need an ordered local projection that can resume after a disconnect.
 
 Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
 
@@ -61,10 +67,16 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 
 ## Message Body Tokens
 
-Message bodies are plain text with Chatto's supported markdown subset. They may
-also contain inline timestamp tokens in the form `<t:UNIX_SECONDS:F>`. Render
-valid tokens as the referenced UTC instant in the viewer's locale and timezone,
-or leave the token literal if your client does not support inline timestamps.
+Message bodies are plain text with Chatto's supported Markdown subset: headings,
+emphasis, links and autolinks, inline and fenced code, blockquotes, ordered and
+unordered lists, and GFM pipe tables. Tables support the GFM delimiter-row
+alignment markers (`:---`, `:---:`, and `---:`), optional outer pipes, inline
+formatting in cells, and backslash-escaped pipes.
+
+Message bodies may also contain inline timestamp tokens in the form
+`<t:UNIX_SECONDS:F>`. Render valid tokens as the referenced UTC instant in the
+viewer's locale and timezone, or leave the token literal if your client does not
+support inline timestamps.
 
 ## Programmatic Safety
 

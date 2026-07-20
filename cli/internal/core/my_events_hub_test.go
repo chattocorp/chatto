@@ -180,24 +180,34 @@ func TestMyEventsHubVisibilityTailIgnoresOrdinaryRoomTraffic(t *testing.T) {
 }
 
 func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
-	core := &ChattoCore{logger: testCoreLogger()}
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "snapshot-visibility-viewer", "Snapshot Visibility Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, viewer.Id, KindChannel, "", "snapshot-visibility", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
 	hub := NewMyEventsModel(core).hub
 	ch := make(chan myEventsDelivery, 1)
 	done := make(chan struct{})
-	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: "viewer"}
+	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, id: 1, userID: viewer.Id}
 	state := &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
+		visibleRooms:    map[string]struct{}{room.Id: {}},
 		roomSnapshotSeq: 42,
 		subscribers:     map[uint64]*myEventsSubscription{1: sub},
 	}
 	hub.users[sub.userID] = state
 	hub.subscribers[sub.id] = sub
 	join := newEvent(sub.userID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "room-1"}},
+		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.Id}},
 	})
 
-	hub.fanoutReadyRoomEvent("room-1", join, 42, 1)
-	if _, ok := state.memberRooms["room-1"]; ok {
+	hub.fanoutReadyRoomEvent(context.Background(), room.Id, join, 42, 1)
+	if _, ok := state.memberRooms[room.Id]; ok {
 		t.Fatal("late pre-snapshot join re-granted room visibility")
 	}
 	select {
@@ -206,8 +216,8 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 	default:
 	}
 
-	hub.fanoutReadyRoomEvent("room-1", join, 43, 1)
-	if _, ok := state.memberRooms["room-1"]; !ok {
+	hub.fanoutReadyRoomEvent(context.Background(), room.Id, join, 43, 1)
+	if _, ok := state.memberRooms[room.Id]; !ok {
 		t.Fatal("post-snapshot join did not grant room visibility")
 	}
 	select {
@@ -256,7 +266,7 @@ func TestMyEventsHubQuarantineBlocksAdmissionUntilNextGeneration(t *testing.T) {
 	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
 	registered := make(chan error, 1)
 	go func() {
-		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, 0, hub.visibilityVersion)
+		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, nil, 0, hub.visibilityVersion)
 	}()
 
 	select {
@@ -286,7 +296,7 @@ func TestMyEventsHubQuarantineInterruptsPendingRegistration(t *testing.T) {
 	sub := &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: "user-1"}
 	registered := make(chan error, 1)
 	go func() {
-		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, 0, hub.visibilityVersion)
+		registered <- hub.registerAtIngressBoundary(ctx, sub, map[string]struct{}{}, nil, 0, hub.visibilityVersion)
 	}()
 
 	deadline := time.Now().Add(time.Second)
@@ -378,6 +388,225 @@ func TestMyEventsHubDisconnectsOnlySubscriberOverByteLimit(t *testing.T) {
 	}
 	if got := model.slowDisconnects.Load(); got != 1 {
 		t.Fatalf("slow disconnects = %d, want 1", got)
+	}
+}
+
+func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "directory-actor", "Directory Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "directory-viewer", "Directory Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "directory-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	model := NewMyEventsModel(core)
+	hub := model.hub
+	projection := newMyEventsSubscription(viewer.Id)
+	projection.id = 1
+	hub.users[viewer.Id] = &myEventsUserState{
+		memberRooms:     map[string]struct{}{},
+		visibleRooms:    map[string]struct{}{room.Id: {}},
+		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
+		roomSnapshotSeq: 1,
+	}
+	hub.subscribers[projection.id] = projection
+
+	event := &corev1.Event{Id: "room-update-1", Event: &corev1.Event_RoomUpdated{
+		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	}}
+	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
+
+	select {
+	case delivery := <-projection.C:
+		if delivery.event.ID() != event.Id {
+			t.Fatalf("projection delivery = %q, want %q", delivery.event.ID(), event.Id)
+		}
+	default:
+		t.Fatal("projection session did not receive directory invalidation")
+	}
+}
+
+func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "hidden-directory-actor", "Hidden Directory Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "hidden-directory-viewer", "Hidden Directory Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "directory-hidden", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	model := NewMyEventsModel(core)
+	hub := model.hub
+	projection := newMyEventsSubscription(viewer.Id)
+	projection.id = 1
+	hub.users[viewer.Id] = &myEventsUserState{
+		memberRooms:     map[string]struct{}{},
+		visibleRooms:    map[string]struct{}{},
+		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
+		roomSnapshotSeq: 1,
+	}
+	hub.subscribers[projection.id] = projection
+	event := &corev1.Event{Id: "hidden-room-update", Event: &corev1.Event_RoomUpdated{
+		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	}}
+
+	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
+
+	select {
+	case delivery := <-projection.C:
+		t.Fatalf("hidden directory invalidation leaked as %q", delivery.event.ID())
+	default:
+	}
+}
+
+func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "visibility-loss-actor", "Visibility Loss Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "visibility-loss-viewer", "Visibility Loss Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "visibility-loss", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+
+	model := NewMyEventsModel(core)
+	hub := model.hub
+	first := newMyEventsSubscription(viewer.Id)
+	first.id = 1
+	second := newMyEventsSubscription(viewer.Id)
+	second.id = 2
+	state := &myEventsUserState{
+		memberRooms:     map[string]struct{}{room.Id: {}},
+		visibleRooms:    map[string]struct{}{room.Id: {}},
+		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
+		roomSnapshotSeq: 1,
+	}
+	hub.users[viewer.Id] = state
+	hub.subscribers[first.id] = first
+	hub.subscribers[second.id] = second
+	event := &corev1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &corev1.Event_RoomUniversalChanged{
+		RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: room.Id, Universal: false},
+	}}
+
+	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
+
+	for name, sub := range map[string]*myEventsSubscription{"first": first, "second": second} {
+		select {
+		case delivery := <-sub.C:
+			if delivery.event.ID() != event.Id {
+				t.Fatalf("%s delivery = %q, want %q", name, delivery.event.ID(), event.Id)
+			}
+		default:
+			t.Fatalf("%s session did not receive universal-disable transition", name)
+		}
+	}
+	if _, ok := state.visibleRooms[room.Id]; ok {
+		t.Fatal("room remained in projection visibility cache after access loss")
+	}
+	if _, ok := state.memberRooms[room.Id]; ok {
+		t.Fatal("room remained in membership cache after universal membership ended")
+	}
+}
+
+func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "leave-visibility-actor", "Leave Visibility Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "leave-visibility-viewer", "Leave Visibility Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "leave-visibility", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if err := core.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+
+	model := NewMyEventsModel(core)
+	hub := model.hub
+	first := newMyEventsSubscription(viewer.Id)
+	first.id = 1
+	second := newMyEventsSubscription(viewer.Id)
+	second.id = 2
+	state := &myEventsUserState{
+		memberRooms:     map[string]struct{}{room.Id: {}},
+		visibleRooms:    map[string]struct{}{room.Id: {}},
+		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
+		roomSnapshotSeq: 1,
+	}
+	hub.users[viewer.Id] = state
+	hub.subscribers[first.id] = first
+	hub.subscribers[second.id] = second
+	leave := &corev1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &corev1.Event_UserLeftRoom{
+		UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
+	}}
+
+	hub.fanoutReadyRoomEvent(ctx, room.Id, leave, 2, 1)
+	for name, sub := range map[string]*myEventsSubscription{"first": first, "second": second} {
+		select {
+		case <-sub.C:
+		default:
+			t.Fatalf("%s session did not receive viewer leave transition", name)
+		}
+	}
+	if _, ok := state.visibleRooms[room.Id]; ok {
+		t.Fatal("room remained visible after viewer leave")
+	}
+
+	updated := &corev1.Event{Id: "post-leave-update", ActorId: actor.Id, Event: &corev1.Event_RoomUpdated{
+		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	}}
+	hub.fanoutReadyRoomEvent(ctx, room.Id, updated, 3, 1)
+	select {
+	case delivery := <-second.C:
+		t.Fatalf("post-leave room fact leaked as %q", delivery.event.ID())
+	default:
 	}
 }
 

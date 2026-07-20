@@ -26,3 +26,11 @@ export function roomSidebarPanelsForRoom(isDM: boolean, livekitEnabled: boolean)
   const panels = isDM ? DM_ROOM_SIDEBAR_PANELS : CHANNEL_ROOM_SIDEBAR_PANELS;
   return livekitEnabled ? panels : panels.filter((panel) => panel !== 'call');
 }
+
+export function visibleRoomSidebarPanel(
+  isDesktop: boolean,
+  desktopPanel: RoomSidebarPanelState,
+  mobilePanel: RoomSidebarPanelState
+): RoomSidebarPanelState {
+  return isDesktop ? desktopPanel : mobilePanel;
+}

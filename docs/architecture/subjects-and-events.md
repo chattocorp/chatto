@@ -80,27 +80,28 @@ cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
 Transient `LiveEvent` messages are adapted at this boundary into public
-protobuf `/api/realtime` frames. Both surfaces are live-only, and missed state
-is recovered by projected reads. Subscriber overflow closes only that session.
+protobuf `/api/realtime` frames and remain live-only. Protocol v2 maps durable
+facts to current public projection operations; fresh or unsafe resumes begin
+with a compacted server projection. Subscriber overflow closes only that
+session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old
 subscriptions, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
-The bundled web client watches server heartbeats for silent stalls. It
-refetches server-scoped projected state after reconnect gaps, and refetches the
-current room or thread window after browser wake, WebSocket reconnect, socket
-end, or heartbeat-stall catch-up notifications. There is no per-connection
-JetStream consumer or public subscription replay cursor. See
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
+The bundled web client watches server heartbeats for silent stalls. Its
+in-memory server projection resumes a short socket gap or accepts a compacted
+reset; page reload deliberately starts without a cursor. Protocol v2 creates no
+long-lived per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
+and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 ## EVT subject patterns
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, and auth workflow audit facts. |
-| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `StreamMyEvents` authorizes and adapts these messages into realtime events; they are never projection input. |
+| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
@@ -236,7 +237,7 @@ Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/e
 
 ## Transient live subjects
 
-Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted and are not projection input.
+Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted. Genuinely ephemeral activity may be mapped to a public transient event; latest-value invalidations are inputs to live projection assembly but are not replay facts themselves.
 
 Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
@@ -292,10 +293,11 @@ end projected calls only after three consecutive failed elected reconciliation
 cycles. A successful elected pass deletes the counter.
 
 `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
-`ListCallParticipants` expose the active call ID. Clients can ignore stale
-leave or end facts from previous calls in the same room, and hydrate realtime
-`call_*` events through `GetActiveCall` or `BatchGetActiveCalls`. Room
-membership remains the authorization boundary for live delivery.
+`ListCallParticipants` expose the active call ID to integrations and command
+flows. The bundled frontend receives complete authorized active-call state in
+`active_calls_replace` projection operations and infers one-shot join/leave/end
+presentation effects by comparing replacements. Room membership remains the
+authorization boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
@@ -304,6 +306,6 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,
   user/config/member subject gates, and projection readiness.
-- Live-only subscription delivery. Missed state after reconnect is recovered from projected reads: server-scoped stores refetch their current projections after event-bus gaps, and the visible room/thread refetches its current message window. Transient sync and presence signals remain live-only.
+- Live delivery plus protocol-v2 bounded replay of durable facts as current public projection operations. The WebSocket subscribes to the hub before capturing its EVT cutoff, replays through that cutoff, then drops buffered duplicates before continuing live. Fresh and unsafe resumes receive a compacted server projection through the same operation stream; transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).

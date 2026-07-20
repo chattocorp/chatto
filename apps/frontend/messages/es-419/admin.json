@@ -142,7 +142,7 @@
       "no_users_with_role": "Ningún usuario tiene este rol",
       "server_tier_intro": "Esta página es para permisos de rol a nivel de servidor: valores predeterminados amplios que se aplican antes de las anulaciones específicas de la sala.",
       "server_tier_rooms_hint": "Usar Salas para anulaciones por grupo y por sala.",
-      "server_tier_denies_hint": "Usar denegaciones deliberadamente: negar a todas las personas en una sala bloquea todos los permisos heredados en ese nivel."
+      "resolution_hint": "Para cada usuario o rol con nombre se aplica el valor más cercano de sala, grupo o servidor. Las denegaciones prevalecen entre ellos. Un permiso solo anula una denegación de everyone en el mismo ámbito o en uno más específico."
     },
     "rooms_admin": {
       "title": "Habitaciones",

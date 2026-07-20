@@ -158,9 +158,10 @@ func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userI
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
-// hasRoomPermission checks a permission at the room level. Room-scoped
-// decisions, group decisions, and server decisions all contribute; any
-// applicable deny wins for non-owners.
+// hasRoomPermission checks a permission at the room level. Each direct user or
+// named role contributes its nearest room/group/server decision; named denies
+// win across those subjects. Everyone supplies a scoped baseline: a named allow
+// overrides its deny only at the same or a nearer scope.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }

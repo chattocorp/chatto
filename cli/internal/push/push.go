@@ -95,6 +95,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
 		Mutable        bool                     `json:"mutable,omitempty"`
+		AppBadge       string                   `json:"app_badge,omitempty"`
 		Notification   *declarativeNotification `json:"notification,omitempty"`
 	}
 
@@ -107,6 +108,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		NotificationID: p.NotificationID,
 		URL:            p.URL,
 		Action:         p.Action,
+		AppBadge:       p.AppBadge,
 	}
 	if p.declarativeNotificationEligible() {
 		out.WebPush = declarativeWebPushValue

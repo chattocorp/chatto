@@ -35,7 +35,7 @@
       "version": "Versión {version}",
       "version_unknown": "Versión desconocida",
       "compatibility_degraded": "Algunas funciones en tiempo real no están disponibles en este servidor.",
-      "compatibility_server_too_old": "Este servidor ejecuta una versión anterior. Es posible que algunas funciones no funcionen como se espera.",
+      "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto 0.5 o una versión posterior antes de que esta aplicación pueda conectarse.",
       "compatibility_client_too_old": "Esta aplicación es demasiado antigua para este servidor. Vuelve a cargarla o actualízala.",
       "compatibility_unsupported": "Este servidor no admite los protocolos que necesita esta aplicación.",
       "compatibility_unknown": "Este servidor no proporciona información de compatibilidad."

@@ -1,13 +1,9 @@
 <script lang="ts">
   import { provideEventBus } from '$lib/eventBus.svelte';
-  import { usePresenceChange, useReconnectCallback } from '$lib/hooks';
-  import { presencePreference } from '$lib/state/presencePreference.svelte';
+  import { usePresenceChange, useProjectionEvent } from '$lib/hooks';
+  import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import {
-    authenticatedCurrentUserPresenceEntries,
-    getPresenceCache
-  } from '$lib/state/presenceCache.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import type { Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
@@ -16,7 +12,7 @@
   // got connected; here we just expose its bus via Svelte context so
   // descendant components can register handlers without going through the
   // manager directly. The getter form keeps the bus reactive across
-  // `[serverId]` URL changes — `useEvent` / `onEvent` consumers below
+  // `[serverId]` URL changes — typed-event consumers below
   // automatically follow the active server.
   provideEventBus(getActiveServer);
 
@@ -27,18 +23,7 @@
   // refresh and event-ingestion lifecycles from inside `ServerStateStore`
   // — every server keeps itself in sync with its own bus, so consumers
   // here and below just read `serverRegistry.getStore(...)` and don't
-  // wire any `$effect` / `useEvent` for that purpose.
-
-  // Clear presence cache after WebSocket reconnection
-  useReconnectCallback(() => {
-    console.log('WebSocket reconnected, clearing presence cache');
-    presenceCache.clear(
-      authenticatedCurrentUserPresenceEntries(
-        currentUserPresenceStores(),
-        presencePreference.effectiveStatus
-      )
-    );
-  });
+  // wire any additional `$effect` for that purpose.
 
   // Populate global presence cache from server events so that any UserAvatar
   // (including newly-mounted ones like popovers) sees the latest presence.
@@ -46,18 +31,23 @@
     presenceCache.update({ serverId: getActiveServer(), userId }, status);
   });
 
-  function currentUserPresenceStores() {
-    return serverRegistry.servers.map((server) => {
-      const store = serverRegistry.tryGetStore(server.id);
-      return store
-        ? {
-            serverId: server.id,
-            isAuthenticated: store.isAuthenticated,
-            currentUser: store.currentUser
-          }
-        : null;
-    });
-  }
+  // Presence is transient rather than EVT-backed. Every subscription sends a
+  // complete latest-value reconciliation before caught_up so returning to a
+  // retained server cannot display transitions missed while it was dormant.
+  useProjectionEvent((event) => {
+    for (const operation of event.operations) {
+      if (operation.operation.case !== 'presencesReplace') continue;
+      presenceCache.replaceServer(
+        getActiveServer(),
+        new Map(
+          Object.entries(operation.operation.value.statuses).map(([userId, status]) => [
+            userId,
+            apiPresenceStatus(status)
+          ])
+        )
+      );
+    }
+  });
 </script>
 
 <div data-testid="server-subscription-active" class="hidden"></div>

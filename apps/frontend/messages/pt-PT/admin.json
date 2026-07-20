@@ -142,7 +142,7 @@
       "no_users_with_role": "Nenhum utilizador tem esta função",
       "server_tier_intro": "Esta página é para permissões de funções na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
       "server_tier_rooms_hint": "Utilize Salas para substituições por grupo e por sala.",
-      "server_tier_denies_hint": "Use negações deliberadamente: negar a todos numa sala bloqueia todas as permissões herdadas nesse nível."
+      "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico."
     },
     "rooms_admin": {
       "title": "Quartos",

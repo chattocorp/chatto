@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-07-17
 
 ## Overview
 
@@ -15,9 +15,10 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
 - A registered server's context menu shows the software version reported by
   that server's latest discovery response.
 - A warning marker appears when required protocol support is missing, the
-  server predates the oldest version tested with the current client, the server
+  server predates the oldest version supported by the current client, the server
   requires a newer bundled web client, or recommended realtime support is
-  unavailable.
+  unavailable. The 0.5 client classifies pre-0.5 servers as unsupported because
+  they do not provide the required server-projection stream.
 - Missing recommended support degrades only the affected experience. The
   client does not reject a whole server merely because an optional capability
   is unavailable.
@@ -28,6 +29,9 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
 - Third-party clients can use the public discovery response to inspect protocol
   capability keys. The minimum web-client version applies only to Chatto's
   bundled web client.
+- The `chatto.realtime.v1` protobuf namespace implements only behavioural
+  protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
+  handshakes; clients must discover `chatto.realtime.projection.v1` first.
 
 ## Design Decisions
 
@@ -73,5 +77,5 @@ breaks without prematurely freezing the API.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection)
 - **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA Shell & Service Worker)

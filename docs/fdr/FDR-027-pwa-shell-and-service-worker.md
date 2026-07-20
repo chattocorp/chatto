@@ -1,7 +1,7 @@
 # FDR-027: PWA Shell & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-16
 
 ## Overview
 
@@ -9,7 +9,7 @@ Chatto ships a service worker so the installed web app can launch reliably and h
 
 Offline support means the app can open and show its normal disconnected state instead of the browser's generic offline page. It does not mean offline message history, offline search, or an outbox for composing messages while disconnected.
 
-Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refetch projected ConnectRPC state and the room UI refetches the currently viewed room/thread window. The worker must not cache or replay messages, API responses, or live-event traffic.
+Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, its in-memory server projection resumes the realtime stream or accepts a compacted reset through the same reducer. The worker must not cache projection state, cursors, messages, API responses, or live-event traffic.
 
 ## Behavior
 

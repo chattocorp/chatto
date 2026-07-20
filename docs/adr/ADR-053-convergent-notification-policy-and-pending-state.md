@@ -1,4 +1,4 @@
-# ADR-051: Convergent Notification Policy and Pending State
+# ADR-053: Convergent Notification Policy and Pending State
 
 **Date:** 2026-07-15
 

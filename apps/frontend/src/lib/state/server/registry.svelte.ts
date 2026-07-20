@@ -1,4 +1,4 @@
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteURL } from 'svelte/reactivity';
 import { ServerStateStore } from './store.svelte';
 import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
@@ -48,8 +48,7 @@ export interface AuthenticatedUserSummary {
 export function generateServerId(url: string, existingIds: string[] = []): string {
 	let hostname: string;
 	try {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- this helper parses an input string once; no reactive URL state is needed
-		hostname = new URL(url).hostname;
+		hostname = new SvelteURL(url).hostname;
 	} catch {
 		hostname = url.replace(/[^a-z0-9-]/gi, '-');
 	}
@@ -307,7 +306,7 @@ class ServerRegistry {
 		}
 	}
 
-	/** Add a server to the registry, create its state store, and start its event bus. */
+	/** Add a server and create its retained state store. Transport ownership is centralized. */
 	addServer(server: RegisteredServer): void {
 		if (this.servers.some((s) => s.id === server.id)) {
 			return; // Already exists
@@ -315,18 +314,7 @@ class ServerRegistry {
 		const registered = normalizeRegisteredServer(server);
 		this.servers.push(registered);
 		serversSlot.set(this.servers);
-		const store = this.#createStore(registered);
-
-		// Start the event bus eagerly for already-authenticated servers so
-		// child components (ServerSidebarEntry) can register handlers during
-		// their mount lifecycle. For cookie-auth servers the user is loaded
-		// asynchronously by AuthenticatedChatProvider, so the root layout's
-		// existing bus-start effect
-		// starts the bus once `isAuthenticated` flips true.
-		if (store.isAuthenticated) {
-			const serverConnection = serverConnectionManager.getClient(server.id);
-			eventBusManager.startBus(server.id, serverConnection);
-		}
+		this.#createStore(registered);
 	}
 
 	/** Remove a server by ID. Disposes its event bus, store, and connection state. */
@@ -403,10 +391,7 @@ class ServerRegistry {
 
 		Object.assign(server, data);
 		serversSlot.set(this.servers);
-		const store = this.#createStore(server);
-		if (store.isAuthenticated) {
-			eventBusManager.startBus(id, serverConnectionManager.getClient(id));
-		}
+		this.#createStore(server);
 		return true;
 	}
 

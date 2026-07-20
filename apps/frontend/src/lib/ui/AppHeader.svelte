@@ -29,6 +29,10 @@
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });
   }
+
+  function showAboutChatto() {
+    pushState('', { modal: { type: 'aboutChatto' } });
+  }
 </script>
 
 <header class="app-header flex items-center justify-between gap-2 p-2 text-muted md:text-sm">
@@ -99,7 +103,15 @@
   <!-- Actions: Version + Logout -->
   <div class="flex items-center gap-3">
     {#if version}
-      <span class="text-muted">v{version}</span>
+      <button
+        type="button"
+        class="min-h-10 cursor-pointer rounded px-2 text-muted transition-colors hover:bg-surface-emphasized hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+        onclick={showAboutChatto}
+        title={m['ui.tooltip.about']({ subject: 'Chatto' })}
+        aria-label={m['ui.tooltip.about']({ subject: 'Chatto' })}
+      >
+        v{version}
+      </button>
     {/if}
 
     {#if hasInstances}

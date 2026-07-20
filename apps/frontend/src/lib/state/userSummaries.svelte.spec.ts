@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __resetUserSummaryCachesForTests,
+  clearUserSummaryCache,
   getUserSummaryCache,
-  primeUserSummaryCache
+  primeUserSummaryCache,
+  removeUserSummaryCacheEntry
 } from './userSummaries.svelte';
 
 describe('user summary cache', () => {
@@ -23,6 +25,20 @@ describe('user summary cache', () => {
 
     expect(getUserSummaryCache('server-a').get('U1')?.login).toBe('alice');
     expect(getUserSummaryCache('server-b').get('U1')).toBeNull();
+  });
+
+  it('removes erased users and clears stale entries on projection reset', () => {
+    primeUserSummaryCache('server-a', [
+      { id: 'U1', login: 'ada', displayName: 'Ada', deleted: false, avatarUrl: null },
+      { id: 'U2', login: 'grace', displayName: 'Grace', deleted: false, avatarUrl: null }
+    ]);
+
+    removeUserSummaryCacheEntry('server-a', 'U1');
+    expect(getUserSummaryCache('server-a').get('U1')).toBeNull();
+    expect(getUserSummaryCache('server-a').get('U2')?.displayName).toBe('Grace');
+
+    clearUserSummaryCache('server-a');
+    expect(getUserSummaryCache('server-a').get('U2')).toBeNull();
   });
 
   it('loads only deduped cache misses through the batch API', async () => {

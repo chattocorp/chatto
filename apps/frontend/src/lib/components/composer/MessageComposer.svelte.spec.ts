@@ -8,6 +8,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { renderMarkdown } from '$lib/markdown';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -228,9 +229,10 @@ function pasteFile(target: HTMLElement, file: File) {
   );
 }
 
-function pasteText(target: HTMLElement, text: string) {
+function pasteText(target: HTMLElement, text: string, html?: string) {
   const dataTransfer = new DataTransfer();
   dataTransfer.setData('text/plain', text);
+  if (html !== undefined) dataTransfer.setData('text/html', html);
   target.dispatchEvent(
     new ClipboardEvent('paste', {
       bubbles: true,
@@ -288,6 +290,17 @@ async function placeCaretAtEditorEnd(editor: HTMLElement) {
   range.collapse(false);
   selection?.removeAllRanges();
   selection?.addRange(range);
+  await tick();
+}
+
+async function selectEditorContents(editor: HTMLElement) {
+  editor.focus();
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  document.dispatchEvent(new Event('selectionchange'));
   await tick();
 }
 
@@ -1197,7 +1210,7 @@ describe('MessageComposer', () => {
     });
 
     it('preserves literal HTML-looking text when restoring and saving an edit', async () => {
-      const body = '<script>alert(1)</script> & <b>bold?</b>';
+      const body = '<script>alert(1)</script> & <b>bold?</b> &#45;';
       const editedBody = `${body}!`;
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = body;
@@ -1217,6 +1230,31 @@ describe('MessageComposer', () => {
         eventId: 'evt_edit',
         body: editedBody
       });
+    });
+
+    it('keeps an existing GFM table renderable after editing and saving', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      roomStateMock.editState.eventId = 'evt_table';
+      roomStateMock.editState.originalBody = body;
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent('| Name | Role |');
+      await placeCaretAtEditorEnd(editor);
+      document.execCommand('insertText', false, '!');
+      await vi.waitFor(() => expect(editor.textContent).toContain('| Ada | Admin |!'));
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      const submittedBody = updateMessageConnectMock.mock.calls[0][0].body as string;
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_table',
+        body: submittedBody
+      });
+      expect(submittedBody).toBe(`${body}!`);
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
     });
 
     it('clears staged attachments when edit mode is active at mount', async () => {
@@ -1573,6 +1611,204 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '[example](https://example.com)'
+      });
+    });
+
+    it('preserves a single pasted line break without creating separate paragraphs', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, 'test line one\ntest line two');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+        expect(editor.querySelectorAll('br')).toHaveLength(1);
+      });
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'test line one  \ntest line two'
+      });
+    });
+
+    it('submits pasted GFM table syntax in a renderable form', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(2));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      const submittedBody = mutationMock.mock.calls[0][1].input.body as string;
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId });
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
+    });
+
+    it('preserves active inline formatting when pasting plain text', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      await pressEditorKey(
+        editor,
+        'b',
+        navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true }
+      );
+      pasteText(editor, 'pasted text');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('strong')?.textContent).toBe('pasted text');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '**pasted text**'
+      });
+    });
+
+    it('combines active inline formatting with a pasted autolink', async () => {
+      const url = 'https://example.com/';
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      await pressEditorKey(
+        editor,
+        'b',
+        navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true }
+      );
+      pasteText(editor, url);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('a')?.textContent).toBe(url);
+        expect(editor.querySelector('strong')?.textContent).toBe(url);
+      });
+    });
+
+    it('pastes unsupported Markdown syntax literally over selected text', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'replace me');
+      await selectEditorContents(editor);
+      pasteText(editor, '---');
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('---');
+        expect(editor.querySelector('hr')).toBeNull();
+      });
+    });
+
+    it('preserves an intentional blank line in pasted text', async () => {
+      const body = 'first paragraph\n\nsecond paragraph';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('preserves pasted fenced code without adding line breaks between source lines', async () => {
+      const body = [
+        '```go',
+        'type Conn struct {',
+        '\trwc     io.ReadWriteCloser',
+        '\terr     error',
+        '\tr, w, x sync.Mutex',
+        '}',
+        '```'
+      ].join('\n');
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('pre code')?.textContent).toBe(
+          'type Conn struct {\n\trwc     io.ReadWriteCloser\n\terr     error\n\tr, w, x sync.Mutex\n}'
+        );
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('prefers plain text when pasted clipboard data also contains HTML', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, 'plain line one\nplain line two', '<p>wrong HTML</p><p>content</p>');
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('plain line oneplain line two');
+        expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'plain line one  \nplain line two'
+      });
+    });
+
+    it('preserves multiline text pasted while editing', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
+      await placeCaretAtEditorEnd(editor);
+      pasteText(editor, 'edited line one\nedited line two');
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(1));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_edit',
+        body: 'original bodyedited line one  \nedited line two'
+      });
+    });
+
+    it('pastes multiline text literally inside an active code block', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '```go ');
+      await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
+      pasteText(editor, 'line one\nline two');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('pre code')?.textContent).toBe('line one\nline two');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '```go\nline one\nline two\n```'
       });
     });
 

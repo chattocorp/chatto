@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => ({
         name: string;
         type: RoomType;
         viewerIsMember: boolean;
+        hasMessageHistory?: boolean | null;
         members: User[];
       }>,
       isInitialLoading: false
@@ -186,6 +187,14 @@ function installQueryMocks() {
       type: RoomType.Dm,
       viewerIsMember: true,
       members: [currentUser, teammate]
+    },
+    {
+      id: 'dm-empty',
+      name: '',
+      type: RoomType.Dm,
+      viewerIsMember: true,
+      hasMessageHistory: false,
+      members: [currentUser, user('user-empty', 'empty', 'Empty Conversation')]
     }
   ];
   mocks.listUsers.mockImplementation(async (search: string) => ({
@@ -291,6 +300,7 @@ describe('QuickSwitcher', () => {
     expect(container.textContent).toContain('Workspace Server');
     expect(container.textContent).toContain('general');
     expect(container.textContent).toContain('River Teammate');
+    expect(container.textContent).not.toContain('Empty Conversation');
     expect(input(container)).toBe(document.activeElement);
     expect(mocks.listRooms).not.toHaveBeenCalled();
     expect(mocks.listRoomMembers).not.toHaveBeenCalled();

@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "User Permissions",
-          "description": "Control user account and per-user permission operations. Any non-owner deny cancels grants"
+          "description": "Control user account and per-user permission operations"
         }
       }
     },

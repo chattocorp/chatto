@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Permisos de Usuario",
-          "description": "Controlar cuentas de usuario y operaciones de permisos por usuario. Cualquier denegación que no sea el propietario cancela las subvenciones."
+          "description": "Controlar cuentas de usuario y operaciones de permisos por usuario"
         }
       }
     },

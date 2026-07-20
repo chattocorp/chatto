@@ -142,7 +142,7 @@
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
       "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "server_tier_denies_hint": "Gebruik opzettelijk weigeren: iedereen in een kamer weigeren blokkeert alle geërfde toestemmingen op dat niveau."
+      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau."
     },
     "rooms_admin": {
       "title": "Kamers",

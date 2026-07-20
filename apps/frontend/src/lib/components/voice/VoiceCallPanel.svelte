@@ -22,13 +22,7 @@ Room sidebar panel for voice/video calls.
   const stores = serverRegistry.getStore(getActiveServer());
   const voiceCallState = stores.voiceCall;
   const activeCallRooms = stores.activeCallRooms;
-  const callParticipantsState = stores.callParticipants;
-  import { useEvent } from '$lib/hooks';
-  import { useRenderData } from '$lib/render/data';
-  import { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import type { PresenceStatus } from '$lib/render/types';
-  import type { EventEnvelope } from '$lib/eventBus.svelte';
-  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
@@ -57,68 +51,6 @@ Room sidebar panel for voice/video calls.
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
   let isStageLayout = $derived(layout === 'stage');
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
-
-  function callEventPayload(
-    event: EventEnvelope['event']
-  ): { roomId: string; callId: string } | null {
-    if (
-      !event ||
-      !('roomId' in event) ||
-      typeof event.roomId !== 'string' ||
-      !('callId' in event) ||
-      typeof event.callId !== 'string'
-    ) {
-      return null;
-    }
-    return { roomId: event.roomId, callId: event.callId };
-  }
-
-  // The call tab can be opened directly from a room even if the sidebar room
-  // list has not refreshed its active-call snapshot yet. Refresh here so
-  // observers see the active participants before deciding whether to join.
-  $effect(() => {
-    if (!isInThisCall) void activeCallRooms.load();
-  });
-
-  // Load server-side participants when there's an active call and we're not in it
-  $effect(() => {
-    if (!isInThisCall && hasActiveCall) {
-      callParticipantsState.load(roomId);
-    } else if (!hasActiveCall && !isInThisCall) {
-      callParticipantsState.clear();
-    }
-  });
-
-  // Handle call join/leave events to optimistically update the observer participant list
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-    if (!event) return;
-
-    const call = callEventPayload(event);
-    if (!call || call.roomId !== roomId) return;
-
-    switch (roomEventKind(event)) {
-      case RoomEventKind.CallParticipantJoined: {
-        const actor = spaceEvent.actor ? useRenderData(UserAvatarViewData, spaceEvent.actor) : null;
-        void callParticipantsState.handleJoin(call.roomId, call.callId, actor);
-        break;
-      }
-      case RoomEventKind.CallParticipantLeft:
-        callParticipantsState.handleLeave(call.roomId, call.callId, spaceEvent.actorId ?? null);
-        voiceCallState.handleParticipantLeftEvent(
-          call.roomId,
-          call.callId,
-          spaceEvent.actorId ?? null,
-          stores.rooms.currentUserId
-        );
-        break;
-      case RoomEventKind.CallEnded:
-        callParticipantsState.handleEnd(call.roomId, call.callId);
-        activeCallRooms.handleEnd(call.roomId, call.callId);
-        voiceCallState.handleCallEndedEvent(call.roomId, call.callId);
-        break;
-    }
-  });
 
   /** Unified participant shape for rendering (structural data only). */
   type DisplayParticipant = {
@@ -164,7 +96,7 @@ Room sidebar panel for voice/video calls.
       }));
     }
 
-    return callParticipantsState.participants.map((p) => ({
+    return activeCallRooms.getParticipants(roomId).map((p) => ({
       key: p.userId,
       displayName: p.displayName,
       avatarUser: {

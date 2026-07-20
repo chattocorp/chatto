@@ -43,6 +43,7 @@ type myEventsSubscription struct {
 
 type myEventsUserState struct {
 	memberRooms     map[string]struct{}
+	visibleRooms    map[string]struct{}
 	roomSnapshotSeq uint64
 	subscribers     map[uint64]*myEventsSubscription
 }
@@ -55,6 +56,7 @@ type myEventsRegistration struct {
 	roomSnapshotSeq   uint64
 	userID            string
 	memberRooms       map[string]struct{}
+	visibleRooms      map[string]struct{}
 	sub               *myEventsSubscription
 	ctx               context.Context
 	result            chan error
@@ -197,11 +199,20 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 	for {
 		h.mu.Lock()
 		visibilityVersion := h.visibilityVersion
-		_, existingUser := h.users[userID]
+		state, existingUser := h.users[userID]
+		needsVisibleRooms := state == nil || state.visibleRooms == nil
 		h.mu.Unlock()
 		if existingUser {
+			var visibleRooms map[string]struct{}
+			if needsVisibleRooms {
+				var err error
+				visibleRooms, err = h.captureVisibleRooms(ctx, userID)
+				if err != nil {
+					return nil, err
+				}
+			}
 			sub := newMyEventsSubscription(userID)
-			if err := h.registerAtIngressBoundary(ctx, sub, nil, 0, visibilityVersion); err != nil {
+			if err := h.registerAtIngressBoundary(ctx, sub, nil, visibleRooms, 0, visibilityVersion); err != nil {
 				if errors.Is(err, errMyEventsIngressChanged) {
 					continue
 				}
@@ -213,8 +224,12 @@ func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSu
 		if err != nil {
 			return nil, err
 		}
+		visibleRooms, err := h.captureVisibleRooms(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
 		sub := newMyEventsSubscription(userID)
-		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, roomSnapshotSeq, visibilityVersion); err != nil {
+		if err := h.registerAtIngressBoundary(ctx, sub, memberRooms, visibleRooms, roomSnapshotSeq, visibilityVersion); err != nil {
 			if errors.Is(err, errMyEventsIngressChanged) {
 				continue
 			}
@@ -230,7 +245,7 @@ func newMyEventsSubscription(userID string) *myEventsSubscription {
 	return &myEventsSubscription{C: ch, ch: ch, Done: done, done: done, userID: userID}
 }
 
-func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
+func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEventsSubscription, memberRooms, visibleRooms map[string]struct{}, roomSnapshotSeq, visibilityVersion uint64) error {
 	for {
 		h.mu.Lock()
 		if !h.accepting {
@@ -249,6 +264,7 @@ func (h *MyEventsHub) registerAtIngressBoundary(ctx context.Context, sub *myEven
 			roomSnapshotSeq:   roomSnapshotSeq,
 			userID:            sub.userID,
 			memberRooms:       memberRooms,
+			visibleRooms:      visibleRooms,
 			sub:               sub,
 			ctx:               ctx,
 			result:            make(chan error, 1),
@@ -309,10 +325,13 @@ func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
 		}
 		state = &myEventsUserState{
 			memberRooms:     request.memberRooms,
+			visibleRooms:    request.visibleRooms,
 			roomSnapshotSeq: request.roomSnapshotSeq,
 			subscribers:     make(map[uint64]*myEventsSubscription),
 		}
 		h.users[request.userID] = state
+	} else if request.visibleRooms != nil {
+		state.visibleRooms = request.visibleRooms
 	}
 	h.nextID++
 	request.sub.id = h.nextID
@@ -408,6 +427,14 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Live EVT room visibility refresh failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
+		var event corev1.Event
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
+			h.model.core.logger.Warn("Failed to unmarshal live RBAC event", "subject", msg.Subject, "error", err)
+			return true
+		}
+		// Protocol v2 turns this durable fact into a projection reset while
+		// legacy clients ignore the unsupported internal payload and stay live.
+		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), int64(len(msg.Data)))
 		return false
 	}
 
@@ -437,7 +464,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Live EVT projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
-		h.fanoutReadyRoomEvent(roomID, &event, seq, bytes)
+		h.fanoutReadyRoomEvent(ctx, roomID, &event, seq, bytes)
 		return false
 	}
 
@@ -468,25 +495,116 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		h.model.core.logger.Warn("Live EVT user projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 		return true
 	}
+	if event.GetUserKeyShredded() != nil {
+		// One shredded author can invalidate plaintext in many room windows.
+		// Reconnect all clients so protocol v2 compacts current tombstones.
+		return true
+	}
 	h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
 	return false
 }
 
-func (h *MyEventsHub) fanoutReadyRoomEvent(roomID string, event *corev1.Event, seq uint64, bytes int64) {
+type roomProjectionFanoutCandidate struct {
+	userID     string
+	state      *myEventsUserState
+	envelope   EventEnvelope
+	wasVisible bool
+	visible    bool
+	err        error
+}
+
+func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, event *corev1.Event, seq uint64, bytes int64) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	if eventChangesRoomVisibility(event) {
 		h.visibilityVersion++
 	}
+	candidates := make([]roomProjectionFanoutCandidate, 0, len(h.users))
 	for userID, state := range h.users {
 		if seq <= state.roomSnapshotSeq {
 			continue
 		}
 		envelope, ok := h.model.filterReadyEVTRoomSubjectEvent(userID, state.memberRooms, roomID, event, seq)
-		if ok {
-			h.enqueueUserLocked(state, envelope, bytes)
+		projectionVisibilityChange := eventChangesUserRoomVisibility(event, userID)
+		if !isRoomDirectoryProjectionEvent(event) && !projectionVisibilityChange {
+			if ok {
+				h.enqueueUserLocked(state, envelope, bytes)
+			}
+			continue
+		}
+
+		if state.visibleRooms == nil {
+			continue
+		}
+		_, wasVisible := state.visibleRooms[roomID]
+		candidates = append(candidates, roomProjectionFanoutCandidate{
+			userID: userID, state: state, envelope: envelope, wasVisible: wasVisible,
+		})
+	}
+	h.mu.Unlock()
+
+	visibilityCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+	defer cancel()
+	g, visibilityCtx := errgroup.WithContext(visibilityCtx)
+	g.SetLimit(myEventsVisibilityWorkers)
+	for i := range candidates {
+		i := i
+		g.Go(func() error {
+			candidates[i].visible, candidates[i].err = h.canSeeProjectionRoom(visibilityCtx, candidates[i].userID, roomID, event)
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, candidate := range candidates {
+		state := h.users[candidate.userID]
+		if state == nil || state != candidate.state || state.visibleRooms == nil {
+			continue
+		}
+		switch {
+		case candidate.visible:
+			state.visibleRooms[roomID] = struct{}{}
+		case candidate.err == nil || errors.Is(candidate.err, ErrNotFound) || errors.Is(candidate.err, ErrPermissionDenied):
+			if !candidate.wasVisible {
+				continue
+			}
+			delete(state.visibleRooms, roomID)
+		default:
+			// An uncertain visibility decision must never disclose a room fact.
+			// Reconnect this user's sessions rather than risk disclosing a room.
+			for _, sub := range state.subscribers {
+				h.removeSubscriberLocked(sub)
+			}
+			continue
+		}
+
+		envelope := candidate.envelope
+		if envelope == nil {
+			envelope = NewEVTEventEnvelopeWithDeliverySeq(event, seq)
+		}
+		for _, sub := range state.subscribers {
+			h.enqueueSubscriberLocked(sub, envelope, bytes)
 		}
 	}
+}
+
+func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID string, event *corev1.Event) (bool, error) {
+	if event.GetRoomDeleted() != nil || event.GetRoomArchived() != nil {
+		return false, nil
+	}
+	room, err := h.model.core.FindRoomByID(ctx, roomID)
+	if err != nil {
+		return false, err
+	}
+	if room.GetArchived() {
+		return false, nil
+	}
+	kind := KindOfRoom(room)
+	if kind == KindDM {
+		return h.model.core.RoomMembershipExists(ctx, kind, userID, roomID)
+	}
+	return h.model.core.CanSeeRoom(ctx, userID, kind, roomID)
 }
 
 func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, seq uint64, bytes int64) {
@@ -510,23 +628,27 @@ func (h *MyEventsHub) fanoutAll(event EventEnvelope, bytes int64) {
 
 func (h *MyEventsHub) enqueueUserLocked(state *myEventsUserState, event EventEnvelope, bytes int64) {
 	for _, sub := range state.subscribers {
-		queuedBytes := sub.queuedBytes.Load()
-		if queuedBytes+bytes > myEventsSubscriberByteLimit {
-			h.model.slowDisconnects.Add(1)
-			h.model.core.logger.Warn("Slow myEvents subscriber exceeded byte limit - tearing down", "user_id", sub.userID, "queued_bytes", queuedBytes, "event_bytes", bytes)
-			h.removeSubscriberLocked(sub)
-			continue
-		}
-		delivery := myEventsDelivery{event: event, bytes: bytes}
-		sub.queuedBytes.Add(bytes)
-		select {
-		case sub.ch <- delivery:
-		default:
-			sub.queuedBytes.Add(-bytes)
-			h.model.slowDisconnects.Add(1)
-			h.model.core.logger.Warn("Slow myEvents subscriber filled event queue - tearing down", "user_id", sub.userID, "queued_bytes", sub.queuedBytes.Load())
-			h.removeSubscriberLocked(sub)
-		}
+		h.enqueueSubscriberLocked(sub, event, bytes)
+	}
+}
+
+func (h *MyEventsHub) enqueueSubscriberLocked(sub *myEventsSubscription, event EventEnvelope, bytes int64) {
+	queuedBytes := sub.queuedBytes.Load()
+	if queuedBytes+bytes > myEventsSubscriberByteLimit {
+		h.model.slowDisconnects.Add(1)
+		h.model.core.logger.Warn("Slow myEvents subscriber exceeded byte limit - tearing down", "user_id", sub.userID, "queued_bytes", queuedBytes, "event_bytes", bytes)
+		h.removeSubscriberLocked(sub)
+		return
+	}
+	delivery := myEventsDelivery{event: event, bytes: bytes}
+	sub.queuedBytes.Add(bytes)
+	select {
+	case sub.ch <- delivery:
+	default:
+		sub.queuedBytes.Add(-bytes)
+		h.model.slowDisconnects.Add(1)
+		h.model.core.logger.Warn("Slow myEvents subscriber filled event queue - tearing down", "user_id", sub.userID, "queued_bytes", sub.queuedBytes.Load())
+		h.removeSubscriberLocked(sub)
 	}
 }
 
@@ -608,6 +730,24 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 			return memberRooms, verifiedRoomTail, nil
 		}
 	}
+}
+
+func (h *MyEventsHub) captureVisibleRooms(ctx context.Context, userID string) (map[string]struct{}, error) {
+	rooms, err := h.model.core.RoomDirectoryReads().ListRooms(ctx, userID, RoomDirectoryListOptions{
+		IncludeChannels: true,
+		IncludeDMs:      true,
+		IncludeEmptyDMs: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("capture visible rooms: %w", err)
+	}
+	visibleRooms := make(map[string]struct{}, len(rooms))
+	for _, room := range rooms {
+		if room != nil && room.Room != nil {
+			visibleRooms[room.Room.Id] = struct{}{}
+		}
+	}
+	return visibleRooms, nil
 }
 
 type roomVisibilitySeqs [5]uint64
@@ -703,9 +843,55 @@ func eventChangesRoomVisibility(event *corev1.Event) bool {
 	switch event.Event.(type) {
 	case *corev1.Event_RoomCreated,
 		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom:
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_RoomMemberAdded,
+		*corev1.Event_RoomMemberRemoved,
+		*corev1.Event_RoomMemberBanned:
+		return true
+	default:
+		return false
+	}
+}
+
+func eventChangesUserRoomVisibility(event *corev1.Event, userID string) bool {
+	if event == nil {
+		return false
+	}
+	switch payload := event.Event.(type) {
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomUniversalChanged:
+		return true
+	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom:
+		return event.GetActorId() == userID
+	case *corev1.Event_RoomMemberAdded:
+		return payload.RoomMemberAdded.GetUserId() == userID
+	case *corev1.Event_RoomMemberRemoved:
+		return payload.RoomMemberRemoved.GetUserId() == userID
+	case *corev1.Event_RoomMemberBanned:
+		return payload.RoomMemberBanned.GetUserId() == userID
+	default:
+		return false
+	}
+}
+
+func isRoomDirectoryProjectionEvent(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.Event.(type) {
+	case *corev1.Event_RoomCreated,
+		*corev1.Event_RoomUpdated,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomArchived,
+		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomUniversalChanged:
 		return true
 	default:
 		return false

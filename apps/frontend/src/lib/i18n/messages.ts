@@ -680,6 +680,8 @@ const msg_room_message_actions_open_thread = (): LocalizedString => messages().r
 const msg_room_message_actions_edit = (): LocalizedString => messages().room_message_actions_edit(empty());
 const msg_room_message_actions_more = (): LocalizedString => messages().room_message_actions_more(empty());
 const msg_room_message_actions_edit_short = (): LocalizedString => messages().room_message_actions_edit_short(empty());
+const msg_room_message_actions_copy_text = (): LocalizedString => messages().room_message_actions_copy_text(empty());
+const msg_room_message_actions_copy_text_failed = (): LocalizedString => messages().room_message_actions_copy_text_failed(empty());
 const msg_room_message_actions_copy_link = (): LocalizedString => messages().room_message_actions_copy_link(empty());
 const msg_room_message_meta_thread = (): LocalizedString => messages().room_message_meta_thread(empty());
 const msg_room_message_meta_reply_count_one = (): LocalizedString => messages().room_message_meta_reply_count_one(empty());
@@ -858,6 +860,28 @@ const msg_ui_tooltip_more_information = (): LocalizedString => messages().ui_too
 const msg_ui_tooltip_about = (
   inputs: Parameters<LocaleMessages['ui_tooltip_about']>[0]
 ): LocalizedString => messages().ui_tooltip_about(inputs);
+const msg_ui_easter_egg_fire = (): LocalizedString => messages().ui_easter_egg_fire(empty());
+const msg_ui_easter_egg_points = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_points']>[0]
+): LocalizedString => messages().ui_easter_egg_points(inputs);
+const msg_ui_easter_egg_laser_guns = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_laser_guns']>[0]
+): LocalizedString => messages().ui_easter_egg_laser_guns(inputs);
+const msg_ui_easter_egg_laser_ready = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_laser_ready']>[0]
+): LocalizedString => messages().ui_easter_egg_laser_ready(inputs);
+const msg_ui_easter_egg_laser_cooldown = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_laser_cooldown']>[0]
+): LocalizedString => messages().ui_easter_egg_laser_cooldown(inputs);
+const msg_ui_easter_egg_upgrade_power = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_upgrade_power']>[0]
+): LocalizedString => messages().ui_easter_egg_upgrade_power(inputs);
+const msg_ui_easter_egg_buy_laser = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_buy_laser']>[0]
+): LocalizedString => messages().ui_easter_egg_buy_laser(inputs);
+const msg_ui_easter_egg_maximum_lasers = (
+  inputs: Parameters<LocaleMessages['ui_easter_egg_maximum_lasers']>[0]
+): LocalizedString => messages().ui_easter_egg_maximum_lasers(inputs);
 const msg_ui_pane_header_back = (): LocalizedString => messages().ui_pane_header_back(empty());
 const msg_ui_sidebar_nav_back_to_chat = (): LocalizedString => messages().ui_sidebar_nav_back_to_chat(empty());
 const msg_ui_resize_handle_resize = (): LocalizedString => messages().ui_resize_handle_resize(empty());
@@ -1311,7 +1335,7 @@ const msg_admin_permissions_everyone_implicit = (): LocalizedString => messages(
 const msg_admin_permissions_no_users_with_role = (): LocalizedString => messages().admin_permissions_no_users_with_role(empty());
 const msg_admin_permissions_server_tier_intro = (): LocalizedString => messages().admin_permissions_server_tier_intro(empty());
 const msg_admin_permissions_server_tier_rooms_hint = (): LocalizedString => messages().admin_permissions_server_tier_rooms_hint(empty());
-const msg_admin_permissions_server_tier_denies_hint = (): LocalizedString => messages().admin_permissions_server_tier_denies_hint(empty());
+const msg_admin_permissions_resolution_hint = (): LocalizedString => messages().admin_permissions_resolution_hint(empty());
 const msg_admin_rooms_admin_title = (): LocalizedString => messages().admin_rooms_admin_title(empty());
 const msg_admin_rooms_admin_subtitle = (): LocalizedString => messages().admin_rooms_admin_subtitle(empty());
 const msg_admin_rooms_admin_group_permissions_subtitle = (): LocalizedString => messages().admin_rooms_admin_group_permissions_subtitle(empty());
@@ -2131,6 +2155,8 @@ export { msg_room_message_actions_open_thread as 'room.message.actions.open_thre
 export { msg_room_message_actions_edit as 'room.message.actions.edit' };
 export { msg_room_message_actions_more as 'room.message.actions.more' };
 export { msg_room_message_actions_edit_short as 'room.message.actions.edit_short' };
+export { msg_room_message_actions_copy_text as 'room.message.actions.copy_text' };
+export { msg_room_message_actions_copy_text_failed as 'room.message.actions.copy_text_failed' };
 export { msg_room_message_actions_copy_link as 'room.message.actions.copy_link' };
 export { msg_room_message_meta_thread as 'room.message.meta.thread' };
 export { msg_room_message_meta_reply_count_one as 'room.message.meta.reply_count_one' };
@@ -2269,6 +2295,14 @@ export { msg_ui_access_denied_back_to_server as 'ui.access_denied.back_to_server
 export { msg_ui_dialog_submit_loading as 'ui.dialog.submit_loading' };
 export { msg_ui_tooltip_more_information as 'ui.tooltip.more_information' };
 export { msg_ui_tooltip_about as 'ui.tooltip.about' };
+export { msg_ui_easter_egg_fire as 'ui.easter_egg.fire' };
+export { msg_ui_easter_egg_points as 'ui.easter_egg.points' };
+export { msg_ui_easter_egg_laser_guns as 'ui.easter_egg.laser_guns' };
+export { msg_ui_easter_egg_laser_ready as 'ui.easter_egg.laser_ready' };
+export { msg_ui_easter_egg_laser_cooldown as 'ui.easter_egg.laser_cooldown' };
+export { msg_ui_easter_egg_upgrade_power as 'ui.easter_egg.upgrade_power' };
+export { msg_ui_easter_egg_buy_laser as 'ui.easter_egg.buy_laser' };
+export { msg_ui_easter_egg_maximum_lasers as 'ui.easter_egg.maximum_lasers' };
 export { msg_ui_pane_header_back as 'ui.pane_header.back' };
 export { msg_ui_sidebar_nav_back_to_chat as 'ui.sidebar_nav.back_to_chat' };
 export { msg_ui_resize_handle_resize as 'ui.resize_handle.resize' };
@@ -2672,7 +2706,7 @@ export { msg_admin_permissions_everyone_implicit as 'admin.permissions.everyone_
 export { msg_admin_permissions_no_users_with_role as 'admin.permissions.no_users_with_role' };
 export { msg_admin_permissions_server_tier_intro as 'admin.permissions.server_tier_intro' };
 export { msg_admin_permissions_server_tier_rooms_hint as 'admin.permissions.server_tier_rooms_hint' };
-export { msg_admin_permissions_server_tier_denies_hint as 'admin.permissions.server_tier_denies_hint' };
+export { msg_admin_permissions_resolution_hint as 'admin.permissions.resolution_hint' };
 export { msg_admin_rooms_admin_title as 'admin.rooms_admin.title' };
 export { msg_admin_rooms_admin_subtitle as 'admin.rooms_admin.subtitle' };
 export { msg_admin_rooms_admin_group_permissions_subtitle as 'admin.rooms_admin.group_permissions_subtitle' };

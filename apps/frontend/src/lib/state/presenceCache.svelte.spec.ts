@@ -7,6 +7,30 @@ import {
 } from './presenceCache.svelte';
 
 describe('PresenceCache', () => {
+  it('replaces one server snapshot without disturbing another server', () => {
+    const cache = new PresenceCache();
+    cache.update({ serverId: 'origin', userId: 'old' }, PresenceStatus.Online);
+    cache.update({ serverId: 'remote', userId: 'same' }, PresenceStatus.Away);
+
+    cache.replaceServer(
+      'origin',
+      new Map([
+        ['same', PresenceStatus.DoNotDisturb],
+        ['offline', PresenceStatus.Offline]
+      ])
+    );
+
+    expect(cache.get({ serverId: 'origin', userId: 'old' }, PresenceStatus.Offline)).toBe(
+      PresenceStatus.Offline
+    );
+    expect(cache.get({ serverId: 'origin', userId: 'same' }, PresenceStatus.Offline)).toBe(
+      PresenceStatus.DoNotDisturb
+    );
+    expect(cache.get({ serverId: 'remote', userId: 'same' }, PresenceStatus.Offline)).toBe(
+      PresenceStatus.Away
+    );
+  });
+
   it('isolates entries by server id and user id', () => {
     const cache = new PresenceCache();
 
@@ -26,9 +50,7 @@ describe('PresenceCache', () => {
     cache.update({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.Online);
     cache.update({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.Away);
 
-    cache.clear([
-      [{ serverId: 'origin', userId: 'current-user' }, PresenceStatus.DoNotDisturb]
-    ]);
+    cache.clear([[{ serverId: 'origin', userId: 'current-user' }, PresenceStatus.DoNotDisturb]]);
 
     expect(cache.get({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.Online)).toBe(
       PresenceStatus.DoNotDisturb

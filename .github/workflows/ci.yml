@@ -259,8 +259,15 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Prepare latest stable 0.4.x release
-        id: release
+      - name: Prepare latest stable 0.5.x release
+        id: compatible_release
+        uses: ./.github/actions/prepare-released-chatto
+        with:
+          release-series: "0.5"
+          allow-missing: "true"
+
+      - name: Prepare latest unsupported 0.4.x release
+        id: unsupported_release
         uses: ./.github/actions/prepare-released-chatto
         with:
           release-series: "0.4"
@@ -272,8 +279,10 @@ jobs:
         working-directory: apps/frontend
         env:
           CHATTO_COMPAT_CURRENT_BINARY: ${{ github.workspace }}/apps/frontend/e2e/fixtures/bin/chatto-current
-          CHATTO_COMPAT_REMOTE_BINARY: ${{ steps.release.outputs.path }}
-          CHATTO_COMPAT_REMOTE_VERSION: ${{ steps.release.outputs.version }}
+          CHATTO_COMPAT_REMOTE_BINARY: ${{ steps.compatible_release.outputs.path }}
+          CHATTO_COMPAT_REMOTE_VERSION: ${{ steps.compatible_release.outputs.version }}
+          CHATTO_COMPAT_UNSUPPORTED_BINARY: ${{ steps.unsupported_release.outputs.path }}
+          CHATTO_COMPAT_UNSUPPORTED_VERSION: ${{ steps.unsupported_release.outputs.version }}
         run: pnpm exec playwright test --config playwright.compat.config.ts
 
       - name: Upload remote compatibility diagnostics

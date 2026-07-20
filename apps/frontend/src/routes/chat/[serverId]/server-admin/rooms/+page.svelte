@@ -11,6 +11,7 @@
   const stores = $derived(serverRegistry.getStore(activeServerId));
   const layout = $derived(stores.adminRoomLayout);
 
+  // The effect owns an external realtime subscription for this mounted route.
   $effect(() => stores.activateAdminRoomLayout());
 
   function refreshServerRoomState() {

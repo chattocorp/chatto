@@ -18,26 +18,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-  import { useEvent, useTabResumeCallback, useRoomMarkedAsRead } from '$lib/hooks';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { useRenderData } from './render/data';
   import { PresenceStatus, RoomType, type UserAvatarUserView } from '$lib/render/types';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import type { EventEnvelope } from '$lib/eventBus.svelte';
-  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import {
+    isNavigationVisibleRoom,
     type RoomsListItem,
     type RoomsListGroup,
     type RoomsListGroupItem
@@ -61,12 +57,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeServer = $derived(serverRegistry.getServer(activeServerId));
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = $derived(serverRegistry.getStore(activeServerId));
-  const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
   const activeCallRooms = $derived(stores.activeCallRooms);
-  const voiceCallState = $derived(stores.voiceCall);
-  const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
 
   const roomsStore = $derived(stores.rooms);
@@ -103,45 +96,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
   }
 
-  function eventRoomId(event: EventEnvelope['event']): string | null {
-    if (!event || !('roomId' in event) || typeof event.roomId !== 'string') return null;
-    return event.roomId;
-  }
-
-  function callEventPayload(
-    event: EventEnvelope['event']
-  ): { roomId: string; callId: string } | null {
-    if (
-      !event ||
-      !('roomId' in event) ||
-      typeof event.roomId !== 'string' ||
-      !('callId' in event) ||
-      typeof event.callId !== 'string'
-    ) {
-      return null;
-    }
-    return { roomId: event.roomId, callId: event.callId };
-  }
-
-  // Load active call room IDs whenever the active server has a LiveKit URL.
-  // Re-runs on server switch so a server with LiveKit configured fetches its
-  // own active calls instead of inheriting the previous server's snapshot.
-  $effect(() => {
-    if (serverInfo.livekitUrl) activeCallRooms.load();
-  });
-
-  // Refresh active call state when tab resumes (catches missed live events)
-  useTabResumeCallback(() => {
-    if (serverInfo.livekitUrl) activeCallRooms.load();
-  });
-
   // --- Derived layout helpers ---
 
   // Channels and DMs are stored together, but rendered as separate groups.
   // Room sets only apply to channels — DM rooms always render in their
   // own group below.
   let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Channel));
-  let dmRooms = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Dm));
+  let dmRooms = $derived(
+    roomsStore.rooms.filter((r) => r.type === RoomType.Dm && isNavigationVisibleRoom(r))
+  );
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
 
@@ -226,90 +189,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const room = channelMap.get(item.roomId);
     return room ? isHighlighted(room) : false;
   }
-
-  // --- Real-time event handlers ---
-
-  // Handle server events that this component cares about beyond the store
-  // refresh (which happens in ServerEventProvider): navigate away on leave,
-  // and update voice-call indicators.
-  useEvent((serverEvent) => {
-    const event = serverEvent.event;
-    if (!event) return;
-
-    switch (roomEventKind(event)) {
-      case RoomEventKind.UserLeftRoom:
-        if (eventRoomId(event) === activeRoomId) {
-          // Only navigate away when *the viewer* leaves the active room.
-          // Without the actor check, any other member's leave (including the
-          // cascade of UserLeftRoomEvents fired when a peer deletes their
-          // account) would yank the viewer out of the room they're in.
-          if (serverEvent.actorId === roomsStore.currentUserId) {
-            goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
-          }
-        }
-        break;
-      case RoomEventKind.CallParticipantJoined: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        const actor = serverEvent.actor
-          ? useRenderData(UserAvatarViewData, serverEvent.actor)
-          : null;
-        void activeCallRooms.handleJoin(call.roomId, call.callId, actor);
-        break;
-      }
-      case RoomEventKind.CallParticipantLeft: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        activeCallRooms.handleLeave(call.roomId, call.callId, serverEvent.actorId ?? null);
-        voiceCallState.handleParticipantLeftEvent(
-          call.roomId,
-          call.callId,
-          serverEvent.actorId ?? null,
-          roomsStore.currentUserId
-        );
-        break;
-      }
-      case RoomEventKind.CallEnded: {
-        const call = callEventPayload(event);
-        if (!call) break;
-        activeCallRooms.handleEnd(call.roomId, call.callId);
-        voiceCallState.handleCallEndedEvent(call.roomId, call.callId);
-        break;
-      }
-    }
-  });
-
-  // Marked-as-read from other tabs/devices.
-  useRoomMarkedAsRead(({ roomId }) => {
-    roomUnreadStore.setRoomUnread(roomId, false);
-  });
-
-  // New root messages → bump DM rows to the top + mark unread when the
-  // message lands in a room the viewer isn't currently looking at. Reads
-  // MessagePostedEvent directly off the unified live.server.> stream
-  // (every accepted server.> message is republished into it, so the
-  // viewer sees one event per message in every room they're a member of).
-  useEvent((serverEvent) => {
-    const event = serverEvent.event;
-    if (!event) return;
-    if (!isMessagePostedEvent(event)) return;
-    if (event.threadRootEventId) return; // root messages only
-
-    // Bump DM rooms to the top of the Direct Messages section on ANY
-    // root-message activity — including the viewer's own messages. The
-    // store no-ops if the room isn't a DM.
-    roomsStore.bumpRoom(event.roomId);
-
-    // Unread bookkeeping is suppressed for the viewer's own messages and
-    // for the room they're currently present on. "Present" requires the
-    // window to be focused AND the tab visible — if the URL matches but
-    // the user is on another app / tab, the dot should still light up so
-    // they see the signal when they return.
-    if (event.roomId === activeRoomId && appState.isPresent) return;
-    if (serverEvent.actorId === currentUserState.user?.id) return;
-    if (notificationLevelStore.isRoomMuted(event.roomId)) return;
-    roomUnreadStore.setRoomUnread(event.roomId, true);
-  });
 
   function wasCallIconClick(event: MouseEvent): boolean {
     const target = event.target;
@@ -484,7 +363,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       </span>
       <!-- Unread Indicator (subtle) -->
     {:else if isJoined && hasUnread && !notificationLevelStore.isRoomMuted(room.id)}
-      <UnreadDot color="action" testid="room-unread-dot" />
+      <UnreadDot color="neutral" testid="room-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>
@@ -532,7 +411,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         {m['room_list.new_direct_messages']({ count: room.viewerNotificationCount })}
       </span>
     {:else if hasUnread}
-      <UnreadDot color="action" testid="dm-unread-dot" />
+      <UnreadDot color="neutral" testid="dm-unread-dot" />
       <span class="sr-only">{m['room_list.unread_messages']()}</span>
     {/if}
   </a>

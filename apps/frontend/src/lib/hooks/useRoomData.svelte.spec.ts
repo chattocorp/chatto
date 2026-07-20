@@ -1,182 +1,171 @@
 import { flushSync } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { useRoomData } from './useRoomData.svelte';
-import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    reconnect: { count: 0 },
-    getRoom: vi.fn(),
-    listRoomMembers: vi.fn()
+    store: undefined as unknown as {
+      realtimeSync: {
+        phase: 'empty' | 'hydrating' | 'ready' | 'stale';
+        hasUsableProjection: boolean;
+      };
+      projection: { rooms: SvelteMap<string, unknown> };
+      projectedMembersForRoom: ReturnType<typeof vi.fn>;
+      currentUser: { user: { id: string } | undefined };
+      serverInfo: { name: string };
+    }
   }
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    connectBaseUrl: '/api/connect',
-    bearerToken: null,
-    serverId: 'server-1'
-  })
+  useConnection: () => () => ({ serverId: 'server-1' })
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    tryGetStore: () => ({
-      currentUser: { user: { id: 'viewer' } },
-      serverInfo: { name: 'Test Server' }
-    })
+    tryGetStore: () => mocks.store
   }
 }));
 
-vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
+function projectedRoom(roomId: string, kind = RoomKind.DM) {
   return {
-    ...actual,
-    createRoomDirectoryAPI: vi.fn(() => ({
-      getRoom: mocks.getRoom
-    }))
-  };
-});
-
-vi.mock('$lib/api-client/memberDirectory', () => ({
-  createMemberDirectoryAPI: vi.fn(() => ({
-    listRoomMembers: mocks.listRoomMembers
-  }))
-}));
-
-vi.mock('$lib/hooks/useEvent.svelte', () => ({
-  useActiveRoomLayoutUpdated: () => undefined
-}));
-
-vi.mock('$lib/hooks/useReconnectCallback.svelte', () => ({
-  useReconnectTrigger: () => mocks.reconnect
-}));
-
-type Deferred<T> = {
-  promise: Promise<T>;
-  resolve: (value: T) => void;
-  reject: (reason?: unknown) => void;
-};
-
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
-function roomDetails(roomId: string) {
-  return {
-    id: roomId,
-    name: roomId,
-    description: null,
-    kind: RoomKind.DM,
-    archived: false,
-    isUniversal: false,
-    isMember: true,
-    hasUnread: false,
-    canJoinRoom: false,
-    canPostMessage: true,
-    canPostInThread: true,
-    canAttach: true,
-    canReact: true,
-    canEchoMessage: false,
-    canManageOthersMessage: false,
-    canManageRoom: false,
-    canBanRoomMembers: false
-  };
-}
-
-function dmMembersResult(userId: string, displayName: string) {
-  return {
-    members: [
-      {
-        id: userId,
-        login: userId,
-        displayName,
-        deleted: false,
-        avatarUrl: null,
-        presenceStatus: PresenceStatus.Online,
-        customStatus: null,
-        roles: [],
-        createdAt: null
+    room: {
+      room: {
+        id: roomId,
+        name: roomId,
+        description: '',
+        kind,
+        archived: false,
+        universal: false
+      },
+      viewerState: {
+        isMember: true,
+        hasUnread: false,
+        permissions: [
+          { permission: 'message.post', granted: true },
+          { permission: 'message.post-in-thread', granted: true },
+          { permission: 'message.attach', granted: true },
+          { permission: 'message.react', granted: true }
+        ]
       }
-    ],
-    totalCount: 1,
-    hasMore: false
+    }
   };
 }
 
-type DmMembersResult = ReturnType<typeof dmMembersResult>;
+function member(id: string) {
+  return {
+    id,
+    login: id,
+    displayName: `User ${id}`,
+    deleted: false,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Online
+  };
+}
 
-describe('useRoomData', () => {
-  let pendingDmQueries: Map<string, Deferred<DmMembersResult>>;
-
+describe('useRoomData projection selector', () => {
   beforeEach(() => {
-    mocks.reconnect = { count: 0 };
-    mocks.getRoom.mockReset();
-    mocks.listRoomMembers.mockReset();
-    pendingDmQueries = new Map();
-    mocks.getRoom.mockImplementation((roomId: string) => Promise.resolve(roomDetails(roomId)));
-    mocks.listRoomMembers.mockImplementation((roomId: string) => {
-      const pending = deferred<DmMembersResult>();
-      pendingDmQueries.set(roomId, pending);
-      return pending.promise;
+    const realtimeSync = $state({
+      phase: 'empty' as 'empty' | 'hydrating' | 'ready' | 'stale',
+      get hasUsableProjection() {
+        return this.phase === 'ready' || this.phase === 'stale';
+      }
     });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('ignores stale DM member responses after switching rooms', async () => {
-    let harness!: {
-      room: ReturnType<typeof useRoomData>;
-      switchRoom: (nextRoomId: string) => void;
+    mocks.store = {
+      realtimeSync,
+      projection: { rooms: new SvelteMap() },
+      projectedMembersForRoom: vi.fn((roomId: string) => [member(roomId)]),
+      currentUser: { user: { id: 'viewer' } },
+      serverInfo: { name: 'Test Server' }
     };
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('keeps the honest loading state until the server projection is usable', () => {
+    let room!: ReturnType<typeof useRoomData>;
     const destroy = $effect.root(() => {
-      let roomId = $state('dm-a');
-      const room = useRoomData(() => ({ roomId }));
-
+      room = useRoomData(() => ({ roomId: 'dm-a' }));
       flushSync();
-
-      harness = {
-        room,
-        switchRoom(nextRoomId: string) {
-          roomId = nextRoomId;
-          flushSync();
-        }
-      };
     });
 
     try {
-      await vi.waitFor(() => expect(pendingDmQueries.has('dm-a')).toBe(true));
-      harness.switchRoom('dm-b');
-      await vi.waitFor(() => expect(pendingDmQueries.has('dm-b')).toBe(true));
+      expect(room.roomData).toBeUndefined();
+      expect(room.isRoomLoading).toBe(true);
+    } finally {
+      destroy();
+    }
+  });
 
-      expect(createRoomDirectoryAPI).toHaveBeenCalledWith({
-        serverId: 'server-1',
-        baseUrl: '/api/connect',
-        bearerToken: null
-      });
-      expect(createMemberDirectoryAPI).toHaveBeenCalledWith({
-        baseUrl: '/api/connect',
-        bearerToken: null
-      });
+  it('switches rooms and DM participants synchronously from retained projection state', () => {
+    mocks.store.projection.rooms.set('dm-a', projectedRoom('dm-a'));
+    mocks.store.projection.rooms.set('dm-b', projectedRoom('dm-b'));
+    mocks.store.realtimeSync.phase = 'ready';
 
-      pendingDmQueries.get('dm-b')?.resolve(dmMembersResult('user-b', 'User B'));
-      await vi.waitFor(() => expect(harness.room.dmData?.participants[0]?.id).toBe('user-b'));
+    let room!: ReturnType<typeof useRoomData>;
+    let switchRoom!: (roomId: string) => void;
+    const destroy = $effect.root(() => {
+      let roomId = $state('dm-a');
+      room = useRoomData(() => ({ roomId }));
+      switchRoom = (nextRoomId) => {
+        roomId = nextRoomId;
+        flushSync();
+      };
+      flushSync();
+    });
 
-      pendingDmQueries.get('dm-a')?.resolve(dmMembersResult('user-a', 'User A'));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      expect(room.roomData?.room.id).toBe('dm-a');
+      expect(room.roomData?.canPostMessage).toBe(true);
+      expect(room.roomData?.canPostInThread).toBe(true);
+      expect(room.roomData?.canAttach).toBe(true);
+      expect(room.roomData?.canReact).toBe(true);
+      expect(room.dmData?.participants[0]?.id).toBe('dm-a');
+      expect(room.isRoomLoading).toBe(false);
 
-      expect(harness.room.dmData?.participants[0]?.id).toBe('user-b');
+      switchRoom('dm-b');
+
+      expect(room.roomData?.room.id).toBe('dm-b');
+      expect(room.dmData?.participants[0]?.id).toBe('dm-b');
+      expect(room.isRoomLoading).toBe(false);
+    } finally {
+      destroy();
+    }
+  });
+
+  it('renders known stale rooms but waits for caught_up before declaring absence', () => {
+    mocks.store.projection.rooms.set('known', projectedRoom('known', RoomKind.CHANNEL));
+    mocks.store.realtimeSync.phase = 'stale';
+    let known!: ReturnType<typeof useRoomData>;
+    let missing!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      known = useRoomData(() => ({ roomId: 'known' }));
+      missing = useRoomData(() => ({ roomId: 'missing' }));
+      flushSync();
+    });
+
+    try {
+      expect(known.roomData?.room.id).toBe('known');
+      expect(missing.roomData).toBeUndefined();
+    } finally {
+      destroy();
+    }
+  });
+
+  it('reports a missing room only after hydration has completed', () => {
+    mocks.store.realtimeSync.phase = 'ready';
+    let room!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      room = useRoomData(() => ({ roomId: 'missing' }));
+      flushSync();
+    });
+
+    try {
+      expect(room.roomData).toBeNull();
+      expect(room.isRoomLoading).toBe(false);
     } finally {
       destroy();
     }

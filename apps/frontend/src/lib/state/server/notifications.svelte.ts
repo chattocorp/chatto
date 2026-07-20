@@ -148,6 +148,61 @@ export class NotificationStore {
     this.unreadNotificationCount = Math.max(0, count);
   }
 
+  /** Replace the finite current page carried by the realtime projection. */
+  replaceProjection(page: { items: NotificationItem[]; totalCount: number }): void {
+    this.#fetchGeneration++;
+    const notifications = page.items.filter(
+      (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
+    );
+    this.notifications = notifications;
+    this.unreadNotificationCount = Math.max(
+      0,
+      page.totalCount - (page.items.length - notifications.length)
+    );
+    this.loading = false;
+    this.hasLoaded = true;
+    this.error = null;
+  }
+
+  /** Invalidate projection-owned state while a compacted reset hydrates. */
+  resetProjectionState(): void {
+    this.#fetchGeneration++;
+    this.notifications = [];
+    this.unreadNotificationCount = 0;
+    this.loading = true;
+    // The empty reset boundary is already authoritative. Keep this true so
+    // badge synchronisation clears stale native notification counts even when
+    // a later snapshot frame never arrives.
+    this.hasLoaded = true;
+    this.error = null;
+  }
+
+  /** Remove copied profile data for an account deleted from the projection. */
+  scrubUser(userId: string): void {
+    let changed = false;
+    const notifications = this.notifications.map((notification) => {
+      if (notification.actor?.id !== userId) return notification;
+      changed = true;
+      return {
+        ...notification,
+        actor: null,
+        summary: redactedNotificationSummary(notification.kind)
+      };
+    });
+    if (changed) this.notifications = notifications;
+  }
+
+  /** Drop notification payloads for a room at an authorization boundary. */
+  clearRoom(roomId: string): void {
+    const notifications = this.notifications.filter(
+      (notification) => notificationTarget(notification).roomId !== roomId
+    );
+    const removed = this.notifications.length - notifications.length;
+    if (removed === 0) return;
+    this.notifications = notifications;
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
+  }
+
   /**
    * Get the set of thread root IDs that have pending reply notifications.
    * Used to show notification indicators on thread buttons.
@@ -441,49 +496,6 @@ export class NotificationStore {
   }
 
   /**
-   * Add a notification (for real-time updates from instance events).
-   * Hydrates the event's notification ID directly, with a full-list fallback
-   * for older or temporarily incompatible servers.
-   */
-  async addNotification(notificationId?: string) {
-    if (!notificationId) {
-      await this.fetch();
-      return;
-    }
-
-    try {
-      const notification = await this.#api.getNotification(notificationId);
-      if (!notification || this.#locallyDismissedNotificationIds.has(notificationId)) return;
-
-      if (this.#upsertNotification(notification)) {
-        this.unreadNotificationCount++;
-      }
-    } catch (e) {
-      console.error('Failed to hydrate notification:', e);
-      await this.fetch();
-    }
-  }
-
-  /**
-   * Remove a notification by ID (for cross-device sync).
-   */
-  removeNotification(notificationId: string) {
-    const removed = this.notifications.find((n) => n.id === notificationId);
-    this.#invalidateFetch();
-    this.notifications = this.notifications.filter((n) => n.id !== notificationId);
-    if (removed) {
-      this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    }
-    return removed ? notificationTarget(removed).roomId : null;
-  }
-
-  consumeLocalDismissal(notificationId: string): boolean {
-    const local = this.#locallyDismissedNotificationIds.has(notificationId);
-    this.#locallyDismissedNotificationIds.delete(notificationId);
-    return local;
-  }
-
-  /**
    * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
    * The "in <name>" suffix uses the connected instance display name supplied
@@ -573,5 +585,18 @@ export class NotificationStore {
       roomId: t.roomId
     });
     return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;
+  }
+}
+
+function redactedNotificationSummary(kind: NotificationItemKind): string {
+  switch (kind) {
+    case NotificationItemKind.DirectMessage:
+      return 'New message';
+    case NotificationItemKind.Mention:
+      return 'You were mentioned';
+    case NotificationItemKind.Reply:
+      return 'New reply to your message';
+    case NotificationItemKind.RoomMessage:
+      return 'New message';
   }
 }

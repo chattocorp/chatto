@@ -705,6 +705,10 @@ const ServerAssetSignResource = "server"
 // copied URLs into indefinite bearer links.
 const AssetAccessTicketTTL = 24 * time.Hour
 
+// Keep repeated reads stable without extending ticket validity beyond the
+// configured TTL. URLs issued within one bucket share an expiry and signature.
+const assetAccessTicketIssueBucket = time.Hour
+
 // S3AssetRedirectTTL bounds direct object-store redirects for heavy original
 // asset responses. Chatto authorizes the request first, then hands browsers a
 // short-lived S3 URL only for cases where proxying the bytes would be costly.
@@ -724,7 +728,7 @@ func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableA
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
-	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
 		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
 		ExpiresAt: expiresAt,
@@ -752,7 +756,7 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 		height,
 		url.PathEscape(fit),
 	)
-	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
 		URL: c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
 			Width:  width,
@@ -761,6 +765,14 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 		}, expiresAt)),
 		ExpiresAt: expiresAt,
 	}
+}
+
+func (c *MediaModel) assetAccessTicketExpiry() time.Time {
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	return now().UTC().Truncate(assetAccessTicketIssueBucket).Add(AssetAccessTicketTTL)
 }
 
 func (c *MediaModel) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {

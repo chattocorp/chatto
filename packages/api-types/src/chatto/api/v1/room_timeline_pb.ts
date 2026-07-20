@@ -279,7 +279,9 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
  *
  * Use opaque start_cursor and end_cursor values with before/after requests to
  * continue paging in either direction. Clients must treat cursor values as
- * server-owned tokens and must not parse or construct them. The has_older and
+ * server-owned tokens and must not parse, construct, share between users, or
+ * reuse them for another room or thread. The server binds each cursor to the
+ * authenticated viewer and exact timeline resource. The has_older and
  * has_newer flags tell clients whether another request can extend the current
  * window.
  *

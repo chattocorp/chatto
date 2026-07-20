@@ -54,7 +54,7 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 	return s.hub.Run(ctx)
 }
 
-// StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
+// StreamMyEventsOptions controls process-local behavior for a myEvents stream.
 type StreamMyEventsOptions struct {
 	// TouchPresence preserves the legacy behavior where opening myEvents marks
 	// the user online and refreshes the current presence value. New clients that
@@ -379,6 +379,15 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		}
 	case *corev1.Event_RoomMemberBanned:
 		if e.RoomMemberBanned.GetUserId() == userID {
+			delete(memberRooms, roomID)
+		}
+	case *corev1.Event_RoomMemberAdded:
+		if e.RoomMemberAdded.GetUserId() == userID {
+			memberRooms[roomID] = struct{}{}
+			isMember = true
+		}
+	case *corev1.Event_RoomMemberRemoved:
+		if e.RoomMemberRemoved.GetUserId() == userID {
 			delete(memberRooms, roomID)
 		}
 	case *corev1.Event_RoomDeleted:

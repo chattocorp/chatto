@@ -244,6 +244,10 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 }
 
 func defaultChannelRoomDecisions(roomID, roomName string) []rbacSeedDecision {
+	if !strings.EqualFold(roomName, AnnouncementsRoomName) {
+		return nil
+	}
+
 	var decisions []rbacSeedDecision
 	appendRoleDecisions := func(roleName string, permissions []Permission, decision DecisionKind) {
 		for _, permission := range permissions {
@@ -258,17 +262,8 @@ func defaultChannelRoomDecisions(roomID, roomName string) []rbacSeedDecision {
 		}
 	}
 
-	if strings.EqualFold(roomName, AnnouncementsRoomName) {
-		appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryonePermissions(), DecisionAllow)
-		appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryoneDenials(), DecisionDeny)
-	} else {
-		appendRoleDecisions(RoleEveryone, DefaultRoomEveryonePermissions(), DecisionAllow)
-	}
-	appendRoleDecisions(RoleModerator, DefaultRoomModeratorPermissions(), DecisionAllow)
-	appendRoleDecisions(RoleAdmin, DefaultRoomAdminPermissions(), DecisionAllow)
-	for _, roleName := range []string{RoleModerator, RoleAdmin} {
-		appendRoleDecisions(roleName, DefaultAnnouncementsPosterPermissions(), DecisionAllow)
-	}
+	appendRoleDecisions(RoleEveryone, DefaultAnnouncementsEveryoneDenials(), DecisionDeny)
+	appendRoleDecisions(RoleAdmin, DefaultAnnouncementsAdminPermissions(), DecisionAllow)
 	return decisions
 }
 

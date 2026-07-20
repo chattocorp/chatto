@@ -245,7 +245,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
-    test('server denial beats room grant for the same role', async ({
+    test('room grant overrides server denial for the same role', async ({
       page,
       roomPage: _roomPage
     }) => {
@@ -257,8 +257,8 @@ test.describe('Room-Level Permission Overrides', () => {
       // Deny message.post at server level for everyone
       await denyPermission(page, 'everyone', 'message.post');
 
-      // Grant at room level for everyone. Deny-wins means the server deny
-      // still blocks the permission for non-owner users.
+      // Grant at room level for everyone. The nearest decision for that same
+      // subject replaces its less-specific server decision.
       await grantRoomPermission(page, roomId, 'everyone', 'message.post');
 
       // Create second user, join the room
@@ -270,7 +270,7 @@ test.describe('Room-Level Permission Overrides', () => {
       // Navigate to the room
       await page.goto(routes.room(roomId));
 
-      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'false');
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
     });
   });
 
@@ -431,7 +431,7 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(result).toBeNull();
     });
 
-    test('server denial beats room grant for the same role (backend enforcement)', async ({
+    test('room grant overrides server denial for the same role (backend enforcement)', async ({
       page
     }) => {
       await createAndLoginTestUser(page);
@@ -445,8 +445,8 @@ test.describe('Room-Level Permission Overrides', () => {
       // Deny message.react at server level for everyone
       await denyPermission(page, 'everyone', 'message.react');
 
-      // Grant message.react at room level. Deny-wins means the server deny
-      // still blocks the permission for non-owner users.
+      // Grant message.react at room level. The room decision is nearest for
+      // this same subject.
       await grantRoomPermission(page, roomId, 'everyone', 'message.react');
 
       // Create second user, join the room
@@ -456,7 +456,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await joinRoomViaAPI(page, roomId);
 
       const success = await addReactionViaAPI(page, roomId, adminMsg!.id, 'thumbsup');
-      expect(success).toBe(false);
+      expect(success).toBe(true);
     });
   });
 });
@@ -660,7 +660,7 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByText('Important announcement from owner!')).toBeVisible();
     });
 
-    test('admin cannot post root messages in announcements room', async ({ page }) => {
+    test('admin can post root messages in announcements room', async ({ page }) => {
       // Owner loads the primary server - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Admin Ann Test ${Date.now()}`);
@@ -677,7 +677,7 @@ test.describe('Permission-only Resolution', () => {
 
       await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
-      await expect(chatInput).toHaveAttribute('contenteditable', 'false');
+      await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
     test('moderator cannot post root messages in announcements room', async ({ page }) => {

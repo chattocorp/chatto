@@ -40,6 +40,15 @@ path-specific guidance.
 - Never log PII: no raw login names, display names, email addresses, submitted
   auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes,
   reset links, raw IPs, or full query strings.
+- Never expose NATS or JetStream storage coordinates through normal client or
+  integration APIs. Public cursors and tokens must not reveal stream names or
+  incarnations, subjects, sequence numbers, revisions, consumer positions, or
+  equivalent internal facts, including through reversible encodings such as
+  base64. Opaque coordinates must be integrity-protected and confidential;
+  bind them to their viewer/resource scope where applicable, and reject or
+  safely reset when validation fails. Explicit owner-only broker diagnostics
+  and event-log inspection APIs are the sole exception: their operational
+  purpose and fields must clearly identify the NATS/JetStream details exposed.
 - Treat optional operational telemetry as best-effort: its failure must not make
   broader diagnostics unavailable. Preserve an explicit unavailable state across
   API and UI boundaries instead of replacing unknown values with healthy-looking
@@ -75,6 +84,13 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   Avoid direct JetStream/KV/projection access from unrelated code.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire
   protocol.
+- A realtime resume cursor must never advance beyond the projection state used
+  to authorize and assemble its public operations. Capture a durable boundary,
+  wait for the serving projections through it, and fail the catch-up instead of
+  publishing stale state at a newer cursor.
+- Treat projected authorization loss as a persistent privacy boundary. Purge
+  every copied content-bearing or room-sensitive mirror, reject older async
+  responses, and reopen the resource only after an explicit positive grant.
 - `ServerDiscoveryService.GetServer` is the high-compatibility discovery
   endpoint. Prefer additive changes and preserve public CORS and OAuth
   discovery semantics.

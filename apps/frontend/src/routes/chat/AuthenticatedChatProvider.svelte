@@ -12,12 +12,9 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import {
-    useUserProfileUpdate,
-    useUserCustomStatusUpdate,
-    useUserSettingsUpdate,
-    useSessionTerminated
-  } from '$lib/hooks';
+  import { useProjectionEvent, useSessionTerminated } from '$lib/hooks';
+  import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+  import { viewerResponseToState } from '$lib/api-client/viewer';
   import {
     scheduleCustomStatusExpiry,
     type CustomUserStatus
@@ -49,6 +46,8 @@
         customStatus?: CustomUserStatus | null
       ) => void;
       updateStatus: (userId: string, customStatus: CustomUserStatus | null) => void;
+      remove: (userId: string) => void;
+      clear: () => void;
     };
     presenceCache: PresenceCache;
     children: Snippet;
@@ -99,18 +98,18 @@
     });
   });
 
-  // Start (idempotent) and expose the origin server's event bus via Svelte
-  // context so the on* hooks below can use it. Root +layout.svelte's $effect
-  // also starts buses for every authenticated server, but the user state may
-  // not have flipped to authenticated at root-init time — starting it here
-  // unconditionally guarantees the bus exists by the time the context is
-  // set, so consumer handlers register against the right bus rather than a
-  // dropped no-op.
+  // Register and expose the origin server's stable bus surface. The root
+  // coordinator decides whether its transport is live, polling, or dormant.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
     const authenticatedOriginServerId = originServerId;
     const originClient = serverConnectionManager.originClient;
-    eventBusManager.startBus(authenticatedOriginServerId, originClient);
+    eventBusManager.ensureBus(
+      authenticatedOriginServerId,
+      originClient,
+      serverRegistry.getStore(authenticatedOriginServerId).serverInfo.supportsRealtimeProjection,
+      serverRegistry.getStore(authenticatedOriginServerId).realtimeSync
+    );
     provideEventBus(() => authenticatedOriginServerId);
 
     function clearTerminatedOriginSession() {
@@ -119,38 +118,37 @@
       hardRedirectAfterSignOut('/');
     }
 
-    // Subscribe to profile update events and populate the cache
-    useUserProfileUpdate((update) => {
-      profileCache.update(
-        update.userId,
-        update.displayName,
-        update.avatarUrl,
-        update.login
-      );
-      if (currentUserState.user?.id === update.userId) {
-        currentUserState.user = {
-          ...currentUserState.user,
-          displayName: update.displayName,
-          avatarUrl: update.avatarUrl,
-          login: update.login
-        };
+    // Keep origin-global profile/settings caches synchronized with the same
+    // projection operations that own each server-scoped store.
+    useProjectionEvent((event) => {
+      for (const operation of event.operations) {
+        if (operation.operation.case === 'reset') {
+          profileCache.clear();
+        } else if (operation.operation.case === 'userUpsert') {
+          const member = mapDirectoryMember(operation.operation.value);
+          if (!member.id) continue;
+          profileCache.update(
+            member.id,
+            member.displayName,
+            member.avatarUrl,
+            member.login,
+            member.customStatus
+          );
+        } else if (operation.operation.case === 'viewerUpsert') {
+          const viewer = viewerResponseToState(operation.operation.value);
+          currentUserState.user = viewer.user;
+          profileCache.update(
+            viewer.user.id,
+            viewer.user.displayName,
+            viewer.user.avatarUrl ?? null,
+            viewer.user.login,
+            viewer.user.customStatus ?? null
+          );
+          userSettings.updateFromData(viewer.user.settings);
+        } else if (operation.operation.case === 'userRemove') {
+          profileCache.remove(operation.operation.value.userId);
+        }
       }
-    });
-
-    useUserCustomStatusUpdate((update) => {
-      profileCache.updateStatus(update.userId, update.customStatus);
-      if (currentUserState.user?.id === update.userId) {
-        currentUserState.user = {
-          ...currentUserState.user,
-          customStatus: update.customStatus
-        };
-      }
-    });
-
-    // Subscribe to settings update events for multi-tab sync
-    useUserSettingsUpdate((update) => {
-      userSettings.timezone = update.timezone;
-      userSettings.timeFormat = update.timeFormat;
     });
 
     // Handle session terminated events from server (logout from another tab/device, admin boot)
@@ -167,7 +165,6 @@
         clearTerminatedOriginSession();
       })
     );
-
   }
 
   // Initialize presence tracking (idle detection → AWAY, active → ONLINE).
@@ -190,19 +187,6 @@
         currentUserPresenceStores(),
         status
       );
-    },
-    {
-      onPauseLiveEvents: () => {
-        eventBusManager.pauseAll();
-      },
-      onResumeLiveEvents: () => {
-        eventBusManager.resumeAll();
-        for (const server of serverRegistry.servers) {
-          if (serverRegistry.tryGetStore(server.id)?.isAuthenticated) {
-            eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
-          }
-        }
-      }
     }
   );
   onDestroy(stopPresenceTracking);

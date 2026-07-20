@@ -1,17 +1,10 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { Code, ConnectError } from '@connectrpc/connect';
-  import { untrack } from 'svelte';
-  import { getAuthenticatedServerState } from '$lib/api-client/serverState';
-  import { getViewerStateViaConnect } from '$lib/api-client/viewer';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { clearLastRoom } from '$lib/storage/lastRoom';
-  import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import { createChromePermissions } from '$lib/state/server/chromePermissions.svelte';
@@ -24,12 +17,11 @@
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getAdminNavItems } from './adminNav';
   import * as m from '$lib/i18n/messages';
-  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 
   let { children } = $props();
 
-  const connection = useConnection();
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const activeStore = $derived(serverRegistry.getStore(getActiveServer()));
 
   // Detect if we're in server admin mode based on URL (use startsWith to avoid
   // false positives from rooms or other paths that happen to contain "admin")
@@ -93,116 +85,26 @@
     canManageUserPermissions: boolean;
   };
 
-  // Validate access to the active server. Returns server data on success,
-  // null if the server says it's not accessible, or 'transient' on network
-  // failure (treat as "try again later", not as access denial).
-  async function validateServer(): Promise<ServerChromeData | null | 'transient'> {
-    if (serverRegistry.getServer(getActiveServer())?.reauthRequiredAt != null) {
-      return 'transient';
-    }
-
-    const currentConnection = connection();
-    const config = {
-      baseUrl: currentConnection.connectBaseUrl,
-      bearerToken: currentConnection.bearerToken
+  // Server chrome is part of the canonical retained projection. Switching a
+  // warm server selects this state synchronously; only a genuinely cold
+  // projection renders the loading branch below.
+  const serverData = $derived.by<ServerChromeData | null>(() => {
+    const viewerResponse = activeStore.projection.viewer;
+    if (!viewerResponse || !activeStore.permissions.loaded) return null;
+    const viewer = viewerResponseToState(viewerResponse);
+    const can = (permission: string) => viewer.viewerPermissions[permission] ?? false;
+    return {
+      name: activeStore.serverInfo.name,
+      bannerUrl: activeStore.serverInfo.bannerUrl,
+      canViewAdmin: viewer.canViewAdmin,
+      canManage: can('server.manage'),
+      canManageRooms: can('room.manage'),
+      canManageRoles: viewer.canAdminManageRoles,
+      canAssignRoles: viewer.canAssignRoles,
+      canManageUserAccounts: viewer.canAdminManageAccounts,
+      canManageUserPermissions: viewer.canManageUserPermissions
     };
-
-    try {
-      const [server, viewer] = await Promise.all([
-        getAuthenticatedServerState(config),
-        getViewerStateViaConnect(config)
-      ]);
-
-      return {
-        name: server.name,
-        bannerUrl: server.bannerUrl,
-        canViewAdmin: viewer.canViewAdmin,
-        canManage: server.viewerCanManageServer,
-        canManageRooms: server.viewerCanManageRooms,
-        canManageRoles: viewer.canAdminManageRoles,
-        canAssignRoles: viewer.canAssignRoles,
-        canManageUserAccounts: viewer.canAdminManageAccounts,
-        canManageUserPermissions: viewer.canManageUserPermissions
-      };
-    } catch (error) {
-      if (isTransientValidationError(error)) {
-        return 'transient';
-      }
-      if (isAccessDeniedValidationError(error)) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
-  // Server validation state - uses $state instead of async $derived to avoid race conditions
-  // See egg t4x5m3 for the pattern explanation
-  let serverData = $state<ServerChromeData | null>(null);
-  let validationLoadId = { current: 0 };
-
-  // Force re-validation after genuine WebSocket reconnections (not instance switches).
-  // This is separate from the main validation effect to avoid coupling reconnectCount
-  // as a dependency — reconnectCount changes during instance switches (different client
-  // = different count) which would falsely trigger validation with a stale spaceId.
-  let revalidationCounter = $state(0);
-  useReconnectCallback(() => {
-    revalidationCounter++;
   });
-
-  // Fetch server data on instance change or after WebSocket reconnection.
-  $effect(() => {
-    const currentInstance = getActiveServer();
-    const currentRevalidation = revalidationCounter;
-
-    // Skip if already validated for this instance in this revalidation cycle
-    if (
-      untrack(() => lastValidatedInstance) === currentInstance &&
-      currentRevalidation === untrack(() => lastRevalidation)
-    ) {
-      return;
-    }
-
-    // Only clear data when switching to a different instance.
-    if (untrack(() => lastValidatedInstance) !== currentInstance) {
-      serverData = null;
-    }
-
-    const thisLoadId = ++validationLoadId.current;
-
-    validateServer()
-      .then((result) => {
-        if (validationLoadId.current !== thisLoadId) return;
-
-        // Transient network error — keep prior state visible (or skeleton if
-        // none) and let the reconnect handler retry. Don't redirect or wipe
-        // storage; the user's place must survive a brief offline blip.
-        if (result === 'transient') {
-          console.warn(
-            '[validateServer] networkError, ignoring (serverData stays at prior value)',
-            { instance: currentInstance }
-          );
-          return;
-        }
-
-        serverData = result;
-        lastValidatedInstance = currentInstance;
-        lastRevalidation = currentRevalidation;
-
-        // Genuine "no access" — clear the last-room hint so we don't loop
-        // back here, then redirect away.
-        if (result === null) {
-          clearLastRoom(getActiveServer());
-          goto(resolve('/chat/[serverId]', { serverId: serverSegment }), { replaceState: true });
-        }
-      })
-      .catch((error) => {
-        if (validationLoadId.current !== thisLoadId) return;
-        console.error('Server validation failed:', error);
-        serverData = null;
-      });
-  });
-  let lastRevalidation = -1;
-  let lastValidatedInstance = '';
 
   // Update server chrome permissions context when serverData changes
   $effect(() => {
@@ -219,21 +121,10 @@
     }
   });
 
-  // Server name and banner — derived from serverData, which is updated both by
-  // the initial fetch and by live ServerUpdatedEvent events.
+  // Server updates mutate the retained projection, so these derived values
+  // update without a separate validation query.
   let serverName = $derived(serverData?.name ?? null);
   let bannerUrl = $derived(serverData?.bannerUrl ?? null);
-
-  // Listen for server updates on the active instance's event bus.
-  // Uses useActiveEvent (not useEvent) so that when the user
-  // switches to a remote instance, this handler receives events from that
-  // instance's bus rather than the home instance's context-based bus.
-  useActiveEvent((event) => {
-    if (!event.event) return; // Skip unknown event types for forward/backward compatibility
-    if (roomEventKind(event.event) === RoomEventKind.ServerUpdated) {
-      revalidationCounter++;
-    }
-  });
 
   // Read server-wide permissions for admin-flavoured nav items (system, audit).
   const serverPerms = getServerPermissions();
@@ -252,21 +143,6 @@
     return page.url.pathname.startsWith(href);
   }
 
-  function isTransientValidationError(error: unknown): boolean {
-    if (error instanceof ConnectError) {
-      return error.code === Code.Unavailable || error.code === Code.DeadlineExceeded;
-    }
-    return error instanceof TypeError;
-  }
-
-  function isAccessDeniedValidationError(error: unknown): boolean {
-    return (
-      error instanceof ConnectError &&
-      (error.code === Code.Unauthenticated ||
-        error.code === Code.PermissionDenied ||
-        error.code === Code.NotFound)
-    );
-  }
 </script>
 
 <ServerEventProvider>

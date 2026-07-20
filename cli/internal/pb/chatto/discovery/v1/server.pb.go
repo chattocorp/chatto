@@ -136,7 +136,8 @@ type ServerCompatibility struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable protocol capability keys supported by this server. Current keys:
 	// `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
-	// `chatto.admin.v1`, and `chatto.realtime.v1`.
+	// `chatto.admin.v1`, `chatto.realtime.v1`, and
+	// `chatto.realtime.projection.v1`.
 	ProtocolCapabilities []string `protobuf:"bytes,1,rep,name=protocol_capabilities,json=protocolCapabilities,proto3" json:"protocol_capabilities,omitempty"`
 	// Oldest bundled Chatto web-client version this server supports, when a
 	// lower bound is required. Third-party clients should use capabilities.

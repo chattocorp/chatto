@@ -73,10 +73,9 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('starts with status "connecting" and reconnectCount 0', () => {
+  it('starts with status "connecting"', () => {
     const client = new ServerConnection(makeConfig());
     expect(client.status).toBe('connecting');
-    expect(client.reconnectCount).toBe(0);
     client.dispose();
   });
 
@@ -92,7 +91,18 @@ describe('ServerConnection', () => {
     client.setRealtimeConnectionStatus('connecting', 6);
     client.setRealtimeConnectionStatus('connected');
     expect(client.status).toBe('connected');
-    expect(client.reconnectCount).toBe(1);
+    expect(client.showConnectionLostBanner).toBe(false);
+    client.dispose();
+  });
+
+  it('does not present intentional dormant transport as a connection failure', () => {
+    const client = new ServerConnection(makeConfig());
+
+    client.setRealtimeConnectionStatus('dormant');
+
+    expect(client.status).toBe('dormant');
+    expect(client.isConnected).toBe(false);
+    expect(client.showConnectionLostIcon).toBe(false);
     expect(client.showConnectionLostBanner).toBe(false);
     client.dispose();
   });
@@ -144,6 +154,52 @@ describe('ServerConnection', () => {
 
     expect(reconnect).toHaveBeenCalledWith('network came back online');
     client.dispose();
+  });
+
+  it('replaces a connected transport after a meaningful hidden interval', () => {
+    const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    const now = vi.spyOn(Date, 'now');
+    let currentTime = 1_000;
+    now.mockImplementation(() => currentTime);
+    const client = new ServerConnection(makeConfig());
+    const reconnect = vi.fn();
+    client.setRealtimeConnectionStatus('connected');
+    client.registerRealtimeReconnect(reconnect);
+
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      currentTime += 29_999;
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(reconnect).not.toHaveBeenCalled();
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      currentTime += 30_000;
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(reconnect).toHaveBeenCalledWith('tab visible after 30s hidden');
+    } finally {
+      client.dispose();
+      now.mockRestore();
+      if (originalVisibility) {
+        Object.defineProperty(document, 'visibilityState', originalVisibility);
+      }
+    }
   });
 
   it('notifies the registry on realtime authentication-required signals', () => {

@@ -1,9 +1,18 @@
 import { tick } from 'svelte';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import {
+  createRoomTimelineAPI,
+  roomTimelineEventToRawEvent,
+  roomTimelinePageToEventConnectionPage,
+  type RoomTimelineAPI
+} from '$lib/api-client/roomTimeline';
+import type {
+  RoomTimelineEvent,
+  RoomTimelineIncludes,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
@@ -96,6 +105,10 @@ function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[])
   return true;
 }
 
+function snapshotEventFingerprints(events: readonly RoomEventView[]): SvelteMap<string, string> {
+  return new SvelteMap(events.map((event) => [event.id, eventFingerprint(event)]));
+}
+
 function isContinuityEvent(
   event: RoomEventView,
   scope: MessageScope | null,
@@ -109,9 +122,40 @@ function skippedRefreshResult(): RefreshCurrentWindowResult {
 }
 
 function isMessagePostedPayload(
-  event: RoomEventView['event'] | EventEnvelope['event'] | null | undefined
+  event: RoomEventView['event'] | null | undefined
 ): event is MessagePostedPayload {
   return roomEventKind(event) === RoomEventKind.MessagePosted;
+}
+
+function scrubUserFromEvent(event: RoomEventView, userId: string): RoomEventView {
+  const scrubActor = event.actor?.id === userId;
+  const payload = event.event;
+  if (!isMessagePostedPayload(payload)) {
+    return scrubActor ? { ...event, actor: null } : event;
+  }
+
+  const threadParticipants = payload.threadParticipants.filter(
+    (participant) => participant.id !== userId
+  );
+  let reactionsChanged = false;
+  const reactions = payload.reactions.map((reaction) => {
+    const users = reaction.users.filter((user) => user.id !== userId);
+    if (users.length === reaction.users.length) return reaction;
+    reactionsChanged = true;
+    return { ...reaction, users };
+  });
+  const participantsChanged = threadParticipants.length !== payload.threadParticipants.length;
+  if (!scrubActor && !participantsChanged && !reactionsChanged) return event;
+
+  return {
+    ...event,
+    actor: scrubActor ? null : event.actor,
+    event: {
+      ...payload,
+      threadParticipants,
+      reactions
+    }
+  };
 }
 
 function isRoomDeletedPayload(event: RoomEventView['event']): event is RoomDeletedPayload {
@@ -178,6 +222,9 @@ export class MessagesStore {
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
   private previewEvents = new SvelteMap<string, RoomEventView | null>();
   private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
+  private scrubbedUserIds = new SvelteSet<string>();
+  private messageTombstones = new SvelteMap<string, string>();
+  private removedMessageEventIds = new SvelteSet<string>();
   private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
@@ -191,6 +238,8 @@ export class MessagesStore {
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
+  #projectionAccessRevoked = false;
+  #previewGeneration = 0;
 
   constructor(
     serverConnection: ServerConnection,
@@ -202,8 +251,10 @@ export class MessagesStore {
 
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    // The message store has no owned subscriptions. Server-event replay is
-    // managed by the singleton event bus.
+    // Invalidate every outstanding async read before its owner drops the
+    // store. Server-event replay itself is managed by the singleton event bus.
+    this.startLoad();
+    this.invalidatePendingPreviewFetches();
   }
 
   /** Root-level events only (excludes thread replies). */
@@ -331,6 +382,7 @@ export class MessagesStore {
   /** Fetch an off-window event for previews. Transient errors are not cached. */
   ensureEvent(eventId: string): Promise<void> | undefined {
     if (!this.roomId) return undefined;
+    if (this.#projectionAccessRevoked) return undefined;
     if (this.events.some((e) => e.id === eventId)) return undefined;
 
     const key = this.previewKey(eventId);
@@ -339,8 +391,11 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
+    const previewGeneration = this.#previewGeneration;
+    const roomId = this.roomId;
     const promise = this.fetchEventById(eventId)
       .then((event) => {
+        if (this.#previewGeneration !== previewGeneration || this.roomId !== roomId) return;
         if (event) this.clearOptimisticVersionForEvent(event.id);
         this.previewEvents.set(key, event);
       })
@@ -348,7 +403,9 @@ export class MessagesStore {
         console.error('MessagesStore: ensureEvent failed:', error);
       })
       .finally(() => {
-        this.pendingPreviewFetches.delete(key);
+        if (this.pendingPreviewFetches.get(key) === promise) {
+          this.pendingPreviewFetches.delete(key);
+        }
       });
 
     this.pendingPreviewFetches.set(key, promise);
@@ -390,6 +447,191 @@ export class MessagesStore {
     void this.resetAndFetchLatest();
   }
 
+  /** Select a room without issuing a read while its projection prefix is in flight. */
+  awaitRoomProjection(roomId: string): void {
+    if (this.scope === 'room' && this.roomId === roomId) return;
+    this.startLoad();
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+  }
+
+  /** Replace this room's recent retained window from the realtime projection stream. */
+  replaceRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    // A message deep-link may start its around-window read while the lazy
+    // latest-page hydration is still in flight. Install the useful fallback
+    // page, but do not let its late delivery cancel the newer navigation intent.
+    const preservePendingJump =
+      this.#pendingJumpId !== null && this.scope === 'room' && this.roomId === roomId;
+    this.startLoad();
+    if (!preservePendingJump) {
+      this.#jumpId++;
+      this.#pendingJumpId = null;
+    }
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    // Reset already purged the pre-prefix state. Preserve writes ingested
+    // after that reset: the compacted page was captured before those writes
+    // and its later arrival must not erase read-your-writes.
+    this.replaceWithFetchedAndUpdateCursors(connection);
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = preservePendingJump;
+  }
+
+  /** Supersede a historical jump when this room crosses a route boundary. */
+  cancelPendingHistoricalJump(): void {
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+  }
+
+  /** Restore this retained room's canonical latest projection at a route boundary. */
+  restoreRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    this.cancelPendingHistoricalJump();
+    this.startLoad();
+    this.scope = 'room';
+    this.roomId = roomId;
+    this.threadRootEventId = '';
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    const projected = this.unmaskEvents(connection.events);
+    for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
+    this.events = sortRoomEventList(projected);
+    this.seenIds = new SvelteSet(projected.map((event) => event.id));
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = false;
+  }
+
+  /** Purge retained rows without changing this store's identity for mounted consumers. */
+  resetProjectionState(): void {
+    const thisLoad = this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+
+    // Thread detail is intentionally lazy and is not part of the compacted
+    // server prefix. Reload an open thread through its existing read model.
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      this.fetchThread(thisLoad);
+    }
+  }
+
+  /**
+   * Purge plaintext after projected room access is revoked.
+   *
+   * Unlike a transport reset, this must not issue a replacement read. The
+   * incremented load generation also prevents an older room/thread response
+   * from reinstalling data after the authorization transition.
+   */
+  clearForAccessRevocation(): void {
+    this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.#projectionAccessRevoked = true;
+    this.resetState();
+    this.isInitialLoading = false;
+  }
+
+  /** Reload an open thread only when it was previously scrubbed for access loss. */
+  restoreAfterAccessGrant(): void {
+    if (!this.#projectionAccessRevoked) return;
+    this.#projectionAccessRevoked = false;
+    this.isInitialLoading = true;
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      this.fetchThread(this.startLoad());
+    }
+  }
+
+  /**
+   * Remove copied render data for a deleted account while preserving stable
+   * actor and participant IDs on historical facts.
+   */
+  scrubUserReferences(userId: string): void {
+    this.invalidatePendingPreviewFetches();
+    this.optimisticReactions.clearAll();
+    this.scrubbedUserIds.add(userId);
+    const events = this.events.map((event) => this.scrubKnownUserReferences(event));
+    if (events.some((event, index) => event !== this.events[index])) this.events = events;
+
+    for (const [key, event] of this.previewEvents) {
+      if (!event) continue;
+      const scrubbed = this.scrubKnownUserReferences(event);
+      if (scrubbed !== event) this.previewEvents.set(key, scrubbed);
+    }
+  }
+
+  /** Apply one authoritative current timeline row from the projection stream. */
+  upsertRoomProjectionEvent(
+    roomId: string,
+    event: RoomTimelineEvent,
+    includes: RoomTimelineIncludes | undefined,
+    retainDeletedRow = false,
+    insertIfMissing = true
+  ): void {
+    if (this.roomId !== roomId) return;
+    this.isInitialLoading = false;
+    const projectedMessage =
+      event.event.case === 'messagePosted' ? event.event.value.message : null;
+    if (projectedMessage?.deletedAt) {
+      const deletedAt = projectedMessage.deletedAt.toDate().toISOString();
+      if (retainDeletedRow) this.applyRetainedDeletion(event.id, deletedAt);
+      else this.applyDeletion(event.id, deletedAt);
+      return;
+    }
+    const raw = roomTimelineEventToRawEvent(event, includes?.users ?? {});
+    if (!raw) return;
+    const projected = this.unmaskEvents([raw])[0];
+    if (!projected) return;
+
+    const existingIndex = this.events.findIndex((candidate) => candidate.id === projected.id);
+    if (existingIndex === -1) {
+      if (!insertIfMissing) return;
+      this.ingestEvent(projected);
+      return;
+    }
+    this.clearOptimisticVersionForEvent(projected.id);
+    this.events[existingIndex] = projected;
+    if (this.scope === 'thread') this.sortThreadEvents();
+    else this.sortRoomEvents();
+  }
+
+  private applyRetainedDeletion(messageEventId: string, deletedAt: string): void {
+    this.invalidatePendingPreviewFetches();
+    this.messageTombstones.set(messageEventId, deletedAt);
+    const index = this.events.findIndex((event) => event.id === messageEventId);
+    if (index !== -1) {
+      const event = this.applyPrivacyBoundaries(this.events[index]);
+      if (event) this.events[index] = event;
+    }
+    this.applyPrivacyBoundariesToPreviews();
+  }
+
+  /** Remove one projection-only row, such as a disabled channel echo. */
+  removeRoomProjectionEvent(roomId: string, eventId: string): void {
+    if (this.roomId !== roomId) return;
+    this.invalidatePendingPreviewFetches();
+    this.removedMessageEventIds.add(eventId);
+    this.clearChannelEchoLink(eventId);
+    this.previewEvents.delete(this.previewKey(eventId));
+    const index = this.events.findIndex((event) => event.id === eventId);
+    if (index === -1) return;
+    this.events.splice(index, 1);
+    this.seenIds.delete(eventId);
+  }
+
   setThread(roomId: string, threadRootEventId: string): void {
     if (
       this.scope === 'thread' &&
@@ -413,32 +655,16 @@ export class MessagesStore {
   }
 
   /**
-   * Route a space event into the store. Handles common message-list
-   * mutations inline and delegates room/thread-specific MessagePostedEvent
-   * handling to the current scope.
-   */
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    // Subscription and historical-query payloads share the same Event
-    // envelope. Cast once at the room boundary so downstream code can keep
-    // using the RoomEventView shape it renders with.
-    const spaceEvent = serverEvent as unknown as RoomEventView;
-    this.ingestEvent(spaceEvent);
-  }
-
-  /**
-   * Route an already-renderable event into the store. Used for read-your-writes
-   * after mutations that return the posted event; live subscription delivery
-   * still follows {@link ingestServerEvent} and is deduped by event ID.
+   * Route an already-renderable event into the store. Used for historical
+   * pages and read-your-writes after mutations that return the posted event.
    */
   ingestEvent(spaceEvent: RoomEventView): void {
+    const sanitisedEvent = this.applyPrivacyBoundaries(spaceEvent);
+    if (!sanitisedEvent) return;
+    spaceEvent = sanitisedEvent;
     const eventData = spaceEvent.event;
     if (!eventData) return;
     const kind = roomEventKind(eventData);
-
-    if (kind === RoomEventKind.ServerMemberDeleted) {
-      this.refetchAll();
-      return;
-    }
 
     if (isRoomDeletedPayload(eventData)) {
       if (eventData.roomId === this.roomId) this.resetState();
@@ -511,16 +737,39 @@ export class MessagesStore {
   }
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+    if (
+      this.#projectionAccessRevoked ||
+      this.isLoadingMore ||
+      this.hasReachedStart ||
+      !this.oldestCursor
+    )
+      return;
 
     const before = this.oldestCursor;
+    const loadId = this.#loadId;
+    const scope = this.scope;
+    const roomId = this.roomId;
+    const threadRootEventId = this.threadRootEventId;
     this.isLoadingMore = true;
 
     try {
       const page = await this.fetchOlderPage(before);
       if (!page) return;
 
-      const olderEvents = unmask(page.events);
+      // A reset, access revocation, route/scope change, or owner disposal may
+      // have happened while this page was in flight. Never let an older
+      // authorization context reinstall plaintext or overwrite new cursors.
+      if (
+        this.isStale(loadId) ||
+        this.#projectionAccessRevoked ||
+        this.scope !== scope ||
+        this.roomId !== roomId ||
+        this.threadRootEventId !== threadRootEventId
+      ) {
+        return;
+      }
+
+      const olderEvents = this.unmaskEvents(page.events);
       if (olderEvents.length === 0) {
         if (page.startCursor) {
           this.oldestCursor = page.startCursor;
@@ -546,7 +795,14 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
+      if (
+        !this.isStale(loadId) &&
+        this.scope === scope &&
+        this.roomId === roomId &&
+        this.threadRootEventId === threadRootEventId
+      ) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
@@ -621,7 +877,7 @@ export class MessagesStore {
         return;
       }
 
-      const newer = unmask(page.events);
+      const newer = this.unmaskEvents(page.events);
       if (newer.length === 0) {
         jumpState.hasReachedEnd = true;
       } else {
@@ -668,8 +924,12 @@ export class MessagesStore {
       if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
-      const parsed = unmask(rawEvents);
+      const parsed = this.unmaskEvents(rawEvents);
       if (!parsed.some((event) => event.id === eventId)) {
+        if (this.events.some((event) => event.id === eventId)) {
+          jumpState.scrollToEventId = eventId;
+          return true;
+        }
         jumpState.scrollToEventId = null;
         jumpState.isJumpedMode = false;
         jumpState.hasReachedEnd = false;
@@ -696,6 +956,10 @@ export class MessagesStore {
       return true;
     } catch (error) {
       if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.events.some((event) => event.id === eventId)) {
+        jumpState.scrollToEventId = eventId;
+        return true;
+      }
       console.error('MessagesStore: jumpToMessage failed:', error);
       jumpState.scrollToEventId = null;
       jumpState.isJumpedMode = false;
@@ -728,7 +992,7 @@ export class MessagesStore {
     if (!this.scope || !this.roomId) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
-    const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
     console.debug('[room-refresh] store refresh started', {
       roomId: this.roomId,
       scope: this.scope,
@@ -869,7 +1133,7 @@ export class MessagesStore {
           eventId,
           limit: 1
         });
-    return unmask(page.events).find((event) => event.id === eventId) ?? null;
+    return this.unmaskEvents(page.events).find((event) => event.id === eventId) ?? null;
   }
 
   private async refetchOne(eventId: string): Promise<void> {
@@ -904,16 +1168,21 @@ export class MessagesStore {
    * its existing engagement visible alongside the placeholder.
    */
   private applyDeletion(messageEventId: string, deletedAt: string): void {
+    this.invalidatePendingPreviewFetches();
     this.clearChannelEchoLink(messageEventId);
 
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
     if (isMessagePostedPayload(targetPayload) && targetPayload.echoOfEventId) {
+      this.removedMessageEventIds.add(messageEventId);
       this.events.splice(targetIndex, 1);
       this.seenIds.delete(messageEventId);
+      this.previewEvents.delete(this.previewKey(messageEventId));
       return;
     }
+
+    this.messageTombstones.set(messageEventId, deletedAt);
 
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
@@ -927,20 +1196,7 @@ export class MessagesStore {
       };
     }
 
-    const previewKey = this.previewKey(messageEventId);
-    const preview = this.previewEvents.get(previewKey);
-    if (isMessagePostedPayload(preview?.event)) {
-      this.previewEvents.set(previewKey, {
-        ...preview,
-        event: {
-          ...preview.event,
-          body: null,
-          attachments: [],
-          linkPreview: null,
-          deletedAt
-        }
-      });
-    }
+    this.applyPrivacyBoundariesToPreviews();
   }
 
   private applyChannelEchoLink(originalEventId: string, echoEventId: string): void {
@@ -1055,13 +1311,13 @@ export class MessagesStore {
    * Replace the buffer with fetched events but preserve any subscription
    * events that arrived during the in-flight query. Always the right
    * choice when a paginated query result replaces the timeline: the
-   * eventBus subscription has been live since layout mount, so any
-   * MessagePostedEvent for this room that lands while the query is in
-   * flight has already been added to {@link events} via
-   * {@link ingestServerEvent} and must not be wiped by the result.
+   * projection subscription has been live since layout mount, so any
+   * timeline event for this room that lands while the query is in flight
+   * has already been added to {@link events} via {@link ingestEvent} and
+   * must not be wiped by the result.
    */
   private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
-    const fetched = unmask(rawEvents);
+    const fetched = this.unmaskEvents(rawEvents);
     const newSeen = new SvelteSet<string>();
     const merged: RoomEventView[] = [];
     for (const e of fetched) {
@@ -1084,13 +1340,59 @@ export class MessagesStore {
     this.events = [];
     this.seenIds = new SvelteSet();
     this.previewEvents.clear();
-    this.pendingPreviewFetches.clear();
+    this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
     this.optimisticThreadFollows.clearAll();
     this.oldestCursor = undefined;
     this.newestCursor = undefined;
     this.hasReachedStart = false;
     this.isLoadingMore = false;
+  }
+
+  /** Discard preview responses captured before a plaintext-clearing boundary. */
+  private invalidatePendingPreviewFetches(): void {
+    this.#previewGeneration++;
+    this.pendingPreviewFetches.clear();
+  }
+
+  /** Remove render-only data for every account deleted during this store's lifetime. */
+  private scrubKnownUserReferences(event: RoomEventView): RoomEventView {
+    for (const userId of this.scrubbedUserIds) event = scrubUserFromEvent(event, userId);
+    return event;
+  }
+
+  /** Apply persistent deletion and account-removal fences to a timeline row. */
+  private applyPrivacyBoundaries(event: RoomEventView): RoomEventView | null {
+    if (this.#projectionAccessRevoked) return null;
+    if (this.removedMessageEventIds.has(event.id)) return null;
+    event = this.scrubKnownUserReferences(event);
+    const payload = event.event;
+    if (!isMessagePostedPayload(payload)) return event;
+
+    const deletedAt =
+      this.messageTombstones.get(event.id) ??
+      (payload.echoOfEventId ? this.messageTombstones.get(payload.echoOfEventId) : undefined);
+    if (!deletedAt) return event;
+    return {
+      ...event,
+      event: { ...payload, body: null, attachments: [], linkPreview: null, deletedAt }
+    };
+  }
+
+  private applyPrivacyBoundariesToPreviews(): void {
+    for (const [key, event] of this.previewEvents) {
+      if (!event) continue;
+      const sanitised = this.applyPrivacyBoundaries(event);
+      if (sanitised) this.previewEvents.set(key, sanitised);
+      else this.previewEvents.delete(key);
+    }
+  }
+
+  private unmaskEvents(rawEvents: readonly RawEvent[]): RoomEventView[] {
+    return unmask(rawEvents).flatMap((event) => {
+      const sanitised = this.applyPrivacyBoundaries(event);
+      return sanitised ? [sanitised] : [];
+    });
   }
 
   private replaceWithFetchedAndUpdateCursors(connection: {
@@ -1111,12 +1413,13 @@ export class MessagesStore {
       endCursor?: string | null;
       hasOlder?: boolean;
     },
-    existingBeforeFetch: ReadonlySet<string>,
+    existingBeforeFetch: ReadonlyMap<string, string>,
     options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
   ): boolean {
-    const fetched = unmask(connection.events);
+    const fetched = this.unmaskEvents(connection.events);
     const newSeen = new SvelteSet<string>();
     const merged: RoomEventView[] = [];
+    const mergedIndexByID = new SvelteMap<string, number>();
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
@@ -1141,6 +1444,7 @@ export class MessagesStore {
       if (newSeen.has(e.id)) continue;
       this.clearOptimisticVersionForEvent(e.id);
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
@@ -1149,6 +1453,17 @@ export class MessagesStore {
     // fetched window so returning from another tab does not visually collapse a
     // long scrolled buffer.
     for (const e of this.events) {
+      const priorFingerprint = existingBeforeFetch.get(e.id);
+      const changedDuringFetch =
+        priorFingerprint === undefined || priorFingerprint !== eventFingerprint(e);
+      const fetchedIndex = mergedIndexByID.get(e.id);
+      if (changedDuringFetch && fetchedIndex !== undefined) {
+        // A projection upsert can refresh an existing row while the snapshot
+        // query is in flight (for example, thread follow state on the root).
+        // The later local version is authoritative over the older query row.
+        merged[fetchedIndex] = e;
+        continue;
+      }
       if (
         (!options.preserveExistingWindow || discontinuousLatestSnapshot) &&
         existingBeforeFetch.has(e.id)
@@ -1157,6 +1472,7 @@ export class MessagesStore {
       }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
@@ -1198,7 +1514,7 @@ export class MessagesStore {
 
   private async refreshRoomLatest(
     thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlyMap<string, string>
   ): Promise<RefreshCurrentWindowResult> {
     const page = await this.roomTimeline.getRoomEvents({
       roomId: this.roomId,
@@ -1216,7 +1532,7 @@ export class MessagesStore {
   private async refreshRoomAround(
     thisLoad: number,
     anchorEventId: string,
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlyMap<string, string>
   ): Promise<RefreshCurrentWindowResult | null> {
     const page = await this.roomTimeline.getRoomEventsAround({
       roomId: this.roomId,
@@ -1233,7 +1549,7 @@ export class MessagesStore {
 
   private async refreshThreadWindow(
     thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>,
+    existingBeforeFetch: ReadonlyMap<string, string>,
     anchorEventId: string | null
   ): Promise<RefreshCurrentWindowResult> {
     const page = anchorEventId
@@ -1293,6 +1609,7 @@ export class MessagesStore {
   }
 
   private fetchThread(thisLoad: number): void {
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
     const promise = this.roomTimeline.getThreadEvents({
       roomId: this.roomId,
       threadRootEventId: this.threadRootEventId,
@@ -1305,11 +1622,7 @@ export class MessagesStore {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
-        this.replaceMergingExisting(page.events);
-        this.sortThreadEvents();
-        this.oldestCursor = page.startCursor ?? undefined;
-        this.newestCursor = page.endCursor ?? undefined;
-        this.hasReachedStart = !page.hasOlder;
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {

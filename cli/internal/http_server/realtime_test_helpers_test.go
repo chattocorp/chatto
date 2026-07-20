@@ -15,6 +15,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/testutil"
@@ -39,6 +40,7 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	t.Cleanup(cancel)
 
 	coreConfig := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -77,6 +79,7 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 		version: "test",
 		logger:  log.WithPrefix("test"),
 	}
+	s.connectAPI = connectapi.New(chattoCore, s.config, s.version)
 
 	s.setupAuthRoutes()
 	s.setupRealtimeAPI(s.buildAllowedOrigins())

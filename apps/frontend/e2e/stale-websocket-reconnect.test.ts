@@ -50,6 +50,12 @@ test.describe('WebSocket reconnect recovery', () => {
     const baselineMessage = `baseline-${Date.now()}`;
     await roomPage.sendMessage(baselineMessage);
     await roomPage.expectMessageVisible(baselineMessage);
+    let reconnectTimelineReads = 0;
+    page.on('request', (request) => {
+      if (request.url().includes('/chatto.api.v1.RoomService/GetRoomEvents')) {
+        reconnectTimelineReads++;
+      }
+    });
 
     try {
       await withServerUser(
@@ -73,6 +79,7 @@ test.describe('WebSocket reconnect recovery', () => {
           await expect(page.getByText(missedMessage)).toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT
           });
+          expect(reconnectTimelineReads).toBe(0);
         }
       );
     } finally {

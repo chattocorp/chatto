@@ -168,6 +168,31 @@ func (c *ChattoCore) CanonicalReactionMessageEventID(roomID, messageEventID stri
 	return canonicalID
 }
 
+// ChannelEchoEventID returns the visible room-timeline echo for an original
+// thread reply. The boolean is false when the reply is not currently echoed.
+func (c *ChattoCore) ChannelEchoEventID(messageEventID string) (string, bool) {
+	if c == nil || c.RoomTimeline == nil {
+		return "", false
+	}
+	return c.RoomTimeline.ChannelEchoEventID(messageEventID)
+}
+
+// LinkedChannelEchoEventID returns a linked non-hidden echo even after the
+// canonical reply retraction has turned that echo into a tombstone.
+func (c *ChattoCore) LinkedChannelEchoEventID(messageEventID string) (string, bool) {
+	if c == nil || c.RoomTimeline == nil {
+		return "", false
+	}
+	return c.RoomTimeline.LinkedChannelEchoEventID(messageEventID)
+}
+
+// IsHiddenChannelEcho reports whether an echo row was directly retracted while
+// its canonical thread reply remains visible. Such rows disappear from the
+// room projection instead of rendering as deleted-message tombstones.
+func (c *ChattoCore) IsHiddenChannelEcho(messageEventID string) bool {
+	return c != nil && c.RoomTimeline != nil && c.RoomTimeline.IsHiddenEcho(messageEventID)
+}
+
 func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID string) (string, error) {
 	if strings.TrimSpace(messageEventID) == "" {
 		return messageEventID, nil

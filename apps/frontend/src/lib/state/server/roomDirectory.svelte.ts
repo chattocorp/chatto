@@ -1,11 +1,10 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { DirectoryRoomSummary, RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
-import { RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { UserAvatarUserView } from '$lib/render/types';
-import type { RoomEventKindSource } from '$lib/render/eventKinds';
-import { avatarUserFromDirectoryMember, isRoomStateRefreshEvent } from './rooms.svelte';
+import { avatarUserFromDirectoryMember } from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;
@@ -52,12 +51,8 @@ function directoryRoom(room: DirectoryRoomSummary): DirectoryRoom {
  * `serverRegistry.getStore(getServerId()).roomDirectory` and triggers
  * `refresh()` reactively when the active server changes.
  *
- * The page-level component is responsible for:
- * - Forwarding events to {@link ingestServerEvent} and
- *   {@link ingestRoomLayoutUpdated}
- * - Triggering {@link refresh} on mount / server switch
- * - Surfacing toast feedback from the {@link joinRoom} / {@link leaveRoom}
- *   results
+ * The page-level component triggers {@link refresh} on mount / server switch
+ * and surfaces command feedback.
  */
 export class RoomDirectoryStore {
   allRooms = $state<DirectoryRoom[]>([]);
@@ -96,6 +91,24 @@ export class RoomDirectoryStore {
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.isLoading = false;
+  }
+
+  /** Replace the visible channel directory from the realtime projection. */
+  replaceProjection(rooms: DirectoryRoomSummary[]): void {
+    this.loadId++;
+    this.allRooms = rooms.filter((room) => room.kind === RoomKind.CHANNEL).map(directoryRoom);
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
+    this.isLoading = false;
+  }
+
+  /** Invalidate projection-owned directory state during a compacted reset. */
+  resetProjectionState(): void {
+    this.loadId++;
+    this.allRooms = [];
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
+    this.isLoading = true;
   }
 
   /**
@@ -182,30 +195,5 @@ export class RoomDirectoryStore {
     } finally {
       this.leavingIds.delete(roomId);
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Subscription event ingestion
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Refresh on membership, room catalog, and group layout changes. Other
-   * event types are no-ops. Mirrors the trigger set used by
-   * {@link RoomsStore.ingestServerEvent}.
-   *
-   * Accepts a discriminated-union envelope so the test harness can pass a
-   * minimal stub without needing to materialise a full RoomEventView.
-   */
-  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): void {
-    const event = serverEvent.event;
-    if (!event) return;
-    if (isRoomStateRefreshEvent(event)) {
-      void this.refresh();
-    }
-  }
-
-  /** Refresh when the room layout changes (admin reorders sections). */
-  ingestRoomLayoutUpdated(): void {
-    void this.refresh();
   }
 }

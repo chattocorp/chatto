@@ -31,7 +31,7 @@ test.describe('Presence indicators', () => {
     const roomPage = await chatPage.enterRoom('general');
 
     // User A should see themselves in the member list with online indicator
-    await expect(roomPage.memberList).toBeVisible();
+    await roomPage.openMembersPanel();
 
     // User A should be in the member list
     await roomPage.expectMemberVisible(userA.login);
@@ -140,6 +140,29 @@ test.describe('Presence indicators', () => {
     } finally {
       await otherTab.close();
     }
+  });
+
+  test('continues receiving realtime messages while looking offline', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomPage = await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await choosePresenceMode(page, 'Look offline');
+    await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-offline/);
+
+    const message = `Realtime while offline ${Date.now()}`;
+    await withServerUser(browser!, serverURL, async ({ chatPage: senderChatPage }) => {
+      const senderRoomPage = await senderChatPage.enterRoom('general');
+      await senderRoomPage.sendMessage(message);
+    });
+
+    await roomPage.expectMessageVisible(message, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 });
 
@@ -277,6 +300,7 @@ test.describe('Member list grouping', () => {
     await chatPage.goto();
 
     const roomPage = await chatPage.enterRoom('general');
+    await roomPage.openMembersPanel();
 
     // Initially only User A is online; the bootstrap admin has no live
     // presence record.

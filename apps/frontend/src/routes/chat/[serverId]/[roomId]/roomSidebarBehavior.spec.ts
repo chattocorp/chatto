@@ -4,7 +4,8 @@ import {
   CHANNEL_ROOM_SIDEBAR_PANELS,
   DM_ROOM_SIDEBAR_PANELS,
   roomSidebarPanelForRoom,
-  roomSidebarPanelsForRoom
+  roomSidebarPanelsForRoom,
+  visibleRoomSidebarPanel
 } from './roomSidebarBehavior';
 
 describe('room sidebar behavior', () => {
@@ -56,5 +57,15 @@ describe('room sidebar behavior', () => {
   it('returns all channel panels when LiveKit is configured', () => {
     expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'files', 'call']);
     expect(roomSidebarPanelsForRoom(false, true)).toEqual(['members', 'files', 'call']);
+  });
+
+  it('uses only the desktop sidebar selection on desktop', () => {
+    expect(visibleRoomSidebarPanel(true, 'files', null)).toBe('files');
+    expect(visibleRoomSidebarPanel(true, null, 'files')).toBeNull();
+  });
+
+  it('uses only the mobile sidebar selection on mobile', () => {
+    expect(visibleRoomSidebarPanel(false, null, 'files')).toBe('files');
+    expect(visibleRoomSidebarPanel(false, 'files', null)).toBeNull();
   });
 });

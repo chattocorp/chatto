@@ -33,6 +33,25 @@
       "more_information": "詳細情報",
       "about": "{subject}について"
     },
+    "easter_egg": {
+      "fire": "準備完了のレーザーをChattoに発射",
+      "points": "{count}ポイント",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "レーザー砲{count}基",
+            "countPlural=other": "レーザー砲{count}基"
+          }
+        }
+      ],
+      "laser_ready": "レーザー{number}、出力{power}、発射可能",
+      "laser_cooldown": "レーザー{number}、出力{power}：クールダウン残り{seconds}秒",
+      "upgrade_power": "{cost}ポイントでレーザー{number}を出力レベル{level}に強化",
+      "buy_laser": "{cost}ポイントでレーザー砲{number}を購入",
+      "maximum_lasers": "レーザー砲の上限{count}基に到達"
+    },
     "pane_header": {
       "back": "戻る"
     },

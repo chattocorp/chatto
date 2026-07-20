@@ -22,6 +22,16 @@ export type MessageActionParams = {
   messageStore?: MessagesStore | null;
 };
 
+/** Copy the plain message body, preserving its original Markdown source. */
+export async function copyMessageTextToClipboard(messageBody: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(messageBody);
+    toast.success(m['common.copied_to_clipboard']());
+  } catch {
+    toast.error(m['room.message.actions.copy_text_failed']());
+  }
+}
+
 /** Shared reaction mutation handlers for all message reaction controls. */
 export function useReactionActions() {
   const connection = useConnection();
@@ -134,10 +144,15 @@ export function useMessageActions() {
     );
   }
 
+  async function copyMessageText(params: MessageActionParams) {
+    await copyMessageTextToClipboard(params.messageBody);
+  }
+
   return {
     ...reactionActions,
     startEdit,
     openDeleteConfirmation,
+    copyMessageText,
     copyMessageLink
   };
 }

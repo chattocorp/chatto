@@ -3,6 +3,7 @@ import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import { MessageComponent } from './pages/MessageComponent';
 
 // Video processing (ffmpeg transcode) can take up to 60s for small test files on CI.
 const VIDEO_PROCESSING_TIMEOUT = 60_000;
@@ -72,6 +73,24 @@ test.describe('animated GIF to video conversion @ffmpeg', () => {
 
       // No Vidstack player or controls should be rendered for converted GIFs.
       await expect(roomPage.mediaPlayer).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+
+      const gifMessageLocator = page.locator('[role="article"]').filter({ has: gifVideo });
+      const gifMessage = new MessageComponent(page, gifMessageLocator);
+      await gifVideo.evaluate(async (video) => {
+        video.dataset.reactionPlaybackMarker = 'preserve-me';
+        await video.play();
+      });
+      await expect(gifVideo).not.toHaveJSProperty('paused', true);
+
+      await gifMessage.reactViaToolbar('👍');
+      await gifMessage.expectReaction('👍', 1);
+      await expect(gifVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+      await expect(gifVideo).not.toHaveJSProperty('paused', true);
+
+      await gifMessage.toggleReaction('👍');
+      await gifMessage.expectNoReaction('👍');
+      await expect(gifVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+      await expect(gifVideo).not.toHaveJSProperty('paused', true);
 
       // User 2: Should also see the converted video via real-time subscription.
       const gifVideo2 = page2.locator('video[data-autoloop]');

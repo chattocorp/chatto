@@ -142,7 +142,7 @@
       "no_users_with_role": "Żaden użytkownik nie ma tej roli",
       "server_tier_intro": "Ta strona dotyczy uprawnień roli na poziomie serwera: ogólne ustawienia domyślne, które mają zastosowanie przed zastąpieniami specyficznymi dla pokoju.",
       "server_tier_rooms_hint": "Użyj Pokoi, aby zastąpić ustawienia na grupę i na pokój.",
-      "server_tier_denies_hint": "Użyj odmowy celowo: odmowa wszystkim w pokoju blokuje wszystkie odziedziczone zezwolenia na tym poziomie."
+      "resolution_hint": "Dla każdego użytkownika lub nazwanej roli obowiązuje najbliższa wartość pokoju, grupy albo serwera. Odmowy mają między nimi pierwszeństwo. Zezwolenie zastępuje odmowę everyone tylko w tym samym lub bardziej szczegółowym zakresie."
     },
     "rooms_admin": {
       "title": "Pokoje",

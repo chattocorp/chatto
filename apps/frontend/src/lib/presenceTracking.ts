@@ -12,11 +12,6 @@ type ActivityState = 'active' | 'idle' | 'hidden';
 
 export type PresenceReporterConfig = PresenceAPIConfig;
 
-export type PresenceTrackingOptions = {
-	onPauseLiveEvents?: () => void;
-	onResumeLiveEvents?: () => void;
-};
-
 let initialized = false;
 let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
 
@@ -69,10 +64,6 @@ function readStoredMode(): PresenceMode {
 	return 'auto';
 }
 
-export function shouldPauseLiveEventsForStoredPresence(): boolean {
-	return readStoredMode() === 'invisible';
-}
-
 function storeMode(mode: PresenceMode) {
 	if (typeof localStorage === 'undefined') return;
 	localStorage.setItem(PRESENCE_MODE_STORAGE_KEY, mode);
@@ -86,8 +77,7 @@ export function setPresenceMode(mode: PresenceMode) {
 
 export function initPresenceTracking(
 	getReporters: () => PresenceReporterConfig[],
-	onStatusChange?: (status: PresenceStatus) => void,
-	options: PresenceTrackingOptions = {}
+	onStatusChange?: (status: PresenceStatus) => void
 ): () => void {
 	if (initialized) return () => {};
 	initialized = true;
@@ -169,11 +159,9 @@ export function initPresenceTracking(
 			reportRevision++;
 			currentVisibleStatus = null;
 			emitLocalStatus(PresenceStatus.Offline);
-			options.onPauseLiveEvents?.();
 			return;
 		}
 
-		options.onResumeLiveEvents?.();
 		if (mode === 'auto') {
 			currentState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
 			const userSelected = persist || syncedFromStorage;

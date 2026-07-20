@@ -63,6 +63,7 @@
 
   <div class="flex flex-col gap-6 overflow-y-auto p-6">
     <Hint>{m['admin.rooms_admin.group_permissions_hint']()}</Hint>
+    <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
     <PermissionMatrix {groupId} />
   </div>
 </div>

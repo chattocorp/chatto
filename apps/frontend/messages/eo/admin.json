@@ -142,7 +142,7 @@
       "no_users_with_role": "Neniuj uzantoj havas ĉi tiun rolon",
       "server_tier_intro": "Ĉi tiu paĝo estas por servil-nivelaj rolpermesoj: larĝaj defaŭltoj kiuj validas antaŭ ĉambrospecifaj anstataŭaĵoj.",
       "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj.",
-      "server_tier_denies_hint": "Uzu malkonfesojn intence: malkonfesi ĉiujn en ĉambroblokoj ĉiuj heredataj permesas ĉe tiu nivelo."
+      "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo."
     },
     "rooms_admin": {
       "title": "Ĉambroj",

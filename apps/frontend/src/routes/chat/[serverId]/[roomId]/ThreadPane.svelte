@@ -1,9 +1,12 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { createThreadAPI } from '$lib/api-client/threads';
-  import { useEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
+  import {
+    useProjectionEvent,
+    createTypingIndicator,
+    useUnreadMarker
+  } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -16,7 +19,6 @@
   import {
     getRoomMembers,
     createComposerContext,
-    MessagesStore,
     type QuoteInsertionRequest
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
@@ -26,7 +28,6 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
 
   let {
@@ -63,8 +64,20 @@
   const members = $derived(getRoomMembers());
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
 
-  const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
-  onDestroy(() => store.dispose());
+  const stores = serverRegistry.getStore(getActiveServer());
+  const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
+
+  // Thread timelines contain decrypted history and are useful only while a
+  // pane renders them. Ref-count the stable selector so closing or switching
+  // a pane releases its store instead of retaining every thread ever opened.
+  $effect(() => {
+    const mountedStore = store;
+    const mountedRoomId = roomId;
+    const mountedThreadRootEventId = threadRootEventId;
+    stores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+    return () =>
+      stores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+  });
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
@@ -196,38 +209,28 @@
   // Subscribe to server events: clear typing indicator on a thread reply,
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
-  useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
+  useProjectionEvent((projectionEvent) => {
+    for (const operation of projectionEvent.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
+      if (update.event.event.value.message?.threadRootEventId !== threadRootEventId) continue;
 
-    if (
-      isMessagePostedEvent(eventData) &&
-      eventData.roomId === roomId &&
-      eventData.threadRootEventId === threadRootEventId
-    ) {
-      const actorId = serverEvent.actorId;
-      if (actorId) {
-        typingIndicator.removeTypingUser(actorId);
-      }
-
-      if (currentUser.user && actorId !== currentUser.user.id) {
-        if (appState.isPresent) {
-          void unread.markAsRead(threadRootEventId, serverEvent.id);
-        }
+      const actorId = projectionEvent.actorId;
+      if (actorId) typingIndicator.removeTypingUser(actorId);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        void unread.markAsRead(threadRootEventId, projectionEvent.id);
       }
     }
-
-    store.ingestServerEvent(serverEvent);
   });
 
   // -- Thread follow state --
-  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
-  // If one fires for this thread before the initial query resolves we must not
-  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
-  // so that switching to a different thread starts fresh.
+  // The lazy thread root and later projection upserts both carry the current
+  // viewer follow state. Observe each new authoritative row version so a
+  // follow change after the initial thread query updates the pane as well.
   let isFollowingThread = $state(false);
-  let _followSeededForThread = '';
-  let _followSubFiredForThread = '';
+  let _observedFollowThread = '';
+  let _observedFollowValue: boolean | undefined;
   let threadFollowRequestId = 0;
   let isThreadFollowPending = $state(false);
 
@@ -239,28 +242,21 @@
 
   $effect(() => {
     const threadId = threadRootEventId;
-
-    if (threadId !== _followSeededForThread) {
+    if (threadId !== _observedFollowThread) {
       threadFollowRequestId += 1;
       isThreadFollowPending = false;
-      // Only reset if the subscription hasn't already authoritatively set the
-      // state for this thread (auto-follow can fire before the initial query
-      // resolves).
-      if (_followSubFiredForThread !== threadId) {
-        setAuthoritativeThreadFollowState(false);
-      }
-
-      // Wait until data has loaded before reading follow state
-      if (!store.isInitialLoading) {
-        _followSeededForThread = threadId;
-        if (_followSubFiredForThread !== threadId) {
-          const rootEvent = threadEvents.find((e) => e.id === threadId);
-          if (isMessagePostedEvent(rootEvent?.event)) {
-            setAuthoritativeThreadFollowState(rootEvent.event.viewerIsFollowingThread ?? false);
-          }
-        }
-      }
+      isFollowingThread = false;
+      _observedFollowThread = threadId;
+      _observedFollowValue = undefined;
     }
+
+    if (store.isInitialLoading || isThreadFollowPending) return;
+    const rootEvent = threadEvents.find((event) => event.id === threadId);
+    if (!isMessagePostedEvent(rootEvent?.event)) return;
+    const nextFollowing = rootEvent.event.viewerIsFollowingThread ?? false;
+    if (_observedFollowValue === nextFollowing) return;
+    _observedFollowValue = nextFollowing;
+    setAuthoritativeThreadFollowState(nextFollowing);
   });
 
   async function toggleThreadFollow() {
@@ -290,16 +286,6 @@
       isFollowingThread = wasFollowing;
     }
   }
-
-  // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
-  $effect(() =>
-    onThreadFollowChanged((update) => {
-      if (update.threadRootEventId === threadRootEventId) {
-        setAuthoritativeThreadFollowState(update.isFollowing);
-        _followSubFiredForThread = update.threadRootEventId;
-      }
-    })
-  );
 
   async function markThreadAsRead(
     currentThreadId: string,

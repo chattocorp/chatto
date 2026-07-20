@@ -101,6 +101,9 @@
 
   // --- Drag-and-drop handlers ---
 
+  let roomDragGeneration: number | null = null;
+  let groupDragGeneration: number | null = null;
+
   function handleRoomMoveResult(result: RoomMoveFlushResult | null) {
     if (!result) return;
     if (!result.ok) {
@@ -123,20 +126,41 @@
   }
 
   function handleGroupConsider(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
-    layout.handleRoomDragConsider(groupId, e.detail.items);
+    roomDragGeneration = layout.handleRoomDragConsider(
+      groupId,
+      e.detail.items,
+      roomDragGeneration
+    );
   }
 
   async function handleGroupFinalize(groupId: string, e: CustomEvent<DndEvent<DndRoomItem>>) {
-    const result = await layout.handleRoomDragFinalize(groupId, e.detail.items);
+    const dragGeneration = roomDragGeneration;
+    // Cross-group moves emit finalize on both zones in the same task. Keep the
+    // token through that task, then prevent any later callback from belonging
+    // to this completed or destroyed editor lifecycle.
+    queueMicrotask(() => {
+      if (roomDragGeneration === dragGeneration) roomDragGeneration = null;
+    });
+    const result = await layout.handleRoomDragFinalize(
+      groupId,
+      e.detail.items,
+      dragGeneration
+    );
     handleRoomMoveResult(result);
   }
 
   function handleGroupsConsider(e: CustomEvent<DndEvent<DndGroupItem>>) {
-    layout.handleGroupsConsider(e.detail.items, e.detail.info?.id ?? null);
+    groupDragGeneration = layout.handleGroupsConsider(
+      e.detail.items,
+      e.detail.info?.id ?? null,
+      groupDragGeneration
+    );
   }
 
   async function handleGroupsFinalize(e: CustomEvent<DndEvent<DndGroupItem>>) {
-    const result = await layout.handleGroupsFinalize(e.detail.items);
+    const dragGeneration = groupDragGeneration;
+    groupDragGeneration = null;
+    const result = await layout.handleGroupsFinalize(e.detail.items, dragGeneration);
     handleGroupReorderResult(result);
   }
 

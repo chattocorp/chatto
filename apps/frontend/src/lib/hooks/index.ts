@@ -1,20 +1,8 @@
 // Server events — unified bus from `myEvents` subscription.
 export {
-  useEvent,
+  useProjectionEvent,
   usePresenceChange,
-  useActiveEvent,
-  useUserProfileUpdate,
-  useUserCustomStatusUpdate,
-  useUserSettingsUpdate,
-  useNotificationLevelChanged,
-  useMention,
-  useNewDM,
-  useNotificationCreated,
-  useNotificationDismissed,
-  useRoomMarkedAsRead,
-  useRoomLayoutUpdated,
-  useSessionTerminated,
-  useActiveRoomLayoutUpdated
+  useSessionTerminated
 } from './useEvent.svelte';
 
 // Message actions
@@ -29,12 +17,6 @@ export type { UnreadMarkerWindow } from './useUnreadMarker.svelte';
 
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';
-export {
-  useMayHaveMissedMessagesCallback,
-  type MayHaveMissedMessagesReason
-} from './useMayHaveMissedMessagesCallback.svelte';
-export { useReconnectCallback, useReconnectTrigger } from './useReconnectCallback.svelte';
-export type { ResumeSignal } from './resumeCoordinator.svelte';
 export { createTypingIndicator } from './useTypingIndicator.svelte';
 export type { TypingIndicator, TypingUser } from './useTypingIndicator.svelte';
 

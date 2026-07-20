@@ -1,12 +1,7 @@
-import { Code, ConnectError } from '@connectrpc/connect';
-import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
-import { createRoomDirectoryAPI, RoomKind } from '$lib/api-client/roomDirectory';
-import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
-import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
-import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
+import type { DirectoryMember } from '$lib/api-client/memberDirectory';
+import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
+import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { untrack } from 'svelte';
 
 export type RoomData = {
   room: {
@@ -40,151 +35,53 @@ export type DMData = {
 };
 
 /**
- * Loads room metadata and DM participant data.
+ * Select room metadata and complete membership from the retained server
+ * projection. Room switches are synchronous once the server has hydrated.
  *
- * Returns reactive state that updates when room/space changes or WebSocket reconnects.
- * The three-state pattern for roomData:
- * - `undefined` = loading (initial)
- * - `null` = not found / no access
- * - `object` = loaded
- *
- * Must be called during component initialization (uses context).
+ * `undefined` means the server projection is genuinely cold, `null` means a
+ * ready projection contains no visible room, and an object is renderable data.
  */
 export function useRoomData(getProps: () => { roomId: string }) {
-  const connection = useConnection();
-  const reconnect = useReconnectTrigger();
+  // The registry is keyed by the frontend registration ID (the URL segment),
+  // not by the backend identity advertised through ServerConnection.
+  const store = $derived(serverRegistry.tryGetStore(getActiveServer()));
 
-  // Refresh on room-groups-updated too: an admin renaming/reordering
-  // groups, moving rooms between groups, or editing per-group / per-room
-  // permissions can change any viewerCan* permission for this room.
-  // Bump a counter and let the loading effect react.
-  let layoutTrigger = $state(0);
-  useActiveRoomLayoutUpdated((info) => {
-    const { roomId } = getProps();
-    if (info.roomId && info.roomId !== roomId) return;
-    layoutTrigger++;
+  const roomData = $derived.by<RoomData | null | undefined>(() => {
+    const currentStore = store;
+    if (!currentStore?.realtimeSync.hasUsableProjection) return undefined;
+    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId)?.room;
+    const room = mapDirectoryRoomDetails(projectedRoom);
+    // A stale projection can render known rooms immediately, but absence is
+    // not authoritative until the activation catch-up reaches caught_up.
+    if (!room) return currentStore.realtimeSync.phase === 'ready' ? null : undefined;
+    return {
+      room: {
+        id: room.id,
+        name: room.name,
+        description: room.description,
+        type: room.kind,
+        isUniversal: room.isUniversal
+      },
+      spaceName: currentStore.serverInfo.name ?? null,
+      canPostMessage: room.canPostMessage,
+      canPostInThread: room.canPostInThread,
+      canAttach: room.canAttach,
+      canReact: room.canReact,
+      canManageOthersMessage: room.canManageOthersMessage,
+      canEchoMessage: room.canEchoMessage,
+      canManageRoom: room.canManageRoom,
+      canBanRoomMembers: room.canBanRoomMembers
+    };
   });
-
-  // undefined = loading, null = not found / no access, object = loaded
-  let roomData = $state<RoomData | null | undefined>(undefined);
-  let dmData = $state<DMData | null>(null);
-  const roomLoadId = { current: 0 };
-  const dmLoadId = { current: 0 };
 
   const isDM = $derived(roomData?.room.type === RoomKind.DM);
-  const isRoomLoading = $derived(roomData === undefined);
-
-  // Load room data when roomId, reconnect, or the room-sets layout changes
-  $effect(() => {
-    void reconnect.count;
-    void layoutTrigger;
-
-    const { roomId } = getProps();
-    const thisLoadId = ++roomLoadId.current;
-    const currentRoomId = roomId;
-
-    // Don't reset roomData to undefined when staying in the same room (reconnect case).
-    untrack(() => {
-      const currentRoom = roomData;
-      if (currentRoom && currentRoom.room.id === currentRoomId) {
-        // Same room, just reconnecting — keep existing data visible while refetching
-      } else {
-        roomData = undefined;
-      }
-    });
-
-    const currentConnection = connection();
-    const api = createRoomDirectoryAPI({
-      serverId: currentConnection.serverId,
-      baseUrl: currentConnection.connectBaseUrl,
-      bearerToken: currentConnection.bearerToken
-    });
-
-    api
-      .getRoom(currentRoomId)
-      .then((loadedRoom) => {
-        if (roomLoadId.current !== thisLoadId) return;
-
-        if (!loadedRoom) {
-          roomData = null;
-          return;
-        }
-
-        roomData = {
-          room: {
-            id: loadedRoom.id,
-            name: loadedRoom.name,
-            description: loadedRoom.description,
-            type: loadedRoom.kind,
-            isUniversal: loadedRoom.isUniversal
-          },
-          spaceName: serverName(currentConnection.serverId),
-          canPostMessage: loadedRoom.canPostMessage,
-          canPostInThread: loadedRoom.canPostInThread,
-          canAttach: loadedRoom.canAttach,
-          canReact: loadedRoom.canReact,
-          canManageOthersMessage: loadedRoom.canManageOthersMessage,
-          canEchoMessage: loadedRoom.canEchoMessage,
-          canManageRoom: loadedRoom.canManageRoom,
-          canBanRoomMembers: loadedRoom.canBanRoomMembers
-        };
-      })
-      .catch((err) => {
-        if (roomLoadId.current !== thisLoadId) return;
-        if (isTransientRoomLoadError(err)) {
-          console.warn('[useRoomData] transient room load failure, keeping prior roomData', {
-            roomId: currentRoomId,
-            error: err
-          });
-          return;
-        }
-        console.error('Failed to load room:', err);
-        roomData = null;
-      });
-  });
-
-  // Load DM participants
-  $effect(() => {
-    if (!isDM) {
-      dmLoadId.current++;
-      dmData = null;
-      return;
-    }
-
-    void reconnect.count;
-    const currentRoomId = getProps().roomId;
-    const thisLoadId = ++dmLoadId.current;
-
-    const currentConnection = connection();
-    const api = createMemberDirectoryAPI({
-      baseUrl: currentConnection.connectBaseUrl,
-      bearerToken: currentConnection.bearerToken
-    });
-    api
-      .listRoomMembers(currentRoomId, '', ROOM_MEMBERS_PAGE_SIZE, 0)
-      .then((resp) => {
-        if (dmLoadId.current !== thisLoadId) return;
-        dmData = {
-          participants: resp.members.map((member) => ({
-            id: member.id,
-            login: member.login,
-            displayName: member.displayName,
-            deleted: member.deleted,
-            avatarUrl: member.avatarUrl,
-            presenceStatus: member.presenceStatus
-          })),
-          currentUserId: currentConnection.serverId
-            ? (serverRegistry.tryGetStore(currentConnection.serverId)?.currentUser.user?.id ?? null)
-            : null
-        };
-      })
-      .catch((err) => {
-        if (dmLoadId.current !== thisLoadId) return;
-        console.warn('[useRoomData] failed to load DM members', {
-          roomId: currentRoomId,
-          error: err
-        });
-      });
+  const dmData = $derived.by<DMData | null>(() => {
+    const currentStore = store;
+    if (!isDM || !currentStore?.realtimeSync.hasUsableProjection) return null;
+    return {
+      participants: currentStore.projectedMembersForRoom(getProps().roomId),
+      currentUserId: currentStore.currentUser.user?.id ?? null
+    };
   });
 
   return {
@@ -198,18 +95,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       return isDM;
     },
     get isRoomLoading() {
-      return isRoomLoading;
+      return roomData === undefined;
     }
   };
-}
-
-function serverName(serverId: string | null | undefined): string | null {
-  return serverId ? (serverRegistry.tryGetStore(serverId)?.serverInfo.name ?? null) : null;
-}
-
-function isTransientRoomLoadError(err: unknown): boolean {
-  if (err instanceof ConnectError) {
-    return err.code === Code.Unavailable || err.code === Code.DeadlineExceeded;
-  }
-  return err instanceof TypeError;
 }

@@ -1,4 +1,4 @@
-import { authHeaders, Code, ConnectError, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListRoomNotificationsResponse,
@@ -104,41 +104,18 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
   return {
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
-      return notificationPage(
+      return mapNotificationPage(
         await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
       );
     },
 
     async listRoomNotifications(roomId: string, limit = 1, offset = 0): Promise<NotificationPage> {
-      return notificationPage(
+      return mapNotificationPage(
         await client.listRoomNotifications(
           { roomId, page: { limit, offset } },
           { headers: headers() }
         )
       );
-    },
-
-    async getNotification(notificationId: string): Promise<NotificationItem | null> {
-      try {
-        const response = await client.getNotification({ notificationId }, { headers: headers() });
-        return response.notification ? notificationItem(response.notification) : null;
-      } catch (err) {
-        if (err instanceof ConnectError && err.code === Code.NotFound) {
-          return null;
-        }
-        throw err;
-      }
-    },
-
-    async batchGetNotifications(notificationIds: string[]): Promise<NotificationItem[]> {
-      const response = await client.batchGetNotifications(
-        { notificationIds },
-        { headers: headers() }
-      );
-      return response.notifications.flatMap((item) => {
-        const mapped = notificationItem(item);
-        return mapped ? [mapped] : [];
-      });
     },
 
     async hasNotifications(): Promise<boolean> {
@@ -166,7 +143,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
-function notificationPage(
+export function mapNotificationPage(
   response: ListNotificationsResponse | ListRoomNotificationsResponse
 ): NotificationPage {
   return {

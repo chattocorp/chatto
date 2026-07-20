@@ -39,6 +39,7 @@ server before authentication. The response may include
 - `chatto.api.v1`
 - `chatto.admin.v1`
 - `chatto.realtime.v1`
+- `chatto.realtime.projection.v1`
 
 These values tell you which broad protocol surfaces the server advertises. They
 do not negotiate an API version, guarantee a particular method or field, or say
@@ -48,6 +49,25 @@ Ignore capability values you do not recognise. If a capability you need is
 absent, treat that protocol as unavailable. Older servers may omit compatibility
 metadata entirely, so decide explicitly whether to reject those servers or
 support a known range of releases through your own tests.
+
+The bundled 0.5 web client requires `chatto.realtime.projection.v1`. It does not
+fall back to the 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4
+servers as unsupported and asks the operator to upgrade them. A 0.5 server
+accepts only realtime protocol 2; older clients must migrate to the
+server-scoped projection stream.
+
+This breaking realtime migration does not retire the `chatto.api.v1`
+ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
+API. Do not replace explicit resource reads, pagination, mutation responses, or
+read-your-writes handling with assumptions about projection internals.
+
+Protocol 2 resume cursors are opaque, viewer-bound, and valid for up to 24
+hours. Retain a cursor only with the projection state produced before it, and
+replace it after each `caught_up` frame. A missing, expired, or unusable cursor
+does not fail convergence: the server sends a compacted `reset` and current
+projection state through the same operation stream. An integration that is
+offline for more than 24 hours recovers current state but cannot request every
+historical transition from that interval.
 
 `compatibility.minimumWebClientVersion`, when present, applies only to Chatto's
 bundled web client. Third-party clients must not use it as their compatibility

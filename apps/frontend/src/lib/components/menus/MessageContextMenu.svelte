@@ -123,6 +123,11 @@ Rendered inside a ContextMenu when right-clicking a message.
     onClose();
   }
 
+  async function handleCopyText() {
+    await actions.copyMessageText(params);
+    onClose();
+  }
+
   async function handleCopyLink() {
     await actions.copyMessageLink(params);
     onClose();
@@ -164,35 +169,52 @@ Rendered inside a ContextMenu when right-clicking a message.
   </div>
 {/if}
 
+{#if onReplyInRoom || onReply || canEdit}
+  <div class="menu-section">
+    <nav class="sidebar-nav">
+      {#if onReplyInRoom}
+        <button class="sidebar-item" onclick={handleReplyInRoom} role="menuitem">
+          <span class="sidebar-icon iconify uil--corner-up-left"></span>
+          {replyInRoomActionLabel}
+        </button>
+      {/if}
+
+      {#if onReply}
+        <button class="sidebar-item" onclick={handleReply} role="menuitem">
+          <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
+          {replyThreadActionLabel}
+        </button>
+      {/if}
+
+      {#if canEdit}
+        <button class="sidebar-item" onclick={handleEdit} role="menuitem">
+          <span class="sidebar-icon iconify uil--pen"></span>
+          {m['room.message.actions.edit_short']()}
+        </button>
+      {/if}
+    </nav>
+  </div>
+{/if}
+
 <div class="menu-section">
   <nav class="sidebar-nav">
-    {#if onReplyInRoom}
-      <button class="sidebar-item" onclick={handleReplyInRoom} role="menuitem">
-        <span class="sidebar-icon iconify uil--corner-up-left"></span>
-        {replyInRoomActionLabel}
-      </button>
-    {/if}
-
-    {#if onReply}
-      <button class="sidebar-item" onclick={handleReply} role="menuitem">
-        <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-        {replyThreadActionLabel}
-      </button>
-    {/if}
-
-    {#if canEdit}
-      <button class="sidebar-item" onclick={handleEdit} role="menuitem">
-        <span class="sidebar-icon iconify uil--pen"></span>
-        {m['room.message.actions.edit_short']()}
+    {#if messageBody}
+      <button class="sidebar-item" onclick={handleCopyText} role="menuitem">
+        <span class="sidebar-icon iconify uil--clipboard-notes"></span>
+        {m['room.message.actions.copy_text']()}
       </button>
     {/if}
 
     <button class="sidebar-item" onclick={handleCopyLink} role="menuitem">
-      <span class="sidebar-icon iconify uil--copy"></span>
+      <span class="sidebar-icon iconify uil--link"></span>
       {m['room.message.actions.copy_link']()}
     </button>
+  </nav>
+</div>
 
-    {#if canDelete}
+{#if canDelete}
+  <div class="menu-section">
+    <nav class="sidebar-nav">
       <button
         class="sidebar-item text-danger hover:text-danger"
         onclick={handleDelete}
@@ -201,6 +223,6 @@ Rendered inside a ContextMenu when right-clicking a message.
         <span class="sidebar-icon iconify uil--trash-alt"></span>
         {m['common.delete']()}
       </button>
-    {/if}
-  </nav>
-</div>
+    </nav>
+  </div>
+{/if}

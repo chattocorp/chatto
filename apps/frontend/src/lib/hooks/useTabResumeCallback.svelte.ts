@@ -1,19 +1,29 @@
 import { onMount } from 'svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { registerServerResumeCallback } from './resumeCoordinator.svelte';
 
 /**
  * Run a callback on mount and whenever the browser tab becomes visible again.
  *
- * Useful for loading state that may become stale while the tab is hidden
- * (e.g., active call participants, instance config). Fires immediately on
- * mount for the initial load, then again each time the user returns to the tab.
+ * This is for browser presentation work such as re-measuring a virtual list or
+ * advancing a local expiry clock. Canonical server data catches up through the
+ * resumable realtime projection instead of this callback.
  *
  * Must be called during component initialization.
  */
 export function useTabResumeCallback(callback: () => void) {
   onMount(() => {
     callback();
-    return registerServerResumeCallback(getActiveServer(), () => callback());
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') callback();
+    };
+    const onPageShow = () => callback();
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onPageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onPageShow);
+    };
   });
 }

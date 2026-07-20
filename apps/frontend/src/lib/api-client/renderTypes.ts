@@ -188,14 +188,12 @@ export type RoomEventPayload =
       callId: string;
     }
   | { kind: 'callStarted'; roomId: string; callId: string }
-  | { kind: 'heartbeat'; alive?: boolean }
   | {
       kind: 'mentionNotification';
       roomId?: string;
       room?: { name: string };
       actor?: { id: string; displayName: string } | null;
     }
-  | { kind: 'mentionStatusCleared' }
   | {
       kind: 'messageEdited';
       roomId: string;
@@ -242,24 +240,6 @@ export type RoomEventPayload =
         avatarUrl?: string | null;
       } | null;
     }
-  | {
-      kind: 'notificationCreated';
-      notificationId: string;
-      roomId?: string | null;
-      eventId?: string | null;
-      inReplyToId?: string | null;
-      silent?: boolean;
-    }
-  | {
-      kind: 'notificationDismissed';
-      notificationId: string;
-    }
-  | {
-      kind: 'notificationLevelChanged';
-      level: NotificationLevel;
-      effectiveLevel: NotificationLevel;
-      nlcRoomId?: string | null;
-    }
   | { kind: 'presenceChanged'; status: PresenceStatus }
   | {
       kind: 'reactionAdded';
@@ -276,8 +256,6 @@ export type RoomEventPayload =
   | { kind: 'roomArchived'; roomId: string }
   | { kind: 'roomCreated'; roomId?: string }
   | { kind: 'roomDeleted'; roomId: string }
-  | { kind: 'roomGroupsUpdated'; changed?: boolean }
-  | { kind: 'roomMarkedAsRead'; roomId?: string }
   | { kind: 'roomMemberBanned' }
   | { kind: 'roomMemberUnbanned' }
   | { kind: 'roomUnarchived'; roomId: string }
@@ -287,30 +265,11 @@ export type RoomEventPayload =
       universal?: boolean;
     }
   | { kind: 'roomUpdated'; roomId: string }
-  | { kind: 'serverMemberDeleted'; userId: string }
-  | {
-      kind: 'serverUpdated';
-      name?: string;
-      description?: string | null;
-      logoUrl?: string | null;
-      bannerUrl?: string | null;
-    }
-  | {
-      kind: 'serverUserPreferencesUpdated';
-      timezone?: string | null;
-      timeFormat?: TimeFormat;
-    }
   | { kind: 'sessionTerminated'; reason?: string }
   | {
       kind: 'threadCreated';
       roomId?: string;
       threadRootEventId?: string;
-    }
-  | {
-      kind: 'threadFollowChanged';
-      isFollowing?: boolean;
-      tfcRoomId?: string;
-      tfcThreadRootEventId?: string;
     }
   | { kind: 'userCreated' }
   | {
@@ -325,13 +284,6 @@ export type RoomEventPayload =
   | { kind: 'userDeleted' }
   | { kind: 'userJoinedRoom'; roomId: string }
   | { kind: 'userLeftRoom'; roomId: string }
-  | {
-      kind: 'userProfileUpdated';
-      userId?: string;
-      displayName?: string;
-      avatarUrl?: string | null;
-      login?: string;
-    }
   | {
       kind: 'userTyping';
       roomId: string;

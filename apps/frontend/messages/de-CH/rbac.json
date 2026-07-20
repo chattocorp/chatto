@@ -80,7 +80,7 @@
         },
         "user": {
           "title": "Benutzerberechtigungen",
-          "description": "Steuert Benutzerkonto- und benutzerbezogene Berechtigungsvorgänge. Jede Nicht-Owner-Verweigerung hebt Erlaubnisse auf"
+          "description": "Steuert Benutzerkonto- und benutzerbezogene Berechtigungsvorgänge"
         }
       }
     },

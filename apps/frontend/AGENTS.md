@@ -66,6 +66,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
+- Treat an intentionally dormant inactive-server transport as healthy retained
+  state, not as a failed connection. Only actual transport/auth/protocol
+  failures should dim its server-gutter entry.
 - `$lib/render/types` is a hand-owned temporary render DTO compatibility layer,
   not generated API output. Do not add documents or generated calls for the
   retired legacy API.
@@ -158,6 +161,23 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
+- For paginated caches reconciled from realtime snapshots, queue relevant
+  updates during first hydration instead of restarting it, fence and retry
+  stale append reads, and version per-resource async refreshes so older
+  responses cannot restore deleted or superseded data.
+- Keep a realtime resume cursor RAM-only and owned by the exact per-server
+  projection it advances. Socket teardown must not discard either one, and a
+  recreated projection must resume without a cursor so it receives a reset.
+- Treat undecodable realtime frames and unknown projection operations as fatal
+  for that socket. Validate each projection event before mutation and never
+  advance a cursor across input the reducer did not fully understand.
+- Treat authorization loss, message deletion, key shredding, and account
+  deletion as asynchronous privacy boundaries. Clearing current render state
+  is insufficient: invalidate or fence older reads and optimistic rollbacks,
+  and apply the boundary to every response that can arrive later.
+- Application code must leave realtime transport ownership to the central
+  coordinator: only the URL-active server keeps a persistent WebSocket, while
+  inactive servers use serialized short-lived catch-ups over the same stream.
 - Guard subscription creation on authentication/server availability to avoid
   reconnect loops.
 - For virtualized lists (`virtua`), use real wheel interaction in e2e tests; raw
@@ -166,6 +186,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Testing
 
 - `mise test-frontend` runs the frontend suite.
+- Run frontend verification commands that compile Paraglide sequentially. In
+  particular, do not run `mise lint-frontend` and `mise test-frontend` in
+  parallel: one process can read `src/lib/paraglide/` while the other is
+  rewriting it and report invalid generated-code diagnostics.
 - Unit and component specs live next to source. Route specs should not start
   with `+`; use descriptive names such as `members.page.svelte.spec.ts`.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,

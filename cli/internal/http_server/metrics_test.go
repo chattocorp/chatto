@@ -48,6 +48,12 @@ func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
 	for _, want := range []string{
 		`chatto_build_info{version="test-version"} 1`,
 		`chatto_realtime_websocket_connections 0`,
+		`chatto_realtime_catch_ups 0`,
+		`chatto_realtime_catch_ups_started_total 0`,
+		`chatto_realtime_catch_ups_timed_out_total 0`,
+		`chatto_realtime_catch_ups_rejected_total{reason="rate_limited"} 0`,
+		`chatto_realtime_catch_ups_rejected_total{reason="user_busy"} 0`,
+		`chatto_realtime_catch_ups_rejected_total{reason="server_busy"} 0`,
 		`chatto_nats_connected 0`,
 		`chatto_ready 0`,
 	} {

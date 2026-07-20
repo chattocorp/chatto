@@ -12,7 +12,7 @@ ADR-033, and ADR-034.
 
 ## Context
 
-Chatto's real-time events span a wide spectrum of persistence and frequency requirements. Messages, joins, room lifecycle events, reactions, and other durable room facts must be durably stored and replayable. Typing indicators, presence changes, and notification sync signals are ephemeral - they matter for the current moment but have no audit or replay value.
+Chatto's real-time signals span a wide spectrum of persistence and frequency requirements. Messages, joins, room lifecycle events, reactions, calls, and other durable room facts must be durably stored and replayable. Typing indicators, presence changes, and latest-value invalidations such as notification sync have no audit or replay value.
 
 Publishing all events to JetStream would waste storage on high-frequency transient signals. Using only bare NATS pub/sub would lose ordering guarantees and replay for messages.
 
@@ -21,14 +21,14 @@ Publishing all events to JetStream would waste storage on high-frequency transie
 Split events into two channels based on persistence:
 
 1. **JetStream events** (messages, joins, leaves, room lifecycle, reactions): Originally published to `space.{id}.>` subjects on a persisted per-space stream; currently published as durable `EVT` facts and exposed internally through `live.evt.>`.
-2. **Live-only events** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `corev1.LiveEvent` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions.
+2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `corev1.LiveEvent` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions.
 
-The realtime delivery layer merges durable and transient live channels, then maps authorized events into public protobuf live events for connected clients.
+The realtime delivery layer merges both internal channels, then maps authorized input to the public protocol. Durable and canonical latest-value changes become `RealtimeProjectionEvent` operations. Only genuinely non-replayable activity—typing, presence, mention/new-DM attention hints, and session termination—uses `RealtimeEventEnvelope`. Internal `corev1.LiveEvent` variants are triggers, not a public event schema.
 
 ## Consequences
 
 - **Efficient storage**: High-frequency transient events don't accumulate in JetStream streams. A busy space with constant typing indicators doesn't bloat its event stream.
 - **Appropriate delivery guarantees**: Messages get ordered, durable delivery. Typing indicators get fire-and-forget delivery, which is correct — a missed typing indicator is harmless.
-- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The current `StreamMyEvents` path consumes `live.evt.>` and `live.sync.>` and maps both to public realtime protobuf frames.
-- **Delivery mapping must stay explicit**: Every new live event type must be registered in the current `StreamMyEvents` / realtime mapping path so delivery can extract its authorization scope and public protobuf shape. Missing mappings can still hide otherwise-valid events from clients, so live-event changes need tests at the delivery boundary.
+- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The process-wide hub consumes `live.evt.>` and `live.sync.>` and maps both to public realtime projection or transient frames.
+- **Delivery mapping must stay explicit**: Every new live signal must be registered in the hub/realtime mapping path so delivery can extract its authorization scope and decide whether it assembles canonical projection state, requests a reset, or emits a transient public shape. Missing mappings can still hide otherwise-valid changes from clients, so live-signal changes need tests at the delivery boundary.
 - **New event types require a channel decision**: When adding a new event type, developers must decide whether it belongs in JetStream (persistent, ordered) or NATS Core (ephemeral, best-effort). This is an explicit architectural choice, not a default.

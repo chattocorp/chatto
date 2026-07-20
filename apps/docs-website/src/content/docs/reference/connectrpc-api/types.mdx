@@ -47,7 +47,7 @@ has not declared a lower bound for the bundled Chatto web client.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, and `chatto.realtime.v1`. |
+| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
 | `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
 
 <a id="chatto-api-v1-ImageTransformOptions"></a>
@@ -618,7 +618,9 @@ Cursor page of room or thread timeline events.
 
 Use opaque start_cursor and end_cursor values with before/after requests to
 continue paging in either direction. Clients must treat cursor values as
-server-owned tokens and must not parse or construct them. The has_older and
+server-owned tokens and must not parse, construct, share between users, or
+reuse them for another room or thread. The server binds each cursor to the
+authenticated viewer and exact timeline resource. The has_older and
 has_newer flags tell clients whether another request can extend the current
 window.
 
@@ -1195,9 +1197,9 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after applying deny-wins resolution. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
-| `decided_by_role` | `string` | Role name or policy marker that produced the winning decision. |
+| `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
 
 <a id="chatto-admin-v1-PermissionMatrixCell"></a>
@@ -1246,7 +1248,7 @@ One explicit decision encountered while explaining a permission.
 | Field | Type | Description |
 | --- | --- | --- |
 | `level` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
-| `role_name` | `string` | Role name or policy marker that produced the decision. |
+| `role_name` | `string` | Role name, user ID, or policy marker that produced the decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Decision observed at this trace step. |
 | `applied` | `bool` | Whether this entry is the winning decision. |
 
