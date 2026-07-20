@@ -988,6 +988,16 @@ export class RealtimeProjectionRoom extends Message<RealtimeProjectionRoom> {
    */
   viewerNotificationCount = 0;
 
+  /**
+   * Whether this DM room has ever received a root message. False means the
+   * durable room exists only so its initiator can compose the first message.
+   * Once true, message deletion does not reset it. Absent for channel rooms
+   * and servers that predate this field.
+   *
+   * @generated from field: optional bool has_message_history = 4;
+   */
+  hasMessageHistory?: boolean;
+
   constructor(data?: PartialMessage<RealtimeProjectionRoom>) {
     super();
     proto3.util.initPartial(data, this);
@@ -999,6 +1009,7 @@ export class RealtimeProjectionRoom extends Message<RealtimeProjectionRoom> {
     { no: 1, name: "room", kind: "message", T: RoomWithViewerState },
     { no: 2, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "viewer_notification_count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionRoom {

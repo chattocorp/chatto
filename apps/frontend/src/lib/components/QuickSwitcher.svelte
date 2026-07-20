@@ -12,6 +12,7 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { RoomType } from '$lib/render/types';
+  import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
@@ -81,6 +82,7 @@
 
       for (const room of store?.rooms.rooms ?? []) {
         if (room.type === RoomType.Dm) {
+          if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members.map(avatarUser);
           items.push({
             kind: 'dm',

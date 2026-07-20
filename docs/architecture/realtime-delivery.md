@@ -83,11 +83,14 @@ crypto-erased bodies therefore appear only as normal tombstones. Requested
 timeline windows are assembled concurrently with bounded concurrency.
 Never-viewed room bodies are not decrypted during bootstrap.
 
-The projection's room set is exhaustive rather than sidebar-policy-filtered:
-it includes joined DMs that do not yet contain a message. Public directory
-lists may continue hiding those empty conversations, but the projection and
-live-hub authorization capture retain them so a `StartDM` response can be
-navigated immediately and its first message can arrive through the stream.
+The projection's room set is exhaustive rather than navigation-policy-filtered:
+it includes joined DMs that do not yet contain a message. Each DM summary says
+whether it has root-message history; the bundled client retains empty DMs for
+routing and authorization but omits them from the sidebar and quick switcher.
+The first `room_activity` operation promotes the room into navigation, while an
+absent history field from an older server preserves the previous visible
+fallback. This lets a `StartDM` response navigate immediately without exposing
+an unsolicited empty conversation to another participant.
 
 The frontend applies this prefix and every later event through the same
 `ServerProjectionStore` reducer. Server profile, MOTD, and runtime capability

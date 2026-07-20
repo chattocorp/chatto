@@ -47,6 +47,7 @@ type RealtimeProjectionRoom struct {
 	Room                    *apiv1.RoomWithViewerState
 	MemberUserIDs           []string
 	ViewerNotificationCount uint32
+	HasMessageHistory       *bool
 }
 
 // RealtimeProjectionRoomTimeline identifies one compacted recent room window.
@@ -390,14 +391,22 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 	if room == nil || room.Room == nil {
 		return nil, core.ErrNotFound
 	}
+	var hasMessageHistory *bool
+	if core.KindOfRoom(room.Room) == core.KindDM {
+		_, _, exists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		hasMessageHistory = &exists
+	}
 	// Directory-visible rooms are part of the server projection even before
 	// the viewer joins. Their member list is not authorized at that point and
 	// is not needed until the room becomes a joined-room projection.
 	if !room.ViewerState.IsMember {
-		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount}, nil
+		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
 	}
 	if room.Room.GetKind() != corev1.RoomKind_ROOM_KIND_DM && !includeChannelMembership {
-		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount}, nil
+		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
 	}
 	members, err := a.core.ListRoomMemberReferencesForList(ctx, userID, room.Room.GetId())
 	if err != nil {
@@ -409,7 +418,7 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 			memberIDs = append(memberIDs, member.GetId())
 		}
 	}
-	return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), MemberUserIDs: memberIDs, ViewerNotificationCount: notificationCount}, nil
+	return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), MemberUserIDs: memberIDs, ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
 }
 
 func (a *API) realtimeProjectionNotificationCounts(ctx context.Context, userID string) (map[string]uint32, error) {

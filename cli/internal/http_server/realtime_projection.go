@@ -775,6 +775,7 @@ func realtimeProjectionRoom(room *connectapi.RealtimeProjectionRoom) *realtimev1
 		Room:                    room.Room,
 		MemberUserIds:           append([]string(nil), room.MemberUserIDs...),
 		ViewerNotificationCount: room.ViewerNotificationCount,
+		HasMessageHistory:       room.HasMessageHistory,
 	}
 }
 

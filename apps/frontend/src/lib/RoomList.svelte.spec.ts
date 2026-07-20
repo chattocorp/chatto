@@ -275,6 +275,18 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  it('hides only DMs explicitly projected without message history', async () => {
+    const empty = mocks.store.rooms.rooms.find(
+      (room: { id: string }) => room.id === 'dm-with-participants'
+    ) as unknown as { hasMessageHistory?: boolean };
+    empty.hasMessageHistory = false;
+
+    const { container } = render(RoomList);
+
+    expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
+  });
+
   it('opens room actions on right-click and marks an unread room as read', async () => {
     setRoomUnread('channel-1', true);
     const { container } = render(RoomList);

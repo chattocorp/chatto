@@ -6594,10 +6594,30 @@ func TestRealtimeProjectionSnapshotIncludesEmptyJoinedDM(t *testing.T) {
 			if len(room.MemberUserIDs) != 2 {
 				t.Fatalf("empty DM member references = %v, want two members", room.MemberUserIDs)
 			}
-			return
+			if room.HasMessageHistory == nil || *room.HasMessageHistory {
+				t.Fatalf("empty DM has_message_history = %v, want explicit false", room.HasMessageHistory)
+			}
+			goto foundEmpty
 		}
 	}
 	t.Fatalf("empty joined DM %s missing from realtime projection snapshot", dm.Id)
+
+foundEmpty:
+	message, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "first DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindDM, dm.Id, message.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+
+	room, err := env.api.BuildRealtimeProjectionRoomSummary(env.ctx, env.viewer.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomSummary: %v", err)
+	}
+	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
+		t.Fatalf("used DM has_message_history = %v, want true after message retraction", room.HasMessageHistory)
+	}
 }
 
 func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
