@@ -202,6 +202,7 @@ export class RoomsStore {
   rooms = $state<RoomsListItem[]>([]);
   roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
+  hasUnreadFollowedThreads = $state(false);
   // The viewer's user ID, captured from the same sidebar bootstrap query that
   // produced DM `room.members`. Use this in preference to a global auth
   // context when filtering self out of DM labels and avatars.
@@ -234,6 +235,7 @@ export class RoomsStore {
     if (this.loadId !== thisLoad) return;
 
     this.currentUserId = viewer.user.id;
+    this.hasUnreadFollowedThreads = viewer.hasUnreadFollowedThreads;
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
       viewer.serverNotificationPreference.effectiveLevel
@@ -299,6 +301,7 @@ export class RoomsStore {
   ): void {
     this.loadId++;
     this.currentUserId = viewer.user.id;
+    this.hasUnreadFollowedThreads = viewer.hasUnreadFollowedThreads;
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
       viewer.serverNotificationPreference.effectiveLevel
@@ -335,7 +338,13 @@ export class RoomsStore {
     this.rooms = [];
     this.roomGroups = [];
     this.currentUserId = null;
+    this.hasUnreadFollowedThreads = false;
     this.isInitialLoading = true;
+  }
+
+  /** Replace the exact unread state derived from complete projected thread viewer states. */
+  setHasUnreadFollowedThreads(hasUnread: boolean): void {
+    this.hasUnreadFollowedThreads = hasUnread;
   }
 
   private roomListItem(room: DirectoryRoomSummary, members: UserAvatarUserView[]): RoomsListItem {

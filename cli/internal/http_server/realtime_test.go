@@ -1660,9 +1660,31 @@ func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 	if _, err := env.core.SetThreadLastReadEventID(env.ctx, core.KindChannel, viewer.Id, room.Id, root.Id, reply.Id); err != nil {
 		t.Fatalf("SetThreadLastReadEventID: %v", err)
 	}
-	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
-		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == root.Id
+	projection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		for _, operation := range projection.GetOperations() {
+			if upsert := operation.GetRoomTimelineEventUpsert(); upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == root.Id {
+				return true
+			}
+		}
+		return false
 	})
+	if projection == nil {
+		t.Fatal("did not receive thread read-marker projection update")
+	}
+	var upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
+	var replacement *realtimev1.RealtimeProjectionThreadViewerStatesReplace
+	for _, operation := range projection.GetOperations() {
+		if candidate := operation.GetRoomTimelineEventUpsert(); candidate.GetRoomId() == room.Id && candidate.GetEvent().GetId() == root.Id {
+			upsert = candidate
+		}
+		if candidate := operation.GetThreadViewerStatesReplace(); candidate != nil {
+			replacement = candidate
+		}
+	}
+	states := replacement.GetStates()
+	if len(states) != 1 || states[0].GetRoomId() != room.Id || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetIsFollowing() || states[0].GetViewerState().GetHasUnread() {
+		t.Fatalf("thread viewer-state replacement after marker advance = %+v, want one followed and read thread", states)
+	}
 	thread := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread()
 	if !thread.GetViewerState().GetIsFollowing() || thread.GetViewerState().GetHasUnread() {
 		t.Fatalf("thread viewer state after marker advance = %+v, want following and read", thread.GetViewerState())

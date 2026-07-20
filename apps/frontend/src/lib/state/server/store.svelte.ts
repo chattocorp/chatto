@@ -456,6 +456,7 @@ export class ServerStateStore {
           break;
         }
         case 'threadViewerStatesReplace': {
+          this.synchronizeUnreadFollowedThreads();
           for (const [roomId, page] of this.projection.timelines) {
             for (const projectedEvent of page.events) {
               if (
@@ -551,7 +552,17 @@ export class ServerStateStore {
       notificationCountsByRoomId,
       messageHistoryByRoomId
     );
+    this.synchronizeUnreadFollowedThreads();
     this.roomDirectory.replaceProjection(rooms);
+  }
+
+  private synchronizeUnreadFollowedThreads(): void {
+    if (!this.projection.hasThreadViewerStatesSnapshot) return;
+    this.rooms.setHasUnreadFollowedThreads(
+      [...this.projection.threadViewerStates.values()].some(
+        (state) => state.isFollowing && state.hasUnread
+      )
+    );
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */

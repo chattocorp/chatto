@@ -26,6 +26,8 @@ export class ServerProjectionStore {
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
   threadViewerStates = new SvelteMap<string, ThreadViewerState>();
+  /** Whether the complete thread viewer-state replacement has been received. */
+  hasThreadViewerStatesSnapshot = false;
   timelines = new SvelteMap<string, RoomTimelinePage>();
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
   private revokedRoomIds = new SvelteSet<string>();
@@ -191,6 +193,7 @@ export class ServerProjectionStore {
           }
           break;
         case 'threadViewerStatesReplace': {
+          this.hasThreadViewerStatesSnapshot = true;
           this.threadViewerStates.clear();
           for (const state of operation.operation.value.states) {
             this.threadViewerStates.set(
@@ -268,6 +271,7 @@ export class ServerProjectionStore {
     this.notifications = null;
     this.activeCalls = [];
     this.threadViewerStates.clear();
+    this.hasThreadViewerStatesSnapshot = false;
     this.timelines.clear();
     this.timelineEventCursors.clear();
     this.revokedRoomIds.clear();

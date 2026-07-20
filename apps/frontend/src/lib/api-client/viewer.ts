@@ -62,6 +62,7 @@ export type ViewerState = ViewerCapabilities & {
   roomNotificationPreferences: RoomNotificationPreference[];
   viewerPermissions: Record<string, boolean>;
   viewerHasUnreadRooms: boolean;
+  hasUnreadFollowedThreads: boolean;
 };
 
 const capabilityKeys = {
@@ -136,6 +137,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     viewerPermissions,
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
+    hasUnreadFollowedThreads: response.capabilities?.hasUnreadFollowedThreads ?? false,
     serverNotificationPreference: {
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
       effectiveLevel: apiNotificationLevel(response.serverNotificationPreference?.effectiveLevel)

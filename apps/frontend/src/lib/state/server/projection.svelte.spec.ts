@@ -124,6 +124,7 @@ describe('ServerProjectionStore', () => {
     expect(viewerState()?.isFollowing).toBe(true);
     expect(viewerState()?.hasUnread).toBe(true);
     expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnread).toBe(true);
+    expect(store.hasThreadViewerStatesSnapshot).toBe(true);
 
     store.apply(
       event(
@@ -136,6 +137,22 @@ describe('ServerProjectionStore', () => {
     expect(viewerState()?.isFollowing).toBe(false);
     expect(viewerState()?.hasUnread).toBe(false);
     expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasThreadViewerStatesSnapshot).toBe(true);
+  });
+
+  it('invalidates thread viewer-state snapshot authority on reset', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'threadViewerStatesReplace',
+          value: new RealtimeProjectionThreadViewerStatesReplace()
+        }),
+        operation({ case: 'reset', value: new RealtimeProjectionReset() })
+      )
+    );
+
+    expect(store.hasThreadViewerStatesSnapshot).toBe(false);
   });
 
   it('reconciles complete transient presence without changing user profiles', () => {
