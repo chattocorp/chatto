@@ -81,7 +81,7 @@ func (s *AssetModel) setAssetCleanupPassFinished(err error) {
 }
 
 func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusRecord {
-	consumer := s.cleanupConsumer.Status()
+	consumer := s.assetCleanupConsumerStatus()
 	s.cleanupStatusMu.RLock()
 	pass := s.cleanupPass
 	s.cleanupStatusMu.RUnlock()
@@ -96,6 +96,21 @@ func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusR
 		LastSuccessfulPassAt: pass.LastSuccessfulPassAt,
 		LastPassFailed:       pass.LastPassFailed,
 		LastInspectedSeq:     consumer.AfterSeq,
+	}
+}
+
+func (s *AssetModel) assetCleanupConsumerStatus() events.IncrementalEffectConsumerStatus {
+	deletions := s.cleanupConsumer.Status()
+	failures := s.failedVideoCleanupConsumer.Status()
+	oldest := deletions.OldestPendingAt
+	if oldest.IsZero() || (!failures.OldestPendingAt.IsZero() && failures.OldestPendingAt.Before(oldest)) {
+		oldest = failures.OldestPendingAt
+	}
+	return events.IncrementalEffectConsumerStatus{
+		Initialized:     deletions.Initialized && failures.Initialized,
+		AfterSeq:        deletions.AfterSeq,
+		PendingCount:    deletions.PendingCount + failures.PendingCount,
+		OldestPendingAt: oldest,
 	}
 }
 

@@ -173,6 +173,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
 | `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
 | `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
+
 | `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent`               |
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
@@ -234,6 +235,10 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
+
+`AssetProcessingFailedEvent.cleanup_asset_ids` is an additive durable cleanup
+intent. Current writers include derivatives created by that failed attempt;
+the elected asset-cleanup worker ignores the absent field on historical events.
 
 ## Transient live subjects
 

@@ -315,9 +315,11 @@ func TestMediaModelStableAttachmentURLIssuanceBuckets(t *testing.T) {
 
 	first := service.GetStableAttachmentAssetURL("A-url", "U-url")
 	firstTransformed := service.GetStableTransformedAttachmentAssetURL("A-url", "U-url", 128, 96, "contain")
+	firstHLS := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
 	now = now.Add(44*time.Minute + 59*time.Second)
 	withinBucket := service.GetStableAttachmentAssetURL("A-url", "U-url")
 	withinBucketTransformed := service.GetStableTransformedAttachmentAssetURL("A-url", "U-url", 128, 96, "contain")
+	withinBucketHLS := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
 
 	if withinBucket != first {
 		t.Fatalf("stable URL changed within issuance bucket: %#v != %#v", withinBucket, first)
@@ -325,14 +327,24 @@ func TestMediaModelStableAttachmentURLIssuanceBuckets(t *testing.T) {
 	if withinBucketTransformed != firstTransformed {
 		t.Fatalf("stable transformed URL changed within issuance bucket: %#v != %#v", withinBucketTransformed, firstTransformed)
 	}
+	if withinBucketHLS != firstHLS {
+		t.Fatalf("stable HLS URL changed within issuance bucket: %#v != %#v", withinBucketHLS, firstHLS)
+	}
 	if got, want := first.ExpiresAt, time.Date(2026, time.July, 20, 8, 0, 0, 0, time.UTC); !got.Equal(want) {
 		t.Fatalf("stable URL expiry = %v, want %v", got, want)
 	}
 
 	now = now.Add(time.Second)
 	nextBucket := service.GetStableAttachmentAssetURL("A-url", "U-url")
+	nextBucketHLS := service.GetStableHLSMasterPlaylistAssetURL("A-url", "U-url")
 	if nextBucket.URL == first.URL {
 		t.Fatal("stable URL did not rotate across issuance bucket boundary")
+	}
+	if nextBucketHLS.URL == firstHLS.URL {
+		t.Fatal("stable HLS URL did not rotate across issuance bucket boundary")
+	}
+	if !nextBucketHLS.ExpiresAt.Equal(nextBucket.ExpiresAt) {
+		t.Fatalf("next-bucket HLS expiry = %v, want %v", nextBucketHLS.ExpiresAt, nextBucket.ExpiresAt)
 	}
 	if got, want := nextBucket.ExpiresAt.Sub(now), AssetAccessTicketTTL; got != want {
 		t.Fatalf("next-bucket URL validity = %v, want %v", got, want)
@@ -495,6 +507,69 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	}
 	if _, ok := core.Assets.AssetCreation(original.GetId()); ok {
 		t.Fatal("asset creation still projected after RecordAssetDeleted")
+	}
+}
+
+func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.assetLifecycle()
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-video-ambiguous", "Media video ambiguous")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	segment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+
+	service.waitForAssetsOverride = func(waitCtx context.Context, pos events.StreamPosition) error {
+		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetProcessingSucceeded) {
+			return context.DeadlineExceeded
+		}
+		return core.AssetsProjector.WaitFor(waitCtx, pos)
+	}
+	t.Cleanup(func() { service.waitForAssetsOverride = nil })
+
+	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
+		Quality:  "480p",
+		Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 1000}},
+	}}}
+	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, hls); err != nil {
+		t.Fatalf("RecordAssetProcessedWithHLS after committed append: %v", err)
+	}
+
+	processed, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	if err != nil {
+		t.Fatalf("read processing success: %v", err)
+	}
+	if len(processed) != 1 {
+		t.Fatalf("processing success events = %d, want 1", len(processed))
+	}
+	failed, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingFailed))
+	if err != nil {
+		t.Fatalf("read processing failures: %v", err)
+	}
+	if len(failed) != 0 {
+		t.Fatalf("processing failure events = %d, want 0", len(failed))
+	}
+	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetDeleted))
+	if err != nil {
+		t.Fatalf("read segment deletions: %v", err)
+	}
+	if len(deleted) != 0 {
+		t.Fatalf("segment deletion events = %d, want 0", len(deleted))
+	}
+	reader, _, err := core.media().GetAttachmentReader(ctx, segment)
+	if err != nil {
+		t.Fatalf("committed segment became unreadable: %v", err)
+	}
+	if closer, ok := reader.(io.Closer); ok {
+		closer.Close()
 	}
 }
 

@@ -454,8 +454,11 @@ type AssetProcessingFailedEvent struct {
 	// AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
 	// migration events.
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Derivative asset ids created by the failed processing attempt. Cleanup
+	// workers tombstone these assets before deleting their stored bytes.
+	CleanupAssetIds []string `protobuf:"bytes,4,rep,name=cleanup_asset_ids,json=cleanupAssetIds,proto3" json:"cleanup_asset_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AssetProcessingFailedEvent) Reset() {
@@ -507,6 +510,13 @@ func (x *AssetProcessingFailedEvent) GetMessageEventId() string {
 		return x.MessageEventId
 	}
 	return ""
+}
+
+func (x *AssetProcessingFailedEvent) GetCleanupAssetIds() []string {
+	if x != nil {
+		return x.CleanupAssetIds
+	}
+	return nil
 }
 
 // AssetProcessedVideo is the per-asset video manifest carried by
@@ -849,11 +859,12 @@ const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x129\n" +
 	"\x05video\x18\x02 \x01(\v2#.chatto.core.v1.AssetProcessedVideoR\x05video\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\xb0\x01\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\xdc\x01\n" +
 	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12M\n" +
 	"\ffailure_code\x18\x02 \x01(\x0e2*.chatto.core.v1.AssetProcessingFailureCodeR\vfailureCode\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\x86\x02\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12*\n" +
+	"\x11cleanup_asset_ids\x18\x04 \x03(\tR\x0fcleanupAssetIds\"\x86\x02\n" +
 	"\x13AssetProcessedVideo\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x03R\n" +
 	"durationMs\x12\x14\n" +

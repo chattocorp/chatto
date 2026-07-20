@@ -30,7 +30,7 @@ const (
 	// PublicServerAssetObjectPrefix is the explicit SERVER_ASSETS namespace for
 	// newly written unauthenticated public assets. Historical public objects use
 	// flat asset-ID keys and remain available through the legacy classifier.
-	PublicServerAssetObjectPrefix = "public/"
+	PublicServerAssetObjectPrefix      = "public/"
 	attachmentWriteCompensationTimeout = 5 * time.Second
 )
 
@@ -747,7 +747,7 @@ func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) 
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
-	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	expiresAt := c.assetAccessTicketExpiry()
 	ticket, err := signedurl.SignedHLSAccessTicket(c.config.Assets.SigningSecret, signedurl.HLSAccessTicket{
 		AssetID:   assetID,
 		UserID:    userID,

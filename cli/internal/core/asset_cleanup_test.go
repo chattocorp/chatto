@@ -131,6 +131,70 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 	}
 }
 
+func TestAssetCleanupReplaysFailedVideoDerivativeIntent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-failed-video", "Failed video cleanup")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "clip.mp4", "video/mp4", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	uploadDerivative := func(filename string, role corev1.AssetDerivativeRole) *corev1.Attachment {
+		t.Helper()
+		attachment, err := core.media().UploadDerivativeAttachment(ctx, original.GetId(), role, room.GetId(), filename, "video/mp2t", bytes.NewReader([]byte(filename)))
+		if err != nil {
+			t.Fatalf("UploadDerivativeAttachment(%s): %v", filename, err)
+		}
+		return attachment
+	}
+	first := uploadDerivative("480p-00000.ts", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	second := uploadDerivative("480p-00001.ts", corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	cleanupIDs := []string{first.GetId(), second.GetId()}
+	if err := core.assetLifecycle().RecordAssetProcessingFailedWithCleanup(
+		ctx,
+		SystemActorID,
+		room.GetId(),
+		"E-message",
+		original.GetId(),
+		corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED,
+		cleanupIDs,
+	); err != nil {
+		t.Fatalf("RecordAssetProcessingFailedWithCleanup: %v", err)
+	}
+
+	failedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingFailed))
+	if err != nil {
+		t.Fatalf("read processing failure: %v", err)
+	}
+	if len(failedEvents) != 1 || !proto.Equal(failedEvents[0].GetAssetProcessingFailed(), &corev1.AssetProcessingFailedEvent{
+		AssetId:         original.GetId(),
+		FailureCode:     corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED,
+		MessageEventId:  "E-message",
+		CleanupAssetIds: cleanupIDs,
+	}) {
+		t.Fatalf("processing failure = %+v, want durable cleanup ids %v", failedEvents, cleanupIDs)
+	}
+
+	restarted := NewAssetModel(core)
+	if err := restarted.consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup after restart: %v", err)
+	}
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("idempotent consumeAssetCleanup after second restart: %v", err)
+	}
+	for _, derivative := range []*corev1.Attachment{first, second} {
+		if _, ok := core.Assets.AssetCreation(derivative.GetId()); ok {
+			t.Fatalf("derivative %s remained projected after cleanup replay", derivative.GetId())
+		}
+		if _, _, err := core.media().GetAttachmentReader(ctx, derivative); err == nil {
+			t.Fatalf("derivative %s remained readable after cleanup replay", derivative.GetId())
+		}
+	}
+}
+
 func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
