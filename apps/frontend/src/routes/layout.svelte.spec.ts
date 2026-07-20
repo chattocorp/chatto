@@ -269,6 +269,8 @@ describe('root layout notification synchronization', () => {
   it('mounts badge synchronization for a signed-out page', async () => {
     renderLayout();
 
-    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(0));
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
+    );
   });
 });
