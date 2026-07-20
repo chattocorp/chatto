@@ -178,6 +178,18 @@ describe('NotificationSync', () => {
     await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(0));
   });
 
+  it('owns a zero badge while signed out and reasserts it after a push', async () => {
+    mocks.store.isAuthenticated = false;
+    render(NotificationSync);
+    await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(0));
+    mocks.updateAppBadge.mockClear();
+
+    for (const refresh of mocks.badgeRefreshHandlers) refresh();
+
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith(0));
+  });
+
   it('does not clear the app badge before notifications have loaded', async () => {
     mocks.store.notifications.hasLoaded = false;
 

@@ -9,7 +9,7 @@ and installed-app badge updates.
 - Plays the user's selected sound for non-silent creations
 - Updates the installed app badge from the aggregate pending-notification count
 
-Include this component once in the chat layout (unconditionally).
+Include this component once in the application root so signed-out pages also clear stale badges.
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
