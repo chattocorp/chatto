@@ -26,7 +26,8 @@ const { mocks } = vi.hoisted(() => {
         dismissThreadNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
       },
       rooms: {
-        decrementUnreadNotification: vi.fn()
+        decrementUnreadNotification: vi.fn(),
+        refreshUnreadFollowedThreads: vi.fn().mockResolvedValue(undefined)
       },
       appState: {
         isPresent: true
@@ -189,6 +190,7 @@ describe('ThreadPane', () => {
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
     expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
+    expect(mocks.rooms.refreshUnreadFollowedThreads).toHaveBeenCalledOnce();
   });
 
   it('loads a highlighted reply outside the latest thread page before jumping to it', async () => {

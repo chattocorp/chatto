@@ -95,6 +95,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
     roomNotificationPreferences: [],
     viewerPermissions: {},
     viewerHasUnreadRooms: false,
+    viewerHasUnreadFollowedThreads: false,
     ...overrides
   };
 }
@@ -252,7 +253,8 @@ describe('RoomsStore - refresh', () => {
               level: NotificationLevel.AllMessages,
               effectiveLevel: NotificationLevel.AllMessages
             }
-          ]
+          ],
+          viewerHasUnreadFollowedThreads: true
         })
       )
     });
@@ -260,6 +262,7 @@ describe('RoomsStore - refresh', () => {
     await store.refresh();
 
     expect(store.currentUserId).toBe('U2');
+    expect(store.hasUnreadFollowedThreads).toBe(true);
     expect(notificationLevels.getServerPreference()).toEqual({
       level: NotificationLevel.Muted,
       effectiveLevel: NotificationLevel.Muted
@@ -268,6 +271,43 @@ describe('RoomsStore - refresh', () => {
       level: NotificationLevel.AllMessages,
       effectiveLevel: NotificationLevel.AllMessages
     });
+  });
+
+  it('coalesces concurrent followed-thread unread refreshes and applies the latest result', async () => {
+    let resolveFirst!: (viewer: ViewerState) => void;
+    const viewerStateLoader = vi
+      .fn<ViewerStateLoader>()
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(makeViewer({ viewerHasUnreadFollowedThreads: false }));
+    const store = makeStore({ viewerStateLoader });
+
+    const first = store.refreshUnreadFollowedThreads();
+    const second = store.refreshUnreadFollowedThreads();
+
+    expect(first).toBe(second);
+    expect(viewerStateLoader).toHaveBeenCalledOnce();
+
+    resolveFirst(makeViewer({ viewerHasUnreadFollowedThreads: true }));
+    await first;
+
+    expect(viewerStateLoader).toHaveBeenCalledTimes(2);
+    expect(store.hasUnreadFollowedThreads).toBe(false);
+  });
+
+  it('does not let an older full refresh overwrite newer followed-thread unread state', async () => {
+    let resolveFullViewer!: (viewer: ViewerState) => void;
+    const viewerStateLoader = vi
+      .fn<ViewerStateLoader>()
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFullViewer = resolve)))
+      .mockResolvedValueOnce(makeViewer({ viewerHasUnreadFollowedThreads: false }));
+    const store = makeStore({ viewerStateLoader });
+
+    const fullRefresh = store.refresh();
+    await store.refreshUnreadFollowedThreads();
+    resolveFullViewer(makeViewer({ viewerHasUnreadFollowedThreads: true }));
+    await fullRefresh;
+
+    expect(store.hasUnreadFollowedThreads).toBe(false);
   });
 
   it('discards out-of-order responses', async () => {
@@ -668,5 +708,29 @@ describe('RoomsStore - ingestServerEvent', () => {
     store.ingestServerEvent(makeEvent(RoomEventKind.Heartbeat));
 
     expect(store.refresh).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [RoomEventKind.ThreadFollowChanged, {}],
+    [RoomEventKind.NotificationDismissed, {}],
+    [RoomEventKind.MessagePosted, { threadRootEventId: 'thread-root', roomId: 'room-1' }]
+  ])('refreshes followed-thread unread state on %s', (kind, extra) => {
+    const store = makeStore();
+    store.refreshUnreadFollowedThreads = vi.fn().mockResolvedValue(undefined);
+
+    store.ingestServerEvent(makeEvent(kind, extra));
+
+    expect(store.refreshUnreadFollowedThreads).toHaveBeenCalledOnce();
+  });
+
+  it('does not refresh followed-thread unread state for root messages', () => {
+    const store = makeStore();
+    store.refreshUnreadFollowedThreads = vi.fn().mockResolvedValue(undefined);
+
+    store.ingestServerEvent(
+      makeEvent(RoomEventKind.MessagePosted, { threadRootEventId: null, roomId: 'room-1' })
+    );
+
+    expect(store.refreshUnreadFollowedThreads).not.toHaveBeenCalled();
   });
 });
