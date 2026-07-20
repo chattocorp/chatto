@@ -42,13 +42,12 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease               *lease.Lease
-	cleanupConsumer            *events.IncrementalEffectConsumer
-	failedVideoCleanupConsumer *events.IncrementalEffectConsumer
-	cleanupPollEvery           time.Duration
-	waitForAssetsOverride      func(context.Context, events.StreamPosition) error
-	cleanupStatusMu            sync.RWMutex
-	cleanupPass                assetCleanupPassStatus
+	cleanupLease          *lease.Lease
+	cleanupConsumer       *events.IncrementalEffectConsumer
+	cleanupPollEvery      time.Duration
+	waitForAssetsOverride func(context.Context, events.StreamPosition) error
+	cleanupStatusMu       sync.RWMutex
+	cleanupPass           assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
@@ -58,11 +57,6 @@ func NewAssetModel(core *ChattoCore) *AssetModel {
 			core.EventPublisher,
 			events.AssetEventTypeFilter(events.EventAssetDeleted),
 			model.cleanupDeletedAsset,
-		)
-		model.failedVideoCleanupConsumer = events.NewIncrementalEffectConsumerWithSubject(
-			core.EventPublisher,
-			events.AssetEventTypeFilter(events.EventAssetProcessingFailed),
-			model.cleanupFailedVideoDerivatives,
 		)
 	}
 	return model
@@ -686,30 +680,20 @@ func (s *AssetModel) shouldAppendAssetProcessingEvent(assetID string, event *cor
 // RecordAssetProcessingFailed builds and publishes a durable failed
 // video-processing outcome.
 func (s *AssetModel) RecordAssetProcessingFailed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
-	return s.RecordAssetProcessingFailedWithCleanup(ctx, actorID, roomID, messageEventID, attachmentID, failureCode, nil)
-}
-
-// RecordAssetProcessingFailedWithCleanup records a terminal failure together
-// with every derivative created by that failed attempt. The cleanup ids make
-// incomplete compensation discoverable after restart or lease handover. If a
-// different terminal outcome already won, the caller still owns prompt cleanup
-// of its unused output.
-func (s *AssetModel) RecordAssetProcessingFailedWithCleanup(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode, cleanupAssetIDs []string) error {
-	err := s.recordAssetProcessingFailedWithCleanup(ctx, actorID, roomID, messageEventID, attachmentID, failureCode, cleanupAssetIDs)
+	err := s.recordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 	if errors.Is(err, ErrAssetLifecycleSkipped) {
 		return nil
 	}
 	return err
 }
 
-func (s *AssetModel) recordAssetProcessingFailedWithCleanup(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode, cleanupAssetIDs []string) error {
+func (s *AssetModel) recordAssetProcessingFailed(ctx context.Context, actorID string, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetProcessingFailed{
 			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:         attachmentID,
-				MessageEventId:  messageEventID,
-				FailureCode:     failureCode,
-				CleanupAssetIds: append([]string(nil), cleanupAssetIDs...),
+				AssetId:        attachmentID,
+				MessageEventId: messageEventID,
+				FailureCode:    failureCode,
 			},
 		},
 	})

@@ -473,7 +473,7 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 	}
 	hls := &corev1.AssetProcessedHLS{
 		Renditions: []*corev1.AssetHLSRendition{{
-			Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_500_000,
+			Width: 1280, Height: 720, Bandwidth: 1_500_000,
 			Segments: []*corev1.AssetHLSSegment{{AssetId: "A-hls-segment-1", DurationMs: 1000}, {AssetId: "A-hls-segment-2", DurationMs: 200}},
 		}},
 	}
@@ -536,7 +536,6 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	t.Cleanup(func() { service.waitForAssetsOverride = nil })
 
 	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
-		Quality:  "480p",
 		Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 1000}},
 	}}}
 	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, hls); err != nil {

@@ -142,10 +142,6 @@ message AssetProcessingFailedEvent {
   // AssetProcessingStartedEvent.message_event_id). Empty only for one-shot
   // migration events.
   string message_event_id = 3;
-
-  // Derivative asset ids created by the failed processing attempt. Cleanup
-  // workers tombstone these assets before deleting their stored bytes.
-  repeated string cleanup_asset_ids = 4;
 }
 
 // AssetProcessedVideo is the per-asset video manifest carried by
@@ -174,7 +170,6 @@ message AssetProcessedHLS {
 }
 
 message AssetHLSRendition {
-  string quality = 1;
   int32 width = 2;
   int32 height = 3;
   int64 bandwidth = 4;

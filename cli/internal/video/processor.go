@@ -600,13 +600,12 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 		}
 
 		rendition := &corev1.AssetHLSRendition{
-			Quality:   output.quality,
 			Width:     output.width,
 			Height:    output.height,
 			Bandwidth: bandwidth,
 		}
 		for segmentIndex, segmentPath := range segmentPaths {
-			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", rendition.GetQuality(), segmentIndex), "video/mp2t", segmentPath)
+			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", output.quality, segmentIndex), "video/mp2t", segmentPath)
 			if segment != nil {
 				uploaded = append(uploaded, segment)
 			}
@@ -657,33 +656,19 @@ func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req 
 	s.logger.Error("Video processing failed",
 		"asset_id", req.AssetID,
 		"error", originalErr)
-	cleanupAssetIDs := make([]string, 0, len(attachments))
-	seenAssetIDs := make(map[string]struct{}, len(attachments))
-	for _, attachment := range attachments {
-		if attachment == nil || attachment.GetId() == "" {
-			continue
-		}
-		if _, seen := seenAssetIDs[attachment.GetId()]; seen {
-			continue
-		}
-		seenAssetIDs[attachment.GetId()] = struct{}{}
-		cleanupAssetIDs = append(cleanupAssetIDs, attachment.GetId())
-	}
-
 	// Terminal publication has its own budget and happens before cleanup. A
 	// large generation can therefore never consume the failure event's context.
 	terminalCtx, terminalCancel := videoProcessingFinalizationContext(ctx)
 	kind, kindErr := s.core.FindRoomKind(terminalCtx, req.RoomID)
 	if kindErr != nil {
 		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.RecordAssetProcessingFailedWithCleanup(terminalCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED, cleanupAssetIDs); err != nil {
+	} else if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	terminalCancel()
 
-	// Prompt cleanup gets a separate budget. The failure event records every
-	// derivative id, so the elected asset-cleanup worker can finish any work
-	// interrupted by timeout, shutdown, or process failure.
+	// Prompt cleanup gets a separate budget. A future durable processing and
+	// asset-cleanup design can replace this best-effort path.
 	cleanupCtx, cleanupCancel := videoProcessingFinalizationContext(ctx)
 	s.cleanupUploadedDerivatives(cleanupCtx, req, attachments)
 	cleanupCancel()

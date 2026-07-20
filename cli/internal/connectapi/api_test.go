@@ -7046,7 +7046,7 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 			Size:         variant.Size,
 			Attachment:   variant,
 		},
-	}, &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Quality: "720p", Width: 1280, Height: 720, Bandwidth: 1_000_000, Segments: []*corev1.AssetHLSSegment{{AssetId: "A-segment", DurationMs: 1234}}}}}); err != nil {
+	}, &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Width: 1280, Height: 720, Bandwidth: 1_000_000, Segments: []*corev1.AssetHLSSegment{{AssetId: "A-segment", DurationMs: 1234}}}}}); err != nil {
 		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
 	}
 

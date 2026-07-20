@@ -173,10 +173,6 @@ func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID st
 	return c.assetLifecycle().RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 }
 
-func (c *ChattoCore) RecordAssetProcessingFailedWithCleanup(ctx context.Context, actorID string, kind RoomKind, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode, cleanupAssetIDs []string) error {
-	return c.assetLifecycle().RecordAssetProcessingFailedWithCleanup(ctx, actorID, roomID, messageEventID, attachmentID, failureCode, cleanupAssetIDs)
-}
-
 // AssetEventTimelineTarget resolves the current room timeline row affected by
 // a durable asset lifecycle event. Processing events carry their owning
 // message directly. Deletions recover ownership from the room timeline's

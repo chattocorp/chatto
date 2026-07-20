@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -70,100 +69,10 @@ func (s *AssetModel) runAssetCleanupPass(ctx context.Context) {
 }
 
 func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
-	if s == nil || s.cleanupConsumer == nil || s.failedVideoCleanupConsumer == nil {
+	if s == nil || s.cleanupConsumer == nil {
 		return fmt.Errorf("asset cleanup consumer is not configured")
 	}
-	// Failed generations publish their durable cleanup intent first. Process it
-	// before deletion facts so newly appended tombstones can remove bytes in the
-	// same pass.
-	failureErr := s.failedVideoCleanupConsumer.Consume(ctx)
-	deletionErr := s.cleanupConsumer.Consume(ctx)
-	return errors.Join(failureErr, deletionErr)
-}
-
-func (s *AssetModel) cleanupFailedVideoDerivatives(ctx context.Context, subjectEvent *events.SubjectEvent) error {
-	event := subjectEvent.Event
-	failed := event.GetAssetProcessingFailed()
-	if failed == nil || failed.GetAssetId() == "" {
-		return nil
-	}
-	sourceAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
-	if !ok || sourceAssetID != failed.GetAssetId() {
-		return fmt.Errorf(
-			"asset processing failure subject %q does not match payload id %q",
-			subjectEvent.Subject,
-			failed.GetAssetId(),
-		)
-	}
-	return s.cleanupVideoDerivativeIDs(ctx, event.GetActorId(), sourceAssetID, failed.GetCleanupAssetIds())
-}
-
-func (s *AssetModel) cleanupVideoDerivativeIDs(ctx context.Context, actorID, sourceAssetID string, cleanupAssetIDs []string) error {
-	if actorID == "" {
-		actorID = SystemActorID
-	}
-	sourceCreatedEvents, _, err := s.EventPublisher.SubjectEvents(
-		ctx,
-		events.AssetAggregate(sourceAssetID).Subject(events.EventAssetCreated),
-	)
-	if err != nil {
-		return fmt.Errorf("read creation fact for failed source asset %s: %w", sourceAssetID, err)
-	}
-	if len(sourceCreatedEvents) == 0 {
-		return fmt.Errorf("failed source asset %s has no canonical creation fact", sourceAssetID)
-	}
-	sourceCreated := sourceCreatedEvents[len(sourceCreatedEvents)-1].GetAssetCreated()
-	if sourceCreated.GetAsset().GetId() != sourceAssetID {
-		return fmt.Errorf("failed source creation id %q does not match aggregate %q", sourceCreated.GetAsset().GetId(), sourceAssetID)
-	}
-	sourceRoomID := sourceCreated.GetRoomId()
-	for _, assetID := range cleanupAssetIDs {
-		if assetID == "" {
-			continue
-		}
-		deletedEvents, _, err := s.EventPublisher.SubjectEvents(
-			ctx,
-			events.AssetAggregate(assetID).Subject(events.EventAssetDeleted),
-		)
-		if err != nil {
-			return fmt.Errorf("read deletion facts for failed derivative %s: %w", assetID, err)
-		}
-		if len(deletedEvents) > 0 {
-			continue
-		}
-		createdEvents, _, err := s.EventPublisher.SubjectEvents(
-			ctx,
-			events.AssetAggregate(assetID).Subject(events.EventAssetCreated),
-		)
-		if err != nil {
-			return fmt.Errorf("read creation fact for failed derivative %s: %w", assetID, err)
-		}
-		if len(createdEvents) == 0 {
-			// An ambiguous derivative creation can fail before its AssetCreated
-			// fact commits. The processor retains the attachment handle for prompt
-			// cleanup; without a canonical fact there is nothing durable to
-			// tombstone or safely locate during replay.
-			continue
-		}
-		declared := createdEvents[len(createdEvents)-1].GetAssetCreated()
-		if declared.GetAsset().GetId() != assetID {
-			return fmt.Errorf("failed derivative creation id %q does not match aggregate %q", declared.GetAsset().GetId(), assetID)
-		}
-		if declared.GetParentAssetId() != sourceAssetID {
-			return fmt.Errorf("failed asset %s has invalid cleanup derivative %s", sourceAssetID, assetID)
-		}
-		roomID := declared.GetRoomId()
-		if roomID == "" {
-			roomID = sourceRoomID
-		}
-		if roomID == "" {
-			return fmt.Errorf("failed derivative %s has no durable room scope", assetID)
-		}
-		if err := s.RecordAssetDeleted(ctx, actorID, roomID, assetID); err != nil {
-			return fmt.Errorf("tombstone failed derivative %s of asset %s: %w", assetID, sourceAssetID, err)
-		}
-	}
-	return nil
+	return s.cleanupConsumer.Consume(ctx)
 }
 
 func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *events.SubjectEvent) error {

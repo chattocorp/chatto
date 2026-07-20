@@ -236,15 +236,12 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
-`AssetProcessingFailedEvent.cleanup_asset_ids` is an additive durable cleanup
-intent. Current writers include derivatives created by that failed attempt;
-the elected asset-cleanup worker ignores the absent field on historical events.
-An attempt that loses terminal OCC performs bounded prompt cleanup by appending
-ordinary derivative `AssetDeletedEvent` facts. If that cleanup is interrupted
-before a tombstone is appended, the unused derivative is not durably
-discoverable. An ambiguous success append is checked by exact event ID; if that
-confirmation also fails, the processor retains the output rather than risk
-deleting assets referenced by a committed manifest.
+Failed or losing processing attempts perform bounded prompt cleanup by
+appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is
+interrupted before a tombstone is appended, the unused derivative is not
+durably discoverable. An ambiguous success append is checked by exact event ID;
+if that confirmation also fails, the processor retains the output rather than
+risk deleting assets referenced by a committed manifest.
 
 ## Transient live subjects
 

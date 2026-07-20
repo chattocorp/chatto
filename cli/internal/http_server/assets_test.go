@@ -1737,7 +1737,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 			}
 			hls := &corev1.AssetProcessedHLS{
 				Renditions: []*corev1.AssetHLSRendition{{
-					Quality: "360p", Width: 640, Height: 360, Bandwidth: 500000,
+					Width: 640, Height: 360, Bandwidth: 500000,
 					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
 				}},
 			}
@@ -1810,7 +1810,7 @@ func firstHLSURI(t *testing.T, playlist []byte) string {
 
 func TestRenderHLSPlaylistsFromManifest(t *testing.T) {
 	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
-		Quality: "360p", Width: 640, Height: 360, Bandwidth: 500_000,
+		Width: 640, Height: 360, Bandwidth: 500_000,
 		Segments: []*corev1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
 	}}}
 	master, err := renderHLSMasterPlaylist(hls, func(index int) string { return fmt.Sprintf("/rendition/%d", index) })
