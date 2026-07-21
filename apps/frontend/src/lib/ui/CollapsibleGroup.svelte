@@ -35,6 +35,7 @@ offline member groups).
 
 <script lang="ts" generics="T extends { id: string }">
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { slide } from 'svelte/transition';
 
   interface Props {
@@ -43,6 +44,8 @@ offline member groups).
     item: Snippet<[T]>;
     /** Optional controls rendered beside the collapse toggle. */
     actions?: Snippet;
+    /** Optional right-click/long-press behavior for the group header. */
+    contextMenuTrigger?: Attachment<HTMLElement>;
     /** Unique localStorage key for persisting collapsed state. */
     persistKey: string;
     /** Collapsed state when no preference is stored. */
@@ -56,6 +59,7 @@ offline member groups).
     items,
     item,
     actions,
+    contextMenuTrigger,
     persistKey,
     defaultCollapsed = false,
     keepVisibleWhenCollapsed,
@@ -75,10 +79,11 @@ offline member groups).
       type="button"
       onclick={toggle}
       class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-1 py-1 text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
+      {@attach contextMenuTrigger}
     >
       <span class="sidebar-icon">
         <span
-          class={['iconify uil--angle-right-b transition-transform', collapsed ? '' : 'rotate-90']}
+          class={['iconify transition-transform uil--angle-right-b', collapsed ? '' : 'rotate-90']}
         ></span>
       </span>
       <span class="truncate">{label}</span>
