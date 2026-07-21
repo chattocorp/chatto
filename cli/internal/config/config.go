@@ -111,8 +111,20 @@ type SearchConfig struct {
 
 // SearchProviderConfig controls the bundled Bleve search provider.
 type SearchProviderConfig struct {
-	Enabled   bool   `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_ENABLED" comment:"Start the bundled Bleve search provider from chatto run. Default: false."`
-	Directory string `toml:"directory,commented" env:"CHATTO_SEARCH_PROVIDER_DIRECTORY" comment:"Directory for the disposable local Bleve index. Default: ./data/search."`
+	Enabled   bool     `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_ENABLED" comment:"Start the bundled Bleve search provider from chatto run. Default: false."`
+	Directory string   `toml:"directory,commented" env:"CHATTO_SEARCH_PROVIDER_DIRECTORY" comment:"Directory for the disposable local Bleve index. Default: ./data/search."`
+	Languages []string `toml:"languages,commented" env:"CHATTO_SEARCH_PROVIDER_LANGUAGES" comment:"Bleve language analyzers used for message indexing and queries. Omit to enable all bundled analyzers; use an empty list for literal matching only."`
+}
+
+var searchProviderLanguageCodes = []string{
+	"ar", "cjk", "ckb", "da", "de", "en", "es", "fa", "fi", "fr", "hi",
+	"hr", "hu", "it", "nl", "no", "pl", "pt", "ro", "ru", "sv", "tr",
+}
+
+// SupportedSearchProviderLanguages returns the language analyzer codes accepted
+// by the bundled Bleve provider.
+func SupportedSearchProviderLanguages() []string {
+	return append([]string(nil), searchProviderLanguageCodes...)
 }
 
 // DirectoryOrDefault returns the bundled provider's local index directory.
@@ -121,6 +133,28 @@ func (c SearchProviderConfig) DirectoryOrDefault() string {
 		return "./data/search"
 	}
 	return strings.TrimSpace(c.Directory)
+}
+
+// LanguagesOrDefault returns the normalized configured analyzer codes. An
+// omitted setting enables every bundled analyzer, while an explicit empty list
+// retains only language-neutral literal and fuzzy matching.
+func (c SearchProviderConfig) LanguagesOrDefault() []string {
+	if c.Languages == nil {
+		return SupportedSearchProviderLanguages()
+	}
+	return normalizeSearchProviderLanguages(c.Languages)
+}
+
+func normalizeSearchProviderLanguages(languages []string) []string {
+	normalized := make([]string, len(languages))
+	for i, language := range languages {
+		normalized[i] = strings.ToLower(strings.TrimSpace(language))
+	}
+	if len(normalized) == 1 && normalized[0] == "none" {
+		return []string{}
+	}
+	sort.Strings(normalized)
+	return normalized
 }
 
 // ShieldsConfig controls public Shields.io-compatible community badges.
@@ -983,6 +1017,9 @@ func (c *ChattoConfig) ApplyDefaults() {
 // semantic defaults.
 func (c *ChattoConfig) Normalize() {
 	c.Core.Assets.S3.NormalizePathPrefix()
+	if c.SearchProvider.Languages != nil {
+		c.SearchProvider.Languages = normalizeSearchProviderLanguages(c.SearchProvider.Languages)
+	}
 }
 
 func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
@@ -1060,7 +1097,7 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
 		}
 	}
-	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" {
+	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {
 		searchDirectory := filepath.Clean(c.SearchProvider.DirectoryOrDefault())
 		if searchDirectory == "." || filepath.IsAbs(searchDirectory) && searchDirectory == filepath.VolumeName(searchDirectory)+string(filepath.Separator) {
 			errs = append(errs, "search_provider.directory must name a dedicated index directory")
@@ -1073,6 +1110,26 @@ func (c *ChattoConfig) Validate() error {
 				if relErr == nil && relativeData != ".." && !strings.HasPrefix(relativeData, ".."+string(filepath.Separator)) {
 					errs = append(errs, "search_provider.directory must not contain the embedded NATS data directory")
 				}
+			}
+		}
+		supportedLanguages := make(map[string]struct{}, len(searchProviderLanguageCodes))
+		for _, language := range searchProviderLanguageCodes {
+			supportedLanguages[language] = struct{}{}
+		}
+		languages := normalizeSearchProviderLanguages(c.SearchProvider.Languages)
+		seenLanguages := make(map[string]struct{}, len(languages))
+		for _, language := range languages {
+			if language == "" {
+				errs = append(errs, "search_provider.languages must not contain empty language codes")
+				continue
+			}
+			if _, duplicate := seenLanguages[language]; duplicate {
+				errs = append(errs, fmt.Sprintf("search_provider.languages contains duplicate language %q", language))
+				continue
+			}
+			seenLanguages[language] = struct{}{}
+			if _, ok := supportedLanguages[language]; !ok {
+				errs = append(errs, fmt.Sprintf("search_provider.languages contains unsupported language %q", language))
 			}
 		}
 	}

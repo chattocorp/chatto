@@ -1,6 +1,9 @@
 package bleve
 
 import (
+	"fmt"
+	"sort"
+
 	blevesearch "github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/lang/ar"
@@ -29,6 +32,8 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	bleveindex "github.com/blevesearch/bleve_index_api"
+
+	"hmans.de/chatto/internal/config"
 )
 
 const (
@@ -39,6 +44,7 @@ const (
 )
 
 type languageAnalyzer struct {
+	code     string
 	field    string
 	analyzer string
 }
@@ -47,31 +53,56 @@ type languageAnalyzer struct {
 // Bleve. The neutral body_exact field remains authoritative for literal
 // matching; these fields add lower-boost language-specific recall.
 var bodyLanguageAnalyzers = []languageAnalyzer{
-	{field: "body_ar", analyzer: ar.AnalyzerName},
-	{field: bodyCJKField, analyzer: bodyCJKAnalyzer},
-	{field: "body_ckb", analyzer: ckb.AnalyzerName},
-	{field: "body_da", analyzer: da.AnalyzerName},
-	{field: "body_de", analyzer: de.AnalyzerName},
-	{field: "body_en", analyzer: en.AnalyzerName},
-	{field: "body_es", analyzer: es.AnalyzerName},
-	{field: "body_fa", analyzer: fa.AnalyzerName},
-	{field: "body_fi", analyzer: fi.AnalyzerName},
-	{field: "body_fr", analyzer: fr.AnalyzerName},
-	{field: "body_hi", analyzer: hi.AnalyzerName},
-	{field: "body_hr", analyzer: hr.AnalyzerName},
-	{field: "body_hu", analyzer: hu.AnalyzerName},
-	{field: "body_it", analyzer: it.AnalyzerName},
-	{field: "body_nl", analyzer: nl.AnalyzerName},
-	{field: "body_no", analyzer: no.AnalyzerName},
-	{field: "body_pl", analyzer: pl.AnalyzerName},
-	{field: "body_pt", analyzer: pt.AnalyzerName},
-	{field: "body_ro", analyzer: ro.AnalyzerName},
-	{field: "body_ru", analyzer: ru.AnalyzerName},
-	{field: "body_sv", analyzer: sv.AnalyzerName},
-	{field: "body_tr", analyzer: tr.AnalyzerName},
+	{code: "ar", field: "body_ar", analyzer: ar.AnalyzerName},
+	{code: "cjk", field: bodyCJKField, analyzer: bodyCJKAnalyzer},
+	{code: "ckb", field: "body_ckb", analyzer: ckb.AnalyzerName},
+	{code: "da", field: "body_da", analyzer: da.AnalyzerName},
+	{code: "de", field: "body_de", analyzer: de.AnalyzerName},
+	{code: "en", field: "body_en", analyzer: en.AnalyzerName},
+	{code: "es", field: "body_es", analyzer: es.AnalyzerName},
+	{code: "fa", field: "body_fa", analyzer: fa.AnalyzerName},
+	{code: "fi", field: "body_fi", analyzer: fi.AnalyzerName},
+	{code: "fr", field: "body_fr", analyzer: fr.AnalyzerName},
+	{code: "hi", field: "body_hi", analyzer: hi.AnalyzerName},
+	{code: "hr", field: "body_hr", analyzer: hr.AnalyzerName},
+	{code: "hu", field: "body_hu", analyzer: hu.AnalyzerName},
+	{code: "it", field: "body_it", analyzer: it.AnalyzerName},
+	{code: "nl", field: "body_nl", analyzer: nl.AnalyzerName},
+	{code: "no", field: "body_no", analyzer: no.AnalyzerName},
+	{code: "pl", field: "body_pl", analyzer: pl.AnalyzerName},
+	{code: "pt", field: "body_pt", analyzer: pt.AnalyzerName},
+	{code: "ro", field: "body_ro", analyzer: ro.AnalyzerName},
+	{code: "ru", field: "body_ru", analyzer: ru.AnalyzerName},
+	{code: "sv", field: "body_sv", analyzer: sv.AnalyzerName},
+	{code: "tr", field: "body_tr", analyzer: tr.AnalyzerName},
 }
 
-func newIndexMapping() mapping.IndexMapping {
+func resolveLanguageAnalyzers(codes []string) ([]languageAnalyzer, error) {
+	if codes == nil {
+		codes = config.SupportedSearchProviderLanguages()
+	}
+	byCode := make(map[string]languageAnalyzer, len(bodyLanguageAnalyzers))
+	for _, language := range bodyLanguageAnalyzers {
+		byCode[language.code] = language
+	}
+	selected := make([]languageAnalyzer, 0, len(codes))
+	seen := make(map[string]struct{}, len(codes))
+	for _, code := range codes {
+		language, ok := byCode[code]
+		if !ok {
+			return nil, fmt.Errorf("unsupported Bleve language analyzer %q", code)
+		}
+		if _, duplicate := seen[code]; duplicate {
+			return nil, fmt.Errorf("duplicate Bleve language analyzer %q", code)
+		}
+		seen[code] = struct{}{}
+		selected = append(selected, language)
+	}
+	sort.Slice(selected, func(i, j int) bool { return selected[i].code < selected[j].code })
+	return selected, nil
+}
+
+func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 	indexMapping := blevesearch.NewIndexMapping()
 	indexMapping.ScoringModel = bleveindex.BM25Scoring
 	if err := indexMapping.AddCustomAnalyzer(bodyExactAnalyzer, map[string]interface{}{
@@ -94,7 +125,7 @@ func newIndexMapping() mapping.IndexMapping {
 	document.AddFieldMappingsAt("room_id", keyword(true))
 	document.AddFieldMappingsAt("author_id", keyword(false))
 	document.AddFieldMappingsAt("body_event_id", keyword(true))
-	document.AddFieldMappingsAt("body", searchBodyFields()...)
+	document.AddFieldMappingsAt("body", searchBodyFields(languages)...)
 	document.AddFieldMappingsAt("created_at", date)
 	document.AddFieldMappingsAt("updated_at", date)
 	document.AddFieldMappingsAt("has_attachments", boolean)
@@ -107,7 +138,7 @@ func newIndexMapping() mapping.IndexMapping {
 // adding lower-boost recall fields for the languages we can tune confidently.
 // Multiple mappings index the same source body without storing duplicate
 // plaintext values or doc values.
-func searchBodyFields() []*mapping.FieldMapping {
+func searchBodyFields(languages []languageAnalyzer) []*mapping.FieldMapping {
 	field := func(name, analyzer string, termVectors bool) *mapping.FieldMapping {
 		mapped := blevesearch.NewTextFieldMapping()
 		mapped.Name = name
@@ -118,9 +149,9 @@ func searchBodyFields() []*mapping.FieldMapping {
 		mapped.IncludeTermVectors = termVectors
 		return mapped
 	}
-	fields := make([]*mapping.FieldMapping, 0, 1+len(bodyLanguageAnalyzers))
+	fields := make([]*mapping.FieldMapping, 0, 1+len(languages))
 	fields = append(fields, field(bodyExactField, bodyExactAnalyzer, true))
-	for _, language := range bodyLanguageAnalyzers {
+	for _, language := range languages {
 		fields = append(fields, field(
 			language.field,
 			language.analyzer,

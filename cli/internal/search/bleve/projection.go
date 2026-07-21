@@ -3,6 +3,7 @@ package bleve
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -26,11 +27,11 @@ import (
 )
 
 const (
-	checkpointContractID  = "bleve-message-index-v5"
-	checkpointInternalKey = "chatto/search/checkpoint"
-	dekInternalKey        = "chatto/search/deks"
-	messageStatePrefix    = "chatto/search/message/"
-	privacyCompactionKey  = "chatto/search/privacy-compaction-pending"
+	checkpointContractBaseID = "bleve-message-index-v6"
+	checkpointInternalKey    = "chatto/search/checkpoint"
+	dekInternalKey           = "chatto/search/deks"
+	messageStatePrefix       = "chatto/search/message/"
+	privacyCompactionKey     = "chatto/search/privacy-compaction-pending"
 )
 
 type checkpointRecord struct {
@@ -69,9 +70,11 @@ type Projection struct {
 	dekStore   dekstore.Reader
 	deks       map[string]*corev1.UserDEKGeneratedEvent
 	checkpoint checkpointRecord
+	languages  []languageAnalyzer
+	contractID string
 }
 
-func NewProjection(directory string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {
+func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {
 	directory = strings.TrimSpace(directory)
 	cleanDirectory := filepath.Clean(directory)
 	if directory == "" || cleanDirectory == "." || cleanDirectory == filepath.VolumeName(cleanDirectory)+string(filepath.Separator) {
@@ -80,6 +83,10 @@ func NewProjection(directory string, keyWrapper kms.KeyWrapper, legacyKeys kms.L
 	if logger == nil {
 		logger = log.WithPrefix("search-provider")
 	}
+	languages, err := resolveLanguageAnalyzers(languageCodes)
+	if err != nil {
+		return nil, err
+	}
 	p := &Projection{
 		directory:  cleanDirectory,
 		logger:     logger,
@@ -87,6 +94,8 @@ func NewProjection(directory string, keyWrapper kms.KeyWrapper, legacyKeys kms.L
 		legacyKeys: legacyKeys,
 		dekStore:   dekStore,
 		deks:       make(map[string]*corev1.UserDEKGeneratedEvent),
+		languages:  languages,
+		contractID: languageCheckpointContractID(languages),
 	}
 	if err := p.open(); err != nil {
 		return nil, err
@@ -101,7 +110,7 @@ func (p *Projection) Subjects() []string {
 	}
 }
 
-func (p *Projection) CheckpointContractID() string { return checkpointContractID }
+func (p *Projection) CheckpointContractID() string { return p.contractID }
 
 func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 	p.mu.Lock()
@@ -348,12 +357,21 @@ func (p *Projection) open() error {
 	} else if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
 		return fmt.Errorf("open search index: %w", err)
 	}
-	index, err = blevesearch.New(p.directory, newIndexMapping())
+	index, err = blevesearch.New(p.directory, newIndexMapping(p.languages))
 	if err != nil {
 		return fmt.Errorf("create search index: %w", err)
 	}
 	p.index = index
 	return nil
+}
+
+func languageCheckpointContractID(languages []languageAnalyzer) string {
+	codes := make([]string, len(languages))
+	for i, language := range languages {
+		codes[i] = language.code
+	}
+	sum := sha256.Sum256([]byte(strings.Join(codes, ",")))
+	return fmt.Sprintf("%s-%x", checkpointContractBaseID, sum[:8])
 }
 
 func messageStateKey(id string) []byte   { return []byte(messageStatePrefix + id) }

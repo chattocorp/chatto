@@ -159,6 +159,10 @@ The consumer-facing feature and bundled provider have separate switches. This le
   Directory for the bundled provider's disposable local index. Protect this directory like message data: it contains plaintext-derived search content, is not included in Chatto backups, and can be rebuilt from retained `EVT` history. Do not set it to the embedded NATS data directory or one of its parent directories.
 </EnvVar>
 
+<EnvVar name="CHATTO_SEARCH_PROVIDER_LANGUAGES" toml="search_provider.languages" default="all bundled analyzers">
+  Comma-separated Bleve analyzer codes to use when indexing messages and analyzing queries. Supported values are `ar`, `cjk`, `ckb`, `da`, `de`, `en`, `es`, `fa`, `fi`, `fr`, `hi`, `hr`, `hu`, `it`, `nl`, `no`, `pl`, `pt`, `ro`, `ru`, `sv`, and `tr`. Changing the set rebuilds the disposable index. Use `none` for language-neutral literal and typo-tolerant matching only; the TOML equivalent is `languages = []`.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

@@ -3,9 +3,12 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 func TestReadConfig_WithoutConfigFile(t *testing.T) {
@@ -31,6 +34,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	t.Setenv("CHATTO_SEARCH_ENABLED", "true")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_ENABLED", "true")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_DIRECTORY", "./custom-search")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_LANGUAGES", "de,en,cjk")
 
 	// ReadConfig should succeed even without chatto.toml
 	cfg, err := ReadConfig("")
@@ -65,6 +69,9 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./custom-search" {
 		t.Errorf("search provider directory = %q, want %q", got, "./custom-search")
+	}
+	if got := cfg.SearchProvider.LanguagesOrDefault(); !slices.Equal(got, []string{"cjk", "de", "en"}) {
+		t.Errorf("search provider languages = %v", got)
 	}
 }
 
@@ -165,6 +172,7 @@ enabled = true
 [search_provider]
 enabled = true
 directory = "./search-index"
+languages = ["fr", "en"]
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -195,12 +203,42 @@ directory = "./search-index"
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./search-index" {
 		t.Errorf("search provider directory = %q, want %q", got, "./search-index")
 	}
+	if got := cfg.SearchProvider.LanguagesOrDefault(); !slices.Equal(got, []string{"en", "fr"}) {
+		t.Errorf("search provider languages = %v", got)
+	}
 }
 
 func TestSearchProviderDirectoryDefault(t *testing.T) {
 	var cfg SearchProviderConfig
 	if got := cfg.DirectoryOrDefault(); got != "./data/search" {
 		t.Fatalf("DirectoryOrDefault() = %q, want %q", got, "./data/search")
+	}
+}
+
+func TestSearchProviderLanguagesDefaultAndExplicitEmpty(t *testing.T) {
+	var defaults SearchProviderConfig
+	if got := defaults.LanguagesOrDefault(); !slices.Equal(got, SupportedSearchProviderLanguages()) {
+		t.Fatalf("default languages = %v", got)
+	}
+
+	explicitEmpty := SearchProviderConfig{Languages: []string{}}
+	if got := explicitEmpty.LanguagesOrDefault(); got == nil || len(got) != 0 {
+		t.Fatalf("explicit empty languages = %#v, want non-nil empty list", got)
+	}
+
+	environmentNone := SearchProviderConfig{Languages: []string{"none"}}
+	if got := environmentNone.LanguagesOrDefault(); got == nil || len(got) != 0 {
+		t.Fatalf("none languages = %#v, want non-nil empty list", got)
+	}
+}
+
+func TestSearchProviderExplicitEmptyLanguagesSurvivesTOMLParsing(t *testing.T) {
+	var cfg ChattoConfig
+	if err := toml.Unmarshal([]byte("[search_provider]\nlanguages = []\n"), &cfg); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got := cfg.SearchProvider.LanguagesOrDefault(); got == nil || len(got) != 0 {
+		t.Fatalf("parsed empty languages = %#v, want non-nil empty list", got)
 	}
 }
 
@@ -1352,6 +1390,36 @@ func TestChattoConfigValidateSearchProviderDirectory(t *testing.T) {
 	cfg.NATS.Embedded.DataDir = "./data"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() unexpected error: %v", err)
+	}
+}
+
+func TestChattoConfigValidateSearchProviderLanguages(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		languages []string
+		wantError string
+	}{
+		{name: "supported", languages: []string{"cjk", "de", "en"}},
+		{name: "explicit empty", languages: []string{}},
+		{name: "environment none", languages: []string{"none"}},
+		{name: "unsupported", languages: []string{"uk"}, wantError: `unsupported language "uk"`},
+		{name: "duplicate", languages: []string{"en", "EN"}, wantError: `duplicate language "en"`},
+		{name: "empty code", languages: []string{" "}, wantError: "must not contain empty language codes"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.SearchProvider.Languages = test.languages
+			err := cfg.Validate()
+			if test.wantError == "" {
+				if err != nil {
+					t.Fatalf("Validate() unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), test.wantError) {
+				t.Fatalf("Validate() error = %v, want %q", err, test.wantError)
+			}
+		})
 	}
 }
 

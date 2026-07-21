@@ -55,11 +55,11 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	directory := t.TempDir() + "/index"
-	projection, err := NewProjection(directory, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 
 	request := events.ProjectionCheckpointRequest{
-		ProjectionKey: "message_search", ContractID: checkpointContractID,
+		ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
 		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		FirstSequence: 1, LastSequence: 10,
 	}
@@ -91,7 +91,7 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	require.Empty(t, secondPage.GetNextCursor())
 
 	require.NoError(t, projection.Close())
-	projection, err = NewProjection(directory, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err = NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 	checkpoint, err = projection.RestoreCheckpoint(context.Background(), request)
@@ -119,7 +119,7 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	require.Empty(t, pending)
 	require.NoError(t, projection.index.SetInternal([]byte(privacyCompactionKey), []byte{1}))
 	require.NoError(t, projection.Close())
-	projection, err = NewProjection(directory, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err = NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	_, err = projection.RestoreCheckpoint(context.Background(), request)
 	require.NoError(t, err)
@@ -131,11 +131,6 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	request := events.ProjectionCheckpointRequest{
-		ProjectionKey: "message_search", ContractID: checkpointContractID,
-		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		FirstSequence: 1, LastSequence: 10,
-	}
 	dekEvent := &corev1.UserDEKGeneratedEvent{
 		UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 		Epoch: 1, ContentKeyRef: "dek.test", WrappingKeyRef: "kek.test",
@@ -143,8 +138,13 @@ func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 	wrapper := staticKeyWrapper{key: key, expectedAAD: encryption.UserDEKAAD("U1", dekEvent.GetPurpose(), 1)}
 	store := staticDEKStore{value: &corev1.UserDataEncryptionKey{WrappingKeyRef: "kek.test"}}
 	directory := t.TempDir() + "/index"
-	projection, err := NewProjection(directory, wrapper, nil, store, log.New(nil))
+	projection, err := NewProjection(directory, nil, wrapper, nil, store, log.New(nil))
 	require.NoError(t, err)
+	request := events.ProjectionCheckpointRequest{
+		ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
+		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		FirstSequence: 1, LastSequence: 10,
+	}
 	_, err = projection.RestoreCheckpoint(context.Background(), request)
 	require.NoError(t, err)
 	require.NoError(t, projection.Apply(&corev1.Event{Event: &corev1.Event_UserDekGenerated{UserDekGenerated: dekEvent}}, 1))
@@ -155,7 +155,7 @@ func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 	}, 3))
 	require.NoError(t, projection.Close())
 
-	projection, err = NewProjection(directory, wrapper, nil, store, log.New(nil))
+	projection, err = NewProjection(directory, nil, wrapper, nil, store, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 	checkpoint, err := projection.RestoreCheckpoint(context.Background(), request)
@@ -178,7 +178,7 @@ func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 func TestProjectionIndexesMessagesInEitherEventOrder(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -197,7 +197,7 @@ func TestProjectionIndexesMessagesInEitherEventOrder(t *testing.T) {
 func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -279,7 +279,7 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -329,10 +329,55 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	}
 }
 
+func TestProjectionUsesOnlyConfiguredLanguageAnalyzers(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+
+	newProjection := func(t *testing.T, languages []string) *Projection {
+		t.Helper()
+		projection, err := NewProjection(
+			t.TempDir()+"/index",
+			languages,
+			nil,
+			staticLegacyKeys{key: key},
+			nil,
+			log.New(nil),
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = projection.Close() })
+		applyLegacyMessage(t, projection, key, "english", "B1", "R1", "U1", "running", time.Unix(100, 0), 1)
+		return projection
+	}
+
+	request := relevanceRequest([]string{"run"}, nil)
+	withEnglish, err := newProjection(t, []string{"en"}).query(context.Background(), request)
+	require.NoError(t, err)
+	require.Equal(t, []string{"english"}, hitIDs(withEnglish))
+
+	literalOnly, err := newProjection(t, []string{}).query(context.Background(), request)
+	require.NoError(t, err)
+	require.Empty(t, hitIDs(literalOnly))
+}
+
+func TestProjectionCheckpointContractTracksConfiguredLanguages(t *testing.T) {
+	english, err := NewProjection(t.TempDir()+"/en", []string{"en"}, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = english.Close() })
+	englishReordered, err := NewProjection(t.TempDir()+"/en-reordered", []string{"fr", "en"}, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = englishReordered.Close() })
+	englishReorderedAgain, err := NewProjection(t.TempDir()+"/en-reordered-again", []string{"en", "fr"}, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = englishReorderedAgain.Close() })
+
+	require.NotEqual(t, english.CheckpointContractID(), englishReordered.CheckpointContractID())
+	require.Equal(t, englishReordered.CheckpointContractID(), englishReorderedAgain.CheckpointContractID())
+}
+
 func TestProjectionMatchesCaseInsensitivelyAndRequiresEveryTerm(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -361,7 +406,7 @@ func TestProjectionMatchesCaseInsensitivelyAndRequiresEveryTerm(t *testing.T) {
 func TestProjectionUpdatesAttachmentFilterWhenBodyIsEdited(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -389,7 +434,7 @@ func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
 	require.NoError(t, os.MkdirAll(directory, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "index_meta.json"), []byte("not json"), 0o600))
 
-	projection, err := NewProjection(directory, nil, nil, nil, log.New(nil))
+	projection, err := NewProjection(directory, nil, nil, nil, nil, log.New(nil))
 	require.NoError(t, err)
 	require.NoError(t, projection.Close())
 	_, err = os.Stat(filepath.Join(directory, "index_meta.json"))
@@ -399,7 +444,7 @@ func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
 func TestProjectionIgnoresMismatchedBodyRevisionID(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 	applyLegacyMessage(t, projection, key, "M1", "B1", "R1", "U1", "original body", time.Unix(100, 0), 1)
@@ -431,7 +476,7 @@ func TestProjectionDoesNotDeleteIndexForUnclassifiedOpenFailure(t *testing.T) {
 	metadataPath := filepath.Join(directory, "index_meta.json")
 	require.NoError(t, os.WriteFile(metadataPath, metadata, 0o600))
 
-	_, err := NewProjection(directory, nil, nil, nil, log.New(nil))
+	_, err := NewProjection(directory, nil, nil, nil, nil, log.New(nil))
 	require.Error(t, err)
 	retained, readErr := os.ReadFile(metadataPath)
 	require.NoError(t, readErr)
@@ -441,7 +486,7 @@ func TestProjectionDoesNotDeleteIndexForUnclassifiedOpenFailure(t *testing.T) {
 func TestProjectionRanksLiteralMatchesAboveStemmedMatches(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -463,7 +508,7 @@ func relevanceRequest(terms, phrases []string) *searchv1.QueryRequest {
 func TestProjectionRejectsMalformedOrForeignCursors(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 
@@ -505,7 +550,7 @@ func TestProjectionRejectsMalformedOrForeignCursors(t *testing.T) {
 func TestProjectionKeyShreddingRemovesIndexedMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 

@@ -33,7 +33,7 @@ type cursor struct {
 func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	query, err := buildQuery(request)
+	query, err := buildQuery(request, p.languages)
 	if err != nil {
 		return nil, err
 	}
@@ -88,16 +88,16 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 	return response, nil
 }
 
-func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
+func buildQuery(request *searchv1.QueryRequest, languages []languageAnalyzer) (blevequery.Query, error) {
 	conjuncts := []blevequery.Query{}
 	visible := blevesearch.NewBoolFieldQuery(true)
 	visible.SetField("visible")
 	conjuncts = append(conjuncts, visible)
 	for _, term := range request.GetRequiredTerms() {
-		conjuncts = append(conjuncts, bodyTermQuery(term))
+		conjuncts = append(conjuncts, bodyTermQuery(term, languages))
 	}
 	for _, phrase := range request.GetRequiredPhrases() {
-		conjuncts = append(conjuncts, bodyPhraseQuery(phrase))
+		conjuncts = append(conjuncts, bodyPhraseQuery(phrase, languages))
 	}
 	if len(request.GetRoomIds()) > 0 {
 		conjuncts = append(conjuncts, termsQuery("room_id", request.GetRoomIds()))
@@ -126,11 +126,11 @@ func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
 	return blevesearch.NewConjunctionQuery(conjuncts...), nil
 }
 
-func bodyTermQuery(term string) blevequery.Query {
+func bodyTermQuery(term string, languages []languageAnalyzer) blevequery.Query {
 	queries := []blevequery.Query{
 		exactBodyTermQuery(term),
 	}
-	for _, language := range bodyLanguageAnalyzers {
+	for _, language := range languages {
 		queries = append(queries, boostedMatchQuery(
 			term,
 			language.field,
@@ -165,14 +165,26 @@ func exactBodyTermQuery(term string) blevequery.Query {
 	return blevesearch.NewConjunctionQuery(queries...)
 }
 
-func bodyPhraseQuery(phrase string) blevequery.Query {
+func bodyPhraseQuery(phrase string, languages []languageAnalyzer) blevequery.Query {
 	exact := blevesearch.NewPhraseQuery(exactBodyTokens(phrase), bodyExactField)
 	exact.SetBoost(exactMatchBoost)
+	if !hasLanguageAnalyzer(languages, "cjk") {
+		return exact
+	}
 	cjkPhrase := blevesearch.NewMatchPhraseQuery(phrase)
 	cjkPhrase.SetField(bodyCJKField)
 	cjkPhrase.Analyzer = bodyCJKAnalyzer
 	cjkPhrase.SetBoost(stemMatchBoost)
 	return blevesearch.NewDisjunctionQuery(exact, cjkPhrase)
+}
+
+func hasLanguageAnalyzer(languages []languageAnalyzer, code string) bool {
+	for _, language := range languages {
+		if language.code == code {
+			return true
+		}
+	}
+	return false
 }
 
 func exactBodyTokens(value string) []string {

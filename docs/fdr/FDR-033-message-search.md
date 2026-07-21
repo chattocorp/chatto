@@ -20,8 +20,9 @@ provider supplies results.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
 - Relevance favours literal word matches while adding lower-ranked recall from
-  every complete language analyzer shipped by Bleve, CJK token matching, and
-  conservative one-character spelling mistakes in longer words.
+  the operator-selected Bleve language analyzers, CJK token matching when its
+  analyzer is selected, and conservative one-character spelling mistakes in
+  longer words. The bundled provider enables all analyzers by default.
 - Structured filters support a room (`in:`), author (`from:`), messages before
   or after a date, and messages with attachments.
 - Search is a server-level page reached from the server sidebar between
