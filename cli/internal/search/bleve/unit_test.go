@@ -1,8 +1,10 @@
 package bleve
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,13 +88,16 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	var unitLogs bytes.Buffer
+	unitLogger := log.New(&unitLogs)
+	unitLogger.SetFormatter(log.JSONFormatter)
 	unitContext, stopUnit := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	indexDirectory := t.TempDir() + "/index"
 	go func() {
 		done <- (Unit{}).Run(unitContext, runtimeunit.Env{
 			Config: config.ChattoConfig{SearchProvider: config.SearchProviderConfig{Directory: indexDirectory}},
-			NC:     nc, JS: js, Logger: log.New(io.Discard), Version: "test",
+			NC:     nc, JS: js, Logger: unitLogger, Version: "test",
 		})
 	}()
 	t.Cleanup(func() {
@@ -113,4 +118,42 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.Equal(t, []string{"M1"}, hitIDs(response))
+	require.Contains(t, unitLogs.String(), "Starting bundled search provider")
+	require.Contains(t, unitLogs.String(), "Search index opened")
+	require.Contains(t, unitLogs.String(), "Search provider service registered")
+	require.Contains(t, unitLogs.String(), "Projection startup complete")
+	require.Contains(t, unitLogs.String(), `"projection":"message_search"`)
+}
+
+func TestLogSearchIndexingStatusReportsSafeProgressFields(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.New(&output)
+	logger.SetFormatter(log.JSONFormatter)
+
+	logSearchIndexingStatus(logger, events.ProjectorStatus{
+		Started:          true,
+		LastSeq:          600,
+		StartupTargetSeq: 1_000,
+		StartupDuration:  2 * time.Second,
+		StartupMessages:  400,
+	})
+
+	logged := output.String()
+	for _, expected := range []string{
+		"Search provider indexing progress",
+		`"stage":"startup_replay"`,
+		`"indexed_events":400`,
+		`"events_per_second":200`,
+		`"current_seq":600`,
+		`"target_seq":1000`,
+	} {
+		if !strings.Contains(logged, expected) {
+			t.Fatalf("progress log %q does not contain %q", logged, expected)
+		}
+	}
+	for _, forbidden := range []string{"query", "message_id", "room_id", "author_id"} {
+		if strings.Contains(logged, forbidden) {
+			t.Fatalf("progress log %q contains forbidden field %q", logged, forbidden)
+		}
+	}
 }

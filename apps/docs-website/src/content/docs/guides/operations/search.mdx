@@ -90,6 +90,19 @@ CHATTO_SEARCH_PROVIDER_DIRECTORY=./data/search
   processes.
 </Aside>
 
+## Monitor Indexing
+
+The bundled provider writes structured lifecycle logs when it starts, opens its
+index, registers the NATS service, restores or resets its checkpoint, and
+finishes startup replay. If replay takes longer than ten seconds, it also logs
+periodic progress with the number of indexed events, processing rate, elapsed
+time, and current and target EVT sequence positions.
+
+Search lifecycle logs do not include query text, message bodies, or user, room,
+and message identifiers. Use the progress logs together with the Search status
+API to distinguish an active rebuild from a provider that is unavailable or
+degraded.
+
 ## Choose Language Analyzers
 
 The provider always maintains a language-neutral field for case-insensitive

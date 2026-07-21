@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
@@ -12,12 +13,21 @@ import (
 	"hmans.de/chatto/internal/search"
 )
 
+const searchIndexingProgressInterval = 10 * time.Second
+
 // Unit runs the bundled Bleve provider either under chatto run or standalone.
 type Unit struct{}
 
 func (Unit) Name() string { return "search-provider" }
 
 func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
+	languages := env.Config.SearchProvider.LanguagesOrDefault()
+	env.Logger.Info("Starting bundled search provider",
+		"stage", "startup",
+		"language_analyzers", languages,
+		"language_analyzer_count", len(languages))
+	defer env.Logger.Info("Bundled search provider stopped", "stage", "shutdown")
+
 	evt, err := env.JS.Stream(ctx, "EVT")
 	if err != nil {
 		return fmt.Errorf("open EVT stream: %w", err)
@@ -33,7 +43,7 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	keyStore := kms.NewBuiltin(encryptionKeys, env.Logger)
 	projection, err := NewProjection(
 		env.Config.SearchProvider.DirectoryOrDefault(),
-		env.Config.SearchProvider.LanguagesOrDefault(),
+		languages,
 		keyStore,
 		keyStore,
 		dekstore.New(runtimeState, env.Logger),
@@ -43,6 +53,9 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return err
 	}
 	defer projection.Close()
+	env.Logger.Info("Search index opened",
+		"stage", "index_open",
+		"checkpoint_contract", projection.CheckpointContractID())
 
 	projector := events.NewProjector(env.JS, evt, projection, env.Logger)
 	if err := projector.ConfigureCheckpoint("message_search"); err != nil {
@@ -54,12 +67,54 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return fmt.Errorf("register search provider service: %w", err)
 	}
 	defer service.Stop()
+	env.Logger.Info("Search provider service registered",
+		"stage", "service_ready",
+		"query_subject", search.QuerySubject,
+		"status_subject", search.StatusSubject)
+
+	monitorContext, stopMonitor := context.WithCancel(ctx)
+	defer stopMonitor()
+	go logSearchIndexingProgress(monitorContext, projector, env.Logger, searchIndexingProgressInterval)
 
 	err = projector.Run(ctx)
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}
 	return err
+}
+
+func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger events.Logger, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			status := projector.Status()
+			if status.StartupComplete || status.Failed {
+				return
+			}
+			if !status.Started {
+				continue
+			}
+			logSearchIndexingStatus(logger, status)
+		}
+	}
+}
+
+func logSearchIndexingStatus(logger events.Logger, status events.ProjectorStatus) {
+	var rate float64
+	if seconds := status.StartupDuration.Seconds(); seconds > 0 {
+		rate = float64(status.StartupMessages) / seconds
+	}
+	logger.Info("Search provider indexing progress",
+		"stage", "startup_replay",
+		"indexed_events", status.StartupMessages,
+		"events_per_second", rate,
+		"current_seq", status.LastSeq,
+		"target_seq", status.StartupTargetSeq,
+		"elapsed", status.StartupDuration)
 }
 
 var _ runtimeunit.Unit = Unit{}

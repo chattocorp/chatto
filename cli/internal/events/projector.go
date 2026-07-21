@@ -912,6 +912,7 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 	shouldCompleteReplay := false
 	var duration time.Duration
 	var targetSeq, lastSeq, messages uint64
+	var projectionKey string
 	if p.started && p.startupEndedAt.IsZero() && p.lastSeq >= p.startupTargetSeq {
 		p.startupEndedAt = now
 		p.startupCompleted = true
@@ -924,6 +925,10 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 		targetSeq = p.startupTargetSeq
 		lastSeq = p.lastSeq
 		messages = p.startupMessages
+		projectionKey = p.checkpointKey
+		if projectionKey == "" {
+			projectionKey = p.snapshotKey
+		}
 	}
 	p.mu.Unlock()
 
@@ -939,6 +944,7 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 			rate = float64(messages) / seconds
 		}
 		p.logger.Info("Projection startup complete",
+			"projection", projectionKey,
 			"duration", duration,
 			"messages", messages,
 			"messages_per_second", rate,
