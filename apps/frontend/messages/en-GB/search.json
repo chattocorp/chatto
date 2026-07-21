@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Search is getting ready",
-      "description": "Messages are being indexed. Search will become available automatically.",
-      "progress": "{percent}% indexed"
+      "description": "Messages are being indexed. Search will become available automatically."
     }
   }
 }

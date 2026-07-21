@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "A preparar a pesquisa",
-      "description": "As mensagens estão a ser indexadas. A pesquisa ficará disponível quando terminar.",
-      "progress": "{percent}% indexado"
+      "description": "As mensagens estão a ser indexadas. A pesquisa ficará disponível quando terminar."
     }
   }
 }

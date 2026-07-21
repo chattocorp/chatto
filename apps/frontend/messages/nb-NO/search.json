@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Søket klargjøres",
-      "description": "Meldinger indekseres. Søk blir tilgjengelig når det er ferdig.",
-      "progress": "{percent}% indeksert"
+      "description": "Meldinger indekseres. Søk blir tilgjengelig når det er ferdig."
     }
   }
 }

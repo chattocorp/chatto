@@ -99,9 +99,10 @@ periodic progress with the number of indexed events, processing rate, elapsed
 time, and current and target EVT sequence positions.
 
 Search lifecycle logs do not include query text, message bodies, or user, room,
-and message identifiers. Use the progress logs together with the Search status
-API to distinguish an active rebuild from a provider that is unavailable or
-degraded.
+and message identifiers. Exact replay counts and rates are operator telemetry
+and are not exposed through the member-facing Search API. Use the progress logs
+together with the coarse Search status to distinguish an active rebuild from a
+provider that is unavailable or degraded.
 
 ## Choose Language Analyzers
 

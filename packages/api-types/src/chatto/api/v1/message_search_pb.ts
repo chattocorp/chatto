@@ -305,7 +305,7 @@ export class GetStatusRequest extends Message<GetStatusRequest> {
 }
 
 /**
- * Current message-search availability and optional indexing progress.
+ * Current message-search availability.
  *
  * @generated from message chatto.api.v1.GetStatusResponse
  */
@@ -316,20 +316,6 @@ export class GetStatusResponse extends Message<GetStatusResponse> {
    * @generated from field: chatto.api.v1.MessageSearchState state = 1;
    */
   state = MessageSearchState.UNSPECIFIED;
-
-  /**
-   * EVT records processed during the current provider build, when known.
-   *
-   * @generated from field: optional uint64 indexed_event_count = 2;
-   */
-  indexedEventCount?: bigint;
-
-  /**
-   * EVT records targeted by the current provider build, when known.
-   *
-   * @generated from field: optional uint64 target_event_count = 3;
-   */
-  targetEventCount?: bigint;
 
   /**
    * Suggested delay before checking again while search is not ready.
@@ -347,8 +333,6 @@ export class GetStatusResponse extends Message<GetStatusResponse> {
   static readonly typeName = "chatto.api.v1.GetStatusResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "state", kind: "enum", T: proto3.getEnumType(MessageSearchState) },
-    { no: 2, name: "indexed_event_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
-    { no: 3, name: "target_event_count", kind: "scalar", T: 4 /* ScalarType.UINT64 */, opt: true },
     { no: 4, name: "retry_after", kind: "message", T: Duration },
   ]);
 

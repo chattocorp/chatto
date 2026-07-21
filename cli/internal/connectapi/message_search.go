@@ -171,9 +171,7 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 
 func publicMessageSearchStatus(status *searchv1.GetStatusResponse) *apiv1.GetStatusResponse {
 	response := &apiv1.GetStatusResponse{
-		IndexedEventCount: status.IndexedEventCount,
-		TargetEventCount:  status.TargetEventCount,
-		RetryAfter:        status.GetRetryAfter(),
+		RetryAfter: status.GetRetryAfter(),
 	}
 	switch status.GetState() {
 	case searchv1.ProviderState_PROVIDER_STATE_STARTING:

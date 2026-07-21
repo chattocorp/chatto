@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Serĉo pretiĝas",
-      "description": "Mesaĝoj estas indeksataj. Serĉo disponeblos post la fino.",
-      "progress": "{percent}% indeksita"
+      "description": "Mesaĝoj estas indeksataj. Serĉo disponeblos post la fino."
     }
   }
 }

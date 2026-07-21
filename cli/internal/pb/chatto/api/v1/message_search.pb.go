@@ -366,15 +366,11 @@ func (*GetStatusRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{2}
 }
 
-// Current message-search availability and optional indexing progress.
+// Current message-search availability.
 type GetStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current feature/provider state.
 	State MessageSearchState `protobuf:"varint,1,opt,name=state,proto3,enum=chatto.api.v1.MessageSearchState" json:"state,omitempty"`
-	// EVT records processed during the current provider build, when known.
-	IndexedEventCount *uint64 `protobuf:"varint,2,opt,name=indexed_event_count,json=indexedEventCount,proto3,oneof" json:"indexed_event_count,omitempty"`
-	// EVT records targeted by the current provider build, when known.
-	TargetEventCount *uint64 `protobuf:"varint,3,opt,name=target_event_count,json=targetEventCount,proto3,oneof" json:"target_event_count,omitempty"`
 	// Suggested delay before checking again while search is not ready.
 	RetryAfter    *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -418,20 +414,6 @@ func (x *GetStatusResponse) GetState() MessageSearchState {
 	return MessageSearchState_MESSAGE_SEARCH_STATE_UNSPECIFIED
 }
 
-func (x *GetStatusResponse) GetIndexedEventCount() uint64 {
-	if x != nil && x.IndexedEventCount != nil {
-		return *x.IndexedEventCount
-	}
-	return 0
-}
-
-func (x *GetStatusResponse) GetTargetEventCount() uint64 {
-	if x != nil && x.TargetEventCount != nil {
-		return *x.TargetEventCount
-	}
-	return 0
-}
-
 func (x *GetStatusResponse) GetRetryAfter() *durationpb.Duration {
 	if x != nil {
 		return x.RetryAfter
@@ -460,15 +442,11 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\bmessages\x18\x01 \x03(\v2\x16.chatto.api.v1.MessageR\bmessages\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\"\x12\n" +
-	"\x10GetStatusRequest\"\x9f\x02\n" +
+	"\x10GetStatusRequest\"\x88\x01\n" +
 	"\x11GetStatusResponse\x127\n" +
-	"\x05state\x18\x01 \x01(\x0e2!.chatto.api.v1.MessageSearchStateR\x05state\x123\n" +
-	"\x13indexed_event_count\x18\x02 \x01(\x04H\x00R\x11indexedEventCount\x88\x01\x01\x121\n" +
-	"\x12target_event_count\x18\x03 \x01(\x04H\x01R\x10targetEventCount\x88\x01\x01\x12:\n" +
+	"\x05state\x18\x01 \x01(\x0e2!.chatto.api.v1.MessageSearchStateR\x05state\x12:\n" +
 	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
-	"retryAfterB\x16\n" +
-	"\x14_indexed_event_countB\x15\n" +
-	"\x13_target_event_count*\x7f\n" +
+	"retryAfter*\x7f\n" +
 	"\x12MessageSearchOrder\x12$\n" +
 	" MESSAGE_SEARCH_ORDER_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eMESSAGE_SEARCH_ORDER_RELEVANCE\x10\x01\x12\x1f\n" +
@@ -535,7 +513,6 @@ func file_chatto_api_v1_message_search_proto_init() {
 		return
 	}
 	file_chatto_api_v1_message_types_proto_init()
-	file_chatto_api_v1_message_search_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-07-21
 
 ## Overview
 
@@ -27,6 +27,9 @@ provider supplies results.
   or after a date, and messages with attachments.
 - Search is a server-level page reached from the server sidebar between
   Overview and My Threads. It starts without a room filter.
+- Each registered server retains its own transient query, ordering, and result
+  state. Switching servers never carries a query into another server; returning
+  to a server can restore its previous search.
 - Results show the current message, author, room, and timestamp. They load more
   automatically and can be ordered by relevance or newest first.
 - Selecting a result opens the message in its historical room or thread context
@@ -36,6 +39,8 @@ provider supplies results.
 - Search is absent when the server feature is disabled. A configured provider
   that is still indexing or temporarily unavailable produces an explicit
   status without making the rest of the server unusable.
+- Public readiness is deliberately coarse. Exact event-log indexing counts and
+  rates remain operator telemetry rather than being exposed to every member.
 
 ## Design Decisions
 
@@ -106,8 +111,8 @@ features such as stemming and typo tolerance are implementation details.
 than a modal or part of the quick switcher.
 **Why:** Searching message history is an extended reading task whose query,
 results, filters, and future conversation context need durable screen space.
-**Tradeoff:** Opening a result leaves the Search page; the transient search is
-retained in memory so browser Back can restore it.
+**Tradeoff:** Opening a result leaves the Search page; each server's transient
+search is retained in memory so browser Back can restore it.
 
 ## Related
 

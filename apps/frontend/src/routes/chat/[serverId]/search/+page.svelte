@@ -32,27 +32,21 @@ in the active server store so browser Back can restore the current search.
     };
   });
   const activeLocale = $derived(getLocale());
-  // The server-scoped store intentionally restores a search after navigating
-  // to a result and returning with browser Back.
-  // svelte-ignore state_referenced_locally
-  let query = $state(store.query);
-  // svelte-ignore state_referenced_locally
-  let order = $state(store.order);
   $effect(() => {
     void store.ensureStatus();
   });
 
   function submit(event: SubmitEvent): void {
     event.preventDefault();
-    const trimmed = query.trim();
+    const trimmed = store.query.trim();
     if (!trimmed || !store.available) return;
-    void store.search({ query: trimmed, roomIds: [], order });
+    void store.search({ query: trimmed, roomIds: [], order: store.order });
   }
 
   function setOrder(nextOrder: MessageSearchOrder): void {
-    order = nextOrder;
-    if (store.hasSearched && query.trim()) {
-      void store.search({ query: query.trim(), roomIds: [], order });
+    store.order = nextOrder;
+    if (store.hasSearched && store.query.trim()) {
+      void store.search({ query: store.query.trim(), roomIds: [], order: store.order });
     }
   }
 
@@ -99,12 +93,6 @@ in the active server store so browser Back can restore the current search.
     return value ? formatDateTime(value, timeFormatSettings, activeLocale) : '';
   }
 
-  function progressPercent(): number | null {
-    const indexed = store.status.indexedEventCount;
-    const target = store.status.targetEventCount;
-    if (indexed === null || target === null || target === 0n) return null;
-    return Math.min(100, Math.round((Number(indexed) / Number(target)) * 100));
-  }
 </script>
 
 <PageTitle title={m['search.title']()} />
@@ -135,19 +123,6 @@ in the active server store so browser Back can restore the current search.
       {:else if store.status.state === MessageSearchState.STARTING || store.status.state === MessageSearchState.INDEXING}
         <EmptyState icon="uil--database" title={m['search.indexing.title']()}>
           <p>{m['search.indexing.description']()}</p>
-          {#if progressPercent() !== null}
-            <div
-              class="mx-auto mt-4 w-56"
-              aria-label={m['search.indexing.progress']({ percent: progressPercent()! })}
-            >
-              <div class="h-1.5 overflow-hidden rounded-full bg-surface-emphasized">
-                <div class="h-full bg-action" style:width={`${progressPercent()}%`}></div>
-              </div>
-              <p class="mt-2 tabular-nums">
-                {m['search.indexing.progress']({ percent: progressPercent()! })}
-              </p>
-            </div>
-          {/if}
           <div class="mt-4">
             <Button variant="secondary" onclick={() => void store.refreshStatus()}>
               {m['search.check_again']()}
@@ -160,14 +135,14 @@ in the active server store so browser Back can restore the current search.
             <div class="min-w-0 flex-1">
               <TextInput
                 label={m['search.query.label']()}
-                bind:value={query}
+                bind:value={store.query}
                 placeholder={m['search.query.placeholder']()}
                 leadingIcon="uil--search"
                 autocomplete="off"
                 autofocus
               />
             </div>
-            <Button type="submit" disabled={!query.trim()} loading={store.loading}>
+            <Button type="submit" disabled={!store.query.trim()} loading={store.loading}>
               {m['search.action']()}
             </Button>
           </div>
@@ -176,12 +151,12 @@ in the active server store so browser Back can restore the current search.
             <span class="text-sm text-muted">{m['search.scope.all_rooms']()}</span>
             <div class="flex items-center gap-2" aria-label={m['search.order.label']()}>
               <ToggleChip
-                pressed={order === MessageSearchOrder.RELEVANCE}
+                pressed={store.order === MessageSearchOrder.RELEVANCE}
                 onclick={() => setOrder(MessageSearchOrder.RELEVANCE)}
                 >{m['search.order.relevance']()}</ToggleChip
               >
               <ToggleChip
-                pressed={order === MessageSearchOrder.NEWEST}
+                pressed={store.order === MessageSearchOrder.NEWEST}
                 onclick={() => setOrder(MessageSearchOrder.NEWEST)}
                 >{m['search.order.newest']()}</ToggleChip
               >

@@ -97,14 +97,10 @@ message SearchMessagesResponse {
 // Request for current message-search availability.
 message GetStatusRequest {}
 
-// Current message-search availability and optional indexing progress.
+// Current message-search availability.
 message GetStatusResponse {
   // Current feature/provider state.
   MessageSearchState state = 1;
-  // EVT records processed during the current provider build, when known.
-  optional uint64 indexed_event_count = 2;
-  // EVT records targeted by the current provider build, when known.
-  optional uint64 target_event_count = 3;
   // Suggested delay before checking again while search is not ready.
   google.protobuf.Duration retry_after = 4;
 }

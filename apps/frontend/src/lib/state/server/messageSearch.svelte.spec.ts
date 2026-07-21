@@ -28,8 +28,6 @@ function api(overrides: Partial<MessageSearchAPI> = {}): MessageSearchAPI {
   return {
     getStatus: vi.fn().mockResolvedValue({
       state: MessageSearchState.READY,
-      indexedEventCount: null,
-      targetEventCount: null,
       retryAfterMs: null
     }),
     searchMessages: vi.fn().mockResolvedValue(page([result('one')], null)),

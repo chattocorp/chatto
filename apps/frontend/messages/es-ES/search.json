@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Preparando la búsqueda",
-      "description": "Se están indexando los mensajes. La búsqueda estará disponible al finalizar.",
-      "progress": "{percent} % indexado"
+      "description": "Se están indexando los mensajes. La búsqueda estará disponible al finalizar."
     }
   }
 }

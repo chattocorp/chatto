@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Préparation de la recherche",
-      "description": "Les messages sont en cours d’indexation. La recherche sera ensuite disponible.",
-      "progress": "{percent} % indexé"
+      "description": "Les messages sont en cours d’indexation. La recherche sera ensuite disponible."
     }
   }
 }

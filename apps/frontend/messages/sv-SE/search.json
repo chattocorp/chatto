@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Sökningen förbereds",
-      "description": "Meddelanden indexeras. Sökning blir tillgänglig när det är klart.",
-      "progress": "{percent}% indexerat"
+      "description": "Meddelanden indexeras. Sökning blir tillgänglig när det är klart."
     }
   }
 }

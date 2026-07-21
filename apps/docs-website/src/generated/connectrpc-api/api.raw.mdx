@@ -1006,13 +1006,11 @@ Request for current message-search availability.
 
 #### Result: GetStatusResponse
 
-Current message-search availability and optional indexing progress.
+Current message-search availability.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
-| `indexed_event_count` | `optional uint64` | EVT records processed during the current provider build, when known. |
-| `target_event_count` | `optional uint64` | EVT records targeted by the current provider build, when known. |
 | `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
 
 

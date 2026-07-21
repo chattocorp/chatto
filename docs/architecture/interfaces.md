@@ -75,7 +75,9 @@ The bundled provider runs under `chatto run` when
 `search_provider.enabled = true`; the same unit runs standalone through
 `chatto search-provider`. `search.enabled` independently controls whether the
 public service accepts queries. `GetStatus` preserves disabled, indexing,
-ready, degraded, and unavailable states without affecting other APIs.
+ready, degraded, and unavailable states without affecting other APIs. Exact
+provider replay counts stay on the trusted NATS contract and in operator logs;
+the authenticated public status does not expose server-wide event-log scale.
 
 `ServerDiscoveryService.GetServer` is the only Connect method for which the
 bundled client enables side-effect-free GET. It also receives wildcard public

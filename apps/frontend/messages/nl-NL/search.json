@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Zoeken wordt voorbereid",
-      "description": "Berichten worden geïndexeerd. Daarna is zoeken beschikbaar.",
-      "progress": "{percent}% geïndexeerd"
+      "description": "Berichten worden geïndexeerd. Daarna is zoeken beschikbaar."
     }
   }
 }

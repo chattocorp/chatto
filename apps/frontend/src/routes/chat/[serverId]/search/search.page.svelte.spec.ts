@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import SearchPage from './+page.svelte';
 
@@ -9,7 +10,9 @@ const { mocks } = vi.hoisted(() => ({
     ensureStatus: vi.fn(),
     search: vi.fn(),
     loadMore: vi.fn(),
-    goto: vi.fn()
+    goto: vi.fn(),
+    activeServer: vi.fn(),
+    serverStores: {} as Record<string, object>
   }
 }));
 
@@ -20,40 +23,48 @@ vi.mock('$app/navigation', () => ({
 }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
-vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => 'origin' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: mocks.activeServer }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
-      currentUser: { user: { settings: null } },
-      messageSearch: {
-        status: {
-          state: MessageSearchState.READY,
-          indexedEventCount: null,
-          targetEventCount: null
-        },
-        statusLoading: false,
-        statusLoaded: true,
-        statusError: false,
-        available: true,
-        query: '',
-        order: MessageSearchOrder.RELEVANCE,
-        results: [],
-        nextCursor: null,
-        loading: false,
-        loadingMore: false,
-        error: false,
-        hasSearched: false,
-        ensureStatus: mocks.ensureStatus,
-        refreshStatus: vi.fn(),
-        search: mocks.search,
-        loadMore: mocks.loadMore
-      }
-    })
+    getStore: (serverId: string) => mocks.serverStores[serverId]
   }
 }));
 
+let activeServerId = $state('origin');
+
+function serverStore(query = '', order = MessageSearchOrder.RELEVANCE) {
+  const messageSearch = $state({
+    status: { state: MessageSearchState.READY, retryAfterMs: null },
+    statusLoading: false,
+    statusLoaded: true,
+    statusError: false,
+    available: true,
+    query,
+    order,
+    results: [],
+    nextCursor: null,
+    loading: false,
+    loadingMore: false,
+    error: false,
+    hasSearched: false,
+    ensureStatus: mocks.ensureStatus,
+    refreshStatus: vi.fn(),
+    search: mocks.search,
+    loadMore: mocks.loadMore
+  });
+  return {
+    currentUser: { user: { settings: null } },
+    messageSearch
+  };
+}
+
 describe('message search page', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    activeServerId = 'origin';
+    mocks.activeServer.mockImplementation(() => activeServerId);
+    mocks.serverStores = { origin: serverStore(), remote: serverStore() };
+  });
 
   it('mounts as a server page and submits an unscoped search', async () => {
     const { container } = render(SearchPage);
@@ -68,6 +79,29 @@ describe('message search page', () => {
     expect(mocks.ensureStatus).toHaveBeenCalledOnce();
     expect(mocks.search).toHaveBeenCalledWith({
       query: 'motherfucking search',
+      roomIds: [],
+      order: MessageSearchOrder.RELEVANCE
+    });
+  });
+
+  it('switches form state when SvelteKit reuses the page for another server', async () => {
+    mocks.serverStores = {
+      origin: serverStore('private origin query', MessageSearchOrder.NEWEST),
+      remote: serverStore('remote query', MessageSearchOrder.RELEVANCE)
+    };
+    const { container } = render(SearchPage);
+    const input = container.querySelector('input') as HTMLInputElement;
+    expect(input.value).toBe('private origin query');
+
+    activeServerId = 'remote';
+    await tick();
+
+    expect(input.value).toBe('remote query');
+    await userEvent.click(
+      [...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Search')!
+    );
+    expect(mocks.search).toHaveBeenCalledWith({
+      query: 'remote query',
       roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });

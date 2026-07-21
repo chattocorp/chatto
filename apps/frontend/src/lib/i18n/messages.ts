@@ -954,9 +954,6 @@ const msg_search_unavailable_title = (): LocalizedString => messages().search_un
 const msg_search_unavailable_description = (): LocalizedString => messages().search_unavailable_description(empty());
 const msg_search_indexing_title = (): LocalizedString => messages().search_indexing_title(empty());
 const msg_search_indexing_description = (): LocalizedString => messages().search_indexing_description(empty());
-const msg_search_indexing_progress = (
-  inputs: Parameters<LocaleMessages['search_indexing_progress']>[0]
-): LocalizedString => messages().search_indexing_progress(inputs);
 const msg_preview_dismiss = (): LocalizedString => messages().preview_dismiss(empty());
 const msg_preview_delete = (): LocalizedString => messages().preview_delete(empty());
 const msg_preview_open_link = (): LocalizedString => messages().preview_open_link(empty());
@@ -2410,7 +2407,6 @@ export { msg_search_unavailable_title as 'search.unavailable.title' };
 export { msg_search_unavailable_description as 'search.unavailable.description' };
 export { msg_search_indexing_title as 'search.indexing.title' };
 export { msg_search_indexing_description as 'search.indexing.description' };
-export { msg_search_indexing_progress as 'search.indexing.progress' };
 export { msg_preview_dismiss as 'preview.dismiss' };
 export { msg_preview_delete as 'preview.delete' };
 export { msg_preview_open_link as 'preview.open_link' };

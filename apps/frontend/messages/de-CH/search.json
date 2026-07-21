@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Suche wird vorbereitet",
-      "description": "Nachrichten werden indiziert. Die Suche ist anschließend verfügbar.",
-      "progress": "{percent} % indiziert"
+      "description": "Nachrichten werden indiziert. Die Suche ist anschließend verfügbar."
     }
   }
 }

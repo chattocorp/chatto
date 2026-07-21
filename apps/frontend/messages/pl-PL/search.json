@@ -47,8 +47,7 @@
     },
     "indexing": {
       "title": "Przygotowywanie wyszukiwania",
-      "description": "Wiadomości są indeksowane. Po zakończeniu wyszukiwanie będzie dostępne.",
-      "progress": "Zindeksowano {percent}%"
+      "description": "Wiadomości są indeksowane. Po zakończeniu wyszukiwanie będzie dostępne."
     }
   }
 }

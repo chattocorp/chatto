@@ -10,8 +10,6 @@ import { SvelteSet } from 'svelte/reactivity';
 
 const EMPTY_STATUS: MessageSearchStatus = {
   state: MessageSearchState.UNSPECIFIED,
-  indexedEventCount: null,
-  targetEventCount: null,
   retryAfterMs: null
 };
 

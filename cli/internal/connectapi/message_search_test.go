@@ -69,7 +69,6 @@ func TestMessageSearchStatusSeparatesConfigurationAndProviderReadiness(t *testin
 	response, err = service.GetStatus(ctx, connect.NewRequest(&apiv1.GetStatusRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_READY, response.Msg.GetState())
-	require.Equal(t, uint64(12), response.Msg.GetIndexedEventCount())
 
 	provider.statusErr = errors.New("provider offline")
 	response, err = service.GetStatus(ctx, connect.NewRequest(&apiv1.GetStatusRequest{}))

@@ -8,8 +8,6 @@ export { MessageSearchOrder, MessageSearchState };
 
 export type MessageSearchStatus = {
   state: MessageSearchState;
-  indexedEventCount: bigint | null;
-  targetEventCount: bigint | null;
   retryAfterMs: number | null;
 };
 
@@ -49,8 +47,6 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
         const response = await search.getStatus({}, { headers: headers() });
         return {
           state: response.state,
-          indexedEventCount: response.indexedEventCount ?? null,
-          targetEventCount: response.targetEventCount ?? null,
           retryAfterMs: response.retryAfter
             ? Number(response.retryAfter.seconds) * 1_000 + response.retryAfter.nanos / 1_000_000
             : null

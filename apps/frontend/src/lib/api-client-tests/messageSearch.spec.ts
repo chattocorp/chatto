@@ -39,11 +39,9 @@ describe('createMessageSearchAPI', () => {
     });
   }
 
-  it('maps provider status including progress and retry timing', async () => {
+  it('maps coarse provider status and retry timing', async () => {
     mocks.getStatus.mockResolvedValue({
       state: MessageSearchState.INDEXING,
-      indexedEventCount: 12n,
-      targetEventCount: 40n,
       retryAfter: { seconds: 2n, nanos: 500_000_000 }
     });
 
@@ -51,8 +49,6 @@ describe('createMessageSearchAPI', () => {
 
     expect(status).toEqual({
       state: MessageSearchState.INDEXING,
-      indexedEventCount: 12n,
-      targetEventCount: 40n,
       retryAfterMs: 2500
     });
     expect(mocks.getStatus).toHaveBeenCalledWith(
