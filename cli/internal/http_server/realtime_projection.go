@@ -365,10 +365,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if !s.config.Search.Enabled || retainsTimeline(roomID) {
 			return nil
 		}
-		serverState, err := s.connectAPI.BuildRealtimeProjectionServerState(ctx)
-		if err != nil {
-			return err
-		}
+		serverState := s.connectAPI.BuildRealtimeProjectionServerState()
 		// Reuse an operation understood by every projection-v1 client. New
 		// clients treat this as a search refresh fence; older clients safely
 		// reapply the same server state and advance their cursor.
