@@ -68,6 +68,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   let activeRoomId = $derived(page.params.roomId);
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
+  let groupContextMenu = $state<(ContextMenuTriggerDetails & { group: RoomsListGroup }) | null>(
+    null
+  );
 
   function roomMenuTrigger(room: RoomsListItem) {
     return contextMenuTrigger((details) => {
@@ -77,6 +80,27 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   function closeRoomContextMenu(): void {
     roomContextMenu = null;
+  }
+
+  function groupMenuTrigger(group: RoomsListGroup) {
+    if (!group.viewerCanManageGroup) return undefined;
+    return contextMenuTrigger((details) => {
+      groupContextMenu = { ...details, group };
+    });
+  }
+
+  function closeGroupContextMenu(): void {
+    groupContextMenu = null;
+  }
+
+  function handleConfigureGroup(group: RoomsListGroup): void {
+    closeGroupContextMenu();
+    void goto(
+      resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+        serverId: serverSegment,
+        groupId: group.id
+      })
+    );
   }
 
   function handleMarkRoomRead(room: RoomsListItem): void {
@@ -479,22 +503,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
-        >
-          {#snippet actions()}
-            {#if set.viewerCanManageGroup}
-              <a
-                href={resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
-                  serverId: serverSegment,
-                  groupId: set.id
-                })}
-                class="icon-action shrink-0"
-                aria-label={m['room_list.group_settings']({ group: set.name })}
-              >
-                <span class="iconify uil--setting" aria-hidden="true"></span>
-              </a>
-            {/if}
-          {/snippet}
-        </CollapsibleGroup>
+          contextMenuTrigger={groupMenuTrigger(set)}
+        />
       {/each}
     {:else if sortedRooms.length > 0}
       <!-- No layout configured yet — alphabetical fallback. -->
@@ -519,6 +529,30 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       />
     {/if}
   </nav>
+{/if}
+
+{#if groupContextMenu}
+  {@const contextGroup = groupContextMenu.group}
+  <ContextMenu
+    position={groupContextMenu.position}
+    presentation={groupContextMenu.presentation}
+    ariaLabel={m['room_list.group_settings']({ group: contextGroup.name })}
+    onclose={closeGroupContextMenu}
+  >
+    <div class="menu-section">
+      <nav class="sidebar-nav">
+        <button
+          type="button"
+          class="sidebar-item"
+          onclick={() => handleConfigureGroup(contextGroup)}
+          role="menuitem"
+        >
+          <span class="sidebar-icon iconify uil--setting" aria-hidden="true"></span>
+          {m['room_list.group_settings']({ group: contextGroup.name })}
+        </button>
+      </nav>
+    </div>
+  </ContextMenu>
 {/if}
 
 {#if roomContextMenu}

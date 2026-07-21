@@ -792,7 +792,7 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
-  it('keeps an empty manageable group visible with a settings link', async () => {
+  it('keeps an empty manageable group visible and opens its settings from a context menu', async () => {
     mocks.store.rooms.rooms = [];
     mocks.store.rooms.roomGroups = [
       {
@@ -806,12 +806,26 @@ describe('RoomList', () => {
 
     const { container } = render(RoomList);
 
-    const link = q(
-      container,
-      '[href="/chat/-/manage/room-groups/private-group"]'
-    ) as HTMLAnchorElement;
-    await expect.element(link).toBeInTheDocument();
-    expect(link.getAttribute('aria-label')).toBe('Settings for Private Group');
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Private Group')
+    );
+    await expect.element(groupHeader ?? null).toBeInTheDocument();
+    expect(container.querySelector('.uil--setting')).toBeNull();
+
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Settings for Private Group')
+    );
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Settings for Private Group'
+    );
+    await expect.element(settings ?? null).toBeInTheDocument();
+
+    settings!.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
   });
 
   it('renders active-server host sidebar links as same-tab anchors', async () => {
