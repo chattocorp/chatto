@@ -1,13 +1,55 @@
 ---
-title: Bundled Search Provider
-description: Enable and configure Chatto's local Bleve message-search provider.
+title: Enabling Search
+description: Enable Chatto Search with the bundled Bleve provider or a compatible external provider.
 ---
 
 import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Chatto includes a Bleve provider that builds a disposable full-text index from
-your server's event history. For a typical single-process installation, enable
-the Search feature and provider together:
+Search in Chatto is pluggable. Chatto owns the client-facing feature while a
+provider supplies indexing, matching, and ranking through a versioned,
+server-side NATS service. Operators can replace the provider without changing
+the Search page or public API.
+
+Chatto ships with a simple Bleve-based provider out of the box. It keeps a
+disposable full-text index on a local volume and should scale to most Chatto
+installations. You can run it inside `chatto run`, move it into a separate
+process, or replace it with another compatible provider.
+
+## How Search Providers Work
+
+Chatto sends normalized queries and the rooms the requesting member is allowed
+to search. The provider returns ordered message and room identifiers rather
+than client-facing message data. Before returning results, Chatto checks current
+room membership and message state again, then hydrates the identifiers into the
+canonical public message representation. A stale provider index therefore
+cannot grant access to a message.
+
+The provider contract uses messages from the `chatto.search.v1` protobuf
+package. Providers exchange those messages on the `svc.chatto_ext.search.v1`
+NATS subject namespace:
+
+| Subject | Purpose |
+| ------- | ------- |
+| `svc.chatto_ext.search.v1.query` | Accept a normalized query and return ordered, lightweight hits. |
+| `svc.chatto_ext.search.v1.status` | Report whether the provider is ready, indexing, or degraded. |
+
+Compatible provider replicas share the `svc.chatto_ext.search.v1` queue group,
+allowing NATS to load-balance requests. Do not put implementations with
+different matching behaviour or incompatible index readiness in the same queue
+group: callers could otherwise receive inconsistent results from one request
+to the next.
+
+<Aside type="caution">
+  A provider is a trusted server component, not a public browser or integration
+  API. It sees search terms and authorized room scopes, and an indexing provider
+  may process decrypted message bodies. Protect its credentials, logs, index,
+  and network access like the Chatto server itself.
+</Aside>
+
+## Enable Search with Bleve
+
+For a typical single-process installation, enable the Search feature and the
+bundled provider together:
 
 ```toml
 [search]
@@ -19,11 +61,8 @@ directory = "./data/search"
 ```
 
 `search.enabled` exposes the Search API and UI. `search_provider.enabled` starts
-the bundled provider inside `chatto run`. Keep them as separate settings: you
-can run the provider in another process or replace it without changing the
-client-facing feature.
-
-## Set Up Search
+the bundled provider inside `chatto run`. Keeping them as separate settings is
+what allows the provider to run elsewhere or be replaced.
 
 <Steps>
 
@@ -124,7 +163,7 @@ Analyzer order does not matter. Changing the selected set changes the index
 schema, so the provider discards its local index and rebuilds it safely from
 `EVT`. Search reports an indexing state during the rebuild.
 
-## Run the Provider Separately
+## Run Bleve Separately
 
 Use a standalone provider when you want indexing CPU, memory, and storage away
 from the server process. The provider must connect to the same NATS account and
@@ -160,7 +199,31 @@ directory and language analyzers.
   processes.
 </Aside>
 
-## Index Lifecycle
+## Use Another Provider
+
+To replace Bleve, keep the client-facing feature enabled and prevent
+`chatto run` from starting the bundled implementation:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = false
+```
+
+Run a trusted provider that understands the `chatto.search.v1` protobuf messages
+and serves `svc.chatto_ext.search.v1.query` and
+`svc.chatto_ext.search.v1.status` on the same NATS account. The Search page and
+public API remain unchanged. Matching quality, ranking, index storage, and
+operational requirements are the provider's responsibility.
+
+The canonical query language is parsed by Chatto before the provider receives a
+request. Alternative providers should implement the normalized request rather
+than inventing client-visible query syntax; exact ranking and recall may still
+vary between implementations.
+
+## Bleve Index Lifecycle
 
 The Bleve directory is derived state, not a source of truth:
 

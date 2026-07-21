@@ -98,7 +98,7 @@ enabled = true
 directory = "./data/search"
 ```
 
-The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds it from retained `EVT` history if it is missing or incompatible. See [Bundled Search Provider](/guides/operations/bundled-search-provider/) for language configuration, standalone deployment, index lifecycle, and troubleshooting.
+The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds it from retained `EVT` history if it is missing or incompatible. See [Enabling Search](/guides/operations/search/) for language configuration, standalone deployment, index lifecycle, and troubleshooting.
 
 Search has separate protocol, configuration, and readiness states. Compatible clients can discover the protocol on every supporting server. With `search.enabled = false`, the status API reports Search as disabled and query requests are rejected. When enabled, the status progresses through provider startup/indexing to ready, or reports unavailable without affecting the rest of Chatto.
 
@@ -143,7 +143,7 @@ Use it for tasks such as:
 <CardGrid>
   <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Backup, restore, key export, and disaster recovery procedures." />
   <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Local recovery and bootstrap commands." />
-  <LinkCard title="Bundled Search Provider" href="/guides/operations/bundled-search-provider/" description="Configure local message indexing and language analyzers." />
+  <LinkCard title="Enabling Search" href="/guides/operations/search/" description="Configure local message indexing and language analyzers." />
   <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="Run Chatto with replicated infrastructure." />
   <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Scale server processes and externalize runtime dependencies." />
   <LinkCard title="Environment Variables" href="/reference/environment-variables/#metrics" description="Metrics, exporter, and operator API configuration reference." />
