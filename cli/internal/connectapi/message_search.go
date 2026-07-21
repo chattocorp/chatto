@@ -182,6 +182,8 @@ func publicMessageSearchStatus(status *searchv1.GetStatusResponse) *apiv1.GetSta
 		response.State = apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_READY
 	case searchv1.ProviderState_PROVIDER_STATE_DEGRADED:
 		response.State = apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_DEGRADED
+	case searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
+		response.State = apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_UNAVAILABLE
 	default:
 		response.State = apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_UNAVAILABLE
 	}

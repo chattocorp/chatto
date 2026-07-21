@@ -180,7 +180,7 @@ in the active server store so browser Back can restore the current search.
             <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
               {m['search.error.description']()}
             </EmptyState>
-          {:else if store.hasSearched && store.results.length === 0}
+          {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
             <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
               {m['search.no_results.description']()}
             </EmptyState>

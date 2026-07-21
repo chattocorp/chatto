@@ -29,6 +29,8 @@ enum ProviderState {
   PROVIDER_STATE_READY = 3;
   // The provider can answer queries but has a known non-fatal limitation.
   PROVIDER_STATE_DEGRADED = 4;
+  // The provider cannot answer queries because startup or indexing failed.
+  PROVIDER_STATE_UNAVAILABLE = 5;
 }
 
 // QueryRequest is a parsed, provider-neutral message search. Every term and

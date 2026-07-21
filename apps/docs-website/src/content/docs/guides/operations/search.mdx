@@ -174,8 +174,9 @@ CHATTO_SEARCH_PROVIDER_LANGUAGES=none
 ```
 
 Analyzer order does not matter. Changing the selected set changes the index
-schema, so the provider discards its local index and rebuilds it safely from
-`EVT`. Search reports an indexing state during the rebuild.
+schema. Stop the provider, move or delete only its configured Search directory,
+then restart it to rebuild the index safely from `EVT`. Chatto does not modify
+or remove an incompatible index directory automatically.
 
 ## Run Bleve Separately
 

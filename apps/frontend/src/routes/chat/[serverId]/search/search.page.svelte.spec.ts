@@ -32,7 +32,11 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 let activeServerId = $state('origin');
 
-function serverStore(query = '', order = MessageSearchOrder.RELEVANCE) {
+function serverStore(
+  query = '',
+  order = MessageSearchOrder.RELEVANCE,
+  options: { nextCursor?: string | null; hasSearched?: boolean } = {}
+) {
   const messageSearch = $state({
     status: { state: MessageSearchState.READY, retryAfterMs: null },
     statusLoading: false,
@@ -42,11 +46,11 @@ function serverStore(query = '', order = MessageSearchOrder.RELEVANCE) {
     query,
     order,
     results: [],
-    nextCursor: null,
+    nextCursor: options.nextCursor ?? null,
     loading: false,
     loadingMore: false,
     error: false,
-    hasSearched: false,
+    hasSearched: options.hasSearched ?? false,
     ensureStatus: mocks.ensureStatus,
     refreshStatus: vi.fn(),
     search: mocks.search,
@@ -105,5 +109,32 @@ describe('message search page', () => {
       roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
+  });
+
+  it('continues pagination when a filtered page has no visible results', async () => {
+    let intersectionCallback: ((entries: IntersectionObserverEntry[]) => void) | undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
+          intersectionCallback = callback;
+        }
+        observe = vi.fn();
+        disconnect = vi.fn();
+      }
+    );
+    mocks.serverStores = {
+      origin: serverStore('', MessageSearchOrder.RELEVANCE, {
+        nextCursor: 'filtered-page-cursor',
+        hasSearched: true
+      }),
+      remote: serverStore()
+    };
+
+    render(SearchPage);
+    await vi.waitFor(() => expect(intersectionCallback).toBeTypeOf('function'));
+    intersectionCallback!([{ isIntersecting: true } as IntersectionObserverEntry]);
+
+    await vi.waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
   });
 });

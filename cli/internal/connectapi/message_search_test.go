@@ -90,6 +90,7 @@ func TestPublicMessageSearchStatusPreservesProviderState(t *testing.T) {
 		{"indexing", searchv1.ProviderState_PROVIDER_STATE_INDEXING, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_INDEXING},
 		{"ready", searchv1.ProviderState_PROVIDER_STATE_READY, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_READY},
 		{"degraded", searchv1.ProviderState_PROVIDER_STATE_DEGRADED, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_DEGRADED},
+		{"unavailable", searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, apiv1.MessageSearchState_MESSAGE_SEARCH_STATE_UNAVAILABLE},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

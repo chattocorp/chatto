@@ -43,6 +43,8 @@ func (p *Provider) GetStatus(context.Context, *searchv1.GetStatusRequest) (*sear
 	indexed := status.StartupMessages
 	response.IndexedEventCount = &indexed
 	switch {
+	case status.Failed && !status.StartupComplete:
+		response.State = searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
 	case status.Failed:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_DEGRADED
 	case status.StartupComplete:
