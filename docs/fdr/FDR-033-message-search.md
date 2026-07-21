@@ -82,9 +82,11 @@ search implementation would require.
 that is excluded from normal backups and can be rebuilt from retained `EVT`
 history.
 **Why:** Useful server-side full-text search requires a plaintext-derived
-representation even though durable message bodies remain encrypted. Explicit
-index deletion and rebuild behavior preserves the account-deletion and message
-removal contract. See ADR-007, ADR-033, and ADR-054.
+representation even though durable message bodies remain encrypted. Bleve
+logically removes retracted and crypto-shredded documents immediately and
+reclaims their immutable segments through normal background merging. Operators
+who require stronger physical-erasure guarantees must protect or explicitly
+rebuild the index volume. See ADR-007, ADR-033, and ADR-054.
 **Tradeoff:** Enabling Search expands the trusted server-side data surface and
 requires operators to protect the provider volume.
 

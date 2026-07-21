@@ -340,21 +340,11 @@ func (p *Projection) RestoreCheckpoint(_ context.Context, request events.Project
 }
 
 func (p *Projection) ResetCheckpoint(_ context.Context, request events.ProjectionCheckpointRequest) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.index != nil {
-		if err := p.index.Close(); err != nil {
-			return fmt.Errorf("close search index before reset: %w", err)
-		}
-		p.index = nil
-	}
-	p.logger.Info("Resetting disposable search index", "stage", "checkpoint_reset")
-	if err := os.RemoveAll(p.directory); err != nil {
-		return fmt.Errorf("remove search index: %w", err)
-	}
-	p.deks = make(map[string]*corev1.UserDEKGeneratedEvent)
-	p.checkpoint = checkpointFromRequest(request)
-	return p.open()
+	return fmt.Errorf(
+		"search index %q is incompatible with projection %q; stop the provider, move or delete that directory, and restart to rebuild it",
+		p.directory,
+		request.ProjectionKey,
+	)
 }
 
 func (p *Projection) Close() error {
@@ -381,16 +371,12 @@ func (p *Projection) open() error {
 		p.index = index
 		return nil
 	}
-	if errors.Is(err, blevesearch.ErrorIndexMetaMissing) || errors.Is(err, blevesearch.ErrorIndexMetaCorrupt) {
-		// The index is a disposable projection. If an existing index cannot be
-		// opened because its metadata is positively corrupt, discard it so the
-		// projector can replay EVT. Operational I/O failures return untouched.
-		p.logger.Warn("Discarding unreadable search index", "stage", "index_recovery", "error", err)
-		if removeErr := os.RemoveAll(p.directory); removeErr != nil {
-			return fmt.Errorf("remove unreadable search index after %v: %w", err, removeErr)
-		}
-	} else if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
-		return fmt.Errorf("open search index: %w", err)
+	if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
+		return fmt.Errorf(
+			"open search index %q: %w; Chatto will not modify an unreadable index, so move or delete that directory explicitly before restarting the provider",
+			p.directory,
+			err,
+		)
 	}
 	index, err = blevesearch.New(p.directory, newIndexMapping(p.languages))
 	if err != nil {

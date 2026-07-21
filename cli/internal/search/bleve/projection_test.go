@@ -586,16 +586,39 @@ func TestProjectionUpdatesAttachmentFilterWhenBodyIsEdited(t *testing.T) {
 	require.Equal(t, []string{"M1"}, hitIDs(response))
 }
 
-func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
+func TestProjectionDoesNotDeleteUnreadableIndex(t *testing.T) {
 	directory := t.TempDir() + "/index"
 	require.NoError(t, os.MkdirAll(directory, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(directory, "index_meta.json"), []byte("not json"), 0o600))
+	metadata := []byte("not json")
+	metadataPath := filepath.Join(directory, "index_meta.json")
+	sentinel := []byte("operator data")
+	sentinelPath := filepath.Join(directory, "do-not-delete")
+	require.NoError(t, os.WriteFile(metadataPath, metadata, 0o600))
+	require.NoError(t, os.WriteFile(sentinelPath, sentinel, 0o600))
 
+	_, err := NewProjection(directory, nil, nil, nil, nil, log.New(nil))
+	require.ErrorContains(t, err, "Chatto will not modify an unreadable index")
+	retainedMetadata, readErr := os.ReadFile(metadataPath)
+	require.NoError(t, readErr)
+	require.Equal(t, metadata, retainedMetadata)
+	retainedSentinel, readErr := os.ReadFile(sentinelPath)
+	require.NoError(t, readErr)
+	require.Equal(t, sentinel, retainedSentinel)
+}
+
+func TestProjectionDoesNotResetIncompatibleCheckpoint(t *testing.T) {
+	directory := t.TempDir() + "/index"
 	projection, err := NewProjection(directory, nil, nil, nil, nil, log.New(nil))
 	require.NoError(t, err)
-	require.NoError(t, projection.Close())
-	_, err = os.Stat(filepath.Join(directory, "index_meta.json"))
-	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	sentinelPath := filepath.Join(directory, "do-not-delete")
+	require.NoError(t, os.WriteFile(sentinelPath, []byte("operator data"), 0o600))
+
+	err = projection.ResetCheckpoint(context.Background(), events.ProjectionCheckpointRequest{ProjectionKey: "message_search"})
+	require.ErrorContains(t, err, "move or delete that directory")
+	retained, readErr := os.ReadFile(sentinelPath)
+	require.NoError(t, readErr)
+	require.Equal(t, []byte("operator data"), retained)
 }
 
 func TestProjectionIgnoresMismatchedBodyRevisionID(t *testing.T) {

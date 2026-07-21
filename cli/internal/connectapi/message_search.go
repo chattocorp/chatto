@@ -154,17 +154,11 @@ func providerSearchRequest(request *apiv1.SearchMessagesRequest, parsed searchsv
 	provider := &searchv1.QueryRequest{
 		RequiredTerms:   append([]string(nil), parsed.RequiredTerms...),
 		RequiredPhrases: append([]string(nil), parsed.RequiredPhrases...),
+		RoomIds:         append([]string(nil), scope.RoomIDs...),
 		AuthorIds:       append([]string(nil), scope.AuthorIDs...),
 		HasAttachments:  request.GetHasAttachments() || parsed.HasAttachments,
 		Order:           order,
 		PageSize:        pageSize,
-	}
-	// The provider contract bounds explicit filters to 100 IDs. A global
-	// search for a member of more than 100 rooms therefore queries the trusted
-	// provider without a room prefilter and relies on mandatory current-state
-	// authorization of every hit below.
-	if len(scope.RoomIDs) <= 100 {
-		provider.RoomIds = append([]string(nil), scope.RoomIDs...)
 	}
 	if createdAfter != nil {
 		provider.CreatedAfter = timestamppb.New(*createdAfter)

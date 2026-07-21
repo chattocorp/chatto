@@ -80,9 +80,11 @@ background merger reclaims obsolete segments; Chatto does not use Scorch's
 manual `ForceMerge` operation as part of projection correctness or startup
 readiness.
 
-The directory is a privileged, disposable local cache. It is excluded from
-Chatto backups, and invalid checkpoint metadata causes the complete directory
-to be recreated from retained EVT history.
+The directory is a privileged, disposable local cache excluded from Chatto
+backups. Chatto creates it only when the configured path does not exist and
+never recursively deletes an unreadable or incompatible disk index. Those
+conditions fail provider startup; an operator must move or delete the dedicated
+directory explicitly before restarting it for a cold EVT replay.
 
 ## Snapshot support
 

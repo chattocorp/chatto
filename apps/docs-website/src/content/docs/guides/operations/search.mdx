@@ -242,10 +242,14 @@ The Bleve directory is derived state, not a source of truth:
 
 - The `chatto backup` command does not include it; restore `EVT` and let the
   provider rebuild.
-- A missing, corrupt, incompatible, or differently configured index is rebuilt
-  automatically.
+- A missing index is created and rebuilt automatically. A corrupt,
+  incompatible, or differently configured disk index stops the provider
+  without modifying the directory.
 - Message edits replace indexed content. Retractions, room deletion, and user
-  key shredding remove matching documents.
+  key shredding immediately remove matching documents from search results.
+- Bleve reclaims logically deleted data during normal background segment
+  merging. Protect the index as privileged plaintext-derived data; keep it out
+  of backups and use an encrypted volume when physical media erasure matters.
 - Search candidates are checked against current room membership and message
   state before Chatto returns hydrated results.
 - Disabling the provider does not remove its directory. Stop the provider and
@@ -263,7 +267,7 @@ parent directory or the embedded NATS data directory.
 | Search reports unavailable | Confirm a bundled or standalone provider is running against the same NATS account. |
 | Search reports indexing | Let the provider finish replaying `EVT`; large histories take longer. |
 | Inflected words do not match | Confirm the relevant code is present in `search_provider.languages`. |
-| A language change appears to do nothing | Restart the provider and wait for its automatic index rebuild. |
+| A language change prevents startup | Stop the provider, move or delete only its configured Search directory, then restart it for a clean replay. |
 | Startup rejects the index directory | Choose a dedicated child directory that does not contain the embedded NATS data directory. |
 | Two provider processes fail against one index | Give each process its own directory; Bleve directories are not shared volumes. |
 

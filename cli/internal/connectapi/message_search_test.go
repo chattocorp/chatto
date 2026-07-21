@@ -100,8 +100,8 @@ func TestPublicMessageSearchStatusPreservesProviderState(t *testing.T) {
 	}
 }
 
-func TestProviderSearchRequestOmitsUnboundedAuthorizedRoomScope(t *testing.T) {
-	roomIDs := make([]string, 101)
+func TestProviderSearchRequestIncludesCompleteAuthorizedRoomScope(t *testing.T) {
+	roomIDs := make([]string, 1001)
 	for index := range roomIDs {
 		roomIDs[index] = fmt.Sprintf("room-%03d", index)
 	}
@@ -112,16 +112,8 @@ func TestProviderSearchRequestOmitsUnboundedAuthorizedRoomScope(t *testing.T) {
 		&core.MessageSearchScope{RoomIDs: roomIDs},
 	)
 	require.NoError(t, err)
-	require.Empty(t, request.GetRoomIds())
+	require.Equal(t, roomIDs, request.GetRoomIds())
 	require.NoError(t, searchsvc.ValidateQueryRequest(request))
-
-	request, err = providerSearchRequest(
-		&apiv1.SearchMessagesRequest{Query: "search"},
-		searchsvc.ParsedQuery{RequiredTerms: []string{"search"}},
-		&core.MessageSearchScope{RoomIDs: roomIDs[:100]},
-	)
-	require.NoError(t, err)
-	require.Equal(t, roomIDs[:100], request.GetRoomIds())
 }
 
 func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {

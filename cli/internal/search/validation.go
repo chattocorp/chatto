@@ -36,7 +36,11 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 	if err := validateStrings("required phrases", request.GetRequiredPhrases(), maxQueryParts, maxQueryPartBytes); err != nil {
 		return err
 	}
-	if err := validateStrings("room IDs", request.GetRoomIds(), maxFilterIDs, maxIDBytes); err != nil {
+	// The public request accepts at most maxFilterIDs explicit room filters,
+	// but Chatto expands them into the caller's complete authorized room scope
+	// before crossing the provider boundary. Do not truncate or reject that
+	// security boundary merely because a user belongs to many rooms.
+	if err := validateStrings("room IDs", request.GetRoomIds(), 0, maxIDBytes); err != nil {
 		return err
 	}
 	if err := validateStrings("author IDs", request.GetAuthorIds(), maxFilterIDs, maxIDBytes); err != nil {
@@ -68,7 +72,7 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 }
 
 func validateStrings(name string, values []string, maxItems, maxBytes int) error {
-	if len(values) > maxItems {
+	if maxItems > 0 && len(values) > maxItems {
 		return fmt.Errorf("%s exceed %d items", name, maxItems)
 	}
 	for _, value := range values {
