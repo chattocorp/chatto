@@ -176,30 +176,30 @@ func (p *ConfigProjection) Get() *configv1.ServerConfig {
 	return cfg
 }
 
-func (p *ConfigProjection) ServerLogo() (*corev1.AssetRecord, bool, error) {
+func (p *ConfigProjection) ServerLogo() (*corev1.AssetRecord, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if p.server.logo == nil {
-		return nil, false, nil
+		return nil, false
 	}
-	return cloneAssetRecord(p.server.logo), true, nil
+	return cloneAssetRecord(p.server.logo), true
 }
 
-func (p *ConfigProjection) ServerBanner() (*corev1.AssetRecord, bool, error) {
+func (p *ConfigProjection) ServerBanner() (*corev1.AssetRecord, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if p.server.banner == nil {
-		return nil, false, nil
+		return nil, false
 	}
-	return cloneAssetRecord(p.server.banner), true, nil
+	return cloneAssetRecord(p.server.banner), true
 }
 
-func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool, error) {
+func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
-		return nil, false, nil
+		return nil, false
 	}
 	prefs := &corev1.ServerUserPreferences{}
 	if u.timezone != nil {
@@ -209,7 +209,7 @@ func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPrefer
 	if u.timeFormat != nil {
 		prefs.TimeFormat = *u.timeFormat
 	}
-	return prefs, true, nil
+	return prefs, true
 }
 
 func (p *ConfigProjection) EffectiveServerName() string {

@@ -2852,10 +2852,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 		t.Fatalf("updated config response = %+v", resp.Msg.GetConfig())
 	}
 
-	cfg, err := env.core.ConfigManager().GetServerConfig(env.ctx)
-	if err != nil {
-		t.Fatalf("GetServerConfig: %v", err)
-	}
+	cfg := env.core.ConfigManager().GetServerConfig()
 	if cfg.GetServerName() != "Connect Settings" ||
 		cfg.GetDescription() != "Description from Connect" ||
 		cfg.GetMotd() != "MOTD from Connect" ||
@@ -2868,10 +2865,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("partial UpdateServerConfig: %v", err)
 	}
-	cfg, err = env.core.ConfigManager().GetServerConfig(env.ctx)
-	if err != nil {
-		t.Fatalf("GetServerConfig after partial update: %v", err)
-	}
+	cfg = env.core.ConfigManager().GetServerConfig()
 	if cfg.GetServerName() != "Connect Settings" || cfg.GetDescription() != "Updated description only" {
 		t.Fatalf("partial stored config = %+v", cfg)
 	}
@@ -2994,10 +2988,7 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 	if want := []string{"root", "reserved", "admin"}; !slices.Equal(updateResp.Msg.GetBlockedUsernames(), want) {
 		t.Fatalf("updated blocked usernames = %q, want %q", updateResp.Msg.GetBlockedUsernames(), want)
 	}
-	stored, err := env.core.ConfigManager().GetEffectiveBlockedUsernames(env.ctx)
-	if err != nil {
-		t.Fatalf("GetEffectiveBlockedUsernames: %v", err)
-	}
+	stored := env.core.ConfigManager().GetEffectiveBlockedUsernames()
 	if stored != "root\nreserved\nadmin" {
 		t.Fatalf("stored blocked usernames = %q, want root/reserved/admin", stored)
 	}

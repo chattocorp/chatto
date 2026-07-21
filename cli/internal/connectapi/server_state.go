@@ -21,12 +21,8 @@ func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.Ge
 		return nil, err
 	}
 
-	motd, err := s.serverMotd(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	resp := &apiv1.GetMotdResponse{}
+	motd := s.serverMotd()
 	if motd != "" {
 		resp.Motd = stringPtr(motd)
 	}
@@ -224,15 +220,11 @@ func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 	}
 }
 
-func (s *serverService) serverMotd(ctx context.Context) (string, error) {
+func (s *serverService) serverMotd() string {
 	if cm := s.api.core.ConfigManager(); cm != nil {
-		motd, err := cm.GetEffectiveMOTD(ctx)
-		if err != nil {
-			return "", connectError(err)
-		}
-		return motd, nil
+		return cm.GetEffectiveMOTD()
 	}
-	return "", nil
+	return ""
 }
 
 func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, *apiv1.ServerViewerState, error) {

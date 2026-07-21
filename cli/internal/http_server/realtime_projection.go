@@ -216,10 +216,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerUpsert{ServerUpsert: server}})
-			serverState, err := s.connectAPI.BuildRealtimeProjectionServerState(ctx)
-			if err != nil {
-				return nil, false, err
-			}
+			serverState := s.connectAPI.BuildRealtimeProjectionServerState()
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{
 				ServerStateUpsert: realtimeProjectionServerState(serverState),
 			}})

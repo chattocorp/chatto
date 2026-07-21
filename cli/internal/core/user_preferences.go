@@ -35,8 +35,8 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 	if c.ServerConfig == nil {
 		return nil, nil
 	}
-	settings, _, err := c.ServerConfig.UserSettings(userID)
-	return settings, err
+	settings, _ := c.ServerConfig.UserSettings(userID)
+	return settings, nil
 }
 
 // UpdateUserSettings merges the provided fields into the user's existing settings.
@@ -59,10 +59,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	changed := false
 	if err := c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current, _, err := c.ServerConfig.UserSettings(userID)
-		if err != nil {
-			return nil, err
-		}
+		current, _ := c.ServerConfig.UserSettings(userID)
 		var evs []*corev1.Event
 		if input.Timezone != nil {
 			tz := *input.Timezone
@@ -135,9 +132,9 @@ func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) erro
 		return nil
 	}
 	return c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current, _, err := c.ServerConfig.UserSettings(userID)
-		if err != nil || current == nil {
-			return nil, err
+		current, _ := c.ServerConfig.UserSettings(userID)
+		if current == nil {
+			return nil, nil
 		}
 		evs := []*corev1.Event{
 			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{

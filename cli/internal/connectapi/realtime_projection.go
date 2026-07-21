@@ -175,10 +175,7 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime server profile: %w", err)
 	}
-	serverState, err := a.BuildRealtimeProjectionServerState(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("assemble realtime authenticated server state: %w", err)
-	}
+	serverState := a.BuildRealtimeProjectionServerState()
 	viewer, err := a.buildViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime viewer: %w", err)
@@ -326,13 +323,9 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 
 // BuildRealtimeProjectionServerState returns current authenticated server
 // presentation and runtime settings for snapshot and live convergence.
-func (a *API) BuildRealtimeProjectionServerState(ctx context.Context) (*RealtimeProjectionServerState, error) {
+func (a *API) BuildRealtimeProjectionServerState() *RealtimeProjectionServerState {
 	service := &serverService{api: a}
-	motd, err := service.serverMotd(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &RealtimeProjectionServerState{MOTD: motd, Runtime: service.serverRuntimeConfig()}, nil
+	return &RealtimeProjectionServerState{MOTD: service.serverMotd(), Runtime: service.serverRuntimeConfig()}
 }
 
 func (a *API) realtimeProjectionUsers(ctx context.Context) ([]*apiv1.DirectoryMember, error) {

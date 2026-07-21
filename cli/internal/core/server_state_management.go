@@ -22,10 +22,7 @@ func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string)
 		return nil, err
 	}
 
-	cfg, err := c.ConfigManager().GetServerConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+	cfg := c.ConfigManager().GetServerConfig()
 	if cfg == nil {
 		return &configv1.ServerConfig{}, nil
 	}
@@ -68,7 +65,7 @@ func (c *ChattoCore) GetServerSecurityConfig(ctx context.Context, actorID string
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.ConfigManager().GetBlockedUsernamesList(ctx)
+	return c.ConfigManager().GetBlockedUsernamesList(), nil
 }
 
 func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string, blockedUsernames []string) ([]string, error) {
@@ -89,7 +86,7 @@ func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string,
 		return nil, err
 	}
 
-	return configMgr.GetBlockedUsernamesList(ctx)
+	return configMgr.GetBlockedUsernamesList(), nil
 }
 
 func normalizeBlockedUsernameEntries(entries []string) string {
