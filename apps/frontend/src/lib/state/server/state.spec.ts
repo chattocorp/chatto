@@ -14,11 +14,15 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     bannerUrl: 'https://banner',
     authProviders: [],
     compatibility: {
-      protocolCapabilities: [
-        'chatto.api.v1',
-        'chatto.realtime.v1',
-        'chatto.realtime.projection.v1'
-      ],
+      protocolCapabilities: {
+        discoveryV1: true,
+        authV1: true,
+        apiV1: true,
+        adminV1: true,
+        messageSearchV1: true,
+        realtimeV1: true,
+        realtimeProjectionV1: true
+      },
       minimumWebClientVersion: null
     },
     ...overrides
@@ -47,11 +51,11 @@ describe('ServerInfoState.init()', () => {
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
     expect(state.version).toBe('test');
-    expect(state.protocolCapabilities).toEqual([
-      'chatto.api.v1',
-      'chatto.realtime.v1',
-      'chatto.realtime.projection.v1'
-    ]);
+    expect(state.protocolCapabilities).toMatchObject({
+      apiV1: true,
+      realtimeV1: true,
+      realtimeProjectionV1: true
+    });
     expect(state.supportsRealtimeProjection).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');

@@ -4,6 +4,22 @@ import {
   evaluateServerCompatibility,
   hasProtocolCapability
 } from './compatibility';
+import type { PublicProtocolCapabilities } from '$lib/api-client/server';
+
+function capabilities(
+  overrides: Partial<PublicProtocolCapabilities> = {}
+): PublicProtocolCapabilities {
+  return {
+    discoveryV1: false,
+    authV1: false,
+    apiV1: false,
+    adminV1: false,
+    messageSearchV1: false,
+    realtimeV1: false,
+    realtimeProjectionV1: false,
+    ...overrides
+  };
+}
 
 describe('server compatibility evaluation', () => {
   it('uses full SemVer prerelease precedence', () => {
@@ -24,11 +40,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities({
+          apiV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -43,14 +59,14 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.projection.v1'],
+        protocolCapabilities: capabilities({ apiV1: true, realtimeProjectionV1: true }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
     ).toMatchObject({
       status: 'degraded',
       reason: 'missing-recommended-capabilities',
-      missingCapabilities: ['chatto.realtime.v1']
+      missingCapabilities: ['realtimeV1']
     });
   });
 
@@ -58,7 +74,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.discovery.v1'],
+        protocolCapabilities: capabilities({ discoveryV1: true }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -69,14 +85,14 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: capabilities({ apiV1: true, realtimeV1: true }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
     ).toMatchObject({
       status: 'unsupported',
       reason: 'missing-required-capabilities',
-      missingCapabilities: ['chatto.realtime.projection.v1']
+      missingCapabilities: ['realtimeProjectionV1']
     });
   });
 
@@ -104,11 +120,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.6.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities({
+          apiV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        }),
         minimumWebClientVersion: '0.6.0',
         webClientVersion: '0.5.0'
       })
@@ -117,11 +133,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0-beta.3',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities({
+          apiV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        }),
         minimumWebClientVersion: '0.5.0-beta.3',
         webClientVersion: '0.5.0-beta.1'
       })
@@ -130,11 +146,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities({
+          apiV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        }),
         minimumWebClientVersion: '0.5.0',
         webClientVersion: '0.5.0-rc.1'
       })
@@ -145,11 +161,11 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities({
+          apiV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        }),
         minimumWebClientVersion: null,
         unreachable: true
       })
@@ -157,8 +173,8 @@ describe('server compatibility evaluation', () => {
   });
 
   it('distinguishes absent capability metadata from a missing capability', () => {
-    expect(hasProtocolCapability(null, 'chatto.realtime.v1')).toBeNull();
-    expect(hasProtocolCapability([], 'chatto.realtime.v1')).toBe(false);
-    expect(hasProtocolCapability(['chatto.realtime.v1'], 'chatto.realtime.v1')).toBe(true);
+    expect(hasProtocolCapability(null, 'realtimeV1')).toBeNull();
+    expect(hasProtocolCapability(capabilities(), 'realtimeV1')).toBe(false);
+    expect(hasProtocolCapability(capabilities({ realtimeV1: true }), 'realtimeV1')).toBe(true);
   });
 });

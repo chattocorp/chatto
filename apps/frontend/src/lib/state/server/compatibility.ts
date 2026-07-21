@@ -1,17 +1,21 @@
 import frontendPackage from '../../../../package.json';
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
+import type { PublicProtocolCapabilities } from '$lib/api-client/server';
 
 export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
 export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
-export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
-export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
+export type ProtocolCapability = keyof PublicProtocolCapabilities;
+export const REALTIME_PROJECTION_CAPABILITY = 'realtimeProjectionV1' satisfies ProtocolCapability;
+export const MESSAGE_SEARCH_CAPABILITY = 'messageSearchV1' satisfies ProtocolCapability;
 
 export const REQUIRED_PROTOCOL_CAPABILITIES = [
-  'chatto.api.v1',
+  'apiV1',
   REALTIME_PROJECTION_CAPABILITY
-] as const;
-export const RECOMMENDED_PROTOCOL_CAPABILITIES = ['chatto.realtime.v1'] as const;
+] as const satisfies readonly ProtocolCapability[];
+export const RECOMMENDED_PROTOCOL_CAPABILITIES = [
+  'realtimeV1'
+] as const satisfies readonly ProtocolCapability[];
 
 export type ServerCompatibilityStatus =
   | 'supported'
@@ -32,12 +36,12 @@ export type ServerCompatibilityReason =
 export type ServerCompatibilityResult = {
   status: ServerCompatibilityStatus;
   reason: ServerCompatibilityReason;
-  missingCapabilities: string[];
+  missingCapabilities: ProtocolCapability[];
 };
 
 export type ServerCompatibilityInput = {
   serverVersion: string;
-  protocolCapabilities: readonly string[] | null;
+  protocolCapabilities: PublicProtocolCapabilities | null;
   minimumWebClientVersion: string | null;
   webClientVersion?: string;
   unreachable?: boolean;
@@ -66,9 +70,8 @@ export function evaluateServerCompatibility(
   }
 
   if (input.protocolCapabilities !== null) {
-    const advertised = new Set(input.protocolCapabilities);
     const missingRequired = REQUIRED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
+      (capability) => !input.protocolCapabilities?.[capability]
     );
     if (missingRequired.length > 0) {
       return {
@@ -79,7 +82,7 @@ export function evaluateServerCompatibility(
     }
 
     const missingRecommended = RECOMMENDED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
+      (capability) => !input.protocolCapabilities?.[capability]
     );
     if (missingRecommended.length > 0) {
       return {
@@ -104,8 +107,8 @@ export function evaluateServerCompatibility(
 }
 
 export function hasProtocolCapability(
-  capabilities: readonly string[] | null,
-  capability: string
+  capabilities: PublicProtocolCapabilities | null,
+  capability: ProtocolCapability
 ): boolean | null {
-  return capabilities === null ? null : capabilities.includes(capability);
+  return capabilities === null ? null : capabilities[capability];
 }

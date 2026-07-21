@@ -63,12 +63,18 @@ initial server view.
 Machine-readable compatibility metadata for clients connecting to this
 server.
 
-Capability keys describe protocol contracts rather than server
-configuration or the authenticated viewer's permissions. Clients should
-ignore unknown keys. An absent minimum web-client version means the server
-has not declared a lower bound for the bundled Chatto web client.
+Capabilities describe protocol contracts rather than server configuration
+or the authenticated viewer's permissions. An absent minimum web-client
+version means the server has not declared a lower bound for the bundled
+Chatto web client.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.api.message-search.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
 | `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
+| `discovery_v1` | `bool` | Supports the `chatto.discovery.v1` public discovery contract. |
+| `auth_v1` | `bool` | Supports the `chatto.auth.v1` public authentication contract. |
+| `api_v1` | `bool` | Supports the `chatto.api.v1` public integration contract. |
+| `admin_v1` | `bool` | Supports the `chatto.admin.v1` public administration contract. |
+| `message_search_v1` | `bool` | Supports the `chatto.api.message-search.v1` message-search contract. |
+| `realtime_v1` | `bool` | Supports the `chatto.realtime.v1` realtime transport contract. |
+| `realtime_projection_v1` | `bool` | Supports the `chatto.realtime.projection.v1` client-projection contract. |

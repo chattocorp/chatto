@@ -2,13 +2,18 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
+import {
+  getPublicServerInfo,
+  type PublicProtocolCapabilities,
+  type PublicServerInfo
+} from '$lib/api-client/server';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
   evaluateServerCompatibility,
   hasProtocolCapability,
   REALTIME_PROJECTION_CAPABILITY,
+  type ProtocolCapability,
   type ServerCompatibilityResult
 } from './compatibility';
 
@@ -19,7 +24,7 @@ export class ServerInfoState {
 
   name = $state('Chatto');
   version = $state('');
-  protocolCapabilities = $state<string[] | null>(null);
+  protocolCapabilities = $state.raw<PublicProtocolCapabilities | null>(null);
   minimumWebClientVersion = $state<string | null>(null);
   lastDiscoveredAt = $state<number | null>(null);
   motd = $state<string | null>(null);
@@ -54,7 +59,7 @@ export class ServerInfoState {
     });
   }
 
-  supportsProtocolCapability(capability: string): boolean | null {
+  supportsProtocolCapability(capability: ProtocolCapability): boolean | null {
     return hasProtocolCapability(this.protocolCapabilities, capability);
   }
 

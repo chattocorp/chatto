@@ -36,9 +36,10 @@ ConnectRPC surface.
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
 - The project is pre-1.0, but package, service, and method path changes still
   need an explicit plan and PR compatibility note.
-- Put public protocol-support keys in `ServerCompatibility`. Keys are stable
-  client contracts and use a version suffix such as `.v1`. Clients must be
-  able to ignore unknown keys.
+- Put public protocol support in typed boolean fields on
+  `ServerCompatibility`. Fields are stable client contracts and use a version
+  suffix such as `_v1`. Add new contracts as new fields so older clients safely
+  ignore them and newer clients treat absence as unsupported.
 - Keep protocol capabilities separate from enabled server features and
   authenticated viewer permissions. Set `minimum_web_client_version` only for
   a known bundled-client skew boundary; third-party clients use capabilities.

@@ -82,10 +82,10 @@ bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
-The discovery response includes the server software version, stable protocol
-capability keys for mounted public packages and negotiated contracts, and an
-optional minimum bundled-web-client version. The
-`chatto.realtime.projection.v1` capability is the bundled 0.5 client's gate for
+The discovery response includes the server software version, typed boolean
+protocol capabilities for mounted public packages and negotiated contracts,
+and an optional minimum bundled-web-client version. The
+`realtime_projection_v1` capability is the bundled 0.5 client's gate for
 opening realtime protocol 2, the only accepted behavioral version. The
 `chatto.realtime.v1` suffix is the protobuf namespace. This metadata is public
 pre-authentication state.
@@ -94,7 +94,7 @@ viewer's permission-derived capabilities. Multi-server clients refresh it per
 server and use version comparison only to classify older servers that omit
 capability metadata.
 
-`chatto.api.message-search.v1` advertises the public Search wire contract even
+`message_search_v1` advertises the public Search wire contract even
 when the operator disables the feature. Compatible clients use
 `MessageSearchService.GetStatus` for configured availability and transient
 provider readiness rather than interpreting the protocol capability as an

@@ -102,25 +102,14 @@ export class GetServerResponse extends Message<GetServerResponse> {
  * Machine-readable compatibility metadata for clients connecting to this
  * server.
  *
- * Capability keys describe protocol contracts rather than server
- * configuration or the authenticated viewer's permissions. Clients should
- * ignore unknown keys. An absent minimum web-client version means the server
- * has not declared a lower bound for the bundled Chatto web client.
+ * Capabilities describe protocol contracts rather than server configuration
+ * or the authenticated viewer's permissions. An absent minimum web-client
+ * version means the server has not declared a lower bound for the bundled
+ * Chatto web client.
  *
  * @generated from message chatto.discovery.v1.ServerCompatibility
  */
 export class ServerCompatibility extends Message<ServerCompatibility> {
-  /**
-   * Stable protocol capability keys supported by this server. Current keys:
-   * `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
-   * `chatto.admin.v1`, `chatto.api.message-search.v1`,
-   * `chatto.realtime.v1`, and
-   * `chatto.realtime.projection.v1`.
-   *
-   * @generated from field: repeated string protocol_capabilities = 1;
-   */
-  protocolCapabilities: string[] = [];
-
   /**
    * Oldest bundled Chatto web-client version this server supports, when a
    * lower bound is required. Third-party clients should use capabilities.
@@ -128,6 +117,55 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
    * @generated from field: optional string minimum_web_client_version = 2;
    */
   minimumWebClientVersion?: string;
+
+  /**
+   * Supports the `chatto.discovery.v1` public discovery contract.
+   *
+   * @generated from field: bool discovery_v1 = 3;
+   */
+  discoveryV1 = false;
+
+  /**
+   * Supports the `chatto.auth.v1` public authentication contract.
+   *
+   * @generated from field: bool auth_v1 = 4;
+   */
+  authV1 = false;
+
+  /**
+   * Supports the `chatto.api.v1` public integration contract.
+   *
+   * @generated from field: bool api_v1 = 5;
+   */
+  apiV1 = false;
+
+  /**
+   * Supports the `chatto.admin.v1` public administration contract.
+   *
+   * @generated from field: bool admin_v1 = 6;
+   */
+  adminV1 = false;
+
+  /**
+   * Supports the `chatto.api.message-search.v1` message-search contract.
+   *
+   * @generated from field: bool message_search_v1 = 7;
+   */
+  messageSearchV1 = false;
+
+  /**
+   * Supports the `chatto.realtime.v1` realtime transport contract.
+   *
+   * @generated from field: bool realtime_v1 = 8;
+   */
+  realtimeV1 = false;
+
+  /**
+   * Supports the `chatto.realtime.projection.v1` client-projection contract.
+   *
+   * @generated from field: bool realtime_projection_v1 = 9;
+   */
+  realtimeProjectionV1 = false;
 
   constructor(data?: PartialMessage<ServerCompatibility>) {
     super();
@@ -137,8 +175,14 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.discovery.v1.ServerCompatibility";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "protocol_capabilities", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 2, name: "minimum_web_client_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "discovery_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "auth_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "api_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "admin_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "message_search_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "realtime_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "realtime_projection_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerCompatibility {
