@@ -60,22 +60,25 @@ is registered by its runtime unit rather than by `ChattoCore`, consumes
 captured startup replay it commits up to 256 ordered events and the final
 checkpoint in one Bleve transaction, including a smaller final batch; once
 current, each live event is committed immediately. Its checkpoint contract
-starts with `bleve-message-index-v7-` and includes a stable fingerprint of the
+starts with `bleve-message-index-v8-` and includes a stable fingerprint of the
 configured language analyzer set, so changing that set forces a cold EVT replay.
 
 The index stores current decrypted message text plus its body-event revision and
-message/room/author/filter metadata. Candidate revisions must match current core
-state before hydration, fencing provider catch-up races. Message bodies use
-BM25 scoring over a language-neutral field plus the operator-selected subset
-of all 22 complete language analyzers available in the bundled Bleve version.
-Omitting `search_provider.languages` selects all analyzers; an explicit empty
-list selects none of the language-specific fields. The index also stores
-non-plaintext DEK event metadata required to decrypt later EVT tail records
-after restart. Retraction, room deletion, and user key shredding remove matching
-documents and their internal message state in the same committed batch. Bleve's
-normal background merger reclaims obsolete segments; Chatto does not use
-Scorch's manual `ForceMerge` operation as part of projection correctness or
-startup readiness.
+message/room/author/filter metadata. The state needed to apply a later edit or
+posting event is a stored, non-indexed field in that same Bleve document; it is
+not duplicated as one internal Bolt key per message. Candidate revisions must
+match current core state before hydration, fencing provider catch-up races.
+
+Message bodies use BM25 scoring over a language-neutral field plus the
+operator-selected subset of all 22 complete language analyzers available in
+the bundled Bleve version. Omitting `search_provider.languages` selects all
+analyzers; an explicit empty list selects none of the language-specific fields.
+The index also stores non-plaintext DEK event metadata required to decrypt
+later EVT tail records after restart. Retraction, room deletion, and user key
+shredding remove matching documents in the same committed batch. Bleve's normal
+background merger reclaims obsolete segments; Chatto does not use Scorch's
+manual `ForceMerge` operation as part of projection correctness or startup
+readiness.
 
 The directory is a privileged, disposable local cache. It is excluded from
 Chatto backups, and invalid checkpoint metadata causes the complete directory

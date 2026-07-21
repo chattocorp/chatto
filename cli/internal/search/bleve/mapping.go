@@ -37,10 +37,11 @@ import (
 )
 
 const (
-	bodyExactField    = "body_exact"
-	bodyCJKField      = "body_cjk"
-	bodyExactAnalyzer = "chatto_exact"
-	bodyCJKAnalyzer   = cjk.AnalyzerName
+	bodyExactField       = "body_exact"
+	bodyCJKField         = "body_cjk"
+	projectionStateField = "_chatto_projection_state"
+	bodyExactAnalyzer    = "chatto_exact"
+	bodyCJKAnalyzer      = cjk.AnalyzerName
 )
 
 type languageAnalyzer struct {
@@ -130,6 +131,14 @@ func newIndexMapping(languages []languageAnalyzer) mapping.IndexMapping {
 	document.AddFieldMappingsAt("updated_at", date)
 	document.AddFieldMappingsAt("has_attachments", boolean)
 	document.AddFieldMappingsAt("visible", boolean)
+	projectionState := blevesearch.NewTextFieldMapping()
+	projectionState.Name = projectionStateField
+	projectionState.Store = true
+	projectionState.Index = false
+	projectionState.IncludeTermVectors = false
+	projectionState.IncludeInAll = false
+	projectionState.DocValues = false
+	document.AddFieldMappingsAt("projection_state", projectionState)
 	indexMapping.DefaultMapping = document
 	return indexMapping
 }

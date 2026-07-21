@@ -15,6 +15,7 @@ import (
 	"time"
 
 	blevesearch "github.com/blevesearch/bleve/v2"
+	bleveindex "github.com/blevesearch/bleve_index_api"
 	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/proto"
 
@@ -26,10 +27,9 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v7"
+	checkpointContractBaseID = "bleve-message-index-v8"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
-	messageStatePrefix       = "chatto/search/message/"
 	startupReplayBatchSize   = 256
 	slowIndexOperation       = 10 * time.Second
 )
@@ -54,6 +54,10 @@ type messageDocument struct {
 	Visible        bool      `json:"visible"`
 	BodySequence   uint64    `json:"body_sequence"`
 	PostedSequence uint64    `json:"posted_sequence"`
+	// ProjectionState is stored but not indexed. It lets a later EVT event
+	// reconstruct this document without maintaining a second per-message copy
+	// in Bleve's high-churn internal Bolt keyspace.
+	ProjectionState string `json:"projection_state,omitempty"`
 }
 
 type persistedDEKs map[string]string
@@ -405,22 +409,33 @@ func languageCheckpointContractID(languages []languageAnalyzer) string {
 	return fmt.Sprintf("%s-%x", checkpointContractBaseID, sum[:8])
 }
 
-func messageStateKey(id string) []byte   { return []byte(messageStatePrefix + id) }
 func messageDocumentID(id string) string { return "message:" + id }
 
 func (p *Projection) loadMessage(id string) (messageDocument, error) {
 	state := messageDocument{MessageID: id}
-	data, err := p.index.GetInternal(messageStateKey(id))
+	document, err := p.index.Document(messageDocumentID(id))
 	if err != nil {
-		return state, fmt.Errorf("read search message state: %w", err)
+		return state, fmt.Errorf("read search message document: %w", err)
 	}
-	if len(data) == 0 {
+	if document == nil {
 		return state, nil
 	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, fmt.Errorf("decode search message state: %w", err)
+	found := false
+	var decodeErr error
+	document.VisitFields(func(field bleveindex.Field) {
+		if field.Name() != projectionStateField {
+			return
+		}
+		found = true
+		decodeErr = json.Unmarshal(field.Value(), &state)
+	})
+	if decodeErr != nil {
+		return state, fmt.Errorf("decode search message state: %w", decodeErr)
 	}
-	return state, nil
+	if found {
+		return state, nil
+	}
+	return state, fmt.Errorf("search message document %q has no projection state", id)
 }
 
 func (b *projectionBatch) loadMessage(id string) (messageDocument, error) {
@@ -434,14 +449,16 @@ func (b *projectionBatch) loadMessage(id string) (messageDocument, error) {
 }
 
 func (b *projectionBatch) storeMessage(state messageDocument) error {
+	state.ProjectionState = ""
 	data, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	b.index.SetInternal(messageStateKey(state.MessageID), data)
+	state.ProjectionState = string(data)
 	if err := b.index.Index(messageDocumentID(state.MessageID), state); err != nil {
 		return fmt.Errorf("index message: %w", err)
 	}
+	state.ProjectionState = ""
 	b.messages[state.MessageID] = state
 	delete(b.deletedMessages, state.MessageID)
 	return nil
@@ -452,7 +469,6 @@ func (b *projectionBatch) deleteMessage(id string) {
 		return
 	}
 	b.index.Delete(messageDocumentID(id))
-	b.index.DeleteInternal(messageStateKey(id))
 	delete(b.messages, id)
 	b.deletedMessages[id] = struct{}{}
 }

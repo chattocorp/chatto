@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -192,10 +193,47 @@ func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T
 	require.NoError(t, err)
 	require.Empty(t, response.GetHits())
 	for _, id := range []string{"M1", "M2", "M3"} {
-		state, err := projection.index.GetInternal(messageStateKey(id))
+		document, err := projection.index.Document(messageDocumentID(id))
 		require.NoError(t, err)
-		require.Empty(t, state)
+		require.Nil(t, document)
 	}
+}
+
+func TestProjectionStartupReplayKeepsBoltMetadataBounded(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	directory := t.TempDir() + "/index"
+	projection, err := NewProjection(directory, []string{}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	createdAt := time.Unix(100, 0)
+	sequence := uint64(0)
+	batch := make([]events.SequencedEvent, 0, startupReplayBatchSize)
+	for i := uint32(0); i < 4096; i++ {
+		// Multiplicative hashing prevents this fixture from accidentally testing
+		// only bbolt's cheapest monotonically increasing key pattern.
+		messageID := fmt.Sprintf("M%08x", i*2654435761)
+		bodyEventID := "B" + messageID[1:]
+		sequence++
+		batch = append(batch, events.SequencedEvent{
+			Event:    legacyBodyEvent(t, key, messageID, bodyEventID, fmt.Sprintf("R%d", i%32), fmt.Sprintf("U%d", i%64), "bounded bolt metadata", createdAt, nil),
+			Sequence: sequence,
+		})
+		sequence++
+		batch = append(batch, events.SequencedEvent{
+			Event:    messagePostedEvent(messageID, fmt.Sprintf("R%d", i%32), fmt.Sprintf("U%d", i%64), createdAt),
+			Sequence: sequence,
+		})
+		if len(batch) == startupReplayBatchSize {
+			require.NoError(t, projection.ApplyStartupBatch(batch))
+			batch = batch[:0]
+		}
+	}
+	require.Empty(t, batch)
+	require.NoError(t, projection.Close())
+
+	info, err := os.Stat(filepath.Join(directory, "store", "root.bolt"))
+	require.NoError(t, err)
+	require.Less(t, info.Size(), int64(32<<20), "per-message internal state must not inflate root.bolt")
 }
 
 func TestProjectionStartupBatchUsesPendingDEKMetadata(t *testing.T) {
@@ -684,9 +722,9 @@ func TestProjectionKeyShreddingRemovesIndexedMessages(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"M2"}, hitIDs(response))
-	state, err := projection.index.GetInternal(messageStateKey("M1"))
+	document, err := projection.index.Document(messageDocumentID("M1"))
 	require.NoError(t, err)
-	require.Empty(t, state)
+	require.Nil(t, document)
 }
 
 func applyLegacyMessage(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, startSeq uint64) {
