@@ -49,6 +49,7 @@ Notes and TODOs:
 		- [ ] Make sure notifications never play a sound/actively ping the user if the user is currently viewing the location where the notification originated. (This is currently a bug)
 		- [ ] Notifications for received emoji reactions. Ideally these are buffered in some fashion - the user will not want to receive 100 notifications because 100 users posted a reaction under one of their messages.
 		- [ ] Notification when someone starts a call in a room you're in
+		- [ ] Following a thread no longer causes a notification on every new message (or we make this configurable?)
 	- **Threading Refresh**
 		- [ ] URL so we can link to a thread (*with the thread open* -- this is currently not possible)
 		- [ ] Thread pane opens to the side, viewport size allowing
