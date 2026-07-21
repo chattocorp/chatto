@@ -14,6 +14,7 @@ export interface ServerInfo {
   process: ChildProcess;
   executablePath: string;
   dataDir: string;
+  searchDirectory?: string;
   logPath: string;
   operatorSocketPath?: string;
 }
@@ -96,6 +97,8 @@ export interface StartServerOptions {
   hostname?: string;
   /** Enable the local production operator API and expose its socket in ServerInfo. */
   operatorApi?: boolean;
+  /** Enable the consumer search API and bundled Bleve provider for this test. */
+  searchProvider?: boolean;
 }
 
 function safePathSegment(value: string): string {
@@ -117,6 +120,7 @@ export async function startServer(
   const instanceId = safePathSegment(options.instanceId ?? 'primary');
   const testId = safePathSegment(testInfo.testId);
   const dataDir = path.join(__dirname, `data-${testId}-${instanceId}`);
+  const searchDirectory = options.searchProvider ? `${dataDir}-search` : undefined;
   const executablePath = options.executablePath ?? path.join(__dirname, 'bin', 'chatto');
   const hostname = options.hostname ?? 'localhost';
   const baseURL = `http://${hostname}:${ports.webserver}`;
@@ -148,6 +152,14 @@ export async function startServer(
       CHATTO_VIDEO_ENABLED: 'false',
       CHATTO_TEST_EMAIL_ENDPOINT: 'true',
       ...options.env,
+      ...(searchDirectory
+        ? {
+            CHATTO_SEARCH_ENABLED: 'true',
+            CHATTO_SEARCH_PROVIDER_ENABLED: 'true',
+            CHATTO_SEARCH_PROVIDER_DIRECTORY: searchDirectory,
+            CHATTO_SEARCH_PROVIDER_LANGUAGES: 'en'
+          }
+        : {}),
       CHATTO_WEBSERVER_PORT: String(ports.webserver),
       CHATTO_WEBSERVER_URL: baseURL,
       CHATTO_NATS_EMBEDDED_PORT: '0',
@@ -184,6 +196,7 @@ export async function startServer(
     process: serverProcess,
     executablePath,
     dataDir,
+    searchDirectory,
     logPath,
     operatorSocketPath
   };
@@ -228,6 +241,9 @@ export async function stopServer(server: ServerInfo, _testInfo?: TestInfo): Prom
 function cleanupServerDirectories(server: ServerInfo): void {
   if (existsSync(server.dataDir)) {
     rmSync(server.dataDir, { recursive: true });
+  }
+  if (server.searchDirectory && existsSync(server.searchDirectory)) {
+    rmSync(server.searchDirectory, { recursive: true });
   }
   if (server.operatorSocketPath) {
     const operatorDir = path.dirname(server.operatorSocketPath);
