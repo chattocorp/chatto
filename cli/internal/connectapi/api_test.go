@@ -7995,7 +7995,7 @@ func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
 		TotalCount: 1,
 	}
 
-	resp, err := newThreadAssembler(env.api).followedThreadsResponse(env.ctx, env.viewer.Id, page)
+	resp, err := followedThreadsResponse(env.ctx, env.api, env.viewer.Id, page)
 	if err != nil {
 		t.Fatalf("followedThreadsResponse: %v", err)
 	}
