@@ -24,37 +24,36 @@ Notes and TODOs:
 			- [ ] brush up our frontend skills so the robots 100% follow the system
 		- [ ] New DM UI?
 		- [ ] New typing indicators
-		- [ ] Find a new name for "room groups"
+		- [ ] Find a new name for "room groups" (spaces?)
 	- **Refactor room data loading**
 		- [x] Keep lightweight state for all rooms and lazily retain viewed room timelines
 		- [x] Switching previously hydrated rooms should just render a different part of the store
 		- [x] Event-based catch-up through an opaque resumable cursor
 	- **Make it fully instance agnostic**
-		- [ ] We must be able to ship it as a desktop and native app
+		- [x] We must be able to ship it as a desktop and native app
 		- [ ] **This implicitly conflicts with our plans for "Chatto Neighbors", so we need to figure out how we can cut this so there's no more conflict**
 		- [x] Only connect websocket to the currently active instance; periodically poll other instances
 	- **Server Sidebar Refresh**
 		- [x] Context menu (right click/long-tap)
 			- [x] Server Version (with warning icon if incompatible?)
-			- [ ] Fully manage compatibility matrix (we know our previous versions!)
+			- [ ] Fully managed compatibility matrix (we know our previous versions!)
 			- [x] Leave Server
 	- **Room Sidebar Refresh**
 		- [ ] Have a tabbed interface, where members, calls and files can be visible at the same time (expanding/collapsing sections)
 		- [ ] Rework room members
 			- [ ] It doesn't need to _immediately_ update; in busy rooms, this will currently lead to a lot of movement in the sidebar. Maybe we can pull 15s deltas?
-			- [x] Universal rooms! Maybe this will also be easier with the 15s deltas.
+			- [ ] Universal rooms! Maybe this will also be easier with the 15s deltas.
 	- **Notifications Refresh**
 		- [ ] Allow user to configure that notifications don't include message and/or user name
 		- [ ] Don't delete notifications as soon as they are dismissed; keep old notifications, but mark them as "read"/handled, and allow the user to manually delete them.
 		- [ ] Make sure notifications never play a sound/actively ping the user if the user is currently viewing the location where the notification originated. (This is currently a bug)
 		- [ ] Notifications for received emoji reactions. Ideally these are buffered in some fashion - the user will not want to receive 100 notifications because 100 users posted a reaction under one of their messages.
 		- [ ] Notification when someone starts a call in a room you're in
-		- [ ] Following a thread no longer causes a notification on every new message (or we make this configurable?)
 	- **Threading Refresh**
-		- [x] URL so we can link to a thread (*with the thread open* -- this is currently not possible)
+		- [ ] URL so we can link to a thread (*with the thread open* -- this is currently not possible)
 		- [ ] Thread pane opens to the side, viewport size allowing
-		- [x] Allow the OP of a root message to explicitly open a thread
-		- [x] With a thread open, replying to that message will automatically happen inside the thread
+		- [ ] Allow the OP of a root message to explicitly open a thread
+		- [ ] With a thread open, replying to that message will automatically happen inside the thread
 		- [ ] Maybe even existing replies will be pulled into the thread (this can happen in the projections)
 			- Side note/brain fart: we don't really need the thread structure for persistence anymore, since now the read model entirely lives in projections. Cool!
 		- [ ] Authors can move their message into another thread
@@ -83,7 +82,7 @@ Notes and TODOs:
 - **Performance Pass**
 	- [ ] proper pprof profiling to get a better idea of where we can optimize
 - **Configuration Pass**
-	- [ ] Review config structure for sanity and scalability/maintainability
+	- [ ] Review `config.toml` config structure for sanity and scalability/maintainability
 	- [ ] Review the ENV variables are named as expected
 - **Operations Goodies**
 	- [ ] Seeding system: a separate file that contains definitions for users, rooms, permissions that Chatto can seed idempotently
