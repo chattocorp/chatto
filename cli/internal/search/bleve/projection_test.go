@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	blevesearch "github.com/blevesearch/bleve/v2"
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -126,6 +127,127 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	pending, err = projection.index.GetInternal([]byte(privacyCompactionKey))
 	require.NoError(t, err)
 	require.Empty(t, pending)
+}
+
+func TestProjectionStartupBatchCommitsMessageAndCheckpointOnce(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	directory := t.TempDir() + "/index"
+	projection, err := NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	request := events.ProjectionCheckpointRequest{
+		ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
+		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd",
+		FirstSequence: 1, LastSequence: 2,
+	}
+	_, err = projection.RestoreCheckpoint(context.Background(), request)
+	require.NoError(t, err)
+	batches := 0
+	projection.commitBatch = func(batch *blevesearch.Batch) error {
+		batches++
+		return projection.index.Batch(batch)
+	}
+
+	createdAt := time.Unix(100, 0)
+	bodyEvent := legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "batched searchable body", createdAt, nil)
+	postedEvent := messagePostedEvent("M1", "R1", "U1", createdAt)
+	require.NoError(t, projection.ApplyStartupBatch([]events.SequencedEvent{
+		{Event: bodyEvent, Sequence: 1},
+		{Event: postedEvent, Sequence: 2},
+	}))
+	require.Equal(t, 1, batches)
+
+	response, err := projection.query(context.Background(), &searchv1.QueryRequest{
+		RequiredTerms: []string{"batched"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+	require.NoError(t, projection.Close())
+
+	projection, err = NewProjection(directory, []string{"de", "en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	checkpoint, err := projection.RestoreCheckpoint(context.Background(), request)
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), checkpoint.CutoffSequence)
+}
+
+func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", []string{"en"}, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	createdAt := time.Unix(100, 0)
+	items := []events.SequencedEvent{
+		{Event: legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "pending retract", createdAt, nil), Sequence: 1},
+		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 2},
+		{Event: &corev1.Event{Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{EventId: "M1"}}}, Sequence: 3},
+		{Event: legacyBodyEvent(t, key, "M2", "B2", "R2", "U2", "pending room deletion", createdAt, nil), Sequence: 4},
+		{Event: messagePostedEvent("M2", "R2", "U2", createdAt), Sequence: 5},
+		{Event: &corev1.Event{Event: &corev1.Event_RoomDeleted{RoomDeleted: &corev1.RoomDeletedEvent{RoomId: "R2"}}}, Sequence: 6},
+	}
+	require.NoError(t, projection.ApplyStartupBatch(items))
+
+	response, err := projection.query(context.Background(), &searchv1.QueryRequest{
+		RequiredTerms: []string{"pending"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+	})
+	require.NoError(t, err)
+	require.Empty(t, response.GetHits())
+	for _, id := range []string{"M1", "M2"} {
+		state, err := projection.index.GetInternal(messageStateKey(id))
+		require.NoError(t, err)
+		require.Empty(t, state)
+	}
+}
+
+func TestProjectionStartupBatchUsesPendingDEKMetadata(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	dekEvent := &corev1.UserDEKGeneratedEvent{
+		UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Epoch: 1, ContentKeyRef: "dek.test", WrappingKeyRef: "kek.test",
+	}
+	wrapper := staticKeyWrapper{key: key, expectedAAD: encryption.UserDEKAAD("U1", dekEvent.GetPurpose(), 1)}
+	store := staticDEKStore{value: &corev1.UserDataEncryptionKey{WrappingKeyRef: "kek.test"}}
+	projection, err := NewProjection(t.TempDir()+"/index", []string{"en"}, wrapper, nil, store, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	createdAt := time.Unix(100, 0)
+
+	require.NoError(t, projection.ApplyStartupBatch([]events.SequencedEvent{
+		{Event: &corev1.Event{Event: &corev1.Event_UserDekGenerated{UserDekGenerated: dekEvent}}, Sequence: 1},
+		{Event: v2MessageBodyEvent(t, key, "M1", "B1", "R1", "U1", "pending encrypted body", createdAt), Sequence: 2},
+		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 3},
+	}))
+
+	response, err := projection.query(context.Background(), relevanceRequest([]string{"encrypted"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+}
+
+func TestProjectionFailedStartupBatchDoesNotAdvanceDurableCheckpoint(t *testing.T) {
+	projection, err := NewProjection(t.TempDir()+"/index", []string{}, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	request := events.ProjectionCheckpointRequest{
+		ProjectionKey: "message_search", ContractID: projection.CheckpointContractID(),
+		StreamName: "EVT", StreamIdentity: "evt-incarnation-v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+		FirstSequence: 1, LastSequence: 2,
+	}
+	_, err = projection.RestoreCheckpoint(context.Background(), request)
+	require.NoError(t, err)
+	commitErr := errors.New("injected batch failure")
+	projection.commitBatch = func(*blevesearch.Batch) error { return commitErr }
+
+	err = projection.ApplyStartupBatch([]events.SequencedEvent{
+		{Event: &corev1.Event{}, Sequence: 1},
+		{Event: &corev1.Event{}, Sequence: 2},
+	})
+	require.ErrorIs(t, err, commitErr)
+	checkpoint, err := projection.RestoreCheckpoint(context.Background(), request)
+	require.NoError(t, err)
+	require.Zero(t, checkpoint.CutoffSequence)
 }
 
 func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
@@ -586,27 +708,41 @@ func applyLegacyMessageWithAssets(t *testing.T, projection *Projection, key []by
 
 func applyLegacyBody(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string, seq uint64) {
 	t.Helper()
+	require.NoError(t, projection.Apply(legacyBodyEvent(t, key, messageID, bodyEventID, roomID, authorID, text, createdAt, assetIDs), seq))
+}
+
+func legacyBodyEvent(t *testing.T, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, assetIDs []string) *corev1.Event {
+	t.Helper()
 	encrypted, err := encryption.Encrypt(key, []byte(text))
 	require.NoError(t, err)
 	body := &corev1.MessageBody{
 		AuthorId: authorID, CreatedAt: timestamppb.New(createdAt), BodyEventId: bodyEventID,
 		EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce, AssetIds: assetIDs,
 	}
-	require.NoError(t, projection.Apply(&corev1.Event{
+	return &corev1.Event{
 		Id: bodyEventID, CreatedAt: timestamppb.New(createdAt), ActorId: authorID,
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: roomID, EventId: messageID, Body: body}},
-	}, seq))
+	}
 }
 
 func applyMessagePosted(t *testing.T, projection *Projection, messageID, roomID, authorID string, createdAt time.Time, seq uint64) {
 	t.Helper()
-	require.NoError(t, projection.Apply(&corev1.Event{
+	require.NoError(t, projection.Apply(messagePostedEvent(messageID, roomID, authorID, createdAt), seq))
+}
+
+func messagePostedEvent(messageID, roomID, authorID string, createdAt time.Time) *corev1.Event {
+	return &corev1.Event{
 		Id: messageID, CreatedAt: timestamppb.New(createdAt), ActorId: authorID,
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}},
-	}, seq))
+	}
 }
 
 func applyV2MessageBody(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, timestamp time.Time, seq uint64) {
+	t.Helper()
+	require.NoError(t, projection.Apply(v2MessageBodyEvent(t, key, messageID, bodyEventID, roomID, authorID, text, timestamp), seq))
+}
+
+func v2MessageBodyEvent(t *testing.T, key []byte, messageID, bodyEventID, roomID, authorID, text string, timestamp time.Time) *corev1.Event {
 	t.Helper()
 	encrypted, err := encryption.EncryptWithContentKey(key, []byte(text), encryption.MessageBodyAAD(messageID, bodyEventID, roomID, authorID, 1))
 	require.NoError(t, err)
@@ -615,10 +751,10 @@ func applyV2MessageBody(t *testing.T, projection *Projection, key []byte, messag
 		EncryptionVersion: encryption.EnvelopeVersionV2, ContentKeyEpoch: 1, BodyEventId: bodyEventID,
 		EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce,
 	}
-	require.NoError(t, projection.Apply(&corev1.Event{
+	return &corev1.Event{
 		Id: bodyEventID, CreatedAt: timestamppb.New(timestamp), ActorId: authorID,
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: roomID, EventId: messageID, Body: body}},
-	}, seq))
+	}
 }
 
 func hitIDs(response *searchv1.QueryResponse) []string {

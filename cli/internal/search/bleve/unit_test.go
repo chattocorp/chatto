@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +25,23 @@ import (
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/internal/testutil"
 )
+
+type synchronizedBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(data)
+}
+
+func (b *synchronizedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
+}
 
 func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
@@ -88,7 +106,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	var unitLogs bytes.Buffer
+	var unitLogs synchronizedBuffer
 	unitLogger := log.New(&unitLogs)
 	unitLogger.SetFormatter(log.JSONFormatter)
 	unitContext, stopUnit := context.WithCancel(context.Background())
@@ -118,11 +136,15 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.Equal(t, []string{"M1"}, hitIDs(response))
-	require.Contains(t, unitLogs.String(), "Starting bundled search provider")
-	require.Contains(t, unitLogs.String(), "Search index opened")
-	require.Contains(t, unitLogs.String(), "Search provider service registered")
-	require.Contains(t, unitLogs.String(), "Projection startup complete")
-	require.Contains(t, unitLogs.String(), `"projection":"message_search"`)
+	require.Eventually(t, func() bool {
+		return strings.Contains(unitLogs.String(), "Projection startup complete")
+	}, time.Second, 10*time.Millisecond)
+	logged := unitLogs.String()
+	require.Contains(t, logged, "Starting bundled search provider")
+	require.Contains(t, logged, "Search index opened")
+	require.Contains(t, logged, "Search provider service registered")
+	require.Contains(t, logged, "Projection startup complete")
+	require.Contains(t, logged, `"projection":"message_search"`)
 }
 
 func TestLogSearchIndexingStatusReportsSafeProgressFields(t *testing.T) {
@@ -136,14 +158,17 @@ func TestLogSearchIndexingStatusReportsSafeProgressFields(t *testing.T) {
 		StartupTargetSeq: 1_000,
 		StartupDuration:  2 * time.Second,
 		StartupMessages:  400,
-	})
+	}, 100, 500*time.Millisecond)
 
 	logged := output.String()
 	for _, expected := range []string{
 		"Search provider indexing progress",
 		`"stage":"startup_replay"`,
 		`"indexed_events":400`,
+		`"events_since_last_report":300`,
 		`"events_per_second":200`,
+		`"average_events_per_second":200`,
+		`"stalled":false`,
 		`"current_seq":600`,
 		`"target_seq":1000`,
 	} {
@@ -156,4 +181,23 @@ func TestLogSearchIndexingStatusReportsSafeProgressFields(t *testing.T) {
 			t.Fatalf("progress log %q contains forbidden field %q", logged, forbidden)
 		}
 	}
+}
+
+func TestLogSearchIndexingStatusMakesStallsExplicit(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.New(&output)
+	logger.SetFormatter(log.JSONFormatter)
+
+	logSearchIndexingStatus(logger, events.ProjectorStatus{
+		Started:          true,
+		LastSeq:          31_876,
+		StartupTargetSeq: 54_207,
+		StartupDuration:  50 * time.Second,
+		StartupMessages:  27_904,
+	}, 27_904, 40*time.Second)
+
+	logged := output.String()
+	require.Contains(t, logged, `"events_since_last_report":0`)
+	require.Contains(t, logged, `"events_per_second":0`)
+	require.Contains(t, logged, `"stalled":true`)
 }

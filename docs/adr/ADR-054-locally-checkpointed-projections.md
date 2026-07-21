@@ -41,6 +41,15 @@ consumer at the following sequence. Duplicate application remains harmless.
 Projection code receives the framework-provided stream sequence and does not
 parse JetStream message metadata itself.
 
+A projection may optionally batch events while replaying the history captured
+at startup. A successful startup batch must be exactly equivalent to applying
+its events individually in stream order, and must atomically commit all derived
+mutations with the batch's final sequence. The projector advances only after
+that commit. A failed or decode-interrupted batch remains wholly uncommitted
+from the projector's perspective and reports failure at its first sequence.
+After reaching the captured startup target, live events return to individual
+`Apply` calls so read-your-writes latency is not coupled to a batch window.
+
 The projection contract ID covers every input that determines whether the
 local state at its checkpoint is equivalent to replaying `EVT` through that
 sequence, including indexed fields, analyzers, event handling, and checkpoint
@@ -78,6 +87,11 @@ success before both the materialized change and checkpoint are durable can
 silently skip an event after restart. A storage backend that cannot provide
 that atomicity cannot implement this interface without an additional durable
 journal or transaction boundary.
+
+Startup batching reduces transaction and write-amplification costs for
+disk-backed rebuilds. Implementations must maintain batch-local state so that
+multiple events affecting the same entity behave exactly like sequential
+application. A crash safely replays the whole last uncommitted batch.
 
 Local indexes may contain decrypted or otherwise privacy-sensitive derived
 data. Each feature must define removal, rebuild, backup-exclusion, filesystem,

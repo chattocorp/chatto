@@ -24,6 +24,7 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	languages := env.Config.SearchProvider.LanguagesOrDefault()
 	env.Logger.Info("Starting bundled search provider",
 		"stage", "startup",
+		"startup_batch_size", startupReplayBatchSize,
 		"language_analyzers", languages,
 		"language_analyzer_count", len(languages))
 	defer env.Logger.Info("Bundled search provider stopped", "stage", "shutdown")
@@ -86,6 +87,8 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger events.Logger, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	var previousMessages uint64
+	var previousDuration time.Duration
 	for {
 		select {
 		case <-ctx.Done():
@@ -98,20 +101,31 @@ func logSearchIndexingProgress(ctx context.Context, projector *events.Projector,
 			if !status.Started {
 				continue
 			}
-			logSearchIndexingStatus(logger, status)
+			logSearchIndexingStatus(logger, status, previousMessages, previousDuration)
+			previousMessages = status.StartupMessages
+			previousDuration = status.StartupDuration
 		}
 	}
 }
 
-func logSearchIndexingStatus(logger events.Logger, status events.ProjectorStatus) {
-	var rate float64
+func logSearchIndexingStatus(logger events.Logger, status events.ProjectorStatus, previousMessages uint64, previousDuration time.Duration) {
+	var averageRate float64
 	if seconds := status.StartupDuration.Seconds(); seconds > 0 {
-		rate = float64(status.StartupMessages) / seconds
+		averageRate = float64(status.StartupMessages) / seconds
+	}
+	recentMessages := status.StartupMessages - min(status.StartupMessages, previousMessages)
+	recentDuration := status.StartupDuration - min(status.StartupDuration, previousDuration)
+	var recentRate float64
+	if seconds := recentDuration.Seconds(); seconds > 0 {
+		recentRate = float64(recentMessages) / seconds
 	}
 	logger.Info("Search provider indexing progress",
 		"stage", "startup_replay",
 		"indexed_events", status.StartupMessages,
-		"events_per_second", rate,
+		"events_since_last_report", recentMessages,
+		"events_per_second", recentRate,
+		"average_events_per_second", averageRate,
+		"stalled", recentDuration > 0 && recentMessages == 0,
 		"current_seq", status.LastSeq,
 		"target_seq", status.StartupTargetSeq,
 		"elapsed", status.StartupDuration)

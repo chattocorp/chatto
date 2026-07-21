@@ -226,7 +226,7 @@ func queryHash(request *searchv1.QueryRequest) (string, error) {
 	return fmt.Sprintf("%x", sum[:]), nil
 }
 
-func (p *Projection) deleteMatching(batch *blevesearch.Batch, field, value string) error {
+func (b *projectionBatch) deleteMatching(field, value string) error {
 	if value == "" {
 		return nil
 	}
@@ -239,18 +239,37 @@ func (p *Projection) deleteMatching(batch *blevesearch.Batch, field, value strin
 		if len(after) > 0 {
 			request.SetSearchAfter(after)
 		}
-		result, err := p.index.Search(request)
+		result, err := b.projection.index.Search(request)
 		if err != nil {
 			return fmt.Errorf("find messages by %s: %w", field, err)
 		}
 		for _, hit := range result.Hits {
 			id := strings.TrimPrefix(hit.ID, "message:")
-			batch.Delete(hit.ID)
-			batch.DeleteInternal(messageStateKey(id))
+			if state, pending := b.messages[id]; pending && !messageFieldMatches(state, field, value) {
+				continue
+			}
+			b.deleteMessage(id)
 		}
 		if len(result.Hits) < 1000 {
-			return nil
+			break
 		}
 		after = result.Hits[len(result.Hits)-1].Sort
+	}
+	for id, state := range b.messages {
+		if messageFieldMatches(state, field, value) {
+			b.deleteMessage(id)
+		}
+	}
+	return nil
+}
+
+func messageFieldMatches(state messageDocument, field, value string) bool {
+	switch field {
+	case "room_id":
+		return state.RoomID == value
+	case "author_id":
+		return state.AuthorID == value
+	default:
+		return false
 	}
 }

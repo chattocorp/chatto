@@ -16,7 +16,9 @@ sequence before returning read-your-writes.
 
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
-not inspect consumer sequence numbers or raw JetStream metadata.
+not inspect consumer sequence numbers or raw JetStream metadata. An optional
+startup-batch capability groups only the replay through the target captured at
+startup; live events continue through individual `Apply` calls.
 
 Projections that require event-envelope idempotency keep event-ID sets only
 through the captured startup target. Clean histories then release those sets
@@ -43,14 +45,17 @@ local checkpoint. Missing, corrupt, incompatible, future, or retention-gapped
 checkpoints are explicitly invalid and are reset before a full retained-history
 replay. Operational failures such as an unavailable local volume fail that
 projection's startup without deleting potentially valid state. A successful
-`Apply` must atomically commit its derived changes and supplied stream sequence.
+individual `Apply` or startup batch must atomically commit its derived changes
+and supplied final stream sequence.
 
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`, consumes
-`evt.room.>` and `evt.user.>`, and atomically commits each Bleve mutation with
-projector key `message_search`. Its checkpoint contract starts with
-`bleve-message-index-v6-` and includes a stable fingerprint of the configured
-language analyzer set, so changing that set forces a cold EVT replay.
+`evt.room.>` and `evt.user.>`, and uses projector key `message_search`. During
+captured startup replay it commits up to 256 ordered events and the final
+checkpoint in one Bleve transaction, including a smaller final batch; once
+current, each live event is committed immediately. Its checkpoint contract
+starts with `bleve-message-index-v6-` and includes a stable fingerprint of the
+configured language analyzer set, so changing that set forces a cold EVT replay.
 
 The index stores current decrypted message text plus its body-event revision and
 message/room/author/filter metadata. Candidate revisions must match current core

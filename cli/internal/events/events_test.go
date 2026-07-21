@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -641,6 +642,64 @@ type checkpointTrackingProjection struct {
 	resets     int
 }
 
+type startupBatchTrackingProjection struct {
+	*trackingProjection
+	batchSize int
+	batchErr  error
+	batchMu   sync.Mutex
+	batches   [][]uint64
+	liveCalls int
+}
+
+func newStartupBatchTrackingProjection(batchSize int, subject string) *startupBatchTrackingProjection {
+	return &startupBatchTrackingProjection{
+		trackingProjection: newTrackingProjection(subject),
+		batchSize:          batchSize,
+	}
+}
+
+func (p *startupBatchTrackingProjection) StartupBatchSize() int { return p.batchSize }
+
+func (p *startupBatchTrackingProjection) ApplyStartupBatch(items []SequencedEvent) error {
+	if p.batchErr != nil {
+		return p.batchErr
+	}
+	seqs := make([]uint64, 0, len(items))
+	for _, item := range items {
+		if err := p.trackingProjection.Apply(item.Event, item.Sequence); err != nil {
+			return err
+		}
+		seqs = append(seqs, item.Sequence)
+	}
+	p.batchMu.Lock()
+	p.batches = append(p.batches, seqs)
+	p.batchMu.Unlock()
+	return nil
+}
+
+func (p *startupBatchTrackingProjection) Apply(event *corev1.Event, seq uint64) error {
+	p.batchMu.Lock()
+	p.liveCalls++
+	p.batchMu.Unlock()
+	return p.trackingProjection.Apply(event, seq)
+}
+
+func (p *startupBatchTrackingProjection) BatchSequences() [][]uint64 {
+	p.batchMu.Lock()
+	defer p.batchMu.Unlock()
+	result := make([][]uint64, len(p.batches))
+	for i := range p.batches {
+		result[i] = append([]uint64(nil), p.batches[i]...)
+	}
+	return result
+}
+
+func (p *startupBatchTrackingProjection) LiveCalls() int {
+	p.batchMu.Lock()
+	defer p.batchMu.Unlock()
+	return p.liveCalls
+}
+
 func newCheckpointTrackingProjection(subject string) *checkpointTrackingProjection {
 	return &checkpointTrackingProjection{
 		trackingProjection: newTrackingProjection(subject),
@@ -831,6 +890,123 @@ func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
 	}
 	if _, err := projector.CaptureSnapshot(); err == nil {
 		t.Fatal("CaptureSnapshot succeeded for projection without snapshot methods")
+	}
+}
+
+func TestProjectorBatchesOnlyCapturedStartupReplay(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for i := range 5 {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch", "U"+itoa(i)))
+		if err != nil {
+			t.Fatalf("AppendEventually %d: %v", i, err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	projection := newStartupBatchTrackingProjection(2, subject)
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+
+	wantBatches := [][]uint64{{seqs[0], seqs[1]}, {seqs[2], seqs[3]}, {seqs[4]}}
+	if got := projection.BatchSequences(); !reflect.DeepEqual(got, wantBatches) {
+		t.Fatalf("startup batches = %v, want %v", got, wantBatches)
+	}
+	if got := projection.LiveCalls(); got != 0 {
+		t.Fatalf("live Apply calls during startup = %d, want 0", got)
+	}
+	if got := projector.Status().StartupMessages; got != 5 {
+		t.Fatalf("startup messages = %d, want 5", got)
+	}
+
+	liveSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch", "U-live"))
+	if err != nil {
+		t.Fatalf("append live event: %v", err)
+	}
+	if err := projector.WaitFor(ctx, SubjectPosition(subject, liveSeq)); err != nil {
+		t.Fatalf("wait for live event: %v", err)
+	}
+	if got := projection.LiveCalls(); got != 1 {
+		t.Fatalf("live Apply calls after startup = %d, want 1", got)
+	}
+	if got := projection.BatchSequences(); !reflect.DeepEqual(got, wantBatches) {
+		t.Fatalf("live event changed startup batches: %v", got)
+	}
+}
+
+func TestProjectorStartupBatchFailureStartsAtFirstUncommittedSequence(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch-fail").Subject(EventUserJoinedRoom)
+	firstSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-fail", "U1"))
+	if err != nil {
+		t.Fatalf("append first event: %v", err)
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-fail", "U2")); err != nil {
+		t.Fatalf("append second event: %v", err)
+	}
+
+	applyErr := errors.New("batch apply failed")
+	projection := newStartupBatchTrackingProjection(2, subject)
+	projection.batchErr = applyErr
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, applyErr) {
+			t.Fatalf("Run error = %v, want batch error", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector did not fail after startup batch error")
+	}
+	status := projector.Status()
+	if status.FailedSeq != firstSeq || status.LastSeq >= firstSeq {
+		t.Fatalf("failed startup batch status = %+v, want failure at %d before advancement", status, firstSeq)
+	}
+}
+
+func TestProjectorDecodeFailureIncludesPendingStartupBatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch-decode").Subject(EventUserJoinedRoom)
+	firstSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-decode", "U1"))
+	if err != nil {
+		t.Fatalf("append first event: %v", err)
+	}
+	if _, err := js.Publish(ctx, subject, []byte{0xff}, jetstream.WithExpectLastSequencePerSubject(firstSeq), jetstream.WithMsgID("bad-batch-protobuf")); err != nil {
+		t.Fatalf("publish malformed event: %v", err)
+	}
+
+	projection := newStartupBatchTrackingProjection(3, subject)
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("Run error = %v, want projection failure", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector did not fail after malformed batched event")
+	}
+	status := projector.Status()
+	if status.FailedSeq != firstSeq || status.LastSeq >= firstSeq || projection.Count() != 0 {
+		t.Fatalf("decode failure status = %+v count=%d, want pending batch uncommitted from %d", status, projection.Count(), firstSeq)
 	}
 }
 

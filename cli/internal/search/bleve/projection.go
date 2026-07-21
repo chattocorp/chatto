@@ -32,6 +32,8 @@ const (
 	dekInternalKey           = "chatto/search/deks"
 	messageStatePrefix       = "chatto/search/message/"
 	privacyCompactionKey     = "chatto/search/privacy-compaction-pending"
+	startupReplayBatchSize   = 256
+	slowIndexOperation       = 10 * time.Second
 )
 
 type checkpointRecord struct {
@@ -58,6 +60,16 @@ type messageDocument struct {
 
 type persistedDEKs map[string]string
 
+type projectionBatch struct {
+	projection        *Projection
+	index             *blevesearch.Batch
+	messages          map[string]messageDocument
+	deletedMessages   map[string]struct{}
+	deks              map[string]*corev1.UserDEKGeneratedEvent
+	dekChanged        bool
+	privacyCompaction bool
+}
+
 // Projection materializes searchable plaintext into a disposable local Bleve
 // index. Bleve batch commits bind every mutation to its EVT cutoff.
 type Projection struct {
@@ -72,6 +84,8 @@ type Projection struct {
 	checkpoint checkpointRecord
 	languages  []languageAnalyzer
 	contractID string
+	// commitBatch is an optional test seam; production commits through index.Batch.
+	commitBatch func(*blevesearch.Batch) error
 }
 
 func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {
@@ -112,22 +126,112 @@ func (p *Projection) Subjects() []string {
 
 func (p *Projection) CheckpointContractID() string { return p.contractID }
 
+// StartupBatchSize selects the number of ordered replay events committed with
+// one Bleve transaction. Live events still commit individually through Apply.
+func (*Projection) StartupBatchSize() int { return startupReplayBatchSize }
+
 func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
+	return p.applyBatch([]events.SequencedEvent{{Event: event, Sequence: seq}})
+}
+
+// ApplyStartupBatch applies ordered startup events with one atomic Bleve
+// mutation and checkpoint commit.
+func (p *Projection) ApplyStartupBatch(items []events.SequencedEvent) error {
+	return p.applyBatch(items)
+}
+
+func (p *Projection) applyBatch(items []events.SequencedEvent) error {
+	if len(items) == 0 {
+		return nil
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	firstSequence := items[0].Sequence
+	lastSequence := items[len(items)-1].Sequence
+	applyTimer := time.AfterFunc(slowIndexOperation, func() {
+		p.logger.Warn("Search index operation is slow",
+			"stage", "event_preparation_or_commit",
+			"batch_events", len(items),
+			"first_seq", firstSequence,
+			"last_seq", lastSequence,
+			"threshold", slowIndexOperation)
+	})
+	defer applyTimer.Stop()
 	if p.index == nil {
 		return fmt.Errorf("search index is closed")
 	}
-	batch := p.index.NewBatch()
-	dekChanged := false
-	privacyCompaction := false
+	batch := &projectionBatch{
+		projection:      p,
+		index:           p.index.NewBatch(),
+		messages:        make(map[string]messageDocument),
+		deletedMessages: make(map[string]struct{}),
+		deks:            cloneDEKs(p.deks),
+	}
+	var previousSequence uint64
+	for i, item := range items {
+		if item.Sequence == 0 {
+			return fmt.Errorf("search index batch contains a zero EVT sequence")
+		}
+		if i > 0 && item.Sequence <= previousSequence {
+			return fmt.Errorf("search index batch sequences must be strictly increasing")
+		}
+		if err := p.applyEvent(batch, item.Event, item.Sequence); err != nil {
+			return err
+		}
+		previousSequence = item.Sequence
+	}
 
+	if batch.dekChanged {
+		data, err := encodeDEKs(batch.deks)
+		if err != nil {
+			return err
+		}
+		batch.index.SetInternal([]byte(dekInternalKey), data)
+	}
+	if batch.privacyCompaction {
+		batch.index.SetInternal([]byte(privacyCompactionKey), []byte{1})
+	}
+	record := p.checkpoint
+	record.CutoffSequence = lastSequence
+	data, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	batch.index.SetInternal([]byte(checkpointInternalKey), data)
+	commitBatch := p.index.Batch
+	if p.commitBatch != nil {
+		commitBatch = p.commitBatch
+	}
+	commitTimer := time.AfterFunc(slowIndexOperation, func() {
+		p.logger.Warn("Search index operation is slow",
+			"stage", "bleve_batch_commit",
+			"batch_events", len(items),
+			"first_seq", firstSequence,
+			"last_seq", lastSequence,
+			"threshold", slowIndexOperation)
+	})
+	if err := commitBatch(batch.index); err != nil {
+		commitTimer.Stop()
+		return fmt.Errorf("commit search index batch: %w", err)
+	}
+	commitTimer.Stop()
+	p.deks = batch.deks
+	p.checkpoint = record
+	if batch.privacyCompaction {
+		if err := p.completePrivacyCompaction(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq uint64) error {
 	switch payload := event.GetEvent().(type) {
 	case *corev1.Event_UserDekGenerated:
 		dek := payload.UserDekGenerated
 		if dek != nil {
-			p.deks[dekKey(dek.GetUserId(), dek.GetPurpose(), dek.GetEpoch())] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
-			dekChanged = true
+			batch.deks[dekKey(dek.GetUserId(), dek.GetPurpose(), dek.GetEpoch())] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
+			batch.dekChanged = true
 		}
 	case *corev1.Event_MessageBody:
 		bodyEvent := payload.MessageBody
@@ -135,12 +239,12 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 			if claimed := bodyEvent.GetBody().GetBodyEventId(); claimed != "" && claimed != event.GetId() {
 				break
 			}
-			state, err := p.loadMessage(bodyEvent.GetEventId())
+			state, err := batch.loadMessage(bodyEvent.GetEventId())
 			if err != nil {
 				return err
 			}
 			if seq > state.BodySequence {
-				plaintext, err := p.decryptBody(context.Background(), bodyEvent.GetEventId(), bodyEvent.GetRoomId(), bodyEvent.GetBody())
+				plaintext, err := p.decryptBodyWithDEKs(context.Background(), bodyEvent.GetEventId(), bodyEvent.GetRoomId(), bodyEvent.GetBody(), batch.deks)
 				if err != nil && !errors.Is(err, encryption.ErrKeyNotFound) {
 					return err
 				}
@@ -158,14 +262,14 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 					state.UpdatedAt = body.GetUpdatedAt().AsTime()
 				}
 				state.BodySequence = seq
-				if err := p.storeMessage(batch, state); err != nil {
+				if err := batch.storeMessage(state); err != nil {
 					return err
 				}
 			}
 		}
 	case *corev1.Event_MessagePosted:
 		posted := payload.MessagePosted
-		state, err := p.loadMessage(event.GetId())
+		state, err := batch.loadMessage(event.GetId())
 		if err != nil {
 			return err
 		}
@@ -178,59 +282,38 @@ func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
 				state.CreatedAt = event.GetCreatedAt().AsTime()
 			}
 			state.PostedSequence = seq
-			if err := p.storeMessage(batch, state); err != nil {
+			if err := batch.storeMessage(state); err != nil {
 				return err
 			}
 		}
 	case *corev1.Event_MessageRetracted:
-		if err := p.deleteMessage(batch, payload.MessageRetracted.GetEventId()); err != nil {
-			return err
-		}
+		batch.deleteMessage(payload.MessageRetracted.GetEventId())
 	case *corev1.Event_RoomDeleted:
-		if err := p.deleteMatching(batch, "room_id", payload.RoomDeleted.GetRoomId()); err != nil {
+		if err := batch.deleteMatching("room_id", payload.RoomDeleted.GetRoomId()); err != nil {
 			return err
 		}
 	case *corev1.Event_UserKeyShredded:
 		userID := payload.UserKeyShredded.GetUserId()
-		if err := p.deleteMatching(batch, "author_id", userID); err != nil {
+		if err := batch.deleteMatching("author_id", userID); err != nil {
 			return err
 		}
-		for key, dek := range p.deks {
+		for key, dek := range batch.deks {
 			if dek.GetUserId() == userID {
-				delete(p.deks, key)
-				dekChanged = true
+				delete(batch.deks, key)
+				batch.dekChanged = true
 			}
 		}
-		privacyCompaction = true
-	}
-
-	if dekChanged {
-		data, err := encodeDEKs(p.deks)
-		if err != nil {
-			return err
-		}
-		batch.SetInternal([]byte(dekInternalKey), data)
-	}
-	if privacyCompaction {
-		batch.SetInternal([]byte(privacyCompactionKey), []byte{1})
-	}
-	record := p.checkpoint
-	record.CutoffSequence = seq
-	data, err := json.Marshal(record)
-	if err != nil {
-		return err
-	}
-	batch.SetInternal([]byte(checkpointInternalKey), data)
-	if err := p.index.Batch(batch); err != nil {
-		return fmt.Errorf("commit search index batch: %w", err)
-	}
-	p.checkpoint = record
-	if privacyCompaction {
-		if err := p.completePrivacyCompaction(); err != nil {
-			return err
-		}
+		batch.privacyCompaction = true
 	}
 	return nil
+}
+
+func cloneDEKs(source map[string]*corev1.UserDEKGeneratedEvent) map[string]*corev1.UserDEKGeneratedEvent {
+	clone := make(map[string]*corev1.UserDEKGeneratedEvent, len(source))
+	for key, dek := range source {
+		clone[key] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
+	}
+	return clone
 }
 
 func (p *Projection) RestoreCheckpoint(_ context.Context, request events.ProjectionCheckpointRequest) (events.ProjectionCheckpoint, error) {
@@ -392,25 +475,38 @@ func (p *Projection) loadMessage(id string) (messageDocument, error) {
 	return state, nil
 }
 
-func (p *Projection) storeMessage(batch *blevesearch.Batch, state messageDocument) error {
+func (b *projectionBatch) loadMessage(id string) (messageDocument, error) {
+	if state, ok := b.messages[id]; ok {
+		return state, nil
+	}
+	if _, deleted := b.deletedMessages[id]; deleted {
+		return messageDocument{MessageID: id}, nil
+	}
+	return b.projection.loadMessage(id)
+}
+
+func (b *projectionBatch) storeMessage(state messageDocument) error {
 	data, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	batch.SetInternal(messageStateKey(state.MessageID), data)
-	if err := batch.Index(messageDocumentID(state.MessageID), state); err != nil {
+	b.index.SetInternal(messageStateKey(state.MessageID), data)
+	if err := b.index.Index(messageDocumentID(state.MessageID), state); err != nil {
 		return fmt.Errorf("index message: %w", err)
 	}
+	b.messages[state.MessageID] = state
+	delete(b.deletedMessages, state.MessageID)
 	return nil
 }
 
-func (p *Projection) deleteMessage(batch *blevesearch.Batch, id string) error {
+func (b *projectionBatch) deleteMessage(id string) {
 	if id == "" {
-		return nil
+		return
 	}
-	batch.Delete(messageDocumentID(id))
-	batch.DeleteInternal(messageStateKey(id))
-	return nil
+	b.index.Delete(messageDocumentID(id))
+	b.index.DeleteInternal(messageStateKey(id))
+	delete(b.messages, id)
+	b.deletedMessages[id] = struct{}{}
 }
 
 func encodeDEKs(deks map[string]*corev1.UserDEKGeneratedEvent) ([]byte, error) {

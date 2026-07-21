@@ -91,6 +91,24 @@ type Projection interface {
 	Apply(event *corev1.Event, seq uint64) error
 }
 
+// SequencedEvent pairs one decoded EVT event with its stable stream sequence.
+// StartupBatchProjection receives these in strictly increasing stream order.
+type SequencedEvent struct {
+	Event    *corev1.Event
+	Sequence uint64
+}
+
+// StartupBatchProjection atomically applies groups of events while a projector
+// replays its captured startup history. ApplyStartupBatch must produce the same
+// state as calling Apply for each item in order and must commit the final
+// sequence together with every derived mutation before returning success.
+// Live events continue through Apply individually after startup is current.
+type StartupBatchProjection interface {
+	Projection
+	StartupBatchSize() int
+	ApplyStartupBatch([]SequencedEvent) error
+}
+
 // SnapshotProjection supports serializing and restoring projection state.
 // Snapshot persistence is optional and configured separately on Projector.
 type SnapshotProjection interface {
@@ -189,6 +207,8 @@ type Projector struct {
 	startupCompleted bool
 	startupMessages  uint64
 	startupLogged    bool
+	startupBatchSize int
+	startupBatch     []SequencedEvent
 
 	snapshotKey          string
 	snapshotContractID   string
@@ -243,15 +263,22 @@ type seqWaiter struct {
 func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
 	subjects := append([]string(nil), proj.Subjects()...)
 	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
+	startupBatchSize := 0
+	if projection, ok := proj.(StartupBatchProjection); ok {
+		if size := projection.StartupBatchSize(); size > 1 {
+			startupBatchSize = size
+		}
+	}
 	return &Projector{
-		js:              js,
-		stream:          stream,
-		proj:            proj,
-		logger:          logger,
-		subjects:        subjects,
-		replaySubjects:  replaySubjects,
-		subjectMatchers: compileSubjectFilters(subjects),
-		failedCh:        make(chan struct{}),
+		js:               js,
+		stream:           stream,
+		proj:             proj,
+		logger:           logger,
+		subjects:         subjects,
+		replaySubjects:   replaySubjects,
+		subjectMatchers:  compileSubjectFilters(subjects),
+		failedCh:         make(chan struct{}),
+		startupBatchSize: startupBatchSize,
 	}
 }
 
@@ -857,39 +884,81 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	var event corev1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
+		failureSeq := p.pendingStartupBatchFirstSequence(seq)
 		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
 			"seq", seq,
 			"error", err)
-		p.fail(seq, err)
+		p.fail(failureSeq, err)
 		return
 	}
 
-	if err := p.apply(&event, seq); err != nil {
+	failureSeq, err := p.apply(&event, seq)
+	if err != nil {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
 			"seq", seq,
 			"event_id", event.GetId(),
 			"error", err)
-		p.fail(seq, err)
+		p.fail(failureSeq, err)
 		return
 	}
 
 	p.maybeCompleteStartup(time.Now())
 }
 
-func (p *Projector) apply(event *corev1.Event, seq uint64) error {
+func (p *Projector) apply(event *corev1.Event, seq uint64) (uint64, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 	if p.shouldSkipRestored(seq) {
-		return nil
+		return 0, nil
+	}
+	if projection, ok := p.proj.(StartupBatchProjection); ok && p.shouldBatchStartup(seq) {
+		p.startupBatch = append(p.startupBatch, SequencedEvent{Event: event, Sequence: seq})
+		if len(p.startupBatch) < p.startupBatchSize && seq < p.startupTargetSequence() {
+			return 0, nil
+		}
+		firstSeq := p.startupBatch[0].Sequence
+		lastSeq := p.startupBatch[len(p.startupBatch)-1].Sequence
+		messageCount := uint64(len(p.startupBatch))
+		if err := projection.ApplyStartupBatch(p.startupBatch); err != nil {
+			return firstSeq, err
+		}
+		p.startupBatch = p.startupBatch[:0]
+		p.countStartupMessages(messageCount)
+		p.advance(lastSeq)
+		return 0, nil
 	}
 	if err := p.proj.Apply(event, seq); err != nil {
-		return err
+		return seq, err
 	}
-	p.countStartupMessage()
+	p.countStartupMessages(1)
 	p.advance(seq)
-	return nil
+	return 0, nil
+}
+
+func (p *Projector) shouldBatchStartup(seq uint64) bool {
+	if p.startupBatchSize <= 1 {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.started && p.startupEndedAt.IsZero() && seq <= p.startupTargetSeq
+}
+
+func (p *Projector) startupTargetSequence() uint64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.startupTargetSeq
+}
+
+func (p *Projector) pendingStartupBatchFirstSequence(fallback uint64) uint64 {
+	p.applyMu.Lock()
+	defer p.applyMu.Unlock()
+	if len(p.startupBatch) > 0 {
+		return p.startupBatch[0].Sequence
+	}
+	return fallback
 }
 
 func (p *Projector) shouldSkipRestored(seq uint64) bool {
@@ -898,11 +967,11 @@ func (p *Projector) shouldSkipRestored(seq uint64) bool {
 	return p.restoredSeq > 0 && seq <= p.restoredSeq
 }
 
-func (p *Projector) countStartupMessage() {
+func (p *Projector) countStartupMessages(count uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.started && p.startupEndedAt.IsZero() {
-		p.startupMessages++
+		p.startupMessages += count
 	}
 }
 
