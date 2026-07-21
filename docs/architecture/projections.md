@@ -14,6 +14,12 @@ state, and readiness. Chatto still waits for every registered projection to
 become current before completing boot. Writers wait for the relevant projector
 sequence before returning read-your-writes.
 
+Projection consumers use a five-minute inactivity cleanup threshold. Because
+event application is synchronous and disk-backed commits can temporarily stop
+the pull loop, a shorter broker threshold could delete a live consumer while
+its projection is still applying a batch. Projector shutdown still stops the
+pull subscription; NATS later removes its ephemeral consumer.
+
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
 not inspect consumer sequence numbers or raw JetStream metadata. An optional
@@ -54,7 +60,7 @@ is registered by its runtime unit rather than by `ChattoCore`, consumes
 captured startup replay it commits up to 256 ordered events and the final
 checkpoint in one Bleve transaction, including a smaller final batch; once
 current, each live event is committed immediately. Its checkpoint contract
-starts with `bleve-message-index-v6-` and includes a stable fingerprint of the
+starts with `bleve-message-index-v7-` and includes a stable fingerprint of the
 configured language analyzer set, so changing that set forces a cold EVT replay.
 
 The index stores current decrypted message text plus its body-event revision and
@@ -66,9 +72,10 @@ Omitting `search_provider.languages` selects all analyzers; an explicit empty
 list selects none of the language-specific fields. The index also stores
 non-plaintext DEK event metadata required to decrypt later EVT tail records
 after restart. Retraction, room deletion, and user key shredding remove matching
-documents. Key shredding additionally persists a privacy-compaction marker and
-forces Bleve to reclaim deleted segments; an interrupted compaction retries
-before a restored provider serves queries.
+documents and their internal message state in the same committed batch. Bleve's
+normal background merger reclaims obsolete segments; Chatto does not use
+Scorch's manual `ForceMerge` operation as part of projection correctness or
+startup readiness.
 
 The directory is a privileged, disposable local cache. It is excluded from
 Chatto backups, and invalid checkpoint metadata causes the complete directory

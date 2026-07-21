@@ -115,18 +115,12 @@ func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	require.NoError(t, projection.Apply(&corev1.Event{
 		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"}},
 	}, 7))
-	pending, err := projection.index.GetInternal([]byte(privacyCompactionKey))
-	require.NoError(t, err)
-	require.Empty(t, pending)
-	require.NoError(t, projection.index.SetInternal([]byte(privacyCompactionKey), []byte{1}))
 	require.NoError(t, projection.Close())
 	projection, err = NewProjection(directory, nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
 	require.NoError(t, err)
-	_, err = projection.RestoreCheckpoint(context.Background(), request)
+	checkpoint, err = projection.RestoreCheckpoint(context.Background(), request)
 	require.NoError(t, err)
-	pending, err = projection.index.GetInternal([]byte(privacyCompactionKey))
-	require.NoError(t, err)
-	require.Empty(t, pending)
+	require.Equal(t, uint64(7), checkpoint.CutoffSequence)
 }
 
 func TestProjectionStartupBatchCommitsMessageAndCheckpointOnce(t *testing.T) {
@@ -186,6 +180,9 @@ func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T
 		{Event: legacyBodyEvent(t, key, "M2", "B2", "R2", "U2", "pending room deletion", createdAt, nil), Sequence: 4},
 		{Event: messagePostedEvent("M2", "R2", "U2", createdAt), Sequence: 5},
 		{Event: &corev1.Event{Event: &corev1.Event_RoomDeleted{RoomDeleted: &corev1.RoomDeletedEvent{RoomId: "R2"}}}, Sequence: 6},
+		{Event: legacyBodyEvent(t, key, "M3", "B3", "R3", "U3", "pending key shredding", createdAt, nil), Sequence: 7},
+		{Event: messagePostedEvent("M3", "R3", "U3", createdAt), Sequence: 8},
+		{Event: &corev1.Event{Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U3"}}}, Sequence: 9},
 	}
 	require.NoError(t, projection.ApplyStartupBatch(items))
 
@@ -194,7 +191,7 @@ func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T
 	})
 	require.NoError(t, err)
 	require.Empty(t, response.GetHits())
-	for _, id := range []string{"M1", "M2"} {
+	for _, id := range []string{"M1", "M2", "M3"} {
 		state, err := projection.index.GetInternal(messageStateKey(id))
 		require.NoError(t, err)
 		require.Empty(t, state)
@@ -690,9 +687,6 @@ func TestProjectionKeyShreddingRemovesIndexedMessages(t *testing.T) {
 	state, err := projection.index.GetInternal(messageStateKey("M1"))
 	require.NoError(t, err)
 	require.Empty(t, state)
-	pending, err := projection.index.GetInternal([]byte(privacyCompactionKey))
-	require.NoError(t, err)
-	require.Empty(t, pending)
 }
 
 func applyLegacyMessage(t *testing.T, projection *Projection, key []byte, messageID, bodyEventID, roomID, authorID, text string, createdAt time.Time, startSeq uint64) {

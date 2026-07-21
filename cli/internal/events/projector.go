@@ -37,6 +37,10 @@ var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence 
 const (
 	projectionPullMaxBytes        = 16 * 1024 * 1024
 	projectionSnapshotLoadTimeout = 15 * time.Second
+	// Ordered pull consumers cannot issue another pull while a synchronous
+	// projection Apply is running. Keep their cleanup window comfortably above
+	// slow disk-backed commits so NATS cannot delete a live projector consumer.
+	projectionConsumerInactiveThreshold = 5 * time.Minute
 	// EVTStreamIdentityMetadataKey stores the durable stream incarnation used to
 	// reject projection snapshots after EVT is deleted and recreated.
 	EVTStreamIdentityMetadataKey = "chatto.evt.incarnation"
@@ -809,7 +813,7 @@ func (p *Projector) Run(ctx context.Context) error {
 	consumerConfig := jetstream.OrderedConsumerConfig{
 		FilterSubjects:    p.replaySubjects,
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
-		InactiveThreshold: 30 * time.Second,
+		InactiveThreshold: projectionConsumerInactiveThreshold,
 	}
 	p.mu.Lock()
 	restoredSeq := p.restoredSeq

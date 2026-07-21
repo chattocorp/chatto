@@ -15,7 +15,6 @@ import (
 	"time"
 
 	blevesearch "github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/index/scorch"
 	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/proto"
 
@@ -27,11 +26,10 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v6"
+	checkpointContractBaseID = "bleve-message-index-v7"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	messageStatePrefix       = "chatto/search/message/"
-	privacyCompactionKey     = "chatto/search/privacy-compaction-pending"
 	startupReplayBatchSize   = 256
 	slowIndexOperation       = 10 * time.Second
 )
@@ -61,13 +59,12 @@ type messageDocument struct {
 type persistedDEKs map[string]string
 
 type projectionBatch struct {
-	projection        *Projection
-	index             *blevesearch.Batch
-	messages          map[string]messageDocument
-	deletedMessages   map[string]struct{}
-	deks              map[string]*corev1.UserDEKGeneratedEvent
-	dekChanged        bool
-	privacyCompaction bool
+	projection      *Projection
+	index           *blevesearch.Batch
+	messages        map[string]messageDocument
+	deletedMessages map[string]struct{}
+	deks            map[string]*corev1.UserDEKGeneratedEvent
+	dekChanged      bool
 }
 
 // Projection materializes searchable plaintext into a disposable local Bleve
@@ -188,9 +185,6 @@ func (p *Projection) applyBatch(items []events.SequencedEvent) error {
 		}
 		batch.index.SetInternal([]byte(dekInternalKey), data)
 	}
-	if batch.privacyCompaction {
-		batch.index.SetInternal([]byte(privacyCompactionKey), []byte{1})
-	}
 	record := p.checkpoint
 	record.CutoffSequence = lastSequence
 	data, err := json.Marshal(record)
@@ -217,11 +211,6 @@ func (p *Projection) applyBatch(items []events.SequencedEvent) error {
 	commitTimer.Stop()
 	p.deks = batch.deks
 	p.checkpoint = record
-	if batch.privacyCompaction {
-		if err := p.completePrivacyCompaction(); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -303,7 +292,6 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 				batch.dekChanged = true
 			}
 		}
-		batch.privacyCompaction = true
 	}
 	return nil
 }
@@ -344,47 +332,7 @@ func (p *Projection) RestoreCheckpoint(_ context.Context, request events.Project
 	}
 	p.deks = deks
 	p.checkpoint = record
-	compactionPending, err := p.index.GetInternal([]byte(privacyCompactionKey))
-	if err != nil {
-		return events.ProjectionCheckpoint{}, fmt.Errorf("read search privacy compaction state: %w", err)
-	}
-	if len(compactionPending) > 0 {
-		if err := p.completePrivacyCompaction(); err != nil {
-			return events.ProjectionCheckpoint{}, err
-		}
-	}
 	return events.ProjectionCheckpoint{CutoffSequence: record.CutoffSequence}, nil
-}
-
-func (p *Projection) completePrivacyCompaction() error {
-	advanced, err := p.index.Advanced()
-	if err != nil {
-		return fmt.Errorf("open Bleve index for privacy compaction: %w", err)
-	}
-	scorchIndex, ok := advanced.(*scorch.Scorch)
-	if !ok {
-		return fmt.Errorf("Bleve index does not support privacy compaction")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-	for {
-		err := scorchIndex.ForceMerge(ctx, nil)
-		if err == nil {
-			break
-		}
-		if !strings.Contains(err.Error(), "force merge already in progress") {
-			return fmt.Errorf("compact search index after key shredding: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("compact search index after key shredding: %w", ctx.Err())
-		case <-time.After(100 * time.Millisecond):
-		}
-	}
-	if err := p.index.DeleteInternal([]byte(privacyCompactionKey)); err != nil {
-		return fmt.Errorf("clear search privacy compaction marker: %w", err)
-	}
-	return nil
 }
 
 func (p *Projection) ResetCheckpoint(_ context.Context, request events.ProjectionCheckpointRequest) error {
