@@ -260,11 +260,6 @@ vi.mock('$lib/attachments/DropZoneOverlay.svelte', async () => {
   return { default: EmptyMock };
 });
 
-vi.mock('$lib/components/voice/VoiceCallButton.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
-});
-
 vi.mock('$lib/components/voice/VoiceCallPanel.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };

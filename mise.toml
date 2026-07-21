@@ -78,12 +78,6 @@ description = "Generate Go emoji map from gemoji npm package"
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
-[tasks.codegen-types]
-description = "Generate TypeScript types from Go using tygo"
-depends = ["setup-cli"]
-dir = "cli"
-run = "go tool tygo generate"
-
 [tasks.codegen]
 description = "Run all code generation tasks"
 run = { task = "codegen-*" }

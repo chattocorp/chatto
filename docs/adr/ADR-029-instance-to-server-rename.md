@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-11
-- **Related**: [ADR-025: Multi-instance Client Architecture](ADR-025-multi-instance-client-architecture.md), [ADR-027: Instance/Space/Server Consolidation](ADR-027-instance-space-server-consolidation.md)
+- **Related**: [ADR-025: Multi-Server Client Architecture](ADR-025-multi-instance-client-architecture.md), [ADR-027: Instance/Space/Server Consolidation](ADR-027-instance-space-server-consolidation.md)
 
 ## Context
 

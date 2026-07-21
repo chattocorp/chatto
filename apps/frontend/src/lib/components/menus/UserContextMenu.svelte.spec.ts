@@ -4,10 +4,6 @@ import { PresenceStatus } from '$lib/render/types';
 import { q } from '$lib/test-utils';
 import UserContextMenu from './UserContextMenu.svelte';
 
-vi.mock('$lib/utils/isTouchDevice', () => ({
-  isTouchDevice: () => false
-}));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,
