@@ -4790,6 +4790,88 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
+func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+		ServerID:  "test-server",
+	}
+
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-dm-participant", "Voice DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-dm-outsider", "Voice DM Outsider", "password")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+
+	viewerCtx := withCaller(env.ctx, env.viewer)
+	start, err := env.rooms.StartDM(viewerCtx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM: %v", err)
+	}
+	dm := start.Msg.GetRoom()
+	if dm.GetKind() != apiv1.RoomKind_ROOM_KIND_DM {
+		t.Fatalf("StartDM room kind = %v, want DM", dm.GetKind())
+	}
+
+	join, err := env.voice.JoinCall(viewerCtx, connect.NewRequest(&apiv1.JoinCallRequest{
+		RoomId: dm.GetId(),
+	}))
+	if err != nil {
+		t.Fatalf("JoinCall: %v", err)
+	}
+	if !join.Msg.GetJoined() {
+		t.Fatal("JoinCall joined = false, want true")
+	}
+
+	assertDMCall := func(label string, calls []*apiv1.ActiveCall) {
+		t.Helper()
+		if len(calls) != 1 || calls[0].GetRoom().GetId() != dm.GetId() {
+			t.Fatalf("%s calls = %+v, want DM %s", label, calls, dm.GetId())
+		}
+		participants := calls[0].GetParticipants()
+		if len(participants) != 1 || participants[0].GetUser().GetId() != env.viewer.Id {
+			t.Fatalf("%s participants = %+v, want viewer %s", label, participants, env.viewer.Id)
+		}
+	}
+
+	participantCtx := withCaller(env.ctx, participant)
+	listed, err := env.voice.ListActiveCalls(participantCtx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
+	if err != nil {
+		t.Fatalf("ListActiveCalls participant: %v", err)
+	}
+	assertDMCall("ListActiveCalls participant", listed.Msg.GetCalls())
+
+	projected, err := env.api.BuildRealtimeProjectionActiveCalls(env.ctx, participant.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionActiveCalls participant: %v", err)
+	}
+	assertDMCall("realtime projection participant", projected)
+
+	outsiderCtx := withCaller(env.ctx, outsider)
+	outsiderListed, err := env.voice.ListActiveCalls(outsiderCtx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
+	if err != nil {
+		t.Fatalf("ListActiveCalls outsider: %v", err)
+	}
+	if len(outsiderListed.Msg.GetCalls()) != 0 {
+		t.Fatalf("ListActiveCalls outsider calls = %+v, want none", outsiderListed.Msg.GetCalls())
+	}
+	outsiderProjected, err := env.api.BuildRealtimeProjectionActiveCalls(env.ctx, outsider.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionActiveCalls outsider: %v", err)
+	}
+	if len(outsiderProjected) != 0 {
+		t.Fatalf("realtime projection outsider calls = %+v, want none", outsiderProjected)
+	}
+}
+
 func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

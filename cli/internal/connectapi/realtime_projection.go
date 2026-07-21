@@ -267,7 +267,7 @@ func (a *API) BuildRealtimeProjectionActiveCalls(ctx context.Context, userID str
 	if !a.config.LiveKit.IsConfigured() {
 		return nil, nil
 	}
-	roomIDs, err := a.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
+	roomIDs, err := a.core.GetActiveCallRoomIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
