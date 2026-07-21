@@ -65,7 +65,6 @@ mise test-frontend
 mise test-e2e
 mise codegen
 mise codegen-proto
-mise codegen-types
 ```
 
 For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
@@ -190,8 +189,6 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   committed.
 - New public ConnectRPC services also need `proto/buf.gen.yaml` and docs sidebar
   entries in `apps/docs-website/astro.config.mjs`.
-- Shared Go types used by frontend TypeScript require `mise codegen-types`.
-
 ## Issues, Commits, And PRs
 
 - Use GitHub Issues for planning.
