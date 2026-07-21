@@ -362,7 +362,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 	}
 	appendSearchRefreshFence := func(roomID string) error {
-		if !s.config.Search.Enabled || retainsTimeline(roomID) {
+		if !s.config.Search.Enabled {
 			return nil
 		}
 		serverState := s.connectAPI.BuildRealtimeProjectionServerState()

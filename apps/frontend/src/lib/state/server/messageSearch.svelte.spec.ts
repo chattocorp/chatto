@@ -178,4 +178,28 @@ describe('MessageSearchStore', () => {
     expect(store.results.map((item) => item.id)).toEqual(['one']);
     expect(store.error).toBe(false);
   });
+
+  it('fences an in-flight search on a content-free realtime refresh', async () => {
+    let resolveFirst!: (value: MessageSearchPage) => void;
+    const firstPage = new Promise<MessageSearchPage>((resolve) => (resolveFirst = resolve));
+    const searchMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstPage)
+      .mockResolvedValueOnce(page([result('fresh')], null));
+    const store = new MessageSearchStore(api({ searchMessages }));
+
+    const firstSearch = store.search({
+      query: 'hello',
+      roomIds: [],
+      order: MessageSearchOrder.RELEVANCE
+    });
+    store.refreshRetainedResults();
+
+    await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['fresh']));
+    resolveFirst(page([result('stale')], null));
+    await firstSearch;
+
+    expect(store.results.map((item) => item.id)).toEqual(['fresh']);
+    expect(searchMessages).toHaveBeenCalledTimes(2);
+  });
 });
