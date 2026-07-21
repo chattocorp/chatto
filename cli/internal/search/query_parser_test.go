@@ -32,6 +32,9 @@ func TestParseQueryRejectsInvalidSyntax(t *testing.T) {
 	tests := []string{
 		`"unterminated`,
 		`"!!!"`,
+		`!!!`,
+		`has:attachment`,
+		`in:general`,
 		"in:room has:attachments",
 		"search in:",
 		"search after:not-a-date",

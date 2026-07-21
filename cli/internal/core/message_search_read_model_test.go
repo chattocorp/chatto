@@ -23,12 +23,16 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 		_, err = chattoCore.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, roomID)
 		require.NoError(t, err)
 	}
+	dm, _, err := chattoCore.FindOrCreateDM(ctx, viewer.Id, []string{author.Id})
+	require.NoError(t, err)
+	_, err = chattoCore.PostMessage(ctx, KindDM, dm.Id, author.Id, "searchable direct message", nil, "", "", nil, false)
+	require.NoError(t, err)
 	_, err = chattoCore.ArchiveRoom(ctx, SystemActorID, KindChannel, archived.Id)
 	require.NoError(t, err)
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{visible.Id, archived.Id}, scope.RoomIDs)
+	require.ElementsMatch(t, []string{visible.Id, archived.Id, dm.Id}, scope.RoomIDs)
 	require.NotContains(t, scope.RoomIDs, hidden.Id)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
@@ -45,6 +49,34 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, scope.RoomIDs)
 	require.True(t, scope.NoMatches)
+}
+
+func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chattoCore.CreateUser(ctx, SystemActorID, "search-thread-reader", "Search Thread Reader", "password")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-thread-room", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id)
+	require.NoError(t, err)
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, viewer.Id, "searchable thread reply", nil, root.Id, "", nil, false)
+	require.NoError(t, err)
+	body, retracted, ok := chattoCore.RoomTimeline.LatestBody(reply.Id)
+	require.True(t, ok)
+	require.False(t, retracted)
+
+	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
+	require.NoError(t, err)
+	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
+		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(),
+	}})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, KindChannel, results[0].Kind)
+	require.Equal(t, root.Id, results[0].Event.GetMessagePosted().GetInThread())
 }
 
 func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {

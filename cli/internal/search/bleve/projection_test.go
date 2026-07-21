@@ -234,6 +234,38 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 			},
 			want: []string{"M3", "M1"},
 		},
+		{
+			name: "multiple rooms are alternatives",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, RoomIds: []string{"R1", "R2"},
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M3", "M2", "M1"},
+		},
+		{
+			name: "multiple authors are alternatives",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U1", "U2"},
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M3", "M2", "M1"},
+		},
+		{
+			name: "after excludes exact boundary",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(200, 0)),
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M3"},
+		},
+		{
+			name: "before excludes exact boundary",
+			request: &searchv1.QueryRequest{
+				RequiredTerms: []string{"filter"}, CreatedBefore: timestamppb.New(time.Unix(200, 0)),
+				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+			},
+			want: []string{"M1"},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -285,6 +317,61 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 			require.Equal(t, test.want, hitIDs(response))
 		})
 	}
+}
+
+func TestProjectionMatchesCaseInsensitivelyAndRequiresEveryTerm(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessage(t, projection, key, "both", "B1", "R1", "U1", "The Quick Brown Fox", time.Unix(100, 0), 1)
+	applyLegacyMessage(t, projection, key, "quick-only", "B2", "R1", "U1", "quick rabbit", time.Unix(200, 0), 3)
+	applyLegacyMessage(t, projection, key, "fox-only", "B3", "R1", "U1", "sleepy fox", time.Unix(300, 0), 5)
+
+	tests := []struct {
+		name  string
+		terms []string
+		want  []string
+	}{
+		{name: "case insensitive", terms: []string{"QUICK", "FOX"}, want: []string{"both"}},
+		{name: "all terms required", terms: []string{"quick", "rabbit"}, want: []string{"quick-only"}},
+		{name: "no result", terms: []string{"xyzzyplugh"}, want: []string{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := projection.query(context.Background(), relevanceRequest(test.terms, nil))
+			require.NoError(t, err)
+			require.Equal(t, test.want, hitIDs(response))
+		})
+	}
+}
+
+func TestProjectionUpdatesAttachmentFilterWhenBodyIsEdited(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	projection, err := NewProjection(t.TempDir()+"/index", nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	applyLegacyMessageWithAssets(t, projection, key, "M1", "B1", "R1", "U1", "attached release notes", time.Unix(100, 0), []string{"A1"}, 1)
+	withAttachments := &searchv1.QueryRequest{
+		RequiredTerms: []string{"release"}, HasAttachments: true,
+		Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+	}
+	response, err := projection.query(context.Background(), withAttachments)
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+
+	applyLegacyBody(t, projection, key, "M1", "B2", "R1", "U1", "updated release notes", time.Unix(200, 0), nil, 3)
+	response, err = projection.query(context.Background(), withAttachments)
+	require.NoError(t, err)
+	require.Empty(t, response.GetHits())
+
+	response, err = projection.query(context.Background(), relevanceRequest([]string{"updated"}, nil))
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
 }
 
 func TestProjectionRebuildsUnreadableDisposableIndex(t *testing.T) {
