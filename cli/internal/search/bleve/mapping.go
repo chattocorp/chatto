@@ -3,9 +3,28 @@ package bleve
 import (
 	blevesearch "github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
+	"github.com/blevesearch/bleve/v2/analysis/lang/ar"
 	"github.com/blevesearch/bleve/v2/analysis/lang/cjk"
+	"github.com/blevesearch/bleve/v2/analysis/lang/ckb"
+	"github.com/blevesearch/bleve/v2/analysis/lang/da"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/lang/en"
+	"github.com/blevesearch/bleve/v2/analysis/lang/es"
+	"github.com/blevesearch/bleve/v2/analysis/lang/fa"
+	"github.com/blevesearch/bleve/v2/analysis/lang/fi"
+	"github.com/blevesearch/bleve/v2/analysis/lang/fr"
+	"github.com/blevesearch/bleve/v2/analysis/lang/hi"
+	"github.com/blevesearch/bleve/v2/analysis/lang/hr"
+	"github.com/blevesearch/bleve/v2/analysis/lang/hu"
+	"github.com/blevesearch/bleve/v2/analysis/lang/it"
+	"github.com/blevesearch/bleve/v2/analysis/lang/nl"
+	"github.com/blevesearch/bleve/v2/analysis/lang/no"
+	"github.com/blevesearch/bleve/v2/analysis/lang/pl"
+	"github.com/blevesearch/bleve/v2/analysis/lang/pt"
+	"github.com/blevesearch/bleve/v2/analysis/lang/ro"
+	"github.com/blevesearch/bleve/v2/analysis/lang/ru"
+	"github.com/blevesearch/bleve/v2/analysis/lang/sv"
+	"github.com/blevesearch/bleve/v2/analysis/lang/tr"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
@@ -14,11 +33,43 @@ import (
 
 const (
 	bodyExactField    = "body_exact"
-	bodyEnglishField  = "body_en"
-	bodyGermanField   = "body_de"
 	bodyCJKField      = "body_cjk"
 	bodyExactAnalyzer = "chatto_exact"
+	bodyCJKAnalyzer   = cjk.AnalyzerName
 )
+
+type languageAnalyzer struct {
+	field    string
+	analyzer string
+}
+
+// bodyLanguageAnalyzers contains every complete language analyzer shipped by
+// Bleve. The neutral body_exact field remains authoritative for literal
+// matching; these fields add lower-boost language-specific recall.
+var bodyLanguageAnalyzers = []languageAnalyzer{
+	{field: "body_ar", analyzer: ar.AnalyzerName},
+	{field: bodyCJKField, analyzer: bodyCJKAnalyzer},
+	{field: "body_ckb", analyzer: ckb.AnalyzerName},
+	{field: "body_da", analyzer: da.AnalyzerName},
+	{field: "body_de", analyzer: de.AnalyzerName},
+	{field: "body_en", analyzer: en.AnalyzerName},
+	{field: "body_es", analyzer: es.AnalyzerName},
+	{field: "body_fa", analyzer: fa.AnalyzerName},
+	{field: "body_fi", analyzer: fi.AnalyzerName},
+	{field: "body_fr", analyzer: fr.AnalyzerName},
+	{field: "body_hi", analyzer: hi.AnalyzerName},
+	{field: "body_hr", analyzer: hr.AnalyzerName},
+	{field: "body_hu", analyzer: hu.AnalyzerName},
+	{field: "body_it", analyzer: it.AnalyzerName},
+	{field: "body_nl", analyzer: nl.AnalyzerName},
+	{field: "body_no", analyzer: no.AnalyzerName},
+	{field: "body_pl", analyzer: pl.AnalyzerName},
+	{field: "body_pt", analyzer: pt.AnalyzerName},
+	{field: "body_ro", analyzer: ro.AnalyzerName},
+	{field: "body_ru", analyzer: ru.AnalyzerName},
+	{field: "body_sv", analyzer: sv.AnalyzerName},
+	{field: "body_tr", analyzer: tr.AnalyzerName},
+}
 
 func newIndexMapping() mapping.IndexMapping {
 	indexMapping := blevesearch.NewIndexMapping()
@@ -67,10 +118,14 @@ func searchBodyFields() []*mapping.FieldMapping {
 		mapped.IncludeTermVectors = termVectors
 		return mapped
 	}
-	return []*mapping.FieldMapping{
-		field(bodyExactField, bodyExactAnalyzer, true),
-		field(bodyEnglishField, en.AnalyzerName, false),
-		field(bodyGermanField, de.AnalyzerName, false),
-		field(bodyCJKField, cjk.AnalyzerName, true),
+	fields := make([]*mapping.FieldMapping, 0, 1+len(bodyLanguageAnalyzers))
+	fields = append(fields, field(bodyExactField, bodyExactAnalyzer, true))
+	for _, language := range bodyLanguageAnalyzers {
+		fields = append(fields, field(
+			language.field,
+			language.analyzer,
+			language.field == bodyCJKField,
+		))
 	}
+	return fields
 }

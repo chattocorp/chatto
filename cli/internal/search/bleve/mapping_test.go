@@ -14,7 +14,17 @@ func TestIndexMappingUsesBM25AndPurposeBuiltBodyFields(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, bleveindex.BM25Scoring, implementation.ScoringModel)
 
-	for _, field := range []string{bodyExactField, bodyEnglishField, bodyGermanField, bodyCJKField} {
-		require.NotNil(t, indexMapping.AnalyzerNamed(indexMapping.AnalyzerNameForPath(field)), field)
+	bodyMapping := implementation.DefaultMapping.Properties["body"]
+	require.NotNil(t, bodyMapping)
+	require.Len(t, bodyMapping.Fields, 1+len(bodyLanguageAnalyzers))
+	fields := make(map[string]string, len(bodyMapping.Fields))
+	for _, field := range bodyMapping.Fields {
+		fields[field.Name] = field.Analyzer
+	}
+	require.Equal(t, bodyExactAnalyzer, fields[bodyExactField])
+	require.Len(t, bodyLanguageAnalyzers, 22)
+	for _, language := range bodyLanguageAnalyzers {
+		require.Equal(t, language.analyzer, fields[language.field], language.field)
+		require.NotNil(t, indexMapping.AnalyzerNamed(language.analyzer), language.field)
 	}
 }

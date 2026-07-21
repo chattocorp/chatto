@@ -293,6 +293,11 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	applyLegacyMessage(t, projection, key, "stop-phrase", "B8", "R1", "U1", "to be or not to be", time.Unix(800, 0), 15)
 	applyLegacyMessage(t, projection, key, "stop-distractor", "B9", "R1", "U1", "be ready", time.Unix(900, 0), 17)
 	applyLegacyMessage(t, projection, key, "cjk", "B6", "R1", "U1", "検索機能は便利です", time.Unix(600, 0), 11)
+	applyLegacyMessage(t, projection, key, "finnish", "B10", "R1", "U1", "edeltäjiinsä", time.Unix(1000, 0), 19)
+	applyLegacyMessage(t, projection, key, "hungarian", "B11", "R1", "U1", "babakocsijáért", time.Unix(1100, 0), 21)
+	applyLegacyMessage(t, projection, key, "norwegian", "B12", "R1", "U1", "havnedistriktene", time.Unix(1200, 0), 23)
+	applyLegacyMessage(t, projection, key, "polish", "B13", "R1", "U1", "przypadku", time.Unix(1300, 0), 25)
+	applyLegacyMessage(t, projection, key, "russian", "B14", "R1", "U1", "километрах", time.Unix(1400, 0), 27)
 
 	tests := []struct {
 		name    string
@@ -301,6 +306,11 @@ func TestProjectionImprovesRecallWithoutWeakeningExactPhrases(t *testing.T) {
 	}{
 		{name: "English stemming", request: relevanceRequest([]string{"run"}, nil), want: []string{"english"}},
 		{name: "German stemming", request: relevanceRequest([]string{"Haus"}, nil), want: []string{"german"}},
+		{name: "Finnish stemming", request: relevanceRequest([]string{"edeltäjistään"}, nil), want: []string{"finnish"}},
+		{name: "Hungarian stemming", request: relevanceRequest([]string{"babakocsi"}, nil), want: []string{"hungarian"}},
+		{name: "Norwegian stemming", request: relevanceRequest([]string{"havnedistrikter"}, nil), want: []string{"norwegian"}},
+		{name: "Polish stemming", request: relevanceRequest([]string{"przypadek"}, nil), want: []string{"polish"}},
+		{name: "Russian stemming", request: relevanceRequest([]string{"километр"}, nil), want: []string{"russian"}},
 		{name: "single edit typo", request: relevanceRequest([]string{"deploymant"}, nil), want: []string{"typo"}},
 		{name: "short terms stay exact", request: relevanceRequest([]string{"bat"}, nil), want: []string{}},
 		{name: "CJK terms", request: relevanceRequest([]string{"検索"}, nil), want: []string{"cjk"}},

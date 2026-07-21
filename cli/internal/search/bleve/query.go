@@ -129,9 +129,14 @@ func buildQuery(request *searchv1.QueryRequest) (blevequery.Query, error) {
 func bodyTermQuery(term string) blevequery.Query {
 	queries := []blevequery.Query{
 		exactBodyTermQuery(term),
-		boostedMatchQuery(term, bodyEnglishField, stemMatchBoost),
-		boostedMatchQuery(term, bodyGermanField, stemMatchBoost),
-		boostedMatchQuery(term, bodyCJKField, stemMatchBoost),
+	}
+	for _, language := range bodyLanguageAnalyzers {
+		queries = append(queries, boostedMatchQuery(
+			term,
+			language.field,
+			language.analyzer,
+			stemMatchBoost,
+		))
 	}
 	// One edit is useful for ordinary words but creates surprising matches for
 	// short chat tokens, initials, and identifiers. Requiring a shared prefix
@@ -165,6 +170,7 @@ func bodyPhraseQuery(phrase string) blevequery.Query {
 	exact.SetBoost(exactMatchBoost)
 	cjkPhrase := blevesearch.NewMatchPhraseQuery(phrase)
 	cjkPhrase.SetField(bodyCJKField)
+	cjkPhrase.Analyzer = bodyCJKAnalyzer
 	cjkPhrase.SetBoost(stemMatchBoost)
 	return blevesearch.NewDisjunctionQuery(exact, cjkPhrase)
 }
@@ -179,9 +185,10 @@ func exactBodyTokens(value string) []string {
 	return terms
 }
 
-func boostedMatchQuery(term, field string, boost float64) *blevequery.MatchQuery {
+func boostedMatchQuery(term, field, analyzer string, boost float64) *blevequery.MatchQuery {
 	query := blevesearch.NewMatchQuery(term)
 	query.SetField(field)
+	query.Analyzer = analyzer
 	query.SetBoost(boost)
 	return query
 }

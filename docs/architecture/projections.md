@@ -48,13 +48,14 @@ projection's startup without deleting potentially valid state. A successful
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`, consumes
 `evt.room.>` and `evt.user.>`, and atomically commits each Bleve mutation with
-checkpoint contract `bleve-message-index-v4` and projector key
+checkpoint contract `bleve-message-index-v5` and projector key
 `message_search`.
 
 The index stores current decrypted message text plus its body-event revision and
 message/room/author/filter metadata. Candidate revisions must match current core
-state before hydration, fencing provider catch-up races. Message bodies use BM25 scoring over separate language-neutral,
-English-stemmed, German-stemmed, and CJK analysis fields. The index also stores
+state before hydration, fencing provider catch-up races. Message bodies use
+BM25 scoring over a language-neutral field plus all 22 complete language
+analyzers available in the bundled Bleve version. The index also stores
 non-plaintext DEK event metadata required to decrypt later EVT tail records
 after restart. Retraction, room deletion, and user key shredding remove matching
 documents. Key shredding additionally persists a privacy-compaction marker and

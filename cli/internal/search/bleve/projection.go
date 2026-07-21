@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	checkpointContractID  = "bleve-message-index-v4"
+	checkpointContractID  = "bleve-message-index-v5"
 	checkpointInternalKey = "chatto/search/checkpoint"
 	dekInternalKey        = "chatto/search/deks"
 	messageStatePrefix    = "chatto/search/message/"
