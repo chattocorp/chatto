@@ -42,11 +42,22 @@ runs:
           exit 1
         fi
 
+        stable_tags="$(
+          gh release list \
+            --repo chattocorp/chatto \
+            --exclude-drafts \
+            --exclude-pre-releases \
+            --limit 100 \
+            --json tagName \
+            --jq '.[].tagName'
+        )"
         escaped_series="${RELEASE_SERIES//./\\.}"
-        tag="$({
-          gh api --paginate repos/chattocorp/chatto/releases \
-            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
-        } | grep -E "^v${escaped_series}\.[0-9]+$" | sort -V | tail -n 1 || true)"
+        tag="$(
+          grep -E "^v${escaped_series}\.[0-9]+$" <<< "$stable_tags" \
+            | sort -V \
+            | tail -n 1 \
+            || true
+        )"
         if [[ -z "$tag" ]]; then
           if [[ "$ALLOW_MISSING" == "true" ]]; then
             echo "available=false" >> "$GITHUB_OUTPUT"
