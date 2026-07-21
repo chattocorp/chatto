@@ -47,11 +47,10 @@ const (
 	streamIdentityPrefix         = "evt-incarnation-v1:"
 )
 
-// MemoryProjection is an embeddable base for projections whose state
-// lives entirely in process memory. It contributes a sync.RWMutex that
-// subclasses use for read/write coordination, plus no-op Snapshot/Restore
-// methods for compatibility with projections that have not opted into
-// snapshot persistence.
+// MemoryProjection is an embeddable base for projections whose state lives
+// entirely in process memory. It contributes only a sync.RWMutex for read/write
+// coordination; projections opt into snapshot persistence by implementing
+// SnapshotProjection explicitly.
 //
 // Embed by value — the zero mutex is ready to use. Subclasses still
 // implement Subjects() and Apply(). Future non-memory projection types
@@ -59,14 +58,6 @@ const (
 type MemoryProjection struct {
 	sync.RWMutex
 }
-
-// Snapshot implements SnapshotProjection. The Projector treats (nil, nil) as
-// "skip snapshot persistence".
-func (*MemoryProjection) Snapshot() ([]byte, error) { return nil, nil }
-
-// Restore implements SnapshotProjection. Called once before Run with nil/empty
-// on a cold start.
-func (*MemoryProjection) Restore(_ []byte) error { return nil }
 
 // Projection is the read side. Implementations consume events from a subject
 // filter and serve reads from derived state. Most projections are in-memory;

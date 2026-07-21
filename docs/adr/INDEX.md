@@ -61,4 +61,5 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | 2026-07-16 |
 | [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md) | Subject-Specific RBAC with an Everyone Baseline | 2026-07-19 |
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | 2026-07-20 |
-| [ADR-054](ADR-054-locally-checkpointed-projections.md) | Locally Checkpointed Projections | 2026-07-20 |
+| [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | 2026-07-20 |
+| [ADR-055](ADR-055-pluggable-message-search-over-nats.md) | Pluggable Message Search over NATS | 2026-07-21 |

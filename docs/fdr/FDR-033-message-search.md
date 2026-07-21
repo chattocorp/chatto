@@ -86,7 +86,7 @@ representation even though durable message bodies remain encrypted. Bleve
 logically removes retracted and crypto-shredded documents immediately and
 reclaims their immutable segments through normal background merging. Operators
 who require stronger physical-erasure guarantees must protect or explicitly
-rebuild the index volume. See ADR-007, ADR-033, and ADR-054.
+rebuild the index volume. See ADR-007, ADR-033, ADR-054, and ADR-055.
 **Tradeoff:** Enabling Search expands the trusted server-side data surface and
 requires operators to protect the provider volume.
 
@@ -114,7 +114,8 @@ retained in memory so browser Back can restore it.
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-033
   (event-sourced state with projections), ADR-041 (runtime units), ADR-045
   (public API stability tiers), ADR-053 (versioned NATS service namespaces),
-  ADR-054 (locally checkpointed projections)
+  ADR-054 (optional projection persistence), ADR-055 (pluggable message search
+  over NATS)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-014 (Jump to Present),
   FDR-015 (Quick Switcher), FDR-019 (Room Lifecycle), FDR-032 (Message
   Formatting)

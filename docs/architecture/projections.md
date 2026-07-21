@@ -34,9 +34,10 @@ its set and first-event-wins compatibility behaviour. Projection diagnostics
 report both retained event-ID memory and whether compatibility mode is active.
 
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
-[ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md), and
-[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md), and
-[ADR-054](../adr/ADR-054-locally-checkpointed-projections.md).
+[ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
+[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
+[ADR-054](../adr/ADR-054-optional-projection-persistence.md), and
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md).
 
 ## Local checkpoint support
 
@@ -46,13 +47,12 @@ applied EVT sequence to a stable projection key, a projection contract ID, and
 the current EVT stream incarnation and retained sequence bounds. A valid
 checkpoint replays only the remaining EVT tail.
 
-A projection uses exactly one restore authority: either ADR-050 snapshots or a
-local checkpoint. Missing, corrupt, incompatible, future, or retention-gapped
-checkpoints are explicitly invalid and are reset before a full retained-history
-replay. Operational failures such as an unavailable local volume fail that
-projection's startup without deleting potentially valid state. A successful
-individual `Apply` or startup batch must atomically commit its derived changes
-and supplied final stream sequence.
+A projection uses at most one restore authority: ADR-050 snapshots, a local
+checkpoint, or neither. A projection without either starts empty and cold-replays
+`EVT`. Missing, corrupt, incompatible, future, or retention-gapped checkpoints
+are invalid; the projection may safely reset owned state or fail startup for
+operator recovery. A successful individual `Apply` or startup batch must
+atomically commit its derived changes and supplied final stream sequence.
 
 The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`, consumes
