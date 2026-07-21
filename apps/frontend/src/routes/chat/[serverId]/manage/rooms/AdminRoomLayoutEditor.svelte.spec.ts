@@ -138,6 +138,16 @@ describe('AdminRoomLayoutEditor', () => {
     expect(populatedRender.container.textContent).toContain('Lobby');
     expect(populatedRender.container.textContent).toContain('general');
     expect(populatedRender.container.textContent).toContain('Public room');
+
+    const shell = populatedRender.container.querySelector('section.panel-shell') as HTMLElement;
+    const header = shell.querySelector(':scope > header') as HTMLElement;
+    const frame = shell.querySelector(':scope > div:last-child') as HTMLElement;
+    const inset = frame.firstElementChild as HTMLElement;
+    expect(shell.className).toContain('shrink-0');
+    expect(header.className).toContain('px-6');
+    expect(frame.className).toContain('px-1');
+    expect(frame.className).toContain('pb-1');
+    expect(inset.className).toContain('panel-inset');
   });
 
   it('opens the create-group dialog and delegates submission to the layout store', async () => {

@@ -56,6 +56,7 @@ class MockIntersectionObserver implements IntersectionObserver {
 
 function renderTable(
   props: {
+    fitContent?: boolean;
     hoverable?: boolean;
     hasMore?: boolean;
     loadingMore?: boolean;
@@ -92,13 +93,34 @@ describe('DataTable.hoverable', () => {
   it('applies hover bg by default', async () => {
     const { container } = renderTable();
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).toContain('hover:bg-surface-emphasized/40');
+    expect(tr.className).toContain('hover:bg-surface/70');
   });
 
   it('omits hover bg when hoverable=false', async () => {
     const { container } = renderTable({ hoverable: false });
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).not.toContain('hover:bg-surface-emphasized/40');
+    expect(tr.className).not.toContain('hover:bg-surface/70');
+  });
+
+  it('uses a rounded background viewport beneath the surface header', async () => {
+    const { container } = renderTable();
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement as HTMLElement;
+    const header = container.querySelector('thead tr') as HTMLElement;
+    const body = container.querySelector('tbody') as HTMLElement;
+
+    expect(viewport.className).toContain('rounded-md');
+    expect(viewport.className).toContain('overflow-x-auto');
+    expect(header.className).toContain('panel-header');
+    expect(body.className).toContain('bg-background');
+  });
+
+  it('keeps matrix-style tables at their intrinsic width', async () => {
+    const { container } = renderTable({ fitContent: true });
+    const table = container.querySelector('table') as HTMLTableElement;
+
+    expect(table.className).toContain('w-max');
+    expect(table.className).not.toContain('w-full');
   });
 
   it('still renders cursor-pointer on hoverable=false rows when onRowClick is set', async () => {

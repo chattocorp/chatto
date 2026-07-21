@@ -105,7 +105,7 @@
     docs: {
       description: {
         story:
-          '`panel-shell` is the canonical bordered surface. Add `panel-shell-raised` only when the shell needs to sit above a scrolling page surface.'
+          '`panel-shell` is the canonical bordered surface frame. Add `panel-shell-raised` only when the shell needs to sit above a scrolling page surface.'
       }
     }
   }}
@@ -113,28 +113,32 @@
   <div class="flex max-w-3xl flex-col gap-4">
     <p class="max-w-prose text-sm text-muted">
       Use <code>panel-shell</code> for admin panels, directory group cards, and other durable
-      content containers. Combine with <code>panel-header</code> when the surface has a
-      structured header.
+      content containers. Combine it with <code>panel-header</code>, then wrap content in a
+      side-and-bottom frame and <code>panel-inset</code> work plane.
     </p>
 
     <div class="grid gap-4 md:grid-cols-2">
       <section class="overflow-hidden panel-shell">
-        <header class="rounded-t-xl panel-header px-4 py-3">
+        <header class="panel-header px-6 py-3">
           <h3 class="font-semibold">Flat shell</h3>
           <p class="text-sm text-muted">Embedded in a dense view.</p>
         </header>
-        <div class="p-4 text-sm text-muted">
-          Bordered, token-backed background, no elevation.
+        <div class="px-1 pb-1">
+          <div class="panel-inset p-4 text-sm text-muted">
+            Bordered, token-backed background, no elevation.
+          </div>
         </div>
       </section>
 
       <section class="overflow-hidden panel-shell panel-shell-raised">
-        <header class="rounded-t-xl panel-header px-4 py-3">
+        <header class="panel-header px-6 py-3">
           <h3 class="font-semibold">Raised shell</h3>
           <p class="text-sm text-muted">Used by admin panels.</p>
         </header>
-        <div class="p-4 text-sm text-muted">
-          Same shell with the approved quiet shadow.
+        <div class="px-1 pb-1">
+          <div class="panel-inset p-4 text-sm text-muted">
+            Same shell with the approved quiet shadow.
+          </div>
         </div>
       </section>
     </div>

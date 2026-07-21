@@ -207,11 +207,7 @@ its permission row and scope column.
     return highlightedCell?.category === category && highlightedCell.permission === permission;
   }
 
-  function cellBackgroundClass(
-    category: string,
-    scope: MatrixScope,
-    permission: string
-  ): string {
+  function cellBackgroundClass(category: string, scope: MatrixScope, permission: string): string {
     const row = rowIsHighlighted(category, permission);
     const columnHighlighted = columnIsHighlighted(category, scope.id);
     if (row && columnHighlighted) return 'bg-action/15';
@@ -230,127 +226,126 @@ its permission row and scope column.
         group.permissions.some((p) => cellFor(scope.id, p) !== undefined)
       )}
       <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
-        <div class="overflow-x-auto" style="width: max-content; max-width: 100%">
-          <DataTable
-            items={group.permissions}
-            columns={categoryScopes.length + 1}
-            getKey={(p) => p}
-            emptyMessage={m['rbac.permissions.empty_category']()}
-            hoverable={false}
-          >
-            {#snippet header()}
+        <DataTable
+          items={group.permissions}
+          columns={categoryScopes.length + 1}
+          getKey={(p) => p}
+          emptyMessage={m['rbac.permissions.empty_category']()}
+          fitContent
+          hoverable={false}
+        >
+          {#snippet header()}
+            <th
+              class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+              style="width: 14rem"
+            >
+              Permission
+            </th>
+            {#each categoryScopes as scope (scope.id)}
               <th
-                class="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom font-medium"
-                style="width: 14rem"
-              >
-                Permission
-              </th>
-              {#each categoryScopes as scope (scope.id)}
-                <th
-                  class={[
-                    'px-0 py-3 text-center align-bottom font-medium',
-                    columnIsHighlighted(group.category, scope.id)
-                      ? 'bg-action/10 text-action'
-                      : scopeColumnClass(scope.kind)
-                  ]}
-                  style="width: 2rem; min-width: 2rem; height: 12rem"
-                  title={`${scope.label} (${scope.kind.toLowerCase()})`}
-                  data-scope={scope.id}
-                >
-                  <span
-                    class={[
-                      'text-sm',
-                      scope.kind === 'SERVER' ? 'font-semibold' : '',
-                      scope.kind === 'GROUP' ? 'text-neutral-action' : '',
-                      scope.kind === 'ROOM' ? 'text-muted' : ''
-                    ]}
-                    style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-                  >
-                    {#if scope.kind === 'ROOM'}#{/if}{scope.label}
-                  </span>
-                </th>
-              {/each}
-            {/snippet}
-            {#snippet row(permission)}
-              <td
                 class={[
-                  'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
-                  rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-surface'
+                  'px-0 py-3 text-center align-bottom font-medium',
+                  columnIsHighlighted(group.category, scope.id)
+                    ? 'bg-action/10 text-action'
+                    : scopeColumnClass(scope.kind)
                 ]}
+                style="width: 2rem; min-width: 2rem; height: 12rem"
+                title={`${scope.label} (${scope.kind.toLowerCase()})`}
+                data-scope={scope.id}
               >
-                <code
-                  data-testid="permission-name"
+                <span
                   class={[
                     'text-sm',
-                    rowIsHighlighted(group.category, permission) ? 'text-action' : ''
-                  ]}>{permission}</code
-                >
-                <HelpTooltip label={`About ${permission}`}>
-                  {getPermissionDescription(permission)}
-                </HelpTooltip>
-              </td>
-              {#each categoryScopes as scope (scope.id)}
-                {@const cell = cellFor(scope.id, permission)}
-                {@const cellKey = `${scope.id}::${permission}`}
-                {@const isUpdating = updatingKey === cellKey}
-                <td
-                  class={[
-                    'px-0 py-2 text-center',
-                    cellBackgroundClass(group.category, scope, permission)
+                    scope.kind === 'SERVER' ? 'font-semibold' : '',
+                    scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+                    scope.kind === 'ROOM' ? 'text-muted' : ''
                   ]}
-                  style="width: 2.5rem; min-width: 2.5rem"
-                  data-scope={scope.id}
-                  data-permission={permission}
-                  onmouseenter={cell
-                    ? () => (hoveredCell = coordinate(group.category, scope.id, permission))
-                    : undefined}
-                  onmouseleave={cell ? () => (hoveredCell = null) : undefined}
-                  onfocusin={cell
-                    ? () => (focusedCell = coordinate(group.category, scope.id, permission))
-                    : undefined}
-                  onfocusout={cell ? () => (focusedCell = null) : undefined}
+                  style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
                 >
-                  {#if cell}
-                    {@const ov = decisionToState(cell.override)}
-                    {@const eff = decisionToState(cell.effective)}
-                    {@const displayOverride = forceAllow ? 'allow' : ov}
-                    {@const displayEffective = forceAllow ? 'neutral' : eff}
-                    {@const ariaLabel = forceAllow
-                      ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                      : ov !== 'neutral'
-                        ? `Override ${ov} for ${permission} at ${scope.label}`
-                        : `No override for ${permission} at ${scope.label}, effective ${eff}`}
-                    {@const titleParts = forceAllow
-                      ? [
-                          'Allow (owners are always granted all permissions)',
-                          'Owner permissions are not editable'
-                        ]
-                      : [
-                          ov !== 'neutral'
-                            ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                            : null,
-                          ov === 'neutral' && eff !== 'neutral'
-                            ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                            : null,
-                          ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
-                        ].filter(Boolean)}
-                    <MatrixCell
-                      override={displayOverride}
-                      inherited={displayEffective}
-                      updating={isUpdating}
-                      disabled={readOnly}
-                      {ariaLabel}
-                      title={titleParts.join(' · ')}
-                      onCycle={(next) => onCycle(scope, permission, next)}
-                    />
-                  {:else}
-                    <span class="inline-block h-10 w-10" aria-hidden="true"></span>
-                  {/if}
-                </td>
-              {/each}
-            {/snippet}
-          </DataTable>
-        </div>
+                  {#if scope.kind === 'ROOM'}#{/if}{scope.label}
+                </span>
+              </th>
+            {/each}
+          {/snippet}
+          {#snippet row(permission)}
+            <td
+              class={[
+                'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
+                rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-background'
+              ]}
+            >
+              <code
+                data-testid="permission-name"
+                class={[
+                  'text-sm',
+                  rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                ]}>{permission}</code
+              >
+              <HelpTooltip label={`About ${permission}`}>
+                {getPermissionDescription(permission)}
+              </HelpTooltip>
+            </td>
+            {#each categoryScopes as scope (scope.id)}
+              {@const cell = cellFor(scope.id, permission)}
+              {@const cellKey = `${scope.id}::${permission}`}
+              {@const isUpdating = updatingKey === cellKey}
+              <td
+                class={[
+                  'px-0 py-2 text-center',
+                  cellBackgroundClass(group.category, scope, permission)
+                ]}
+                style="width: 2.5rem; min-width: 2.5rem"
+                data-scope={scope.id}
+                data-permission={permission}
+                onmouseenter={cell
+                  ? () => (hoveredCell = coordinate(group.category, scope.id, permission))
+                  : undefined}
+                onmouseleave={cell ? () => (hoveredCell = null) : undefined}
+                onfocusin={cell
+                  ? () => (focusedCell = coordinate(group.category, scope.id, permission))
+                  : undefined}
+                onfocusout={cell ? () => (focusedCell = null) : undefined}
+              >
+                {#if cell}
+                  {@const ov = decisionToState(cell.override)}
+                  {@const eff = decisionToState(cell.effective)}
+                  {@const displayOverride = forceAllow ? 'allow' : ov}
+                  {@const displayEffective = forceAllow ? 'neutral' : eff}
+                  {@const ariaLabel = forceAllow
+                    ? `${subjectKind} is always granted ${permission} at ${scope.label}`
+                    : ov !== 'neutral'
+                      ? `Override ${ov} for ${permission} at ${scope.label}`
+                      : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+                  {@const titleParts = forceAllow
+                    ? [
+                        'Allow (owners are always granted all permissions)',
+                        'Owner permissions are not editable'
+                      ]
+                    : [
+                        ov !== 'neutral'
+                          ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                          : null,
+                        ov === 'neutral' && eff !== 'neutral'
+                          ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                          : null,
+                        ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
+                      ].filter(Boolean)}
+                  <MatrixCell
+                    override={displayOverride}
+                    inherited={displayEffective}
+                    updating={isUpdating}
+                    disabled={readOnly}
+                    {ariaLabel}
+                    title={titleParts.join(' · ')}
+                    onCycle={(next) => onCycle(scope, permission, next)}
+                  />
+                {:else}
+                  <span class="inline-block h-10 w-10" aria-hidden="true"></span>
+                {/if}
+              </td>
+            {/each}
+          {/snippet}
+        </DataTable>
       </Panel>
     {/each}
   </div>

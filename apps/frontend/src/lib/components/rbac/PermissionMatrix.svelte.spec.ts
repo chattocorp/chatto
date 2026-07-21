@@ -108,22 +108,36 @@ describe('PermissionMatrix', () => {
     expect(container.querySelectorAll('tbody tr').length).toBe(2);
   });
 
-  it('keeps panel, table header, and sticky cells on one surface', async () => {
+  it('contrasts the panel body and sticky cells with the surface header', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
     const panel = container.querySelector('.panel-shell') as HTMLElement;
     const panelHeader = panel.querySelector(':scope > .panel-header') as HTMLElement;
+    const panelBody = panel.querySelector(':scope > div:last-child') as HTMLElement;
     const tableHeader = panel.querySelector('thead tr') as HTMLElement;
     const stickyHeader = panel.querySelector('thead th.sticky') as HTMLElement;
     const stickyBody = panel.querySelector('tbody td.sticky') as HTMLElement;
     const surfaceColor = getComputedStyle(panel).backgroundColor;
+    const headerColor = getComputedStyle(panelHeader).backgroundColor;
+    const viewport = panel.querySelector('.overflow-x-auto') as HTMLElement;
+    const inset = panel.querySelector(':scope > div:last-child > div') as HTMLElement;
+    const frame = inset.parentElement as HTMLElement;
+
+    const backgroundColor = getComputedStyle(inset).backgroundColor;
 
     expect(surfaceColor).not.toBe('rgba(0, 0, 0, 0)');
-    expect(getComputedStyle(panelHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(tableHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(stickyBody).backgroundColor).toBe(surfaceColor);
+    expect(headerColor).toBe(surfaceColor);
+    expect(backgroundColor).not.toBe(surfaceColor);
+    expect(getComputedStyle(panelBody).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(inset).backgroundColor).toBe(backgroundColor);
+    expect(getComputedStyle(viewport).backgroundColor).toBe(backgroundColor);
+    expect(frame.className).toContain('px-1');
+    expect(frame.className).toContain('pb-1');
+    expect(viewport.className).toContain('rounded-md');
+    expect(getComputedStyle(tableHeader).backgroundColor).toBe(headerColor);
+    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(backgroundColor);
+    expect(getComputedStyle(stickyBody).backgroundColor).toBe(backgroundColor);
   });
 
   it('highlights the hovered permission row and role column', async () => {
@@ -252,16 +266,12 @@ describe('PermissionMatrix', () => {
     });
     await settle();
 
-    const buttons = Array.from(
-      container.querySelectorAll('thead button')
-    ) as HTMLButtonElement[];
+    const buttons = Array.from(container.querySelectorAll('thead button')) as HTMLButtonElement[];
     const adminHeader = buttons.find((b) => b.textContent?.trim() === '@admin');
     expect(adminHeader).toBeDefined();
     adminHeader!.click();
     flushSync();
-    expect(onRoleClick).toHaveBeenCalledWith(
-      expect.objectContaining({ roleName: 'admin' })
-    );
+    expect(onRoleClick).toHaveBeenCalledWith(expect.objectContaining({ roleName: 'admin' }));
   });
 
   it('renders headers as plain text when isRoleClickable returns false', async () => {
