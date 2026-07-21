@@ -1,0 +1,201 @@
+---
+title: Bundled Search Provider
+description: Enable and configure Chatto's local Bleve message-search provider.
+---
+
+import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Chatto includes a Bleve provider that builds a disposable full-text index from
+your server's event history. For a typical single-process installation, enable
+the Search feature and provider together:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = true
+directory = "./data/search"
+```
+
+`search.enabled` exposes the Search API and UI. `search_provider.enabled` starts
+the bundled provider inside `chatto run`. Keep them as separate settings: you
+can run the provider in another process or replace it without changing the
+client-facing feature.
+
+## Set Up Search
+
+<Steps>
+
+1. Add the configuration above to `chatto.toml`.
+2. Make sure the Chatto process can create and write the configured directory.
+3. Restart Chatto.
+4. Open **Search** in the server sidebar. The page reports that indexing is in
+   progress until the provider has replayed the retained `EVT` history.
+
+</Steps>
+
+You can configure the same settings with environment variables:
+
+```bash
+CHATTO_SEARCH_ENABLED=true
+CHATTO_SEARCH_PROVIDER_ENABLED=true
+CHATTO_SEARCH_PROVIDER_DIRECTORY=./data/search
+```
+
+<Aside type="caution">
+  The index contains searchable information derived from decrypted message
+  bodies. Protect its volume like message data. Never configure the Search
+  directory as the embedded NATS data directory or one of its parents, include
+  it in normal backups, or share it between concurrently running provider
+  processes.
+</Aside>
+
+## Choose Language Analyzers
+
+The provider always maintains a language-neutral field for case-insensitive
+literal matching and conservative typo tolerance. Language analyzers add
+stemming, normalization, stop-word handling, or CJK tokenization.
+
+Omitting `languages` enables every bundled analyzer. Each selected analyzer
+adds another indexed representation of every message. To reduce index storage,
+indexing work, and query work, select only the languages your community is
+likely to use:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[search_provider]
+enabled = true
+directory = "./data/search"
+languages = ["en", "de", "fr", "cjk"]
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_SEARCH_PROVIDER_LANGUAGES=en,de,fr,cjk
+```
+
+</TabItem>
+</Tabs>
+
+| Code | Analyzer |
+| ---- | -------- |
+| `ar` | Arabic |
+| `cjk` | Chinese, Japanese, and Korean tokenization |
+| `ckb` | Central Kurdish (Sorani) |
+| `da` | Danish |
+| `de` | German |
+| `en` | English |
+| `es` | Spanish |
+| `fa` | Persian |
+| `fi` | Finnish |
+| `fr` | French |
+| `hi` | Hindi |
+| `hr` | Croatian |
+| `hu` | Hungarian |
+| `it` | Italian |
+| `nl` | Dutch |
+| `no` | Norwegian |
+| `pl` | Polish |
+| `pt` | Portuguese |
+| `ro` | Romanian |
+| `ru` | Russian |
+| `sv` | Swedish |
+| `tr` | Turkish |
+
+Use an explicit empty list when you want only the language-neutral field:
+
+```toml
+[search_provider]
+languages = []
+```
+
+The environment-variable equivalent is:
+
+```bash
+CHATTO_SEARCH_PROVIDER_LANGUAGES=none
+```
+
+Analyzer order does not matter. Changing the selected set changes the index
+schema, so the provider discards its local index and rebuilds it safely from
+`EVT`. Search reports an indexing state during the rebuild.
+
+## Run the Provider Separately
+
+Use a standalone provider when you want indexing CPU, memory, and storage away
+from the server process. The provider must connect to the same NATS account and
+needs its own local index directory.
+
+In the configuration used by `chatto run`, expose Search without embedding the
+provider:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = false
+```
+
+Configure a NATS client URL reachable from the provider host, then start the
+standalone unit:
+
+```bash
+chatto search-provider --config chatto.toml
+```
+
+The standalone command runs the provider regardless of
+`search_provider.enabled`; that switch controls only whether `chatto run`
+starts it. The remaining `[search_provider]` settings still configure its
+directory and language analyzers.
+
+<Aside type="note">
+  Embedded NATS listens locally by default. To place the provider on another
+  host or in another container, expose the NATS client listener only to the
+  trusted network and configure `nats.client.url` and authentication for both
+  processes.
+</Aside>
+
+## Index Lifecycle
+
+The Bleve directory is derived state, not a source of truth:
+
+- The `chatto backup` command does not include it; restore `EVT` and let the
+  provider rebuild.
+- A missing, corrupt, incompatible, or differently configured index is rebuilt
+  automatically.
+- Message edits replace indexed content. Retractions, room deletion, and user
+  key shredding remove matching documents.
+- Search candidates are checked against current room membership and message
+  state before Chatto returns hydrated results.
+- Disabling the provider does not remove its directory. Stop the provider and
+  delete the dedicated directory yourself if you want to remove the cache.
+
+To force a clean rebuild, stop every process using the directory, delete only
+the configured Search directory, and restart the provider. Never delete a
+parent directory or the embedded NATS data directory.
+
+## Troubleshooting
+
+| Symptom | Check |
+| ------- | ----- |
+| Search is absent from the sidebar | Set `search.enabled = true`, then restart `chatto run`. |
+| Search reports unavailable | Confirm a bundled or standalone provider is running against the same NATS account. |
+| Search reports indexing | Let the provider finish replaying `EVT`; large histories take longer. |
+| Inflected words do not match | Confirm the relevant code is present in `search_provider.languages`. |
+| A language change appears to do nothing | Restart the provider and wait for its automatic index rebuild. |
+| Startup rejects the index directory | Choose a dedicated child directory that does not contain the embedded NATS data directory. |
+| Two provider processes fail against one index | Give each process its own directory; Bleve directories are not shared volumes. |
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Server Operations" href="/guides/operations/server-operations/" description="Day-to-day server health, metrics, upgrades, and recovery." />
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Back up durable Chatto data without copying disposable indexes." />
+  <LinkCard title="Environment Variables" href="/reference/environment-variables/#message-search" description="Reference for Search and provider environment variables." />
+  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Separate runtime responsibilities across processes." />
+</CardGrid>

@@ -147,6 +147,8 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 The consumer-facing feature and bundled provider have separate switches. This lets you expose Search through Chatto while running a compatible provider separately, or embed the bundled Bleve provider in `chatto run` for a single-process deployment.
 
+See [Bundled Search Provider](/guides/operations/bundled-search-provider/) for a complete setup guide, analyzer names, storage guidance, and troubleshooting.
+
 <EnvVar name="CHATTO_SEARCH_ENABLED" toml="search.enabled" default="false">
   Enable consumer-facing message queries. Compatible clients discover the Search protocol independently and use the Search status RPC to distinguish disabled, indexing, ready, degraded, and unavailable states.
 </EnvVar>

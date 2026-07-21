@@ -96,18 +96,9 @@ enabled = true
 [search_provider]
 enabled = true
 directory = "./data/search"
-# Omit languages to enable every bundled analyzer.
-languages = ["en", "de", "fr", "cjk"]
 ```
 
-The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds it from retained `EVT` history if it is missing or incompatible.
-
-`search_provider.languages` controls which language-specific analyzers index
-each message and analyze queries. Supported codes are `ar`, `cjk`, `ckb`, `da`,
-`de`, `en`, `es`, `fa`, `fi`, `fr`, `hi`, `hr`, `hu`, `it`, `nl`, `no`, `pl`,
-`pt`, `ro`, `ru`, `sv`, and `tr`. Omit the setting to use all bundled analyzers,
-or set `languages = []` to keep only language-neutral literal and typo-tolerant
-matching. Changing the list automatically rebuilds the disposable index.
+The Bleve directory contains plaintext-derived message content. Keep it on a protected local volume and exclude it from normal backups. Chatto rebuilds it from retained `EVT` history if it is missing or incompatible. See [Bundled Search Provider](/guides/operations/bundled-search-provider/) for language configuration, standalone deployment, index lifecycle, and troubleshooting.
 
 Search has separate protocol, configuration, and readiness states. Compatible clients can discover the protocol on every supporting server. With `search.enabled = false`, the status API reports Search as disabled and query requests are rejected. When enabled, the status progresses through provider startup/indexing to ready, or reports unavailable without affecting the rest of Chatto.
 
@@ -152,6 +143,7 @@ Use it for tasks such as:
 <CardGrid>
   <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Backup, restore, key export, and disaster recovery procedures." />
   <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Local recovery and bootstrap commands." />
+  <LinkCard title="Bundled Search Provider" href="/guides/operations/bundled-search-provider/" description="Configure local message indexing and language analyzers." />
   <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="Run Chatto with replicated infrastructure." />
   <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Scale server processes and externalize runtime dependencies." />
   <LinkCard title="Environment Variables" href="/reference/environment-variables/#metrics" description="Metrics, exporter, and operator API configuration reference." />
