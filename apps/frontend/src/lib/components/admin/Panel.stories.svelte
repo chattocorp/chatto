@@ -7,7 +7,8 @@
   Bordered admin surface for grouped management content. Use \`Panel\` when a
   section needs a title band, optional summary copy, and optional header
   actions. It owns the canonical \`panel-shell panel-shell-raised\` container
-  and the shared, single-surface \`panel-header\` treatment.
+  and the shared \`panel-header\` treatment. A slim surface frame wraps its rounded
+  background work plane so forms, tables, and dense lists share one geometry.
   `.trim();
 
   const { Story } = defineMeta({

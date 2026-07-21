@@ -26,7 +26,7 @@ func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Reque
 		return connect.NewResponse(&apiv1.ListActiveCallsResponse{}), nil
 	}
 
-	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
+	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}

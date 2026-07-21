@@ -193,10 +193,10 @@
               )}
           >
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">{m['admin.common.user']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.users.login']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.common.joined']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.common.roles']()}</th>
+              <th class="table-header-cell">{m['admin.common.user']()}</th>
+              <th class="table-header-cell">{m['admin.users.login']()}</th>
+              <th class="table-header-cell">{m['admin.common.joined']()}</th>
+              <th class="table-header-cell">{m['admin.common.roles']()}</th>
             {/snippet}
             {#snippet row(user)}
               <td class="px-4 py-3">

@@ -178,10 +178,10 @@ func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.AssetReco
 		return nil
 	}
 	if kind == "logo" {
-		asset, _, _ := c.ServerConfig.ServerLogo()
+		asset, _ := c.ServerConfig.ServerLogo()
 		return asset
 	}
-	asset, _, _ := c.ServerConfig.ServerBanner()
+	asset, _ := c.ServerConfig.ServerBanner()
 	return asset
 }
 
@@ -280,10 +280,8 @@ func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 	name := ""
 	description := ""
 	if cm := c.ConfigManager(); cm != nil {
-		if n, err := cm.GetEffectiveServerName(ctx); err == nil {
-			name = n
-		}
-		if cfg, err := cm.GetServerConfig(ctx); err == nil && cfg != nil {
+		name = cm.GetEffectiveServerName()
+		if cfg := cm.GetServerConfig(); cfg != nil {
 			description = cfg.Description
 		}
 	}

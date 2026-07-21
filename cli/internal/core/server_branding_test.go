@@ -30,17 +30,11 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	if !proto.Equal(logo, got) {
 		t.Fatalf("GetServerLogo = %+v, want %+v", got, logo)
 	}
-	cfg, err := core.ConfigManager().GetServerConfig(ctx)
-	if err != nil {
-		t.Fatalf("GetServerConfig after logo failed: %v", err)
-	}
+	cfg := core.ConfigManager().GetServerConfig()
 	if cfg != nil {
 		t.Fatalf("logo-only update wrote server config: cfg=%+v", cfg)
 	}
-	blocked, err := core.ConfigManager().GetEffectiveBlockedUsernames(ctx)
-	if err != nil {
-		t.Fatalf("GetEffectiveBlockedUsernames after logo failed: %v", err)
-	}
+	blocked := core.ConfigManager().GetEffectiveBlockedUsernames()
 	if blocked != DefaultBlockedUsernames {
 		t.Fatalf("logo-only update changed effective blocked usernames: got %q", blocked)
 	}

@@ -23,7 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Request for active channel call snapshots.
+// Request for active room call snapshots.
 type ListActiveCallsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -60,7 +60,7 @@ func (*ListActiveCallsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{0}
 }
 
-// Finite runtime snapshot of active channel calls.
+// Finite runtime snapshot of active room calls.
 type ListActiveCallsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Active calls in room order returned by the call-state projection.

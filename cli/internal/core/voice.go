@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -219,24 +218,11 @@ func (c *ChattoCore) GetCallParticipants(ctx context.Context, spaceID, roomID st
 	return c.CallState.Participants(roomID), nil
 }
 
-// GetActiveCallRoomIDs returns the room IDs in a space that have active voice calls.
+// GetActiveCallRoomIDs returns every room ID that has an active voice call.
 // Reads from the call-state projection, not MEMORY_CACHE.
-// Authorization: Caller must verify space membership before calling.
-func (c *ChattoCore) GetActiveCallRoomIDs(ctx context.Context, spaceID string) ([]string, error) {
-	kind := RoomKindFromLegacySpaceID(spaceID)
-	roomIDs := c.CallState.ActiveRoomIDs()
-	if c.RoomCatalog == nil {
-		return roomIDs, nil
-	}
-	filtered := make([]string, 0, len(roomIDs))
-	for _, roomID := range roomIDs {
-		room, ok := c.RoomCatalog.Get(roomID)
-		if !ok || KindOfRoom(room) == kind {
-			filtered = append(filtered, roomID)
-		}
-	}
-	sort.Strings(filtered)
-	return filtered, nil
+// Authorization: Caller must filter the result to rooms visible to the actor.
+func (c *ChattoCore) GetActiveCallRoomIDs(context.Context) ([]string, error) {
+	return c.CallState.ActiveRoomIDs(), nil
 }
 
 func appendCallJoinedEventForTest(ctx context.Context, publisher *events.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {

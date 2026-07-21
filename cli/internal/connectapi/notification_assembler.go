@@ -38,17 +38,10 @@ func (a *notificationAssembler) pageFromList(ctx context.Context, notifications 
 	if err != nil {
 		return nil, err
 	}
-
-	response := a.emptyPage(ctx)
-	response.Notifications = hydrated
-	response.Page = apiPageInfo(totalCount, hasMore)
-	return response, nil
-}
-
-func (a *notificationAssembler) emptyPage(_ context.Context) *apiv1.ListNotificationsResponse {
 	return &apiv1.ListNotificationsResponse{
-		Notifications: []*apiv1.NotificationItem{},
-	}
+		Notifications: hydrated,
+		Page:          apiPageInfo(totalCount, hasMore),
+	}, nil
 }
 
 func (a *notificationAssembler) item(ctx context.Context, notification *corev1.Notification) (*apiv1.NotificationItem, error) {
@@ -71,6 +64,10 @@ func (a *notificationAssembler) itemWithPresence(ctx context.Context, notificati
 	if err != nil {
 		return nil, err
 	}
+	room, err := a.room(ctx, notificationTargetRoomID(notification))
+	if err != nil {
+		return nil, err
+	}
 	item := &apiv1.NotificationItem{
 		Id:        notification.GetId(),
 		CreatedAt: notification.GetCreatedAt(),
@@ -79,10 +76,6 @@ func (a *notificationAssembler) itemWithPresence(ctx context.Context, notificati
 
 	switch payload := notification.GetNotification().(type) {
 	case *corev1.Notification_DmMessage:
-		room, err := a.room(ctx, payload.DmMessage.GetRoomId())
-		if err != nil {
-			return nil, err
-		}
 		item.Kind = &apiv1.NotificationItem_DirectMessage{
 			DirectMessage: &apiv1.DirectMessageNotification{
 				EventId: payload.DmMessage.GetEventId(),
@@ -90,10 +83,6 @@ func (a *notificationAssembler) itemWithPresence(ctx context.Context, notificati
 			},
 		}
 	case *corev1.Notification_Mention:
-		room, err := a.room(ctx, payload.Mention.GetRoomId())
-		if err != nil {
-			return nil, err
-		}
 		mention := &apiv1.MentionNotification{
 			Room:    room,
 			EventId: payload.Mention.GetEventId(),
@@ -103,10 +92,6 @@ func (a *notificationAssembler) itemWithPresence(ctx context.Context, notificati
 		}
 		item.Kind = &apiv1.NotificationItem_Mention{Mention: mention}
 	case *corev1.Notification_Reply:
-		room, err := a.room(ctx, payload.Reply.GetRoomId())
-		if err != nil {
-			return nil, err
-		}
 		reply := &apiv1.ReplyNotification{
 			Room:        room,
 			EventId:     payload.Reply.GetEventId(),
@@ -117,10 +102,6 @@ func (a *notificationAssembler) itemWithPresence(ctx context.Context, notificati
 		}
 		item.Kind = &apiv1.NotificationItem_Reply{Reply: reply}
 	case *corev1.Notification_RoomMessage:
-		room, err := a.room(ctx, payload.RoomMessage.GetRoomId())
-		if err != nil {
-			return nil, err
-		}
 		item.Kind = &apiv1.NotificationItem_RoomMessage{
 			RoomMessage: &apiv1.RoomMessageNotification{
 				Room:    room,

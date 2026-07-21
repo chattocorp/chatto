@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -860,26 +861,34 @@ func TestGetActiveCallRoomIDs(t *testing.T) {
 	ctx := testContext(t)
 
 	// No active calls initially
-	ids := core.CallState.ActiveRoomIDs()
+	ids, err := core.GetActiveCallRoomIDs(ctx)
+	if err != nil {
+		t.Fatalf("GetActiveCallRoomIDs: %v", err)
+	}
 	if len(ids) != 0 {
 		t.Errorf("Expected 0 room IDs, got %d", len(ids))
 	}
 
-	// Add calls in multiple rooms
-	_ = core.HandleCallParticipantJoined(ctx, "channel", "room1", "user1", "Alice", "alice", "")
-	_ = core.HandleCallParticipantJoined(ctx, "channel", "room2", "user2", "Bob", "bob", "")
-	_ = core.HandleCallParticipantJoined(ctx, "channel", "room3", "user3", "Carol", "carol", "")
+	// Add calls in both channel and DM rooms.
+	_ = core.HandleCallParticipantJoined(ctx, LegacyServerSpaceID, "channel-room", "user1", "Alice", "alice", "")
+	_ = core.HandleCallParticipantJoined(ctx, LegacyDMRoomSpaceID, "dm-room", "user2", "Bob", "bob", "")
 
-	ids = core.CallState.ActiveRoomIDs()
-	if len(ids) != 3 {
-		t.Errorf("Expected 3 room IDs, got %d: %v", len(ids), ids)
+	ids, err = core.GetActiveCallRoomIDs(ctx)
+	if err != nil {
+		t.Fatalf("GetActiveCallRoomIDs after joins: %v", err)
+	}
+	if want := []string{"channel-room", "dm-room"}; !slices.Equal(ids, want) {
+		t.Fatalf("active room IDs = %v, want %v", ids, want)
 	}
 
-	// Remove all participants from room1 — should no longer appear
-	_ = core.HandleCallParticipantLeft(ctx, "channel", "room1", "user1")
-	ids = core.CallState.ActiveRoomIDs()
-	if len(ids) != 2 {
-		t.Errorf("Expected 2 room IDs after leave, got %d: %v", len(ids), ids)
+	// Remove the channel participant; the DM call remains visible.
+	_ = core.HandleCallParticipantLeft(ctx, LegacyServerSpaceID, "channel-room", "user1")
+	ids, err = core.GetActiveCallRoomIDs(ctx)
+	if err != nil {
+		t.Fatalf("GetActiveCallRoomIDs after leave: %v", err)
+	}
+	if want := []string{"dm-room"}; !slices.Equal(ids, want) {
+		t.Fatalf("active room IDs after leave = %v, want %v", ids, want)
 	}
 }
 

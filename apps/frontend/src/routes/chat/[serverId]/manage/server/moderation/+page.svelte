@@ -127,11 +127,11 @@
       <Panel noPadding>
         <DataTable items={bans} columns={5} emptyMessage={m['admin.moderation.empty_bans']()}>
           {#snippet header()}
-            <th class="px-3 py-2 font-medium">{m['admin.common.user']()}</th>
-            <th class="px-3 py-2 font-medium">{m['admin.common.room']()}</th>
-            <th class="px-3 py-2 font-medium">{m['admin.common.reason']()}</th>
-            <th class="px-3 py-2 font-medium">{m['admin.common.expires']()}</th>
-            <th class="px-3 py-2 font-medium"></th>
+            <th class="table-header-cell">{m['admin.common.user']()}</th>
+            <th class="table-header-cell">{m['admin.common.room']()}</th>
+            <th class="table-header-cell">{m['admin.common.reason']()}</th>
+            <th class="table-header-cell">{m['admin.common.expires']()}</th>
+            <th class="table-header-cell"></th>
           {/snippet}
           {#snippet row(ban)}
             {@const user = ban.user}

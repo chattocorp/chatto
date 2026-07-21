@@ -9,7 +9,7 @@ import { RoomSummary } from "./rooms_pb.js";
 import { User } from "./users_pb.js";
 
 /**
- * Request for active channel call snapshots.
+ * Request for active room call snapshots.
  *
  * @generated from message chatto.api.v1.ListActiveCallsRequest
  */
@@ -42,7 +42,7 @@ export class ListActiveCallsRequest extends Message<ListActiveCallsRequest> {
 }
 
 /**
- * Finite runtime snapshot of active channel calls.
+ * Finite runtime snapshot of active room calls.
  *
  * @generated from message chatto.api.v1.ListActiveCallsResponse
  */

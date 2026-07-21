@@ -49,13 +49,11 @@ func NewConfigManager(
 
 // GetServerConfig returns the raw server configuration values currently held
 // by the projection, or nil when no server config fields have been set.
-// The error return is preserved for signature compatibility; the
-// projection is in-memory and cannot fail to read.
-func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, error) {
+func (cm *ConfigManager) GetServerConfig() *configv1.ServerConfig {
 	if cm.projection == nil {
-		return nil, nil
+		return nil
 	}
-	return cm.projection.Get(), nil
+	return cm.projection.Get()
 }
 
 // SetServerConfig stores the server configuration by publishing semantic config
@@ -209,29 +207,29 @@ func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []
 
 // GetEffectiveWelcomeMessage returns the welcome message from the
 // projection. Empty string if not configured.
-func (cm *ConfigManager) GetEffectiveWelcomeMessage(_ context.Context) (string, error) {
+func (cm *ConfigManager) GetEffectiveWelcomeMessage() string {
 	if cm.projection == nil {
-		return "", nil
+		return ""
 	}
-	return cm.projection.EffectiveWelcomeMessage(), nil
+	return cm.projection.EffectiveWelcomeMessage()
 }
 
 // GetEffectiveServerName returns the server name from the projection,
 // falling back to "Chatto" if unset.
-func (cm *ConfigManager) GetEffectiveServerName(_ context.Context) (string, error) {
+func (cm *ConfigManager) GetEffectiveServerName() string {
 	if cm.projection == nil {
-		return "Chatto", nil
+		return "Chatto"
 	}
-	return cm.projection.EffectiveServerName(), nil
+	return cm.projection.EffectiveServerName()
 }
 
 // GetEffectiveMOTD returns the Message of the Day from the projection.
 // Empty string if not configured.
-func (cm *ConfigManager) GetEffectiveMOTD(_ context.Context) (string, error) {
+func (cm *ConfigManager) GetEffectiveMOTD() string {
 	if cm.projection == nil {
-		return "", nil
+		return ""
 	}
-	return cm.projection.EffectiveMOTD(), nil
+	return cm.projection.EffectiveMOTD()
 }
 
 // DefaultDescription is the fallback server description used when no
@@ -241,11 +239,11 @@ const DefaultDescription = "Come join our community!"
 
 // GetEffectiveDescription returns the server description from the
 // projection, falling back to DefaultDescription if unset.
-func (cm *ConfigManager) GetEffectiveDescription(_ context.Context) (string, error) {
+func (cm *ConfigManager) GetEffectiveDescription() string {
 	if cm.projection == nil {
-		return DefaultDescription, nil
+		return DefaultDescription
 	}
-	return cm.projection.EffectiveDescription(), nil
+	return cm.projection.EffectiveDescription()
 }
 
 // =============================================================================
@@ -259,37 +257,30 @@ const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 // GetEffectiveBlockedUsernames returns the blocked usernames string
 // from the projection. Returns DefaultBlockedUsernames if no config has
 // ever been written; returns "" if the operator explicitly cleared it.
-func (cm *ConfigManager) GetEffectiveBlockedUsernames(_ context.Context) (string, error) {
+func (cm *ConfigManager) GetEffectiveBlockedUsernames() string {
 	if cm.projection == nil {
-		return DefaultBlockedUsernames, nil
+		return DefaultBlockedUsernames
 	}
-	return cm.projection.EffectiveBlockedUsernames(), nil
+	return cm.projection.EffectiveBlockedUsernames()
 }
 
 // GetBlockedUsernamesList returns the blocked usernames as a slice of
 // lowercase strings.
-func (cm *ConfigManager) GetBlockedUsernamesList(ctx context.Context) ([]string, error) {
-	raw, err := cm.GetEffectiveBlockedUsernames(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return parseBlockedUsernames(raw), nil
+func (cm *ConfigManager) GetBlockedUsernamesList() []string {
+	return parseBlockedUsernames(cm.GetEffectiveBlockedUsernames())
 }
 
 // IsUsernameBlocked checks if a username is in the blocked list
 // (case-insensitive).
-func (cm *ConfigManager) IsUsernameBlocked(ctx context.Context, login string) (bool, error) {
-	blockedList, err := cm.GetBlockedUsernamesList(ctx)
-	if err != nil {
-		return false, err
-	}
+func (cm *ConfigManager) IsUsernameBlocked(login string) bool {
+	blockedList := cm.GetBlockedUsernamesList()
 	loginLower := strings.ToLower(login)
 	for _, blocked := range blockedList {
 		if blocked == loginLower {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // parseBlockedUsernames parses a newline-separated string into a slice

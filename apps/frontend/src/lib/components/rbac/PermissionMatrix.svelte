@@ -326,137 +326,136 @@ focusing a cell highlights its permission row and role column.
     {#each groupedPermissions as group (group.category)}
       {@const meta = CATEGORY_META[group.category]}
       <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
-        <div class="overflow-x-auto" style="width: max-content; max-width: 100%">
-          <DataTable
-            items={group.permissions}
-            columns={roles.length + 1}
-            getKey={(p) => p}
-            emptyMessage={m['rbac.permissions.empty_category']()}
-            hoverable={false}
-          >
-            {#snippet header()}
+        <DataTable
+          items={group.permissions}
+          columns={roles.length + 1}
+          getKey={(p) => p}
+          emptyMessage={m['rbac.permissions.empty_category']()}
+          fitContent
+          hoverable={false}
+        >
+          {#snippet header()}
+            <th
+              class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+              style="width: 14rem"
+            >
+              {m['rbac.permissions.permission']()}
+            </th>
+            {#each roles as role (role.roleName)}
+              {@const handle =
+                onRoleClick && (isRoleClickable ? isRoleClickable(role) : true)
+                  ? onRoleClick
+                  : undefined}
               <th
-                class="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom font-medium"
-                style="width: 14rem"
+                class={[
+                  'px-0 py-3 text-center align-bottom font-medium',
+                  columnIsHighlighted(group.category, role.roleName)
+                    ? 'bg-action/10 text-action'
+                    : ''
+                ]}
+                style="width: 2rem; min-width: 2rem; height: 12rem"
+                title={`${role.displayName} — click to manage`}
+                data-role={role.roleName}
               >
-                {m['rbac.permissions.permission']()}
+                {#if handle}
+                  <button
+                    type="button"
+                    class="cursor-pointer text-sm hover:underline"
+                    onclick={() => handle(role)}
+                    style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
+                  >
+                    @{role.roleName}
+                  </button>
+                {:else}
+                  <span
+                    class="text-sm"
+                    style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
+                  >
+                    @{role.roleName}
+                  </span>
+                {/if}
               </th>
-              {#each roles as role (role.roleName)}
-                {@const handle =
-                  onRoleClick && (isRoleClickable ? isRoleClickable(role) : true)
-                    ? onRoleClick
-                    : undefined}
-                <th
-                  class={[
-                    'px-0 py-3 text-center align-bottom font-medium',
-                    columnIsHighlighted(group.category, role.roleName)
-                      ? 'bg-action/10 text-action'
-                      : ''
-                  ]}
-                  style="width: 2rem; min-width: 2rem; height: 12rem"
-                  title={`${role.displayName} — click to manage`}
-                  data-role={role.roleName}
-                >
-                  {#if handle}
-                    <button
-                      type="button"
-                      class="cursor-pointer text-sm hover:underline"
-                      onclick={() => handle(role)}
-                      style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-                    >
-                      @{role.roleName}
-                    </button>
-                  {:else}
-                    <span
-                      class="text-sm"
-                      style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-                    >
-                      @{role.roleName}
-                    </span>
-                  {/if}
-                </th>
-              {/each}
-            {/snippet}
-            {#snippet row(permission)}
+            {/each}
+          {/snippet}
+          {#snippet row(permission)}
+            <td
+              class={[
+                'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
+                rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-background'
+              ]}
+            >
+              <code
+                data-testid="permission-name"
+                class={[
+                  'text-sm',
+                  rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                ]}>{permission}</code
+              >
+              <HelpTooltip label={`About ${permission}`}>
+                {getPermissionDescription(permission)}
+              </HelpTooltip>
+            </td>
+            {#each roles as role (role.roleName)}
+              {@const ov = overrideState(role, permission)}
+              {@const inh = inheritedState(role, permission)}
+              {@const virtualOwner = roleIsVirtualOwner(role)}
+              {@const displayOverride = virtualOwner ? 'allow' : ov}
+              {@const displayInherited = virtualOwner ? 'neutral' : inh}
+              {@const cellKey = `${role.roleName}::${permission}`}
+              {@const isUpdating = updating.includes(cellKey)}
+              {@const ariaParts = virtualOwner
+                ? [`Owner is always granted ${permission}`]
+                : [
+                    ov !== 'neutral'
+                      ? `Override ${ov} for ${role.displayName} on ${permission}`
+                      : `No override for ${role.displayName} on ${permission}`,
+                    inh !== 'neutral' && inheritedFromLabel
+                      ? `inheriting ${inh} from ${inheritedFromLabel}`
+                      : null
+                  ].filter(Boolean)}
+              {@const ariaLabel = ariaParts.join(', ')}
+              {@const titleParts = virtualOwner
+                ? [
+                    'Allow (owners are always granted all permissions)',
+                    'Owner permissions are not editable'
+                  ]
+                : [
+                    ov !== 'neutral'
+                      ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
+                      : null,
+                    inh !== 'neutral' && inheritedFromLabel
+                      ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
+                      : null,
+                    ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
+                  ].filter(Boolean)}
               <td
                 class={[
-                  'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
-                  rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-surface'
+                  'px-0 py-2 text-center',
+                  cellHighlightClass(group.category, role.roleName, permission)
                 ]}
+                style="width: 2.5rem; min-width: 2.5rem"
+                data-role={role.roleName}
+                data-permission={permission}
+                onmouseenter={() =>
+                  (hoveredCell = coordinate(group.category, role.roleName, permission))}
+                onmouseleave={() => (hoveredCell = null)}
+                onfocusin={() =>
+                  (focusedCell = coordinate(group.category, role.roleName, permission))}
+                onfocusout={() => (focusedCell = null)}
               >
-                <code
-                  data-testid="permission-name"
-                  class={[
-                    'text-sm',
-                    rowIsHighlighted(group.category, permission) ? 'text-action' : ''
-                  ]}>{permission}</code
-                >
-                <HelpTooltip label={`About ${permission}`}>
-                  {getPermissionDescription(permission)}
-                </HelpTooltip>
+                <MatrixCell
+                  override={displayOverride}
+                  inherited={displayInherited}
+                  updating={isUpdating}
+                  disabled={virtualOwner}
+                  {ariaLabel}
+                  title={titleParts.join(' · ')}
+                  onCycle={(next) => void cycle(role, permission, next)}
+                />
               </td>
-              {#each roles as role (role.roleName)}
-                {@const ov = overrideState(role, permission)}
-                {@const inh = inheritedState(role, permission)}
-                {@const virtualOwner = roleIsVirtualOwner(role)}
-                {@const displayOverride = virtualOwner ? 'allow' : ov}
-                {@const displayInherited = virtualOwner ? 'neutral' : inh}
-                {@const cellKey = `${role.roleName}::${permission}`}
-                {@const isUpdating = updating.includes(cellKey)}
-                {@const ariaParts = virtualOwner
-                  ? [`Owner is always granted ${permission}`]
-                  : [
-                      ov !== 'neutral'
-                        ? `Override ${ov} for ${role.displayName} on ${permission}`
-                        : `No override for ${role.displayName} on ${permission}`,
-                      inh !== 'neutral' && inheritedFromLabel
-                        ? `inheriting ${inh} from ${inheritedFromLabel}`
-                        : null
-                    ].filter(Boolean)}
-                {@const ariaLabel = ariaParts.join(', ')}
-                {@const titleParts = virtualOwner
-                  ? [
-                      'Allow (owners are always granted all permissions)',
-                      'Owner permissions are not editable'
-                    ]
-                  : [
-                      ov !== 'neutral'
-                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (override at this tier)`
-                        : null,
-                      inh !== 'neutral' && inheritedFromLabel
-                        ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
-                        : null,
-                      ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
-                    ].filter(Boolean)}
-                <td
-                  class={[
-                    'px-0 py-2 text-center',
-                    cellHighlightClass(group.category, role.roleName, permission)
-                  ]}
-                  style="width: 2.5rem; min-width: 2.5rem"
-                  data-role={role.roleName}
-                  data-permission={permission}
-                  onmouseenter={() =>
-                    (hoveredCell = coordinate(group.category, role.roleName, permission))}
-                  onmouseleave={() => (hoveredCell = null)}
-                  onfocusin={() =>
-                    (focusedCell = coordinate(group.category, role.roleName, permission))}
-                  onfocusout={() => (focusedCell = null)}
-                >
-                  <MatrixCell
-                    override={displayOverride}
-                    inherited={displayInherited}
-                    updating={isUpdating}
-                    disabled={virtualOwner}
-                    {ariaLabel}
-                    title={titleParts.join(' · ')}
-                    onCycle={(next) => void cycle(role, permission, next)}
-                  />
-                </td>
-              {/each}
-            {/snippet}
-          </DataTable>
-        </div>
+            {/each}
+          {/snippet}
+        </DataTable>
       </Panel>
     {/each}
   </div>

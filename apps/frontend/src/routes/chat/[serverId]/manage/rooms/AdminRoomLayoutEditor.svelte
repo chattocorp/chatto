@@ -412,11 +412,11 @@
           <section
             animate:flip={{ duration: 200 }}
             class={[
-              'overflow-hidden panel-shell panel-shell-raised transition-shadow',
+              'shrink-0 overflow-hidden panel-shell panel-shell-raised transition-shadow',
               layout.draggingGroupId === group.id && 'shadow-lg ring-1 ring-action/30'
             ]}
           >
-            <header class="group-header flex items-center gap-3 panel-header px-4 py-3">
+            <header class="group-header flex items-center gap-3 panel-header px-6 py-3">
               <span
                 role="button"
                 tabindex="0"
@@ -466,75 +466,78 @@
               </div>
             </header>
 
-            <div
-              class="min-h-12 p-2"
-              use:dndzone={{
-                items: group.items,
-                flipDurationMs: 200,
-                dropTargetStyle: {
-                  outline: '2px dashed var(--color-action)',
-                  'outline-offset': '-2px',
-                  'border-radius': '0.5rem',
-                  'background-color': 'color-mix(in srgb, var(--color-action) 5%, transparent)'
-                },
-                type: 'rooms'
-              }}
-              onconsider={(e) => handleGroupConsider(group.id, e)}
-              onfinalize={(e) => handleGroupFinalize(group.id, e)}
-            >
-              {#each group.items as room (room.id)}
-                <div
-                  animate:flip={{ duration: 200 }}
-                  class={[
-                    'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface',
-                    room.kind === 'room' && room.room.archived && 'opacity-60'
-                  ]}
-                >
-                  <div class="min-w-0 flex-1">
-                    {#if room.kind === 'room'}
-                      <div class="flex min-w-0 items-start gap-2">
-                        <span class="mt-0.5 shrink-0 text-muted">#</span>
-                        <div class="min-w-0 flex-1">
-                          <div class="flex min-w-0 items-center gap-2">
-                            <span class="min-w-0 truncate font-medium">{room.room.name}</span>
-                            {#if room.room.isUniversal}
-                              <Pill
-                                tone="action"
-                                title={m['admin.rooms_admin.universal_room']()}
-                                class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
-                              >
-                                <span class="iconify text-xs uil--globe" aria-hidden="true"></span>
-                                {m['admin.rooms_admin.universal']()}
-                              </Pill>
-                            {/if}
-                            {#if room.room.archived}
-                              <Pill tone="muted" class="shrink-0 rounded-md px-1.5"
-                                >{m['admin.rooms_admin.archived']()}</Pill
-                              >
+            <div class="px-1 pb-1">
+              <div
+                class="min-h-12 overflow-hidden panel-inset p-2"
+                use:dndzone={{
+                  items: group.items,
+                  flipDurationMs: 200,
+                  dropTargetStyle: {
+                    outline: '2px dashed var(--color-action)',
+                    'outline-offset': '-2px',
+                    'border-radius': '0.5rem',
+                    'background-color': 'color-mix(in srgb, var(--color-action) 5%, transparent)'
+                  },
+                  type: 'rooms'
+                }}
+                onconsider={(e) => handleGroupConsider(group.id, e)}
+                onfinalize={(e) => handleGroupFinalize(group.id, e)}
+              >
+                {#each group.items as room (room.id)}
+                  <div
+                    animate:flip={{ duration: 200 }}
+                    class={[
+                      'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface',
+                      room.kind === 'room' && room.room.archived && 'opacity-60'
+                    ]}
+                  >
+                    <div class="min-w-0 flex-1">
+                      {#if room.kind === 'room'}
+                        <div class="flex min-w-0 items-start gap-2">
+                          <span class="mt-0.5 shrink-0 text-muted">#</span>
+                          <div class="min-w-0 flex-1">
+                            <div class="flex min-w-0 items-center gap-2">
+                              <span class="min-w-0 truncate font-medium">{room.room.name}</span>
+                              {#if room.room.isUniversal}
+                                <Pill
+                                  tone="action"
+                                  title={m['admin.rooms_admin.universal_room']()}
+                                  class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
+                                >
+                                  <span class="iconify text-xs uil--globe" aria-hidden="true"
+                                  ></span>
+                                  {m['admin.rooms_admin.universal']()}
+                                </Pill>
+                              {/if}
+                              {#if room.room.archived}
+                                <Pill tone="muted" class="shrink-0 rounded-md px-1.5"
+                                  >{m['admin.rooms_admin.archived']()}</Pill
+                                >
+                              {/if}
+                            </div>
+                            {#if room.room.description}
+                              <p class="truncate text-sm text-muted">{room.room.description}</p>
                             {/if}
                           </div>
-                          {#if room.room.description}
-                            <p class="truncate text-sm text-muted">{room.room.description}</p>
-                          {/if}
                         </div>
-                      </div>
-                    {:else}
-                      <div class="flex min-w-0 items-baseline gap-1.5">
-                        <span class="iconify text-muted uil--external-link-alt"></span>
-                        <span class="truncate font-medium">{room.link.label}</span>
-                      </div>
-                      <p class="truncate text-sm text-muted">{room.link.url}</p>
-                    {/if}
+                      {:else}
+                        <div class="flex min-w-0 items-baseline gap-1.5">
+                          <span class="iconify text-muted uil--external-link-alt"></span>
+                          <span class="truncate font-medium">{room.link.label}</span>
+                        </div>
+                        <p class="truncate text-sm text-muted">{room.link.url}</p>
+                      {/if}
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      {@render roomActions(room)}
+                    </div>
                   </div>
-                  <div class="flex items-center gap-1.5">
-                    {@render roomActions(room)}
+                {:else}
+                  <div class="px-3 py-4 text-center text-sm text-muted">
+                    {m['admin.rooms_admin.drop_rooms']()}
                   </div>
-                </div>
-              {:else}
-                <div class="px-3 py-4 text-center text-sm text-muted">
-                  {m['admin.rooms_admin.drop_rooms']()}
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
           </section>
         {/each}

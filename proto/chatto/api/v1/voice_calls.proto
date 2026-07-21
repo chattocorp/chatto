@@ -9,7 +9,7 @@ import "google/protobuf/timestamp.proto";
 
 // Voice-call request/response APIs backed by Chatto call-state projections.
 service VoiceCallService {
-  // Lists member channel rooms that currently have active calls as a finite
+  // Lists member rooms that currently have active calls as a finite
   // runtime snapshot. Rooms the caller is not a member of are omitted.
   //
   // Returns an empty list when LiveKit is not configured.
@@ -57,10 +57,10 @@ service VoiceCallService {
   rpc LeaveCall(LeaveCallRequest) returns (LeaveCallResponse);
 }
 
-// Request for active channel call snapshots.
+// Request for active room call snapshots.
 message ListActiveCallsRequest {}
 
-// Finite runtime snapshot of active channel calls.
+// Finite runtime snapshot of active room calls.
 message ListActiveCallsResponse {
   // Active calls in room order returned by the call-state projection.
   repeated ActiveCall calls = 1;

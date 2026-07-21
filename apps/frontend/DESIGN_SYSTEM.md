@@ -81,8 +81,8 @@ Surfaces form a small semantic ladder:
   mechanically reversing luminance between themes.
 - In light mode, `background` is the pale primary work plane and `surface` is
   the cool gray used for anchored chrome, composers, user cards, dialogs, and
-  panels. These surfaces read as inset and substantial, not as white paper
-  floating above the application.
+  panel frames and headers. These surfaces read as inset and substantial, not
+  as white paper floating above the application.
 - In dark mode, progressively lighter surfaces provide separation from the
   dark primary plane.
 - `surface-emphasized` separates hover states and nested rows from their
@@ -94,9 +94,30 @@ Surfaces form a small semantic ladder:
   paper-like surface; do not use it as the default fill for persistent
   application chrome.
 
-Panels, informational hints, table headers, table bodies, and sticky table
-cells share the same `surface`. Use dividers, spacing, type weight, and icons to
-express their different roles; do not introduce another header-band fill.
+Panel shells provide a `surface` frame around a `background` work plane. Panel
+and table headers also use `surface`, keeping padded forms, row rules, nested
+controls, and the outer frame visually distinct. Sticky table cells must match
+the body background. This contrast is structural, not an additional surface
+level.
+
+`Panel` owns the shared inset geometry for admin content. Titled panels frame a
+clipped `panel-inset` work plane with `px-1 pb-1`; omitting top padding prevents
+the frame gap from visually adding to the title band's bottom padding. Untitled
+edge-to-edge panels use the same rule so the gap does not add to a table header's
+top padding. Untitled padded panels retain `p-1`. Custom shells such as draggable
+room groups must compose the same structure instead of approximating it.
+`DataTable` owns only its scrollable table viewport. Dense matrices may keep an
+intrinsic content width inside it; ordinary record tables fill it. Standard
+record-table headings use `table-header-cell`; matrix headings remain bespoke
+because their vertical labels have different spatial needs.
+
+Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
+`p-5` panel content after accounting for the frame, while keeping the band
+compact. Panels in scrolling flex columns must not shrink below their content.
+Room-directory group cards use `Panel` as well; reusable product surfaces must
+not assemble `panel-shell` directly when the shared component can express them.
+Hoverable rows inside panel insets use the quiet `surface/70` treatment and a
+`rounded-md` radius; `surface-emphasized` is too strong for transient hover.
 
 Do not infer a new numeric surface level. Choose the nearest semantic role, or
 adjust the owning component when the hierarchy itself is wrong.

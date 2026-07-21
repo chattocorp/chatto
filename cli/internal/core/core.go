@@ -877,8 +877,8 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 	// durable/current public references provide the positive declaration.
 	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
 	if c.ServerConfig != nil {
-		logo, _, _ := c.ServerConfig.ServerLogo()
-		banner, _, _ := c.ServerConfig.ServerBanner()
+		logo, _ := c.ServerConfig.ServerLogo()
+		banner, _ := c.ServerConfig.ServerBanner()
 		if assetRecordMatchesKey(logo, assetID) || assetRecordMatchesKey(banner, assetID) {
 			legacyDeclaredPublic = true
 		}

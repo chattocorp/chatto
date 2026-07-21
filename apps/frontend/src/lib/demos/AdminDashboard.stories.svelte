@@ -68,11 +68,11 @@
 </Story>
 
 {#snippet tableHeader()}
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">Name</th>
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">ID</th>
-  <th class="px-4 py-2 text-right text-xs font-semibold uppercase text-muted">Members</th>
-  <th class="px-4 py-2 text-right text-xs font-semibold uppercase text-muted">Rooms</th>
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">Visibility</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">Name</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">ID</th>
+  <th class="table-header-cell text-right text-xs font-semibold text-muted uppercase">Members</th>
+  <th class="table-header-cell text-right text-xs font-semibold text-muted uppercase">Rooms</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">Visibility</th>
 {/snippet}
 
 {#snippet tableRow(row: { id: string; name: string; members: number; rooms: number; status: 'public' | 'invite' | 'private' })}

@@ -274,11 +274,11 @@
           onRowClick={openEntry}
         >
           {#snippet header()}
-            <th class="px-4 py-3 font-medium">{m['admin.event_log.seq']()}</th>
-            <th class="px-4 py-3 font-medium">{m['admin.event_log.time']()}</th>
-            <th class="px-4 py-3 font-medium">{m['admin.event_log.event']()}</th>
-            <th class="px-4 py-3 font-medium">{m['admin.event_log.aggregate']()}</th>
-            <th class="px-4 py-3 font-medium">{m['admin.event_log.actor']()}</th>
+            <th class="table-header-cell">{m['admin.event_log.seq']()}</th>
+            <th class="table-header-cell">{m['admin.event_log.time']()}</th>
+            <th class="table-header-cell">{m['admin.event_log.event']()}</th>
+            <th class="table-header-cell">{m['admin.event_log.aggregate']()}</th>
+            <th class="table-header-cell">{m['admin.event_log.actor']()}</th>
           {/snippet}
           {#snippet row(entry)}
             <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>

@@ -127,10 +127,7 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	if cm == nil {
 		t.Fatal("expected ConfigManager to be available")
 	}
-	cfgServer, err := cm.GetServerConfig(ctx)
-	if err != nil {
-		t.Fatalf("get server config: %v", err)
-	}
+	cfgServer := cm.GetServerConfig()
 	if cfgServer == nil || cfgServer.ServerName != "Engineering" {
 		t.Errorf("expected server name 'Engineering', got %+v", cfgServer)
 	}

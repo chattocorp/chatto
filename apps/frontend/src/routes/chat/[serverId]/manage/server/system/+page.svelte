@@ -368,12 +368,12 @@
         <Panel title={m['admin.system.streams']()} icon="iconify uil--exchange" noPadding>
           <DataTable items={streams} columns={6} emptyMessage={m['admin.system.no_streams']()}>
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">{m['admin.system.stream']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.storage']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.messages']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.bytes']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.consumers']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.replicas']()}</th>
+              <th class="table-header-cell">{m['admin.system.stream']()}</th>
+              <th class="table-header-cell">{m['admin.system.storage']()}</th>
+              <th class="table-header-cell">{m['admin.system.messages']()}</th>
+              <th class="table-header-cell">{m['admin.system.bytes']()}</th>
+              <th class="table-header-cell">{m['admin.system.consumers']()}</th>
+              <th class="table-header-cell">{m['admin.system.replicas']()}</th>
             {/snippet}
             {#snippet row(stream)}
               <td class="px-4 py-3">
@@ -399,13 +399,13 @@
         <Panel title={m['admin.system.consumers']()} icon="iconify uil--users-alt" noPadding>
           <DataTable items={consumers} columns={7} emptyMessage={m['admin.system.no_consumers']()}>
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">{m['admin.system.consumer']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.mode']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.filters']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.pending']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.ack_pending']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.redelivered']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.acked_through']()}</th>
+              <th class="table-header-cell">{m['admin.system.consumer']()}</th>
+              <th class="table-header-cell">{m['admin.system.mode']()}</th>
+              <th class="table-header-cell">{m['admin.system.filters']()}</th>
+              <th class="table-header-cell">{m['admin.system.pending']()}</th>
+              <th class="table-header-cell">{m['admin.system.ack_pending']()}</th>
+              <th class="table-header-cell">{m['admin.system.redelivered']()}</th>
+              <th class="table-header-cell">{m['admin.system.acked_through']()}</th>
             {/snippet}
             {#snippet row(consumer)}
               <td class="px-4 py-3">
@@ -469,13 +469,13 @@
             emptyMessage={m['admin.system.no_projections']()}
           >
             {#snippet header()}
-              <th class="px-4 py-3 font-medium">{m['admin.system.projection']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.state']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.startup']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.applied']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.lag']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.entries']()}</th>
-              <th class="px-4 py-3 font-medium">{m['admin.system.memory']()}</th>
+              <th class="table-header-cell">{m['admin.system.projection']()}</th>
+              <th class="table-header-cell">{m['admin.system.state']()}</th>
+              <th class="table-header-cell">{m['admin.system.startup']()}</th>
+              <th class="table-header-cell">{m['admin.system.applied']()}</th>
+              <th class="table-header-cell">{m['admin.system.lag']()}</th>
+              <th class="table-header-cell">{m['admin.system.entries']()}</th>
+              <th class="table-header-cell">{m['admin.system.memory']()}</th>
             {/snippet}
             {#snippet row(projection)}
               <td class="px-4 py-3">

@@ -1,7 +1,6 @@
 package http_server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -28,9 +27,9 @@ func isStaleLoginCredentialError(err error) bool {
 	return errors.Is(err, core.ErrCookieSessionNotFound) || errors.Is(err, core.ErrAuthTokenNotFound)
 }
 
-func (s *HTTPServer) authEmailServerName(ctx context.Context) string {
+func (s *HTTPServer) authEmailServerName() string {
 	if s.core != nil && s.core.ConfigManager() != nil {
-		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && strings.TrimSpace(name) != "" {
+		if name := s.core.ConfigManager().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
 			return name
 		}
 	}
@@ -335,7 +334,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Send registration email
-		serverName := s.authEmailServerName(ctx)
+		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
 		err = s.mailer.Send(email.Message{
 			To:      req.Email,
@@ -442,13 +441,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Check if login is blocked
-		isBlocked, err := s.core.ConfigManager().IsUsernameBlocked(ctx, req.Login)
-		if err != nil {
-			log.Error("Failed to check blocked usernames", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
-			return
-		}
-		if isBlocked {
+		if s.core.ConfigManager().IsUsernameBlocked(req.Login) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "This username is not available"})
 			return
 		}
@@ -579,7 +572,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
-		serverName := s.authEmailServerName(req.Context())
+		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
 		if err := s.mailer.Send(email.Message{
 			To:      body.Email,
@@ -667,7 +660,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Only send email if token was created (email exists and is verified)
 		if token != "" && s.mailer != nil {
-			serverName := s.authEmailServerName(ctx)
+			serverName := s.authEmailServerName()
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
 			err = s.mailer.Send(email.Message{
 				To:      normalizedEmail,

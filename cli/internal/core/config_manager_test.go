@@ -19,10 +19,7 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("returns nil when no config events exist", func(t *testing.T) {
-		cfg, err := core.configManager.GetServerConfig(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		cfg := core.configManager.GetServerConfig()
 		if cfg != nil {
 			t.Error("expected nil config for fresh server")
 		}
@@ -40,10 +37,7 @@ func TestConfigManager_GetServerConfig(t *testing.T) {
 			t.Fatalf("failed to set config: %v", err)
 		}
 
-		cfg, err := core.configManager.GetServerConfig(ctx)
-		if err != nil {
-			t.Fatalf("failed to get config: %v", err)
-		}
+		cfg := core.configManager.GetServerConfig()
 		if cfg.ServerName != "Test Instance" {
 			t.Errorf("expected server name 'Test Instance', got '%s'", cfg.ServerName)
 		}
@@ -308,10 +302,7 @@ func TestConfigManager_UpdateServerConfigFunc_RecomposesAfterConflict(t *testing
 		}
 	}
 
-	cfg, err := core.configManager.GetServerConfig(ctx)
-	if err != nil {
-		t.Fatalf("GetServerConfig: %v", err)
-	}
+	cfg := core.configManager.GetServerConfig()
 	if cfg.GetServerName() != "Name A" {
 		t.Fatalf("ServerName = %q, want Name A", cfg.GetServerName())
 	}
@@ -370,10 +361,7 @@ func TestConfigManager_GetEffectiveWelcomeMessage(t *testing.T) {
 
 	t.Run("returns empty string when not configured", func(t *testing.T) {
 
-		msg, err := core.configManager.GetEffectiveWelcomeMessage(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		msg := core.configManager.GetEffectiveWelcomeMessage()
 		if msg != "" {
 			t.Errorf("expected empty string, got '%s'", msg)
 		}
@@ -384,10 +372,7 @@ func TestConfigManager_GetEffectiveWelcomeMessage(t *testing.T) {
 			WelcomeMessage: "Hello, world!",
 		})
 
-		msg, err := core.configManager.GetEffectiveWelcomeMessage(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		msg := core.configManager.GetEffectiveWelcomeMessage()
 		if msg != "Hello, world!" {
 			t.Errorf("expected 'Hello, world!', got '%s'", msg)
 		}
@@ -400,10 +385,7 @@ func TestConfigManager_GetEffectiveServerName(t *testing.T) {
 
 	t.Run("returns 'Chatto' when not configured", func(t *testing.T) {
 
-		name, err := core.configManager.GetEffectiveServerName(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		name := core.configManager.GetEffectiveServerName()
 		if name != "Chatto" {
 			t.Errorf("expected 'Chatto', got '%s'", name)
 		}
@@ -414,10 +396,7 @@ func TestConfigManager_GetEffectiveServerName(t *testing.T) {
 			ServerName: "",
 		})
 
-		name, err := core.configManager.GetEffectiveServerName(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		name := core.configManager.GetEffectiveServerName()
 		if name != "Chatto" {
 			t.Errorf("expected 'Chatto', got '%s'", name)
 		}
@@ -428,10 +407,7 @@ func TestConfigManager_GetEffectiveServerName(t *testing.T) {
 			ServerName: "My Custom Instance",
 		})
 
-		name, err := core.configManager.GetEffectiveServerName(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		name := core.configManager.GetEffectiveServerName()
 		if name != "My Custom Instance" {
 			t.Errorf("expected 'My Custom Instance', got '%s'", name)
 		}
@@ -444,10 +420,7 @@ func TestConfigManager_GetEffectiveMOTD(t *testing.T) {
 
 	t.Run("returns empty string when not configured", func(t *testing.T) {
 
-		motd, err := core.configManager.GetEffectiveMOTD(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		motd := core.configManager.GetEffectiveMOTD()
 		if motd != "" {
 			t.Errorf("expected empty string, got '%s'", motd)
 		}
@@ -458,10 +431,7 @@ func TestConfigManager_GetEffectiveMOTD(t *testing.T) {
 			Motd: "Today's announcement",
 		})
 
-		motd, err := core.configManager.GetEffectiveMOTD(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		motd := core.configManager.GetEffectiveMOTD()
 		if motd != "Today's announcement" {
 			t.Errorf("expected 'Today's announcement', got '%s'", motd)
 		}
@@ -474,10 +444,7 @@ func TestConfigManager_BlockedUsernames(t *testing.T) {
 
 	t.Run("returns default blocked usernames when not configured", func(t *testing.T) {
 
-		blocked, err := core.configManager.GetEffectiveBlockedUsernames(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.GetEffectiveBlockedUsernames()
 		if blocked != DefaultBlockedUsernames {
 			t.Errorf("expected default blocked usernames, got '%s'", blocked)
 		}
@@ -488,10 +455,7 @@ func TestConfigManager_BlockedUsernames(t *testing.T) {
 			BlockedUsernames: "blocked1\nblocked2",
 		})
 
-		blocked, err := core.configManager.GetEffectiveBlockedUsernames(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.GetEffectiveBlockedUsernames()
 		if blocked != "blocked1\nblocked2" {
 			t.Errorf("expected 'blocked1\\nblocked2', got '%s'", blocked)
 		}
@@ -502,10 +466,7 @@ func TestConfigManager_BlockedUsernames(t *testing.T) {
 			BlockedUsernames: "", // Admin explicitly cleared
 		})
 
-		blocked, err := core.configManager.GetEffectiveBlockedUsernames(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.GetEffectiveBlockedUsernames()
 		if blocked != "" {
 			t.Errorf("expected empty string, got '%s'", blocked)
 		}
@@ -518,10 +479,7 @@ func TestConfigManager_GetBlockedUsernamesList(t *testing.T) {
 
 	t.Run("parses default blocked usernames into list", func(t *testing.T) {
 
-		list, err := core.configManager.GetBlockedUsernamesList(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		list := core.configManager.GetBlockedUsernamesList()
 
 		// Check that default blocked usernames are parsed
 		expected := []string{"root", "admin", "superuser", "op", "operator", "support"}
@@ -540,10 +498,7 @@ func TestConfigManager_GetBlockedUsernamesList(t *testing.T) {
 			BlockedUsernames: "  user1  \n\nuser2\n  \nUSER3  ",
 		})
 
-		list, err := core.configManager.GetBlockedUsernamesList(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		list := core.configManager.GetBlockedUsernamesList()
 
 		if len(list) != 3 {
 			t.Errorf("expected 3 blocked usernames, got %d: %v", len(list), list)
@@ -562,10 +517,7 @@ func TestConfigManager_IsUsernameBlocked(t *testing.T) {
 
 	t.Run("blocks default usernames", func(t *testing.T) {
 
-		blocked, err := core.configManager.IsUsernameBlocked(ctx, "admin")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.IsUsernameBlocked("admin")
 		if !blocked {
 			t.Error("expected 'admin' to be blocked by default")
 		}
@@ -573,18 +525,12 @@ func TestConfigManager_IsUsernameBlocked(t *testing.T) {
 
 	t.Run("case-insensitive blocking", func(t *testing.T) {
 
-		blocked, err := core.configManager.IsUsernameBlocked(ctx, "ADMIN")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.IsUsernameBlocked("ADMIN")
 		if !blocked {
 			t.Error("expected 'ADMIN' to be blocked (case-insensitive)")
 		}
 
-		blocked, err = core.configManager.IsUsernameBlocked(ctx, "Root")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked = core.configManager.IsUsernameBlocked("Root")
 		if !blocked {
 			t.Error("expected 'Root' to be blocked (case-insensitive)")
 		}
@@ -592,10 +538,7 @@ func TestConfigManager_IsUsernameBlocked(t *testing.T) {
 
 	t.Run("allows non-blocked usernames", func(t *testing.T) {
 
-		blocked, err := core.configManager.IsUsernameBlocked(ctx, "regularuser")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.IsUsernameBlocked("regularuser")
 		if blocked {
 			t.Error("expected 'regularuser' to not be blocked")
 		}
@@ -607,19 +550,13 @@ func TestConfigManager_IsUsernameBlocked(t *testing.T) {
 		})
 
 		// Custom blocked username should be blocked
-		blocked, err := core.configManager.IsUsernameBlocked(ctx, "customblocked")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked := core.configManager.IsUsernameBlocked("customblocked")
 		if !blocked {
 			t.Error("expected 'customblocked' to be blocked")
 		}
 
 		// Default blocked username should NOT be blocked anymore
-		blocked, err = core.configManager.IsUsernameBlocked(ctx, "admin")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		blocked = core.configManager.IsUsernameBlocked("admin")
 		if blocked {
 			t.Error("expected 'admin' to NOT be blocked with custom list")
 		}
