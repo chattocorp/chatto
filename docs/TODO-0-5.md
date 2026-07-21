@@ -42,7 +42,7 @@ Notes and TODOs:
 		- [ ] Have a tabbed interface, where members, calls and files can be visible at the same time (expanding/collapsing sections)
 		- [ ] Rework room members
 			- [ ] It doesn't need to _immediately_ update; in busy rooms, this will currently lead to a lot of movement in the sidebar. Maybe we can pull 15s deltas?
-			- [ ] Universal rooms! Maybe this will also be easier with the 15s deltas.
+			- [x] Universal rooms! Maybe this will also be easier with the 15s deltas.
 	- **Notifications Refresh**
 		- [ ] Allow user to configure that notifications don't include message and/or user name
 		- [ ] Don't delete notifications as soon as they are dismissed; keep old notifications, but mark them as "read"/handled, and allow the user to manually delete them.
@@ -51,10 +51,10 @@ Notes and TODOs:
 		- [ ] Notification when someone starts a call in a room you're in
 		- [ ] Following a thread no longer causes a notification on every new message (or we make this configurable?)
 	- **Threading Refresh**
-		- [ ] URL so we can link to a thread (*with the thread open* -- this is currently not possible)
+		- [x] URL so we can link to a thread (*with the thread open* -- this is currently not possible)
 		- [ ] Thread pane opens to the side, viewport size allowing
-		- [ ] Allow the OP of a root message to explicitly open a thread
-		- [ ] With a thread open, replying to that message will automatically happen inside the thread
+		- [x] Allow the OP of a root message to explicitly open a thread
+		- [x] With a thread open, replying to that message will automatically happen inside the thread
 		- [ ] Maybe even existing replies will be pulled into the thread (this can happen in the projections)
 			- Side note/brain fart: we don't really need the thread structure for persistence anymore, since now the read model entirely lives in projections. Cool!
 		- [ ] Authors can move their message into another thread
