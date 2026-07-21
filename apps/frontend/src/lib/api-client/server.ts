@@ -9,16 +9,6 @@ export type PublicAuthProvider = {
   loginUrl: string;
 };
 
-export type PublicProtocolCapabilities = {
-  discoveryV1: boolean;
-  authV1: boolean;
-  apiV1: boolean;
-  adminV1: boolean;
-  messageSearchV1: boolean;
-  realtimeV1: boolean;
-  realtimeProjectionV1: boolean;
-};
-
 export type PublicServerInfo = {
   name: string;
   version: string;
@@ -30,7 +20,7 @@ export type PublicServerInfo = {
   bannerUrl: string | null;
   authProviders: PublicAuthProvider[];
   compatibility: {
-    protocolCapabilities: PublicProtocolCapabilities;
+    protocolCapabilities: string[];
     minimumWebClientVersion: string | null;
   } | null;
 };
@@ -64,15 +54,7 @@ export async function getPublicServerInfo(
     })),
     compatibility: response.compatibility
       ? {
-          protocolCapabilities: {
-            discoveryV1: response.compatibility.discoveryV1 ?? false,
-            authV1: response.compatibility.authV1 ?? false,
-            apiV1: response.compatibility.apiV1 ?? false,
-            adminV1: response.compatibility.adminV1 ?? false,
-            messageSearchV1: response.compatibility.messageSearchV1 ?? false,
-            realtimeV1: response.compatibility.realtimeV1 ?? false,
-            realtimeProjectionV1: response.compatibility.realtimeProjectionV1 ?? false,
-          },
+          protocolCapabilities: [...response.compatibility.protocolCapabilities],
           minimumWebClientVersion:
             response.compatibility.minimumWebClientVersion ?? null,
         }

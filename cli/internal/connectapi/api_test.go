@@ -27,7 +27,6 @@ import (
 	"connectrpc.com/grpcreflect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -494,17 +493,17 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if msg.GetProfile().GetVersion() != "9.8.7" {
 		t.Fatalf("profile version = %q, want 9.8.7", msg.GetProfile().GetVersion())
 	}
-	wantCompatibility := &discoveryv1.ServerCompatibility{
-		DiscoveryV1:          true,
-		AuthV1:               true,
-		ApiV1:                true,
-		AdminV1:              true,
-		MessageSearchV1:      true,
-		RealtimeV1:           true,
-		RealtimeProjectionV1: true,
+	wantCapabilities := []string{
+		"chatto.discovery.v1",
+		"chatto.auth.v1",
+		"chatto.api.v1",
+		"chatto.api.message-search.v1",
+		"chatto.admin.v1",
+		"chatto.realtime.v1",
+		"chatto.realtime.projection.v1",
 	}
-	if got := msg.GetCompatibility(); !proto.Equal(got, wantCompatibility) {
-		t.Fatalf("compatibility = %v, want %v", got, wantCompatibility)
+	if got := msg.GetCompatibility().GetProtocolCapabilities(); !slices.Equal(got, wantCapabilities) {
+		t.Fatalf("protocol capabilities = %v, want %v", got, wantCapabilities)
 	}
 	if msg.GetCompatibility().MinimumWebClientVersion != nil {
 		t.Fatalf("minimum web client version = %q, want absent", msg.GetCompatibility().GetMinimumWebClientVersion())

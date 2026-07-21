@@ -15,6 +15,7 @@
   import ServerEventProvider from './ServerEventProvider.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
+  import { MESSAGE_SEARCH_CAPABILITY } from '$lib/state/server/compatibility';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getAdminNavItems } from './adminNav';
   import * as m from '$lib/i18n/messages';
@@ -73,7 +74,7 @@
   );
   const isSearchActive = $derived(page.url.pathname === searchHref);
   const supportsMessageSearch = $derived(
-    activeStore.serverInfo.protocolCapabilities?.messageSearchV1 === true
+    activeStore.serverInfo.supportsProtocolCapability(MESSAGE_SEARCH_CAPABILITY)
   );
   const messageSearchAvailable = $derived(
     supportsMessageSearch &&

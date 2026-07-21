@@ -68,7 +68,7 @@ const { mocks } = vi.hoisted(() => {
           compatibility: {
             status: 'supported',
             reason: 'capabilities-confirmed',
-            missingCapabilities: []
+            missingCapabilities: [] as string[]
           }
         },
         setPermissions: vi.fn(),

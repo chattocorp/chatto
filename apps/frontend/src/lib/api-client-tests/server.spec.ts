@@ -51,8 +51,7 @@ describe('getPublicServerInfo', () => {
         ]
       },
       compatibility: {
-        apiV1: true,
-        realtimeV1: true,
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
         minimumWebClientVersion: '0.5.0-beta.2'
       }
     });
@@ -82,15 +81,7 @@ describe('getPublicServerInfo', () => {
         }
       ],
       compatibility: {
-        protocolCapabilities: {
-          discoveryV1: false,
-          authV1: false,
-          apiV1: true,
-          adminV1: false,
-          messageSearchV1: false,
-          realtimeV1: true,
-          realtimeProjectionV1: false
-        },
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
         minimumWebClientVersion: '0.5.0-beta.2'
       }
     });

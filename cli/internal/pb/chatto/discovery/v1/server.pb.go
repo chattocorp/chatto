@@ -128,31 +128,23 @@ func (x *GetServerResponse) GetCompatibility() *ServerCompatibility {
 // Machine-readable compatibility metadata for clients connecting to this
 // server.
 //
-// Capabilities describe protocol contracts rather than server configuration
-// or the authenticated viewer's permissions. An absent minimum web-client
-// version means the server has not declared a lower bound for the bundled
-// Chatto web client.
+// Capability keys describe protocol contracts rather than server
+// configuration or the authenticated viewer's permissions. Clients should
+// ignore unknown keys. An absent minimum web-client version means the server
+// has not declared a lower bound for the bundled Chatto web client.
 type ServerCompatibility struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable protocol capability keys supported by this server. Current keys:
+	// `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
+	// `chatto.admin.v1`, `chatto.api.message-search.v1`,
+	// `chatto.realtime.v1`, and
+	// `chatto.realtime.projection.v1`.
+	ProtocolCapabilities []string `protobuf:"bytes,1,rep,name=protocol_capabilities,json=protocolCapabilities,proto3" json:"protocol_capabilities,omitempty"`
 	// Oldest bundled Chatto web-client version this server supports, when a
 	// lower bound is required. Third-party clients should use capabilities.
 	MinimumWebClientVersion *string `protobuf:"bytes,2,opt,name=minimum_web_client_version,json=minimumWebClientVersion,proto3,oneof" json:"minimum_web_client_version,omitempty"`
-	// Supports the `chatto.discovery.v1` public discovery contract.
-	DiscoveryV1 bool `protobuf:"varint,3,opt,name=discovery_v1,json=discoveryV1,proto3" json:"discovery_v1,omitempty"`
-	// Supports the `chatto.auth.v1` public authentication contract.
-	AuthV1 bool `protobuf:"varint,4,opt,name=auth_v1,json=authV1,proto3" json:"auth_v1,omitempty"`
-	// Supports the `chatto.api.v1` public integration contract.
-	ApiV1 bool `protobuf:"varint,5,opt,name=api_v1,json=apiV1,proto3" json:"api_v1,omitempty"`
-	// Supports the `chatto.admin.v1` public administration contract.
-	AdminV1 bool `protobuf:"varint,6,opt,name=admin_v1,json=adminV1,proto3" json:"admin_v1,omitempty"`
-	// Supports the `chatto.api.message-search.v1` message-search contract.
-	MessageSearchV1 bool `protobuf:"varint,7,opt,name=message_search_v1,json=messageSearchV1,proto3" json:"message_search_v1,omitempty"`
-	// Supports the `chatto.realtime.v1` realtime transport contract.
-	RealtimeV1 bool `protobuf:"varint,8,opt,name=realtime_v1,json=realtimeV1,proto3" json:"realtime_v1,omitempty"`
-	// Supports the `chatto.realtime.projection.v1` client-projection contract.
-	RealtimeProjectionV1 bool `protobuf:"varint,9,opt,name=realtime_projection_v1,json=realtimeProjectionV1,proto3" json:"realtime_projection_v1,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ServerCompatibility) Reset() {
@@ -185,60 +177,18 @@ func (*ServerCompatibility) Descriptor() ([]byte, []int) {
 	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{2}
 }
 
+func (x *ServerCompatibility) GetProtocolCapabilities() []string {
+	if x != nil {
+		return x.ProtocolCapabilities
+	}
+	return nil
+}
+
 func (x *ServerCompatibility) GetMinimumWebClientVersion() string {
 	if x != nil && x.MinimumWebClientVersion != nil {
 		return *x.MinimumWebClientVersion
 	}
 	return ""
-}
-
-func (x *ServerCompatibility) GetDiscoveryV1() bool {
-	if x != nil {
-		return x.DiscoveryV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetAuthV1() bool {
-	if x != nil {
-		return x.AuthV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetApiV1() bool {
-	if x != nil {
-		return x.ApiV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetAdminV1() bool {
-	if x != nil {
-		return x.AdminV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetMessageSearchV1() bool {
-	if x != nil {
-		return x.MessageSearchV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetRealtimeV1() bool {
-	if x != nil {
-		return x.RealtimeV1
-	}
-	return false
-}
-
-func (x *ServerCompatibility) GetRealtimeProjectionV1() bool {
-	if x != nil {
-		return x.RealtimeProjectionV1
-	}
-	return false
 }
 
 var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
@@ -250,18 +200,11 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
 	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12N\n" +
-	"\rcompatibility\x18\x03 \x01(\v2(.chatto.discovery.v1.ServerCompatibilityR\rcompatibility\"\x84\x03\n" +
-	"\x13ServerCompatibility\x12@\n" +
-	"\x1aminimum_web_client_version\x18\x02 \x01(\tH\x00R\x17minimumWebClientVersion\x88\x01\x01\x12!\n" +
-	"\fdiscovery_v1\x18\x03 \x01(\bR\vdiscoveryV1\x12\x17\n" +
-	"\aauth_v1\x18\x04 \x01(\bR\x06authV1\x12\x15\n" +
-	"\x06api_v1\x18\x05 \x01(\bR\x05apiV1\x12\x19\n" +
-	"\badmin_v1\x18\x06 \x01(\bR\aadminV1\x12*\n" +
-	"\x11message_search_v1\x18\a \x01(\bR\x0fmessageSearchV1\x12\x1f\n" +
-	"\vrealtime_v1\x18\b \x01(\bR\n" +
-	"realtimeV1\x124\n" +
-	"\x16realtime_projection_v1\x18\t \x01(\bR\x14realtimeProjectionV1B\x1d\n" +
-	"\x1b_minimum_web_client_versionJ\x04\b\x01\x10\x02R\x15protocol_capabilities2y\n" +
+	"\rcompatibility\x18\x03 \x01(\v2(.chatto.discovery.v1.ServerCompatibilityR\rcompatibility\"\xab\x01\n" +
+	"\x13ServerCompatibility\x123\n" +
+	"\x15protocol_capabilities\x18\x01 \x03(\tR\x14protocolCapabilities\x12@\n" +
+	"\x1aminimum_web_client_version\x18\x02 \x01(\tH\x00R\x17minimumWebClientVersion\x88\x01\x01B\x1d\n" +
+	"\x1b_minimum_web_client_version2y\n" +
 	"\x16ServerDiscoveryService\x12_\n" +
 	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x17com.chatto.discovery.v1B\vServerProtoP\x01Z;hmans.de/chatto/internal/pb/chatto/discovery/v1;discoveryv1\xa2\x02\x03CDX\xaa\x02\x13Chatto.Discovery.V1\xca\x02\x13Chatto\\Discovery\\V1\xe2\x02\x1fChatto\\Discovery\\V1\\GPBMetadata\xea\x02\x15Chatto::Discovery::V1b\x06proto3"

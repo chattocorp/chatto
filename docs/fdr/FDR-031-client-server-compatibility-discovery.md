@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-21
+**Last reviewed:** 2026-07-17
 
 ## Overview
 
@@ -26,8 +26,8 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
   software version when possible and otherwise remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- Third-party clients can use the public discovery response to inspect typed
-  protocol capabilities. The minimum web-client version applies only to Chatto's
+- Third-party clients can use the public discovery response to inspect protocol
+  capability keys. The minimum web-client version applies only to Chatto's
   bundled web client.
 - The `chatto.realtime.v1` protobuf namespace implements only behavioural
   protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
@@ -37,13 +37,13 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
 
 ### 1. Capabilities decide behaviour; versions explain legacy compatibility
 
-**Decision:** Clients prefer typed protocol capability fields and use software
+**Decision:** Clients prefer stable protocol capability keys and use software
 versions only when a server does not provide compatibility metadata.
 **Why:** Individual capabilities can evolve independently, while a single
 software-version comparison cannot explain which operation is available. A
 version fallback still gives the 0.5 client a useful answer for older servers.
-**Tradeoff:** Capability fields become public contracts and each new protocol
-contract requires an additive discovery-schema change.
+**Tradeoff:** Capability keys become public contracts and need deliberate
+naming and maintenance.
 
 ### 2. Compatibility metadata is public discovery data
 
