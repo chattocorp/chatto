@@ -38,6 +38,8 @@ its dense matrix rows scroll.
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** False when this subject is not eligible for a direct grant. */
+    canAllow?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -286,13 +288,18 @@ its dense matrix rows scroll.
                           : null,
                         ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
                       ].filter(Boolean)}
+                  {@const ownerCeilingTitle =
+                    cell.canAllow === false
+                      ? 'Allow unavailable because the bot owner lacks this permission'
+                      : null}
                   <MatrixCell
                     override={displayOverride}
                     inherited={displayEffective}
                     updating={isUpdating}
                     disabled={readOnly}
-                    {ariaLabel}
-                    title={titleParts.join(' · ')}
+                    canAllow={cell.canAllow !== false}
+                    ariaLabel={ownerCeilingTitle ? `${ariaLabel}. ${ownerCeilingTitle}` : ariaLabel}
+                    title={[...titleParts, ownerCeilingTitle].filter(Boolean).join(' · ')}
                     onCycle={(next) => onCycle(scope, permission, next)}
                   />
                 {:else}

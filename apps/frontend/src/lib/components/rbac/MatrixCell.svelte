@@ -24,6 +24,7 @@ to render an inert "—" cell with an explanation tooltip.
     override,
     inherited = 'neutral',
     applicable = true,
+    canAllow = true,
     disabled = false,
     updating = false,
     ariaLabel,
@@ -33,6 +34,8 @@ to render an inert "—" cell with an explanation tooltip.
     override: State;
     inherited?: State;
     applicable?: boolean;
+    /** Whether cycling from neutral may create an explicit allow. */
+    canAllow?: boolean;
     disabled?: boolean;
     updating?: boolean;
     ariaLabel: string;
@@ -41,7 +44,7 @@ to render an inert "—" cell with an explanation tooltip.
   } = $props();
 
   function nextState(): State {
-    if (override === 'neutral') return 'allow';
+    if (override === 'neutral') return canAllow ? 'allow' : 'deny';
     if (override === 'allow') return 'deny';
     return 'neutral';
   }

@@ -120,6 +120,41 @@ func (s *botService) BatchGetBots(ctx context.Context, req *connect.Request[apiv
 	return connect.NewResponse(&apiv1.BatchGetBotsResponse{Bots: out}), nil
 }
 
+func (s *botService) GetBotPermissionMatrix(ctx context.Context, req *connect.Request[apiv1.GetBotPermissionMatrixRequest]) (*connect.Response[apiv1.GetBotPermissionMatrixResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	matrix, err := s.api.core.GetBotPermissionMatrix(ctx, caller.UserID, req.Msg.GetBotId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetBotPermissionMatrixResponse{Matrix: apiBotPermissionMatrix(matrix)}), nil
+}
+
+func (s *botService) SetBotPermission(ctx context.Context, req *connect.Request[apiv1.SetBotPermissionRequest]) (*connect.Response[apiv1.SetBotPermissionResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	scope, scopeID, err := coreBotPermissionScope(req.Msg.GetScope())
+	if err != nil {
+		return nil, err
+	}
+	decision, err := coreBotPermissionDecision(req.Msg.GetDecision())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.SetBotPermission(ctx, caller.UserID, req.Msg.GetBotId(), scope, scopeID, core.Permission(req.Msg.GetPermission()), decision); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SetBotPermissionResponse{Update: &apiv1.BotPermissionDecisionUpdate{
+		Permission: req.Msg.GetPermission(),
+		Scope:      apiBotPermissionScope(scope, scopeID),
+		Decision:   req.Msg.GetDecision(),
+	}}), nil
+}
+
 func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.CreateBotRequest]) (*connect.Response[apiv1.CreateBotResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -244,4 +279,103 @@ func (s *botService) bot(ctx context.Context, bot *corev1.User) (*apiv1.Bot, err
 		item.ApiKey = &apiv1.BotAPIKey{CreatedAt: timestamppb.New(status.CreatedAt)}
 	}
 	return item, nil
+}
+
+func apiBotPermissionMatrix(matrix *core.BotPermissionMatrix) *apiv1.BotPermissionMatrix {
+	if matrix == nil {
+		return nil
+	}
+	out := &apiv1.BotPermissionMatrix{
+		BotId:                 matrix.BotID,
+		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
+		Scopes:                make([]*apiv1.BotPermissionMatrixScope, 0, len(matrix.Scopes)),
+		Cells:                 make([]*apiv1.BotPermissionMatrixCell, 0, len(matrix.Cells)),
+	}
+	for _, scope := range matrix.Scopes {
+		out.Scopes = append(out.Scopes, &apiv1.BotPermissionMatrixScope{
+			Id: scope.ID, Label: scope.Label, Kind: apiBotPermissionScopeKind(scope.Kind), ParentGroupId: scope.ParentGroupID,
+		})
+	}
+	for _, cell := range matrix.Cells {
+		out.Cells = append(out.Cells, &apiv1.BotPermissionMatrixCell{
+			Permission: cell.Permission, ScopeId: cell.ScopeID,
+			DirectDecision: apiBotPermissionDecision(cell.Direct), EffectiveDecision: apiBotPermissionDecision(cell.Effective),
+			OwnerAllowed: cell.OwnerAllowed,
+		})
+	}
+	return out
+}
+
+func apiBotPermissionScopeKind(kind core.MatrixScopeKind) apiv1.BotPermissionScopeKind {
+	switch kind {
+	case core.MatrixScopeGroup:
+		return apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_GROUP
+	case core.MatrixScopeRoom:
+		return apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_ROOM
+	default:
+		return apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER
+	}
+}
+
+func apiBotPermissionScope(scope core.PermissionScope, scopeID string) *apiv1.BotPermissionScope {
+	kind := apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER
+	switch scope {
+	case core.ScopeGroup:
+		kind = apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_GROUP
+	case core.ScopeRoom:
+		kind = apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_ROOM
+	default:
+		scopeID = ""
+	}
+	return &apiv1.BotPermissionScope{Kind: kind, Id: scopeID}
+}
+
+func apiBotPermissionDecision(decision core.MatrixDecision) apiv1.BotPermissionDecision {
+	switch decision {
+	case core.MatrixDecisionAllow:
+		return apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_ALLOW
+	case core.MatrixDecisionDeny:
+		return apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY
+	default:
+		return apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_NONE
+	}
+}
+
+func coreBotPermissionScope(scope *apiv1.BotPermissionScope) (core.PermissionScope, string, error) {
+	if scope == nil {
+		return core.ScopeServer, "", nil
+	}
+	switch scope.GetKind() {
+	case apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED,
+		apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER:
+		if scope.GetId() != "" {
+			return "", "", invalidArgument("server scope id must be empty")
+		}
+		return core.ScopeServer, "", nil
+	case apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_GROUP:
+		if scope.GetId() == "" {
+			return "", "", invalidArgument("group scope id is required")
+		}
+		return core.ScopeGroup, scope.GetId(), nil
+	case apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_ROOM:
+		if scope.GetId() == "" {
+			return "", "", invalidArgument("room scope id is required")
+		}
+		return core.ScopeRoom, scope.GetId(), nil
+	default:
+		return "", "", invalidArgument("unsupported bot permission scope kind")
+	}
+}
+
+func coreBotPermissionDecision(decision apiv1.BotPermissionDecision) (core.DecisionKind, error) {
+	switch decision {
+	case apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_ALLOW:
+		return core.DecisionAllow, nil
+	case apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY:
+		return core.DecisionDeny, nil
+	case apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_NONE:
+		return core.DecisionNone, nil
+	default:
+		return "", invalidArgument("decision is required")
+	}
 }

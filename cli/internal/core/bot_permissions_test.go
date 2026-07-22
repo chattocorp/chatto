@@ -114,6 +114,16 @@ func TestBotPermissionManagementBoundsAndAdministration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	matrix, err := c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("owner GetBotPermissionMatrix: %v", err)
+	}
+	if matrix.BotID != bot.GetId() || len(matrix.Cells) == 0 {
+		t.Fatalf("bot permission matrix = %+v", matrix)
+	}
+	if _, err := c.GetBotPermissionMatrix(ctx, other.GetId(), bot.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("other GetBotPermissionMatrix = %v, want permission denied", err)
+	}
 
 	if err := c.SetBotPermission(ctx, owner.GetId(), bot.GetId(), ScopeServer, "", PermRoomManage, DecisionAllow); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("owner grant beyond ceiling = %v, want permission denied", err)
@@ -131,6 +141,22 @@ func TestBotPermissionManagementBoundsAndAdministration(t *testing.T) {
 	}
 	if err := c.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), owner.GetId(), PermRoomManage); err != nil {
 		t.Fatal(err)
+	}
+	matrix, err = c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("GetBotPermissionMatrix after owner deny: %v", err)
+	}
+	foundOwnerCeiling := false
+	for _, cell := range matrix.Cells {
+		if cell.ScopeID == "room:"+room.GetId() && cell.Permission == string(PermRoomManage) {
+			foundOwnerCeiling = true
+			if cell.OwnerAllowed || cell.Effective != MatrixDecisionDeny {
+				t.Fatalf("owner-bounded matrix cell = %+v, want unavailable deny", cell)
+			}
+		}
+	}
+	if !foundOwnerCeiling {
+		t.Fatal("owner-bounded room permission cell not found")
 	}
 	if err := c.SetBotPermission(ctx, owner.GetId(), bot.GetId(), ScopeRoom, room.GetId(), PermRoomManage, DecisionAllow); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("room grant beyond owner ceiling = %v, want permission denied", err)

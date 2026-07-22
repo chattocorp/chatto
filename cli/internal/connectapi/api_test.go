@@ -4149,6 +4149,25 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if created.Msg.GetBot().GetUser().GetBot().GetOwnerId() != env.viewer.GetId() || created.Msg.GetBot().GetUser().GetBot().GetDescription() == "" {
 		t.Fatalf("created bot = %+v", created.Msg.GetBot())
 	}
+	matrix, err := env.bots.GetBotPermissionMatrix(ownerCtx, connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("GetBotPermissionMatrix: %v", err)
+	}
+	if matrix.Msg.GetMatrix().GetBotId() != botID || len(matrix.Msg.GetMatrix().GetCells()) == 0 {
+		t.Fatalf("bot permission matrix = %+v", matrix.Msg.GetMatrix())
+	}
+	setPermission, err := env.bots.SetBotPermission(ownerCtx, connect.NewRequest(&apiv1.SetBotPermissionRequest{
+		BotId:      botID,
+		Scope:      &apiv1.BotPermissionScope{Kind: apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER},
+		Permission: string(core.PermMessagePost),
+		Decision:   apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY,
+	}))
+	if err != nil {
+		t.Fatalf("SetBotPermission: %v", err)
+	}
+	if update := setPermission.Msg.GetUpdate(); update.GetPermission() != string(core.PermMessagePost) || update.GetDecision() != apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY {
+		t.Fatalf("SetBotPermission update = %+v", update)
+	}
 
 	description := "Answers questions and stores no conversation content."
 	displayName := "Updated Helper"
@@ -4183,6 +4202,9 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	}
 	if _, err := env.bots.GetBot(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("other GetBot code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.bots.GetBotPermissionMatrix(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other GetBotPermissionMatrix code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	if _, err := env.bots.RotateBotAPIKey(withCaller(env.ctx, other), connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("other RotateBotAPIKey code = %v, want permission_denied", connect.CodeOf(err))

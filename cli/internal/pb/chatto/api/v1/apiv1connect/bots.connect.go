@@ -39,6 +39,12 @@ const (
 	BotServiceGetBotProcedure = "/chatto.api.v1.BotService/GetBot"
 	// BotServiceBatchGetBotsProcedure is the fully-qualified name of the BotService's BatchGetBots RPC.
 	BotServiceBatchGetBotsProcedure = "/chatto.api.v1.BotService/BatchGetBots"
+	// BotServiceGetBotPermissionMatrixProcedure is the fully-qualified name of the BotService's
+	// GetBotPermissionMatrix RPC.
+	BotServiceGetBotPermissionMatrixProcedure = "/chatto.api.v1.BotService/GetBotPermissionMatrix"
+	// BotServiceSetBotPermissionProcedure is the fully-qualified name of the BotService's
+	// SetBotPermission RPC.
+	BotServiceSetBotPermissionProcedure = "/chatto.api.v1.BotService/SetBotPermission"
 	// BotServiceCreateBotProcedure is the fully-qualified name of the BotService's CreateBot RPC.
 	BotServiceCreateBotProcedure = "/chatto.api.v1.BotService/CreateBot"
 	// BotServiceUpdateBotProcedure is the fully-qualified name of the BotService's UpdateBot RPC.
@@ -65,6 +71,12 @@ type BotServiceClient interface {
 	// Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
 	// omitted so one missing record does not fail the batch.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
+	// Gets the direct and effective permission matrix for one manageable bot,
+	// including the owner's current delegation ceiling.
+	GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error)
+	// Sets or clears one direct permission decision for a manageable bot. An
+	// allow is rejected when the owner lacks that permission at the same scope.
+	SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error)
 	// Creates a bot owned by the authenticated human. Requires `bot.create`.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Patches identity or description fields on one manageable bot. At least one
@@ -110,6 +122,18 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("BatchGetBots")),
 			connect.WithClientOptions(opts...),
 		),
+		getBotPermissionMatrix: connect.NewClient[v1.GetBotPermissionMatrixRequest, v1.GetBotPermissionMatrixResponse](
+			httpClient,
+			baseURL+BotServiceGetBotPermissionMatrixProcedure,
+			connect.WithSchema(botServiceMethods.ByName("GetBotPermissionMatrix")),
+			connect.WithClientOptions(opts...),
+		),
+		setBotPermission: connect.NewClient[v1.SetBotPermissionRequest, v1.SetBotPermissionResponse](
+			httpClient,
+			baseURL+BotServiceSetBotPermissionProcedure,
+			connect.WithSchema(botServiceMethods.ByName("SetBotPermission")),
+			connect.WithClientOptions(opts...),
+		),
 		createBot: connect.NewClient[v1.CreateBotRequest, v1.CreateBotResponse](
 			httpClient,
 			baseURL+BotServiceCreateBotProcedure,
@@ -145,14 +169,16 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	listBots        *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot          *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots    *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot       *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot       *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deleteBot       *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	rotateBotAPIKey *connect.Client[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse]
-	revokeBotAPIKey *connect.Client[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse]
+	listBots               *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot                 *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots           *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	getBotPermissionMatrix *connect.Client[v1.GetBotPermissionMatrixRequest, v1.GetBotPermissionMatrixResponse]
+	setBotPermission       *connect.Client[v1.SetBotPermissionRequest, v1.SetBotPermissionResponse]
+	createBot              *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot              *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	deleteBot              *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	rotateBotAPIKey        *connect.Client[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse]
+	revokeBotAPIKey        *connect.Client[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse]
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -168,6 +194,16 @@ func (c *botServiceClient) GetBot(ctx context.Context, req *connect.Request[v1.G
 // BatchGetBots calls chatto.api.v1.BotService.BatchGetBots.
 func (c *botServiceClient) BatchGetBots(ctx context.Context, req *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error) {
 	return c.batchGetBots.CallUnary(ctx, req)
+}
+
+// GetBotPermissionMatrix calls chatto.api.v1.BotService.GetBotPermissionMatrix.
+func (c *botServiceClient) GetBotPermissionMatrix(ctx context.Context, req *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error) {
+	return c.getBotPermissionMatrix.CallUnary(ctx, req)
+}
+
+// SetBotPermission calls chatto.api.v1.BotService.SetBotPermission.
+func (c *botServiceClient) SetBotPermission(ctx context.Context, req *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error) {
+	return c.setBotPermission.CallUnary(ctx, req)
 }
 
 // CreateBot calls chatto.api.v1.BotService.CreateBot.
@@ -207,6 +243,12 @@ type BotServiceHandler interface {
 	// Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
 	// omitted so one missing record does not fail the batch.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
+	// Gets the direct and effective permission matrix for one manageable bot,
+	// including the owner's current delegation ceiling.
+	GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error)
+	// Sets or clears one direct permission decision for a manageable bot. An
+	// allow is rejected when the owner lacks that permission at the same scope.
+	SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error)
 	// Creates a bot owned by the authenticated human. Requires `bot.create`.
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Patches identity or description fields on one manageable bot. At least one
@@ -248,6 +290,18 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("BatchGetBots")),
 		connect.WithHandlerOptions(opts...),
 	)
+	botServiceGetBotPermissionMatrixHandler := connect.NewUnaryHandler(
+		BotServiceGetBotPermissionMatrixProcedure,
+		svc.GetBotPermissionMatrix,
+		connect.WithSchema(botServiceMethods.ByName("GetBotPermissionMatrix")),
+		connect.WithHandlerOptions(opts...),
+	)
+	botServiceSetBotPermissionHandler := connect.NewUnaryHandler(
+		BotServiceSetBotPermissionProcedure,
+		svc.SetBotPermission,
+		connect.WithSchema(botServiceMethods.ByName("SetBotPermission")),
+		connect.WithHandlerOptions(opts...),
+	)
 	botServiceCreateBotHandler := connect.NewUnaryHandler(
 		BotServiceCreateBotProcedure,
 		svc.CreateBot,
@@ -286,6 +340,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceGetBotHandler.ServeHTTP(w, r)
 		case BotServiceBatchGetBotsProcedure:
 			botServiceBatchGetBotsHandler.ServeHTTP(w, r)
+		case BotServiceGetBotPermissionMatrixProcedure:
+			botServiceGetBotPermissionMatrixHandler.ServeHTTP(w, r)
+		case BotServiceSetBotPermissionProcedure:
+			botServiceSetBotPermissionHandler.ServeHTTP(w, r)
 		case BotServiceCreateBotProcedure:
 			botServiceCreateBotHandler.ServeHTTP(w, r)
 		case BotServiceUpdateBotProcedure:
@@ -315,6 +373,14 @@ func (UnimplementedBotServiceHandler) GetBot(context.Context, *connect.Request[v
 
 func (UnimplementedBotServiceHandler) BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.BatchGetBots is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.GetBotPermissionMatrix is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.SetBotPermission is not implemented"))
 }
 
 func (UnimplementedBotServiceHandler) CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error) {

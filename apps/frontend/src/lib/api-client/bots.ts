@@ -1,6 +1,11 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import type { Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
+import {
+  BotPermissionDecision,
+  BotPermissionScopeKind,
+  type Bot as APIBot,
+  type BotPermissionMatrix as APIBotPermissionMatrix
+} from '@chatto/api-types/api/v1/bots_pb';
 
 export type BotAPIConfig = {
   baseUrl: string;
@@ -35,6 +40,26 @@ export type UpdateBotInput = {
   login?: string;
   displayName?: string;
   description?: string;
+};
+
+export type BotPermissionScope = {
+  id: string;
+  label: string;
+  kind: 'SERVER' | 'GROUP' | 'ROOM';
+  parentGroupId: string;
+};
+
+export type BotPermissionMatrix = {
+  botId: string;
+  applicablePermissions: string[];
+  scopes: BotPermissionScope[];
+  cells: Array<{
+    permission: string;
+    scopeId: string;
+    directDecision: 'ALLOW' | 'DENY' | 'NONE';
+    effectiveDecision: 'ALLOW' | 'DENY' | 'NONE';
+    ownerAllowed: boolean;
+  }>;
 };
 
 export function createBotAPI(config: BotAPIConfig) {
@@ -73,6 +98,32 @@ export function createBotAPI(config: BotAPIConfig) {
     async updateBot(input: UpdateBotInput): Promise<BotAccount> {
       const response = await client.updateBot(input, { headers: headers() });
       return botAccount(requiredBot(response.bot));
+    },
+
+    async getPermissionMatrix(botId: string): Promise<BotPermissionMatrix> {
+      const response = await client.getBotPermissionMatrix({ botId }, { headers: headers() });
+      if (!response.matrix) throw new Error('bot permission response did not include a matrix');
+      return botPermissionMatrix(response.matrix);
+    },
+
+    async setPermission(input: {
+      botId: string;
+      permission: string;
+      scope: BotPermissionScope;
+      decision: 'ALLOW' | 'DENY' | 'NONE';
+    }): Promise<void> {
+      await client.setBotPermission(
+        {
+          botId: input.botId,
+          permission: input.permission,
+          scope: {
+            kind: botPermissionScopeKind(input.scope.kind),
+            id: input.scope.kind === 'SERVER' ? '' : input.scope.id.replace(/^[^:]+:/, '')
+          },
+          decision: botPermissionDecision(input.decision)
+        },
+        { headers: headers() }
+      );
     }
   };
 }
@@ -100,4 +151,48 @@ function botAccount(bot: APIBot): BotAccount {
     createdAt: bot.createdAt?.toDate().toISOString() ?? null,
     apiKeyCreatedAt: bot.apiKey?.createdAt?.toDate().toISOString() ?? null
   };
+}
+
+function botPermissionMatrix(matrix: APIBotPermissionMatrix): BotPermissionMatrix {
+  return {
+    botId: matrix.botId,
+    applicablePermissions: [...matrix.applicablePermissions],
+    scopes: matrix.scopes.map((scope) => ({
+      id: scope.id,
+      label: scope.label,
+      kind: botPermissionScopeKindName(scope.kind),
+      parentGroupId: scope.parentGroupId
+    })),
+    cells: matrix.cells.map((cell) => ({
+      permission: cell.permission,
+      scopeId: cell.scopeId,
+      directDecision: botPermissionDecisionName(cell.directDecision),
+      effectiveDecision: botPermissionDecisionName(cell.effectiveDecision),
+      ownerAllowed: cell.ownerAllowed
+    }))
+  };
+}
+
+function botPermissionDecisionName(decision: BotPermissionDecision): 'ALLOW' | 'DENY' | 'NONE' {
+  if (decision === BotPermissionDecision.ALLOW) return 'ALLOW';
+  if (decision === BotPermissionDecision.DENY) return 'DENY';
+  return 'NONE';
+}
+
+function botPermissionDecision(decision: 'ALLOW' | 'DENY' | 'NONE'): BotPermissionDecision {
+  if (decision === 'ALLOW') return BotPermissionDecision.ALLOW;
+  if (decision === 'DENY') return BotPermissionDecision.DENY;
+  return BotPermissionDecision.NONE;
+}
+
+function botPermissionScopeKindName(kind: BotPermissionScopeKind): 'SERVER' | 'GROUP' | 'ROOM' {
+  if (kind === BotPermissionScopeKind.GROUP) return 'GROUP';
+  if (kind === BotPermissionScopeKind.ROOM) return 'ROOM';
+  return 'SERVER';
+}
+
+function botPermissionScopeKind(kind: 'SERVER' | 'GROUP' | 'ROOM'): BotPermissionScopeKind {
+  if (kind === 'GROUP') return BotPermissionScopeKind.GROUP;
+  if (kind === 'ROOM') return BotPermissionScopeKind.ROOM;
+  return BotPermissionScopeKind.SERVER;
 }

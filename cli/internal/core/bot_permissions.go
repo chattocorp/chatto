@@ -8,6 +8,95 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// BotPermissionMatrixCell adds the bot owner's current delegation ceiling to
+// the ordinary direct/effective user permission cell.
+type BotPermissionMatrixCell struct {
+	Permission   string
+	ScopeID      string
+	Direct       MatrixDecision
+	Effective    MatrixDecision
+	OwnerAllowed bool
+}
+
+// BotPermissionMatrix describes one manageable bot across every permission
+// scope visible to the server.
+type BotPermissionMatrix struct {
+	BotID                 string
+	ApplicablePermissions []string
+	Scopes                []PermissionMatrixScope
+	Cells                 []BotPermissionMatrixCell
+}
+
+// GetBotPermissionMatrix returns the bot's direct/effective permission state
+// together with the owner's current delegation ceiling.
+func (c *ChattoCore) GetBotPermissionMatrix(ctx context.Context, actorID, botID string) (*BotPermissionMatrix, error) {
+	bot, err := c.GetUser(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	if bot.GetBot() == nil {
+		return nil, ErrNotFound
+	}
+	allowed, err := c.CanManageBot(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrPermissionDenied
+	}
+
+	matrix, err := c.buildUserPermissionMatrix(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	ownerID := bot.GetBot().GetOwnerId()
+	scopes := make(map[string]PermissionMatrixScope, len(matrix.Scopes))
+	for _, scope := range matrix.Scopes {
+		scopes[scope.ID] = scope
+	}
+	cells := make([]BotPermissionMatrixCell, 0, len(matrix.Cells))
+	for _, cell := range matrix.Cells {
+		scope, ok := scopes[cell.ScopeID]
+		if !ok {
+			continue
+		}
+		permissionScope, scopeID, ok := botPermissionCoreScope(scope)
+		if !ok {
+			continue
+		}
+		ownerAllowed, err := c.hasPermissionAtScope(ctx, ownerID, permissionScope, scopeID, Permission(cell.Permission))
+		if err != nil {
+			return nil, err
+		}
+		cells = append(cells, BotPermissionMatrixCell{
+			Permission:   cell.Permission,
+			ScopeID:      cell.ScopeID,
+			Direct:       cell.Override,
+			Effective:    cell.Effective,
+			OwnerAllowed: ownerAllowed,
+		})
+	}
+	return &BotPermissionMatrix{
+		BotID:                 botID,
+		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
+		Scopes:                append([]PermissionMatrixScope(nil), matrix.Scopes...),
+		Cells:                 cells,
+	}, nil
+}
+
+func botPermissionCoreScope(scope PermissionMatrixScope) (PermissionScope, string, bool) {
+	switch scope.Kind {
+	case MatrixScopeServer:
+		return ScopeServer, "", true
+	case MatrixScopeGroup:
+		return ScopeGroup, scopeRefID(scope.ID, "group:"), true
+	case MatrixScopeRoom:
+		return ScopeRoom, scopeRefID(scope.ID, "room:"), true
+	default:
+		return "", "", false
+	}
+}
+
 // SetBotPermission writes one direct permission decision for a bot. Bot owners
 // require bot.create; other human actors require bot.manage. Allows are
 // accepted only while the bot's owner currently has the same scoped

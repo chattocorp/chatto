@@ -124,6 +124,75 @@ Batch bot lookup response.
 | `bots` | repeated [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Found bots in first-seen request order, with duplicate IDs removed. |
 
 
+<a id="chatto-api-v1-BotService-GetBotPermissionMatrix"></a>
+
+### GetBotPermissionMatrix
+
+Gets the direct and effective permission matrix for one manageable bot,
+including the owner's current delegation ceiling.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBotPermissionMatrix
+```
+
+<a id="chatto-api-v1-GetBotPermissionMatrixRequest"></a>
+
+#### Input: GetBotPermissionMatrixRequest
+
+Request one manageable bot's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-GetBotPermissionMatrixResponse"></a>
+
+#### Result: GetBotPermissionMatrixResponse
+
+Bot permission matrix response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `matrix` | [`BotPermissionMatrix`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionMatrix) | Requested bot permission matrix. |
+
+
+<a id="chatto-api-v1-BotService-SetBotPermission"></a>
+
+### SetBotPermission
+
+Sets or clears one direct permission decision for a manageable bot. An
+allow is rejected when the owner lacks that permission at the same scope.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/SetBotPermission
+```
+
+<a id="chatto-api-v1-SetBotPermissionRequest"></a>
+
+#### Input: SetBotPermissionRequest
+
+Request a direct bot permission decision at one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+| `scope` | [`BotPermissionScope`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionScope) | Target server, group, or room scope. |
+| `permission` | `string` | Required permission identifier. |
+| `decision` | [`BotPermissionDecision`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionDecision) | Direct decision to store. NONE clears the existing decision. |
+
+
+<a id="chatto-api-v1-SetBotPermissionResponse"></a>
+
+#### Result: SetBotPermissionResponse
+
+Bot permission write response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `update` | [`BotPermissionDecisionUpdate`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionDecisionUpdate) | Stored direct permission decision. |
+
+
 <a id="chatto-api-v1-BotService-CreateBot"></a>
 
 ### CreateBot

@@ -43,6 +43,119 @@ message ListBotsResponse {
   PageInfo page = 2;
 }
 
+// Trinary direct permission decision for a bot.
+enum BotPermissionDecision {
+  // Unspecified decision; rejected for writes.
+  BOT_PERMISSION_DECISION_UNSPECIFIED = 0;
+  // Explicit allow.
+  BOT_PERMISSION_DECISION_ALLOW = 1;
+  // Explicit deny.
+  BOT_PERMISSION_DECISION_DENY = 2;
+  // No direct decision; clears the decision on writes.
+  BOT_PERMISSION_DECISION_NONE = 3;
+}
+
+// Scope tier for bot permission matrices and writes.
+enum BotPermissionScopeKind {
+  // Unspecified scope; treated as server scope for compatibility.
+  BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+  // Server tier.
+  BOT_PERMISSION_SCOPE_KIND_SERVER = 1;
+  // Room-group tier.
+  BOT_PERMISSION_SCOPE_KIND_GROUP = 2;
+  // Room tier.
+  BOT_PERMISSION_SCOPE_KIND_ROOM = 3;
+}
+
+// Concrete scope for a bot permission decision.
+message BotPermissionScope {
+  // Scope tier.
+  BotPermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // Group or room ID. Empty for server scope.
+  string id = 2;
+}
+
+// Matrix column describing one server, group, or room scope.
+message BotPermissionMatrixScope {
+  // Stable matrix scope ID.
+  string id = 1;
+  // Human-readable scope label.
+  string label = 2;
+  // Scope tier.
+  BotPermissionScopeKind kind = 3;
+  // Parent group ID for room scopes.
+  string parent_group_id = 4;
+}
+
+// One bot permission at one scope.
+message BotPermissionMatrixCell {
+  // Permission identifier.
+  string permission = 1;
+  // Scope ID matching BotPermissionMatrixScope.id.
+  string scope_id = 2;
+  // Bot's explicit direct decision at this scope.
+  BotPermissionDecision direct_decision = 3;
+  // Bot's effective decision after inheritance and the owner ceiling.
+  BotPermissionDecision effective_decision = 4;
+  // Whether the owner currently has this permission at this scope.
+  bool owner_allowed = 5;
+}
+
+// Permission matrix for one manageable bot across all scopes.
+message BotPermissionMatrix {
+  // Bot account ID.
+  string bot_id = 1;
+  // Permissions rendered as rows.
+  repeated string applicable_permissions = 2;
+  // Scopes rendered as columns.
+  repeated BotPermissionMatrixScope scopes = 3;
+  // Sparse matrix cells.
+  repeated BotPermissionMatrixCell cells = 4;
+}
+
+// Request one manageable bot's permission matrix.
+message GetBotPermissionMatrixRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot permission matrix response.
+message GetBotPermissionMatrixResponse {
+  // Requested bot permission matrix.
+  BotPermissionMatrix matrix = 1;
+}
+
+// Request a direct bot permission decision at one scope.
+message SetBotPermissionRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Target server, group, or room scope.
+  BotPermissionScope scope = 2;
+  // Required permission identifier.
+  string permission = 3 [(buf.validate.field).string.min_len = 1];
+  // Direct decision to store. NONE clears the existing decision.
+  BotPermissionDecision decision = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// One stored direct bot permission decision.
+message BotPermissionDecisionUpdate {
+  // Permission identifier.
+  string permission = 1;
+  // Scope at which the direct decision was stored.
+  BotPermissionScope scope = 2;
+  // Stored direct decision. NONE means the previous decision was cleared.
+  BotPermissionDecision decision = 3;
+}
+
+// Bot permission write response.
+message SetBotPermissionResponse {
+  // Stored direct permission decision.
+  BotPermissionDecisionUpdate update = 1;
+}
+
 // Request one manageable bot by stable account ID.
 message GetBotRequest {
   // Required bot account ID.
@@ -158,6 +271,12 @@ service BotService {
   // Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
   // omitted so one missing record does not fail the batch.
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
+  // Gets the direct and effective permission matrix for one manageable bot,
+  // including the owner's current delegation ceiling.
+  rpc GetBotPermissionMatrix(GetBotPermissionMatrixRequest) returns (GetBotPermissionMatrixResponse);
+  // Sets or clears one direct permission decision for a manageable bot. An
+  // allow is rejected when the owner lacks that permission at the same scope.
+  rpc SetBotPermission(SetBotPermissionRequest) returns (SetBotPermissionResponse);
   // Creates a bot owned by the authenticated human. Requires `bot.create`.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
   // Patches identity or description fields on one manageable bot. At least one

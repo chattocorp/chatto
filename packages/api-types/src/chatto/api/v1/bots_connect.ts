@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RevokeBotAPIKeyRequest, RevokeBotAPIKeyResponse, RotateBotAPIKeyRequest, RotateBotAPIKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotPermissionMatrixRequest, GetBotPermissionMatrixResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RevokeBotAPIKeyRequest, RevokeBotAPIKeyResponse, RotateBotAPIKeyRequest, RotateBotAPIKeyResponse, SetBotPermissionRequest, SetBotPermissionResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -50,6 +50,30 @@ export const BotService = {
       name: "BatchGetBots",
       I: BatchGetBotsRequest,
       O: BatchGetBotsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets the direct and effective permission matrix for one manageable bot,
+     * including the owner's current delegation ceiling.
+     *
+     * @generated from rpc chatto.api.v1.BotService.GetBotPermissionMatrix
+     */
+    getBotPermissionMatrix: {
+      name: "GetBotPermissionMatrix",
+      I: GetBotPermissionMatrixRequest,
+      O: GetBotPermissionMatrixResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets or clears one direct permission decision for a manageable bot. An
+     * allow is rejected when the owner lacks that permission at the same scope.
+     *
+     * @generated from rpc chatto.api.v1.BotService.SetBotPermission
+     */
+    setBotPermission: {
+      name: "SetBotPermission",
+      I: SetBotPermissionRequest,
+      O: SetBotPermissionResponse,
       kind: MethodKind.Unary,
     },
     /**

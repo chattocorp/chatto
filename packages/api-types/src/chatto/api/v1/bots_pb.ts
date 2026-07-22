@@ -9,6 +9,90 @@ import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
+ * Trinary direct permission decision for a bot.
+ *
+ * @generated from enum chatto.api.v1.BotPermissionDecision
+ */
+export enum BotPermissionDecision {
+  /**
+   * Unspecified decision; rejected for writes.
+   *
+   * @generated from enum value: BOT_PERMISSION_DECISION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Explicit allow.
+   *
+   * @generated from enum value: BOT_PERMISSION_DECISION_ALLOW = 1;
+   */
+  ALLOW = 1,
+
+  /**
+   * Explicit deny.
+   *
+   * @generated from enum value: BOT_PERMISSION_DECISION_DENY = 2;
+   */
+  DENY = 2,
+
+  /**
+   * No direct decision; clears the decision on writes.
+   *
+   * @generated from enum value: BOT_PERMISSION_DECISION_NONE = 3;
+   */
+  NONE = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(BotPermissionDecision)
+proto3.util.setEnumType(BotPermissionDecision, "chatto.api.v1.BotPermissionDecision", [
+  { no: 0, name: "BOT_PERMISSION_DECISION_UNSPECIFIED" },
+  { no: 1, name: "BOT_PERMISSION_DECISION_ALLOW" },
+  { no: 2, name: "BOT_PERMISSION_DECISION_DENY" },
+  { no: 3, name: "BOT_PERMISSION_DECISION_NONE" },
+]);
+
+/**
+ * Scope tier for bot permission matrices and writes.
+ *
+ * @generated from enum chatto.api.v1.BotPermissionScopeKind
+ */
+export enum BotPermissionScopeKind {
+  /**
+   * Unspecified scope; treated as server scope for compatibility.
+   *
+   * @generated from enum value: BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Server tier.
+   *
+   * @generated from enum value: BOT_PERMISSION_SCOPE_KIND_SERVER = 1;
+   */
+  SERVER = 1,
+
+  /**
+   * Room-group tier.
+   *
+   * @generated from enum value: BOT_PERMISSION_SCOPE_KIND_GROUP = 2;
+   */
+  GROUP = 2,
+
+  /**
+   * Room tier.
+   *
+   * @generated from enum value: BOT_PERMISSION_SCOPE_KIND_ROOM = 3;
+   */
+  ROOM = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(BotPermissionScopeKind)
+proto3.util.setEnumType(BotPermissionScopeKind, "chatto.api.v1.BotPermissionScopeKind", [
+  { no: 0, name: "BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED" },
+  { no: 1, name: "BOT_PERMISSION_SCOPE_KIND_SERVER" },
+  { no: 2, name: "BOT_PERMISSION_SCOPE_KIND_GROUP" },
+  { no: 3, name: "BOT_PERMISSION_SCOPE_KIND_ROOM" },
+]);
+
+/**
  * A bot account manageable by the authenticated user.
  *
  * @generated from message chatto.api.v1.Bot
@@ -211,6 +295,503 @@ export class ListBotsResponse extends Message<ListBotsResponse> {
 
   static equals(a: ListBotsResponse | PlainMessage<ListBotsResponse> | undefined, b: ListBotsResponse | PlainMessage<ListBotsResponse> | undefined): boolean {
     return proto3.util.equals(ListBotsResponse, a, b);
+  }
+}
+
+/**
+ * Concrete scope for a bot permission decision.
+ *
+ * @generated from message chatto.api.v1.BotPermissionScope
+ */
+export class BotPermissionScope extends Message<BotPermissionScope> {
+  /**
+   * Scope tier.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionScopeKind kind = 1;
+   */
+  kind = BotPermissionScopeKind.UNSPECIFIED;
+
+  /**
+   * Group or room ID. Empty for server scope.
+   *
+   * @generated from field: string id = 2;
+   */
+  id = "";
+
+  constructor(data?: PartialMessage<BotPermissionScope>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotPermissionScope";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BotPermissionScopeKind) },
+    { no: 2, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotPermissionScope {
+    return new BotPermissionScope().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotPermissionScope {
+    return new BotPermissionScope().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotPermissionScope {
+    return new BotPermissionScope().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotPermissionScope | PlainMessage<BotPermissionScope> | undefined, b: BotPermissionScope | PlainMessage<BotPermissionScope> | undefined): boolean {
+    return proto3.util.equals(BotPermissionScope, a, b);
+  }
+}
+
+/**
+ * Matrix column describing one server, group, or room scope.
+ *
+ * @generated from message chatto.api.v1.BotPermissionMatrixScope
+ */
+export class BotPermissionMatrixScope extends Message<BotPermissionMatrixScope> {
+  /**
+   * Stable matrix scope ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Human-readable scope label.
+   *
+   * @generated from field: string label = 2;
+   */
+  label = "";
+
+  /**
+   * Scope tier.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionScopeKind kind = 3;
+   */
+  kind = BotPermissionScopeKind.UNSPECIFIED;
+
+  /**
+   * Parent group ID for room scopes.
+   *
+   * @generated from field: string parent_group_id = 4;
+   */
+  parentGroupId = "";
+
+  constructor(data?: PartialMessage<BotPermissionMatrixScope>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotPermissionMatrixScope";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BotPermissionScopeKind) },
+    { no: 4, name: "parent_group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotPermissionMatrixScope {
+    return new BotPermissionMatrixScope().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotPermissionMatrixScope {
+    return new BotPermissionMatrixScope().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotPermissionMatrixScope {
+    return new BotPermissionMatrixScope().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotPermissionMatrixScope | PlainMessage<BotPermissionMatrixScope> | undefined, b: BotPermissionMatrixScope | PlainMessage<BotPermissionMatrixScope> | undefined): boolean {
+    return proto3.util.equals(BotPermissionMatrixScope, a, b);
+  }
+}
+
+/**
+ * One bot permission at one scope.
+ *
+ * @generated from message chatto.api.v1.BotPermissionMatrixCell
+ */
+export class BotPermissionMatrixCell extends Message<BotPermissionMatrixCell> {
+  /**
+   * Permission identifier.
+   *
+   * @generated from field: string permission = 1;
+   */
+  permission = "";
+
+  /**
+   * Scope ID matching BotPermissionMatrixScope.id.
+   *
+   * @generated from field: string scope_id = 2;
+   */
+  scopeId = "";
+
+  /**
+   * Bot's explicit direct decision at this scope.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionDecision direct_decision = 3;
+   */
+  directDecision = BotPermissionDecision.UNSPECIFIED;
+
+  /**
+   * Bot's effective decision after inheritance and the owner ceiling.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionDecision effective_decision = 4;
+   */
+  effectiveDecision = BotPermissionDecision.UNSPECIFIED;
+
+  /**
+   * Whether the owner currently has this permission at this scope.
+   *
+   * @generated from field: bool owner_allowed = 5;
+   */
+  ownerAllowed = false;
+
+  constructor(data?: PartialMessage<BotPermissionMatrixCell>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotPermissionMatrixCell";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "direct_decision", kind: "enum", T: proto3.getEnumType(BotPermissionDecision) },
+    { no: 4, name: "effective_decision", kind: "enum", T: proto3.getEnumType(BotPermissionDecision) },
+    { no: 5, name: "owner_allowed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotPermissionMatrixCell {
+    return new BotPermissionMatrixCell().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotPermissionMatrixCell {
+    return new BotPermissionMatrixCell().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotPermissionMatrixCell {
+    return new BotPermissionMatrixCell().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotPermissionMatrixCell | PlainMessage<BotPermissionMatrixCell> | undefined, b: BotPermissionMatrixCell | PlainMessage<BotPermissionMatrixCell> | undefined): boolean {
+    return proto3.util.equals(BotPermissionMatrixCell, a, b);
+  }
+}
+
+/**
+ * Permission matrix for one manageable bot across all scopes.
+ *
+ * @generated from message chatto.api.v1.BotPermissionMatrix
+ */
+export class BotPermissionMatrix extends Message<BotPermissionMatrix> {
+  /**
+   * Bot account ID.
+   *
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  /**
+   * Permissions rendered as rows.
+   *
+   * @generated from field: repeated string applicable_permissions = 2;
+   */
+  applicablePermissions: string[] = [];
+
+  /**
+   * Scopes rendered as columns.
+   *
+   * @generated from field: repeated chatto.api.v1.BotPermissionMatrixScope scopes = 3;
+   */
+  scopes: BotPermissionMatrixScope[] = [];
+
+  /**
+   * Sparse matrix cells.
+   *
+   * @generated from field: repeated chatto.api.v1.BotPermissionMatrixCell cells = 4;
+   */
+  cells: BotPermissionMatrixCell[] = [];
+
+  constructor(data?: PartialMessage<BotPermissionMatrix>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotPermissionMatrix";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "scopes", kind: "message", T: BotPermissionMatrixScope, repeated: true },
+    { no: 4, name: "cells", kind: "message", T: BotPermissionMatrixCell, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotPermissionMatrix {
+    return new BotPermissionMatrix().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotPermissionMatrix {
+    return new BotPermissionMatrix().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotPermissionMatrix {
+    return new BotPermissionMatrix().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotPermissionMatrix | PlainMessage<BotPermissionMatrix> | undefined, b: BotPermissionMatrix | PlainMessage<BotPermissionMatrix> | undefined): boolean {
+    return proto3.util.equals(BotPermissionMatrix, a, b);
+  }
+}
+
+/**
+ * Request one manageable bot's permission matrix.
+ *
+ * @generated from message chatto.api.v1.GetBotPermissionMatrixRequest
+ */
+export class GetBotPermissionMatrixRequest extends Message<GetBotPermissionMatrixRequest> {
+  /**
+   * Required bot account ID.
+   *
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  constructor(data?: PartialMessage<GetBotPermissionMatrixRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetBotPermissionMatrixRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBotPermissionMatrixRequest {
+    return new GetBotPermissionMatrixRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBotPermissionMatrixRequest {
+    return new GetBotPermissionMatrixRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBotPermissionMatrixRequest {
+    return new GetBotPermissionMatrixRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBotPermissionMatrixRequest | PlainMessage<GetBotPermissionMatrixRequest> | undefined, b: GetBotPermissionMatrixRequest | PlainMessage<GetBotPermissionMatrixRequest> | undefined): boolean {
+    return proto3.util.equals(GetBotPermissionMatrixRequest, a, b);
+  }
+}
+
+/**
+ * Bot permission matrix response.
+ *
+ * @generated from message chatto.api.v1.GetBotPermissionMatrixResponse
+ */
+export class GetBotPermissionMatrixResponse extends Message<GetBotPermissionMatrixResponse> {
+  /**
+   * Requested bot permission matrix.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionMatrix matrix = 1;
+   */
+  matrix?: BotPermissionMatrix;
+
+  constructor(data?: PartialMessage<GetBotPermissionMatrixResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetBotPermissionMatrixResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "matrix", kind: "message", T: BotPermissionMatrix },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBotPermissionMatrixResponse {
+    return new GetBotPermissionMatrixResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBotPermissionMatrixResponse {
+    return new GetBotPermissionMatrixResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBotPermissionMatrixResponse {
+    return new GetBotPermissionMatrixResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBotPermissionMatrixResponse | PlainMessage<GetBotPermissionMatrixResponse> | undefined, b: GetBotPermissionMatrixResponse | PlainMessage<GetBotPermissionMatrixResponse> | undefined): boolean {
+    return proto3.util.equals(GetBotPermissionMatrixResponse, a, b);
+  }
+}
+
+/**
+ * Request a direct bot permission decision at one scope.
+ *
+ * @generated from message chatto.api.v1.SetBotPermissionRequest
+ */
+export class SetBotPermissionRequest extends Message<SetBotPermissionRequest> {
+  /**
+   * Required bot account ID.
+   *
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  /**
+   * Target server, group, or room scope.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionScope scope = 2;
+   */
+  scope?: BotPermissionScope;
+
+  /**
+   * Required permission identifier.
+   *
+   * @generated from field: string permission = 3;
+   */
+  permission = "";
+
+  /**
+   * Direct decision to store. NONE clears the existing decision.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionDecision decision = 4;
+   */
+  decision = BotPermissionDecision.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetBotPermissionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetBotPermissionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope", kind: "message", T: BotPermissionScope },
+    { no: 3, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "decision", kind: "enum", T: proto3.getEnumType(BotPermissionDecision) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetBotPermissionRequest {
+    return new SetBotPermissionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetBotPermissionRequest {
+    return new SetBotPermissionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetBotPermissionRequest {
+    return new SetBotPermissionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetBotPermissionRequest | PlainMessage<SetBotPermissionRequest> | undefined, b: SetBotPermissionRequest | PlainMessage<SetBotPermissionRequest> | undefined): boolean {
+    return proto3.util.equals(SetBotPermissionRequest, a, b);
+  }
+}
+
+/**
+ * One stored direct bot permission decision.
+ *
+ * @generated from message chatto.api.v1.BotPermissionDecisionUpdate
+ */
+export class BotPermissionDecisionUpdate extends Message<BotPermissionDecisionUpdate> {
+  /**
+   * Permission identifier.
+   *
+   * @generated from field: string permission = 1;
+   */
+  permission = "";
+
+  /**
+   * Scope at which the direct decision was stored.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionScope scope = 2;
+   */
+  scope?: BotPermissionScope;
+
+  /**
+   * Stored direct decision. NONE means the previous decision was cleared.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionDecision decision = 3;
+   */
+  decision = BotPermissionDecision.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<BotPermissionDecisionUpdate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotPermissionDecisionUpdate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope", kind: "message", T: BotPermissionScope },
+    { no: 3, name: "decision", kind: "enum", T: proto3.getEnumType(BotPermissionDecision) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotPermissionDecisionUpdate {
+    return new BotPermissionDecisionUpdate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotPermissionDecisionUpdate {
+    return new BotPermissionDecisionUpdate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotPermissionDecisionUpdate {
+    return new BotPermissionDecisionUpdate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotPermissionDecisionUpdate | PlainMessage<BotPermissionDecisionUpdate> | undefined, b: BotPermissionDecisionUpdate | PlainMessage<BotPermissionDecisionUpdate> | undefined): boolean {
+    return proto3.util.equals(BotPermissionDecisionUpdate, a, b);
+  }
+}
+
+/**
+ * Bot permission write response.
+ *
+ * @generated from message chatto.api.v1.SetBotPermissionResponse
+ */
+export class SetBotPermissionResponse extends Message<SetBotPermissionResponse> {
+  /**
+   * Stored direct permission decision.
+   *
+   * @generated from field: chatto.api.v1.BotPermissionDecisionUpdate update = 1;
+   */
+  update?: BotPermissionDecisionUpdate;
+
+  constructor(data?: PartialMessage<SetBotPermissionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetBotPermissionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "update", kind: "message", T: BotPermissionDecisionUpdate },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetBotPermissionResponse {
+    return new SetBotPermissionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetBotPermissionResponse {
+    return new SetBotPermissionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetBotPermissionResponse {
+    return new SetBotPermissionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetBotPermissionResponse | PlainMessage<SetBotPermissionResponse> | undefined, b: SetBotPermissionResponse | PlainMessage<SetBotPermissionResponse> | undefined): boolean {
+    return proto3.util.equals(SetBotPermissionResponse, a, b);
   }
 }
 

@@ -12,10 +12,11 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   import { createUserAPI } from '$lib/api-client/users';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
-  import { EmptyState, FormDialog, Hint, Pill } from '$lib/ui';
+  import { Dialog, EmptyState, FormDialog, Hint, Pill } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { BotManagementStore } from './BotManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
+  import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
 
   let {
     scope,
@@ -47,6 +48,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   let botDescription = $state('');
   let saving = $state(false);
   let saveError = $state<string | null>(null);
+  let permissionsBot = $state<BotAccount | null>(null);
 
   const normalizedLogin = $derived(login.trim());
   const normalizedDisplayName = $derived(displayName.trim());
@@ -86,6 +88,11 @@ all loading, pagination, owner hydration, and mutations stay in this component.
     if (saving) return;
     dialogVisible = false;
     saveError = null;
+  }
+
+  function openPermissions(event: MouseEvent, bot: BotAccount) {
+    event.stopPropagation();
+    permissionsBot = bot;
   }
 
   async function saveBot() {
@@ -158,7 +165,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
       {/snippet}
       <DataTable
         items={store.bots}
-        columns={scope === 'admin' ? 4 : 3}
+        columns={scope === 'admin' ? 5 : 4}
         getKey={(bot) => bot.id}
         hasMore={store.hasMore && !store.error}
         loadingMore={store.loadingMore}
@@ -174,6 +181,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
           {/if}
           <th class="table-header-cell">{m['bots.field.description']()}</th>
           <th class="table-header-cell">{m['bots.field.api_key']()}</th>
+          <th class="table-header-cell">{m['admin.permissions.title']()}</th>
         {/snippet}
         {#snippet row(bot)}
           <td class="px-4 py-3">
@@ -203,6 +211,12 @@ all loading, pagination, owner hydration, and mutations stay in this component.
             <Pill tone={bot.apiKeyCreatedAt ? 'success' : 'neutral'}>
               {bot.apiKeyCreatedAt ? m['bots.api_key.active']() : m['bots.api_key.none']()}
             </Pill>
+          </td>
+          <td class="px-4 py-3">
+            <Button variant="secondary" onclick={(event) => openPermissions(event, bot)}>
+              <span class="iconify uil--shield-check" aria-hidden="true"></span>
+              {m['admin.permissions.title']()}
+            </Button>
           </td>
         {/snippet}
       </DataTable>
@@ -254,3 +268,16 @@ all loading, pagination, owner hydration, and mutations stay in this component.
     bind:value={botDescription}
   />
 </FormDialog>
+
+<Dialog
+  visible={permissionsBot !== null}
+  title={permissionsBot
+    ? `${permissionsBot.displayName} — ${m['admin.permissions.title']()}`
+    : m['admin.permissions.title']()}
+  size="lg"
+  onclose={() => (permissionsBot = null)}
+>
+  {#if permissionsBot}
+    <BotPermissionsMatrix botId={permissionsBot.id} />
+  {/if}
+</Dialog>

@@ -602,6 +602,69 @@ Non-secret metadata for a bot's single active API key.
 | --- | --- | --- |
 | `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
 
+<a id="chatto-api-v1-BotPermissionDecisionUpdate"></a>
+
+### BotPermissionDecisionUpdate
+
+One stored direct bot permission decision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`BotPermissionScope`](#chatto-api-v1-BotPermissionScope) | Scope at which the direct decision was stored. |
+| `decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Stored direct decision. NONE means the previous decision was cleared. |
+
+<a id="chatto-api-v1-BotPermissionMatrix"></a>
+
+### BotPermissionMatrix
+
+Permission matrix for one manageable bot across all scopes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Bot account ID. |
+| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
+| `scopes` | repeated [`BotPermissionMatrixScope`](#chatto-api-v1-BotPermissionMatrixScope) | Scopes rendered as columns. |
+| `cells` | repeated [`BotPermissionMatrixCell`](#chatto-api-v1-BotPermissionMatrixCell) | Sparse matrix cells. |
+
+<a id="chatto-api-v1-BotPermissionMatrixCell"></a>
+
+### BotPermissionMatrixCell
+
+One bot permission at one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope_id` | `string` | Scope ID matching BotPermissionMatrixScope.id. |
+| `direct_decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot's explicit direct decision at this scope. |
+| `effective_decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot's effective decision after inheritance and the owner ceiling. |
+| `owner_allowed` | `bool` | Whether the owner currently has this permission at this scope. |
+
+<a id="chatto-api-v1-BotPermissionMatrixScope"></a>
+
+### BotPermissionMatrixScope
+
+Matrix column describing one server, group, or room scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable matrix scope ID. |
+| `label` | `string` | Human-readable scope label. |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `parent_group_id` | `string` | Parent group ID for room scopes. |
+
+<a id="chatto-api-v1-BotPermissionScope"></a>
+
+### BotPermissionScope
+
+Concrete scope for a bot permission decision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `id` | `string` | Group or room ID. Empty for server scope. |
+
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -1530,6 +1593,32 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+<a id="chatto-api-v1-BotPermissionDecision"></a>
+
+### BotPermissionDecision
+
+Trinary direct permission decision for a bot.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_DECISION_UNSPECIFIED` | `0` | Unspecified decision; rejected for writes. |
+| `BOT_PERMISSION_DECISION_ALLOW` | `1` | Explicit allow. |
+| `BOT_PERMISSION_DECISION_DENY` | `2` | Explicit deny. |
+| `BOT_PERMISSION_DECISION_NONE` | `3` | No direct decision; clears the decision on writes. |
+
+<a id="chatto-api-v1-BotPermissionScopeKind"></a>
+
+### BotPermissionScopeKind
+
+Scope tier for bot permission matrices and writes.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | Unspecified scope; treated as server scope for compatibility. |
+| `BOT_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
+| `BOT_PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
+| `BOT_PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 
