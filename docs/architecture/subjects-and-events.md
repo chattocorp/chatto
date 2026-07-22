@@ -74,7 +74,9 @@ room-group layout, and user projections through the captured EVT boundary. A
 concurrent authorization change then conflicts and retries the complete
 authorization decision, while unrelated messages and reactions do not contend.
 The fence event carries no policy state; the owning domain projections remain
-authoritative.
+authoritative. Bot permission writes additionally wait for the bot, owner, and
+applicable room/group inputs; runtime bot authorization intersects the bot's
+ordinary scoped RBAC decision with its active human owner's current decision.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room

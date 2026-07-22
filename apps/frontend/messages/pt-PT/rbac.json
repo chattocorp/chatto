@@ -105,7 +105,9 @@
       "user_delete_any": "Apagar conta de outro utilizador",
       "user_delete_self": "Apague a sua própria conta",
       "user_manage_accounts": "Crie utilizadores, edite a identidade da conta, reponha palavras-passe, anexe e-mails verificados e limpe os tempos de espera de login",
-      "user_manage_permissions": "Editar substituições de permissões diretas por utilizador"
+      "user_manage_permissions": "Editar substituições de permissões diretas por utilizador",
+      "bot_create": "Criar e gerir as suas próprias contas de bot",
+      "bot_manage": "Inspecionar e gerir contas de bot de outros utilizadores"
     }
   }
 }

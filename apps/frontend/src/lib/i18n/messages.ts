@@ -1185,6 +1185,8 @@ const msg_rbac_permission_descriptions_user_delete_any = (): LocalizedString => 
 const msg_rbac_permission_descriptions_user_delete_self = (): LocalizedString => messages().rbac_permission_descriptions_user_delete_self(empty());
 const msg_rbac_permission_descriptions_user_manage_accounts = (): LocalizedString => messages().rbac_permission_descriptions_user_manage_accounts(empty());
 const msg_rbac_permission_descriptions_user_manage_permissions = (): LocalizedString => messages().rbac_permission_descriptions_user_manage_permissions(empty());
+const msg_rbac_permission_descriptions_bot_create = (): LocalizedString => messages().rbac_permission_descriptions_bot_create(empty());
+const msg_rbac_permission_descriptions_bot_manage = (): LocalizedString => messages().rbac_permission_descriptions_bot_manage(empty());
 const msg_admin_nav_general = (): LocalizedString => messages().admin_nav_general(empty());
 const msg_admin_nav_members = (): LocalizedString => messages().admin_nav_members(empty());
 const msg_admin_nav_rooms = (): LocalizedString => messages().admin_nav_rooms(empty());
@@ -2584,6 +2586,8 @@ export { msg_rbac_permission_descriptions_user_delete_any as 'rbac.permission_de
 export { msg_rbac_permission_descriptions_user_delete_self as 'rbac.permission_descriptions.user_delete_self' };
 export { msg_rbac_permission_descriptions_user_manage_accounts as 'rbac.permission_descriptions.user_manage_accounts' };
 export { msg_rbac_permission_descriptions_user_manage_permissions as 'rbac.permission_descriptions.user_manage_permissions' };
+export { msg_rbac_permission_descriptions_bot_create as 'rbac.permission_descriptions.bot_create' };
+export { msg_rbac_permission_descriptions_bot_manage as 'rbac.permission_descriptions.bot_manage' };
 export { msg_admin_nav_general as 'admin.nav.general' };
 export { msg_admin_nav_members as 'admin.nav.members' };
 export { msg_admin_nav_rooms as 'admin.nav.rooms' };

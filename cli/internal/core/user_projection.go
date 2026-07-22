@@ -628,6 +628,19 @@ func (p *UserProjection) DeletionStarted(userID string) bool {
 	return u != nil && u.deletionStarted
 }
 
+// AuthorizationIdentity returns the non-PII account facts needed by the
+// authorization layer. Active becomes false as soon as deletion starts.
+func (p *UserProjection) AuthorizationIdentity(userID string) (kind corev1.UserKind, botOwnerID string, active, exists bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.user == nil {
+		return corev1.UserKind_USER_KIND_UNSPECIFIED, "", false, false
+	}
+	kind = normalizedUserKind(u.user.GetKind())
+	return kind, u.user.GetBotOwnerId(), !u.deleted && !u.shredded && !u.deletionStarted, true
+}
+
 func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1.User, bool, error) {
 	p.RLock()
 	snapshot := p.userSnapshotLocked(userID, p.users[userID])

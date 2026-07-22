@@ -183,11 +183,9 @@ implementation should be tracked separately unless required for safe bot use.
 
 ## Permissions
 
-- A new permission will gate creating and managing one's own bots. Its final
-  permission string remains to be named.
-- A separate administrative permission will gate inspecting, restricting,
-  revoking, and deleting bots owned by other users. Its final permission string
-  remains to be named.
+- `bot.create` gates creating and managing one's own bots.
+- `bot.manage` gates inspecting, restricting, revoking, and deleting bots
+  owned by other users. It does not bypass the owner's authority ceiling.
 - A bot's ordinary capabilities use Chatto's existing permission catalog and
   scopes; bot accounts do not get a parallel capability vocabulary.
 - Bot owners may configure direct permission decisions for their bots but may
@@ -206,7 +204,6 @@ implementation should be tracked separately unless required for safe bot use.
 
 ## Open Questions
 
-- What are the final permission names for own-bot and any-bot administration?
 - How can an administrator impose a bot restriction that its owner cannot later
   clear through ordinary bot-permission management?
 - Which account-suspension mechanism is canonical, and how should the bot UI

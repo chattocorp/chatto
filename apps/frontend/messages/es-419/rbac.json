@@ -105,7 +105,9 @@
       "user_delete_any": "Eliminar la cuenta de otro usuario",
       "user_delete_self": "Elimina tu propia cuenta",
       "user_manage_accounts": "Cree usuarios, edite la identidad de la cuenta, restablezca contraseñas, adjunte correos electrónicos verificados y borre los tiempos de reutilización de inicio de sesión",
-      "user_manage_permissions": "Editar anulaciones de permisos directos por usuario"
+      "user_manage_permissions": "Editar anulaciones de permisos directos por usuario",
+      "bot_create": "Crear y administrar cuentas de bot propias",
+      "bot_manage": "Inspeccionar y administrar cuentas de bot de otros usuarios"
     }
   }
 }

@@ -56,6 +56,11 @@ the owner ceiling, but may not assign roles. Role assignment to bots remains an
 administrative operation governed by the existing role-assignment permissions
 and delegation bounds.
 
+`bot.create` gates creation and management of one's own bots. `bot.manage`
+gates management of bots owned by other users. Neither permission is an
+ordinary bot capability: bot actors are categorically denied both management
+operations even if an RBAC trace would otherwise allow them.
+
 Non-permission access boundaries remain authoritative and are evaluated for the
 bot, not inherited from or independently required of the owner. In a DM, the
 bot must be a participant to read the conversation, just like a human account.

@@ -105,7 +105,9 @@
       "user_delete_any": "Slett en annen brukers konto",
       "user_delete_self": "Slett din egen konto",
       "user_manage_accounts": "Opprett brukere, rediger kontoidentitet, tilbakestill passord, legg ved bekreftede e-poster og fjern påloggingsavkjølinger",
-      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker"
+      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker",
+      "bot_create": "Opprett og administrer egne botkontoer",
+      "bot_manage": "Inspiser og administrer botkontoer som eies av andre brukere"
     }
   }
 }

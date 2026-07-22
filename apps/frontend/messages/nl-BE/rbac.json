@@ -105,7 +105,9 @@
       "user_delete_any": "Verwijder het account van een andere gebruiker",
       "user_delete_self": "Verwijder je eigen account",
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
-      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker"
+      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
+      "bot_create": "Eigen botaccounts maken en beheren",
+      "bot_manage": "Botaccounts van andere gebruikers bekijken en beheren"
     }
   }
 }

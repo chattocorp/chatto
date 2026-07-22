@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -87,6 +89,29 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+	accountKind, ownerID, active, exists := r.core.Users.AuthorizationIdentity(userID)
+	if exists && accountKind == corev1.UserKind_USER_KIND_BOT {
+		if !active {
+			return DecisionDeny, nil
+		}
+		ownerKind, _, ownerActive, ownerExists := r.core.Users.AuthorizationIdentity(ownerID)
+		if !ownerExists || !ownerActive || ownerKind == corev1.UserKind_USER_KIND_BOT {
+			return DecisionDeny, nil
+		}
+		botDecision, err := r.resolveAccountWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+		if err != nil {
+			return DecisionNone, err
+		}
+		ownerDecision, err := r.resolveAccountWithGroup(ctx, ownerID, kind, roomID, explicitGroupID, perm)
+		if err != nil {
+			return DecisionNone, err
+		}
+		return intersectBotAndOwnerDecisions(botDecision, ownerDecision), nil
+	}
+	return r.resolveAccountWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+}
+
+func (r *PermissionResolver) resolveAccountWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	if _, known := GetPermissionMetadata(perm); known {
 		isOwner, err := r.core.IsServerOwner(ctx, userID)
 		if err != nil {
@@ -119,6 +144,16 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		result = DecisionAllow
 	}
 	return result, err
+}
+
+func intersectBotAndOwnerDecisions(bot, owner DecisionKind) DecisionKind {
+	if bot == DecisionDeny || owner == DecisionDeny {
+		return DecisionDeny
+	}
+	if bot == DecisionAllow && owner == DecisionAllow {
+		return DecisionAllow
+	}
+	return DecisionNone
 }
 
 // HasServerPermission checks a server-only permission (no room context).

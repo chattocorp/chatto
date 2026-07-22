@@ -48,16 +48,38 @@ func DeletedUserReference(userID string) *corev1.User {
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, password, corev1.UserKind_USER_KIND_HUMAN, "", "")
+	return c.createUserAccount(ctx, actorID, login, displayName, password, corev1.UserKind_USER_KIND_HUMAN, "", "", nil)
 }
 
 // CreateBot creates a bot account owned by an existing human account. Public
 // authorization is added by the bot-management operation layer.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, ownerID, login, displayName, description string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, ownerID, description)
+	return c.createUserAccount(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, ownerID, description, nil)
 }
 
-func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, kind corev1.UserKind, botOwnerID, botDescription string) (*corev1.User, error) {
+// CreateBotAs creates a bot owned by the acting human and evaluates bot.create
+// inside the authorization-fenced account-creation retry.
+func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, error) {
+	return c.createUserAccount(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, actorID, description, func() error {
+		position, err := c.EventPublisher.LastSubjectPosition(ctx, events.RBACSubjectFilter())
+		if err != nil {
+			return fmt.Errorf("read RBAC position for bot creation: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, position); err != nil {
+			return fmt.Errorf("wait for RBAC before bot creation: %w", err)
+		}
+		allowed, err := c.CanCreateBots(ctx, actorID)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrPermissionDenied
+		}
+		return nil
+	})
+}
+
+func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, kind corev1.UserKind, botOwnerID, botDescription string, authorizationCheck func() error) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	if err := ValidateLogin(login); err != nil {
@@ -237,6 +259,11 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
 		if kind == corev1.UserKind_USER_KIND_BOT {
 			if err := c.requireValidBotOwner(ctx, botOwnerID); err != nil {
+				return err
+			}
+		}
+		if authorizationCheck != nil {
+			if err := authorizationCheck(); err != nil {
 				return err
 			}
 		}

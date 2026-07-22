@@ -105,7 +105,9 @@
       "user_delete_any": "Ta bort en annan användares konto",
       "user_delete_self": "Radera ditt eget konto",
       "user_manage_accounts": "Skapa användare, redigera kontoidentitet, återställ lösenord, bifoga verifierade e-postmeddelanden och rensa nedkylningar för inloggning",
-      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare"
+      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare",
+      "bot_create": "Skapa och hantera egna botkonton",
+      "bot_manage": "Granska och hantera botkonton som ägs av andra användare"
     }
   }
 }

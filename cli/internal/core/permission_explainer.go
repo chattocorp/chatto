@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -17,6 +19,9 @@ type PermissionExplanation struct {
 	DecidedAt     PermissionLevel
 	DecidedByRole string
 	Trace         []TraceEntry
+	// OwnerCeiling contains the owner's independent decision when the target is
+	// a bot. Nil for human accounts.
+	OwnerCeiling *PermissionExplanation
 }
 
 // ExplainServerPermission resolves a server-only permission (no room
@@ -65,6 +70,37 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 // remains visible in the trace and can win when its deny is nearer than every
 // named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
+	accountKind, ownerID, active, exists := r.core.Users.AuthorizationIdentity(userID)
+	if exists && accountKind == corev1.UserKind_USER_KIND_BOT {
+		if !active {
+			exp.State = DecisionDeny
+			exp.DecidedByRole = "@bot-account-state"
+			return nil
+		}
+		if err := r.collectAccountTrace(ctx, userID, kind, roomID, perm, exp); err != nil {
+			return err
+		}
+		owner := PermissionExplanation{Permission: perm, State: DecisionNone}
+		ownerKind, _, ownerActive, ownerExists := r.core.Users.AuthorizationIdentity(ownerID)
+		if !ownerExists || !ownerActive || ownerKind == corev1.UserKind_USER_KIND_BOT {
+			owner.State = DecisionDeny
+			owner.DecidedByRole = "@bot-owner-account-state"
+		} else if err := r.collectAccountTrace(ctx, ownerID, kind, roomID, perm, &owner); err != nil {
+			return err
+		}
+		exp.OwnerCeiling = &owner
+		botState := exp.State
+		exp.State = intersectBotAndOwnerDecisions(botState, owner.State)
+		if exp.State != botState {
+			exp.DecidedAt = owner.DecidedAt
+			exp.DecidedByRole = "@bot-owner-ceiling"
+		}
+		return nil
+	}
+	return r.collectAccountTrace(ctx, userID, kind, roomID, perm, exp)
+}
+
+func (r *PermissionResolver) collectAccountTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return nil

@@ -105,7 +105,9 @@
       "user_delete_any": "Supprimer le compte d'un autre utilisateur",
       "user_delete_self": "Supprimez votre propre compte",
       "user_manage_accounts": "Créez des utilisateurs, modifiez l'identité du compte, réinitialisez les mots de passe, joignez des e-mails vérifiés et effacez les délais de connexion.",
-      "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur"
+      "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur",
+      "bot_create": "Créer et gérer vos propres comptes de bot",
+      "bot_manage": "Inspecter et gérer les comptes de bot d'autres utilisateurs"
     }
   }
 }
