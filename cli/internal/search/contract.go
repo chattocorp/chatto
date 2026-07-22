@@ -10,8 +10,11 @@ import (
 const (
 	// QuerySubject accepts normalized message-search requests.
 	QuerySubject = "svc.chatto_ext.search.v1.query"
-	// StatusSubject reports provider readiness independently from availability.
+	// StatusSubject reports health from providers that can answer queries.
 	StatusSubject = "svc.chatto_ext.search.v1.status"
+	// StartupStatusSubject reports startup progress only when no ready provider
+	// is subscribed to StatusSubject.
+	StartupStatusSubject = "svc.chatto_ext.search.v1.status.startup"
 
 	ServiceName    = "chatto-ext-search-v1"
 	ServiceVersion = "1.0.0"

@@ -151,7 +151,8 @@ NATS micro error headers carry transport-level failures.
 | Subject | Protobuf request / response | Queue group | Owner |
 | ------- | --------------------------- | ----------- | ----- |
 | `svc.chatto_ext.search.v1.query` | `chatto.search.v1.QueryRequest` / `QueryResponse` | `svc.chatto_ext.search.v1` | Any compatible message-search provider replica |
-| `svc.chatto_ext.search.v1.status` | `chatto.search.v1.GetStatusRequest` / `GetStatusResponse` | `svc.chatto_ext.search.v1` | Any compatible message-search provider replica |
+| `svc.chatto_ext.search.v1.status` | `chatto.search.v1.GetStatusRequest` / `GetStatusResponse` | `svc.chatto_ext.search.v1` | Queryable message-search provider replicas |
+| `svc.chatto_ext.search.v1.status.startup` | `chatto.search.v1.GetStatusRequest` / `GetStatusResponse` | `svc.chatto_ext.search.v1` | Provider replicas still starting or indexing; queried only when no ready status responder exists |
 
 The Search contract returns ordered message and room IDs. It does not grant
 room visibility or make indexed content authoritative; Chatto Core rehydrates

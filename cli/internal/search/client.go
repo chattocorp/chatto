@@ -45,7 +45,13 @@ func (c *Client) Query(ctx context.Context, request *searchv1.QueryRequest) (*se
 func (c *Client) GetStatus(ctx context.Context) (*searchv1.GetStatusResponse, error) {
 	response := &searchv1.GetStatusResponse{}
 	if err := c.request(ctx, StatusSubject, &searchv1.GetStatusRequest{}, response); err != nil {
-		return nil, err
+		if !errors.Is(err, ErrUnavailable) {
+			return nil, err
+		}
+		response.Reset()
+		if err := c.request(ctx, StartupStatusSubject, &searchv1.GetStatusRequest{}, response); err != nil {
+			return nil, err
+		}
 	}
 	if err := validateStatusResponse(response); err != nil {
 		return nil, err

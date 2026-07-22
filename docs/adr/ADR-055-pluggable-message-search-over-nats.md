@@ -30,6 +30,13 @@ terms and phrases, filters, ordering, pagination, and the caller's complete
 authorized room scope. Provider hits are candidates rather than authorization
 decisions.
 
+Queryable provider replicas share the versioned `.query` and `.status` queue
+subjects. A provider that is rebuilding can report progress on
+`.status.startup` without joining either ready queue. Consumers ask the ready
+status subject first and use startup status only when no queryable provider is
+available, so rolling replacement does not make a healthy search service look
+unready.
+
 Ship a Bleve implementation as a runtime unit under ADR-041. The same unit and
 NATS contract run embedded when `search_provider.enabled` is true or standalone
 through `chatto search-provider`. `search.enabled` independently controls the
@@ -63,4 +70,3 @@ ordinary backups.
 Provider availability degrades only Search. The discovery capability reports
 protocol support, while configuration and provider readiness remain separate
 runtime states.
-

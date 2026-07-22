@@ -31,7 +31,8 @@ NATS subject namespace:
 | Subject | Purpose |
 | ------- | ------- |
 | `svc.chatto_ext.search.v1.query` | Accept a normalized query and return ordered, lightweight hits. |
-| `svc.chatto_ext.search.v1.status` | Report whether the provider is ready, indexing, or degraded. |
+| `svc.chatto_ext.search.v1.status` | Report ready or degraded state for a provider that can answer queries. |
+| `svc.chatto_ext.search.v1.status.startup` | Report starting or indexing state while no provider replica is queryable. |
 
 Compatible provider replicas share the `svc.chatto_ext.search.v1` queue group,
 allowing NATS to load-balance requests. Do not put implementations with
@@ -270,15 +271,17 @@ enabled = false
 
 Run a trusted provider that understands the `chatto.search.v1` protobuf messages
 and serves `svc.chatto_ext.search.v1.query` and
-`svc.chatto_ext.search.v1.status` on the same NATS account. The Search page and
-public API remain unchanged. Matching quality, ranking, index storage, and
-operational requirements are the provider's responsibility.
+`svc.chatto_ext.search.v1.status` on the same NATS account. While rebuilding,
+it can serve progress on `svc.chatto_ext.search.v1.status.startup` before
+joining the ready status and query queues. The Search page and public API remain
+unchanged. Matching quality, ranking, index storage, and operational
+requirements are the provider's responsibility.
 
 Chatto gives each provider query or status request up to 10 seconds to answer;
-a missing or late response makes Search temporarily unavailable. A provider
-that rebuilds local state at startup should serve indexing status immediately
-but join the shared query queue only after it can answer queries. This keeps a
-rebuilding replica from receiving traffic that a ready replica could handle.
+a missing or late response makes Search temporarily unavailable. Chatto checks
+the ready status queue before startup progress, so one ready replica keeps
+Search available while another rebuilds. A rebuilding provider should join the
+ready status and query queues together only after it can answer queries.
 
 The canonical query language is parsed by Chatto before the provider receives a
 request. Alternative providers should implement the normalized request rather

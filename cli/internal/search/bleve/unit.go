@@ -67,14 +67,14 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return err
 	}
 	provider := &Provider{Projection: projection, Projector: projector}
-	service, err := search.AddStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
+	service, err := search.AddStartupStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
 	if err != nil {
 		return fmt.Errorf("register search provider status service: %w", err)
 	}
 	defer service.Stop()
 	env.Logger.Info("Search provider status service registered",
 		"stage", "status_ready",
-		"status_subject", search.StatusSubject)
+		"status_subject", search.StartupStatusSubject)
 
 	monitorContext, stopMonitor := context.WithCancel(ctx)
 	defer stopMonitor()
@@ -95,6 +95,11 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 			return nil
 		}
 		return err
+	}
+	if err := search.AddStatusEndpoint(ctx, service, provider); err != nil {
+		stopProjector()
+		<-projectorDone
+		return fmt.Errorf("register search provider ready status endpoint: %w", err)
 	}
 	if err := search.AddQueryEndpoint(ctx, service, provider); err != nil {
 		stopProjector()

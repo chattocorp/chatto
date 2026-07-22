@@ -120,15 +120,15 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	}
 }
 
-func TestStatusServiceJoinsQueryQueueOnlyWhenReady(t *testing.T) {
+func TestStartupStatusServiceJoinsReadyQueuesOnlyWhenReady(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	provider := &testProvider{
 		queryResult: &searchv1.QueryResponse{},
 		status:      &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_INDEXING},
 	}
-	service, err := AddStatusService(testContext(t), nc, provider, ServiceOptions{})
+	service, err := AddStartupStatusService(testContext(t), nc, provider, ServiceOptions{})
 	if err != nil {
-		t.Fatalf("AddStatusService: %v", err)
+		t.Fatalf("AddStartupStatusService: %v", err)
 	}
 	t.Cleanup(func() { _ = service.Stop() })
 
@@ -141,11 +141,52 @@ func TestStatusServiceJoinsQueryQueueOnlyWhenReady(t *testing.T) {
 		t.Fatalf("Query before readiness = %v, want unavailable", err)
 	}
 
+	provider.mu.Lock()
+	provider.status = &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}
+	provider.mu.Unlock()
+	if err := AddStatusEndpoint(testContext(t), service, provider); err != nil {
+		t.Fatalf("AddStatusEndpoint: %v", err)
+	}
 	if err := AddQueryEndpoint(testContext(t), service, provider); err != nil {
 		t.Fatalf("AddQueryEndpoint: %v", err)
 	}
 	if _, err := NewClient(nc).Query(testContext(t), validQuery()); err != nil {
 		t.Fatalf("Query after readiness: %v", err)
+	}
+	status, err = NewClient(nc).GetStatus(testContext(t))
+	if err != nil || status.GetState() != searchv1.ProviderState_PROVIDER_STATE_READY {
+		t.Fatalf("GetStatus after readiness = %+v, %v", status, err)
+	}
+}
+
+func TestReadyProviderStatusWinsDuringReplicaStartup(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ready := &testProvider{
+		queryResult: &searchv1.QueryResponse{},
+		status:      &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY},
+	}
+	readyService, err := AddService(testContext(t), nc, ready, ServiceOptions{})
+	if err != nil {
+		t.Fatalf("AddService: %v", err)
+	}
+	t.Cleanup(func() { _ = readyService.Stop() })
+
+	starting := &testProvider{status: &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_INDEXING}}
+	startingService, err := AddStartupStatusService(testContext(t), nc, starting, ServiceOptions{})
+	if err != nil {
+		t.Fatalf("AddStartupStatusService: %v", err)
+	}
+	t.Cleanup(func() { _ = startingService.Stop() })
+
+	client := NewClient(nc)
+	for range 100 {
+		status, err := client.GetStatus(testContext(t))
+		if err != nil || status.GetState() != searchv1.ProviderState_PROVIDER_STATE_READY {
+			t.Fatalf("GetStatus = %+v, %v; want ready", status, err)
+		}
+		if _, err := client.Query(testContext(t), validQuery()); err != nil {
+			t.Fatalf("Query while another replica starts: %v", err)
+		}
 	}
 }
 

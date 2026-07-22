@@ -56,13 +56,13 @@ socket.
 ## Trusted NATS services
 
 The `chatto.search.v1` provider contract defines normalized query and readiness
-messages on `svc.chatto_ext.search.v1.query` and
-`svc.chatto_ext.search.v1.status`. `search.Client` validates both sides
-of request/reply, maps NATS micro error headers, and treats missing responders
-or the bounded provider-call deadline as provider unavailability. Compatible
-providers share a queue group for replica load balancing. The bundled provider
-exposes status while replaying but joins the query queue only when current, so
-a rebuilding replica cannot absorb requests from an already-ready replica.
+messages under `svc.chatto_ext.search.v1.>`. `search.Client` validates both
+sides of request/reply, maps NATS micro error headers, and treats missing
+responders or the bounded provider-call deadline as provider unavailability.
+Compatible providers share a queue group for replica load balancing. Ready
+status and queries use `.status` and `.query`; startup progress uses
+`.status.startup` only as a fallback when no ready status responder exists.
+The bundled provider joins both ready queues only after replay is current.
 
 This is a trusted server-side integration surface, not a public client API.
 Query responses contain thin message and room IDs. The public
