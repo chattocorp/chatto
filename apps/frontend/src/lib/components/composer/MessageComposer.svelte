@@ -1055,7 +1055,7 @@
 
   <!-- Selected files preview -->
   {#if attachments.filesWithUrls.length > 0}
-    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-strong p-2">
+    <div class="flex flex-wrap gap-2">
       {#each attachments.filesWithUrls as { file, url }, index (url)}
         {@const submissionStatus = attachmentSubmissionStatus(file)}
         {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
