@@ -384,7 +384,7 @@ focusing a cell highlights its permission row and role column.
             class="bg-background px-0 py-3 text-center align-bottom font-medium"
             style="width: 2rem; min-width: 2rem; height: 12rem"
           >
-            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
+            <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
             <a
               href={newRoleHref}
               class="cursor-pointer text-sm font-medium text-action hover:underline"
@@ -393,6 +393,7 @@ focusing a cell highlights its permission row and role column.
             >
               {m['admin.permissions.new_role_action']()}
             </a>
+            <!-- eslint-enable svelte/no-navigation-without-resolve -->
           </th>
         {/if}
         <th class="w-full bg-background p-0" aria-hidden="true"></th>
