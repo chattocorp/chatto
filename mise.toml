@@ -286,11 +286,11 @@ env = {
   CHATTO_SMTP_TLS = "opportunistic",
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }
-run = "exec bin/chatto run"
+run = "exec bin/chatto"
 
 [tasks.dev-compiled]
 description = "Build and run the bundled Chatto stack with LiveKit and Mailpit"
-run = { tasks = ["chatto", "dev-livekit", "dev-mailpit"] }
+run = { tasks = ["chatto run", "dev-livekit", "dev-mailpit"] }
 
 # =============================================================================
 # Benchmarking
