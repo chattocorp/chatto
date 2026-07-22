@@ -229,9 +229,12 @@ describe('MessagePreviewCard', () => {
       container.querySelector('[data-testid="message-preview-card"] strong')?.textContent
     ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
-    expect(container.querySelector('.max-h-52.overflow-y-auto')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-b')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-t')).not.toBeNull();
+    expect(container.querySelector('.max-h-52 .overflow-y-auto')).not.toBeNull();
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+    expect(fades).toHaveLength(2);
+    expect(fades[0].className).toContain('from-surface');
+    expect(fades[0].className).toContain('z-30');
+    expect(fades[1].className).toContain('bg-gradient-to-t');
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {

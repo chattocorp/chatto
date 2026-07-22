@@ -17,7 +17,7 @@
   import { computeEventMetadata } from './messageGrouping';
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
-  import ScrollFader from '$lib/ui/ScrollFader.svelte';
+  import { ScrollFader } from '$lib/ui';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -867,11 +867,6 @@
 <svelte:window onkeydown={markKeyboardScrollIntent} />
 
 <div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
-  <!-- Gradient fade overlay at top -->
-  <div
-    class="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-linear-to-b from-background/60 to-transparent"
-  ></div>
-
   <ScrollFader
     top
     bottom

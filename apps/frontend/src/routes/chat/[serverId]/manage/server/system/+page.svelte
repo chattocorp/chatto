@@ -1,7 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getAdminSystemInfo, type AdminSystemInfo } from '$lib/api-client/adminDiagnostics';
-  import { Panel, StatCard, DataTable, formatBytes, formatNumber } from '$lib/components/admin';
+  import {
+    AdminPageContent,
+    Panel,
+    StatCard,
+    DataTable,
+    formatBytes,
+    formatNumber
+  } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -130,8 +137,8 @@
     showMobileNav
   />
 
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <div class="flex flex-col gap-6 p-6">
+  <AdminPageContent>
+    <div class="flex flex-col gap-6">
       {#if loading}
         <div class="text-muted">{m['admin.system.loading']()}</div>
       {:else if error}
@@ -534,5 +541,5 @@
         <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}
     </div>
-  </div>
+  </AdminPageContent>
 </div>

@@ -26,6 +26,7 @@ export { default as PageTitle } from './PageTitle.svelte';
 export { default as PaneHeader } from './PaneHeader.svelte';
 export { default as Pill } from './Pill.svelte';
 export { default as ScrollFader } from './ScrollFader.svelte';
+export { default as ScrollArea } from './ScrollArea.svelte';
 export { default as SkeletonImg } from './SkeletonImg.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';

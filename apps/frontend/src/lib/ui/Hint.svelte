@@ -63,7 +63,7 @@ a page without competing with primary content.
   {#if resolvedIcon}
     <span class={['mt-0.5 iconify shrink-0 text-lg', resolvedIcon]}></span>
   {/if}
-  <div class="flex-1">
+  <div class="min-w-0 flex-1">
     {@render children()}
   </div>
 </div>

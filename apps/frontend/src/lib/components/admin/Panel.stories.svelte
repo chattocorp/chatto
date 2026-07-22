@@ -59,6 +59,38 @@
   </div>
 </Story>
 
+<Story name="Fill available height" asChild>
+  <div class="flex h-80 max-w-2xl flex-col">
+    <Panel title="Permission matrix" noPadding fillHeight>
+      <div class="flex min-h-0 flex-1 items-center justify-center text-muted">
+        Dense content can fill the available page height.
+      </div>
+    </Panel>
+  </div>
+</Story>
+
+<Story
+  name="Rich subtitle"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Pass a named `subtitle` snippet when the panel subtitle needs an inline link or other simple inline markup.'
+      }
+    }
+  }}
+>
+  <div class="max-w-2xl">
+    <Panel title="Room permissions">
+      {#snippet subtitle()}
+        Configure server defaults here. <a href="/rooms" class="link">Manage room overrides</a>.
+      {/snippet}
+
+      <p class="text-sm text-muted">These defaults apply before room-specific permission overrides.</p>
+    </Panel>
+  </div>
+</Story>
+
 <Story
   name="No padding"
   asChild

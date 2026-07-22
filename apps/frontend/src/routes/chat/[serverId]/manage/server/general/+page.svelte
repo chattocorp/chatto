@@ -1,5 +1,6 @@
 <script lang="ts">
   import ServerSettings from '$lib/ServerSettings.svelte';
+  import { AdminPageContent } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import * as m from '$lib/i18n/messages';
@@ -15,6 +16,6 @@
   showMobileNav
 />
 
-<div class="flex flex-col gap-6 overflow-y-auto p-6">
+<AdminPageContent>
   <ServerSettings />
-</div>
+</AdminPageContent>

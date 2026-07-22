@@ -49,6 +49,9 @@
       "level_group": "Grupo",
       "level_room": "Ĉambro",
       "empty_category": "Neniuj permesoj en ĉi tiu kategorio",
+      "filter_label": "Filtri permesojn",
+      "filter_placeholder": "Filtri permesojn...",
+      "no_filter_matches": "Neniuj permesoj kongruas kun ĉi tiu filtrilo.",
       "categories": {
         "space": {
           "title": "Servilaj Permesoj",

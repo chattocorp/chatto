@@ -1148,6 +1148,9 @@ const msg_rbac_permissions_level_server = (): LocalizedString => messages().rbac
 const msg_rbac_permissions_level_group = (): LocalizedString => messages().rbac_permissions_level_group(empty());
 const msg_rbac_permissions_level_room = (): LocalizedString => messages().rbac_permissions_level_room(empty());
 const msg_rbac_permissions_empty_category = (): LocalizedString => messages().rbac_permissions_empty_category(empty());
+const msg_rbac_permissions_filter_label = (): LocalizedString => messages().rbac_permissions_filter_label(empty());
+const msg_rbac_permissions_filter_placeholder = (): LocalizedString => messages().rbac_permissions_filter_placeholder(empty());
+const msg_rbac_permissions_no_filter_matches = (): LocalizedString => messages().rbac_permissions_no_filter_matches(empty());
 const msg_rbac_permissions_categories_space_title = (): LocalizedString => messages().rbac_permissions_categories_space_title(empty());
 const msg_rbac_permissions_categories_space_description = (): LocalizedString => messages().rbac_permissions_categories_space_description(empty());
 const msg_rbac_permissions_categories_room_title = (): LocalizedString => messages().rbac_permissions_categories_room_title(empty());
@@ -1319,6 +1322,7 @@ const msg_admin_permissions_role_presets_intro = (): LocalizedString => messages
 const msg_admin_permissions_create_role_title = (): LocalizedString => messages().admin_permissions_create_role_title(empty());
 const msg_admin_permissions_create_role_subtitle = (): LocalizedString => messages().admin_permissions_create_role_subtitle(empty());
 const msg_admin_permissions_create_role_action = (): LocalizedString => messages().admin_permissions_create_role_action(empty());
+const msg_admin_permissions_new_role_action = (): LocalizedString => messages().admin_permissions_new_role_action(empty());
 const msg_admin_permissions_creating_role = (): LocalizedString => messages().admin_permissions_creating_role(empty());
 const msg_admin_permissions_create_after_hint = (): LocalizedString => messages().admin_permissions_create_after_hint(empty());
 const msg_admin_permissions_back_to_permissions = (): LocalizedString => messages().admin_permissions_back_to_permissions(empty());
@@ -1357,6 +1361,7 @@ const msg_admin_rooms_admin_empty_groups = (): LocalizedString => messages().adm
 const msg_admin_rooms_admin_empty_groups_body = (): LocalizedString => messages().admin_rooms_admin_empty_groups_body(empty());
 const msg_admin_rooms_admin_drag_hint = (): LocalizedString => messages().admin_rooms_admin_drag_hint(empty());
 const msg_admin_rooms_admin_drag_group = (): LocalizedString => messages().admin_rooms_admin_drag_group(empty());
+const msg_admin_rooms_admin_drag_room = (): LocalizedString => messages().admin_rooms_admin_drag_room(empty());
 const msg_admin_rooms_admin_new_room = (): LocalizedString => messages().admin_rooms_admin_new_room(empty());
 const msg_admin_rooms_admin_new_link = (): LocalizedString => messages().admin_rooms_admin_new_link(empty());
 const msg_admin_rooms_admin_new_group = (): LocalizedString => messages().admin_rooms_admin_new_group(empty());
@@ -2547,6 +2552,9 @@ export { msg_rbac_permissions_level_server as 'rbac.permissions.level_server' };
 export { msg_rbac_permissions_level_group as 'rbac.permissions.level_group' };
 export { msg_rbac_permissions_level_room as 'rbac.permissions.level_room' };
 export { msg_rbac_permissions_empty_category as 'rbac.permissions.empty_category' };
+export { msg_rbac_permissions_filter_label as 'rbac.permissions.filter_label' };
+export { msg_rbac_permissions_filter_placeholder as 'rbac.permissions.filter_placeholder' };
+export { msg_rbac_permissions_no_filter_matches as 'rbac.permissions.no_filter_matches' };
 export { msg_rbac_permissions_categories_space_title as 'rbac.permissions.categories.space.title' };
 export { msg_rbac_permissions_categories_space_description as 'rbac.permissions.categories.space.description' };
 export { msg_rbac_permissions_categories_room_title as 'rbac.permissions.categories.room.title' };
@@ -2692,6 +2700,7 @@ export { msg_admin_permissions_role_presets_intro as 'admin.permissions.role_pre
 export { msg_admin_permissions_create_role_title as 'admin.permissions.create_role_title' };
 export { msg_admin_permissions_create_role_subtitle as 'admin.permissions.create_role_subtitle' };
 export { msg_admin_permissions_create_role_action as 'admin.permissions.create_role_action' };
+export { msg_admin_permissions_new_role_action as 'admin.permissions.new_role_action' };
 export { msg_admin_permissions_creating_role as 'admin.permissions.creating_role' };
 export { msg_admin_permissions_create_after_hint as 'admin.permissions.create_after_hint' };
 export { msg_admin_permissions_back_to_permissions as 'admin.permissions.back_to_permissions' };
@@ -2728,6 +2737,7 @@ export { msg_admin_rooms_admin_empty_groups as 'admin.rooms_admin.empty_groups' 
 export { msg_admin_rooms_admin_empty_groups_body as 'admin.rooms_admin.empty_groups_body' };
 export { msg_admin_rooms_admin_drag_hint as 'admin.rooms_admin.drag_hint' };
 export { msg_admin_rooms_admin_drag_group as 'admin.rooms_admin.drag_group' };
+export { msg_admin_rooms_admin_drag_room as 'admin.rooms_admin.drag_room' };
 export { msg_admin_rooms_admin_new_room as 'admin.rooms_admin.new_room' };
 export { msg_admin_rooms_admin_new_link as 'admin.rooms_admin.new_link' };
 export { msg_admin_rooms_admin_new_group as 'admin.rooms_admin.new_group' };

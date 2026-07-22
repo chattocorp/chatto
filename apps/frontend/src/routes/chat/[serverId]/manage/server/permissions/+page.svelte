@@ -5,10 +5,9 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { Hint } from '$lib/ui';
+  import { AdminPageContent } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button } from '$lib/ui/form';
-  import { Panel } from '$lib/components/admin';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import * as m from '$lib/i18n/messages';
 
@@ -42,42 +41,30 @@
     showMobileNav
   />
 
-  <div class="flex flex-col gap-6 overflow-y-auto p-6">
-    {#if error}
-      <Hint tone="danger">{error}</Hint>
-    {:else}
-      {#if canManageRoles}
-        <Panel title={m['admin.permissions.role_presets']()}>
-          <p class="mb-4 text-muted">
-            {m['admin.permissions.role_presets_intro']()}
-          </p>
-          <Button
-            variant="neutral"
-            size="sm"
-            href={resolve('/chat/[serverId]/manage/server/permissions/new', {
-              serverId: serverSegment
-            })}
-          >
-            {m['admin.permissions.create_role_action']()}
-          </Button>
-        </Panel>
-      {/if}
-      <Hint>
-        <div class="space-y-2">
-          <p>
+  <AdminPageContent fillHeight>
+    <div class="flex min-h-0 flex-1 flex-col gap-6">
+      {#if error}
+        <Hint tone="danger">{error}</Hint>
+      {:else}
+        <PermissionMatrix
+          onRoleClick={openRoleDetail}
+          isRoleClickable={() => canManageRolesFull}
+          newRoleHref={
+            canManageRoles
+              ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
+              : undefined
+          }
+          fillHeight
+        >
+          {#snippet subtitle()}
             {m['admin.permissions.server_tier_intro']()}
-          </p>
-          <p>
-            {m['admin.permissions.server_tier_rooms_hint']()}
             <a
               href={resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })}
-              class="link">{m['admin.common.rooms']()}</a
+              class="link">{m['admin.permissions.server_tier_rooms_hint']()}</a
             >
-          </p>
-          <p>{m['admin.permissions.resolution_hint']()}</p>
-        </div>
-      </Hint>
-      <PermissionMatrix onRoleClick={openRoleDetail} isRoleClickable={() => canManageRolesFull} />
-    {/if}
-  </div>
+          {/snippet}
+        </PermissionMatrix>
+      {/if}
+    </div>
+  </AdminPageContent>
 </div>

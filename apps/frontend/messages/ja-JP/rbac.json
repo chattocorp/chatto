@@ -49,6 +49,9 @@
       "level_group": "グループ",
       "level_room": "部屋",
       "empty_category": "このカテゴリには権限がありません",
+      "filter_label": "権限を絞り込む",
+      "filter_placeholder": "権限を絞り込む...",
+      "no_filter_matches": "このフィルターに一致する権限はありません。",
       "categories": {
         "space": {
           "title": "サーバー権限",

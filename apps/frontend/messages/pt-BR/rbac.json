@@ -49,6 +49,9 @@
       "level_group": "Grupo",
       "level_room": "Quarto",
       "empty_category": "Nenhuma permissão nesta categoria",
+      "filter_label": "Filtrar permissões",
+      "filter_placeholder": "Filtrar permissões...",
+      "no_filter_matches": "Nenhuma permissão corresponde a este filtro.",
       "categories": {
         "space": {
           "title": "Permissões do servidor",

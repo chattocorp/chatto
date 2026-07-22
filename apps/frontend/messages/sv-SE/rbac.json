@@ -49,6 +49,9 @@
       "level_group": "Grupp",
       "level_room": "Rum",
       "empty_category": "Inga behörigheter i denna kategori",
+      "filter_label": "Filtrera behörigheter",
+      "filter_placeholder": "Filtrera behörigheter...",
+      "no_filter_matches": "Inga behörigheter matchar detta filter.",
       "categories": {
         "space": {
           "title": "Serverbehörigheter",
