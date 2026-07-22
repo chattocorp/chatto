@@ -66,8 +66,8 @@ The bundled provider joins both ready queues only after replay is current.
 
 This is a trusted server-side integration surface, not a public client API.
 Query responses contain thin message and room IDs. The public
-`MessageSearchService` prefilters provider queries to current member rooms when
-that set fits the bounded provider contract. It then uses
+`MessageSearchService` prefilters provider queries to the caller's complete
+current member-room set. It then uses
 `MessageSearchReadModel` and the normal timeline hydrator to recheck room
 membership, current body availability, and message/room identity before
 returning canonical `Message` resources. Public cursors encrypt and authenticate

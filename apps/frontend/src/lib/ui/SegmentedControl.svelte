@@ -35,7 +35,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
 
 <fieldset
   class={[
-    'inline-flex w-fit min-w-0 items-center rounded-full border border-border bg-surface p-1',
+    'inline-flex min-h-10 w-fit min-w-0 items-center rounded-md border border-input-border bg-input p-0.5',
     className
   ]}
   {disabled}
@@ -54,7 +54,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
         onchange={() => onchange(option.value)}
       />
       <span
-        class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full px-4 text-sm font-medium text-muted transition-[background-color,color,box-shadow] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-checked:shadow-sm peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 hover:bg-surface-emphasized hover:text-text"
+        class="inline-flex min-h-9 min-w-10 items-center justify-center rounded px-3 text-sm font-medium text-muted transition-[background-color,color] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 hover:bg-surface-emphasized hover:text-text"
       >
         {option.label}
       </span>

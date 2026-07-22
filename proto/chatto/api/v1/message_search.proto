@@ -92,6 +92,9 @@ message GetStatusRequest {}
 
 // Current message-search availability.
 message GetStatusResponse {
+  reserved 2, 3;
+  reserved "indexed_event_count", "target_event_count";
+
   // Current feature/provider state.
   MessageSearchState state = 1;
   // Suggested delay before checking again while search is not ready.

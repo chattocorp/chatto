@@ -68,7 +68,23 @@ type projectionBatch struct {
 	messages        map[string]messageDocument
 	deletedMessages map[string]struct{}
 	deks            map[string]*corev1.UserDEKGeneratedEvent
+	deksMutable     bool
 	dekChanged      bool
+}
+
+// makeDEKsMutable gives a batch its own map before changing retained DEK
+// metadata. Existing protobuf values are immutable, so a shallow map copy is
+// sufficient and ordinary message events do not copy the server-wide DEK set.
+func (b *projectionBatch) makeDEKsMutable() {
+	if b.deksMutable {
+		return
+	}
+	deks := make(map[string]*corev1.UserDEKGeneratedEvent, len(b.deks))
+	for key, dek := range b.deks {
+		deks[key] = dek
+	}
+	b.deks = deks
+	b.deksMutable = true
 }
 
 // Projection materializes searchable plaintext into a disposable local Bleve
@@ -170,7 +186,7 @@ func (p *Projection) applyBatch(items []events.SequencedEvent) error {
 		index:           p.index.NewBatch(),
 		messages:        make(map[string]messageDocument),
 		deletedMessages: make(map[string]struct{}),
-		deks:            cloneDEKs(p.deks),
+		deks:            p.deks,
 	}
 	var previousSequence uint64
 	for i, item := range items {
@@ -217,7 +233,9 @@ func (p *Projection) applyBatch(items []events.SequencedEvent) error {
 		return fmt.Errorf("commit search index batch: %w", err)
 	}
 	commitTimer.Stop()
-	p.deks = batch.deks
+	if batch.dekChanged {
+		p.deks = batch.deks
+	}
 	p.checkpoint = record
 	return nil
 }
@@ -227,6 +245,7 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 	case *corev1.Event_UserDekGenerated:
 		dek := payload.UserDekGenerated
 		if dek != nil {
+			batch.makeDEKsMutable()
 			batch.deks[dekKey(dek.GetUserId(), dek.GetPurpose(), dek.GetEpoch())] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
 			batch.dekChanged = true
 		}
@@ -294,22 +313,21 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 		if err := batch.deleteMatching("author_id", userID); err != nil {
 			return err
 		}
+		var keys []string
 		for key, dek := range batch.deks {
 			if dek.GetUserId() == userID {
-				delete(batch.deks, key)
-				batch.dekChanged = true
+				keys = append(keys, key)
 			}
+		}
+		if len(keys) > 0 {
+			batch.makeDEKsMutable()
+			for _, key := range keys {
+				delete(batch.deks, key)
+			}
+			batch.dekChanged = true
 		}
 	}
 	return nil
-}
-
-func cloneDEKs(source map[string]*corev1.UserDEKGeneratedEvent) map[string]*corev1.UserDEKGeneratedEvent {
-	clone := make(map[string]*corev1.UserDEKGeneratedEvent, len(source))
-	for key, dek := range source {
-		clone[key] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
-	}
-	return clone
 }
 
 func (p *Projection) RestoreCheckpoint(_ context.Context, request events.ProjectionCheckpointRequest) (events.ProjectionCheckpoint, error) {
@@ -375,7 +393,15 @@ func (p *Projection) open() error {
 		p.index = index
 		return nil
 	}
-	if !errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist) {
+	create := errors.Is(err, blevesearch.ErrorIndexPathDoesNotExist)
+	if errors.Is(err, blevesearch.ErrorIndexMetaMissing) {
+		entries, readErr := os.ReadDir(p.directory)
+		if readErr != nil {
+			return fmt.Errorf("inspect search index directory %q: %w", p.directory, readErr)
+		}
+		create = len(entries) == 0
+	}
+	if !create {
 		return fmt.Errorf(
 			"open search index %q: %w; Chatto will not modify an unreadable index, so move or delete that directory explicitly before restarting the provider",
 			p.directory,

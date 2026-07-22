@@ -297,6 +297,56 @@ func TestProjectionFailedStartupBatchDoesNotAdvanceDurableCheckpoint(t *testing.
 	require.Zero(t, checkpoint.CutoffSequence)
 }
 
+func TestProjectionNonDEKBatchRetainsDEKMap(t *testing.T) {
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	dek := &corev1.UserDEKGeneratedEvent{
+		UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Epoch: 1, ContentKeyRef: "dek.test", WrappingKeyRef: "kek.test",
+	}
+	require.NoError(t, projection.Apply(&corev1.Event{
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: dek},
+	}, 1))
+
+	retained := projection.deks
+	require.NoError(t, projection.Apply(&corev1.Event{}, 2))
+	retained["map-identity-sentinel"] = dek
+	require.Contains(t, projection.deks, "map-identity-sentinel",
+		"ordinary events must not copy the retained DEK map")
+}
+
+func TestProjectionFailedDEKBatchDoesNotMutateRetainedMetadata(t *testing.T) {
+	projection, err := NewProjection(t.TempDir()+"/index", nil, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+	first := &corev1.UserDEKGeneratedEvent{
+		UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Epoch: 1, ContentKeyRef: "dek.1", WrappingKeyRef: "kek.test",
+	}
+	require.NoError(t, projection.Apply(&corev1.Event{
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: first},
+	}, 1))
+
+	retained := projection.deks
+	commitErr := errors.New("injected batch failure")
+	projection.commitBatch = func(*blevesearch.Batch) error { return commitErr }
+	second := &corev1.UserDEKGeneratedEvent{
+		UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Epoch: 2, ContentKeyRef: "dek.2", WrappingKeyRef: "kek.test",
+	}
+	err = projection.Apply(&corev1.Event{
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: second},
+	}, 2)
+	require.ErrorIs(t, err, commitErr)
+	require.Len(t, retained, 1)
+	require.Len(t, projection.deks, 1)
+	require.NotContains(t, projection.deks, dekKey("U1", second.GetPurpose(), 2))
+	retained["map-identity-sentinel"] = first
+	require.Contains(t, projection.deks, "map-identity-sentinel",
+		"a failed copy-on-write batch must leave the retained map installed")
+}
+
 func TestProjectionRestoresDEKMetadataForTailEdits(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
@@ -616,6 +666,16 @@ func TestProjectionDoesNotDeleteUnreadableIndex(t *testing.T) {
 	retainedSentinel, readErr := os.ReadFile(sentinelPath)
 	require.NoError(t, readErr)
 	require.Equal(t, sentinel, retainedSentinel)
+}
+
+func TestProjectionCreatesIndexInExistingEmptyDirectory(t *testing.T) {
+	directory := t.TempDir()
+	projection, err := NewProjection(directory, []string{"de", "en"}, nil, nil, nil, log.New(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = projection.Close() })
+
+	_, err = os.Stat(filepath.Join(directory, "index_meta.json"))
+	require.NoError(t, err)
 }
 
 func TestProjectionDoesNotResetIncompatibleCheckpoint(t *testing.T) {

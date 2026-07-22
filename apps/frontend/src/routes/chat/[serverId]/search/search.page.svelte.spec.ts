@@ -101,6 +101,7 @@ describe('message search page', () => {
     expect(
       [...container.querySelectorAll('h2')].map((heading) => heading.textContent?.trim())
     ).toEqual(['Search query', 'Results']);
+    expect(container.textContent).not.toContain('All rooms');
     expect(mocks.ensureStatus).toHaveBeenCalledOnce();
     expect(mocks.search).toHaveBeenCalledWith({
       query: 'motherfucking search',

@@ -21,7 +21,15 @@ in the active server store so browser Back can restore the current search.
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime } from '$lib/utils/formatTime';
-  import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, SegmentedControl } from '$lib/ui';
+  import {
+    EmptyState,
+    Hint,
+    PageTitle,
+    PaneContent,
+    PaneHeader,
+    ScrollFader,
+    SegmentedControl
+  } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import * as m from '$lib/i18n/messages';
 
@@ -141,8 +149,8 @@ in the active server store so browser Back can restore the current search.
 <div class="pane-page">
   <PaneHeader title={m['search.title']()} showMobileNav />
 
-  <PaneContent>
-    <div class="flex flex-col gap-6">
+  <PaneContent fillHeight>
+    <div class="flex min-h-0 flex-1 flex-col gap-6">
       {#if store.statusLoading && !store.statusLoaded}
         <Panel>
           <div class="flex min-h-64 items-center justify-center text-muted" aria-live="polite">
@@ -180,33 +188,27 @@ in the active server store so browser Back can restore the current search.
         </Panel>
       {:else}
         <Panel title={m['search.query.label']()}>
-          <form class="flex flex-col gap-3" onsubmit={submit}>
-            <div class="flex items-end gap-2">
-              <div class="min-w-0 flex-1">
-                <TextInput
-                  label={m['search.query.label']()}
-                  labelHidden
-                  bind:value={store.query}
-                  placeholder={m['search.query.placeholder']()}
-                  leadingIcon="uil--search"
-                  autocomplete="off"
-                  autofocus
-                />
-              </div>
-              <Button type="submit" disabled={!store.query.trim()} loading={store.loading}>
-                {m['search.action']()}
-              </Button>
-            </div>
-
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm text-muted">{m['search.scope.all_rooms']()}</span>
-              <SegmentedControl
-                label={m['search.order.label']()}
-                options={orderOptions}
-                value={store.order}
-                onchange={setOrder}
+          <form class="flex flex-wrap items-stretch gap-2" onsubmit={submit}>
+            <div class="min-w-64 flex-1">
+              <TextInput
+                label={m['search.query.label']()}
+                labelHidden
+                bind:value={store.query}
+                placeholder={m['search.query.placeholder']()}
+                leadingIcon="uil--search"
+                autocomplete="off"
+                autofocus
               />
             </div>
+            <Button type="submit" disabled={!store.query.trim()} loading={store.loading}>
+              {m['search.action']()}
+            </Button>
+            <SegmentedControl
+              label={m['search.order.label']()}
+              options={orderOptions}
+              value={store.order}
+              onchange={setOrder}
+            />
           </form>
 
           {#if store.status.state === MessageSearchState.DEGRADED}
@@ -216,112 +218,115 @@ in the active server store so browser Back can restore the current search.
           {/if}
         </Panel>
 
-        <Panel title={m['search.results']()} noPadding>
-          <div class="flex min-h-72 flex-col" aria-live="polite">
-            {#if store.loading}
-              <div class="flex flex-1 items-center justify-center text-muted">
-                <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
-                {m['search.searching']()}
-              </div>
-            {:else if store.error}
-              <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
-                {m['search.error.description']()}
-              </EmptyState>
-            {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
-              <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
-                {m['search.no_results.description']()}
-              </EmptyState>
-            {:else if !store.hasSearched}
-              <EmptyState icon="uil--search" title={m['search.prompt.title']()}>
-                {m['search.prompt.description']()}
-              </EmptyState>
-            {:else}
-              <ol class="flex flex-col gap-4 p-1">
-                {#each store.results as result (result.id)}
-                  <li>
-                    <div
-                      role="link"
-                      tabindex="0"
-                      data-search-result-id={result.id}
-                      class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-action"
-                      onclick={(event) => openResult(event, result)}
-                      onkeydown={(event) => openResultFromKeyboard(event, result)}
-                    >
-                      <MessageView
-                        eventId={result.id}
-                        actor={resultActor(result)}
-                        displayName={result.actor?.displayName ||
-                          result.actor?.login ||
-                          m['common.unknown']()}
-                        missingActorIsDeleted={false}
-                        body={result.body}
-                        timestampSettings={timeFormatSettings}
-                        timestampLocale={activeLocale}
-                        rowClass="md:mx-0 md:pr-2"
+        <Panel title={m['search.results']()} noPadding fillHeight>
+          <ScrollFader top bottom class="min-h-0 flex-1">
+            <div class="flex min-h-full flex-col" aria-live="polite">
+              {#if store.loading}
+                <div class="flex flex-1 items-center justify-center text-muted">
+                  <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
+                  ></span>
+                  {m['search.searching']()}
+                </div>
+              {:else if store.error}
+                <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
+                  {m['search.error.description']()}
+                </EmptyState>
+              {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
+                <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
+                  {m['search.no_results.description']()}
+                </EmptyState>
+              {:else if !store.hasSearched}
+                <EmptyState icon="uil--search" title={m['search.prompt.title']()}>
+                  {m['search.prompt.description']()}
+                </EmptyState>
+              {:else}
+                <ol class="flex flex-col gap-4 p-1">
+                  {#each store.results as result (result.id)}
+                    <li>
+                      <div
+                        role="link"
+                        tabindex="0"
+                        data-search-result-id={result.id}
+                        class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-action"
+                        onclick={(event) => openResult(event, result)}
+                        onkeydown={(event) => openResultFromKeyboard(event, result)}
                       >
-                        {#snippet headerMeta()}
-                          <a
-                            class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                            href={resolve('/chat/[serverId]/[roomId]', {
-                              serverId: serverIdToSegment(serverId),
-                              roomId: result.roomId
-                            })}
-                          >
-                            {result.roomKind === RoomKind.DM
-                              ? m['room.title.direct_message']()
-                              : `#${result.roomName ?? m['search.scope.room']()}`}
-                          </a>
-                          {#if result.createdAt}
-                            <span class="text-xs text-muted" aria-hidden="true">·</span>
+                        <MessageView
+                          eventId={result.id}
+                          actor={resultActor(result)}
+                          displayName={result.actor?.displayName ||
+                            result.actor?.login ||
+                            m['common.unknown']()}
+                          missingActorIsDeleted={false}
+                          body={result.body}
+                          timestampSettings={timeFormatSettings}
+                          timestampLocale={activeLocale}
+                          rowClass="md:mx-0 md:pr-2"
+                        >
+                          {#snippet headerMeta()}
                             <a
                               class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                              href={result.threadRootEventId
-                                ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-                                    serverId: serverIdToSegment(serverId),
-                                    roomId: result.roomId,
-                                    threadId: result.threadRootEventId,
-                                    messageId: result.id
-                                  })
-                                : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                                    serverId: serverIdToSegment(serverId),
-                                    roomId: result.roomId,
-                                    messageId: result.id
-                                  })}
+                              href={resolve('/chat/[serverId]/[roomId]', {
+                                serverId: serverIdToSegment(serverId),
+                                roomId: result.roomId
+                              })}
                             >
-                              <time datetime={result.createdAt}
-                                >{formatTimestamp(result.createdAt)}</time
-                              >
+                              {result.roomKind === RoomKind.DM
+                                ? m['room.title.direct_message']()
+                                : `#${result.roomName ?? m['search.scope.room']()}`}
                             </a>
-                          {/if}
-                        {/snippet}
+                            {#if result.createdAt}
+                              <span class="text-xs text-muted" aria-hidden="true">·</span>
+                              <a
+                                class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                                href={result.threadRootEventId
+                                  ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+                                      serverId: serverIdToSegment(serverId),
+                                      roomId: result.roomId,
+                                      threadId: result.threadRootEventId,
+                                      messageId: result.id
+                                    })
+                                  : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+                                      serverId: serverIdToSegment(serverId),
+                                      roomId: result.roomId,
+                                      messageId: result.id
+                                    })}
+                              >
+                                <time datetime={result.createdAt}
+                                  >{formatTimestamp(result.createdAt)}</time
+                                >
+                              </a>
+                            {/if}
+                          {/snippet}
 
-                        {#snippet afterBody()}
-                          {#if result.attachmentCount > 0}
-                            <p class="inline-flex items-center gap-1 text-sm text-muted">
-                              <span class="iconify uil--paperclip" aria-hidden="true"></span>
-                              {m['search.attachments']({ count: result.attachmentCount })}
-                            </p>
-                          {/if}
-                        {/snippet}
-                      </MessageView>
-                    </div>
-                  </li>
-                {/each}
-              </ol>
-              {#if store.nextCursor}
-                <div
-                  {@attach loadMoreWhenVisible}
-                  class="flex h-12 items-center justify-center text-muted"
-                >
-                  {#if store.loadingMore}
-                    <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
-                    ></span>
-                    {m['search.loading_more']()}
-                  {/if}
-                </div>
+                          {#snippet afterBody()}
+                            {#if result.attachmentCount > 0}
+                              <p class="inline-flex items-center gap-1 text-sm text-muted">
+                                <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                                {m['search.attachments']({ count: result.attachmentCount })}
+                              </p>
+                            {/if}
+                          {/snippet}
+                        </MessageView>
+                      </div>
+                    </li>
+                  {/each}
+                </ol>
+                {#if store.nextCursor}
+                  <div
+                    {@attach loadMoreWhenVisible}
+                    class="flex h-12 items-center justify-center text-muted"
+                  >
+                    {#if store.loadingMore}
+                      <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
+                      ></span>
+                      {m['search.loading_more']()}
+                    {/if}
+                  </div>
+                {/if}
               {/if}
-            {/if}
-          </div>
+            </div>
+          </ScrollFader>
         </Panel>
       {/if}
     </div>
