@@ -85,8 +85,9 @@ type BotServiceClient interface {
 	// Permanently deletes one manageable bot and applies ordinary account and
 	// authored-content deletion behavior.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
-	// Issues the bot's first API key or replaces its existing key. The previous
-	// key is invalidated immediately and the new secret is returned only once.
+	// Issues an owned bot's first API key or replaces its existing key. The
+	// previous key is invalidated immediately and the new secret is returned
+	// only once. Administrators cannot issue keys for another owner's bot.
 	RotateBotAPIKey(context.Context, *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error)
 	// Revokes the bot's active API key. This operation is idempotent when the bot
 	// has no active key.
@@ -257,8 +258,9 @@ type BotServiceHandler interface {
 	// Permanently deletes one manageable bot and applies ordinary account and
 	// authored-content deletion behavior.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
-	// Issues the bot's first API key or replaces its existing key. The previous
-	// key is invalidated immediately and the new secret is returned only once.
+	// Issues an owned bot's first API key or replaces its existing key. The
+	// previous key is invalidated immediately and the new secret is returned
+	// only once. Administrators cannot issue keys for another owner's bot.
 	RotateBotAPIKey(context.Context, *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error)
 	// Revokes the bot's active API key. This operation is idempotent when the bot
 	// has no active key.

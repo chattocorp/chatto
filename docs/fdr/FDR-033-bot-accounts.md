@@ -54,8 +54,10 @@ possess.
   the bot can read, exactly as it does for human participants; ordinary DM
   authorization rules determine which actions the bot may perform.
 - A bot authenticates through one dedicated API key with no automatic expiry.
-  The raw secret is shown only when issued. Its owner can replace it with a new
-  key, immediately invalidating the previous key.
+  The raw secret is shown only when issued and only to the bot's owner. Its
+  owner can replace it with a new key, immediately invalidating the previous
+  key. Administrators can revoke another owner's bot key for abuse response,
+  but cannot issue or receive its replacement secret.
 - Bot credentials authenticate the same general-purpose public ConnectRPC and
   realtime APIs used by other clients. Bot-kind invariants and ordinary
   authorization determine which operations a bot may perform; Chatto does not

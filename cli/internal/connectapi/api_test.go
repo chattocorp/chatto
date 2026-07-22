@@ -4241,6 +4241,9 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if _, err := env.bots.GetBot(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); err != nil {
 		t.Fatalf("admin GetBot: %v", err)
 	}
+	if _, err := env.bots.RotateBotAPIKey(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("admin RotateBotAPIKey code = %v, want permission_denied", connect.CodeOf(err))
+	}
 	revoked, err := env.bots.RevokeBotAPIKey(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.RevokeBotAPIKeyRequest{BotId: botID}))
 	if err != nil {
 		t.Fatalf("admin RevokeBotAPIKey: %v", err)

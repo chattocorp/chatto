@@ -82,6 +82,10 @@ export class BotManagementStore {
     return bot;
   }
 
+  replace(bot: BotAccount): void {
+    this.bots = this.bots.map((item) => (item.id === bot.id ? bot : item));
+  }
+
   owner(bot: BotAccount): UserSummary | null {
     return this.owners[bot.ownerId] ?? null;
   }

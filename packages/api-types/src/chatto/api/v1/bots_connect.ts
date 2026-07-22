@@ -112,8 +112,9 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Issues the bot's first API key or replaces its existing key. The previous
-     * key is invalidated immediately and the new secret is returned only once.
+     * Issues an owned bot's first API key or replaces its existing key. The
+     * previous key is invalidated immediately and the new secret is returned
+     * only once. Administrators cannot issue keys for another owner's bot.
      *
      * @generated from rpc chatto.api.v1.BotService.RotateBotAPIKey
      */

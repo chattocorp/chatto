@@ -17,6 +17,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   import { BotManagementStore } from './BotManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
   import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
+  import BotCredentialsDialog from './BotCredentialsDialog.svelte';
 
   let {
     scope,
@@ -49,6 +50,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   let saving = $state(false);
   let saveError = $state<string | null>(null);
   let permissionsBot = $state<BotAccount | null>(null);
+  let credentialsBot = $state<BotAccount | null>(null);
 
   const normalizedLogin = $derived(login.trim());
   const normalizedDisplayName = $derived(displayName.trim());
@@ -93,6 +95,16 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   function openPermissions(event: MouseEvent, bot: BotAccount) {
     event.stopPropagation();
     permissionsBot = bot;
+  }
+
+  function openCredentials(event: MouseEvent, bot: BotAccount) {
+    event.stopPropagation();
+    credentialsBot = bot;
+  }
+
+  function updateCredentialsBot(bot: BotAccount) {
+    store.replace(bot);
+    credentialsBot = bot;
   }
 
   async function saveBot() {
@@ -208,9 +220,16 @@ all loading, pagination, owner hydration, and mutations stay in this component.
             <p class="line-clamp-2">{bot.description}</p>
           </td>
           <td class="px-4 py-3">
-            <Pill tone={bot.apiKeyCreatedAt ? 'success' : 'neutral'}>
-              {bot.apiKeyCreatedAt ? m['bots.api_key.active']() : m['bots.api_key.none']()}
-            </Pill>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={scope === 'admin' && !bot.apiKeyCreatedAt}
+              onclick={(event) => openCredentials(event, bot)}
+            >
+              <Pill tone={bot.apiKeyCreatedAt ? 'success' : 'neutral'}>
+                {bot.apiKeyCreatedAt ? m['bots.api_key.active']() : m['bots.api_key.none']()}
+              </Pill>
+            </Button>
           </td>
           <td class="px-4 py-3">
             <Button variant="secondary" onclick={(event) => openPermissions(event, bot)}>
@@ -281,3 +300,12 @@ all loading, pagination, owner hydration, and mutations stay in this component.
     <BotPermissionsMatrix botId={permissionsBot.id} />
   {/if}
 </Dialog>
+
+{#if credentialsBot}
+  <BotCredentialsDialog
+    bot={credentialsBot}
+    canRotate={scope === 'owner'}
+    onupdated={updateCredentialsBot}
+    onclose={() => (credentialsBot = null)}
+  />
+{/if}

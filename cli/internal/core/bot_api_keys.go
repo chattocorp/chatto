@@ -73,7 +73,7 @@ func (c *ChattoCore) GetBotAPIKeyStatus(ctx context.Context, botID string) (*Bot
 // RotateBotAPIKey issues the bot's first key or atomically replaces its single
 // active key. Only the HMAC-derived verifier is persisted.
 func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string) (string, *BotAPIKeyStatus, error) {
-	if err := c.requireManageableBot(ctx, actorID, botID); err != nil {
+	if err := c.requireOwnedBot(ctx, actorID, botID); err != nil {
 		return "", nil, err
 	}
 	token := NewBotAPIKey(botID)
@@ -86,7 +86,7 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	key := botAPIKeyRecordKey(botID)
 
 	for attempt := 0; attempt < maxBotAPIKeyRetries; attempt++ {
-		if err := c.requireManageableBot(ctx, actorID, botID); err != nil {
+		if err := c.requireOwnedBot(ctx, actorID, botID); err != nil {
 			return "", nil, err
 		}
 		previous, getErr := c.storage.runtimeStateKV.Get(ctx, key)
@@ -202,6 +202,23 @@ func (c *ChattoCore) requireManageableBot(ctx context.Context, actorID, botID st
 		return err
 	}
 	if !allowed {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
+// requireOwnedBot is stricter than general bot administration because issuing
+// a credential reveals a new secret. Administrators may revoke another
+// owner's credential, but only the accountable owner may receive one.
+func (c *ChattoCore) requireOwnedBot(ctx context.Context, actorID, botID string) error {
+	if err := c.requireManageableBot(ctx, actorID, botID); err != nil {
+		return err
+	}
+	bot, err := c.GetUser(ctx, botID)
+	if err != nil || !isBotAccount(bot) {
+		return ErrNotFound
+	}
+	if bot.GetBot().GetOwnerId() != actorID {
 		return ErrPermissionDenied
 	}
 	return nil

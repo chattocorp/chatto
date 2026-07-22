@@ -42,6 +42,11 @@ export type UpdateBotInput = {
   description?: string;
 };
 
+export type RotatedBotAPIKey = {
+  bot: BotAccount;
+  apiKey: string;
+};
+
 export type BotPermissionScope = {
   id: string;
   label: string;
@@ -124,6 +129,17 @@ export function createBotAPI(config: BotAPIConfig) {
         },
         { headers: headers() }
       );
+    },
+
+    async rotateAPIKey(botId: string): Promise<RotatedBotAPIKey> {
+      const response = await client.rotateBotAPIKey({ botId }, { headers: headers() });
+      if (!response.apiKey) throw new Error('bot API key response did not include a secret');
+      return { bot: botAccount(requiredBot(response.bot)), apiKey: response.apiKey };
+    },
+
+    async revokeAPIKey(botId: string): Promise<BotAccount> {
+      const response = await client.revokeBotAPIKey({ botId }, { headers: headers() });
+      return botAccount(requiredBot(response.bot));
     }
   };
 }

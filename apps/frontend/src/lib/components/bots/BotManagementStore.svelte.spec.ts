@@ -60,5 +60,10 @@ describe('BotManagementStore', () => {
 
     await store.update({ botId: 'one', displayName: 'Updated bot' });
     expect(store.bots.find((item) => item.id === 'one')?.displayName).toBe('Updated bot');
+
+    store.replace({ ...bot('one'), apiKeyCreatedAt: '2026-07-22T13:00:00.000Z' });
+    expect(store.bots.find((item) => item.id === 'one')?.apiKeyCreatedAt).toBe(
+      '2026-07-22T13:00:00.000Z'
+    );
   });
 });

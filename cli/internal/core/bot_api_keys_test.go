@@ -78,6 +78,16 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 	if _, _, err := c.RotateBotAPIKey(ctx, bot.GetId(), bot.GetId()); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("bot self-rotation = %v, want permission denied", err)
 	}
+	admin, err := c.CreateUser(ctx, SystemActorID, "keyadmin", "Key Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, admin.GetId(), RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := c.RotateBotAPIKey(ctx, admin.GetId(), bot.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin rotation = %v, want permission denied", err)
+	}
 
 	rotations, _, err := c.EventPublisher.SubjectEvents(ctx, events.UserAggregate(bot.GetId()).Subject(events.EventBotAPIKeyRotated))
 	if err != nil {
