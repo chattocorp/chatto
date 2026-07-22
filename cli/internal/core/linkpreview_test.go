@@ -206,7 +206,7 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	}
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "preview", nil, "", "", postPreview, false)
 	require.NoError(t, err)
-	body, err := core.GetFullMessageBodyByEventID(ctx, event.GetId())
+	body, err := core.GetFullMessageBody(ctx, event.GetId())
 	require.NoError(t, err)
 	require.NotNil(t, body)
 	require.NotNil(t, body.LinkPreview.GetImageAsset(), "posted ID-only preview should be stored with ImageAsset")

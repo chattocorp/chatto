@@ -5084,7 +5084,7 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	if message == nil {
 		t.Fatalf("CreateMessage message = nil")
 	}
-	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, message.GetId())
+	body, err := env.core.GetFullMessageBody(env.ctx, message.GetId())
 	if err != nil {
 		t.Fatalf("GetFullMessageBody: %v", err)
 	}
@@ -6003,7 +6003,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if authorResp.Msg.GetMessage().GetBody() != "author edit" {
 		t.Fatalf("author UpdateMessage response = %+v, want hydrated edited event", authorResp.Msg)
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {
+	if body, err := env.core.GetMessageBody(env.ctx, original.Id); err != nil || body != "author edit" {
 		t.Fatalf("body after author edit = %q, %v; want author edit, nil", body, err)
 	}
 
@@ -6035,7 +6035,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("moderator UpdateMessage: %v", err)
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, moderated.Id); err != nil || body != "moderator edit" {
+	if body, err := env.core.GetMessageBody(env.ctx, moderated.Id); err != nil || body != "moderator edit" {
 		t.Fatalf("body after moderator edit = %q, %v; want moderator edit, nil", body, err)
 	}
 
@@ -6089,7 +6089,7 @@ func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	if !resp.Msg.Deleted {
 		t.Fatal("moderator DeleteMessage Deleted = false, want true")
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, target.Id); err != nil || body != "" {
+	if body, err := env.core.GetMessageBody(env.ctx, target.Id); err != nil || body != "" {
 		t.Fatalf("body after moderator delete = %q, %v; want empty, nil", body, err)
 	}
 
@@ -6155,7 +6155,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("author DeleteAttachment: %v", err)
 	}
-	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, attachmentEvent.Id)
+	body, err := env.core.GetFullMessageBody(env.ctx, attachmentEvent.Id)
 	if err != nil {
 		t.Fatalf("GetFullMessageBody attachment: %v", err)
 	}
@@ -6170,7 +6170,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("author DeleteLinkPreview: %v", err)
 	}
-	body, err = env.core.GetFullMessageBody(env.ctx, core.KindChannel, previewEvent.Id)
+	body, err = env.core.GetFullMessageBody(env.ctx, previewEvent.Id)
 	if err != nil {
 		t.Fatalf("GetFullMessageBody preview: %v", err)
 	}
@@ -6913,7 +6913,7 @@ func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 		t.Fatalf("PostMessage bad: %v", err)
 	}
 	corruptMessageBody(t, env, dm.Id, bad.Id, env.viewer.Id)
-	if _, err := env.core.GetFullMessageBodyByEventID(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
+	if _, err := env.core.GetFullMessageBody(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
 		t.Fatalf("corrupt message body hydration error = %v, want ErrMessageBodyCorrupt", err)
 	}
 

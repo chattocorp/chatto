@@ -2675,15 +2675,15 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	msg3ID := event3.Id
 
 	// Verify all message bodies exist
-	_, err = core.GetMessageBody(ctx, KindChannel, msg1ID)
+	_, err = core.GetMessageBody(ctx, msg1ID)
 	if err != nil {
 		t.Fatalf("Expected message 1 to exist: %v", err)
 	}
-	_, err = core.GetMessageBody(ctx, KindChannel, msg2ID)
+	_, err = core.GetMessageBody(ctx, msg2ID)
 	if err != nil {
 		t.Fatalf("Expected message 2 to exist: %v", err)
 	}
-	_, err = core.GetMessageBody(ctx, KindChannel, msg3ID)
+	_, err = core.GetMessageBody(ctx, msg3ID)
 	if err != nil {
 		t.Fatalf("Expected message 3 to exist: %v", err)
 	}
@@ -2695,7 +2695,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Verify user 1's message bodies are deleted (GetMessageBody returns empty string for missing bodies)
-	body1, err := core.GetMessageBody(ctx, KindChannel, msg1ID)
+	body1, err := core.GetMessageBody(ctx, msg1ID)
 	if err != nil {
 		t.Fatalf("Unexpected error getting message 1: %v", err)
 	}
@@ -2703,7 +2703,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 		t.Errorf("Expected message 1 body to be empty after user deletion, got: %s", body1)
 	}
 
-	body2, err := core.GetMessageBody(ctx, KindChannel, msg2ID)
+	body2, err := core.GetMessageBody(ctx, msg2ID)
 	if err != nil {
 		t.Fatalf("Unexpected error getting message 2: %v", err)
 	}
@@ -2712,7 +2712,7 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	}
 
 	// Verify user 2's message body still exists
-	body3, err := core.GetMessageBody(ctx, KindChannel, msg3ID)
+	body3, err := core.GetMessageBody(ctx, msg3ID)
 	if err != nil {
 		t.Fatalf("Failed to get message 3: %v", err)
 	}
