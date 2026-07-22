@@ -8,7 +8,11 @@ test.use({ serverOptions: { searchProvider: true } });
 const SEARCH_PLACEHOLDER = 'Words, phrases, or filters...';
 
 function searchResult(page: Page, body: string): Locator {
-  return page.locator('ol button', { hasText: body });
+  return page.locator('ol [role="article"]', { hasText: body });
+}
+
+async function followSearchResult(result: Locator): Promise<void> {
+  await result.locator('a:has(time)').click();
 }
 
 async function openSearch(page: Page): Promise<void> {
@@ -73,7 +77,7 @@ test.describe('message search', () => {
       // "run" exercises the configured English analyzer: the body contains
       // only inflected forms, while the unique term keeps this result isolated.
       const result = await expectSearchResult(page, `run ${originalTerm}`, originalBody);
-      await result.click();
+      await followSearchResult(result);
 
       await expect(page).toHaveURL((url) => url.pathname === generalRoomPath);
       await roomPage.expectMessageVisible(originalBody, { timeout: TIMEOUTS.REALTIME_EVENT });
@@ -90,7 +94,7 @@ test.describe('message search', () => {
     });
 
     await test.step('remove a deleted message from search', async () => {
-      await searchResult(page, editedBody).click();
+      await followSearchResult(searchResult(page, editedBody));
       await roomPage.getMessageByEventId(messageId!).delete();
 
       await openSearch(page);
@@ -105,7 +109,7 @@ test.describe('message search', () => {
 
       await openSearch(page);
       const result = await expectSearchResult(page, privateTerm, privateBody);
-      await result.click();
+      await followSearchResult(result);
       await chatPage.expectRoomHeaderVisible(roomName);
 
       const roomURL = page.url();
