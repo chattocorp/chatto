@@ -67,6 +67,8 @@ path = "/metrics"
 
 Clustered deployments should run the embedded exporter on at most one replica, or run `chatto exporter` as a separate unit against external NATS or an exposed embedded NATS TCP listener.
 
+`chatto_users_total` reports all non-deleted accounts, including bots, by verified-email status. `chatto_bot_users_total` reports the bot-account subset as a separate gauge.
+
 ## Backups
 
 Backups are not optional for live servers. At minimum:
