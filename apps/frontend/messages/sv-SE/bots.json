@@ -21,7 +21,7 @@
     },
     "empty": {
       "title": "No bots yet",
-      "owner": "Create your own API integrations using Bot Accounts.",
+      "owner": "Skapa egna API-integrationer med botkonton.",
       "admin": "No manageable bot accounts were found."
     },
     "badge": {

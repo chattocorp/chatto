@@ -21,7 +21,7 @@
     },
     "empty": {
       "title": "No bots yet",
-      "owner": "Create your own API integrations using Bot Accounts.",
+      "owner": "Створюйте власні API-інтеграції за допомогою облікових записів ботів.",
       "admin": "No manageable bot accounts were found."
     },
     "badge": {

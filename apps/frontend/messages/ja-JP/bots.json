@@ -21,7 +21,7 @@
     },
     "empty": {
       "title": "No bots yet",
-      "owner": "Create your own API integrations using Bot Accounts.",
+      "owner": "ボットアカウントを使って独自の API 連携を作成できます。",
       "admin": "No manageable bot accounts were found."
     },
     "badge": {
