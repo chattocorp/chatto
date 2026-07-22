@@ -18,6 +18,7 @@ Shows matching room members when typing @username in chat input.
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
   import * as m from '$lib/i18n/messages';
+  import BotBadge from '$lib/components/BotBadge.svelte';
 
   type MentionResult =
     | { type: 'user'; handle: string; member: RoomMember; score: number; priority: number }
@@ -111,6 +112,9 @@ Shows matching room members when typing @username in chat input.
         </div>
       {/if}
       <span class="min-w-0 truncate text-sm text-text">{result.member.displayName}</span>
+      {#if result.member.isBot || result.member.login.toLowerCase().endsWith('_bot')}
+        <BotBadge />
+      {/if}
       <span class="min-w-0 truncate text-sm text-muted">@{result.member.login}</span>
     {:else if result.type === 'virtual'}
       <div

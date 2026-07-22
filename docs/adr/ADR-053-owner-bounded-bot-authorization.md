@@ -48,8 +48,13 @@ RBAC result, but the owner intersection remains an absolute ceiling.
 
 Some operations are categorically unavailable to bot actors regardless of
 RBAC. Bots cannot use interactive human login, create or own other bots, manage
-their own API credentials, or perform human account-security operations. These
-are account-kind invariants, not permission decisions.
+their own API credentials, or change human-only security identity such as
+passwords, verified email addresses, and external login identities. These are
+account-kind invariants, not permission decisions. Ordinary administrative and
+moderation operations are not categorically human-only: a bot may perform them
+when both the bot and its owner hold the required authority and every ordinary
+target/delegation rule passes. This deliberately permits moderation bots
+without creating a privileged bot-only path.
 
 Bot owners may configure direct permission decisions for their bots, subject to
 the owner ceiling, but may not assign roles. Role assignment to bots remains an
@@ -105,9 +110,10 @@ from stale state after such a change commits.
 - A new bot inherits ordinary `everyone` capabilities immediately. Bot creation
   and credential issuance must show that baseline clearly so the owner can
   narrow it before putting the credential into service.
-- Authorization has a second class of denials for bot-kind invariants. Permission
-  explanations must distinguish those categorical restrictions from RBAC and
-  owner-ceiling results.
+- Human authentication and security-identity operations have a second class of
+  denials for bot-kind invariants. General permission explanations continue to
+  describe RBAC and owner-ceiling results; operation-specific errors identify
+  categorical account-kind restrictions.
 - Owner deletion becomes a multi-account lifecycle operation. It must not leave
   ownerless bots if a partial failure occurs.
 - Cross-replica authorization must include owner-affecting changes in the same

@@ -3618,6 +3618,67 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	checkInaccessible("UpdateRoomNotificationPreference", err)
 }
 
+func TestBotDMPrivacyAndOwnerPermissionCeiling(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-dm-owner", "Bot DM Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := env.core.CreateBotAs(env.ctx, owner.GetId(), "private_dm_bot", "Private DM Bot", "Participates in private DMs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-dm-participant", "Bot DM Participant", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	botDM, _, err := env.core.FindOrCreateDM(env.ctx, participant.GetId(), []string{bot.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM with bot: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, botDM.GetId(), participant.GetId(), "private bot message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage in bot DM: %v", err)
+	}
+	apiKey, _, err := env.core.RotateBotAPIKey(env.ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	credential, err := env.core.ValidateBotAPIKey(env.ctx, apiKey)
+	if err != nil || credential.UserID != bot.GetId() {
+		t.Fatalf("ValidateBotAPIKey = %+v, %v", credential, err)
+	}
+	botCtx := withBearerCredential(env.ctx, bot, apiKey)
+	if _, err := env.rooms.GetRoomEvents(botCtx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: botDM.GetId()})); err != nil {
+		t.Fatalf("bot member GetRoomEvents: %v", err)
+	}
+	if _, err := env.messages.GetMessage(botCtx, connect.NewRequest(&apiv1.GetMessageRequest{RoomId: botDM.GetId(), EventId: root.GetId()})); err != nil {
+		t.Fatalf("bot member GetMessage: %v", err)
+	}
+	if _, err := env.rooms.GetRoomEvents(withCaller(env.ctx, owner), connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: botDM.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("owner outsider GetRoomEvents code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	ownerDM, _, err := env.core.FindOrCreateDM(env.ctx, owner.GetId(), []string{participant.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM with owner: %v", err)
+	}
+	if _, err := env.rooms.GetRoomEvents(botCtx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: ownerDM.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bot outsider GetRoomEvents code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermMessagePost); err != nil {
+		t.Fatalf("deny owner message.post: %v", err)
+	}
+	if _, err := env.messages.CreateMessage(botCtx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: botDM.GetId(), Body: "blocked by owner ceiling"})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bot CreateMessage under owner deny code = %v, want permission_denied", connect.CodeOf(err))
+	}
+}
+
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
@@ -8297,6 +8358,15 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 				Decision: core.DecisionDeny,
 			},
 		},
+		OwnerCeiling: &core.PermissionExplanation{
+			Permission:    core.PermAdminUsersView,
+			State:         core.DecisionAllow,
+			DecidedAt:     core.LevelServer,
+			DecidedByRole: core.RoleAdmin,
+			Trace: []core.TraceEntry{{
+				Level: core.LevelServer, RoleName: core.RoleAdmin, Decision: core.DecisionAllow,
+			}},
+		},
 	})
 
 	if got.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
@@ -8311,6 +8381,10 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	}
 	if trace[1].GetApplied() {
 		t.Fatalf("second trace entry applied = true, want false")
+	}
+	owner := got.GetOwnerCeiling()
+	if owner.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || owner.GetDecidedByRole() != core.RoleAdmin {
+		t.Fatalf("owner ceiling = %+v, want admin allow", owner)
 	}
 }
 

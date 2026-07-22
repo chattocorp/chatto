@@ -78,4 +78,17 @@ describe('UserAvatar', () => {
 
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
+
+  it('marks bot accounts independently of presence and status overlays', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'md',
+      login: 'helper_bot',
+      isBot: true,
+      showPresence: true,
+      showStatus: true
+    });
+
+    expect(q(container, '[data-testid="bot-account-marker"]')).toBeTruthy();
+    expect(q(container, '[aria-label="Bot: helper_bot"]')).toBeTruthy();
+  });
 });

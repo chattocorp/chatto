@@ -19,6 +19,7 @@ export type DirectoryMember = {
   displayName: string;
   deleted: boolean;
   avatarUrl: string | null;
+  isBot?: boolean;
   presenceStatus: PresenceStatus;
   customStatus: {
     emoji: string;
@@ -155,6 +156,7 @@ export function mapDirectoryMember(
     displayName: user?.displayName ?? "",
     deleted: user?.deleted ?? false,
     avatarUrl: user?.avatarUrl ?? null,
+    ...(user?.accountProfile?.case === "bot" ? { isBot: true } : {}),
     presenceStatus: apiPresenceStatus(
       user?.presenceStatus ?? APIPresenceStatus.UNSPECIFIED,
     ),

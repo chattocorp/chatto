@@ -44,9 +44,12 @@ possess.
   the bot's baseline or deliberately grant additional capabilities within the
   owner's current authority. It makes that ceiling clear and does not offer
   apparently selectable grants that the owner cannot delegate.
-- Bot-kind invariants prohibit human-only operations regardless of RBAC. Bots
-  cannot use interactive login, create or own bots, manage their own API
-  credentials, or perform human account-security operations.
+- Bot-kind invariants prohibit human authentication and security-identity
+  operations regardless of RBAC. Bots cannot use interactive login, create or
+  own bots, manage their own API credentials, or change passwords, verified
+  email addresses, or external login identities. Bots may perform ordinary
+  moderation or administration when both bot and owner have the required
+  authority and the normal target/delegation rules pass.
 - Authorized administrators can inspect bots owned by other users, reduce or
   revoke their permissions, revoke their API access, and delete them. This is
   an abuse-response and server-safety capability, not an ownership transfer.
@@ -120,14 +123,16 @@ bots individually until a proven bulk-policy design is introduced.
 ### 5. Human-only operations are bot-kind invariants
 
 **Decision:** Reject interactive login, bot ownership or creation, self-managed
-API credentials, and human account-security operations for bot actors regardless
-of their resolved permissions.
+API credentials, and human security-identity operations for bot actors
+regardless of their resolved permissions. Permit ordinary moderation and
+administration through the same owner-bounded RBAC rules as other actions.
 **Why:** These operations are nonsensical or unsafe for automation identities.
 Making them categorical invariants prevents an unrelated role or future
 `everyone` default from accidentally enabling them.
-**Tradeoff:** Bot actors do not receive every capability their permission trace
-might otherwise suggest; authorization explanations must identify bot-kind
-restrictions explicitly.
+**Tradeoff:** Bot actors do not receive every identity capability their
+permission trace might otherwise suggest. Conversely, deliberately granting
+administrative authority to both a bot and its owner can create powerful
+moderation automation that operators must configure carefully.
 
 ### 6. DMs retain their existing membership boundary
 

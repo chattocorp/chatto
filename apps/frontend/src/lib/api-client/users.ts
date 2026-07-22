@@ -15,6 +15,7 @@ export type UserSummary = {
   displayName: string;
   deleted: boolean;
   avatarUrl: string | null;
+  isBot?: boolean;
 };
 
 export function createUserAPI(config: UserAPIConfig) {
@@ -50,5 +51,6 @@ export function mapUserSummary(user: APIUser): UserSummary {
     displayName: user.displayName,
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
+    ...(user.accountProfile?.case === "bot" ? { isBot: true } : {}),
   };
 }
