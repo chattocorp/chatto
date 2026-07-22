@@ -212,11 +212,7 @@ registry.
     serverId: serverSegment,
     roomId: room.id
   })}
-  <li
-    class="flex items-center gap-3 rounded-md px-3 py-1.5 transition-colors {joined
-      ? 'hover:bg-surface/70'
-      : ''}"
-  >
+  <li class="selectable-list-item flex items-center gap-3 px-3 py-1.5">
     {#snippet roomLabel()}
       <div class="flex min-w-0 items-start gap-2 font-medium">
         <span class="mt-0.5 shrink-0 text-muted/60">#</span>
@@ -310,7 +306,7 @@ registry.
 
       <!-- Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
            keeps per-row actions aligned within the shared panel inset. -->
-      <ul class="flex flex-col gap-0.5 px-1 py-2">
+      <ul class="selectable-list py-2">
         {#each rooms as room (room.id)}
           {@render roomRow(room)}
         {/each}

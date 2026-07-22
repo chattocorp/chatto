@@ -319,7 +319,7 @@
         />
         <!-- Logo Preview -->
         <div
-          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface-emphasized text-5xl font-black text-muted shadow-md"
+          class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-surface text-5xl font-black text-muted shadow-md"
         >
           {#if logoUrl}
             <img

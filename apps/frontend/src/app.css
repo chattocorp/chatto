@@ -60,17 +60,16 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  --color-action: var(--color-sky-700);
-  --color-action-hover: var(--color-sky-800);
-  --color-on-action: var(--color-white);
-  --color-button-action: color-mix(
+  --color-action: color-mix(
     in srgb,
     var(--color-sky-600),
     var(--color-sky-700) 35%
   );
+  --color-action-hover: color-mix(in srgb, var(--color-action), black 15%);
+  --color-on-action: var(--color-white);
   --color-button-success: var(--color-green-700);
   --color-button-warning: var(--color-amber-700);
-  --color-button-danger: var(--color-red-600);
+  --color-button-danger: var(--color-red-700);
   --color-neutral-action: var(--color-slate-600);
   --color-neutral-action-hover: var(--color-slate-700);
   --color-on-neutral-action: var(--color-white);
@@ -124,15 +123,12 @@
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-action: var(--color-sky-400);
-  --color-action-hover: var(--color-sky-300);
-  --color-on-action: var(--color-neutral-950);
-  /* Prominent buttons use deeper fills with light labels. Keep the brighter
-     semantic tones above for links, focus rings, and compact status UI. */
-  --color-button-action: var(--color-sky-700);
+  --color-action: var(--color-sky-700);
+  --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
+  --color-on-action: var(--color-white);
   --color-button-success: var(--color-green-700);
   --color-button-warning: var(--color-amber-700);
-  --color-button-danger: var(--color-red-600);
+  --color-button-danger: var(--color-red-700);
   --color-neutral-action: var(--color-neutral-600);
   --color-neutral-action-hover: var(--color-neutral-500);
   --color-on-neutral-action: var(--color-white);
@@ -226,6 +222,18 @@
   @apply px-4 py-2.5 font-medium;
 }
 
+/* Selectable non-table collections use the same inset and rounded-row treatment.
+ * Records rest on their owner's background plane; hover or keyboard focus rises
+ * exactly one level.
+ */
+@utility selectable-list {
+  @apply flex flex-col gap-1 p-1;
+}
+
+@utility selectable-list-item {
+  @apply rounded-md transition-colors duration-100 hover:bg-surface focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+}
+
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */
 @utility surface-box {
   @apply rounded-md border border-border bg-surface-emphasized/60;
@@ -291,26 +299,35 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Buttons are deliberately solid and compact. Tone communicates hierarchy;
- * subtle borders and pressed scale provide depth without decorative gradients.
+/* Buttons place their semantic fill inside framed, inset geometry related to
+ * SegmentedControl. The tight inset keeps solid actions from appearing
+ * optically larger than equally sized inputs without looking double-framed.
  */
+@utility control-frame {
+  @apply rounded-md border border-input-border;
+  box-shadow:
+    var(--control-inset-shadow, 0 0 #0000),
+    0 0 0 1px black;
+}
+
 @utility btn {
-  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 font-medium;
+  @apply control-frame inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 px-4 py-1.5 font-medium;
   @apply transition-[background-color,border-color,color,box-shadow,scale] duration-150 active:scale-[0.97];
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
+  --control-inset-shadow: inset 0 0 0 1px var(--color-input);
 }
 
 @utility btn-neutral {
-  @apply btn bg-neutral-action text-on-neutral-action hover:bg-neutral-action-hover;
+  @apply btn border-neutral-action bg-neutral-action text-on-neutral-action hover:border-neutral-action-hover hover:bg-neutral-action-hover;
 }
 
 @utility btn-action {
-  @apply btn bg-(--color-button-action) text-white hover:bg-(--color-button-action)/90;
+  @apply btn border-action bg-action text-on-action hover:border-action/90 hover:bg-action/90;
 }
 
 @utility btn-success {
-  @apply btn bg-(--color-button-success) text-white hover:bg-(--color-button-success)/90;
+  @apply btn border-(--color-button-success) bg-(--color-button-success) text-white hover:border-(--color-button-success)/90 hover:bg-(--color-button-success)/90;
 }
 
 @utility btn-secondary {
@@ -322,11 +339,11 @@
 }
 
 @utility btn-warning {
-  @apply btn bg-(--color-button-warning) text-white hover:bg-(--color-button-warning)/90;
+  @apply btn border-(--color-button-warning) bg-(--color-button-warning) text-white hover:border-(--color-button-warning)/90 hover:bg-(--color-button-warning)/90;
 }
 
 @utility btn-danger {
-  @apply btn bg-(--color-button-danger) text-white hover:bg-(--color-button-danger)/90;
+  @apply btn border-(--color-button-danger) bg-(--color-button-danger) text-white hover:border-(--color-button-danger)/90 hover:bg-(--color-button-danger)/90;
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */
@@ -366,11 +383,11 @@
 
 /* Form input utilities */
 @utility input {
-  @apply min-h-10 w-full rounded-md border border-input-border bg-input px-3 py-2 text-text;
+  @apply control-frame min-h-10 w-full bg-input px-3 py-1.5 text-text;
   @apply placeholder:text-muted/70;
-  @apply transition-[border-color,box-shadow] duration-100;
-  @apply focus:border-action focus:ring-2 focus:ring-action/30 focus:outline-none;
-  @apply aria-invalid:border-error aria-invalid:focus:ring-error/30;
+  @apply transition-colors duration-100;
+  @apply focus:border-action focus:outline-none;
+  @apply aria-invalid:border-error;
   @apply disabled:cursor-not-allowed disabled:opacity-60;
   @apply select-text; /* Re-enable text selection in form fields */
 }
@@ -406,7 +423,7 @@
 }
 
 @utility choice-row-selected {
-  @apply border-(--color-button-action) bg-(--color-button-action)/10 hover:border-(--color-button-action) hover:bg-(--color-button-action)/10;
+  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
 }
 
 @utility choice-indicator {
@@ -414,7 +431,7 @@
 }
 
 @utility choice-indicator-selected {
-  @apply border-(--color-button-action) bg-(--color-button-action);
+  @apply border-action bg-action;
 }
 
 @utility choice-indicator-dot {

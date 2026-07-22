@@ -41,7 +41,6 @@ primitive when a scroll viewport also needs edge fades.
     ...rest
   }: Props = $props();
 
-  let scrollProps = $derived({ tabindex: 0, ...rest });
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-col', fill && 'flex-1', className]}>
@@ -53,7 +52,7 @@ primitive when a scroll viewport also needs edge fades.
       scrollX ? 'overflow-x-auto' : 'overflow-x-hidden',
       scrollClass
     ]}
-    {...scrollProps}
+    {...rest}
   >
     {@render children()}
   </div>

@@ -21,4 +21,5 @@ it('provides a native horizontal and vertical scroll viewport', () => {
   expect(scrollArea.className).toContain('overflow-x-auto');
   expect(scrollArea.className).toContain('overscroll-contain');
   expect(scrollArea.parentElement?.className).toContain('relative');
+  expect(scrollArea.hasAttribute('tabindex')).toBe(false);
 });
