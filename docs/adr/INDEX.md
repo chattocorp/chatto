@@ -64,3 +64,4 @@ replace part of their original design.
 | [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) | Ephemeral Encrypted Projection Snapshots | Accepted | 2026-07-13 |
 | [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Accepted | 2026-07-16 |
 | [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md) | Subject-Specific RBAC with an Everyone Baseline | Accepted | 2026-07-19 |
+| [ADR-053](ADR-053-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |
