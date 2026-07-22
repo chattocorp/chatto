@@ -44,6 +44,20 @@ stop_descendants() {
 	if [[ -n "$supervised_pid" ]]; then
 		kill -TERM "$supervised_pid" 2>/dev/null || true
 	fi
+
+	# Conductor gives the Run command 200 ms to stop after SIGHUP before it
+	# force-kills that command. Give cooperative children a brief chance to
+	# release resources, then reap every PID captured before the tree can be
+	# reparented. Avoid per-process polling here: it can consume the entire grace
+	# period by itself and make an immediate restart collide with a socket.
+	sleep 0.1
+	if [[ -n "$descendants" ]]; then
+		kill -KILL $descendants 2>/dev/null || true
+	fi
+	if [[ -n "$supervised_pid" ]]; then
+		kill -KILL "$supervised_pid" 2>/dev/null || true
+		wait "$supervised_pid" 2>/dev/null || true
+	fi
 }
 
 stop_from_signal() {
@@ -58,7 +72,7 @@ trap 'stop_from_signal 143' TERM
 trap stop_descendants EXIT
 
 if (( $# == 0 )); then
-	set -- mise run --jobs 4 dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
+	set -- mise run --jobs 4 --output prefix dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
 fi
 
 "$@" &

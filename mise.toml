@@ -232,7 +232,6 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 [tasks.dev]
 description = "Run the local backend and frontend development servers"
 depends = ["setup-cli", "build-api-types"]
-raw = true
 env = {
   VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
   CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
@@ -245,7 +244,7 @@ env = {
   CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
   CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
 }
-run = "exec tools/dev-supervisor.sh"
+run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
 
 [tasks.dev-docs-website]
 description = "Run the docs website development server with workspace-safe ports"

@@ -71,9 +71,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
 When an agent needs the long-running development stack, launch it as
-`exec mise dev` so lifecycle signals reach the dev supervisor directly, and
-stop it before handing control back to the user. Never leave a dev stack
-running in a detached or yielded terminal session.
+`exec tools/dev-supervisor.sh mise dev` so lifecycle signals reach the dev
+supervisor directly, and stop it before handing control back to the user. Never
+leave a dev stack running in a detached or yielded terminal session.
 
 ## Backend Principles
 

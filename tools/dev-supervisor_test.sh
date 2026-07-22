@@ -47,7 +47,7 @@ trap cleanup EXIT
 "$repository_root/tools/dev-supervisor.sh" bash -c 'sleep 300 & sleep 300 & wait' &
 supervisor_pid=$!
 
-for _ in {1..100}; do
+for _ in {1..8}; do
 	descendants="$(descendants_of "$supervisor_pid")"
 	if [[ "$(wc -w <<<"$descendants" | tr -d ' ')" -ge 3 ]]; then
 		break
@@ -79,6 +79,6 @@ for _ in {1..100}; do
 	sleep 0.02
 done
 
-echo "dev supervisor left processes running after SIGHUP" >&2
+echo "dev supervisor left processes running past Conductor's SIGHUP grace period" >&2
 ps -p "$supervisor_pid" $descendants -o pid,ppid,pgid,state,command >&2 || true
 exit 1
