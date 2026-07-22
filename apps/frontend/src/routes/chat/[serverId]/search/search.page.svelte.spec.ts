@@ -178,7 +178,7 @@ describe('message search page', () => {
               deleted: false,
               avatarUrl: null
             },
-            body: 'A **searchable** message',
+            body: 'A **searchable** [message](https://example.com)',
             createdAt: '2026-07-22T09:42:00.000Z',
             threadRootEventId: 'thread-root',
             attachmentCount: 2
@@ -238,6 +238,11 @@ describe('message search page', () => {
     expect(container.querySelector('ol')?.classList).toContain('gap-4');
 
     await userEvent.click(firstResult);
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');
+
+    mocks.goto.mockClear();
+    await userEvent.click(firstResult.querySelector('.prose a')!);
+    expect(mocks.goto).toHaveBeenCalledOnce();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');
   });
 });

@@ -130,10 +130,9 @@ in the active server store so browser Back can restore the current search.
   }
 
   function openResult(event: MouseEvent, result: MessageSearchResult): void {
-    if (event.defaultPrevented) return;
-    const target = event.target;
-    if (target instanceof Element && target.closest('a, button')) return;
-    if (window.getSelection()?.isCollapsed === false) return;
+    // A search result is one navigation target. Links rendered inside the
+    // shared message view are presentation here and must not override it.
+    event.preventDefault();
     navigateToResult(result);
   }
 
