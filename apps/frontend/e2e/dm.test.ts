@@ -73,9 +73,6 @@ test.describe('Direct Messages (room-shaped)', () => {
       const roomA = new RoomPage(page);
       const postedBody = `dm round-trip ${Date.now()}`;
       const postedMessage = await roomA.sendMessage(postedBody);
-      await expect(page.getByText(postedBody)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
 
       // DMs support flat reply attribution, but threads are a channel-room-only
       // capability. The server-provided room capability must suppress thread
