@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ConfigModel owns semantic configuration/preference event writes.
+// ConfigModel owns semantic configuration/preference reads and event writes.
 type ConfigModel struct {
 	publisher  *events.Publisher
 	projector  *events.Projector

@@ -5,7 +5,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createRoleAPI } from '$lib/api-client/roles';
-  import { Panel } from '$lib/components/admin';
+  import { AdminPageContent, Panel } from '$lib/components/admin';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
@@ -94,7 +94,8 @@
     showMobileNav
   />
 
-  <div class="flex flex-col gap-6 overflow-y-auto p-6">
+  <AdminPageContent>
+    <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.common.loading']()}</div>
     {:else if !canManageRoles}
@@ -122,5 +123,6 @@
         </p>
       </Panel>
     {/if}
-  </div>
+    </div>
+  </AdminPageContent>
 </div>

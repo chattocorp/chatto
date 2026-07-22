@@ -27,13 +27,9 @@ export class ServerRolesPage {
     return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
   }
 
-  /**
-   * The Create Role action. Renders as an `<a>` (with button styling) when
-   * the page wires it via `href`, but we keep the method name and match
-   * either tag so existing tests keep working.
-   */
+  /** The create-role action at the end of the permission matrix header. */
   get createRoleButton(): Locator {
-    return this.page.locator('a, button').filter({ hasText: /^Create Role$/ });
+    return this.page.getByTestId('new-role-column');
   }
 
   /** Sidebar navigation item for General settings */

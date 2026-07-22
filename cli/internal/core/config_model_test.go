@@ -48,7 +48,7 @@ func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 		t.Fatalf("updateSubject returned error: %v", err)
 	}
 
-	if got := projection.EffectiveServerName(); got != "Service Test" {
+	if got := service.GetEffectiveServerName(); got != "Service Test" {
 		t.Fatalf("EffectiveServerName = %q, want %q", got, "Service Test")
 	}
 }
@@ -99,7 +99,7 @@ func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 	if expectedSeq != seq {
 		t.Fatalf("expectedSeq = %d, want %d", expectedSeq, seq)
 	}
-	if got := projection.EffectiveDescription(); got != "existing" {
+	if got := service.GetEffectiveDescription(); got != "existing" {
 		t.Fatalf("EffectiveDescription = %q, want %q", got, "existing")
 	}
 }
@@ -195,7 +195,7 @@ func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
 	if attempts != 2 {
 		t.Fatalf("attempts = %d, want 2", attempts)
 	}
-	if got := projection.EffectiveServerName(); got != "retried write" {
+	if got := service.GetEffectiveServerName(); got != "retried write" {
 		t.Fatalf("EffectiveServerName = %q, want retried write", got)
 	}
 }

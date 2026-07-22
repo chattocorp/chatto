@@ -9,7 +9,7 @@
     type AdminMember,
     type AdminRoleSummary
   } from '$lib/api-client/adminUsers';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import { AdminPageContent, Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -155,8 +155,8 @@
     showMobileNav
   />
 
-  <div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollContainer}>
-    <div class="flex flex-col gap-6 p-6">
+  <AdminPageContent bind:scrollContainer>
+    <div class="flex flex-col gap-6">
       <!-- Search input -->
       <div class="max-w-md">
         <TextInput
@@ -233,5 +233,5 @@
         </div>
       {/if}
     </div>
-  </div>
+  </AdminPageContent>
 </div>

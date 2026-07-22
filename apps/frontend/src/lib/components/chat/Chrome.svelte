@@ -6,7 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
-  import ScrollFader from '$lib/ui/ScrollFader.svelte';
+  import { ScrollFader } from '$lib/ui';
   import { createChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';

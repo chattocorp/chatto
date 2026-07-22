@@ -11,7 +11,7 @@
     type AdminRoleDetails
   } from '$lib/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { CopyId, Panel } from '$lib/components/admin';
+  import { AdminPageContent, CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -340,7 +340,8 @@
     showMobileNav
   />
 
-  <div class="flex flex-col gap-6 overflow-y-auto p-6">
+  <AdminPageContent>
+    <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.members.loading_member']()}</div>
     {:else if !member}
@@ -628,5 +629,6 @@
         <UserPermissionsMatrix {userId} />
       {/if}
     {/if}
-  </div>
+    </div>
+  </AdminPageContent>
 </div>

@@ -3,8 +3,8 @@
 
 Presentational matrix used by both the per-user and per-role permissions
 pages. Caller owns data loading and mutation dispatch; this component
-just lays out the rows (permissions grouped by category) and columns
-(server + groups + nested rooms), and forwards cell clicks via `onCycle`.
+lays out alphabetically sorted permission rows and columns (server + groups +
+nested rooms), and forwards cell clicks via `onCycle`.
 
 Cell semantics:
   - `override` ALLOW/DENY → solid (subject has an explicit grant/deny here)
@@ -13,11 +13,13 @@ Cell semantics:
 
 A missing cell renders as an empty placeholder (the permission doesn't
 apply at that scope's tier). Hovering or focusing an available cell highlights
-its permission row and scope column.
+its permission row and scope column. The table header remains visible while
+its dense matrix rows scroll.
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
+  import { ShortcutTextInput } from '$lib/ui/form';
   import { getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import * as m from '$lib/i18n/messages';
@@ -45,60 +47,13 @@ its permission row and scope column.
   export type CellState = 'allow' | 'deny' | 'neutral';
   type MatrixCoordinate = { category: string; column: string; permission: string };
 
-  const DEFAULT_CATEGORY_ORDER = [
-    'space',
-    'room',
-    'message',
-    'member',
-    'role',
-    'admin',
-    'dm',
-    'user'
-  ];
-
-  const CATEGORY_META: Record<string, { title: string; description: string }> = {
-    space: {
-      title: m['rbac.permissions.categories.space.title'](),
-      description: m['rbac.permissions.categories.space.description']()
-    },
-    room: {
-      title: m['rbac.permissions.categories.room.title'](),
-      description: m['rbac.permissions.categories.room.description']()
-    },
-    message: {
-      title: m['rbac.permissions.categories.message.title'](),
-      description: m['rbac.permissions.categories.message.description']()
-    },
-    member: {
-      title: m['rbac.permissions.categories.member.title'](),
-      description: m['rbac.permissions.categories.member.description']()
-    },
-    role: {
-      title: m['rbac.permissions.categories.role.title'](),
-      description: m['rbac.permissions.categories.role.description']()
-    },
-    admin: {
-      title: m['rbac.permissions.categories.admin.title'](),
-      description: m['rbac.permissions.categories.admin.description']()
-    },
-    dm: {
-      title: m['rbac.permissions.categories.dm.title'](),
-      description: m['rbac.permissions.categories.dm.description']()
-    },
-    user: {
-      title: m['rbac.permissions.categories.user.title'](),
-      description: m['rbac.permissions.categories.user.description']()
-    }
-  };
-
   let {
     data,
     updatingKey = null,
     onCycle,
     subjectKind = 'subject',
     forceAllow = false,
-    readOnly = false,
-    categoryOrder = DEFAULT_CATEGORY_ORDER
+    readOnly = false
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -110,7 +65,6 @@ its permission row and scope column.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
-    categoryOrder?: string[];
   } = $props();
 
   let hoveredCell = $state<MatrixCoordinate | null>(null);
@@ -148,26 +102,12 @@ its permission row and scope column.
     return dot > 0 ? permission.slice(0, dot) : permission;
   }
 
-  const groupedPermissions = $derived.by(() => {
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
-    const groups = new Map<string, string[]>();
-    for (const p of data.applicablePermissions) {
-      const cat = categoryOf(p);
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(p);
-    }
-    for (const arr of groups.values()) arr.sort((a, b) => a.localeCompare(b));
-    const out: Array<{ category: string; permissions: string[] }> = [];
-    for (const cat of categoryOrder) {
-      const arr = groups.get(cat);
-      if (arr && arr.length) out.push({ category: cat, permissions: arr });
-    }
-    for (const [cat, arr] of groups) {
-      if (!categoryOrder.includes(cat) && arr.length) out.push({ category: cat, permissions: arr });
-    }
-    return out;
+  const permissions = $derived([...data.applicablePermissions].sort((a, b) => a.localeCompare(b)));
+  let permissionFilter = $state('');
+  const filteredPermissions = $derived.by(() => {
+    const query = permissionFilter.trim().toLowerCase();
+    return query ? permissions.filter((permission) => permission.toLowerCase().includes(query)) : permissions;
   });
-
   // ----- Cell lookup ------------------------------------------------------
 
   const cellIndex = $derived.by(() => {
@@ -182,6 +122,10 @@ its permission row and scope column.
   function cellFor(scopeId: string, permission: string): MatrixCellData | undefined {
     return cellIndex.get(`${scopeId}|${permission}`);
   }
+
+  const matrixScopes = $derived(
+    orderedScopes.filter((scope) => permissions.some((permission) => cellFor(scope.id, permission)))
+  );
 
   function decisionToState(d: MatrixDecision): CellState {
     if (d === 'ALLOW') return 'allow';
@@ -199,8 +143,8 @@ its permission row and scope column.
     return { category, column, permission };
   }
 
-  function columnIsHighlighted(category: string, column: string): boolean {
-    return highlightedCell?.category === category && highlightedCell.column === column;
+  function columnIsHighlighted(column: string): boolean {
+    return highlightedCell?.column === column;
   }
 
   function rowIsHighlighted(category: string, permission: string): boolean {
@@ -209,7 +153,7 @@ its permission row and scope column.
 
   function cellBackgroundClass(category: string, scope: MatrixScope, permission: string): string {
     const row = rowIsHighlighted(category, permission);
-    const columnHighlighted = columnIsHighlighted(category, scope.id);
+    const columnHighlighted = columnIsHighlighted(scope.id);
     if (row && columnHighlighted) return 'bg-action/15';
     if (row || columnHighlighted) return 'bg-action/8';
     return scopeColumnClass(scope.kind);
@@ -219,21 +163,31 @@ its permission row and scope column.
 {#if orderedScopes.length === 0}
   <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
 {:else}
-  <div class="flex flex-col gap-6">
-    {#each groupedPermissions as group (group.category)}
-      {@const meta = CATEGORY_META[group.category]}
-      {@const categoryScopes = orderedScopes.filter((scope) =>
-        group.permissions.some((p) => cellFor(scope.id, p) !== undefined)
-      )}
-      <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
-        <DataTable
-          items={group.permissions}
-          columns={categoryScopes.length + 1}
-          getKey={(p) => p}
-          emptyMessage={m['rbac.permissions.empty_category']()}
-          fitContent
-          hoverable={false}
-        >
+  <Panel title={m['admin.permissions.title']()} noPadding>
+    {#snippet actions()}
+      <div class="w-48 sm:w-64">
+        <ShortcutTextInput
+          id="permission-filter"
+          testid="permission-filter"
+          label={m['rbac.permissions.filter_label']()}
+          labelHidden
+          shortcutKey="/"
+          placeholder={m['rbac.permissions.filter_placeholder']()}
+          leadingIcon="iconify uil--search"
+          autocomplete="off"
+          bind:value={permissionFilter}
+        />
+      </div>
+    {/snippet}
+    <DataTable
+      items={filteredPermissions}
+      columns={matrixScopes.length + 2}
+      getKey={(permission) => permission}
+      emptyMessage={m['rbac.permissions.no_filter_matches']()}
+      stickyHeader
+      stickyHeaderFadeOffset="top-48"
+      hoverable={false}
+    >
           {#snippet header()}
             <th
               class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
@@ -241,11 +195,11 @@ its permission row and scope column.
             >
               Permission
             </th>
-            {#each categoryScopes as scope (scope.id)}
+            {#each matrixScopes as scope (scope.id)}
               <th
                 class={[
                   'px-0 py-3 text-center align-bottom font-medium',
-                  columnIsHighlighted(group.category, scope.id)
+                  columnIsHighlighted(scope.id)
                     ? 'bg-action/10 text-action'
                     : scopeColumnClass(scope.kind)
                 ]}
@@ -266,43 +220,45 @@ its permission row and scope column.
                 </span>
               </th>
             {/each}
+            <th class="w-full bg-background p-0" aria-hidden="true"></th>
           {/snippet}
           {#snippet row(permission)}
+            {@const category = categoryOf(permission)}
             <td
               class={[
                 'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
-                rowIsHighlighted(group.category, permission) ? 'bg-action/8' : 'bg-background'
+                rowIsHighlighted(category, permission) ? 'bg-action/8' : 'bg-background'
               ]}
             >
               <code
                 data-testid="permission-name"
                 class={[
                   'text-sm',
-                  rowIsHighlighted(group.category, permission) ? 'text-action' : ''
+                  rowIsHighlighted(category, permission) ? 'text-action' : ''
                 ]}>{permission}</code
               >
               <HelpTooltip label={`About ${permission}`}>
                 {getPermissionDescription(permission)}
               </HelpTooltip>
             </td>
-            {#each categoryScopes as scope (scope.id)}
+            {#each matrixScopes as scope (scope.id)}
               {@const cell = cellFor(scope.id, permission)}
               {@const cellKey = `${scope.id}::${permission}`}
               {@const isUpdating = updatingKey === cellKey}
               <td
                 class={[
                   'px-0 py-2 text-center',
-                  cellBackgroundClass(group.category, scope, permission)
+                  cellBackgroundClass(category, scope, permission)
                 ]}
                 style="width: 2.5rem; min-width: 2.5rem"
                 data-scope={scope.id}
                 data-permission={permission}
                 onmouseenter={cell
-                  ? () => (hoveredCell = coordinate(group.category, scope.id, permission))
+                  ? () => (hoveredCell = coordinate(category, scope.id, permission))
                   : undefined}
                 onmouseleave={cell ? () => (hoveredCell = null) : undefined}
                 onfocusin={cell
-                  ? () => (focusedCell = coordinate(group.category, scope.id, permission))
+                  ? () => (focusedCell = coordinate(category, scope.id, permission))
                   : undefined}
                 onfocusout={cell ? () => (focusedCell = null) : undefined}
               >
@@ -344,9 +300,8 @@ its permission row and scope column.
                 {/if}
               </td>
             {/each}
+            <td class="w-full p-0" aria-hidden="true" data-testid="permission-matrix-spacer"></td>
           {/snippet}
-        </DataTable>
-      </Panel>
-    {/each}
-  </div>
+    </DataTable>
+  </Panel>
 {/if}

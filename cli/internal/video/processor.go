@@ -280,7 +280,12 @@ func (s *Service) transcode(ctx context.Context, inputPath, outputPath string, h
 		"-pix_fmt", "yuv420p",
 	)
 	if hasAudio {
-		args = append(args, "-c:a", "aac", "-b:a", "128k")
+		// Browser MSE implementations do not reliably accept unusual AAC
+		// layouts in independently loaded MPEG-TS segments. In particular,
+		// quad AAC can lose its usable codec configuration after segment zero
+		// and send hls.js into a SourceBuffer append recovery loop. Produce the
+		// broadly supported stereo layout for every web playback rendition.
+		args = append(args, "-c:a", "aac", "-b:a", "128k", "-ac", "2")
 	} else {
 		args = append(args, "-an")
 	}

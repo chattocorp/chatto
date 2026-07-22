@@ -65,4 +65,30 @@ describe('Panel inset structure', () => {
 
     expect(frame.className).toContain('p-1');
   });
+
+  it('renders a rich subtitle snippet', async () => {
+    const { container } = render(Panel, {
+      props: {
+        title: 'General',
+        subtitle: testSnippet('<a data-testid="subtitle-link" href="/rooms">Manage rooms</a>'),
+        children: testSnippet('<div>Content</div>')
+      }
+    });
+
+    expect(container.querySelector('[data-testid="subtitle-link"]')?.getAttribute('href')).toBe('/rooms');
+  });
+
+  it('can fill a flex page while preserving its inset structure', () => {
+    const { container } = render(Panel, {
+      props: { fillHeight: true, noPadding: true, children: testSnippet('<div>Content</div>') }
+    });
+    const shell = container.querySelector('.panel-shell') as HTMLElement;
+    const frame = shell.querySelector(':scope > div') as HTMLElement;
+    const inset = frame.firstElementChild as HTMLElement;
+
+    expect(shell.className).toContain('flex-1');
+    expect(frame.className).toContain('flex-1');
+    expect(inset.className).toContain('flex-1');
+  });
+
 });

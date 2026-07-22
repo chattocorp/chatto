@@ -148,11 +148,11 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 }
 
 func (s *HTTPServer) currentPWAServerName() string {
-	if s.core == nil || s.core.ConfigManager() == nil {
+	if s.core == nil || s.core.ConfigModel() == nil {
 		return "Chatto"
 	}
 
-	name := s.core.ConfigManager().GetEffectiveServerName()
+	name := s.core.ConfigModel().GetEffectiveServerName()
 	if strings.TrimSpace(name) == "" {
 		return "Chatto"
 	}

@@ -96,8 +96,8 @@ func ifNoneMatch(headerValue, etag string) bool {
 }
 
 func (a *API) effectiveServerName() string {
-	if a.core != nil && a.core.ConfigManager() != nil {
-		return a.core.ConfigManager().GetEffectiveServerName()
+	if a.core != nil && a.core.ConfigModel() != nil {
+		return a.core.ConfigModel().GetEffectiveServerName()
 	}
 	return "Chatto"
 }
@@ -105,8 +105,8 @@ func (a *API) effectiveServerName() string {
 func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (*apiv1.ServerPublicProfile, error) {
 	profile := &apiv1.ServerPublicProfile{Name: a.effectiveServerName(), Version: a.version}
 
-	if a.core != nil && a.core.ConfigManager() != nil {
-		cm := a.core.ConfigManager()
+	if a.core != nil && a.core.ConfigModel() != nil {
+		cm := a.core.ConfigModel()
 		if welcome := cm.GetEffectiveWelcomeMessage(); welcome != "" {
 			profile.WelcomeMessage = stringPtr(welcome)
 		}

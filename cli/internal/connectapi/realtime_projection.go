@@ -268,10 +268,9 @@ func (a *API) BuildRealtimeProjectionActiveCalls(ctx context.Context, userID str
 	if err != nil {
 		return nil, err
 	}
-	service := &voiceCallService{api: a}
 	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		call, err := service.activeCall(ctx, userID, roomID)
+		call, err := activeCall(ctx, a, userID, roomID)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
 				continue
@@ -324,8 +323,7 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 // BuildRealtimeProjectionServerState returns current authenticated server
 // presentation and runtime settings for snapshot and live convergence.
 func (a *API) BuildRealtimeProjectionServerState() *RealtimeProjectionServerState {
-	service := &serverService{api: a}
-	return &RealtimeProjectionServerState{MOTD: service.serverMotd(), Runtime: service.serverRuntimeConfig()}
+	return &RealtimeProjectionServerState{MOTD: serverMOTD(a), Runtime: serverRuntimeConfig(a)}
 }
 
 func (a *API) realtimeProjectionUsers(ctx context.Context) ([]*apiv1.DirectoryMember, error) {

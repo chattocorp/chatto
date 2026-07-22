@@ -40,25 +40,24 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 }
 
 func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerResponse, error) {
-	service := &viewerService{api: a}
 	user, err := a.core.GetUser(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
-	responseUser, err := service.viewerUser(ctx, user)
+	responseUser, err := viewerUser(ctx, a, user)
 	if err != nil {
 		return nil, err
 	}
-	capabilities, err := service.viewerCapabilities(ctx, userID)
+	capabilities, err := viewerCapabilities(ctx, a, userID)
 	if err != nil {
 		return nil, err
 	}
-	serverPreference, err := service.serverNotificationPreference(ctx, userID)
+	serverPreference, err := serverNotificationPreference(ctx, a, userID)
 	if err != nil {
 		return nil, err
 	}
-	roomPreferences, err := service.roomNotificationPreferences(ctx, userID)
+	roomPreferences, err := roomNotificationPreferences(ctx, a, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,28 +76,28 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	}, nil
 }
 
-func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*apiv1.ViewerUser, error) {
-	hasVerifiedEmail, err := s.api.core.HasVerifiedEmail(ctx, user.GetId())
+func viewerUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.ViewerUser, error) {
+	hasVerifiedEmail, err := api.core.HasVerifiedEmail(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	settings, err := s.api.core.GetUserSettings(ctx, user.GetId())
+	settings, err := api.core.GetUserSettings(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiUser, err := userSummary(ctx, s.api, user, nil)
+	apiUser, err := userSummary(ctx, api, user, nil)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canDeleteAccount, err := s.api.core.CanDeleteUser(ctx, user.GetId(), user.GetId())
+	canDeleteAccount, err := api.core.CanDeleteUser(ctx, user.GetId(), user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	lastLoginChange, err := s.api.core.GetLastLoginChange(ctx, user.GetId())
+	lastLoginChange, err := api.core.GetLastLoginChange(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	hasPassword, err := s.api.core.HasPassword(ctx, user.GetId())
+	hasPassword, err := api.core.HasPassword(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -117,45 +116,45 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 	return response, nil
 }
 
-func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (*apiv1.ViewerCapabilities, error) {
-	canViewAdmin, err := s.api.core.HasAnyAdminPermission(ctx, userID)
+func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.ViewerCapabilities, error) {
+	canViewAdmin, err := api.core.HasAnyAdminPermission(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canStartDMs, err := s.api.core.CanStartDM(ctx, userID)
+	canStartDMs, err := api.core.CanStartDM(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAdminViewUsers, err := s.api.core.CanAdminUsersView(ctx, userID)
+	canAdminViewUsers, err := api.core.CanAdminUsersView(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAdminManageAccounts, err := s.api.core.CanManageUserAccounts(ctx, userID)
+	canAdminManageAccounts, err := api.core.CanManageUserAccounts(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAssignRoles, err := s.api.core.CanAssignRoles(ctx, userID)
+	canAssignRoles, err := api.core.CanAssignRoles(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAdminManageRoles, err := s.api.core.CanManageRoles(ctx, userID)
+	canAdminManageRoles, err := api.core.CanManageRoles(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canManageUserPermissions, err := s.api.core.CanManageUserPermissions(ctx, userID)
+	canManageUserPermissions, err := api.core.CanManageUserPermissions(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	canAdminViewRoles := canAdminManageRoles || canAssignRoles || canManageUserPermissions
-	canAdminViewSystem, err := s.api.core.CanAdminSystemView(ctx, userID)
+	canAdminViewSystem, err := api.core.CanAdminSystemView(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAdminViewAudit, err := s.api.core.CanAdminAuditView(ctx, userID)
+	canAdminViewAudit, err := api.core.CanAdminAuditView(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	hasUnreadFollowedThreads, err := s.api.core.HasUnreadFollowedThreads(ctx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
+	hasUnreadFollowedThreads, err := api.core.HasUnreadFollowedThreads(ctx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -177,8 +176,8 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	}, nil
 }
 
-func (s *viewerService) serverNotificationPreference(ctx context.Context, userID string) (*apiv1.NotificationPreference, error) {
-	level, err := s.api.core.GetSpaceNotificationLevel(ctx, userID)
+func serverNotificationPreference(ctx context.Context, api *API, userID string) (*apiv1.NotificationPreference, error) {
+	level, err := api.core.GetSpaceNotificationLevel(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -189,8 +188,8 @@ func (s *viewerService) serverNotificationPreference(ctx context.Context, userID
 	return apiNotificationPreference(level, effectiveLevel), nil
 }
 
-func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID string) ([]*apiv1.RoomNotificationPreference, error) {
-	prefs, err := s.api.core.GetAllRoomNotificationPreferences(ctx, userID)
+func roomNotificationPreferences(ctx context.Context, api *API, userID string) ([]*apiv1.RoomNotificationPreference, error) {
+	prefs, err := api.core.GetAllRoomNotificationPreferences(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}

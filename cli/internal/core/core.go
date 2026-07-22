@@ -45,7 +45,7 @@ type ChattoCore struct {
 	config                   config.CoreConfig
 	encryption               *encryptionManager
 	dekResolver              *unwrappedDEKResolver
-	configManager            *ConfigManager
+	configModel              *ConfigModel
 	roomModel                *RoomModel
 	roomCommands             *RoomCommandModel
 	roomDirectoryReads       *RoomDirectoryReadModel
@@ -124,17 +124,6 @@ type ChattoCore struct {
 
 	// RoomBans is the active moderation-ban index inside RoomDirectory.
 	RoomBans *RoomBanProjection
-
-	// ServerConfig is the projection holding current dynamic configuration
-	// rebuilt from EVT. The field name is retained for compatibility with
-	// existing admin/verification code while the projection now stores more
-	// than the old server-config snapshot.
-	ServerConfig *ConfigProjection
-
-	// ServerConfigProjector runs the consumer + apply loop that keeps
-	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
-	// so writers (ConfigManager mutations) can call WaitFor.
-	ServerConfigProjector *events.Projector
 
 	// RoomCatalog is the room metadata index inside RoomDirectory.
 	RoomCatalog *RoomCatalogProjection
@@ -436,10 +425,9 @@ func (c *ChattoCore) KeyWrapper() kms.KeyWrapper {
 	return c.encryption.keyWrapper
 }
 
-// ConfigManager returns the runtime configuration manager.
-// Used by API handlers and core services to read/write runtime config.
-func (c *ChattoCore) ConfigManager() *ConfigManager {
-	return c.configManager
+// ConfigModel returns the runtime configuration model.
+func (c *ChattoCore) ConfigModel() *ConfigModel {
+	return c.configModel
 }
 
 // PermResolver returns the hierarchical permission resolver for permission checks.
@@ -876,9 +864,9 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 	// Historical public objects predate the explicit visibility header. Their
 	// durable/current public references provide the positive declaration.
 	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
-	if c.ServerConfig != nil {
-		logo, _ := c.ServerConfig.ServerLogo()
-		banner, _ := c.ServerConfig.ServerBanner()
+	if c.configModel != nil {
+		logo := c.configModel.serverBrandingAsset("logo")
+		banner := c.configModel.serverBrandingAsset("banner")
 		if assetRecordMatchesKey(logo, assetID) || assetRecordMatchesKey(banner, assetID) {
 			legacyDeclaredPublic = true
 		}
@@ -1350,7 +1338,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
-	configMgr := NewConfigManager(configModel, serverConfigProjection)
 	roomMgr := newRoomModel(
 		roomDirectory,
 		roomDirectoryProjector,
@@ -1375,7 +1362,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:                   cfg,
 		encryption:               encMgr,
 		dekResolver:              dekResolver,
-		configManager:            configMgr,
+		configModel:              configModel,
 		roomModel:                roomMgr,
 		userModel:                userMgr,
 		rbacModel:                rbacMgr,
@@ -1386,8 +1373,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomDirectoryProjector:   roomDirectoryProjector,
 		RoomMembership:           roomMembership,
 		RoomBans:                 roomBans,
-		ServerConfig:             serverConfigProjection,
-		ServerConfigProjector:    serverConfigProjector,
 		RoomCatalog:              roomCatalog,
 		RoomGroupLayout:          roomGroupLayout,
 		RoomGroupLayoutProjector: roomGroupLayoutProjector,
@@ -1513,7 +1498,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		{key: "chatto_core", name: "Chatto Core"},
 		{key: "event_publisher", name: "Event Publisher"},
 		{key: "config_model", name: "Config Model", legacyServiceKey: "config_service"},
-		{key: "config_manager", name: "Config Manager"},
 		{key: "notification_preferences_model", name: "Notification Preferences Model", legacyServiceKey: "notification_preferences_service"},
 		{key: "message_model", name: "Message Model", legacyServiceKey: "message_service"},
 		{key: "reaction_model", name: "Reaction Model", legacyServiceKey: "reaction_service"},
