@@ -49,6 +49,9 @@
       "level_group": "Grupo",
       "level_room": "Habitación",
       "empty_category": "No hay permisos en esta categoría",
+      "filter_label": "Filtrar permisos",
+      "filter_placeholder": "Filtrar permisos...",
+      "no_filter_matches": "Ningún permiso coincide con este filtro.",
       "categories": {
         "space": {
           "title": "Permisos del servidor",

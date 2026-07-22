@@ -49,6 +49,9 @@
       "level_group": "Gruppe",
       "level_room": "Rom",
       "empty_category": "Ingen tillatelser i denne kategorien",
+      "filter_label": "Filtrer tillatelser",
+      "filter_placeholder": "Filtrer tillatelser...",
+      "no_filter_matches": "Ingen tillatelser samsvarer med dette filteret.",
       "categories": {
         "space": {
           "title": "Servertillatelser",

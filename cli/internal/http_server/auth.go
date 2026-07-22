@@ -28,8 +28,8 @@ func isStaleLoginCredentialError(err error) bool {
 }
 
 func (s *HTTPServer) authEmailServerName() string {
-	if s.core != nil && s.core.ConfigManager() != nil {
-		if name := s.core.ConfigManager().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
+	if s.core != nil && s.core.ConfigModel() != nil {
+		if name := s.core.ConfigModel().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
 			return name
 		}
 	}
@@ -441,7 +441,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Check if login is blocked
-		if s.core.ConfigManager().IsUsernameBlocked(req.Login) {
+		if s.core.ConfigModel().IsUsernameBlocked(req.Login) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "This username is not available"})
 			return
 		}

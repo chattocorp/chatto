@@ -244,7 +244,7 @@ export const quickSwitcher = new QuickSwitcherState();
  */
 export type FullscreenVideoSource = {
   src: string;
-  type: 'video/mp4' | 'application/vnd.apple.mpegurl';
+  type: string;
 };
 
 type FullscreenVideoSourceRefresher = () => Promise<FullscreenVideoSource | null>;

@@ -22,7 +22,7 @@ func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string)
 		return nil, err
 	}
 
-	cfg := c.ConfigManager().GetServerConfig()
+	cfg := c.ConfigModel().GetServerConfig()
 	if cfg == nil {
 		return &configv1.ServerConfig{}, nil
 	}
@@ -34,7 +34,7 @@ func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, inp
 		return nil, err
 	}
 
-	cfg, err := c.ConfigManager().UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	cfg, err := c.ConfigModel().UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -65,7 +65,7 @@ func (c *ChattoCore) GetServerSecurityConfig(ctx context.Context, actorID string
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.ConfigManager().GetBlockedUsernamesList(), nil
+	return c.ConfigModel().GetBlockedUsernamesList(), nil
 }
 
 func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string, blockedUsernames []string) ([]string, error) {
@@ -73,9 +73,9 @@ func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string,
 		return nil, err
 	}
 
-	configMgr := c.ConfigManager()
+	configModel := c.ConfigModel()
 	normalized := normalizeBlockedUsernameEntries(blockedUsernames)
-	if _, err := configMgr.UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	if _, err := configModel.UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -86,7 +86,7 @@ func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string,
 		return nil, err
 	}
 
-	return configMgr.GetBlockedUsernamesList(), nil
+	return configModel.GetBlockedUsernamesList(), nil
 }
 
 func normalizeBlockedUsernameEntries(entries []string) string {

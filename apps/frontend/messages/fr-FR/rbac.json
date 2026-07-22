@@ -49,6 +49,9 @@
       "level_group": "Groupe",
       "level_room": "Chambre",
       "empty_category": "Aucune autorisation dans cette catégorie",
+      "filter_label": "Filtrer les autorisations",
+      "filter_placeholder": "Filtrer les autorisations...",
+      "no_filter_matches": "Aucune autorisation ne correspond à ce filtre.",
       "categories": {
         "space": {
           "title": "Autorisations du serveur",

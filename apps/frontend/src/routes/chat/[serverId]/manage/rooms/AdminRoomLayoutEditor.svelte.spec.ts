@@ -40,6 +40,13 @@ vi.mock('svelte-dnd-action', () => ({
   dndzone: () => ({
     update: vi.fn(),
     destroy: vi.fn()
+  }),
+  dragHandleZone: () => ({
+    update: vi.fn(),
+    destroy: vi.fn()
+  }),
+  dragHandle: () => ({
+    destroy: vi.fn()
   })
 }));
 
@@ -148,6 +155,11 @@ describe('AdminRoomLayoutEditor', () => {
     expect(frame.className).toContain('px-1');
     expect(frame.className).toContain('pb-1');
     expect(inset.className).toContain('panel-inset');
+    const roomDragHandle = populatedRender.container.querySelector(
+      '[aria-label="Drag to reorder room"]'
+    ) as HTMLElement;
+    expect(roomDragHandle.className).toContain('uil--draggabledots');
+    expect(roomDragHandle.className).toContain('cursor-grab');
   });
 
   it('opens the create-group dialog and delegates submission to the layout store', async () => {

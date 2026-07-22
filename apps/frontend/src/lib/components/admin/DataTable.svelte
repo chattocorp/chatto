@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
+  import { ScrollFader } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -14,6 +15,9 @@
     getGroupKey,
     group,
     fitContent = false,
+    stickyHeader = false,
+    fillHeight = false,
+    stickyHeaderFadeOffset = 'top-0',
     hoverable = true,
     hasMore = false,
     loadingMore = false,
@@ -36,6 +40,15 @@
      * viewport. Use for dense matrices whose columns should not stretch.
      */
     fitContent?: boolean;
+    /**
+     * Keep the header visible while rows scroll inside the table viewport.
+     * Use for dense matrices where column labels must remain available.
+     */
+    stickyHeader?: boolean;
+    /** Fill the remaining height of a flex parent instead of using a viewport cap. */
+    fillHeight?: boolean;
+    /** Tailwind position class for the sticky-header viewport's top fade. */
+    stickyHeaderFadeOffset?: string;
     /**
      * Whether rows highlight on hover. Defaults to `true` for the standard
      * "list of records" treatment; pass `false` for matrix-style tables
@@ -115,9 +128,14 @@
   };
 </script>
 
-<div class="overflow-x-auto rounded-md bg-background">
-  <table class={[fitContent ? 'w-max' : 'w-full', '[&_thead_th]:whitespace-nowrap']}>
-    <thead>
+{#snippet tableContent()}
+  <table
+    class={[
+      fitContent ? 'w-max' : 'w-full',
+      '[&_thead_th]:whitespace-nowrap'
+    ]}
+  >
+    <thead class={stickyHeader ? 'sticky top-0 z-20' : ''}>
       <tr class="panel-header text-left text-sm text-muted">
         {@render header()}
       </tr>
@@ -168,4 +186,20 @@
       {/if}
     </tbody>
   </table>
-</div>
+{/snippet}
+
+{#if stickyHeader}
+  <ScrollFader
+    top
+    bottom
+    scrollX
+    topFadeOffset={stickyHeaderFadeOffset}
+    class={`rounded-md bg-background ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
+  >
+    {@render tableContent()}
+  </ScrollFader>
+{:else}
+  <div class="overflow-x-auto rounded-md bg-background">
+    {@render tableContent()}
+  </div>
+{/if}

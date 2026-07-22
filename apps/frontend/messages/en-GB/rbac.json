@@ -49,6 +49,9 @@
       "level_group": "Group",
       "level_room": "Room",
       "empty_category": "No permissions in this category",
+      "filter_label": "Filter permissions",
+      "filter_placeholder": "Filter permissions...",
+      "no_filter_matches": "No permissions match this filter.",
       "categories": {
         "space": {
           "title": "Server Permissions",

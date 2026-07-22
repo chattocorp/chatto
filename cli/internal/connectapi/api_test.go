@@ -2756,7 +2756,7 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 			APISecret: "lk-secret",
 		},
 	}
-	if err := env.core.ConfigManager().SetServerConfig(env.ctx, core.SystemActorID, &configv1.ServerConfig{
+	if err := env.core.ConfigModel().SetServerConfig(env.ctx, core.SystemActorID, &configv1.ServerConfig{
 		Motd: "Authenticated MOTD",
 	}); err != nil {
 		t.Fatalf("SetServerConfig: %v", err)
@@ -2855,7 +2855,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 		t.Fatalf("updated config response = %+v", resp.Msg.GetConfig())
 	}
 
-	cfg := env.core.ConfigManager().GetServerConfig()
+	cfg := env.core.ConfigModel().GetServerConfig()
 	if cfg.GetServerName() != "Connect Settings" ||
 		cfg.GetDescription() != "Description from Connect" ||
 		cfg.GetMotd() != "MOTD from Connect" ||
@@ -2868,7 +2868,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("partial UpdateServerConfig: %v", err)
 	}
-	cfg = env.core.ConfigManager().GetServerConfig()
+	cfg = env.core.ConfigModel().GetServerConfig()
 	if cfg.GetServerName() != "Connect Settings" || cfg.GetDescription() != "Updated description only" {
 		t.Fatalf("partial stored config = %+v", cfg)
 	}
@@ -2991,7 +2991,7 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 	if want := []string{"root", "reserved", "admin"}; !slices.Equal(updateResp.Msg.GetBlockedUsernames(), want) {
 		t.Fatalf("updated blocked usernames = %q, want %q", updateResp.Msg.GetBlockedUsernames(), want)
 	}
-	stored := env.core.ConfigManager().GetEffectiveBlockedUsernames()
+	stored := env.core.ConfigModel().GetEffectiveBlockedUsernames()
 	if stored != "root\nreserved\nadmin" {
 		t.Fatalf("stored blocked usernames = %q, want root/reserved/admin", stored)
 	}

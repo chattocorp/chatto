@@ -4,7 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { Panel } from '$lib/components/admin';
+  import { AdminPageContent, Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -40,7 +40,8 @@
     showMobileNav
   />
 
-  <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
+  <AdminPageContent>
+    <div class="flex min-h-0 flex-col gap-6">
     {#await entryPromise}
       <div class="text-muted">{m['admin.event_log.loading_event']()}</div>
     {:then entry}
@@ -88,5 +89,6 @@
         >{err instanceof Error ? err.message : m['admin.event_log.unavailable']()}</Hint
       >
     {/await}
-  </div>
+    </div>
+  </AdminPageContent>
 </div>

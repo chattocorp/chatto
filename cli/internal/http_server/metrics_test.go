@@ -166,8 +166,8 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if strings.Contains(text, `projection="Content Keys"`) {
 		t.Fatalf("metrics body used human projection name as label\n%s", text)
 	}
-	if !strings.Contains(text, `chatto_model_info{model="config_manager"} 1`) {
-		t.Fatalf("metrics body missing config_manager model label\n%s", text)
+	if !strings.Contains(text, `chatto_model_info{model="config_model"} 1`) {
+		t.Fatalf("metrics body missing config_model model label\n%s", text)
 	}
 	if !strings.Contains(text, `chatto_model_info{model="message_model"} 1`) {
 		t.Fatalf("metrics body missing message_model model label\n%s", text)
@@ -175,7 +175,7 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if !strings.Contains(text, `chatto_service_info{service="message_service"} 1`) {
 		t.Fatalf("metrics body missing deprecated message_service alias\n%s", text)
 	}
-	if strings.Contains(text, `service="Config Manager"`) {
+	if strings.Contains(text, `service="Config Model"`) {
 		t.Fatalf("metrics body used human service name in deprecated label\n%s", text)
 	}
 	if strings.Contains(text, `service="message_model"`) {

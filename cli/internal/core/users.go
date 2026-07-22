@@ -127,7 +127,7 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	}
 
 	// Check if login is blocked (defense in depth - HTTP layer should check first)
-	if c.configManager.IsUsernameBlocked(login) {
+	if c.configModel.IsUsernameBlocked(login) {
 		return nil, ErrUsernameBlocked
 	}
 	if c.loginConflictsWithMentionHandle(login) {
@@ -1040,7 +1040,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		loginChanged = user.GetLogin() != nextLogin
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
 		if loginNeedsMentionCheck {
-			if c.configManager.IsUsernameBlocked(nextLogin) {
+			if c.configModel.IsUsernameBlocked(nextLogin) {
 				return nil, ErrUsernameBlocked
 			}
 			if c.loginConflictsWithMentionHandle(nextLogin) {
@@ -1222,7 +1222,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 
 	caseOnly := strings.EqualFold(user.Login, newLogin)
 	if !caseOnly {
-		if c.configManager.IsUsernameBlocked(newLogin) {
+		if c.configModel.IsUsernameBlocked(newLogin) {
 			return nil, ErrUsernameBlocked
 		}
 		if c.loginConflictsWithMentionHandle(newLogin) {

@@ -9,7 +9,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
   import * as m from '$lib/i18n/messages';
-  import ScrollFader from '$lib/ui/ScrollFader.svelte';
+  import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
   // Check whether any authenticated server grants a permission.

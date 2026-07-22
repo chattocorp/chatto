@@ -6,8 +6,8 @@ func TestModelInventoryUsesStableKeys(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	models := core.ModelMetadata()
-	if len(models) != 19 {
-		t.Fatalf("registered models = %d, want 19", len(models))
+	if len(models) != 18 {
+		t.Fatalf("registered models = %d, want 18", len(models))
 	}
 
 	keys := make(map[string]string, len(models))
@@ -47,7 +47,6 @@ func TestModelInventoryUsesStableKeys(t *testing.T) {
 		"chatto_core":                    "Chatto Core",
 		"event_publisher":                "Event Publisher",
 		"config_model":                   "Config Model",
-		"config_manager":                 "Config Manager",
 		"notification_preferences_model": "Notification Preferences Model",
 		"message_model":                  "Message Model",
 		"reaction_model":                 "Reaction Model",

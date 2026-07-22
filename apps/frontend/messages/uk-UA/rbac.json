@@ -49,6 +49,9 @@
       "level_group": "Група",
       "level_room": "Кімната",
       "empty_category": "У цій категорії немає дозволів",
+      "filter_label": "Фільтрувати дозволи",
+      "filter_placeholder": "Фільтрувати дозволи...",
+      "no_filter_matches": "Жоден дозвіл не відповідає цьому фільтру.",
       "categories": {
         "space": {
           "title": "Дозволи сервера",
