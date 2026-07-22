@@ -42,7 +42,6 @@ type ExportedKey struct {
 var (
 	keysConfigFile      string
 	keysOutput          string
-	keysPassphrase      string
 	keysPassphraseFile  string
 	keysPassphraseStdin bool
 )
@@ -92,15 +91,11 @@ func init() {
 
 	keysExportCmd.Flags().StringVarP(&keysConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
 	keysExportCmd.Flags().StringVarP(&keysOutput, "output", "o", "", "output file path (required)")
-	keysExportCmd.Flags().StringVar(&keysPassphrase, "passphrase", "", "encryption passphrase (if not set, prompts interactively)")
-	_ = keysExportCmd.Flags().MarkDeprecated("passphrase", "use --passphrase-stdin or --passphrase-file so the secret is not exposed in process arguments")
 	keysExportCmd.Flags().StringVar(&keysPassphraseFile, "passphrase-file", "", "file containing the encryption passphrase")
 	keysExportCmd.Flags().BoolVar(&keysPassphraseStdin, "passphrase-stdin", false, "read the encryption passphrase from stdin")
 	_ = keysExportCmd.MarkFlagRequired("output")
 
 	keysImportCmd.Flags().StringVarP(&keysConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
-	keysImportCmd.Flags().StringVar(&keysPassphrase, "passphrase", "", "decryption passphrase (if not set, prompts interactively)")
-	_ = keysImportCmd.Flags().MarkDeprecated("passphrase", "use --passphrase-stdin or --passphrase-file so the secret is not exposed in process arguments")
 	keysImportCmd.Flags().StringVar(&keysPassphraseFile, "passphrase-file", "", "file containing the decryption passphrase")
 	keysImportCmd.Flags().BoolVar(&keysPassphraseStdin, "passphrase-stdin", false, "read the decryption passphrase from stdin")
 }
@@ -112,10 +107,8 @@ func runKeysExport(cmd *cobra.Command, args []string) {
 	}
 
 	passphrase, err := getPassphrase(passphraseInput{
-		argument:    keysPassphrase,
-		argumentSet: cmd.Flags().Changed("passphrase"),
-		file:        keysPassphraseFile,
-		stdin:       keysPassphraseStdin,
+		file:  keysPassphraseFile,
+		stdin: keysPassphraseStdin,
 	}, "Enter passphrase for key export: ", true)
 	if err != nil {
 		log.Fatal("Failed to read passphrase", "error", err)
@@ -167,10 +160,8 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 	}
 
 	passphrase, err := getPassphrase(passphraseInput{
-		argument:    keysPassphrase,
-		argumentSet: cmd.Flags().Changed("passphrase"),
-		file:        keysPassphraseFile,
-		stdin:       keysPassphraseStdin,
+		file:  keysPassphraseFile,
+		stdin: keysPassphraseStdin,
 	}, "Enter passphrase for key import: ", false)
 	if err != nil {
 		log.Fatal("Failed to read passphrase", "error", err)
@@ -399,26 +390,20 @@ func decryptKeysFromFile(filePath, passphrase string) ([]ExportedKey, error) {
 }
 
 type passphraseInput struct {
-	argument    string
-	argumentSet bool
-	file        string
-	stdin       bool
+	file  string
+	stdin bool
 }
 
 // getPassphrase reads one validated passphrase from an explicit source or a
 // hidden interactive prompt.
 func getPassphrase(input passphraseInput, prompt string, confirm bool) (string, error) {
 	if err := validateSecretSources(
-		"--passphrase", input.argumentSet,
 		"--passphrase-file", input.file != "",
 		"--passphrase-stdin", input.stdin,
 	); err != nil {
 		return "", err
 	}
 
-	if input.argumentSet {
-		return requirePassphrase(input.argument)
-	}
 	if input.file != "" {
 		passphrase, err := readSecretFile(input.file)
 		if err != nil {
