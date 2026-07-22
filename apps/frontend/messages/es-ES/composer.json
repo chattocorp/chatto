@@ -22,6 +22,13 @@
     "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
     "send_failed": "No se pudo enviar el mensaje",
     "edit_failed": "No se pudo editar el mensaje",
+    "upload": {
+      "preparing": "Preparando…",
+      "uploading": "{percentage}% subido",
+      "uploaded": "Subido",
+      "failed": "Error al subir",
+      "remove": "Eliminar {filename}"
+    },
     "format": {
       "bold": "Negrita",
       "italic": "Cursiva",

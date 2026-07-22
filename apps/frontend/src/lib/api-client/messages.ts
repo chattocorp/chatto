@@ -20,7 +20,18 @@ export type CreateMessageInput = {
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
   linkPreview?: LinkPreviewInput | null;
+  onAttachmentUploadUpdate?: (update: AttachmentUploadUpdate) => void;
 };
+
+export type AttachmentUploadUpdate =
+  | {
+      file: File;
+      phase: 'uploading';
+      committedBytes: number;
+      totalBytes: number;
+    }
+  | { file: File; phase: 'uploaded' }
+  | { file: File; phase: 'failed' };
 
 export type UpdateMessageInput = {
   roomId: string;
@@ -147,13 +158,33 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
   const files = input.attachments;
   if (!files?.length) return [];
   const uploads = createAssetUploadAPI(config);
-  const assets = await Promise.all(
-    files.map((file) =>
-      uploads.uploadAttachment({
-        roomId: input.roomId,
-        file
-      })
-    )
+  const results = await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const asset = await uploads.uploadAttachment({
+          roomId: input.roomId,
+          file,
+          onProgress: (committedBytes, totalBytes) => {
+            input.onAttachmentUploadUpdate?.({
+              file,
+              phase: 'uploading',
+              committedBytes,
+              totalBytes
+            });
+          }
+        });
+        input.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
+        return asset;
+      } catch (error) {
+        input.onAttachmentUploadUpdate?.({ file, phase: 'failed' });
+        throw error;
+      }
+    })
   );
-  return assets.map((asset) => asset.assetId);
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed) throw failed.reason;
+  return results.map((result) => {
+    if (result.status === 'rejected') throw result.reason;
+    return result.value.assetId;
+  });
 }

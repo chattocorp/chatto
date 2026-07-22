@@ -9,6 +9,7 @@ import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { renderMarkdown } from '$lib/markdown';
+import type { CreateMessageInput } from '$lib/api-client/messages';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -585,6 +586,43 @@ describe('MessageComposer', () => {
       const sendButton = q(container, 'button[aria-label="Send message"]');
       const icon = sendButton?.querySelector('.uil--telegram-alt');
       expect(icon).not.toBeNull();
+    });
+
+    it('disables the composer and shows per-file upload progress while sending', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      let submittedInput!: CreateMessageInput;
+      createMessageConnectMock.mockImplementationOnce((input) => {
+        submittedInput = input;
+        return pendingSend.promise;
+      });
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'large upload');
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+      await expect.element(q(container, `button[aria-label="Remove ${file.name}"]`)).toBeDisabled();
+      await expect.element(container).toHaveTextContent('Preparing…');
+
+      submittedInput.onAttachmentUploadUpdate?.({
+        file,
+        phase: 'uploading',
+        committedBytes: 1,
+        totalBytes: 4
+      });
+
+      await expect.element(container).toHaveTextContent('25% uploaded');
+      await expect
+        .element(q(container, `[role="progressbar"][aria-label="${file.name}"]`))
+        .toHaveAttribute('aria-valuenow', '25');
+
+      submittedInput.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
+      await expect.element(container).toHaveTextContent('Uploaded');
+
+      pendingSend.resolve({ event: postedMessageEvent() });
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
 
     it('hides the keyboard shortcut hint in simple mode', async () => {
@@ -2630,7 +2668,7 @@ describe('MessageComposer', () => {
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
 
-      (q(container, 'button.absolute') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Remove paste.png"]') as HTMLButtonElement).click();
 
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
       await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
@@ -2645,8 +2683,8 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
-      expect(q(container, 'img')).toBeNull();
+      await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test'));
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
   });
 

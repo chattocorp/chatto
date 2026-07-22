@@ -1053,6 +1053,15 @@ const msg_composer_drop_files_title = (): LocalizedString => messages().composer
 const msg_composer_drop_files_subtitle = (): LocalizedString => messages().composer_drop_files_subtitle(empty());
 const msg_composer_send_failed = (): LocalizedString => messages().composer_send_failed(empty());
 const msg_composer_edit_failed = (): LocalizedString => messages().composer_edit_failed(empty());
+const msg_composer_upload_preparing = (): LocalizedString => messages().composer_upload_preparing(empty());
+const msg_composer_upload_uploading = (
+  inputs: Parameters<LocaleMessages['composer_upload_uploading']>[0]
+): LocalizedString => messages().composer_upload_uploading(inputs);
+const msg_composer_upload_uploaded = (): LocalizedString => messages().composer_upload_uploaded(empty());
+const msg_composer_upload_failed = (): LocalizedString => messages().composer_upload_failed(empty());
+const msg_composer_upload_remove = (
+  inputs: Parameters<LocaleMessages['composer_upload_remove']>[0]
+): LocalizedString => messages().composer_upload_remove(inputs);
 const msg_composer_format_bold = (): LocalizedString => messages().composer_format_bold(empty());
 const msg_composer_format_italic = (): LocalizedString => messages().composer_format_italic(empty());
 const msg_composer_format_inline_code = (): LocalizedString => messages().composer_format_inline_code(empty());
@@ -2456,6 +2465,11 @@ export { msg_composer_drop_files_title as 'composer.drop_files_title' };
 export { msg_composer_drop_files_subtitle as 'composer.drop_files_subtitle' };
 export { msg_composer_send_failed as 'composer.send_failed' };
 export { msg_composer_edit_failed as 'composer.edit_failed' };
+export { msg_composer_upload_preparing as 'composer.upload.preparing' };
+export { msg_composer_upload_uploading as 'composer.upload.uploading' };
+export { msg_composer_upload_uploaded as 'composer.upload.uploaded' };
+export { msg_composer_upload_failed as 'composer.upload.failed' };
+export { msg_composer_upload_remove as 'composer.upload.remove' };
 export { msg_composer_format_bold as 'composer.format.bold' };
 export { msg_composer_format_italic as 'composer.format.italic' };
 export { msg_composer_format_inline_code as 'composer.format.inline_code' };
