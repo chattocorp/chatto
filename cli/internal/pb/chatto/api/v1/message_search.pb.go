@@ -450,11 +450,11 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\bmessages\x18\x01 \x03(\v2\x16.chatto.api.v1.MessageR\bmessages\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\"\x12\n" +
-	"\x10GetStatusRequest\"\x88\x01\n" +
+	"\x10GetStatusRequest\"\xbd\x01\n" +
 	"\x11GetStatusResponse\x127\n" +
 	"\x05state\x18\x01 \x01(\x0e2!.chatto.api.v1.MessageSearchStateR\x05state\x12:\n" +
 	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
-	"retryAfter*\x7f\n" +
+	"retryAfterJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x13indexed_event_countR\x12target_event_count*\x7f\n" +
 	"\x12MessageSearchOrder\x12$\n" +
 	" MESSAGE_SEARCH_ORDER_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eMESSAGE_SEARCH_ORDER_RELEVANCE\x10\x01\x12\x1f\n" +
