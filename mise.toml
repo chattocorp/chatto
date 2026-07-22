@@ -261,6 +261,8 @@ exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
 description = "Build and run the bundled Chatto CLI command with workspace-safe ports"
 depends = ["build-dev-cli"]
 dir = "cli"
+# Interactive subcommands such as `init` need direct terminal control.
+raw = true
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
   CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",

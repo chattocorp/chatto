@@ -1,150 +1,720 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/hex"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
-func TestInitGeneratesCoreSecret(t *testing.T) {
-	tmpDir := t.TempDir()
-	originalDir, err := os.Getwd()
+func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	var output bytes.Buffer
+	var gotWizardOptions initWizardOptions
+
+	err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     &output,
+		entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
+		getenv:  func(string) string { return "" },
+		wizard: func(answers *initAnswers, opts initWizardOptions) error {
+			gotWizardOptions = opts
+			answers.PublicURL = "https://chat.example.com"
+			answers.ListenPort = "4444"
+			answers.EmbeddedDataDir = "/var/lib/chatto"
+			answers.NATSReplicas = 5 // Stale external-mode answer must not leak through.
+			answers.Confirmed = true
+			return nil
+		},
+	})
 	if err != nil {
-		t.Fatalf("get working directory: %v", err)
+		t.Fatalf("runInitCommand() error = %v", err)
 	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("change working directory: %v", err)
+	if gotWizardOptions.configPath != configPath {
+		t.Fatalf("wizard config path = %q, want %q", gotWizardOptions.configPath, configPath)
 	}
-	t.Cleanup(func() { _ = os.Chdir(originalDir) })
 
-	originalConfigFile := initConfigFile
-	initConfigFile = ""
-	t.Cleanup(func() { initConfigFile = originalConfigFile })
-
-	initCmd.Run(initCmd, nil)
-
-	cfg, err := config.ReadConfig(filepath.Join(tmpDir, "chatto.toml"))
+	cfg, err := config.ReadConfig(configPath)
 	if err != nil {
 		t.Fatalf("read generated config: %v", err)
 	}
-	if len(cfg.Core.SecretKey) != 64 {
-		t.Fatalf("generated core secret length = %d, want 64", len(cfg.Core.SecretKey))
+	if cfg.Webserver.URL != "https://chat.example.com" || cfg.Webserver.Port != 4444 {
+		t.Fatalf("generated webserver = %q:%d", cfg.Webserver.URL, cfg.Webserver.Port)
 	}
-	if _, err := hex.DecodeString(cfg.Core.SecretKey); err != nil {
-		t.Fatalf("generated core secret should be hex: %v", err)
+	assertHexSecret(t, "core secret", cfg.Core.SecretKey)
+	assertHexSecret(t, "cookie signing secret", cfg.Webserver.CookieSigningSecret)
+	assertHexSecret(t, "cookie encryption secret", cfg.Webserver.CookieEncryptionSecret)
+	assertHexSecret(t, "asset signing secret", cfg.Core.Assets.SigningSecret)
+	assertHexSecret(t, "embedded NATS token", cfg.NATS.Embedded.AuthToken)
+	if !cfg.NATS.Embedded.Enabled || cfg.NATS.Embedded.DataDir != "/var/lib/chatto" {
+		t.Fatalf("generated embedded NATS = %+v", cfg.NATS.Embedded)
 	}
-	if cfg.Core.Assets.StorageBackend != config.StorageBackendNATS {
-		t.Fatalf("generated storage backend = %q, want %q", cfg.Core.Assets.StorageBackend, config.StorageBackendNATS)
+	if cfg.NATS.Embedded.Port != 0 {
+		t.Fatalf("generated embedded NATS port = %d, want 0 when commented", cfg.NATS.Embedded.Port)
+	}
+	if cfg.NATS.Client.URL != "" {
+		t.Fatalf("generated external NATS URL = %q, want empty", cfg.NATS.Client.URL)
 	}
 	if cfg.NATS.Replicas != 1 {
 		t.Fatalf("generated NATS replicas = %d, want 1", cfg.NATS.Replicas)
 	}
-	if cfg.NATS.Embedded.Port != 0 {
-		t.Fatalf("generated embedded NATS port = %d, want 0 when port is commented out", cfg.NATS.Embedded.Port)
+	if cfg.Core.Assets.StorageBackend != config.StorageBackendNATS {
+		t.Fatalf("generated asset storage = %q", cfg.Core.Assets.StorageBackend)
 	}
-	if cfg.NATS.Client.URL != "" {
-		t.Fatalf("generated embedded NATS client URL = %q, want empty when TCP listener is disabled", cfg.NATS.Client.URL)
+	if !cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault() {
+		t.Fatal("generated config should enable email OTP throttling")
 	}
-	if got := cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault(); got != true {
-		t.Fatalf("generated email OTP throttling enabled = %v, want true", got)
-	}
-	if cfg.SMTP.Enabled {
-		t.Fatal("generated SMTP config should be disabled by default")
-	}
-	if cfg.SMTP.Port != 587 {
-		t.Fatalf("generated SMTP port = %d, want 587", cfg.SMTP.Port)
-	}
-	if cfg.SMTP.TLS != config.SMTPTLSMandatory {
-		t.Fatalf("generated SMTP TLS policy = %q, want %q", cfg.SMTP.TLS, config.SMTPTLSMandatory)
-	}
-	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
+
+	info, err := os.Stat(configPath)
 	if err != nil {
-		t.Fatalf("read generated raw config: %v", err)
+		t.Fatalf("stat generated config: %v", err)
 	}
-	rawText := string(raw)
-	generalIndex := strings.Index(rawText, "\n[general]\n")
-	if generalIndex == -1 && strings.HasPrefix(rawText, "[general]\n") {
-		generalIndex = 0
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("generated config mode = %o, want 600", got)
 	}
-	ownersIndex := strings.Index(rawText, "\n[owners]\n")
-	webserverIndex := strings.Index(rawText, "\n[webserver]\n")
-	if generalIndex == -1 || ownersIndex == -1 || webserverIndex == -1 || !(generalIndex < ownersIndex && ownersIndex < webserverIndex) {
-		t.Fatal("generated config should place [owners] between [general] and [webserver]")
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read generated config: %v", err)
 	}
-	if !strings.Contains(rawText, "log_level = 'info'") {
-		t.Fatal("generated config should set general.log_level to 'info'")
+	text := string(raw)
+	for _, want := range []string{
+		"allowed_origins = ['*']",
+		"storage_backend = 'nats'",
+		"[auth.email_otp]",
+		"throttling_enabled = true",
+		"# [[auth.providers]]",
+		"# [nats.client]",
+		"[nats.embedded]",
+		"enabled = true",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("generated config missing %q", want)
+		}
 	}
-	if !strings.Contains(rawText, "allowed_origins = ['*']") {
-		t.Fatal("generated config should explicitly allow bearer-token CORS clients")
+	if !strings.Contains(output.String(), "The lights are on") || !strings.Contains(output.String(), "chatto run --config "+configPath) {
+		t.Fatalf("completion output = %q", output.String())
 	}
-	if !strings.Contains(rawText, "oauth_redirect_origins = []") {
-		t.Fatal("generated config should not allow additional OAuth redirect origins by default")
+}
+
+func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
+	validNKeySeed, _, err := natsauth.GenerateUserNKey()
+	if err != nil {
+		t.Fatalf("generate test NKey: %v", err)
 	}
-	if strings.Contains(rawText, "\nproviders = []") {
-		t.Fatal("generated config should not include an active empty auth.providers array")
+	tests := []struct {
+		name       string
+		configure  func(*initAnswers)
+		assertNATS func(*testing.T, config.NATSClientConfig)
+	}{
+		{
+			name: "credentials file",
+			configure: func(a *initAnswers) {
+				a.NATSAuthMethod = config.NATSAuthCredentials
+				a.NATSCredentialsFile = "/run/secrets/chatto.creds"
+			},
+			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
+				if c.CredentialsFile != "/run/secrets/chatto.creds" {
+					t.Fatalf("credentials file = %q", c.CredentialsFile)
+				}
+			},
+		},
+		{
+			name: "token",
+			configure: func(a *initAnswers) {
+				a.NATSAuthMethod = config.NATSAuthToken
+				a.NATSToken = "top-secret-token"
+			},
+			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
+				if c.Token != "top-secret-token" {
+					t.Fatalf("token = %q", c.Token)
+				}
+			},
+		},
+		{
+			name: "userpass",
+			configure: func(a *initAnswers) {
+				a.NATSAuthMethod = config.NATSAuthUserPass
+				a.NATSUsername = "chatto"
+				a.NATSPassword = "password"
+			},
+			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
+				if c.Username != "chatto" || c.Password != "password" {
+					t.Fatalf("userpass = %q/%q", c.Username, c.Password)
+				}
+			},
+		},
+		{
+			name: "nkey",
+			configure: func(a *initAnswers) {
+				a.NATSAuthMethod = config.NATSAuthNKey
+				a.NATSNKeySeed = validNKeySeed
+			},
+			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
+				if c.NKeySeed != validNKeySeed {
+					t.Fatalf("NKey seed = %q", c.NKeySeed)
+				}
+			},
+		},
+		{
+			name: "none",
+			configure: func(a *initAnswers) {
+				a.NATSAuthMethod = config.NATSAuthNone
+			},
+			assertNATS: func(t *testing.T, c config.NATSClientConfig) {},
+		},
 	}
-	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'chatto-hub'\n# type = 'oidc'") {
-		t.Fatal("generated config should include a commented OIDC auth provider example")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "chatto.toml")
+			err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+				in:      strings.NewReader(""),
+				out:     ioDiscard{},
+				entropy: bytes.NewReader(bytes.Repeat([]byte{0x24}, 32*5)),
+				getenv:  func(string) string { return "" },
+				wizard: func(answers *initAnswers, _ initWizardOptions) error {
+					answers.NATSMode = initNATSExternal
+					answers.ExternalNATSURL = "nats://nats-1:4222,nats://nats-2:4222"
+					answers.NATSReplicas = 3
+					answers.NATSToken = "abandoned-token"
+					answers.NATSUsername = "abandoned-user"
+					answers.NATSPassword = "abandoned-password"
+					answers.NATSCredentialsFile = "/abandoned.creds"
+					answers.NATSNKeySeed = validNKeySeed
+					tt.configure(answers)
+					answers.Confirmed = true
+					return nil
+				},
+			})
+			if err != nil {
+				t.Fatalf("runInitCommand() error = %v", err)
+			}
+			cfg, err := config.ReadConfig(configPath)
+			if err != nil {
+				t.Fatalf("read generated config: %v", err)
+			}
+			if cfg.NATS.Embedded.Enabled {
+				t.Fatal("embedded NATS should be disabled")
+			}
+			if cfg.NATS.Client.URL != "nats://nats-1:4222,nats://nats-2:4222" || cfg.NATS.Replicas != 3 {
+				t.Fatalf("external NATS = %+v", cfg.NATS)
+			}
+			if cfg.NATS.Client.AuthMethod != ttAuthMethod(tt.name) {
+				t.Fatalf("auth method = %q", cfg.NATS.Client.AuthMethod)
+			}
+			assertOnlySelectedNATSCredentials(t, cfg.NATS.Client)
+			tt.assertNATS(t, cfg.NATS.Client)
+
+			raw, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("read generated config: %v", err)
+			}
+			if !strings.Contains(string(raw), "\n[nats.client]\n") || strings.Contains(string(raw), "\n# [nats.client]\n") {
+				t.Fatalf("external NATS client table was not activated:\n%s", raw)
+			}
+		})
 	}
-	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'github'\n# type = 'github'") {
-		t.Fatal("generated config should include a commented GitHub auth provider example")
+}
+
+func assertOnlySelectedNATSCredentials(t *testing.T, client config.NATSClientConfig) {
+	t.Helper()
+	if client.AuthMethod != config.NATSAuthToken && client.Token != "" {
+		t.Errorf("unselected token was retained")
 	}
-	if !strings.Contains(rawText, "\n[auth.email_otp]\n") {
-		t.Fatal("generated config should include an active auth.email_otp section")
+	if client.AuthMethod != config.NATSAuthUserPass && (client.Username != "" || client.Password != "") {
+		t.Errorf("unselected username/password was retained")
 	}
-	if strings.Contains(rawText, "\n# [auth.email_otp]\n") {
-		t.Fatal("generated config should not comment out the auth.email_otp section")
+	if client.AuthMethod != config.NATSAuthCredentials && client.CredentialsFile != "" {
+		t.Errorf("unselected credentials file was retained")
 	}
-	if !strings.Contains(rawText, "\nthrottling_enabled = true\n") {
-		t.Fatal("generated config should explicitly enable email OTP throttling")
+	if client.AuthMethod != config.NATSAuthNKey && client.NKeySeed != "" {
+		t.Errorf("unselected NKey seed was retained")
 	}
-	if !strings.Contains(rawText, "\n# ttl = '15m'\n") {
-		t.Fatal("generated config should include commented default email OTP TTL")
+}
+
+func ttAuthMethod(name string) config.NATSAuthMethod {
+	switch name {
+	case "credentials file":
+		return config.NATSAuthCredentials
+	case "token":
+		return config.NATSAuthToken
+	case "userpass":
+		return config.NATSAuthUserPass
+	case "nkey":
+		return config.NATSAuthNKey
+	default:
+		return config.NATSAuthNone
 	}
-	if !strings.Contains(rawText, "\n# max_delivered_codes = 10\n") {
-		t.Fatal("generated config should include commented default delivered-code limit")
+}
+
+func TestRunInitCommandCancellationWritesNothing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	for _, wizard := range []func(*initAnswers, initWizardOptions) error{
+		func(*initAnswers, initWizardOptions) error { return huh.ErrUserAborted },
+		func(answers *initAnswers, _ initWizardOptions) error {
+			answers.Confirmed = false
+			return nil
+		},
+	} {
+		err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+			in:      strings.NewReader(""),
+			out:     ioDiscard{},
+			entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
+			getenv:  func(string) string { return "" },
+			wizard:  wizard,
+		})
+		if err == nil || !strings.Contains(err.Error(), "nothing was written") {
+			t.Fatalf("runInitCommand() error = %v", err)
+		}
+		if _, err := os.Stat(configPath); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("config exists after cancellation: %v", err)
+		}
 	}
-	if !strings.Contains(rawText, "\n# max_wrong_attempts = 5\n") {
-		t.Fatal("generated config should include commented default wrong-attempt limit")
+}
+
+func TestRunInitCommandRejectsInvalidAnswersBeforeWriting(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(*initAnswers)
+	}{
+		{name: "public URL", configure: func(a *initAnswers) { a.PublicURL = "/chat" }},
+		{name: "listen port", configure: func(a *initAnswers) { a.ListenPort = "70000" }},
+		{name: "NATS mode", configure: func(a *initAnswers) { a.NATSMode = "mystery" }},
+		{name: "embedded data directory", configure: func(a *initAnswers) { a.EmbeddedDataDir = " " }},
+		{name: "external URL", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.ExternalNATSURL = "https://nats.example.com"
+		}},
+		{name: "external replicas", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSReplicas = 2
+		}},
+		{name: "missing credentials file", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSCredentialsFile = ""
+		}},
+		{name: "missing token", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthToken
+		}},
+		{name: "missing username", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSPassword = "secret"
+		}},
+		{name: "missing password", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSUsername = "chatto"
+		}},
+		{name: "invalid NKey seed", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = config.NATSAuthNKey
+			a.NATSNKeySeed = "not-a-seed"
+		}},
+		{name: "unknown auth method", configure: func(a *initAnswers) {
+			a.NATSMode = initNATSExternal
+			a.NATSAuthMethod = "mystery"
+		}},
 	}
-	if !strings.Contains(rawText, "\n# domain = ''") {
-		t.Fatal("generated config should comment out webserver.tls.domain by default")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "chatto.toml")
+			err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+				in:      strings.NewReader(""),
+				out:     ioDiscard{},
+				entropy: panicReader{},
+				getenv:  func(string) string { return "" },
+				wizard: func(answers *initAnswers, _ initWizardOptions) error {
+					tt.configure(answers)
+					answers.Confirmed = true
+					return nil
+				},
+			})
+			if err == nil {
+				t.Fatal("runInitCommand() succeeded")
+			}
+			if _, statErr := os.Stat(configPath); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("config exists after validation error: %v", statErr)
+			}
+		})
 	}
-	if !strings.Contains(rawText, "\n# email = ''") {
-		t.Fatal("generated config should comment out webserver.tls.email by default")
+}
+
+func TestRunInitCommandRefusesOverwriteBeforeWizard(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(configPath, []byte("sentinel"), 0o600); err != nil {
+		t.Fatalf("write existing config: %v", err)
 	}
-	if !strings.Contains(rawText, "storage_backend = 'nats'") {
-		t.Fatal("generated config should set core.assets.storage_backend to 'nats'")
+	wizardCalled := false
+	err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+		wizard: func(*initAnswers, initWizardOptions) error {
+			wizardCalled = true
+			return nil
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "refusing to overwrite") {
+		t.Fatalf("runInitCommand() error = %v", err)
 	}
-	if !strings.Contains(rawText, "\n[smtp]\n") {
-		t.Fatal("generated config should include SMTP defaults")
+	if wizardCalled {
+		t.Fatal("wizard ran before overwrite protection")
 	}
-	if !strings.Contains(rawText, "\nport = 587\n") {
-		t.Fatal("generated SMTP config should default to STARTTLS submission port 587")
+	got, err := os.ReadFile(configPath)
+	if err != nil || string(got) != "sentinel" {
+		t.Fatalf("existing config changed: %q, %v", got, err)
 	}
-	if !strings.Contains(rawText, "\ntls = 'mandatory'\n") {
-		t.Fatal("generated SMTP config should default to mandatory STARTTLS")
+}
+
+func TestRunInitCommandForceOverwritesExistingConfiguration(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(configPath, []byte("sentinel"), 0o644); err != nil {
+		t.Fatalf("write existing config: %v", err)
 	}
-	if !strings.Contains(rawText, "\nreplicas = 1\n") {
-		t.Fatal("generated config should set nats.replicas to 1")
+	var gotWizardOptions initWizardOptions
+	err := runInitCommand(initCommandOptions{configPath: configPath, force: true}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
+		getenv:  func(string) string { return "" },
+		wizard: func(answers *initAnswers, opts initWizardOptions) error {
+			gotWizardOptions = opts
+			answers.Confirmed = true
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("runInitCommand() error = %v", err)
 	}
-	if strings.Contains(rawText, "\n# replicas =") {
-		t.Fatal("generated config should not comment out nats.replicas")
+	if !gotWizardOptions.force {
+		t.Fatal("wizard was not told that overwrite mode is enabled")
 	}
-	if !strings.Contains(rawText, "\n# port = 4222") {
-		t.Fatal("generated config should comment out nats.embedded.port by default")
+	if _, err := config.ReadConfig(configPath); err != nil {
+		t.Fatalf("read replacement config: %v", err)
 	}
-	if strings.Contains(rawText, "\nport = 4222") {
-		t.Fatal("generated config should not enable the embedded NATS TCP port by default")
+	info, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("stat replacement config: %v", err)
 	}
-	if !strings.Contains(rawText, "\n# [nats.client]\n") {
-		t.Fatal("generated config should include a commented external NATS client example")
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("replacement config mode = %o, want 600", got)
 	}
-	if strings.Contains(rawText, "\n[nats.client]\n") {
-		t.Fatal("generated embedded config should not include an active [nats.client] table")
+}
+
+func TestRunInitCommandForceCancellationPreservesExistingConfiguration(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(configPath, []byte("sentinel"), 0o600); err != nil {
+		t.Fatalf("write existing config: %v", err)
 	}
+	err := runInitCommand(initCommandOptions{configPath: configPath, force: true}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: panicReader{},
+		getenv:  func(string) string { return "" },
+		wizard: func(answers *initAnswers, _ initWizardOptions) error {
+			answers.Confirmed = false
+			return nil
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "nothing was written") {
+		t.Fatalf("runInitCommand() error = %v", err)
+	}
+	got, readErr := os.ReadFile(configPath)
+	if readErr != nil || string(got) != "sentinel" {
+		t.Fatalf("existing config changed: %q, %v", got, readErr)
+	}
+}
+
+func TestRunInitCommandAccessibleMode(t *testing.T) {
+	tests := []struct {
+		name          string
+		flag          bool
+		accessibleEnv string
+		term          string
+		wantMode      bool
+	}{
+		{name: "default"},
+		{name: "flag", flag: true, wantMode: true},
+		{name: "environment", accessibleEnv: "1", wantMode: true},
+		{name: "dumb terminal", term: "dumb", wantMode: true},
+		{name: "case-insensitive dumb terminal", term: " DUMB ", wantMode: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "chatto.toml")
+			gotAccessible := false
+			err := runInitCommand(initCommandOptions{configPath: configPath, accessible: tt.flag}, initCommandDependencies{
+				in:      strings.NewReader(""),
+				out:     ioDiscard{},
+				entropy: bytes.NewReader(bytes.Repeat([]byte{0x42}, 32*5)),
+				getenv: func(name string) string {
+					switch name {
+					case "CHATTO_ACCESSIBLE":
+						return tt.accessibleEnv
+					case "TERM":
+						return tt.term
+					default:
+						return ""
+					}
+				},
+				wizard: func(answers *initAnswers, opts initWizardOptions) error {
+					gotAccessible = opts.accessible
+					answers.Confirmed = true
+					return nil
+				},
+			})
+			if err != nil {
+				t.Fatalf("runInitCommand() error = %v", err)
+			}
+			if gotAccessible != tt.wantMode {
+				t.Fatalf("accessible = %v, want %v", gotAccessible, tt.wantMode)
+			}
+		})
+	}
+}
+
+func TestRunInitCommandDumbTerminalEOFWritesNothing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "chatto.toml")
+	err := runInitCommand(initCommandOptions{configPath: configPath}, initCommandDependencies{
+		in:      strings.NewReader(""),
+		out:     ioDiscard{},
+		entropy: panicReader{},
+		getenv: func(name string) string {
+			if name == "TERM" {
+				return "dumb"
+			}
+			return ""
+		},
+		wizard: runInitWizard,
+	})
+	if err == nil || !strings.Contains(err.Error(), "nothing was written") {
+		t.Fatalf("runInitCommand() error = %v", err)
+	}
+	if _, statErr := os.Stat(configPath); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("config exists after EOF: %v", statErr)
+	}
+}
+
+func TestInitWizardAccessibleReviewIncludesSummary(t *testing.T) {
+	answers := defaultInitAnswers()
+	answers.PublicURL = "https://chat.example.com"
+	var output bytes.Buffer
+	opts := initWizardOptions{
+		input:      strings.NewReader("y\n"),
+		output:     &output,
+		accessible: true,
+		configPath: "/etc/chatto/chatto.toml",
+	}
+	err := newInitForm(opts, initReviewGroup(&answers, opts.configPath, false, false)).Run()
+	if err != nil {
+		t.Fatalf("review form error = %v", err)
+	}
+	text := output.String()
+	for _, want := range []string{"Launch card", "https://chat.example.com", "/etc/chatto/chatto.toml"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("accessible output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestInitWizardAccessibleForceWarnsAndRequiresOverwriteConfirmation(t *testing.T) {
+	answers := defaultInitAnswers()
+	answers.Confirmed = false
+	var output bytes.Buffer
+	opts := initWizardOptions{
+		input:      strings.NewReader("y\n"),
+		output:     &output,
+		accessible: true,
+		configPath: "/etc/chatto/chatto.toml",
+		force:      true,
+	}
+	err := newInitForm(opts,
+		initOverwriteWarningGroup(opts.configPath),
+		initReviewGroup(&answers, opts.configPath, true, false),
+	).Run()
+	if err != nil {
+		t.Fatalf("force confirmation form error = %v", err)
+	}
+	if !answers.Confirmed {
+		t.Fatal("overwrite confirmation was not recorded")
+	}
+	text := output.String()
+	for _, want := range []string{
+		"Careful — overwrite mode is enabled",
+		"--force allows Chatto to replace",
+		"Overwrite this configuration?",
+		"/etc/chatto/chatto.toml",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("accessible force output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestRunInitWizardAccessibleAcceptsDisplayedDefaults(t *testing.T) {
+	reader, writer := io.Pipe()
+	t.Cleanup(func() {
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+	output := newAccessibleScriptWriter(writer, []accessiblePromptResponse{
+		{prompt: "Where will people open Chatto?", response: "\n"},
+		{prompt: "Which local port should Chatto listen on?", response: "\n"},
+		{prompt: "Where should Chatto remember everything?", response: "1\n"},
+		{prompt: "Where should embedded NATS keep its data?", response: "\n"},
+		{prompt: "Create this configuration?", response: "y\n"},
+	})
+	answers := defaultInitAnswers()
+	err := runInitWizard(&answers, initWizardOptions{
+		input:      reader,
+		output:     output,
+		accessible: true,
+		configPath: "/etc/chatto/chatto.toml",
+	})
+	if err != nil {
+		t.Fatalf("runInitWizard() error = %v", err)
+	}
+	if answers.PublicURL != "http://localhost:4000" || answers.ListenPort != "4000" ||
+		answers.NATSMode != initNATSEmbedded || answers.EmbeddedDataDir != "./data" || !answers.Confirmed {
+		t.Fatalf("answers = %+v", answers)
+	}
+	text := output.String()
+	for _, want := range []string{
+		"[default: http://localhost:4000]",
+		"[default: 4000]",
+		"[default: ./data]",
+		"Launch card",
+		"/etc/chatto/chatto.toml",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("accessible output missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "How can Chatto reach NATS?") {
+		t.Fatalf("embedded flow asked external NATS questions:\n%s", text)
+	}
+}
+
+func TestChattoInitThemeSeparatesFormHierarchy(t *testing.T) {
+	styles := (chattoInitTheme{}).Theme(true)
+	for name, style := range map[string]lipgloss.Style{
+		"group description":         styles.Group.Description,
+		"focused field description": styles.Focused.Description,
+		"blurred field description": styles.Blurred.Description,
+	} {
+		if got := style.GetPaddingBottom(); got != 1 {
+			t.Errorf("%s bottom padding = %d, want 1", name, got)
+		}
+		if got := style.GetMarginBottom(); got != 0 {
+			t.Errorf("%s bottom margin = %d, want 0 so Huh can measure the field", name, got)
+		}
+	}
+}
+
+func TestInitWizardValidators(t *testing.T) {
+	valid := []struct {
+		name string
+		fn   func(string) error
+		text string
+	}{
+		{name: "https URL", fn: validatePublicURL, text: "https://chat.example.com"},
+		{name: "loopback URL", fn: validatePublicURL, text: "http://localhost:4000"},
+		{name: "port", fn: validatePort, text: "4000"},
+		{name: "NATS URL", fn: validateNATSURLs, text: "nats://one:4222,tls://two:4222"},
+		{name: "not blank", fn: validateNotBlank("value"), text: "hello"},
+	}
+	for _, tt := range valid {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.fn(tt.text); err != nil {
+				t.Fatalf("validate(%q) = %v", tt.text, err)
+			}
+		})
+	}
+
+	invalid := []struct {
+		name string
+		fn   func(string) error
+		text string
+	}{
+		{name: "relative URL", fn: validatePublicURL, text: "/chat"},
+		{name: "URL path", fn: validatePublicURL, text: "https://example.com/chat"},
+		{name: "bad port", fn: validatePort, text: "70000"},
+		{name: "bad NATS scheme", fn: validateNATSURLs, text: "https://nats.example.com"},
+		{name: "blank", fn: validateNotBlank("value"), text: "  "},
+	}
+	for _, tt := range invalid {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.fn(tt.text); err == nil {
+				t.Fatalf("validate(%q) succeeded", tt.text)
+			}
+		})
+	}
+}
+
+func assertHexSecret(t *testing.T, name, value string) {
+	t.Helper()
+	if len(value) != 64 {
+		t.Fatalf("%s length = %d, want 64", name, len(value))
+	}
+	if _, err := hex.DecodeString(value); err != nil {
+		t.Fatalf("%s is not hex: %v", name, err)
+	}
+}
+
+type ioDiscard struct{}
+
+func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
+
+type panicReader struct{}
+
+func (panicReader) Read([]byte) (int, error) { panic("entropy read before answer validation") }
+
+type accessiblePromptResponse struct {
+	prompt   string
+	response string
+}
+
+type accessibleScriptWriter struct {
+	mu     sync.Mutex
+	output bytes.Buffer
+	input  *io.PipeWriter
+	steps  []accessiblePromptResponse
+	next   int
+}
+
+func newAccessibleScriptWriter(input *io.PipeWriter, steps []accessiblePromptResponse) *accessibleScriptWriter {
+	return &accessibleScriptWriter{input: input, steps: steps}
+}
+
+func (w *accessibleScriptWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n, err := w.output.Write(p)
+	if err != nil || w.next >= len(w.steps) {
+		return n, err
+	}
+	step := w.steps[w.next]
+	if strings.Contains(w.output.String(), step.prompt) {
+		w.next++
+		go func() {
+			_, _ = io.WriteString(w.input, step.response)
+		}()
+	}
+	return n, nil
+}
+
+func (w *accessibleScriptWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.output.String()
 }
