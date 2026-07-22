@@ -31,17 +31,17 @@ export class RoomPage {
 
   /** Attachment preview (shown when file is selected before sending) */
   get attachmentPreview(): Locator {
-    return this.page.locator('img.h-16.w-16');
+    return this.page.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the main room composer. */
   get roomAttachmentPreview(): Locator {
-    return this.roomDropZone.locator('img.h-16.w-16');
+    return this.roomDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the thread composer. */
   get threadAttachmentPreview(): Locator {
-    return this.threadDropZone.locator('img.h-16.w-16');
+    return this.threadDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** The attach file button */
