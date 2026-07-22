@@ -697,27 +697,16 @@ func (c *EmbeddedNATSConfig) BindAddressOrDefault() string {
 	return c.BindAddress
 }
 
-// NATSAuthMethod is an alias for natsauth.AuthMethod, kept for backward compatibility.
-type NATSAuthMethod = natsauth.AuthMethod
-
-const (
-	NATSAuthNone        = natsauth.AuthNone
-	NATSAuthToken       = natsauth.AuthToken
-	NATSAuthUserPass    = natsauth.AuthUserPass
-	NATSAuthCredentials = natsauth.AuthCredentials
-	NATSAuthNKey        = natsauth.AuthNKey
-)
-
 // NATSClientConfig contains settings for connecting to an external NATS server.
 type NATSClientConfig struct {
-	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222."`
-	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method for the external NATS server: none, token, userpass, credentials, or nkey."`
-	Token           string         `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. Only used when auth_method = 'token'. NEVER SHARE THIS!"`
-	Username        string         `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth. Only used when auth_method = 'userpass'."`
-	Password        string         `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. Only used when auth_method = 'userpass'. NEVER SHARE THIS!"`
-	CredentialsFile string         `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to a NATS .creds file. Only used when auth_method = 'credentials'."`
-	NKeySeed        string         `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed. Only used when auth_method = 'nkey'. NEVER SHARE THIS!"`
-	CACert          string         `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the connection uses TLS."`
+	URL             string              `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222."`
+	AuthMethod      natsauth.AuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method for the external NATS server: none, token, userpass, credentials, or nkey."`
+	Token           string              `toml:"token" env:"CHATTO_NATS_CLIENT_TOKEN" comment:"Token for token auth. Only used when auth_method = 'token'. NEVER SHARE THIS!"`
+	Username        string              `toml:"username,commented" env:"CHATTO_NATS_CLIENT_USERNAME" comment:"Username for userpass auth. Only used when auth_method = 'userpass'."`
+	Password        string              `toml:"password,commented" env:"CHATTO_NATS_CLIENT_PASSWORD" comment:"Password for userpass auth. Only used when auth_method = 'userpass'. NEVER SHARE THIS!"`
+	CredentialsFile string              `toml:"credentials_file,commented" env:"CHATTO_NATS_CLIENT_CREDENTIALS_FILE" comment:"Path to a NATS .creds file. Only used when auth_method = 'credentials'."`
+	NKeySeed        string              `toml:"nkey_seed,commented" env:"CHATTO_NATS_CLIENT_NKEY_SEED" comment:"NKey seed. Only used when auth_method = 'nkey'. NEVER SHARE THIS!"`
+	CACert          string              `toml:"ca_cert,commented" env:"CHATTO_NATS_CLIENT_CA_CERT" comment:"PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the connection uses TLS."`
 }
 
 // NATSAuthConfig returns the auth configuration suitable for natsauth.ConnectOptions.
@@ -986,12 +975,12 @@ func (c *ChattoConfig) ApplyDefaults() {
 		}
 		if c.NATS.Client.AuthMethod == "" {
 			if c.NATS.Embedded.AuthToken != "" {
-				c.NATS.Client.AuthMethod = NATSAuthToken
+				c.NATS.Client.AuthMethod = natsauth.AuthToken
 			} else {
-				c.NATS.Client.AuthMethod = NATSAuthNone
+				c.NATS.Client.AuthMethod = natsauth.AuthNone
 			}
 		}
-		if c.NATS.Client.AuthMethod == NATSAuthToken && c.NATS.Client.Token == "" {
+		if c.NATS.Client.AuthMethod == natsauth.AuthToken && c.NATS.Client.Token == "" {
 			c.NATS.Client.Token = c.NATS.Embedded.AuthToken
 		}
 	}
@@ -1343,7 +1332,7 @@ func (c *ChattoConfig) Validate() error {
 	if c.NATS.Embedded.Enabled &&
 		c.NATS.Embedded.Port > 0 &&
 		c.NATS.Embedded.AuthToken != "" &&
-		c.NATS.Client.AuthMethod == NATSAuthToken &&
+		c.NATS.Client.AuthMethod == natsauth.AuthToken &&
 		c.NATS.Client.Token != "" &&
 		c.NATS.Client.Token != c.NATS.Embedded.AuthToken {
 		errs = append(errs, "nats.client.token must match nats.embedded.auth_token when embedded NATS uses token auth")
