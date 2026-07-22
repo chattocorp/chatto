@@ -177,7 +177,7 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	updatedUser, err := (&accountService{api: s.api}).accountUser(ctx, updated)
+	updatedUser, err := requiredUserSummary(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
@@ -322,29 +322,6 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 		Roles:     append([]string{}, roles...),
 		CreatedAt: user.GetCreatedAt(),
 		User:      apiUser,
-	}
-	return response, nil
-}
-
-func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
-	if user == nil || user.User == nil {
-		return nil, connectError(core.ErrNotFound)
-	}
-	verifiedEmails := make([]string, 0, len(user.VerifiedEmails))
-	for _, email := range user.VerifiedEmails {
-		verifiedEmails = append(verifiedEmails, email.Email)
-	}
-	apiUser, err := userSummary(ctx, s.api, user.User, nil)
-	if err != nil {
-		return nil, err
-	}
-	response := &adminv1.AdminMember{
-		Roles:                  append([]string(nil), user.RoleNames...),
-		CreatedAt:              user.User.GetCreatedAt(),
-		HasVerifiedEmail:       len(verifiedEmails) > 0,
-		VerifiedEmails:         verifiedEmails,
-		ViewerCanDeleteAccount: true,
-		User:                   apiUser,
 	}
 	return response, nil
 }

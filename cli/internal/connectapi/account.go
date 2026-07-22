@@ -36,7 +36,7 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 			return nil, connectError(err)
 		}
 	}
-	user, err := s.accountUser(ctx, updated)
+	user, err := requiredUserSummary(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	responseUser, err := s.accountUser(ctx, user)
+	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (s *accountService) DeleteAvatar(ctx context.Context, _ *connect.Request[ap
 	if err != nil {
 		return nil, connectError(err)
 	}
-	responseUser, err := s.accountUser(ctx, user)
+	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	responseUser, err := s.accountUser(ctx, user)
+	responseUser, err := requiredUserSummary(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -181,13 +181,6 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
-}
-
-func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.User, error) {
-	if user == nil {
-		return nil, connectError(core.ErrNotFound)
-	}
-	return userSummary(ctx, s.api, user, nil)
 }
 
 func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {
