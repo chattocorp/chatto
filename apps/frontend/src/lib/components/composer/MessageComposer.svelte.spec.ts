@@ -526,6 +526,24 @@ describe('MessageComposer', () => {
         .toBeTruthy();
     });
 
+    it('shows selected files in consistently sized cards with their file size', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [
+        new File([new Uint8Array(2 * 1024)], 'a-long-filename-that-needs-truncating.png', {
+          type: 'image/png'
+        })
+      ]);
+
+      await expect
+        .poll(() => q(container, '[data-testid="composer-attachment-preview"]'))
+        .toBeTruthy();
+      const preview = q(container, '[data-testid="composer-attachment-preview"]')!;
+      expect(preview.className).toContain('w-72');
+      await expect.element(preview).toHaveTextContent('2 KB');
+    });
+
     it('rejects selected files over the server upload size limit', async () => {
       mockInstanceStores.serverInfo.maxUploadSize = 1;
       const { container } = renderMessageComposer({ roomId: 'room_456' });

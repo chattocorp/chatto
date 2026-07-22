@@ -36,7 +36,7 @@
     TipTapEditorApi
   } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
-  import { AttachmentsState } from './attachments.svelte';
+  import { AttachmentsState, formatFileSize } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
   import {
@@ -1060,7 +1060,7 @@
         {@const submissionStatus = attachmentSubmissionStatus(file)}
         {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
         <div
-          class="flex min-w-52 items-center gap-2 rounded-md bg-surface p-2 text-sm"
+          class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
           data-testid="composer-attachment-preview"
         >
           <div class="relative shrink-0">
@@ -1094,16 +1094,24 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
               <span class="truncate font-medium text-text" title={file.name}>{file.name}</span>
-              {#if submissionStatus}
-                <span
-                  class={[
-                    'shrink-0 whitespace-nowrap',
-                    submissionStatus.phase === 'failed' ? 'text-danger' : 'text-muted'
-                  ]}
-                >
-                  {uploadStatusLabel(submissionStatus)}
-                </span>
-              {/if}
+              <button
+                type="button"
+                onclick={() => removeFile(index)}
+                disabled={loading}
+                class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={m['composer.upload.remove']({ filename: file.name })}
+                title={m['composer.upload.remove']({ filename: file.name })}
+              >
+                <span class="iconify uil--times"></span>
+              </button>
+            </div>
+            <div
+              class={[
+                'mt-0.5 truncate text-xs',
+                submissionStatus?.phase === 'failed' ? 'text-danger' : 'text-muted'
+              ]}
+            >
+              {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
             </div>
             {#if submissionStatus}
               <div
@@ -1127,16 +1135,6 @@
               </div>
             {/if}
           </div>
-          <button
-            type="button"
-            onclick={() => removeFile(index)}
-            disabled={loading}
-            class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label={m['composer.upload.remove']({ filename: file.name })}
-            title={m['composer.upload.remove']({ filename: file.name })}
-          >
-            <span class="iconify uil--times"></span>
-          </button>
         </div>
       {/each}
     </div>
