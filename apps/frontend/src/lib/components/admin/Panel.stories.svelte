@@ -84,7 +84,11 @@
   <div class="max-w-2xl">
     <Panel title="Room permissions">
       {#snippet subtitle()}
-        Configure server defaults here. <a href={resolve('/rooms')} class="link">Manage room overrides</a>.
+        Configure server defaults here.
+        <a
+          href={resolve('/chat/[serverId]/manage/rooms', { serverId: 'example-server' })}
+          class="link"
+        >Manage room overrides</a>.
       {/snippet}
 
       <p class="text-sm text-muted">These defaults apply before room-specific permission overrides.</p>
