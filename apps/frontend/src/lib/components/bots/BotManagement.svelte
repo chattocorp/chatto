@@ -12,7 +12,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   import { createUserAPI } from '$lib/api-client/users';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
-  import { Dialog, EmptyState, FormDialog, Hint, Pill } from '$lib/ui';
+  import { Dialog, EmptyState, FormDialog, Hint, Pill, ToggleChip } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { BotManagementStore } from './BotManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
@@ -164,12 +164,12 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   {#if store.loading && store.bots.length === 0}
     <div class="text-muted">{m['bots.loading']()}</div>
   {:else if store.bots.length === 0}
-    <Panel title={m['bots.list.title']()}>
+    <Panel>
       <EmptyState icon="uil--robot" title={m['bots.empty.title']()}>
         <div class="flex flex-col items-center gap-4">
           <p>{scope === 'owner' ? m['bots.empty.owner']() : m['bots.empty.admin']()}</p>
           {#if canCreate}
-            <Button onclick={openCreate}>
+            <Button variant="secondary" onclick={openCreate}>
               <span class="iconify uil--plus" aria-hidden="true"></span>
               {m['bots.action.create']()}
             </Button>
@@ -178,15 +178,15 @@ all loading, pagination, owner hydration, and mutations stay in this component.
       </EmptyState>
     </Panel>
   {:else}
-    <Panel title={m['bots.list.title']()} noPadding>
-      {#snippet actions()}
-        {#if canCreate}
-          <Button onclick={openCreate}>
+    {#if canCreate}
+      <div class="mb-4 flex justify-end">
+        <Button variant="secondary" size="sm" onclick={openCreate}>
             <span class="iconify uil--plus" aria-hidden="true"></span>
             {m['bots.action.create']()}
-          </Button>
-        {/if}
-      {/snippet}
+        </Button>
+      </div>
+    {/if}
+    <Panel noPadding>
       <DataTable
         items={store.bots}
         columns={scope === 'admin' ? 5 : 4}
@@ -204,8 +204,8 @@ all loading, pagination, owner hydration, and mutations stay in this component.
             <th class="table-header-cell">{m['bots.field.owner']()}</th>
           {/if}
           <th class="table-header-cell">{m['bots.field.description']()}</th>
-          <th class="table-header-cell">{m['bots.field.api_key']()}</th>
-          <th class="table-header-cell">{m['admin.permissions.title']()}</th>
+          <th class="table-header-cell text-center">{m['bots.field.api_key']()}</th>
+          <th class="table-header-cell text-center">{m['admin.permissions.title']()}</th>
         {/snippet}
         {#snippet row(bot)}
           <td class="px-4 py-3">
@@ -231,29 +231,47 @@ all loading, pagination, owner hydration, and mutations stay in this component.
           <td class="max-w-md px-4 py-3 text-muted">
             <p class="line-clamp-2">{bot.description}</p>
           </td>
-          <td class="px-4 py-3">
+          <td class="px-4 py-3 text-center">
             {#if scope === 'owner'}
-              <Button variant="secondary" onclick={(event) => openCredentials(event, bot, 'rotate')}>
-                <span class="iconify uil--key-skeleton" aria-hidden="true"></span>
-                {m['bots.credentials.rotate']()}
-              </Button>
+              <ToggleChip
+                tone="neutral"
+                square
+                title={m['bots.credentials.rotate']()}
+                onclick={(event) => openCredentials(event, bot, 'rotate')}
+              >
+                <span
+                  class="iconify text-base uil--key-skeleton"
+                  aria-label={m['bots.credentials.rotate']()}
+                ></span>
+              </ToggleChip>
             {:else if bot.apiKeyCreatedAt}
-              <Button
-                variant="danger-secondary"
+              <ToggleChip
+                tone="danger"
+                square
+                title={m['bots.credentials.revoke']()}
                 onclick={(event) => openCredentials(event, bot, 'revoke')}
               >
-                <span class="iconify uil--key-skeleton-alt" aria-hidden="true"></span>
-                {m['bots.credentials.revoke']()}
-              </Button>
+                <span
+                  class="iconify text-base uil--key-skeleton-alt"
+                  aria-label={m['bots.credentials.revoke']()}
+                ></span>
+              </ToggleChip>
             {:else}
               <Pill tone="neutral">{m['bots.api_key.none']()}</Pill>
             {/if}
           </td>
-          <td class="px-4 py-3">
-            <Button variant="secondary" onclick={(event) => openPermissions(event, bot)}>
-              <span class="iconify uil--shield-check" aria-hidden="true"></span>
-              {m['admin.permissions.title']()}
-            </Button>
+          <td class="px-4 py-3 text-center">
+            <ToggleChip
+              tone="neutral"
+              square
+              title={m['admin.permissions.title']()}
+              onclick={(event) => openPermissions(event, bot)}
+            >
+              <span
+                class="iconify text-base uil--shield-check"
+                aria-label={m['admin.permissions.title']()}
+              ></span>
+            </ToggleChip>
           </td>
         {/snippet}
       </DataTable>
