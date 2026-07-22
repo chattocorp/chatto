@@ -33,7 +33,7 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Most contracts currently use
-`v1`; the user profile contract uses `v2`.
+`v1`; the user profile contract uses `v4`.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
@@ -48,8 +48,9 @@ protobuf state with its latest applied logical EVT sequence. Room Timeline
 retains encrypted body envelopes and rebuilds derived indexes. Mentionables
 retains encrypted login source events and wrapped DEK records rather than
 plaintext handles or lookup digests. The Users codec retains encrypted login,
-display-name, and verified-email values, lookup digests, wrapped DEK records,
-and non-secret profile metadata. Its schema has no fields for password verifiers,
+display-name, bot-description, and verified-email values, lookup digests,
+wrapped DEK records, bot ownership and account-kind metadata, and
+deletion-start state. Its schema has no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
 Every replica checks snapshot eligibility immediately after boot and hourly.

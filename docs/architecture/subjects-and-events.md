@@ -216,6 +216,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
+| `evt.user.{userId}.account_deletion_started`                | `UserAccountDeletionStartedEvent`                   |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
 | `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
 | `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |

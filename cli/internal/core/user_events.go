@@ -185,6 +185,7 @@ func isAuthorizationInputUserEvent(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated,
 		*corev1.Event_UserVerifiedEmailAdded,
+		*corev1.Event_UserAccountDeletionStarted,
 		*corev1.Event_UserAccountDeleted:
 		return true
 	default:

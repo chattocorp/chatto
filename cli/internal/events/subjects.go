@@ -155,6 +155,7 @@ const (
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
+	EventUserAccountDeletionStarted   = "account_deletion_started"
 	EventUserKeyShredded              = "user_key_shredded"
 	EventUserDEKGenerated             = "dek_generated"
 	EventUserCustomStatusSet          = "custom_status_set"
@@ -355,6 +356,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *corev1.Event_UserAccountDeletionStarted:
+		return EventUserAccountDeletionStarted
 	case *corev1.Event_UserKeyShredded:
 		return EventUserKeyShredded
 	case *corev1.Event_UserDekGenerated:

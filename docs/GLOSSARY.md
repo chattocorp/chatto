@@ -52,6 +52,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
+**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-033](fdr/FDR-033-bot-accounts.md) and [ADR-053](adr/ADR-053-owner-bounded-bot-authorization.md).
+
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
 
 **Thread** — Reply chain rooted at a message. See [FDR-002](fdr/FDR-002-replies-and-threads.md).

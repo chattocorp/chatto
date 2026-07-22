@@ -68,8 +68,12 @@ message EncryptedUserString {
 
 message UserAccountCreatedEvent {
   string user_id = 1;
+  UserKind kind = 2;
+  // Owning human account for bot accounts; empty for human accounts.
+  string bot_owner_id = 3;
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
+  EncryptedUserString encrypted_bot_description = 12;
 }
 
 message UserLoginChangedEvent {
@@ -156,6 +160,12 @@ message UserLoginCooldownClearedEvent {
 }
 
 message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+// UserAccountDeletionStartedEvent durably closes lifecycle races before the
+// account's dependent data is removed.
+message UserAccountDeletionStartedEvent {
   string user_id = 1;
 }
 

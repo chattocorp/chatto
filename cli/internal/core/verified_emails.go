@@ -240,8 +240,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 	if email == "" {
 		return ErrInvalidArgument
 	}
-	if _, err := c.GetUser(ctx, userID); err != nil {
-		return fmt.Errorf("user not found: %w", err)
+	if err := c.requireHumanAccount(ctx, userID); err != nil {
+		return err
 	}
 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
@@ -255,8 +255,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 	}
 	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
 	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
+		if err := c.requireHumanAccount(ctx, userID); err != nil {
+			return err
 		}
 		if ownerID, ok := c.Users.EmailOwnerID(email); ok {
 			if ownerID == userID {

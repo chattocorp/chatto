@@ -2447,20 +2447,22 @@ func (x *UserProfileProjectionSnapshot) GetEmailIndex() []*StringStringSnapshot 
 }
 
 type ProjectedUserProfileSnapshot struct {
-	state          protoimpl.MessageState                `protogen:"open.v1"`
-	UserId         string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	User           *User                                 `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
-	Login          *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,3,opt,name=login,proto3" json:"login,omitempty"`
-	LoginHash      string                                `protobuf:"bytes,4,opt,name=login_hash,json=loginHash,proto3" json:"login_hash,omitempty"`
-	DisplayName    *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Deleted        bool                                  `protobuf:"varint,6,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	Shredded       bool                                  `protobuf:"varint,7,opt,name=shredded,proto3" json:"shredded,omitempty"`
-	Avatar         *AssetRecord                          `protobuf:"bytes,8,opt,name=avatar,proto3" json:"avatar,omitempty"`
-	VerifiedEmails []*ProjectedVerifiedEmailSnapshot     `protobuf:"bytes,9,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
-	Preferences    *ServerUserPreferences                `protobuf:"bytes,10,opt,name=preferences,proto3" json:"preferences,omitempty"`
-	LoginChangedAt *timestamppb.Timestamp                `protobuf:"bytes,11,opt,name=login_changed_at,json=loginChangedAt,proto3" json:"login_changed_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState                `protogen:"open.v1"`
+	UserId          string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	User            *User                                 `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	Login           *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,3,opt,name=login,proto3" json:"login,omitempty"`
+	LoginHash       string                                `protobuf:"bytes,4,opt,name=login_hash,json=loginHash,proto3" json:"login_hash,omitempty"`
+	DisplayName     *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Deleted         bool                                  `protobuf:"varint,6,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	Shredded        bool                                  `protobuf:"varint,7,opt,name=shredded,proto3" json:"shredded,omitempty"`
+	Avatar          *AssetRecord                          `protobuf:"bytes,8,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	VerifiedEmails  []*ProjectedVerifiedEmailSnapshot     `protobuf:"bytes,9,rep,name=verified_emails,json=verifiedEmails,proto3" json:"verified_emails,omitempty"`
+	Preferences     *ServerUserPreferences                `protobuf:"bytes,10,opt,name=preferences,proto3" json:"preferences,omitempty"`
+	LoginChangedAt  *timestamppb.Timestamp                `protobuf:"bytes,11,opt,name=login_changed_at,json=loginChangedAt,proto3" json:"login_changed_at,omitempty"`
+	BotDescription  *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,12,opt,name=bot_description,json=botDescription,proto3" json:"bot_description,omitempty"`
+	DeletionStarted bool                                  `protobuf:"varint,13,opt,name=deletion_started,json=deletionStarted,proto3" json:"deletion_started,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ProjectedUserProfileSnapshot) Reset() {
@@ -2568,6 +2570,20 @@ func (x *ProjectedUserProfileSnapshot) GetLoginChangedAt() *timestamppb.Timestam
 		return x.LoginChangedAt
 	}
 	return nil
+}
+
+func (x *ProjectedUserProfileSnapshot) GetBotDescription() *ProjectedEncryptedUserStringSnapshot {
+	if x != nil {
+		return x.BotDescription
+	}
+	return nil
+}
+
+func (x *ProjectedUserProfileSnapshot) GetDeletionStarted() bool {
+	if x != nil {
+		return x.DeletionStarted
+	}
+	return false
 }
 
 type ProjectedEncryptedUserStringSnapshot struct {
@@ -3255,7 +3271,7 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\vlogin_index\x18\x04 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\n" +
 	"loginIndex\x12E\n" +
 	"\vemail_index\x18\x05 \x03(\v2$.chatto.core.v1.StringStringSnapshotR\n" +
-	"emailIndex\"\xf8\x04\n" +
+	"emailIndex\"\x82\x06\n" +
 	"\x1cProjectedUserProfileSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12(\n" +
 	"\x04user\x18\x02 \x01(\v2\x14.chatto.core.v1.UserR\x04user\x12J\n" +
@@ -3269,7 +3285,9 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x0fverified_emails\x18\t \x03(\v2..chatto.core.v1.ProjectedVerifiedEmailSnapshotR\x0everifiedEmails\x12G\n" +
 	"\vpreferences\x18\n" +
 	" \x01(\v2%.chatto.core.v1.ServerUserPreferencesR\vpreferences\x12D\n" +
-	"\x10login_changed_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0eloginChangedAt\"\xbd\x01\n" +
+	"\x10login_changed_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0eloginChangedAt\x12]\n" +
+	"\x0fbot_description\x18\f \x01(\v24.chatto.core.v1.ProjectedEncryptedUserStringSnapshotR\x0ebotDescription\x12)\n" +
+	"\x10deletion_started\x18\r \x01(\bR\x0fdeletionStarted\"\xbd\x01\n" +
 	"$ProjectedEncryptedUserStringSnapshot\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -3456,24 +3474,25 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	38, // 62: chatto.core.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.v1.ProjectedVerifiedEmailSnapshot
 	60, // 63: chatto.core.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.v1.ServerUserPreferences
 	44, // 64: chatto.core.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
-	61, // 65: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
-	37, // 66: chatto.core.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	44, // 67: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
-	40, // 68: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
-	41, // 69: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
-	42, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	42, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	24, // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
-	43, // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
-	7,  // 74: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	58, // 75: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
-	62, // 76: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
-	44, // 77: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	78, // [78:78] is the sub-list for method output_type
-	78, // [78:78] is the sub-list for method input_type
-	78, // [78:78] is the sub-list for extension type_name
-	78, // [78:78] is the sub-list for extension extendee
-	0,  // [0:78] is the sub-list for field type_name
+	37, // 65: chatto.core.v1.ProjectedUserProfileSnapshot.bot_description:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	61, // 66: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
+	37, // 67: chatto.core.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	44, // 68: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
+	40, // 69: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
+	41, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
+	42, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	42, // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	24, // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
+	43, // 74: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
+	7,  // 75: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	58, // 76: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	62, // 77: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	44, // 78: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	79, // [79:79] is the sub-list for method output_type
+	79, // [79:79] is the sub-list for method input_type
+	79, // [79:79] is the sub-list for extension type_name
+	79, // [79:79] is the sub-list for extension extendee
+	0,  // [0:79] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }
