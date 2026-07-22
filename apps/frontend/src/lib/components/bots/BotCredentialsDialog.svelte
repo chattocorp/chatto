@@ -105,14 +105,12 @@ Creation can open the show-once step directly with `initialSecret`.
 	<Dialog visible title={m['bots.credentials.title']({ bot: bot.displayName })} size="md" {onclose}>
 		<div class="flex flex-col gap-4">
 			<Hint tone="warning">{m['bots.credentials.show_once']()}</Hint>
-			<div
-				class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-lg bg-surface-emphasized p-3"
-			>
+			<div class="flex items-center gap-2 rounded-lg bg-surface-emphasized p-3">
 				<code
-					class="col-start-2 min-w-0 break-all text-center text-sm select-all"
+					class="min-w-0 flex-1 break-all text-left text-sm select-all"
 					data-testid="bot-api-key-secret">{secret}</code
 				>
-				<div class="col-start-3 justify-self-end">
+				<div class="shrink-0">
 					<Button variant="action" size="sm" onclick={copySecret}>
 						<span class="iconify uil--copy" aria-hidden="true"></span>
 						{m['bots.credentials.copy']()}
