@@ -32,7 +32,7 @@
 
 <PageTitle title={m['admin.event_log.event_page_title']({ sequence })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.event_log.event_title']({ sequence })}
     subtitle={m['admin.event_log.event_subtitle']()}

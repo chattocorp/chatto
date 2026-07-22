@@ -58,7 +58,7 @@ behaviour, content width, spacing, and panel hierarchy.
 ```svelte
 <PageTitle title={pageTitle} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
 	<PaneHeader title={pageTitle} subtitle={pageSubtitle} />
 
 	<PaneContent>
@@ -79,9 +79,9 @@ Follow these defaults:
 
 - `PageTitle` owns the browser title. `PaneHeader` owns the visible page title,
   optional subtitle, back affordance, and icon actions.
-- Keep the outer `flex min-h-0 min-w-0 flex-1 flex-col` wrapper. It lets the
-  pane shrink inside the application shell without creating an accidental
-  second page scrollbar.
+- Keep the outer `pane-page` wrapper. This semantic utility lets the pane shrink
+  inside the application shell without creating an accidental second page
+  scrollbar.
 - Let `PaneContent` own scrolling, the `max-w-5xl` content width, and page
   padding. Do not reproduce those constraints in each route.
 - Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a

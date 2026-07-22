@@ -129,7 +129,7 @@
 
 <PageTitle title={m['admin.common.page_title']({ title: m['admin.system.title']() })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.system.title']()}
     subtitle={m['admin.system.subtitle']()}

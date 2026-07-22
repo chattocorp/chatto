@@ -134,7 +134,7 @@ in the active server store so browser Back can restore the current search.
 
 <PageTitle title={m['search.title']()} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader title={m['search.title']()} showMobileNav />
 
   <PaneContent>

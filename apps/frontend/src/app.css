@@ -193,6 +193,13 @@
   --color-presence-invisible: var(--color-presence-invisible);
 }
 
+/* Primary pane-page shell. Keeps the fixed header and scrollable body in one
+ * shrinkable column inside the application layout.
+ */
+@utility pane-page {
+  @apply flex min-h-0 min-w-0 flex-1 flex-col;
+}
+
 /* Panel/card shells provide the outer surface frame. Their content sits on a
  * rounded background work plane owned by `Panel`, keeping the same concentric
  * geometry for forms, tables, and dense lists.

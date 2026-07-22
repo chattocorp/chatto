@@ -376,7 +376,7 @@
   {/if}
 {/snippet}
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.rooms_admin.title']()}
     subtitle={m['admin.rooms_admin.subtitle']()}

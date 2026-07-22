@@ -148,7 +148,7 @@
 
 <PageTitle title={m['admin.common.page_title']({ title: m['admin.members.title']() })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.members.title']()}
     subtitle={m['admin.members.subtitle']()}

@@ -167,7 +167,7 @@
   })}
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.permissions.edit_role_title']()}
     subtitle={role?.displayName ?? m['common.loading']()}

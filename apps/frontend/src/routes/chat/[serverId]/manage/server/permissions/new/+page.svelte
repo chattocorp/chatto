@@ -84,7 +84,7 @@
   })}
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.permissions.create_role_title']()}
     subtitle={m['admin.permissions.create_role_subtitle']()}

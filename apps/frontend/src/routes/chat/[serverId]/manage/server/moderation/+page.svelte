@@ -111,7 +111,7 @@
 
 <PageTitle title={m['admin.common.page_title']({ title: m['admin.moderation.title']() })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.moderation.title']()}
     subtitle={m['admin.moderation.subtitle']()}
