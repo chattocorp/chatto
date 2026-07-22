@@ -135,6 +135,18 @@ its dense matrix rows scroll.
     return 'neutral';
   }
 
+  function decisionLabel(state: CellState): string {
+    if (state === 'allow') return m['rbac.permissions.granted']();
+    if (state === 'deny') return m['rbac.permissions.denied']();
+    return m['rbac.permissions.no_decision']();
+  }
+
+  function subjectLabel(kind: string): string {
+    if (kind === 'bot') return m['bots.badge.bot']();
+    if (kind === 'role') return m['composer.mention.role']();
+    return m['admin.common.user']();
+  }
+
   function scopeColumnClass(kind: MatrixScopeKind): string {
     if (kind === 'SERVER') return 'bg-surface-emphasized/40';
     if (kind === 'GROUP') return 'bg-surface-emphasized/20';
@@ -163,7 +175,7 @@ its dense matrix rows scroll.
 </script>
 
 {#if orderedScopes.length === 0}
-  <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
+  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
 {:else}
   <Panel title={m['admin.permissions.title']()} noPadding>
     {#snippet actions()}
@@ -195,7 +207,7 @@ its dense matrix rows scroll.
               class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
               style="width: 14rem"
             >
-              Permission
+              {m['rbac.permissions.permission']()}
             </th>
             {#each matrixScopes as scope (scope.id)}
               <th
@@ -206,7 +218,7 @@ its dense matrix rows scroll.
                     : scopeColumnClass(scope.kind)
                 ]}
                 style="width: 2rem; min-width: 2rem; height: 12rem"
-                title={`${scope.label} (${scope.kind.toLowerCase()})`}
+                title={scope.label}
                 data-scope={scope.id}
               >
                 <span
@@ -239,7 +251,7 @@ its dense matrix rows scroll.
                   rowIsHighlighted(category, permission) ? 'text-action' : ''
                 ]}>{permission}</code
               >
-              <HelpTooltip label={`About ${permission}`}>
+              <HelpTooltip label={m['ui.tooltip.about']({ subject: permission })}>
                 {getPermissionDescription(permission)}
               </HelpTooltip>
             </td>
@@ -270,28 +282,23 @@ its dense matrix rows scroll.
                   {@const displayOverride = forceAllow ? 'allow' : ov}
                   {@const displayEffective = forceAllow ? 'neutral' : eff}
                   {@const ariaLabel = forceAllow
-                    ? `${subjectKind} is always granted ${permission} at ${scope.label}`
+                    ? `${subjectLabel(subjectKind)}: ${permission}, ${m['rbac.permissions.granted']()}, ${scope.label}`
                     : ov !== 'neutral'
-                      ? `Override ${ov} for ${permission} at ${scope.label}`
-                      : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+                      ? `${subjectLabel(subjectKind)}: ${permission}, ${decisionLabel(ov)}, ${scope.label}`
+                      : `${subjectLabel(subjectKind)}: ${permission}, ${m['rbac.permissions.no_decision']()}, ${scope.label}, ${decisionLabel(eff)}`}
                   {@const titleParts = forceAllow
-                    ? [
-                        'Allow (owners are always granted all permissions)',
-                        'Owner permissions are not editable'
-                      ]
+                    ? [m['admin.permissions.owner_permissions_hint']()]
                     : [
-                        ov !== 'neutral'
-                          ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                          : null,
+                        ov !== 'neutral' ? `${decisionLabel(ov)} · ${scope.label}` : null,
                         ov === 'neutral' && eff !== 'neutral'
-                          ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                          ? decisionLabel(eff)
                           : null,
-                        ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
+                        ov === 'neutral' && eff === 'neutral'
+                          ? m['rbac.permissions.no_decision']()
+                          : null
                       ].filter(Boolean)}
                   {@const ownerCeilingTitle =
-                    cell.canAllow === false
-                      ? 'Allow unavailable because the bot owner lacks this permission'
-                      : null}
+                    cell.canAllow === false ? m['rbac.permissions.denied']() : null}
                   <MatrixCell
                     override={displayOverride}
                     inherited={displayEffective}

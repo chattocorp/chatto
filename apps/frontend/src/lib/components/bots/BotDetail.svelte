@@ -215,9 +215,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
 				</div>
 			</Panel>
 
-			<Panel title={m['admin.permissions.title']()} icon="iconify uil--shield-check">
-				<BotPermissionsMatrix {botId} />
-			</Panel>
+			<BotPermissionsMatrix {botId} />
 		</div>
 	</div>
 {/if}

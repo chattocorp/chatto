@@ -3,90 +3,90 @@
   "bots": {
     "nav": "Bots",
     "settings": {
-      "page_title": "Bots | Settings",
+      "page_title": "Bots | Einstellungen",
       "title": "Bots",
-      "subtitle": "Create and manage the bots you are responsible for"
+      "subtitle": "Erstelle und verwalte die Bots, für die du verantwortlich bist"
     },
     "admin": {
       "title": "Bots",
-      "subtitle": "Inspect and manage bots across this server"
+      "subtitle": "Prüfe und verwalte Bots auf diesem Server"
     },
     "unavailable": {
-      "owner": "You do not have permission to create or manage bots on this server."
+      "owner": "Du hast keine Berechtigung, Bots auf diesem Server zu erstellen oder zu verwalten."
     },
-    "loading": "Loading bots...",
-    "loading_more": "Loading more bots...",
+    "loading": "Bots werden geladen...",
+    "loading_more": "Weitere Bots werden geladen...",
     "list": {
-      "title": "Bot accounts"
+      "title": "Bot-Konten"
     },
     "empty": {
       "title": "Noch keine Bots",
       "owner": "Erstelle deine eigenen API-Integrationen mit Bot-Konten.",
-      "admin": "No manageable bot accounts were found."
+      "admin": "Es wurden keine verwaltbaren Bot-Konten gefunden."
     },
     "badge": {
       "bot": "Bot"
     },
     "field": {
       "bot": "Bot",
-      "owner": "Owner",
-      "display_name": "Display name",
-      "username": "Username",
-      "description": "Description and data handling",
-      "api_key": "API key"
+      "owner": "Eigentümer",
+      "display_name": "Anzeigename",
+      "username": "Benutzername",
+      "description": "Beschreibung und Datenverarbeitung",
+      "api_key": "API-Schlüssel"
     },
     "placeholder": {
-      "display_name": "Helpful Assistant",
+      "display_name": "Hilfreicher Assistent",
       "username": "helpful_assistant_bot",
-      "description": "Explain what this bot does and how it handles conversation data."
+      "description": "Erkläre, was dieser Bot tut und wie er mit Gesprächsdaten umgeht."
     },
     "help": {
-      "username": "Bot usernames must end in _bot so they remain recognisable everywhere.",
-      "description": "People will use this disclosure to decide whether to interact with the bot."
+      "username": "Bot-Benutzernamen müssen auf _bot enden, damit sie überall erkennbar bleiben.",
+      "description": "Menschen nutzen diese Information, um zu entscheiden, ob sie mit dem Bot interagieren möchten."
     },
     "credentials": {
-      "title": "{bot} API key",
-      "active_description": "This bot currently has an API key.",
-      "none_description": "This bot does not currently have an API key.",
-      "generate": "Generate API key",
+      "title": "API-Schlüssel für {bot}",
+      "active_description": "Dieser Bot hat derzeit einen API-Schlüssel.",
+      "none_description": "Dieser Bot hat derzeit keinen API-Schlüssel.",
+      "generate": "API-Schlüssel erstellen",
       "rotate": "API-Schlüssel zurücksetzen",
-      "revoke": "Revoke API key",
-      "copy": "Copy",
-      "show_once": "Copy this key now. Chatto will not show it again.",
-      "generate_confirm_title": "Generate API key?",
-      "generate_confirm_body": "The new secret will be shown once after it is generated.",
+      "revoke": "API-Schlüssel widerrufen",
+      "copy": "Kopieren",
+      "show_once": "Kopiere diesen Schlüssel jetzt. Chatto zeigt ihn nicht erneut an.",
+      "generate_confirm_title": "API-Schlüssel erstellen?",
+      "generate_confirm_body": "Der neue geheime Schlüssel wird nach der Erstellung einmal angezeigt.",
       "rotate_confirm_title": "API-Schlüssel zurücksetzen?",
       "rotate_confirm_body": "Der aktuelle Schlüssel wird sofort deaktiviert. Der Ersatzschlüssel wird nur einmal angezeigt.",
-      "revoke_confirm_title": "Revoke API key?",
-      "revoke_confirm_body": "The bot will immediately lose API access until its owner generates another key.",
-      "copy_failed": "Could not copy the API key.",
+      "revoke_confirm_title": "API-Schlüssel widerrufen?",
+      "revoke_confirm_body": "Der Bot verliert sofort den API-Zugriff, bis sein Eigentümer einen neuen Schlüssel erstellt.",
+      "copy_failed": "Der API-Schlüssel konnte nicht kopiert werden.",
       "toast": {
-        "rotated": "Bot API key generated",
-        "revoked": "Bot API key revoked"
+        "rotated": "Bot-API-Schlüssel erstellt",
+        "revoked": "Bot-API-Schlüssel widerrufen"
       }
     },
     "api_key": {
-      "active": "Active",
-      "none": "Not created"
+      "active": "Aktiv",
+      "none": "Nicht erstellt"
     },
     "dialog": {
-      "create_title": "Create bot",
-      "edit_title": "Edit bot",
-      "description": "Bots are visible automation accounts. Clearly identify their purpose and data handling."
+      "create_title": "Bot erstellen",
+      "edit_title": "Bot bearbeiten",
+      "description": "Bots sind sichtbare Automatisierungskonten. Beschreibe ihren Zweck und ihre Datenverarbeitung eindeutig."
     },
     "action": {
-      "create": "Create bot",
-      "creating": "Creating...",
-      "save": "Save changes",
-      "saving": "Saving..."
+      "create": "Bot erstellen",
+      "creating": "Wird erstellt...",
+      "save": "Änderungen speichern",
+      "saving": "Wird gespeichert..."
     },
     "toast": {
-      "created": "Bot created",
-      "updated": "Bot updated"
+      "created": "Bot erstellt",
+      "updated": "Bot aktualisiert"
     },
     "error": {
-      "username_suffix": "Bot usernames must end in _bot.",
-      "save_failed": "Could not save the bot."
+      "username_suffix": "Bot-Benutzernamen müssen auf _bot enden.",
+      "save_failed": "Der Bot konnte nicht gespeichert werden."
     }
   }
 }
