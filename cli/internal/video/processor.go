@@ -565,9 +565,9 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// content for future re-encoding; generated variants are derivatives.
 	finalizeCtx, finalizeCancel := videoProcessingFinalizationContext(ctx)
 	defer finalizeCancel()
-	kind, err := s.core.FindRoomKind(finalizeCtx, req.RoomID)
+	_, err = s.core.FindRoomKind(finalizeCtx, req.RoomID)
 	if err == nil {
-		err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
+		err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
 	}
 	if err != nil {
 		if errors.Is(err, core.ErrAssetCommitUnknown) {
@@ -629,7 +629,7 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 }
 
 func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
-	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
+	_, err := s.core.FindRoomKind(ctx, req.RoomID)
 	if err != nil {
 		s.logger.Warn("Failed to resolve room kind while cleaning partial HLS output", "asset_id", req.AssetID, "error", err)
 		return
@@ -638,7 +638,7 @@ func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processReq
 		if attachment == nil {
 			continue
 		}
-		if err := s.core.RecordAssetDeleted(ctx, core.SystemActorID, kind, req.RoomID, attachment.GetId()); err != nil {
+		if err := s.core.RecordAssetDeleted(ctx, core.SystemActorID, req.RoomID, attachment.GetId()); err != nil {
 			s.logger.Warn("Failed to tombstone partial HLS derivative", "asset_id", attachment.GetId(), "error", err)
 			continue
 		}
@@ -664,10 +664,10 @@ func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req 
 	// Terminal publication has its own budget and happens before cleanup. A
 	// large generation can therefore never consume the failure event's context.
 	terminalCtx, terminalCancel := videoProcessingFinalizationContext(ctx)
-	kind, kindErr := s.core.FindRoomKind(terminalCtx, req.RoomID)
+	_, kindErr := s.core.FindRoomKind(terminalCtx, req.RoomID)
 	if kindErr != nil {
 		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	} else if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	terminalCancel()

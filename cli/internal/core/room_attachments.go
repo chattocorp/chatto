@@ -233,7 +233,7 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 		if posted == nil {
 			continue
 		}
-		attachments := c.MessageBodyAttachments(message.Body)
+		attachments := c.mediaModel.MessageBodyAttachments(message.Body)
 		if len(attachments) == 0 {
 			continue
 		}

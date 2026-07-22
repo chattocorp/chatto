@@ -1097,7 +1097,7 @@ func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, asse
 	deletedCount := 0
 	var cacheErr error
 	for _, assetKey := range assetKeys {
-		count, err := c.DeleteCachedResizesForServerAsset(ctx, assetKey)
+		count, err := c.mediaModel.DeleteCachedResizesForServerAsset(ctx, assetKey)
 		deletedCount += count
 		cacheErr = errors.Join(cacheErr, err)
 	}

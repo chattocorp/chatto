@@ -2075,13 +2075,13 @@ func TestRealtimeProjectionReplayMapsAssetLifecycleToCurrentMessage(t *testing.T
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, message.Id, attachment.Id); err != nil {
+	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, message.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetProcessingStarted: %v", err)
 	}
-	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed: %v", err)
 	}
-	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, attachment.Id); err != nil {
+	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, room.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
@@ -2347,13 +2347,13 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, echoID); err != nil {
 		t.Fatalf("DeleteMessage echo: %v", err)
 	}
-	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, assetMessage.Id, attachment.Id); err != nil {
+	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, assetMessage.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetProcessingStarted: %v", err)
 	}
-	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, assetMessage.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := env.core.RecordAssetProcessingFailed(env.ctx, core.SystemActorID, room.Id, assetMessage.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed: %v", err)
 	}
-	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, attachment.Id); err != nil {
+	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, room.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
