@@ -1,5 +1,6 @@
 import type { BotAPI, BotAccount, CreateBotInput, UpdateBotInput } from '$lib/api-client/bots';
 import type { UserAPI, UserSummary } from '$lib/api-client/users';
+import { SvelteSet } from 'svelte/reactivity';
 
 const PAGE_SIZE = 20;
 
@@ -45,7 +46,7 @@ export class BotManagementStore {
     try {
       const page = await this.getBotAPI().listBots({ limit: PAGE_SIZE, offset: this.bots.length });
       if (requestId !== this.#requestId) return;
-      const seen = new Set(this.bots.map((bot) => bot.id));
+      const seen = new SvelteSet(this.bots.map((bot) => bot.id));
       const additions = page.bots.filter((bot) => !seen.has(bot.id));
       this.bots = [...this.bots, ...additions];
       this.totalCount = page.totalCount;
@@ -77,7 +78,9 @@ export class BotManagementStore {
   }
 
   async #hydrateOwners(bots: BotAccount[], requestId: number): Promise<void> {
-    const ownerIds = [...new Set(bots.map((bot) => bot.ownerId).filter((id) => !this.owners[id]))];
+    const ownerIds = [
+      ...new SvelteSet(bots.map((bot) => bot.ownerId).filter((id) => !this.owners[id]))
+    ];
     if (ownerIds.length === 0) return;
     const owners = await this.getUserAPI().batchGetUsers(ownerIds);
     if (requestId !== this.#requestId) return;

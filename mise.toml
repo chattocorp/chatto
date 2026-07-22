@@ -4,6 +4,7 @@ buf = "latest"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
+uv = "0.11.30"
 
 [env]
 _.file = '.env'
@@ -56,7 +57,7 @@ depends = ["deps-frontend"]
 
 [tasks.license-check]
 description = "Check SPDX/REUSE license metadata"
-run = "mise x uv@latest -- uvx reuse lint"
+run = "uvx --from 'reuse[charset-normalizer]' reuse lint"
 
 # =============================================================================
 # Code Generation
