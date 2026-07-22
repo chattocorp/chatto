@@ -411,7 +411,7 @@ func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(userID string, memberRoo
 
 func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
-	if err := s.core.rooms().waitForLiveEVTEvent(ctx, pos, event); err != nil {
+	if err := s.core.roomModel.waitForLiveEVTEvent(ctx, pos, event); err != nil {
 		return err
 	}
 

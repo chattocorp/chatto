@@ -68,7 +68,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	if room.Archived {
 		return nil, fmt.Errorf("cannot join archived room")
 	}
-	if kind == KindChannel && c.rooms().isRoomBanActive(room_id, user_id, time.Now()) {
+	if kind == KindChannel && c.roomModel.isRoomBanActive(room_id, user_id, time.Now()) {
 		return nil, ErrPermissionDenied
 	}
 
@@ -100,7 +100,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 			return nil, fmt.Errorf("read UserJoinedRoomEvent OCC seq: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
+			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
 				return nil, fmt.Errorf("wait for room directory projection before join: %w", err)
 			}
 			if c.RoomMembership.IsMember(room_id, user_id) {
@@ -110,7 +110,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 
 		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
 		if err == nil {
-			if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
+			if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
 				return nil, err
 			}
 			break
@@ -174,14 +174,14 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 			return nil, fmt.Errorf("read room membership add OCC tail: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
 				return nil, fmt.Errorf("wait for room directory projection before member add: %w", err)
 			}
 		}
 		if c.RoomMembership.IsMember(roomID, targetUserID) {
 			return membership, nil
 		}
-		if kind == KindChannel && c.rooms().isRoomBanActive(roomID, targetUserID, time.Now()) {
+		if kind == KindChannel && c.roomModel.isRoomBanActive(roomID, targetUserID, time.Now()) {
 			return nil, ErrPermissionDenied
 		}
 
@@ -351,7 +351,7 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 		return nil
 	}
 	pos := events.SubjectPosition(filter, seq)
-	if err := c.rooms().waitForDirectory(ctx, pos); err != nil {
+	if err := c.roomModel.waitForDirectory(ctx, pos); err != nil {
 		return err
 	}
 	if c.CallStateProjector != nil {
@@ -431,7 +431,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		}
 	}
 
-	if err := c.rooms().waitForDirectoryAndTimeline(ctx, pos); err != nil {
+	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
 		return err
 	}
 	if cleanup.callID != "" && c.CallStateProjector != nil {
@@ -476,7 +476,7 @@ func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID 
 
 	lastSubject := entries[len(entries)-1].Subject
 	lastSeq := seqs[len(seqs)-1]
-	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 		return err
 	}
 	return nil
@@ -626,10 +626,10 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	}
 
 	if lastSeq > 0 {
-		if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 			return fmt.Errorf("wait for room directory projection after membership cleanup: %w", err)
 		}
-		if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 			return fmt.Errorf("wait for room timeline projection after membership cleanup: %w", err)
 		}
 	}

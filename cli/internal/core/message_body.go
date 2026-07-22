@@ -50,7 +50,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	entry, ok := c.rooms().timelineEntry(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		return nil, nil
 	}
@@ -59,7 +59,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	body, retracted, _ := c.rooms().latestBody(eventID)
+	body, retracted, _ := c.roomModel.latestBody(eventID)
 	if retracted || body == nil {
 		// Retracted message: same shape as a legacy GDPR delete —
 		// resolver renders "[Message unavailable]".
@@ -113,7 +113,7 @@ func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, mess
 	if eventID == "" {
 		return "", nil
 	}
-	entry, ok := c.rooms().timelineEntry(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		return "", nil
 	}
