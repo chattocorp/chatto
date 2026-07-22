@@ -187,7 +187,7 @@ func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*a
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
-	return (&userService{api: s.api}).userSummary(ctx, user, nil)
+	return userSummary(ctx, s.api, user, nil)
 }
 
 func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {

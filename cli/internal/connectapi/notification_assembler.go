@@ -126,7 +126,7 @@ func (a *notificationAssembler) actor(ctx context.Context, userID, presence stri
 		}
 		return nil, err
 	}
-	actor, err := (&userService{api: a.api}).userSummaryWithPresence(ctx, user, nil, presence)
+	actor, err := userSummaryWithPresence(ctx, a.api, user, nil, presence)
 	if err != nil {
 		return nil, err
 	}

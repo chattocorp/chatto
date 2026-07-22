@@ -249,7 +249,7 @@ func (s *voiceCallService) callParticipant(ctx context.Context, participant core
 		return nil, connectError(err)
 	}
 	avatarSize := 96
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, &apiv1.ImageTransformOptions{
+	apiUser, err := userSummary(ctx, s.api, user, &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
 		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,

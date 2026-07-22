@@ -204,7 +204,7 @@ func TestRequireCaller(t *testing.T) {
 func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	user, err := (&userService{api: env.api}).userSummary(env.ctx, core.DeletedUserReference("bad>"), nil)
+	user, err := userSummary(env.ctx, env.api, core.DeletedUserReference("bad>"), nil)
 	if err != nil {
 		t.Fatalf("userSummary: %v", err)
 	}
