@@ -204,8 +204,10 @@ all loading, pagination, owner hydration, and mutations stay in this component.
             <th class="table-header-cell">{m['bots.field.owner']()}</th>
           {/if}
           <th class="table-header-cell">{m['bots.field.description']()}</th>
-          <th class="table-header-cell text-center">{m['bots.field.api_key']()}</th>
-          <th class="table-header-cell text-center">{m['admin.permissions.title']()}</th>
+          <th class="table-header-cell"><span class="sr-only">{m['bots.field.api_key']()}</span></th>
+          <th class="table-header-cell"
+            ><span class="sr-only">{m['admin.permissions.title']()}</span></th
+          >
         {/snippet}
         {#snippet row(bot)}
           <td class="px-4 py-3">
@@ -240,7 +242,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
                 onclick={(event) => openCredentials(event, bot, 'rotate')}
               >
                 <span
-                  class="iconify text-base uil--key-skeleton"
+                  class="iconify text-base uil--repeat"
                   aria-label={m['bots.credentials.rotate']()}
                 ></span>
               </ToggleChip>
