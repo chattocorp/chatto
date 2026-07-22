@@ -7208,7 +7208,7 @@ func TestRoomAndThreadTimelineGetThreadEventsRequiresMembership(t *testing.T) {
 	}
 }
 
-func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
+func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-video")
 
@@ -7281,6 +7281,27 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	}
 	if got := processing.GetHls().GetMasterPlaylistUrl().GetUrl(); !strings.Contains(got, "/assets/hls/"+original.Id+"/master.m3u8?access=") {
 		t.Fatalf("videoProcessing HLS master URL = %q", got)
+	}
+
+	assetResponse, err := env.assets.GetAsset(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetAssetRequest{
+		RoomId:  room.Id,
+		AssetId: original.Id,
+	}))
+	if err != nil {
+		t.Fatalf("GetAsset: %v", err)
+	}
+	assetProcessing := assetResponse.Msg.GetAsset().GetVideoProcessing()
+	if assetProcessing.GetStatus() != apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED {
+		t.Fatalf("asset videoProcessing status = %v, want COMPLETED", assetProcessing.GetStatus())
+	}
+	if assetProcessing.GetDurationMs() != 1234 || assetProcessing.GetWidth() != 1280 || assetProcessing.GetHeight() != 720 {
+		t.Fatalf("asset videoProcessing dimensions = %d/%d/%d, want 1234/1280/720", assetProcessing.GetDurationMs(), assetProcessing.GetWidth(), assetProcessing.GetHeight())
+	}
+	if assetProcessing.GetThumbnailAssetUrl().GetUrl() == "" || len(assetProcessing.GetVariants()) != 1 || assetProcessing.GetVariants()[0].GetAssetUrl().GetUrl() == "" {
+		t.Fatalf("asset videoProcessing derivative URLs missing: %+v", assetProcessing)
+	}
+	if got := assetProcessing.GetHls().GetMasterPlaylistUrl().GetUrl(); !strings.Contains(got, "/assets/hls/"+original.Id+"/master.m3u8?access=") {
+		t.Fatalf("asset videoProcessing HLS master URL = %q", got)
 	}
 }
 

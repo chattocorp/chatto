@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"strings"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -103,10 +104,6 @@ func apiAsset(api *API, attachment *corev1.Attachment, viewerID string, thumbnai
 	if attachment == nil {
 		return nil
 	}
-	h := &timelineHydrator{
-		api:      api,
-		viewerID: viewerID,
-	}
 	return &apiv1.Asset{
 		Id:                attachment.Id,
 		Filename:          attachment.Filename,
@@ -116,7 +113,100 @@ func apiAsset(api *API, attachment *corev1.Attachment, viewerID string, thumbnai
 		Height:            attachment.Height,
 		AssetUrl:          assetURLView(api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
 		ThumbnailAssetUrl: assetURLView(api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
-		VideoProcessing:   h.videoProcessing(attachment),
+		VideoProcessing:   apiVideoProcessing(api, viewerID, attachment),
+	}
+}
+
+func apiVideoProcessing(api *API, viewerID string, attachment *corev1.Attachment) *apiv1.MessageVideoProcessing {
+	if attachment == nil || (!strings.HasPrefix(attachment.GetContentType(), "video/") && attachment.GetContentType() != "image/gif") {
+		return nil
+	}
+
+	manifest, ok := api.core.Assets.VideoAttachmentManifest(attachment.GetId())
+	if !ok || manifest == nil {
+		return nil
+	}
+
+	if succeeded := manifest.Succeeded; succeeded != nil {
+		video := succeeded.GetVideo()
+		if video == nil {
+			return nil
+		}
+		result := &apiv1.MessageVideoProcessing{
+			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED,
+			DurationMs:      video.GetDurationMs(),
+			Width:           video.GetWidth(),
+			Height:          video.GetHeight(),
+			SourceAvailable: assetSourceAvailable(api, attachment.GetId(), true),
+		}
+		if thumbnailID := video.GetThumbnailAssetId(); thumbnailID != "" {
+			result.ThumbnailAssetUrl = assetURLView(api.core.GetStableAttachmentAssetURL(thumbnailID, viewerID))
+		}
+		for _, variant := range video.GetVariants() {
+			if variant == nil {
+				continue
+			}
+			var width, height int32
+			var size int64
+			if created, ok := api.core.Assets.AssetCreation(variant.GetAssetId()); ok {
+				asset := created.GetAsset()
+				if asset != nil {
+					width = asset.GetWidth()
+					height = asset.GetHeight()
+					size = asset.GetSize()
+				}
+			}
+			result.Variants = append(result.Variants, &apiv1.MessageVideoVariant{
+				Quality:  variant.GetQuality(),
+				Width:    width,
+				Height:   height,
+				Size:     size,
+				AssetUrl: assetURLView(api.core.GetStableAttachmentAssetURL(variant.GetAssetId(), viewerID)),
+			})
+		}
+		if hls := video.GetHls(); hls != nil && len(hls.GetRenditions()) > 0 {
+			result.Hls = &apiv1.MessageVideoHLS{
+				MasterPlaylistUrl: assetURLView(api.core.GetStableHLSMasterPlaylistAssetURL(attachment.GetId(), viewerID)),
+			}
+		}
+		return result
+	}
+
+	if failed := manifest.Failed; failed != nil {
+		reasonCode := assetProcessingFailureReasonCode(failed.GetFailureCode())
+		return &apiv1.MessageVideoProcessing{
+			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_FAILED,
+			SourceAvailable: reasonCode != "original_missing" && assetSourceAvailable(api, attachment.GetId(), true),
+			ReasonCode:      reasonCode,
+		}
+	}
+
+	if manifest.Started != nil {
+		return &apiv1.MessageVideoProcessing{
+			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING,
+			SourceAvailable: assetSourceAvailable(api, attachment.GetId(), true),
+		}
+	}
+
+	return nil
+}
+
+func assetSourceAvailable(api *API, assetID string, fallback bool) bool {
+	created, ok := api.core.Assets.AssetCreation(assetID)
+	if !ok || created == nil {
+		return fallback
+	}
+	return created.GetOriginalBinaryAvailable()
+}
+
+func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {
+	switch code {
+	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING:
+		return "original_missing"
+	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
+		return "processing_failed"
+	default:
+		return "processing_failed"
 	}
 }
 

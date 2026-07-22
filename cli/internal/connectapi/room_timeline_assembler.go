@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/charmbracelet/log"
@@ -300,103 +299,10 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			Height:            attachment.Height,
 			AssetUrl:          assetURLView(assetURL),
 			ThumbnailAssetUrl: assetURLView(thumbnailURL),
-			VideoProcessing:   h.videoProcessing(attachment),
+			VideoProcessing:   apiVideoProcessing(h.api, h.viewerID, attachment),
 		})
 	}
 	return result
-}
-
-func (h *timelineHydrator) videoProcessing(attachment *corev1.Attachment) *apiv1.MessageVideoProcessing {
-	if attachment == nil || (!strings.HasPrefix(attachment.GetContentType(), "video/") && attachment.GetContentType() != "image/gif") {
-		return nil
-	}
-
-	manifest, ok := h.api.core.Assets.VideoAttachmentManifest(attachment.GetId())
-	if !ok || manifest == nil {
-		return nil
-	}
-
-	if succeeded := manifest.Succeeded; succeeded != nil {
-		video := succeeded.GetVideo()
-		if video == nil {
-			return nil
-		}
-		result := &apiv1.MessageVideoProcessing{
-			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED,
-			DurationMs:      video.GetDurationMs(),
-			Width:           video.GetWidth(),
-			Height:          video.GetHeight(),
-			SourceAvailable: h.assetSourceAvailable(attachment.GetId(), true),
-		}
-		if thumbnailID := video.GetThumbnailAssetId(); thumbnailID != "" {
-			result.ThumbnailAssetUrl = assetURLView(h.api.core.GetStableAttachmentAssetURL(thumbnailID, h.viewerID))
-		}
-		for _, variant := range video.GetVariants() {
-			if variant == nil {
-				continue
-			}
-			var width, height int32
-			var size int64
-			if created, ok := h.api.core.Assets.AssetCreation(variant.GetAssetId()); ok {
-				asset := created.GetAsset()
-				if asset != nil {
-					width = asset.GetWidth()
-					height = asset.GetHeight()
-					size = asset.GetSize()
-				}
-			}
-			result.Variants = append(result.Variants, &apiv1.MessageVideoVariant{
-				Quality:  variant.GetQuality(),
-				Width:    width,
-				Height:   height,
-				Size:     size,
-				AssetUrl: assetURLView(h.api.core.GetStableAttachmentAssetURL(variant.GetAssetId(), h.viewerID)),
-			})
-		}
-		if hls := video.GetHls(); hls != nil && len(hls.GetRenditions()) > 0 {
-			result.Hls = &apiv1.MessageVideoHLS{
-				MasterPlaylistUrl: assetURLView(h.api.core.GetStableHLSMasterPlaylistAssetURL(attachment.GetId(), h.viewerID)),
-			}
-		}
-		return result
-	}
-
-	if failed := manifest.Failed; failed != nil {
-		reasonCode := assetProcessingFailureReasonCode(failed.GetFailureCode())
-		return &apiv1.MessageVideoProcessing{
-			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_FAILED,
-			SourceAvailable: reasonCode != "original_missing" && h.assetSourceAvailable(attachment.GetId(), true),
-			ReasonCode:      reasonCode,
-		}
-	}
-
-	if manifest.Started != nil {
-		return &apiv1.MessageVideoProcessing{
-			Status:          apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING,
-			SourceAvailable: h.assetSourceAvailable(attachment.GetId(), true),
-		}
-	}
-
-	return nil
-}
-
-func (h *timelineHydrator) assetSourceAvailable(assetID string, fallback bool) bool {
-	created, ok := h.api.core.Assets.AssetCreation(assetID)
-	if !ok || created == nil {
-		return fallback
-	}
-	return created.GetOriginalBinaryAvailable()
-}
-
-func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {
-	switch code {
-	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING:
-		return "original_missing"
-	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
-		return "processing_failed"
-	default:
-		return "processing_failed"
-	}
 }
 
 func (h *timelineHydrator) linkPreview(preview *corev1.LinkPreview) *apiv1.LinkPreview {

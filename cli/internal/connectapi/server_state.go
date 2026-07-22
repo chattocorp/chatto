@@ -22,7 +22,7 @@ func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.Ge
 	}
 
 	resp := &apiv1.GetMotdResponse{}
-	motd := s.serverMotd()
+	motd := serverMOTD(s.api)
 	if motd != "" {
 		resp.Motd = stringPtr(motd)
 	}
@@ -34,27 +34,27 @@ func (s *serverService) GetRuntimeConfig(ctx context.Context, _ *connect.Request
 		return nil, err
 	}
 
-	return connect.NewResponse(&apiv1.GetRuntimeConfigResponse{Runtime: s.serverRuntimeConfig()}), nil
+	return connect.NewResponse(&apiv1.GetRuntimeConfigResponse{Runtime: serverRuntimeConfig(s.api)}), nil
 }
 
-func (s *serverService) serverRuntimeConfig() *apiv1.ServerRuntimeConfig {
-	maxUploadSize := s.api.core.AssetsConfig().MaxUploadSize
+func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
+	maxUploadSize := api.core.AssetsConfig().MaxUploadSize
 	maxVideoUploadSize := maxUploadSize
-	if s.api.config.Video.Enabled {
-		maxVideoUploadSize = int64(s.api.config.Video.MaxUploadSizeOrDefault())
+	if api.config.Video.Enabled {
+		maxVideoUploadSize = int64(api.config.Video.MaxUploadSizeOrDefault())
 	}
 	runtime := &apiv1.ServerRuntimeConfig{
-		PushNotificationsEnabled: s.api.config.Push.IsConfigured(),
-		VideoProcessingEnabled:   s.api.config.Video.Enabled,
+		PushNotificationsEnabled: api.config.Push.IsConfigured(),
+		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
 		MaxVideoUploadSize:       maxVideoUploadSize,
 		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
-	if s.api.config.Push.IsConfigured() {
-		runtime.VapidPublicKey = stringPtr(s.api.config.Push.VAPIDPublicKey)
+	if api.config.Push.IsConfigured() {
+		runtime.VapidPublicKey = stringPtr(api.config.Push.VAPIDPublicKey)
 	}
-	if s.api.config.LiveKit.IsConfigured() {
-		runtime.LivekitUrl = stringPtr(s.api.config.LiveKit.URL)
+	if api.config.LiveKit.IsConfigured() {
+		runtime.LivekitUrl = stringPtr(api.config.LiveKit.URL)
 	}
 	return runtime
 }
@@ -220,8 +220,8 @@ func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 	}
 }
 
-func (s *serverService) serverMotd() string {
-	if cm := s.api.core.ConfigManager(); cm != nil {
+func serverMOTD(api *API) string {
+	if cm := api.core.ConfigManager(); cm != nil {
 		return cm.GetEffectiveMOTD()
 	}
 	return ""
