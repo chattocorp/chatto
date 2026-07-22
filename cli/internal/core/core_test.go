@@ -106,6 +106,12 @@ func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	if core.myEventsModel == nil {
 		t.Fatal("myEventsModel = nil")
 	}
+	if core.assetUploadModel == nil {
+		t.Fatal("assetUploadModel = nil")
+	}
+	if core.AssetUploads() != core.assetUploadModel {
+		t.Fatal("AssetUploads() did not return the eagerly wired model")
+	}
 	if core.NotificationPreferences() == nil {
 		t.Fatal("NotificationPreferences() = nil")
 	}

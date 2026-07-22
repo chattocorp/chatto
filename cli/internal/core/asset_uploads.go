@@ -87,7 +87,7 @@ type AssetUploadModel struct {
 }
 
 func (c *ChattoCore) AssetUploads() *AssetUploadModel {
-	return &AssetUploadModel{core: c}
+	return c.assetUploadModel
 }
 
 func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCreateInput) (*AssetUploadSession, error) {

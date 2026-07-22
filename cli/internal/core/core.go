@@ -63,6 +63,7 @@ type ChattoCore struct {
 	mediaModel               *MediaModel
 	callModel                *CallModel
 	assetModel               *AssetModel
+	assetUploadModel         *AssetUploadModel
 	models                   []modelRegistration
 	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
@@ -301,7 +302,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
-	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })
+	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)
@@ -1460,6 +1461,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
 	core.assetModel = NewAssetModel(core)
 	core.assetModel.cleanupLease = assetCleanupLease
+	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
