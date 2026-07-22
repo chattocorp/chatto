@@ -55,7 +55,8 @@ its dense matrix rows scroll.
     onCycle,
     subjectKind = 'subject',
     forceAllow = false,
-    readOnly = false
+    readOnly = false,
+    scrollWithinTable = true
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -67,6 +68,8 @@ its dense matrix rows scroll.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
+    /** Bound the rows in their own vertical viewport instead of using the surrounding page scroll. */
+    scrollWithinTable?: boolean;
   } = $props();
 
   let hoveredCell = $state<MatrixCoordinate | null>(null);
@@ -198,8 +201,8 @@ its dense matrix rows scroll.
       columns={matrixScopes.length + 2}
       getKey={(permission) => permission}
       emptyMessage={m['rbac.permissions.no_filter_matches']()}
-      stickyHeader
-      stickyHeaderFadeOffset="top-48"
+      stickyHeader={scrollWithinTable}
+      stickyHeaderFadeOffset={scrollWithinTable ? 'top-48' : 'top-0'}
       hoverable={false}
     >
           {#snippet header()}
