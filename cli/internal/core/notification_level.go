@@ -39,12 +39,12 @@ func (c *ChattoCore) GetSpaceNotificationLevel(_ context.Context, userID string)
 // Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID string, level corev1.NotificationLevel) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
 	changed := false
-	if err := c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.ServerConfig.NotificationServerLevel(userID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
@@ -95,12 +95,12 @@ func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID 
 // membership; callers that serve user requests should use
 // NotificationPreferencesModel.SetRoomNotificationLevel instead.
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil || c.ServerConfig == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
 	changed := false
-	if err := c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.ServerConfig.NotificationRoomLevel(userID, roomID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
@@ -308,10 +308,10 @@ func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, user
 // deleteUserNotificationLevels removes all notification level preferences for a
 // user. Called during account deletion. Best-effort.
 func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID string) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil || c.ServerConfig == nil {
 		return nil
 	}
-	return c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		var evs []*corev1.Event
 		if c.ServerConfig.NotificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			evs = append(evs, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserServerNotificationLevelCleared{

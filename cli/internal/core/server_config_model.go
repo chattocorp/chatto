@@ -22,34 +22,13 @@ var ErrConfigConflict = errors.New("config was modified by another request")
 
 const maxConfigUpdateRetries = 5
 
-// ConfigManager handles runtime server configuration.
-//
-// Writes are event-only (publish to EVT + WaitForSeq for read-your-writes).
-// Reads come from the in-memory ConfigProjection.
-type ConfigManager struct {
-	model      *ConfigModel
-	projection *ConfigProjection
-}
-
-// NewConfigManager creates a server-config compatibility facade over the
-// semantic ConfigModel / ConfigProjection.
-func NewConfigManager(
-	model *ConfigModel,
-	projection *ConfigProjection,
-) *ConfigManager {
-	return &ConfigManager{
-		model:      model,
-		projection: projection,
-	}
-}
-
 // =============================================================================
-// Instance Config
+// Server Config
 // =============================================================================
 
 // GetServerConfig returns the raw server configuration values currently held
 // by the projection, or nil when no server config fields have been set.
-func (cm *ConfigManager) GetServerConfig() *configv1.ServerConfig {
+func (cm *ConfigModel) GetServerConfig() *configv1.ServerConfig {
 	if cm.projection == nil {
 		return nil
 	}
@@ -62,7 +41,7 @@ func (cm *ConfigManager) GetServerConfig() *configv1.ServerConfig {
 // Deprecated for runtime callers — they should use UpdateServerConfigFunc
 // to compose against the current state. SetServerConfig is kept for
 // tests and controlled repair paths that bypass the compose step.
-func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
+func (cm *ConfigModel) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
 	return cm.publish(ctx, actorID, cfg)
 }
 
@@ -72,17 +51,17 @@ func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cf
 // should return the updated config. On conflict, the whole compose step
 // is retried against the newer projection snapshot, so field-level edits
 // do not publish stale full-config replacements.
-func (cm *ConfigManager) UpdateServerConfigFunc(
+func (cm *ConfigModel) UpdateServerConfigFunc(
 	ctx context.Context,
 	actorID string,
 	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
 ) (*configv1.ServerConfig, error) {
-	if cm.model == nil {
-		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
+	if cm == nil {
+		return nil, fmt.Errorf("config model: event publisher/projector not configured")
 	}
 
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		agg, filter, expectedSeq, err := cm.model.prepareSubject(ctx, ConfigSubjectServer)
+		agg, filter, expectedSeq, err := cm.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +77,7 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 			return nil, err
 		}
 
-		err = cm.model.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
+		err = cm.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
 			return updated, nil
 		}
@@ -112,15 +91,15 @@ func (cm *ConfigManager) UpdateServerConfigFunc(
 // publish writes the server config by emitting semantic config events on the
 // config aggregate and waiting for the projection to apply, giving the caller
 // read-your-writes.
-func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
-	if cm.model == nil {
-		return fmt.Errorf("config manager: event publisher/projector not configured")
+func (cm *ConfigModel) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
+	if cm == nil {
+		return fmt.Errorf("config model: event publisher/projector not configured")
 	}
 	if err := validateServerConfig(cfg); err != nil {
 		return err
 	}
 
-	return cm.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return cm.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
 }
@@ -152,7 +131,7 @@ func validateServerConfig(cfg *configv1.ServerConfig) error {
 	return nil
 }
 
-func (cm *ConfigManager) effectiveConfigForUpdate() *configv1.ServerConfig {
+func (cm *ConfigModel) effectiveConfigForUpdate() *configv1.ServerConfig {
 	cfg := cloneServerConfig(cm.projection.Get())
 	if cfg == nil {
 		cfg = &configv1.ServerConfig{}
@@ -207,7 +186,7 @@ func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []
 
 // GetEffectiveWelcomeMessage returns the welcome message from the
 // projection. Empty string if not configured.
-func (cm *ConfigManager) GetEffectiveWelcomeMessage() string {
+func (cm *ConfigModel) GetEffectiveWelcomeMessage() string {
 	if cm.projection == nil {
 		return ""
 	}
@@ -216,7 +195,7 @@ func (cm *ConfigManager) GetEffectiveWelcomeMessage() string {
 
 // GetEffectiveServerName returns the server name from the projection,
 // falling back to "Chatto" if unset.
-func (cm *ConfigManager) GetEffectiveServerName() string {
+func (cm *ConfigModel) GetEffectiveServerName() string {
 	if cm.projection == nil {
 		return "Chatto"
 	}
@@ -225,7 +204,7 @@ func (cm *ConfigManager) GetEffectiveServerName() string {
 
 // GetEffectiveMOTD returns the Message of the Day from the projection.
 // Empty string if not configured.
-func (cm *ConfigManager) GetEffectiveMOTD() string {
+func (cm *ConfigModel) GetEffectiveMOTD() string {
 	if cm.projection == nil {
 		return ""
 	}
@@ -239,7 +218,7 @@ const DefaultDescription = "Come join our community!"
 
 // GetEffectiveDescription returns the server description from the
 // projection, falling back to DefaultDescription if unset.
-func (cm *ConfigManager) GetEffectiveDescription() string {
+func (cm *ConfigModel) GetEffectiveDescription() string {
 	if cm.projection == nil {
 		return DefaultDescription
 	}
@@ -257,7 +236,7 @@ const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 // GetEffectiveBlockedUsernames returns the blocked usernames string
 // from the projection. Returns DefaultBlockedUsernames if no config has
 // ever been written; returns "" if the operator explicitly cleared it.
-func (cm *ConfigManager) GetEffectiveBlockedUsernames() string {
+func (cm *ConfigModel) GetEffectiveBlockedUsernames() string {
 	if cm.projection == nil {
 		return DefaultBlockedUsernames
 	}
@@ -266,13 +245,13 @@ func (cm *ConfigManager) GetEffectiveBlockedUsernames() string {
 
 // GetBlockedUsernamesList returns the blocked usernames as a slice of
 // lowercase strings.
-func (cm *ConfigManager) GetBlockedUsernamesList() []string {
+func (cm *ConfigModel) GetBlockedUsernamesList() []string {
 	return parseBlockedUsernames(cm.GetEffectiveBlockedUsernames())
 }
 
 // IsUsernameBlocked checks if a username is in the blocked list
 // (case-insensitive).
-func (cm *ConfigManager) IsUsernameBlocked(login string) bool {
+func (cm *ConfigModel) IsUsernameBlocked(login string) bool {
 	blockedList := cm.GetBlockedUsernamesList()
 	loginLower := strings.ToLower(login)
 	for _, blocked := range blockedList {

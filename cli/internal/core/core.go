@@ -45,7 +45,7 @@ type ChattoCore struct {
 	config                   config.CoreConfig
 	encryption               *encryptionManager
 	dekResolver              *unwrappedDEKResolver
-	configManager            *ConfigManager
+	configModel              *ConfigModel
 	roomModel                *RoomModel
 	roomCommands             *RoomCommandModel
 	roomDirectoryReads       *RoomDirectoryReadModel
@@ -132,7 +132,7 @@ type ChattoCore struct {
 
 	// ServerConfigProjector runs the consumer + apply loop that keeps
 	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
-	// so writers (ConfigManager mutations) can call WaitFor.
+	// for compatibility with existing verification code.
 	ServerConfigProjector *events.Projector
 
 	// RoomCatalog is the room metadata index inside RoomDirectory.
@@ -435,10 +435,9 @@ func (c *ChattoCore) KeyWrapper() kms.KeyWrapper {
 	return c.encryption.keyWrapper
 }
 
-// ConfigManager returns the runtime configuration manager.
-// Used by API handlers and core services to read/write runtime config.
-func (c *ChattoCore) ConfigManager() *ConfigManager {
-	return c.configManager
+// ConfigModel returns the runtime configuration model.
+func (c *ChattoCore) ConfigModel() *ConfigModel {
+	return c.configModel
 }
 
 // PermResolver returns the hierarchical permission resolver for permission checks.
@@ -1349,7 +1348,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
-	configMgr := NewConfigManager(configModel, serverConfigProjection)
 	roomMgr := newRoomModel(
 		roomDirectory,
 		roomDirectoryProjector,
@@ -1374,7 +1372,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		config:                   cfg,
 		encryption:               encMgr,
 		dekResolver:              dekResolver,
-		configManager:            configMgr,
+		configModel:              configModel,
 		roomModel:                roomMgr,
 		userModel:                userMgr,
 		rbacModel:                rbacMgr,
@@ -1511,7 +1509,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		{key: "chatto_core", name: "Chatto Core"},
 		{key: "event_publisher", name: "Event Publisher"},
 		{key: "config_model", name: "Config Model", legacyServiceKey: "config_service"},
-		{key: "config_manager", name: "Config Manager"},
 		{key: "notification_preferences_model", name: "Notification Preferences Model", legacyServiceKey: "notification_preferences_service"},
 		{key: "message_model", name: "Message Model", legacyServiceKey: "message_service"},
 		{key: "reaction_model", name: "Reaction Model", legacyServiceKey: "reaction_service"},

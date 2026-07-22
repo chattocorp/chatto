@@ -44,7 +44,7 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
-	if c.configManager == nil || c.configManager.model == nil {
+	if c.configModel == nil {
 		return nil, fmt.Errorf("config model not configured")
 	}
 
@@ -58,7 +58,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	changed := false
-	if err := c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current, _ := c.ServerConfig.UserSettings(userID)
 		var evs []*corev1.Event
 		if input.Timezone != nil {
@@ -128,10 +128,10 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil || c.ServerConfig == nil {
 		return nil
 	}
-	return c.configManager.model.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current, _ := c.ServerConfig.UserSettings(userID)
 		if current == nil {
 			return nil, nil

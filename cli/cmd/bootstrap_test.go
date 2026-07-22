@@ -123,9 +123,9 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	}
 
 	// The server config should carry the bootstrap name.
-	cm := c.ConfigManager()
+	cm := c.ConfigModel()
 	if cm == nil {
-		t.Fatal("expected ConfigManager to be available")
+		t.Fatal("expected ConfigModel to be available")
 	}
 	cfgServer := cm.GetServerConfig()
 	if cfgServer == nil || cfgServer.ServerName != "Engineering" {
