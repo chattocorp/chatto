@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
+import "google/protobuf/timestamp.proto";
+
+// A bot account manageable by the authenticated user.
+message Bot {
+  // Public bot account identity and bot profile. The login always ends in
+  // `_bot` and the account profile is always `bot`.
+  User user = 1;
+  // Account creation time.
+  google.protobuf.Timestamp created_at = 2;
+}
+
+// Request the bot accounts manageable by the authenticated user.
+message ListBotsRequest {
+  // Optional case-insensitive search against login and display name.
+  string search = 1 [(buf.validate.field).string.max_len = 100];
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 2;
+}
+
+// Page of manageable bot accounts.
+message ListBotsResponse {
+  // Bots in the requested page.
+  repeated Bot bots = 1;
+  // Page metadata.
+  PageInfo page = 2;
+}
+
+// Request one manageable bot by stable account ID.
+message GetBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot lookup response.
+message GetBotResponse {
+  // Requested bot.
+  Bot bot = 1;
+}
+
+// Request bot records for a set of stable account IDs.
+message BatchGetBotsRequest {
+  // Required bot account IDs. Unknown or inaccessible IDs are omitted.
+  repeated string bot_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch bot lookup response.
+message BatchGetBotsResponse {
+  // Found bots in first-seen request order, with duplicate IDs removed.
+  repeated Bot bots = 1;
+}
+
+// Request creation of a bot owned by the authenticated human account.
+message CreateBotRequest {
+  // Required login ending in `_bot`.
+  string login = 1 [(buf.validate.field).string.min_len = 1];
+  // Required display name.
+  string display_name = 2 [(buf.validate.field).string.min_len = 1];
+  // Required explanation of the bot's purpose and relevant data handling.
+  string description = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot creation response.
+message CreateBotResponse {
+  // Created bot.
+  Bot bot = 1;
+}
+
+// Patch request for one manageable bot.
+message UpdateBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New login ending in `_bot`, when changing it.
+  optional string login = 2;
+  // New display name, when changing it.
+  optional string display_name = 3;
+  // New non-empty purpose and data-handling description, when changing it.
+  optional string description = 4;
+}
+
+// Bot update response.
+message UpdateBotResponse {
+  // Updated bot.
+  Bot bot = 1;
+}
+
+// Request deletion of one manageable bot account.
+message DeleteBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot deletion acknowledgement.
+message DeleteBotResponse {
+  // True when deletion completed.
+  bool deleted = 1;
+}
+
+// Manages bot accounts owned by the authenticated human or, with
+// administrative authority, by other users.
+service BotService {
+  // Lists bots the caller may manage. Owners need `bot.create`; administrators
+  // need `bot.manage` to see bots owned by other users.
+  rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
+  // Gets one manageable bot. Returns NOT_FOUND for an unknown account and
+  // PERMISSION_DENIED when the bot exists but the caller may not manage it.
+  rpc GetBot(GetBotRequest) returns (GetBotResponse);
+  // Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
+  // omitted so one missing record does not fail the batch.
+  rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
+  // Creates a bot owned by the authenticated human. Requires `bot.create`.
+  rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
+  // Patches identity or description fields on one manageable bot. At least one
+  // optional field must be present.
+  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
+  // Permanently deletes one manageable bot and applies ordinary account and
+  // authored-content deletion behavior.
+  rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse);
+}

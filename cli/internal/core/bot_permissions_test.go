@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"hmans.de/chatto/internal/events"
 )
 
 func TestBotOwnerBoundedAuthorization(t *testing.T) {
@@ -54,6 +56,39 @@ func TestBotOwnerBoundedAuthorization(t *testing.T) {
 	}
 	if allowed, err := c.CanStartDM(ctx, bot.GetId()); err != nil || !allowed {
 		t.Fatalf("CanStartDM after owner restored = %v, %v; want true", allowed, err)
+	}
+}
+
+func TestUpdateBotPersistsEncryptedProfilePatch(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "updatebotowner", "Update Bot Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := c.CreateBotAs(ctx, owner.GetId(), "before_bot", "Before Bot", "Before description")
+	if err != nil {
+		t.Fatal(err)
+	}
+	login, displayName, description := "after_bot", "After Bot", "After description"
+	updated, err := c.UpdateBot(ctx, owner.GetId(), bot.GetId(), BotUpdateInput{
+		Login: &login, DisplayName: &displayName, Description: &description,
+	})
+	if err != nil {
+		t.Fatalf("UpdateBot: %v", err)
+	}
+	if updated.GetLogin() != login || updated.GetDisplayName() != displayName || updated.GetBot().GetDescription() != description {
+		t.Fatalf("updated bot = %+v", updated)
+	}
+	eventsFound, _, err := c.EventPublisher.SubjectEvents(ctx, events.UserAggregate(bot.GetId()).Subject(events.EventBotDescriptionChanged))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(eventsFound) != 1 || eventsFound[0].GetBotDescriptionChanged().GetEncryptedDescription() == nil {
+		t.Fatalf("bot description events = %+v", eventsFound)
 	}
 }
 

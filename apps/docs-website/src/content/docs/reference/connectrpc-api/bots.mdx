@@ -1,0 +1,225 @@
+---
+title: BotService
+description: Bot account lifecycle and management RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Manages bot accounts owned by the authenticated human or, with
+administrative authority, by other users.
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots the caller may manage. Owners need `bot.create`; administrators
+need `bot.manage` to see bots owned by other users.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request the bot accounts manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of manageable bot accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Bots in the requested page. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one manageable bot. Returns NOT_FOUND for an unknown account and
+PERMISSION_DENIED when the bot exists but the caller may not manage it.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one manageable bot by stable account ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
+omitted so one missing record does not fail the batch.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request bot records for a set of stable account IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_ids` | `repeated string` | Required bot account IDs. Unknown or inaccessible IDs are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Batch bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Found bots in first-seen request order, with duplicate IDs removed. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human. Requires `bot.create`.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login ending in `_bot`. |
+| `display_name` | `string` | Required display name. |
+| `description` | `string` | Required explanation of the bot's purpose and relevant data handling. |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Bot creation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Created bot. |
+
+
+<a id="chatto-api-v1-BotService-UpdateBot"></a>
+
+### UpdateBot
+
+Patches identity or description fields on one manageable bot. At least one
+optional field must be present.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/UpdateBot
+```
+
+<a id="chatto-api-v1-UpdateBotRequest"></a>
+
+#### Input: UpdateBotRequest
+
+Patch request for one manageable bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+| `login` | `optional string` | New login ending in `_bot`, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. |
+| `description` | `optional string` | New non-empty purpose and data-handling description, when changing it. |
+
+
+<a id="chatto-api-v1-UpdateBotResponse"></a>
+
+#### Result: UpdateBotResponse
+
+Bot update response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Permanently deletes one manageable bot and applies ordinary account and
+authored-content deletion behavior.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of one manageable bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Bot deletion acknowledgement.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when deletion completed. |

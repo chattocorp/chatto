@@ -178,6 +178,7 @@ message Event {
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
     UserAccountDeletionStartedEvent user_account_deletion_started = 718;
+    BotDescriptionChangedEvent bot_description_changed = 719;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

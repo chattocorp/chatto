@@ -123,6 +123,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
 		p.applyDisplayNameChanged(event.GetId(), e.UserDisplayNameChanged)
+	case *corev1.Event_BotDescriptionChanged:
+		p.applyBotDescriptionChanged(event.GetId(), e.BotDescriptionChanged)
 	case *corev1.Event_UserAvatarSet:
 		p.applyAvatarSet(e.UserAvatarSet)
 	case *corev1.Event_UserAvatarCleared:
@@ -259,6 +261,17 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 		u.user = &corev1.User{Id: e.GetUserId()}
 	}
 	u.displayName = newProjectedUserPII(eventID, events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
+}
+
+func (p *UserProjection) applyBotDescriptionChanged(eventID string, e *corev1.BotDescriptionChangedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetEncryptedDescription() == nil {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.user == nil || !isBotAccount(u.user) {
+		return
+	}
+	u.botDescription = newProjectedUserPII(eventID, events.EventBotDescriptionChanged, "bot_description", e.GetEncryptedDescription())
 }
 
 func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {

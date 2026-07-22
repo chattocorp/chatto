@@ -206,6 +206,7 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
+| `evt.user.{userId}.bot_description_changed`                 | `BotDescriptionChangedEvent`                        |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
 | `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
 | `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |

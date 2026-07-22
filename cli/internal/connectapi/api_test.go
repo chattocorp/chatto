@@ -67,6 +67,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + apiv1connect.AssetServiceName + "/",
 		"/" + apiv1connect.AssetUploadServiceName + "/",
+		"/" + apiv1connect.BotServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
@@ -111,6 +112,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetServiceName + "/":                   AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.BotServiceName + "/":                     AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
@@ -495,6 +497,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.discovery.v1",
 		"chatto.auth.v1",
 		"chatto.api.v1",
+		"chatto.api.bots.v1",
 		"chatto.admin.v1",
 		"chatto.realtime.v1",
 		"chatto.realtime.projection.v1",
@@ -4119,6 +4122,89 @@ func TestUserServiceListUsers(t *testing.T) {
 	gotBatch := batchResp.Msg.GetUsers()
 	if len(gotBatch) != 2 || gotBatch[0].GetUser().GetId() != bob.Id || gotBatch[1].GetUser().GetId() != alice.Id {
 		t.Fatalf("BatchGetUsers users = %+v, want bob,alice", gotBatch)
+	}
+}
+
+func TestBotServiceLifecycleAndVisibility(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ownerCtx := withCaller(env.ctx, env.viewer)
+
+	if _, err := env.bots.CreateBot(ownerCtx, connect.NewRequest(&apiv1.CreateBotRequest{
+		Login: "blocked_bot", DisplayName: "Blocked Bot", Description: "Blocked",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreateBot without bot.create code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.GetId(), core.PermBotCreate); err != nil {
+		t.Fatalf("grant bot.create: %v", err)
+	}
+	created, err := env.bots.CreateBot(ownerCtx, connect.NewRequest(&apiv1.CreateBotRequest{
+		Login:       "helper_bot",
+		DisplayName: "Helper Bot",
+		Description: "Answers questions without sending data to third parties.",
+	}))
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botID := created.Msg.GetBot().GetUser().GetId()
+	if created.Msg.GetBot().GetUser().GetBot().GetOwnerId() != env.viewer.GetId() || created.Msg.GetBot().GetUser().GetBot().GetDescription() == "" {
+		t.Fatalf("created bot = %+v", created.Msg.GetBot())
+	}
+
+	description := "Answers questions and stores no conversation content."
+	displayName := "Updated Helper"
+	updated, err := env.bots.UpdateBot(ownerCtx, connect.NewRequest(&apiv1.UpdateBotRequest{
+		BotId: botID, DisplayName: &displayName, Description: &description,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateBot: %v", err)
+	}
+	if updated.Msg.GetBot().GetUser().GetDisplayName() != displayName || updated.Msg.GetBot().GetUser().GetBot().GetDescription() != description {
+		t.Fatalf("updated bot = %+v", updated.Msg.GetBot())
+	}
+
+	list, err := env.bots.ListBots(ownerCtx, connect.NewRequest(&apiv1.ListBotsRequest{Search: "updated"}))
+	if err != nil {
+		t.Fatalf("ListBots: %v", err)
+	}
+	if len(list.Msg.GetBots()) != 1 || list.Msg.GetBots()[0].GetUser().GetId() != botID || list.Msg.GetPage().GetTotalCount() != 1 {
+		t.Fatalf("ListBots = %+v", list.Msg)
+	}
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-api-other", "Bot API Other", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.bots.GetBot(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other GetBot code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	batch, err := env.bots.BatchGetBots(withCaller(env.ctx, other), connect.NewRequest(&apiv1.BatchGetBotsRequest{BotIds: []string{botID, "missing"}}))
+	if err != nil {
+		t.Fatalf("other BatchGetBots: %v", err)
+	}
+	if len(batch.Msg.GetBots()) != 0 {
+		t.Fatalf("other BatchGetBots returned inaccessible bots: %+v", batch.Msg.GetBots())
+	}
+
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-api-admin", "Bot API Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.GetId(), core.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.bots.GetBot(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); err != nil {
+		t.Fatalf("admin GetBot: %v", err)
+	}
+
+	deleted, err := env.bots.DeleteBot(ownerCtx, connect.NewRequest(&apiv1.DeleteBotRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("DeleteBot: %v", err)
+	}
+	if !deleted.Msg.GetDeleted() {
+		t.Fatal("DeleteBot deleted = false")
+	}
+	if _, err := env.bots.GetBot(ownerCtx, connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetBot after delete code = %v, want not_found", connect.CodeOf(err))
 	}
 }
 
@@ -8249,6 +8335,7 @@ type connectAPITestEnv struct {
 	adminUsers       *adminUserManagementService
 	assets           *assetService
 	assetUploads     *assetUploadService
+	bots             *botService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
 	messages         *messageService
@@ -8302,6 +8389,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminUsers:       &adminUserManagementService{api: api},
 		assets:           &assetService{api: api},
 		assetUploads:     &assetUploadService{api: api},
+		bots:             &botService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},
 		messages:         &messageService{api: api},

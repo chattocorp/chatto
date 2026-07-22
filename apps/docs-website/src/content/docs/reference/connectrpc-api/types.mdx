@@ -47,7 +47,7 @@ has not declared a lower bound for the bundled Chatto web client.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
+| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.api.bots.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
 | `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
 
 <a id="chatto-api-v1-ImageTransformOptions"></a>
@@ -125,6 +125,23 @@ Custom status shown on a user profile, separate from presence.
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
 
+<a id="chatto-api-v1-BotAccountProfile"></a>
+
+### BotAccountProfile
+
+Public ownership and disclosure fields for a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `owner_id` | `string` | Stable user ID of the human account responsible for the bot. |
+| `description` | `string` | Explanation of the bot's purpose and relevant data handling. |
+
+<a id="chatto-api-v1-HumanAccountProfile"></a>
+
+### HumanAccountProfile
+
+Account-kind marker for a human user.
+
 <a id="chatto-api-v1-User"></a>
 
 ### User
@@ -140,6 +157,8 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+| `account_profile.human` | [`HumanAccountProfile`](#chatto-api-v1-HumanAccountProfile) | Human account profile. |
+| `account_profile.bot` | [`BotAccountProfile`](#chatto-api-v1-BotAccountProfile) | Bot account profile, including accountable ownership and disclosure. |
 
 <a id="chatto-api-v1-NotificationPreference"></a>
 
@@ -560,6 +579,17 @@ for simple list browsing.
 | --- | --- | --- |
 | `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A bot account manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
 
 <a id="chatto-api-v1-DirectoryMember"></a>
 

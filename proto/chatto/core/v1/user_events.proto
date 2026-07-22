@@ -94,6 +94,11 @@ message UserDisplayNameChangedEvent {
   EncryptedUserString encrypted_display_name = 10;
 }
 
+message BotDescriptionChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_description = 10;
+}
+
 message UserAvatarSetEvent {
   // Deprecated: legacy avatar storage pointer retained for decoding old
   // user events. New avatar writes append AssetCreatedEvent with

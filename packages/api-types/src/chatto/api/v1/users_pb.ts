@@ -63,6 +63,30 @@ export class User extends Message<User> {
    */
   customStatus?: CustomUserStatus;
 
+  /**
+   * Account-kind profile. Older servers may omit this field; such historical
+   * accounts are human accounts.
+   *
+   * @generated from oneof chatto.api.v1.User.account_profile
+   */
+  accountProfile: {
+    /**
+     * Human account profile.
+     *
+     * @generated from field: chatto.api.v1.HumanAccountProfile human = 8;
+     */
+    value: HumanAccountProfile;
+    case: "human";
+  } | {
+    /**
+     * Bot account profile, including accountable ownership and disclosure.
+     *
+     * @generated from field: chatto.api.v1.BotAccountProfile bot = 9;
+     */
+    value: BotAccountProfile;
+    case: "bot";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -78,6 +102,8 @@ export class User extends Message<User> {
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
+    { no: 8, name: "human", kind: "message", T: HumanAccountProfile, oneof: "account_profile" },
+    { no: 9, name: "bot", kind: "message", T: BotAccountProfile, oneof: "account_profile" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {
@@ -94,5 +120,87 @@ export class User extends Message<User> {
 
   static equals(a: User | PlainMessage<User> | undefined, b: User | PlainMessage<User> | undefined): boolean {
     return proto3.util.equals(User, a, b);
+  }
+}
+
+/**
+ * Account-kind marker for a human user.
+ *
+ * @generated from message chatto.api.v1.HumanAccountProfile
+ */
+export class HumanAccountProfile extends Message<HumanAccountProfile> {
+  constructor(data?: PartialMessage<HumanAccountProfile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.HumanAccountProfile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): HumanAccountProfile {
+    return new HumanAccountProfile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): HumanAccountProfile {
+    return new HumanAccountProfile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): HumanAccountProfile {
+    return new HumanAccountProfile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: HumanAccountProfile | PlainMessage<HumanAccountProfile> | undefined, b: HumanAccountProfile | PlainMessage<HumanAccountProfile> | undefined): boolean {
+    return proto3.util.equals(HumanAccountProfile, a, b);
+  }
+}
+
+/**
+ * Public ownership and disclosure fields for a bot account.
+ *
+ * @generated from message chatto.api.v1.BotAccountProfile
+ */
+export class BotAccountProfile extends Message<BotAccountProfile> {
+  /**
+   * Stable user ID of the human account responsible for the bot.
+   *
+   * @generated from field: string owner_id = 1;
+   */
+  ownerId = "";
+
+  /**
+   * Explanation of the bot's purpose and relevant data handling.
+   *
+   * @generated from field: string description = 2;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<BotAccountProfile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotAccountProfile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "owner_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotAccountProfile {
+    return new BotAccountProfile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotAccountProfile {
+    return new BotAccountProfile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotAccountProfile {
+    return new BotAccountProfile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotAccountProfile | PlainMessage<BotAccountProfile> | undefined, b: BotAccountProfile | PlainMessage<BotAccountProfile> | undefined): boolean {
+    return proto3.util.equals(BotAccountProfile, a, b);
   }
 }

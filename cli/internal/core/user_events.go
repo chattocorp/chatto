@@ -85,6 +85,10 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 }
 
 func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries []events.BatchEntry, filter string, check func() error) (uint64, error) {
+	return c.appendUserBatchAuthorized(ctx, userID, entries, filter, false, check)
+}
+
+func (c *ChattoCore) appendUserBatchAuthorized(ctx context.Context, userID string, entries []events.BatchEntry, filter string, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -94,7 +98,7 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
+		fencesAuthorization := forceAuthorizationFence || containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
 			var err error
 			authorizationSeq, err = c.authorizationFenceSeq(ctx)
@@ -203,6 +207,10 @@ func containsAuthorizationInputUserEvent(entries []events.BatchEntry) bool {
 }
 
 func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []events.BatchEntry, check func() error) (uint64, error) {
+	return c.appendUserBatchWithMentionableCheckAuthorized(ctx, userID, entries, false, check)
+}
+
+func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.Context, userID string, entries []events.BatchEntry, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -210,7 +218,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
+		fencesAuthorization := forceAuthorizationFence || containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
 			var err error
 			authorizationSeq, err = c.authorizationFenceSeq(ctx)
