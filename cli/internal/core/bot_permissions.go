@@ -90,7 +90,7 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 		if err != nil {
 			return err
 		}
-		if err := c.rooms().waitForGroupLayout(ctx, groupPosition); err != nil {
+		if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
 			return err
 		}
 	}
@@ -99,7 +99,7 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 		if err != nil {
 			return err
 		}
-		if err := c.rooms().waitForDirectory(ctx, roomPosition); err != nil {
+		if err := c.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
 			return err
 		}
 	}
