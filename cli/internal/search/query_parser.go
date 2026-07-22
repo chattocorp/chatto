@@ -149,7 +149,10 @@ func containsSearchableRune(value string) bool {
 func parseQueryTokens(input string) ([]queryToken, error) {
 	syntax, err := querySyntaxParser.ParseString("", input)
 	if err != nil {
-		return nil, fmt.Errorf("invalid search query syntax: %w", err)
+		// Bare tokens accept every non-whitespace rune except a quote, so the
+		// only input-dependent lexer failure is an unclosed quoted fragment.
+		// Do not return Participle's error because it includes query contents.
+		return nil, fmt.Errorf("search query contains an unterminated quote")
 	}
 
 	tokens := make([]queryToken, 0, len(syntax.Parts))

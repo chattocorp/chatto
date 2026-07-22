@@ -48,6 +48,11 @@ func TestParseQueryRejectsInvalidSyntax(t *testing.T) {
 	}
 }
 
+func TestParseQueryDoesNotEchoInvalidQueryContents(t *testing.T) {
+	_, err := ParseQuery(`search "private@example.com`)
+	require.EqualError(t, err, "search query contains an unterminated quote")
+}
+
 func TestParseQueryKeepsUnknownFiltersAsTerms(t *testing.T) {
 	parsed, err := ParseQuery(`search future:value future:"two words"`)
 	require.NoError(t, err)
