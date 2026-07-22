@@ -1,7 +1,7 @@
 import { MessageSearchService } from '@chatto/api-types/api/v1/message_search_connect';
 import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
 import { authHeaders, createChattoClient, handleAuthError, type ConnectAPIConfig } from './connect';
-import { createRoomDirectoryAPI } from './roomDirectory';
+import { createRoomDirectoryAPI, RoomKind } from './roomDirectory';
 import { createUserAPI, type UserSummary } from './users';
 
 export { MessageSearchOrder, MessageSearchState };
@@ -15,6 +15,7 @@ export type MessageSearchResult = {
   id: string;
   roomId: string;
   roomName: string | null;
+  roomKind: RoomKind;
   actorId: string;
   actor: UserSummary | null;
   body: string;
@@ -79,21 +80,25 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
           rooms.batchGetRooms(roomIds).catch(() => []),
           users.batchGetUsers(actorIds).catch(() => [])
         ]);
-        const roomNames = new Map(roomRows.map((room) => [room.id, room.name]));
+        const roomsById = new Map(roomRows.map((room) => [room.id, room]));
         const actors = new Map(userRows.map((user) => [user.id, user]));
 
         return {
-          results: response.messages.map((message) => ({
-            id: message.id,
-            roomId: message.roomId,
-            roomName: roomNames.get(message.roomId) ?? null,
-            actorId: message.actorId,
-            actor: actors.get(message.actorId) ?? null,
-            body: message.body ?? '',
-            createdAt: message.createdAt?.toDate().toISOString() ?? '',
-            threadRootEventId: message.threadRootEventId || null,
-            attachmentCount: message.attachments.length
-          })),
+          results: response.messages.map((message) => {
+            const room = roomsById.get(message.roomId);
+            return {
+              id: message.id,
+              roomId: message.roomId,
+              roomName: room?.name ?? null,
+              roomKind: room?.kind ?? RoomKind.UNSPECIFIED,
+              actorId: message.actorId,
+              actor: actors.get(message.actorId) ?? null,
+              body: message.body ?? '',
+              createdAt: message.createdAt?.toDate().toISOString() ?? '',
+              threadRootEventId: message.threadRootEventId || null,
+              attachmentCount: message.attachments.length
+            };
+          }),
           nextCursor: response.nextCursor || null
         };
       } catch (error) {

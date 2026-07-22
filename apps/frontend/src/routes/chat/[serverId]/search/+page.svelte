@@ -7,11 +7,13 @@ in the active server store so browser Back can restore the current search.
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
   import { tick } from 'svelte';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/components/admin';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
+  import { RoomKind } from '$lib/api-client/roomDirectory';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -92,6 +94,41 @@ in the active server store so browser Back can restore the current search.
 
   function formatTimestamp(value: string): string {
     return value ? formatDateTime(value, timeFormatSettings, activeLocale) : '';
+  }
+
+  function navigateToResult(result: MessageSearchResult): void {
+    if (result.threadRootEventId) {
+      void goto(
+        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+          serverId: serverIdToSegment(serverId),
+          roomId: result.roomId,
+          threadId: result.threadRootEventId,
+          messageId: result.id
+        })
+      );
+      return;
+    }
+    void goto(
+      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId: serverIdToSegment(serverId),
+        roomId: result.roomId,
+        messageId: result.id
+      })
+    );
+  }
+
+  function openResult(event: MouseEvent, result: MessageSearchResult): void {
+    if (event.defaultPrevented) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('a, button')) return;
+    if (window.getSelection()?.isCollapsed === false) return;
+    navigateToResult(result);
+  }
+
+  function openResultFromKeyboard(event: KeyboardEvent, result: MessageSearchResult): void {
+    if (event.target !== event.currentTarget || event.key !== 'Enter') return;
+    event.preventDefault();
+    navigateToResult(result);
   }
 </script>
 
@@ -201,67 +238,80 @@ in the active server store so browser Back can restore the current search.
                 {m['search.prompt.description']()}
               </EmptyState>
             {:else}
-              <ol class="divide-y divide-border">
+              <ol class="p-1">
                 {#each store.results as result (result.id)}
-                  <li class="px-3 py-2 md:px-4">
-                    <MessageView
-                      eventId={result.id}
-                      actor={resultActor(result)}
-                      displayName={result.actor?.displayName ||
-                        result.actor?.login ||
-                        m['common.unknown']()}
-                      missingActorIsDeleted={false}
-                      body={result.body}
-                      timestampSettings={timeFormatSettings}
-                      timestampLocale={activeLocale}
-                      class="my-0.5"
+                  <li>
+                    <div
+                      role="link"
+                      tabindex="0"
+                      data-search-result-id={result.id}
+                      class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-action"
+                      onclick={(event) => openResult(event, result)}
+                      onkeydown={(event) => openResultFromKeyboard(event, result)}
                     >
-                      {#snippet headerMeta()}
-                        <span class="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
-                          <span class="shrink-0" aria-hidden="true">#</span>
-                          <a
-                            class="min-w-0 truncate hover:text-text hover:underline"
-                            href={resolve('/chat/[serverId]/[roomId]', {
-                              serverId: serverIdToSegment(serverId),
-                              roomId: result.roomId
-                            })}
-                          >
-                            {result.roomName ?? m['search.scope.room']()}
-                          </a>
-                        </span>
-                        {#if result.createdAt}
-                          <span class="text-xs text-muted" aria-hidden="true">·</span>
-                          <a
-                            class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                            href={result.threadRootEventId
-                              ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-                                  serverId: serverIdToSegment(serverId),
-                                  roomId: result.roomId,
-                                  threadId: result.threadRootEventId,
-                                  messageId: result.id
-                                })
-                              : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                                  serverId: serverIdToSegment(serverId),
-                                  roomId: result.roomId,
-                                  messageId: result.id
-                                })}
-                          >
-                            <time datetime={result.createdAt}
-                              >{formatTimestamp(result.createdAt)}</time
+                      <MessageView
+                        eventId={result.id}
+                        actor={resultActor(result)}
+                        displayName={result.actor?.displayName ||
+                          result.actor?.login ||
+                          m['common.unknown']()}
+                        missingActorIsDeleted={false}
+                        body={result.body}
+                        timestampSettings={timeFormatSettings}
+                        timestampLocale={activeLocale}
+                        rowClass="md:mx-0 md:pr-2"
+                      >
+                        {#snippet headerMeta()}
+                          <span class="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
+                            {#if result.roomKind !== RoomKind.DM}
+                              <span class="shrink-0" aria-hidden="true">#</span>
+                            {/if}
+                            <a
+                              class="min-w-0 truncate hover:text-text hover:underline"
+                              href={resolve('/chat/[serverId]/[roomId]', {
+                                serverId: serverIdToSegment(serverId),
+                                roomId: result.roomId
+                              })}
                             >
-                          </a>
-                        {/if}
-                      {/snippet}
+                              {result.roomKind === RoomKind.DM
+                                ? m['room.title.direct_message']()
+                                : (result.roomName ?? m['search.scope.room']())}
+                            </a>
+                          </span>
+                          {#if result.createdAt}
+                            <span class="text-xs text-muted" aria-hidden="true">·</span>
+                            <a
+                              class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                              href={result.threadRootEventId
+                                ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+                                    serverId: serverIdToSegment(serverId),
+                                    roomId: result.roomId,
+                                    threadId: result.threadRootEventId,
+                                    messageId: result.id
+                                  })
+                                : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+                                    serverId: serverIdToSegment(serverId),
+                                    roomId: result.roomId,
+                                    messageId: result.id
+                                  })}
+                            >
+                              <time datetime={result.createdAt}
+                                >{formatTimestamp(result.createdAt)}</time
+                              >
+                            </a>
+                          {/if}
+                        {/snippet}
 
-                      {#snippet afterBody()}
-                        {#if result.attachmentCount > 0}
-                          <p class="inline-flex items-center gap-1 text-sm text-muted">
-                            <span class="iconify uil--paperclip" aria-hidden="true"></span>
-                            {m['search.attachments']({ count: result.attachmentCount })}
-                          </p>
-                        {/if}
-                      {/snippet}
-                    </MessageView>
+                        {#snippet afterBody()}
+                          {#if result.attachmentCount > 0}
+                            <p class="inline-flex items-center gap-1 text-sm text-muted">
+                              <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                              {m['search.attachments']({ count: result.attachmentCount })}
+                            </p>
+                          {/if}
+                        {/snippet}
+                      </MessageView>
+                    </div>
                   </li>
                 {/each}
               </ol>

@@ -2,6 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageSearchOrder, MessageSearchState } from '@chatto/api-types/api/v1/message_search_pb';
 import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -85,8 +86,14 @@ describe('createMessageSearchAPI', () => {
     });
     mocks.batchGetRooms.mockResolvedValue({
       rooms: [
-        { room: { id: 'room-1', name: 'general' }, viewerState: { permissions: [] } },
-        { room: { id: 'room-2', name: 'archive' }, viewerState: { permissions: [] } }
+        {
+          room: { id: 'room-1', name: 'general', kind: RoomKind.CHANNEL },
+          viewerState: { permissions: [] }
+        },
+        {
+          room: { id: 'room-2', name: '', kind: RoomKind.DM },
+          viewerState: { permissions: [] }
+        }
       ]
     });
     mocks.batchGetUsers.mockResolvedValue({
@@ -122,7 +129,8 @@ describe('createMessageSearchAPI', () => {
     expect(response.results).toMatchObject([
       {
         id: 'message-2',
-        roomName: 'archive',
+        roomName: '',
+        roomKind: RoomKind.DM,
         actor: { displayName: 'Two' },
         threadRootEventId: 'root-1',
         attachmentCount: 1
@@ -130,6 +138,7 @@ describe('createMessageSearchAPI', () => {
       {
         id: 'message-1',
         roomName: 'general',
+        roomKind: RoomKind.CHANNEL,
         actor: { displayName: 'One' },
         threadRootEventId: null,
         attachmentCount: 0

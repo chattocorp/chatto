@@ -3,6 +3,7 @@ import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import type { MessageSearchResult } from '$lib/api-client/messageSearch';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import SearchPageTestHarness from './SearchPageTestHarness.svelte';
 
@@ -97,10 +98,9 @@ describe('message search page', () => {
     );
 
     expect(container.textContent).toContain('Search messages');
-    expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent?.trim())).toEqual([
-      'Search query',
-      'Results'
-    ]);
+    expect(
+      [...container.querySelectorAll('h2')].map((heading) => heading.textContent?.trim())
+    ).toEqual(['Search query', 'Results']);
     expect(mocks.ensureStatus).toHaveBeenCalledOnce();
     expect(mocks.search).toHaveBeenCalledWith({
       query: 'motherfucking search',
@@ -168,6 +168,7 @@ describe('message search page', () => {
             id: 'message-1',
             roomId: 'room-1',
             roomName: 'general',
+            roomKind: RoomKind.CHANNEL,
             actorId: 'user-1',
             actor: {
               id: 'user-1',
@@ -183,8 +184,9 @@ describe('message search page', () => {
           },
           {
             id: 'message-2',
-            roomId: 'room-1',
-            roomName: 'general',
+            roomId: 'dm-1',
+            roomName: '',
+            roomKind: RoomKind.DM,
             actorId: 'user-unavailable',
             actor: null,
             body: 'Message with unavailable actor hydration',
@@ -210,6 +212,9 @@ describe('message search page', () => {
     expect(container.querySelector('a[href="/chat/origin/room-1"]')?.textContent).toContain(
       'general'
     );
+    expect(container.querySelector('a[href="/chat/origin/dm-1"]')?.textContent?.trim()).toBe(
+      'Direct Message'
+    );
     expect(
       container
         .querySelector('a[href="/chat/origin/room-1/thread-root/m/message-1"] time')
@@ -222,5 +227,15 @@ describe('message search page', () => {
     expect(container.querySelectorAll('[role="article"]')[1]?.textContent).not.toContain(
       'Deleted user'
     );
+
+    const firstResult = container.querySelector(
+      '[data-search-result-id="message-1"]'
+    ) as HTMLElement;
+    expect(firstResult.getAttribute('role')).toBe('link');
+    expect(firstResult.querySelector('.message-row')?.classList).toContain('md:mx-0');
+    expect(container.querySelector('ol')?.classList).not.toContain('divide-y');
+
+    await userEvent.click(firstResult);
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');
   });
 });

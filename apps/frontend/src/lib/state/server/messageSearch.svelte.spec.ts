@@ -5,6 +5,7 @@ import type {
   MessageSearchResult,
   MessageSearchStatus
 } from '$lib/api-client/messageSearch';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch.svelte';
 
 function result(id: string): MessageSearchResult {
@@ -12,6 +13,7 @@ function result(id: string): MessageSearchResult {
     id,
     roomId: 'room-1',
     roomName: 'general',
+    roomKind: RoomKind.CHANNEL,
     actorId: 'user-1',
     actor: null,
     body: `message ${id}`,
@@ -176,9 +178,7 @@ describe('MessageSearchStore', () => {
   it('clears plaintext results and invalidates in-flight work', async () => {
     let resolveSearch!: (value: MessageSearchPage) => void;
     const pending = new Promise<MessageSearchPage>((resolve) => (resolveSearch = resolve));
-    const store = new MessageSearchStore(
-      api({ searchMessages: vi.fn().mockReturnValue(pending) })
-    );
+    const store = new MessageSearchStore(api({ searchMessages: vi.fn().mockReturnValue(pending) }));
     const search = store.search({
       query: 'hello',
       order: MessageSearchOrder.RELEVANCE
@@ -199,14 +199,10 @@ describe('MessageSearchStore', () => {
   it('restarts after room revocation without destroying the search session', async () => {
     const searchMessages = vi
       .fn()
-      .mockResolvedValueOnce(
-        page([result('one'), { ...result('two'), roomId: 'room-2' }], 'next')
-      )
+      .mockResolvedValueOnce(page([result('one'), { ...result('two'), roomId: 'room-2' }], 'next'))
       .mockResolvedValueOnce(page([{ ...result('two'), roomId: 'room-2' }], null))
       .mockResolvedValueOnce(page([], null));
-    const store = new MessageSearchStore(
-      api({ searchMessages })
-    );
+    const store = new MessageSearchStore(api({ searchMessages }));
     await store.search({ query: 'hello', order: MessageSearchOrder.NEWEST });
 
     store.revokeRoom('room-1');
@@ -226,9 +222,7 @@ describe('MessageSearchStore', () => {
   it('does not cancel an in-flight search for an unrelated new message', async () => {
     let resolveSearch!: (value: MessageSearchPage) => void;
     const pending = new Promise<MessageSearchPage>((resolve) => (resolveSearch = resolve));
-    const store = new MessageSearchStore(
-      api({ searchMessages: vi.fn().mockReturnValue(pending) })
-    );
+    const store = new MessageSearchStore(api({ searchMessages: vi.fn().mockReturnValue(pending) }));
 
     const search = store.search({
       query: 'hello',
