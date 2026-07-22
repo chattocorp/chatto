@@ -200,6 +200,9 @@ message CreateBotRequest {
 message CreateBotResponse {
   // Created bot.
   Bot bot = 1;
+  // Newly issued show-once API key. The server does not expose this secret
+  // again; replace it through RotateBotAPIKey if it is lost.
+  string api_key = 2;
 }
 
 // Patch request for one manageable bot.

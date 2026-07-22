@@ -22,7 +22,9 @@ describe('BotManagementStore', () => {
       .fn()
       .mockResolvedValueOnce({ bots: [bot('one')], totalCount: 2, hasMore: true })
       .mockResolvedValueOnce({ bots: [bot('two')], totalCount: 2, hasMore: false });
-    const createBot = vi.fn().mockResolvedValue(bot('three'));
+    const createBot = vi
+      .fn()
+      .mockResolvedValue({ bot: bot('three'), apiKey: 'cht_BK-created-secret' });
     const updateBot = vi.fn().mockResolvedValue({ ...bot('one'), displayName: 'Updated bot' });
     const batchGetUsers = vi.fn().mockResolvedValue([
       {

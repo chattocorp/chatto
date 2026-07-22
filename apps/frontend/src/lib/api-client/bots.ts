@@ -47,6 +47,8 @@ export type RotatedBotAPIKey = {
   apiKey: string;
 };
 
+export type CreatedBot = RotatedBotAPIKey;
+
 export type BotPermissionScope = {
   id: string;
   label: string;
@@ -95,9 +97,10 @@ export function createBotAPI(config: BotAPIConfig) {
       };
     },
 
-    async createBot(input: CreateBotInput): Promise<BotAccount> {
+    async createBot(input: CreateBotInput): Promise<CreatedBot> {
       const response = await client.createBot(input, { headers: headers() });
-      return botAccount(requiredBot(response.bot));
+      if (!response.apiKey) throw new Error('bot creation response did not include an API key');
+      return { bot: botAccount(requiredBot(response.bot)), apiKey: response.apiKey };
     },
 
     async updateBot(input: UpdateBotInput): Promise<BotAccount> {

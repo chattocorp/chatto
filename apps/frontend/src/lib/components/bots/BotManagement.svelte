@@ -51,6 +51,8 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   let saveError = $state<string | null>(null);
   let permissionsBot = $state<BotAccount | null>(null);
   let credentialsBot = $state<BotAccount | null>(null);
+  let credentialsAction = $state<'rotate' | 'revoke' | 'show'>('rotate');
+  let createdSecret = $state<string | null>(null);
 
   const normalizedLogin = $derived(login.trim());
   const normalizedDisplayName = $derived(displayName.trim());
@@ -97,8 +99,14 @@ all loading, pagination, owner hydration, and mutations stay in this component.
     permissionsBot = bot;
   }
 
-  function openCredentials(event: MouseEvent, bot: BotAccount) {
+  function openCredentials(
+    event: MouseEvent,
+    bot: BotAccount,
+    action: 'rotate' | 'revoke'
+  ) {
     event.stopPropagation();
+    credentialsAction = action;
+    createdSecret = null;
     credentialsBot = bot;
   }
 
@@ -123,14 +131,18 @@ all loading, pagination, owner hydration, and mutations stay in this component.
         });
         toast.success(m['bots.toast.updated']());
       } else {
-        await store.create({
+        const created = await store.create({
           login: normalizedLogin,
           displayName: normalizedDisplayName,
           description: normalizedDescription
         });
+        dialogVisible = false;
+        credentialsAction = 'show';
+        createdSecret = created.apiKey;
+        credentialsBot = created.bot;
         toast.success(m['bots.toast.created']());
       }
-      dialogVisible = false;
+      if (editingBot) dialogVisible = false;
     } catch (error) {
       saveError = error instanceof Error ? error.message : m['bots.error.save_failed']();
     } finally {
@@ -220,16 +232,22 @@ all loading, pagination, owner hydration, and mutations stay in this component.
             <p class="line-clamp-2">{bot.description}</p>
           </td>
           <td class="px-4 py-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={scope === 'admin' && !bot.apiKeyCreatedAt}
-              onclick={(event) => openCredentials(event, bot)}
-            >
-              <Pill tone={bot.apiKeyCreatedAt ? 'success' : 'neutral'}>
-                {bot.apiKeyCreatedAt ? m['bots.api_key.active']() : m['bots.api_key.none']()}
-              </Pill>
-            </Button>
+            {#if scope === 'owner'}
+              <Button variant="secondary" onclick={(event) => openCredentials(event, bot, 'rotate')}>
+                <span class="iconify uil--key-skeleton" aria-hidden="true"></span>
+                {m['bots.credentials.rotate']()}
+              </Button>
+            {:else if bot.apiKeyCreatedAt}
+              <Button
+                variant="danger-secondary"
+                onclick={(event) => openCredentials(event, bot, 'revoke')}
+              >
+                <span class="iconify uil--key-skeleton-alt" aria-hidden="true"></span>
+                {m['bots.credentials.revoke']()}
+              </Button>
+            {:else}
+              <Pill tone="neutral">{m['bots.api_key.none']()}</Pill>
+            {/if}
           </td>
           <td class="px-4 py-3">
             <Button variant="secondary" onclick={(event) => openPermissions(event, bot)}>
@@ -304,8 +322,12 @@ all loading, pagination, owner hydration, and mutations stay in this component.
 {#if credentialsBot}
   <BotCredentialsDialog
     bot={credentialsBot}
-    canRotate={scope === 'owner'}
+    action={credentialsAction}
+    initialSecret={createdSecret}
     onupdated={updateCredentialsBot}
-    onclose={() => (credentialsBot = null)}
+    onclose={() => {
+      credentialsBot = null;
+      createdSecret = null;
+    }}
   />
 {/if}

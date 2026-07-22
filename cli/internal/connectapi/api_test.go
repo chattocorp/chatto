@@ -4210,6 +4210,9 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if created.Msg.GetBot().GetUser().GetBot().GetOwnerId() != env.viewer.GetId() || created.Msg.GetBot().GetUser().GetBot().GetDescription() == "" {
 		t.Fatalf("created bot = %+v", created.Msg.GetBot())
 	}
+	if created.Msg.GetApiKey() == "" || created.Msg.GetBot().GetApiKey().GetCreatedAt() == nil {
+		t.Fatalf("CreateBot did not issue an API key: %+v", created.Msg)
+	}
 	matrix, err := env.bots.GetBotPermissionMatrix(ownerCtx, connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotId: botID}))
 	if err != nil {
 		t.Fatalf("GetBotPermissionMatrix: %v", err)

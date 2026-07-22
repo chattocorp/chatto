@@ -1029,6 +1029,14 @@ export class CreateBotResponse extends Message<CreateBotResponse> {
    */
   bot?: Bot;
 
+  /**
+   * Newly issued show-once API key. The server does not expose this secret
+   * again; replace it through RotateBotAPIKey if it is lost.
+   *
+   * @generated from field: string api_key = 2;
+   */
+  apiKey = "";
+
   constructor(data?: PartialMessage<CreateBotResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1038,6 +1046,7 @@ export class CreateBotResponse extends Message<CreateBotResponse> {
   static readonly typeName = "chatto.api.v1.CreateBotResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "bot", kind: "message", T: Bot },
+    { no: 2, name: "api_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateBotResponse {

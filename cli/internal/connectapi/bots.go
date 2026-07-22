@@ -164,11 +164,19 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	if err != nil {
 		return nil, connectError(err)
 	}
+	apiKey, _, err := s.api.core.RotateBotAPIKey(ctx, caller.UserID, bot.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	bot, err = s.api.core.GetUser(ctx, bot.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
 	item, err := s.bot(ctx, bot)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.CreateBotResponse{Bot: item}), nil
+	return connect.NewResponse(&apiv1.CreateBotResponse{Bot: item, ApiKey: apiKey}), nil
 }
 
 func (s *botService) UpdateBot(ctx context.Context, req *connect.Request[apiv1.UpdateBotRequest]) (*connect.Response[apiv1.UpdateBotResponse], error) {

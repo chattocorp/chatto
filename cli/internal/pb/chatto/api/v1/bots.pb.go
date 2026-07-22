@@ -1178,7 +1178,10 @@ func (x *CreateBotRequest) GetDescription() string {
 type CreateBotResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Created bot.
-	Bot           *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	Bot *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	// Newly issued show-once API key. The server does not expose this secret
+	// again; replace it through RotateBotAPIKey if it is lost.
+	ApiKey        string `protobuf:"bytes,2,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1218,6 +1221,13 @@ func (x *CreateBotResponse) GetBot() *Bot {
 		return x.Bot
 	}
 	return nil
+}
+
+func (x *CreateBotResponse) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
 }
 
 // Patch request for one manageable bot.
@@ -1697,9 +1707,10 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x10CreateBotRequest\x12\x1d\n" +
 	"\x05login\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05login\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12)\n" +
-	"\vdescription\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdescription\"9\n" +
+	"\vdescription\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdescription\"R\n" +
 	"\x11CreateBotResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"\xc7\x01\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\x12\x17\n" +
+	"\aapi_key\x18\x02 \x01(\tR\x06apiKey\"\xc7\x01\n" +
 	"\x10UpdateBotRequest\x12\x1e\n" +
 	"\x06bot_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05botId\x12\x19\n" +
 	"\x05login\x18\x02 \x01(\tH\x00R\x05login\x88\x01\x01\x12&\n" +

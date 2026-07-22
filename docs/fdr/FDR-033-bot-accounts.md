@@ -170,8 +170,9 @@ facts.
 
 ### 9. One indefinite API key in v1
 
-**Decision:** Give each bot one API key with no automatic expiry. Replacing it
-issues a new secret and immediately invalidates the old one.
+**Decision:** Give each bot one API key with no automatic expiry. Bot creation
+issues the first show-once secret. Replacing it issues a new show-once secret
+and immediately invalidates the old one.
 **Why:** Long-running integrations generally need a durable credential. A
 single replacement action covers the first-version leak and rotation workflow
 without expiry policy, multiple-key administration, or overlapping credential

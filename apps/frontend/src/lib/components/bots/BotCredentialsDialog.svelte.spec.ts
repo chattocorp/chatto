@@ -6,114 +6,118 @@ import type { BotAccount } from '$lib/api-client/bots';
 import BotCredentialsDialog from './BotCredentialsDialog.svelte';
 
 const mocks = vi.hoisted(() => ({
-  rotateAPIKey: vi.fn(),
-  revokeAPIKey: vi.fn()
+	rotateAPIKey: vi.fn(),
+	revokeAPIKey: vi.fn()
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({ connectBaseUrl: '/api/connect', bearerToken: 'token' })
+	useConnection: () => () => ({ connectBaseUrl: '/api/connect', bearerToken: 'token' })
 }));
 
 vi.mock('$lib/api-client/bots', () => ({
-  createBotAPI: () => ({
-    rotateAPIKey: mocks.rotateAPIKey,
-    revokeAPIKey: mocks.revokeAPIKey
-  })
+	createBotAPI: () => ({
+		rotateAPIKey: mocks.rotateAPIKey,
+		revokeAPIKey: mocks.revokeAPIKey
+	})
 }));
 
 function bot(apiKeyCreatedAt: string | null = null): BotAccount {
-  return {
-    id: 'bot-1',
-    login: 'helper_bot',
-    displayName: 'Helper Bot',
-    avatarUrl: null,
-    ownerId: 'owner-1',
-    description: 'Helps people',
-    createdAt: '2026-07-22T12:00:00.000Z',
-    apiKeyCreatedAt
-  };
+	return {
+		id: 'bot-1',
+		login: 'helper_bot',
+		displayName: 'Helper Bot',
+		avatarUrl: null,
+		ownerId: 'owner-1',
+		description: 'Helps people',
+		createdAt: '2026-07-22T12:00:00.000Z',
+		apiKeyCreatedAt
+	};
 }
 
 async function settle() {
-  await Promise.resolve();
-  await Promise.resolve();
-  flushSync();
+	await Promise.resolve();
+	await Promise.resolve();
+	flushSync();
 }
 
 function button(container: HTMLElement, label: string): HTMLButtonElement {
-  const found = [...container.querySelectorAll('button')].find((item) =>
-    item.textContent?.includes(label)
-  );
-  if (!found) throw new Error(`button not found: ${label}`);
-  return found;
+	const found = [...container.querySelectorAll('button')].find((item) =>
+		item.textContent?.includes(label)
+	);
+	if (!found) throw new Error(`button not found: ${label}`);
+	return found;
 }
 
 describe('BotCredentialsDialog', () => {
-  beforeEach(() => {
-    mocks.rotateAPIKey.mockReset();
-    mocks.revokeAPIKey.mockReset();
-  });
+	beforeEach(() => {
+		mocks.rotateAPIKey.mockReset();
+		mocks.revokeAPIKey.mockReset();
+	});
 
-  it('confirms issuance and displays the returned secret exactly in the show-once panel', async () => {
-    const updated = bot('2026-07-22T13:00:00.000Z');
-    mocks.rotateAPIKey.mockResolvedValue({ bot: updated, apiKey: 'cht_BK-secret' });
-    const onupdated = vi.fn();
-    const { container } = render(BotCredentialsDialog, {
-      props: { bot: bot(), canRotate: true, onupdated, onclose: vi.fn() }
-    });
+	it('shows a creation secret directly without a confirmation dialog', () => {
+		const { container } = render(BotCredentialsDialog, {
+			props: {
+				bot: bot('2026-07-22T13:00:00.000Z'),
+				action: 'show',
+				initialSecret: 'cht_BK-created-secret',
+				onupdated: vi.fn(),
+				onclose: vi.fn()
+			}
+		});
 
-    button(container, 'Generate API key').click();
-    flushSync();
-    const generateButtons = [...container.querySelectorAll('button')].filter((item) =>
-      item.textContent?.includes('Generate API key')
-    );
-    generateButtons.at(-1)?.click();
-    await settle();
+		expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+		expect(container.querySelector('[data-testid="bot-api-key-secret"]')?.textContent).toBe(
+			'cht_BK-created-secret'
+		);
+		expect(container.textContent).not.toContain('Generate new API key?');
+	});
 
-    expect(mocks.rotateAPIKey).toHaveBeenCalledWith('bot-1');
-    expect(container.querySelector('[data-testid="bot-api-key-secret"]')?.textContent).toBe(
-      'cht_BK-secret'
-    );
-    expect(container.textContent).toContain('Chatto will not show it again');
-    expect(onupdated).toHaveBeenCalledWith(updated);
-  });
+	it('replaces the confirmation with the show-once dialog after rotation', async () => {
+		const updated = bot('2026-07-22T13:00:00.000Z');
+		mocks.rotateAPIKey.mockResolvedValue({ bot: updated, apiKey: 'cht_BK-rotated-secret' });
+		const onupdated = vi.fn();
+		const { container } = render(BotCredentialsDialog, {
+			props: {
+				bot: bot('2026-07-22T12:00:00.000Z'),
+				action: 'rotate',
+				onupdated,
+				onclose: vi.fn()
+			}
+		});
 
-  it('does not offer issuance to administrators', () => {
-    const { container } = render(BotCredentialsDialog, {
-      props: {
-        bot: bot('2026-07-22T13:00:00.000Z'),
-        canRotate: false,
-        onupdated: vi.fn(),
-        onclose: vi.fn()
-      }
-    });
+		expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+		expect(container.textContent).toContain('Generate new API key?');
+		button(container, 'Generate new API key').click();
+		await settle();
 
-    expect(container.textContent).not.toContain('Rotate API key');
-    expect(container.textContent).toContain('Revoke API key');
-  });
+		expect(mocks.rotateAPIKey).toHaveBeenCalledWith('bot-1');
+		expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
+		expect(container.textContent).not.toContain('Generate new API key?');
+		expect(container.querySelector('[data-testid="bot-api-key-secret"]')?.textContent).toBe(
+			'cht_BK-rotated-secret'
+		);
+		expect(onupdated).toHaveBeenCalledWith(updated);
+	});
 
-  it('confirms revocation and returns the credential-free bot', async () => {
-    const updated = bot();
-    mocks.revokeAPIKey.mockResolvedValue(updated);
-    const onupdated = vi.fn();
-    const { container } = render(BotCredentialsDialog, {
-      props: {
-        bot: bot('2026-07-22T13:00:00.000Z'),
-        canRotate: false,
-        onupdated,
-        onclose: vi.fn()
-      }
-    });
+	it('confirms revocation and closes without a second dialog', async () => {
+		const updated = bot();
+		mocks.revokeAPIKey.mockResolvedValue(updated);
+		const onupdated = vi.fn();
+		const onclose = vi.fn();
+		const { container } = render(BotCredentialsDialog, {
+			props: {
+				bot: bot('2026-07-22T13:00:00.000Z'),
+				action: 'revoke',
+				onupdated,
+				onclose
+			}
+		});
 
-    button(container, 'Revoke API key').click();
-    flushSync();
-    const revokeButtons = [...container.querySelectorAll('button')].filter((item) =>
-      item.textContent?.includes('Revoke API key')
-    );
-    revokeButtons.at(-1)?.click();
-    await settle();
+		button(container, 'Revoke API key').click();
+		await settle();
 
-    expect(mocks.revokeAPIKey).toHaveBeenCalledWith('bot-1');
-    expect(onupdated).toHaveBeenCalledWith(updated);
-  });
+		expect(mocks.revokeAPIKey).toHaveBeenCalledWith('bot-1');
+		expect(onupdated).toHaveBeenCalledWith(updated);
+		expect(onclose).toHaveBeenCalledOnce();
+	});
 });

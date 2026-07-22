@@ -1,4 +1,10 @@
-import type { BotAPI, BotAccount, CreateBotInput, UpdateBotInput } from '$lib/api-client/bots';
+import type {
+  BotAPI,
+  BotAccount,
+  CreatedBot,
+  CreateBotInput,
+  UpdateBotInput
+} from '$lib/api-client/bots';
 import type { UserAPI, UserSummary } from '$lib/api-client/users';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -68,12 +74,13 @@ export class BotManagementStore {
     }
   }
 
-  async create(input: CreateBotInput): Promise<BotAccount> {
-    const bot = await this.getBotAPI().createBot(input);
+  async create(input: CreateBotInput): Promise<CreatedBot> {
+    const created = await this.getBotAPI().createBot(input);
+    const bot = created.bot;
     this.bots = [bot, ...this.bots];
     this.totalCount += 1;
     await this.#hydrateOwners([bot], this.#requestId);
-    return bot;
+    return created;
   }
 
   async update(input: UpdateBotInput): Promise<BotAccount> {
