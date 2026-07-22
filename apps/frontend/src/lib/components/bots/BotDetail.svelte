@@ -215,7 +215,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
 				</div>
 			</Panel>
 
-			<BotPermissionsMatrix {botId} scrollWithinTable={false} />
+			<BotPermissionsMatrix {botId} />
 		</div>
 	</div>
 {/if}

@@ -114,18 +114,6 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
   );
 });
 
-it('can leave vertical scrolling to the surrounding page', () => {
-  const { container } = render(SubjectPermissionsMatrix, {
-    props: { data, onCycle: vi.fn(), scrollWithinTable: false }
-  });
-  const table = container.querySelector('table') as HTMLTableElement;
-  const viewport = table.parentElement as HTMLElement;
-
-  expect(viewport.className).toContain('overflow-x-auto');
-  expect(viewport.className).not.toContain('overflow-y-auto');
-  expect(container.querySelector('thead')?.className).not.toContain('sticky');
-});
-
 it('filters permission names as the query changes', () => {
   const { container } = render(SubjectPermissionsMatrix, { props: { data, onCycle: vi.fn() } });
   const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;

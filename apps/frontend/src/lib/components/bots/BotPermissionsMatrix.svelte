@@ -16,13 +16,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   import { Hint } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
-  let {
-    botId,
-    scrollWithinTable = true
-  }: {
-    botId: string;
-    scrollWithinTable?: boolean;
-  } = $props();
+  let { botId }: { botId: string } = $props();
 
   const connection = useConnection();
   let matrix = $state<BotPermissionMatrix | null>(null);
@@ -99,13 +93,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
 {/if}
 
 {#if data}
-  <SubjectPermissionsMatrix
-    {data}
-    {updatingKey}
-    {scrollWithinTable}
-    subjectKind="bot"
-    onCycle={cycle}
-  />
+  <SubjectPermissionsMatrix {data} {updatingKey} subjectKind="bot" onCycle={cycle} />
 {:else if !error}
   <div class="text-muted">{m['rbac.permissions.loading']()}</div>
 {/if}
