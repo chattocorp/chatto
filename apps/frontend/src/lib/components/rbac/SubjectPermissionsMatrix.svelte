@@ -55,7 +55,8 @@ its dense matrix rows scroll.
     onCycle,
     subjectKind = 'subject',
     forceAllow = false,
-    readOnly = false
+    readOnly = false,
+    scrollContainer = $bindable<HTMLDivElement | undefined>()
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -67,6 +68,8 @@ its dense matrix rows scroll.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
+    /** The dense matrix's internal scroll viewport. */
+    scrollContainer?: HTMLDivElement;
   } = $props();
 
   let hoveredCell = $state<MatrixCoordinate | null>(null);
@@ -201,6 +204,7 @@ its dense matrix rows scroll.
       stickyHeader
       stickyHeaderFadeOffset="top-48"
       hoverable={false}
+      bind:scrollContainer
     >
           {#snippet header()}
             <th

@@ -29,6 +29,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   let matrix = $state<BotPermissionMatrix | null>(null);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let matrixScrollContainer = $state<HTMLDivElement>();
   let loadGeneration = 0;
 
   const data = $derived<MatrixData | null>(
@@ -76,7 +77,10 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     // The server enforces this ceiling too. Keep the impossible grant out of
     // the request entirely so the UI cannot suggest it is configurable.
     if (next === 'allow' && targetCell?.ownerAllowed === false) return;
-    const pageScrollTop = pageScrollContainer?.scrollTop;
+    const pageScroller = pageScrollContainer;
+    const matrixScroller = matrixScrollContainer;
+    const pageScrollTop = pageScroller?.scrollTop;
+    const matrixScrollTop = matrixScroller?.scrollTop;
     updatingKey = key;
     error = null;
     try {
@@ -112,9 +116,13 @@ the bot's direct decisions while preserving the owner's permission ceiling.
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
       if (generation === loadGeneration && targetBotId === botId) updatingKey = null;
-      if (pageScrollContainer && pageScrollTop !== undefined) {
+      if (pageScroller && pageScrollTop !== undefined) {
         await tick();
-        pageScrollContainer.scrollTop = pageScrollTop;
+        pageScroller.scrollTop = pageScrollTop;
+      }
+      if (matrixScroller && matrixScrollTop !== undefined) {
+        await tick();
+        matrixScroller.scrollTop = matrixScrollTop;
       }
     }
   }
@@ -129,7 +137,13 @@ the bot's direct decisions while preserving the owner's permission ceiling.
 {/if}
 
 {#if data}
-  <SubjectPermissionsMatrix {data} {updatingKey} subjectKind="bot" onCycle={cycle} />
+  <SubjectPermissionsMatrix
+    {data}
+    {updatingKey}
+    subjectKind="bot"
+    onCycle={cycle}
+    bind:scrollContainer={matrixScrollContainer}
+  />
 {:else if !error}
   <div class="text-muted">{m['rbac.permissions.loading']()}</div>
 {/if}
