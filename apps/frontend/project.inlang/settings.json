@@ -25,7 +25,8 @@
       "./messages/{locale}/emoji.json",
       "./messages/{locale}/media.json",
       "./messages/{locale}/rbac.json",
-      "./messages/{locale}/admin.json"
+      "./messages/{locale}/admin.json",
+      "./messages/{locale}/bots.json"
     ]
   },
   "baseLocale": "en-GB",

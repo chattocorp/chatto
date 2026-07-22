@@ -16,6 +16,7 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getAdminNavItems } from './adminNav';
+  import { BOT_ACCOUNTS_CAPABILITY } from '$lib/state/server/compatibility';
   import * as m from '$lib/i18n/messages';
 
   let { children } = $props();
@@ -59,7 +60,20 @@
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m['settings.nav.account'](),
       icon: 'iconify uil--setting'
-    }
+    },
+    ...(activeStore.serverInfo.supportsProtocolCapability(BOT_ACCOUNTS_CAPABILITY) === true &&
+    (activeStore.projection.viewer
+      ? (viewerResponseToState(activeStore.projection.viewer).viewerPermissions['bot.create'] ??
+        false)
+      : false)
+      ? [
+          {
+            href: resolve('/chat/[serverId]/settings/bots', { serverId: serverSegment }),
+            label: m['bots.nav'](),
+            icon: 'iconify uil--robot'
+          }
+        ]
+      : [])
   ]);
 
   // Detect if we're on the server Overview page
@@ -85,6 +99,9 @@
     canAssignRoles: boolean;
     canManageUserAccounts: boolean;
     canManageUserPermissions: boolean;
+    canCreateBots: boolean;
+    canManageBots: boolean;
+    supportsBots: boolean;
   };
 
   // Server chrome is part of the canonical retained projection. Switching a
@@ -104,7 +121,11 @@
       canManageRoles: viewer.canAdminManageRoles,
       canAssignRoles: viewer.canAssignRoles,
       canManageUserAccounts: viewer.canAdminManageAccounts,
-      canManageUserPermissions: viewer.canManageUserPermissions
+      canManageUserPermissions: viewer.canManageUserPermissions,
+      canCreateBots: can('bot.create'),
+      canManageBots: can('bot.manage'),
+      supportsBots:
+        activeStore.serverInfo.supportsProtocolCapability(BOT_ACCOUNTS_CAPABILITY) === true
     };
   });
 
@@ -118,7 +139,9 @@
         canManageRoles: serverData.canManageRoles,
         canAssignRoles: serverData.canAssignRoles,
         canManageUserAccounts: serverData.canManageUserAccounts,
-        canManageUserPermissions: serverData.canManageUserPermissions
+        canManageUserPermissions: serverData.canManageUserPermissions,
+        canManageBots: serverData.canManageBots,
+        supportsBots: serverData.supportsBots
       });
     }
   });
@@ -174,7 +197,7 @@
                 icon: 'iconify uil--setting'
               }
             ]
-        : []
+          : []
   );
   const adminHref = $derived(adminNavItems[0]?.href);
 

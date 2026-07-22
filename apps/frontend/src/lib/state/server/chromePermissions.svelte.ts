@@ -15,6 +15,8 @@ export type ChromePermissions = {
   canAssignRoles: boolean;
   canManageUserAccounts: boolean;
   canManageUserPermissions: boolean;
+  canManageBots: boolean;
+  supportsBots: boolean;
 };
 
 const [getChromePermissionsState, setChromePermissionsState] = createContext<{
@@ -26,7 +28,9 @@ const [getChromePermissionsState, setChromePermissionsState] = createContext<{
  * Must be called synchronously during component initialization.
  * Returns a function to update the permissions.
  */
-export function createChromePermissions(): (permissions: Omit<ChromePermissions, 'loaded'>) => void {
+export function createChromePermissions(): (
+  permissions: Omit<ChromePermissions, 'loaded'>
+) => void {
   const state = $state<{ current: ChromePermissions }>({
     current: {
       loaded: false,
@@ -36,7 +40,9 @@ export function createChromePermissions(): (permissions: Omit<ChromePermissions,
       canManageRoles: false,
       canAssignRoles: false,
       canManageUserAccounts: false,
-      canManageUserPermissions: false
+      canManageUserPermissions: false,
+      canManageBots: false,
+      supportsBots: false
     }
   });
   setChromePermissionsState(state);
