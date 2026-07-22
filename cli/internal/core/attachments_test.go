@@ -149,7 +149,10 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "attachment-retrieval", "Attachment retrieval")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
 
 	originalData := []byte("This is the original attachment content!")
 
