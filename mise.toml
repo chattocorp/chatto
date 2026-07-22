@@ -201,7 +201,7 @@ run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
