@@ -55,8 +55,9 @@ const (
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
 type BotServiceClient interface {
-	// Lists bots the caller may manage. Owners need `bot.create`; administrators
-	// need `bot.manage` to see bots owned by other users.
+	// Lists bots the caller may manage, optionally restricted to bots the caller
+	// owns. Owners need `bot.create`; administrators need `bot.manage` to see
+	// bots owned by other users.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	// Gets one manageable bot. Returns NOT_FOUND for an unknown account and
 	// PERMISSION_DENIED when the bot exists but the caller may not manage it.
@@ -196,8 +197,9 @@ func (c *botServiceClient) RevokeBotAPIKey(ctx context.Context, req *connect.Req
 
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
-	// Lists bots the caller may manage. Owners need `bot.create`; administrators
-	// need `bot.manage` to see bots owned by other users.
+	// Lists bots the caller may manage, optionally restricted to bots the caller
+	// owns. Owners need `bot.create`; administrators need `bot.manage` to see
+	// bots owned by other users.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	// Gets one manageable bot. Returns NOT_FOUND for an unknown account and
 	// PERMISSION_DENIED when the bot exists but the caller may not manage it.

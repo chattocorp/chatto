@@ -141,9 +141,11 @@ type ListBotsRequest struct {
 	// Optional case-insensitive search against login and display name.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
 	// Page request. Defaults to 20 results when absent or limit is zero.
-	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Page *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	// When true, returns only bots whose owner is the authenticated caller.
+	OwnedByCallerOnly bool `protobuf:"varint,3,opt,name=owned_by_caller_only,json=ownedByCallerOnly,proto3" json:"owned_by_caller_only,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListBotsRequest) Reset() {
@@ -188,6 +190,13 @@ func (x *ListBotsRequest) GetPage() *PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListBotsRequest) GetOwnedByCallerOnly() bool {
+	if x != nil {
+		return x.OwnedByCallerOnly
+	}
+	return false
 }
 
 // Page of manageable bot accounts.
@@ -955,10 +964,11 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\aapi_key\x18\x03 \x01(\v2\x18.chatto.api.v1.BotAPIKeyR\x06apiKey\"F\n" +
 	"\tBotAPIKey\x129\n" +
 	"\n" +
-	"created_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"b\n" +
+	"created_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x93\x01\n" +
 	"\x0fListBotsRequest\x12\x1f\n" +
 	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"g\n" +
+	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12/\n" +
+	"\x14owned_by_caller_only\x18\x03 \x01(\bR\x11ownedByCallerOnly\"g\n" +
 	"\x10ListBotsResponse\x12&\n" +
 	"\x04bots\x18\x01 \x03(\v2\x12.chatto.api.v1.BotR\x04bots\x12+\n" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"/\n" +

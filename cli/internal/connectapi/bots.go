@@ -34,6 +34,9 @@ func (s *botService) ListBots(ctx context.Context, req *connect.Request[apiv1.Li
 	query := strings.ToLower(strings.TrimSpace(req.Msg.GetSearch()))
 	visible := bots[:0]
 	for _, bot := range bots {
+		if req.Msg.GetOwnedByCallerOnly() && bot.GetBot().GetOwnerId() != caller.UserID {
+			continue
+		}
 		allowed, err := s.api.core.CanManageBot(ctx, caller.UserID, bot.GetId())
 		if err != nil {
 			return nil, connectError(err)

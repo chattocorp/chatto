@@ -3,6 +3,7 @@ import type { UserAPI, UserSummary } from '$lib/api-client/users';
 import { SvelteSet } from 'svelte/reactivity';
 
 const PAGE_SIZE = 20;
+export type BotListScope = 'owned' | 'manageable';
 
 export class BotManagementStore {
   bots = $state.raw<BotAccount[]>([]);
@@ -16,6 +17,7 @@ export class BotManagementStore {
   #requestId = 0;
 
   constructor(
+    private readonly getScope: () => BotListScope,
     private readonly getBotAPI: () => BotAPI,
     private readonly getUserAPI: () => UserAPI
   ) {}
@@ -25,7 +27,10 @@ export class BotManagementStore {
     this.loading = true;
     this.error = null;
     try {
-      const page = await this.getBotAPI().listBots({ limit: PAGE_SIZE });
+      const page = await this.getBotAPI().listBots({
+        limit: PAGE_SIZE,
+        ownedByCallerOnly: this.getScope() === 'owned'
+      });
       if (requestId !== this.#requestId) return;
       this.bots = page.bots;
       this.totalCount = page.totalCount;
@@ -44,7 +49,11 @@ export class BotManagementStore {
     this.loadingMore = true;
     this.error = null;
     try {
-      const page = await this.getBotAPI().listBots({ limit: PAGE_SIZE, offset: this.bots.length });
+      const page = await this.getBotAPI().listBots({
+        limit: PAGE_SIZE,
+        offset: this.bots.length,
+        ownedByCallerOnly: this.getScope() === 'owned'
+      });
       if (requestId !== this.#requestId) return;
       const seen = new SvelteSet(this.bots.map((bot) => bot.id));
       const additions = page.bots.filter((bot) => !seen.has(bot.id));

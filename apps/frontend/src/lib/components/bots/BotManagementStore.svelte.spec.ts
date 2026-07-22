@@ -35,13 +35,22 @@ describe('BotManagementStore', () => {
     ]);
     const botAPI = { listBots, createBot, updateBot } as unknown as BotAPI;
     const userAPI = { batchGetUsers } as unknown as UserAPI;
-    const store = new BotManagementStore(() => botAPI, () => userAPI);
+    const store = new BotManagementStore(() => 'owned', () => botAPI, () => userAPI);
 
     await store.load();
+    expect(listBots).toHaveBeenNthCalledWith(1, {
+      limit: 20,
+      ownedByCallerOnly: true
+    });
     expect(store.bots.map((item) => item.id)).toEqual(['one']);
     expect(store.owner(store.bots[0])?.displayName).toBe('Bot Owner');
 
     await store.loadMore();
+    expect(listBots).toHaveBeenNthCalledWith(2, {
+      limit: 20,
+      offset: 1,
+      ownedByCallerOnly: true
+    });
     expect(store.bots.map((item) => item.id)).toEqual(['one', 'two']);
     expect(batchGetUsers).toHaveBeenCalledTimes(1);
 

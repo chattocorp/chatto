@@ -43,12 +43,18 @@ export function createBotAPI(config: BotAPIConfig) {
 
   return {
     async listBots(
-      input: { search?: string; limit?: number; offset?: number } = {}
+      input: {
+        search?: string;
+        limit?: number;
+        offset?: number;
+        ownedByCallerOnly?: boolean;
+      } = {}
     ): Promise<BotPage> {
       const response = await client.listBots(
         {
           search: input.search ?? '',
-          page: { limit: input.limit ?? 20, offset: input.offset ?? 0 }
+          page: { limit: input.limit ?? 20, offset: input.offset ?? 0 },
+          ownedByCallerOnly: input.ownedByCallerOnly ?? false
         },
         { headers: headers() }
       );

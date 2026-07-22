@@ -16,8 +16,9 @@ export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
     /**
-     * Lists bots the caller may manage. Owners need `bot.create`; administrators
-     * need `bot.manage` to see bots owned by other users.
+     * Lists bots the caller may manage, optionally restricted to bots the caller
+     * owns. Owners need `bot.create`; administrators need `bot.manage` to see
+     * bots owned by other users.
      *
      * @generated from rpc chatto.api.v1.BotService.ListBots
      */

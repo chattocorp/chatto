@@ -23,6 +23,9 @@ possess.
   additional durable signal, not a substitute for accessible UI treatment.
 - Every bot has exactly one human owner. Bot profiles and administration
   surfaces identify that owner.
+- A person's bot-management page lists only bots they own, even when that
+  person also has administrative authority. The separate server-administration
+  surface lists all bots the administrator is authorized to manage.
 - Every bot has a required description explaining what it does. Bot owners are
   expected to disclose relevant data handling in that description. The first
   version may present this as plain text before richer bot profiles exist.

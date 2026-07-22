@@ -128,6 +128,13 @@ export class ListBotsRequest extends Message<ListBotsRequest> {
    */
   page?: PageRequest;
 
+  /**
+   * When true, returns only bots whose owner is the authenticated caller.
+   *
+   * @generated from field: bool owned_by_caller_only = 3;
+   */
+  ownedByCallerOnly = false;
+
   constructor(data?: PartialMessage<ListBotsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -138,6 +145,7 @@ export class ListBotsRequest extends Message<ListBotsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "page", kind: "message", T: PageRequest },
+    { no: 3, name: "owned_by_caller_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBotsRequest {

@@ -31,6 +31,8 @@ message ListBotsRequest {
   string search = 1 [(buf.validate.field).string.max_len = 100];
   // Page request. Defaults to 20 results when absent or limit is zero.
   PageRequest page = 2;
+  // When true, returns only bots whose owner is the authenticated caller.
+  bool owned_by_caller_only = 3;
 }
 
 // Page of manageable bot accounts.
@@ -146,8 +148,9 @@ message RevokeBotAPIKeyResponse {
 // Manages bot accounts owned by the authenticated human or, with
 // administrative authority, by other users.
 service BotService {
-  // Lists bots the caller may manage. Owners need `bot.create`; administrators
-  // need `bot.manage` to see bots owned by other users.
+  // Lists bots the caller may manage, optionally restricted to bots the caller
+  // owns. Owners need `bot.create`; administrators need `bot.manage` to see
+  // bots owned by other users.
   rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
   // Gets one manageable bot. Returns NOT_FOUND for an unknown account and
   // PERMISSION_DENIED when the bot exists but the caller may not manage it.

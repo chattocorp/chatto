@@ -4202,6 +4202,20 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.GetId(), core.RoleAdmin); err != nil {
 		t.Fatal(err)
 	}
+	adminList, err := env.bots.ListBots(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.ListBotsRequest{}))
+	if err != nil {
+		t.Fatalf("admin ListBots: %v", err)
+	}
+	if len(adminList.Msg.GetBots()) != 1 || adminList.Msg.GetBots()[0].GetUser().GetId() != botID {
+		t.Fatalf("admin ListBots = %+v, want manageable bot", adminList.Msg)
+	}
+	ownedList, err := env.bots.ListBots(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.ListBotsRequest{OwnedByCallerOnly: true}))
+	if err != nil {
+		t.Fatalf("admin owned ListBots: %v", err)
+	}
+	if len(ownedList.Msg.GetBots()) != 0 || ownedList.Msg.GetPage().GetTotalCount() != 0 {
+		t.Fatalf("admin owned ListBots = %+v, want no bots owned by caller", ownedList.Msg)
+	}
 	if _, err := env.bots.GetBot(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); err != nil {
 		t.Fatalf("admin GetBot: %v", err)
 	}

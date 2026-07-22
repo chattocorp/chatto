@@ -29,6 +29,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
 
   const connection = useConnection();
   const store = new BotManagementStore(
+    () => (scope === 'owner' ? 'owned' : 'manageable'),
     () => {
       const conn = connection();
       return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
