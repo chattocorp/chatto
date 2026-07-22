@@ -24,6 +24,7 @@ headers are clickable when `onRoleClick` is provided
 focusing a cell highlights its permission row and role column.
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import type { Snippet } from 'svelte';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
@@ -385,7 +386,7 @@ focusing a cell highlights its permission row and role column.
             style="width: 2rem; min-width: 2rem; height: 12rem"
           >
             <a
-              href={newRoleHref}
+              href={resolve(newRoleHref)}
               class="cursor-pointer text-sm font-medium text-action hover:underline"
               style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
               data-testid="new-role-column"
