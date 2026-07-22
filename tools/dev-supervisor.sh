@@ -5,6 +5,7 @@
 set -uo pipefail
 
 supervised_pid=""
+supervised_pgid=""
 cleaning_up=false
 
 descendants_of() {
@@ -44,6 +45,9 @@ stop_descendants() {
 	if [[ -n "$supervised_pid" ]]; then
 		kill -TERM "$supervised_pid" 2>/dev/null || true
 	fi
+	if [[ -n "$supervised_pgid" ]]; then
+		kill -TERM -- "-$supervised_pgid" 2>/dev/null || true
+	fi
 
 	# Conductor gives the Run command 200 ms to stop after SIGHUP before it
 	# force-kills that command. Give cooperative children a brief chance to
@@ -57,6 +61,9 @@ stop_descendants() {
 	if [[ -n "$supervised_pid" ]]; then
 		kill -KILL "$supervised_pid" 2>/dev/null || true
 		wait "$supervised_pid" 2>/dev/null || true
+	fi
+	if [[ -n "$supervised_pgid" ]]; then
+		kill -KILL -- "-$supervised_pgid" 2>/dev/null || true
 	fi
 }
 
@@ -75,8 +82,18 @@ if (( $# == 0 )); then
 	set -- mise run --jobs 4 --output prefix dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
 fi
 
+# A separate process group remains addressable even if the supervised command
+# exits before one of its descendants. Briefly enabling job control makes Bash
+# create that group without requiring a platform-specific setsid utility.
+set -m
 "$@" &
 supervised_pid=$!
+set +m
+supervised_pgid="$(ps -p "$supervised_pid" -o pgid= 2>/dev/null | tr -d ' ' || true)"
+own_pgid="$(ps -p "$$" -o pgid= 2>/dev/null | tr -d ' ' || true)"
+if [[ ! "$supervised_pgid" =~ ^[0-9]+$ || "$supervised_pgid" == "$own_pgid" ]]; then
+	supervised_pgid=""
+fi
 wait "$supervised_pid"
 status=$?
 stop_descendants
