@@ -37,10 +37,10 @@ const (
 )
 
 type liveKitParticipantSnapshot struct {
-	SpaceID string
-	RoomID  string
-	CallID  string
-	UserIDs []string
+	LegacySpaceID string
+	RoomID        string
+	CallID        string
+	UserIDs       []string
 }
 
 type liveKitParticipantLister interface {
@@ -48,7 +48,7 @@ type liveKitParticipantLister interface {
 }
 
 type liveKitParticipantRemover interface {
-	RemoveCallParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error
+	RemoveCallParticipant(ctx context.Context, legacySpaceID, roomID, callID, userID string) error
 }
 
 type CallModel struct {
@@ -203,7 +203,7 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 		if room == nil || !liveKitRoomBelongsToInstance(room.GetName(), c.serverID) {
 			continue
 		}
-		spaceID, roomID, callID := ParseLiveKitRoomIdentity(room.GetName())
+		legacySpaceID, roomID, callID := ParseLiveKitRoomIdentity(room.GetName())
 		if roomID == "" {
 			continue
 		}
@@ -213,7 +213,7 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 		)
 		if err != nil {
 			if isLiveKitRoomNotFound(err) {
-				out = append(out, liveKitParticipantSnapshot{SpaceID: spaceID, RoomID: roomID, CallID: callID})
+				out = append(out, liveKitParticipantSnapshot{LegacySpaceID: legacySpaceID, RoomID: roomID, CallID: callID})
 				continue
 			}
 			return nil, err
@@ -225,13 +225,13 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			}
 		}
 		sort.Strings(userIDs)
-		out = append(out, liveKitParticipantSnapshot{SpaceID: spaceID, RoomID: roomID, CallID: callID, UserIDs: userIDs})
+		out = append(out, liveKitParticipantSnapshot{LegacySpaceID: legacySpaceID, RoomID: roomID, CallID: callID, UserIDs: userIDs})
 	}
 	return out, nil
 }
 
-func (c *liveKitRoomClient) RemoveCallParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error {
-	roomName := LiveKitRoomName(c.serverID, spaceID, roomID, callID)
+func (c *liveKitRoomClient) RemoveCallParticipant(ctx context.Context, legacySpaceID, roomID, callID, userID string) error {
+	roomName := liveKitRoomName(c.serverID, legacySpaceID, roomID, callID)
 	_, err := c.service.RemoveParticipant(
 		c.withVideoGrant(ctx, &lkauth.VideoGrant{RoomAdmin: true, Room: roomName}),
 		&livekit.RoomParticipantIdentity{Room: roomName, Identity: userID},
@@ -290,7 +290,7 @@ func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, erro
 	return key, nil
 }
 
-func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error {
+func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, kind RoomKind, roomID, callID, userID string) error {
 	if s.livekit == nil {
 		return nil
 	}
@@ -298,7 +298,7 @@ func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, spaceID, roomI
 	if !ok {
 		return nil
 	}
-	return remover.RemoveCallParticipant(ctx, spaceID, roomID, callID, userID)
+	return remover.RemoveCallParticipant(ctx, LegacySpaceIDForRoomKind(kind), roomID, callID, userID)
 }
 
 func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) error {
@@ -691,7 +691,7 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 		if userID == "" {
 			continue
 		}
-		if err := remover.RemoveCallParticipant(ctx, snapshot.SpaceID, snapshot.RoomID, snapshot.CallID, userID); err != nil {
+		if err := remover.RemoveCallParticipant(ctx, snapshot.LegacySpaceID, snapshot.RoomID, snapshot.CallID, userID); err != nil {
 			return fmt.Errorf("remove participant from unmatched LiveKit call: %w", err)
 		}
 	}

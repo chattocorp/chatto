@@ -1900,17 +1900,6 @@ func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 }
 
 // ============================================================================
-// Stream Management
-// ============================================================================
-
-// createSpaceResources is now a no-op: room/user domain state lives in EVT and
-// deployment-wide projections. Kept as a stub so callers don't have to be
-// edited until the broader Space-retirement pass.
-func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
-	return nil
-}
-
-// ============================================================================
 // Event Streaming
 // ============================================================================
 

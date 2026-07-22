@@ -447,7 +447,7 @@ func (c *ChattoCore) removeLiveKitParticipantAfterRoomLeave(ctx context.Context,
 	if cleanup.callID == "" || c.callModel == nil {
 		return
 	}
-	if err := c.callModel.RemoveLiveKitParticipant(ctx, LegacySpaceIDForRoomKind(cleanup.kind), cleanup.roomID, cleanup.callID, cleanup.userID); err != nil {
+	if err := c.callModel.RemoveLiveKitParticipant(ctx, cleanup.kind, cleanup.roomID, cleanup.callID, cleanup.userID); err != nil {
 		c.logger.Warn("Failed to remove room-leaving participant from LiveKit call", "room_id", cleanup.roomID, "call_id", cleanup.callID, "error", err)
 	}
 }

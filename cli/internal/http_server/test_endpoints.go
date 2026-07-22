@@ -442,12 +442,8 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 	// Simulate a participant joining a call
 	webhooks.POST("/test/call-join", func(c *gin.Context) {
 		var req struct {
-			SpaceID     string `json:"spaceId" binding:"required"`
-			RoomID      string `json:"roomId" binding:"required"`
-			UserID      string `json:"userId" binding:"required"`
-			DisplayName string `json:"displayName"`
-			Login       string `json:"login"`
-			AvatarURL   string `json:"avatarUrl"`
+			RoomID string `json:"roomId" binding:"required"`
+			UserID string `json:"userId" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -456,9 +452,7 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 
 		if err := s.core.HandleCallParticipantJoined(
 			c.Request.Context(),
-			req.SpaceID, req.RoomID,
-			req.UserID, req.DisplayName,
-			req.Login, req.AvatarURL,
+			req.RoomID, req.UserID,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -469,9 +463,8 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 	// Simulate a participant leaving a call
 	webhooks.POST("/test/call-leave", func(c *gin.Context) {
 		var req struct {
-			SpaceID string `json:"spaceId" binding:"required"`
-			RoomID  string `json:"roomId" binding:"required"`
-			UserID  string `json:"userId" binding:"required"`
+			RoomID string `json:"roomId" binding:"required"`
+			UserID string `json:"userId" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -480,8 +473,7 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 
 		if err := s.core.HandleCallParticipantLeft(
 			c.Request.Context(),
-			req.SpaceID, req.RoomID,
-			req.UserID,
+			req.RoomID, req.UserID,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

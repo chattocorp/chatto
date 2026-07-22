@@ -38,7 +38,7 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	}
 	s.setupWebhookRoutes()
 
-	if err := s.core.RecordCallParticipantJoined(ctx, core.KindChannel, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	active, ok := s.core.CallState.ActiveCall(roomID)
@@ -52,7 +52,7 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	event := &livekit.WebhookEvent{
 		Event: webhook.EventParticipantLeft,
 		Room: &livekit.Room{
-			Name: core.LiveKitRoomName(serverID, core.LegacySpaceIDForRoomKind(core.KindChannel), roomID, active.CallID),
+			Name: core.LiveKitRoomName(serverID, core.KindChannel, roomID, active.CallID),
 		},
 		Participant: &livekit.ParticipantInfo{
 			Identity:         userID,
@@ -66,7 +66,7 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 		t.Fatalf("webhook status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 
-	participants, err := s.core.GetCallParticipants(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel), roomID)
+	participants, err := s.core.GetCallParticipants(roomID)
 	if err != nil {
 		t.Fatalf("GetCallParticipants() error = %v", err)
 	}
@@ -93,6 +93,55 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	}
 	if len(endedEvents) != 0 {
 		t.Fatalf("call_ended events after duplicate identity leave = %d, want 0", len(endedEvents))
+	}
+}
+
+func TestLiveKitWebhookParticipantLeftUsesParsedRoomID(t *testing.T) {
+	const (
+		apiKey    = "devkey"
+		apiSecret = "devsecret"
+		serverID  = "test-server"
+		roomID    = "room1"
+		userID    = "user1"
+	)
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.example.test",
+		APIKey:    apiKey,
+		APISecret: apiSecret,
+		ServerID:  serverID,
+	}
+	s.setupWebhookRoutes()
+
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	active, ok := s.core.CallState.ActiveCall(roomID)
+	if !ok || active.CallID == "" {
+		t.Fatalf("expected active call for room %s", roomID)
+	}
+
+	event := &livekit.WebhookEvent{
+		Event: webhook.EventParticipantLeft,
+		Room: &livekit.Room{
+			Name: core.LiveKitRoomName(serverID, core.KindChannel, roomID, active.CallID),
+		},
+		Participant: &livekit.ParticipantInfo{Identity: userID},
+	}
+	recorder := httptest.NewRecorder()
+	s.router.ServeHTTP(recorder, signedLiveKitWebhookRequest(t, apiKey, apiSecret, event))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("webhook status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	participants, err := s.core.GetCallParticipants(roomID)
+	if err != nil {
+		t.Fatalf("GetCallParticipants() error = %v", err)
+	}
+	if len(participants) != 0 {
+		t.Fatalf("participants after leave = %+v, want none", participants)
 	}
 }
 
