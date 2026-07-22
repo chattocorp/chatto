@@ -196,14 +196,19 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 }
 
 func (c *ChattoCore) hasPermissionAtScope(ctx context.Context, userID string, scope PermissionScope, scopeID string, perm Permission) (bool, error) {
+	var (
+		decision DecisionKind
+		err      error
+	)
 	switch scope {
 	case ScopeServer:
-		return c.HasServerPermission(ctx, userID, perm)
+		decision, err = c.PermResolver().resolveBotOwnerCeilingWithGroup(ctx, userID, KindChannel, "", "", perm)
 	case ScopeGroup:
-		return c.hasGroupPermission(ctx, KindChannel, scopeID, userID, perm)
+		decision, err = c.PermResolver().resolveBotOwnerCeilingWithGroup(ctx, userID, KindChannel, "", scopeID, perm)
 	case ScopeRoom:
-		return c.hasRoomPermission(ctx, KindChannel, scopeID, userID, perm)
+		decision, err = c.PermResolver().resolveBotOwnerCeilingWithGroup(ctx, userID, KindChannel, scopeID, "", perm)
 	default:
 		return false, ErrInvalidArgument
 	}
+	return decision == DecisionAllow, err
 }

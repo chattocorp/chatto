@@ -37,6 +37,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   let originalDisplayName = $state('');
   let originalDescription = $state('');
   let credentialAction = $state<'rotate' | 'revoke' | null>(null);
+  let pageScrollContainer = $state<HTMLDivElement>();
   let loadGeneration = 0;
 
   const normalizedLogin = $derived(login.trim());
@@ -153,7 +154,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <PaneHeader title={bot.displayName} subtitle={`@${bot.login}`} {backHref} showMobileNav />
 
-    <PaneContent>
+    <PaneContent bind:scrollContainer={pageScrollContainer}>
       <div class="flex flex-col gap-6">
         <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
           <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
@@ -223,7 +224,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
           </div>
         </Panel>
 
-        <BotPermissionsMatrix {botId} />
+        <BotPermissionsMatrix {botId} {pageScrollContainer} />
       </div>
     </PaneContent>
   </div>

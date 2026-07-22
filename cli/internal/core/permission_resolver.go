@@ -100,7 +100,7 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		if err != nil {
 			return DecisionNone, err
 		}
-		ownerDecision, err := r.resolveAccountWithGroup(ctx, ownerID, kind, roomID, explicitGroupID, perm)
+		ownerDecision, err := r.resolveBotOwnerCeilingWithGroup(ctx, ownerID, kind, roomID, explicitGroupID, perm)
 		if err != nil {
 			return DecisionNone, err
 		}
@@ -119,6 +119,31 @@ func (r *PermissionResolver) resolveAccountWithGroup(ctx context.Context, userID
 			return DecisionAllow, nil
 		}
 	}
+	return r.resolveAccountRBACWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+}
+
+// resolveBotOwnerCeilingWithGroup evaluates what an account may delegate to
+// its bots. Explicit RBAC denies constrain delegation even for a server owner;
+// the virtual owner override supplies an allow only when ordinary RBAC does not
+// resolve to deny.
+func (r *PermissionResolver) resolveBotOwnerCeilingWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+	decision, err := r.resolveAccountRBACWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+	if err != nil || decision == DecisionDeny {
+		return decision, err
+	}
+	if _, known := GetPermissionMetadata(perm); known {
+		isOwner, err := r.core.IsServerOwner(ctx, userID)
+		if err != nil {
+			return DecisionNone, err
+		}
+		if isOwner {
+			return DecisionAllow, nil
+		}
+	}
+	return decision, nil
+}
+
+func (r *PermissionResolver) resolveAccountRBACWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil

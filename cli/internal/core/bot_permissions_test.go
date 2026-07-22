@@ -188,6 +188,48 @@ func TestBotPermissionManagementBoundsAndAdministration(t *testing.T) {
 	}
 }
 
+func TestBotOwnerCeilingHonorsExplicitDenyForServerOwner(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "serverbotowner", "Server Bot Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, owner.GetId(), RoleOwner); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := c.CreateBotAs(ctx, owner.GetId(), "server_owned_bot", "Server Owned Bot", "Test bot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DenyUserPermission(ctx, SystemActorID, owner.GetId(), PermRoomManage); err != nil {
+		t.Fatal(err)
+	}
+
+	matrix, err := c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, cell := range matrix.Cells {
+		if cell.ScopeID == "server" && cell.Permission == string(PermRoomManage) {
+			found = true
+			if cell.OwnerAllowed {
+				t.Fatalf("owner ceiling = %+v, want deny to constrain delegation", cell)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("server room.manage cell not found")
+	}
+	if err := c.SetBotPermission(ctx, owner.GetId(), bot.GetId(), ScopeServer, "", PermRoomManage, DecisionAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("server-owner bot grant above explicit deny = %v, want permission denied", err)
+	}
+}
+
 func assertPermissionDecision(t *testing.T, c *ChattoCore, ctx context.Context, userID string, perm Permission, want DecisionKind) {
 	t.Helper()
 	got, err := c.ResolveUserPermission(ctx, userID, KindChannel, "", perm)

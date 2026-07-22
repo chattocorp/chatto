@@ -39,6 +39,12 @@ copied into durable bot grants as a substitute for checking the owner. A bot
 grant therefore means "this bot may use this capability while its owner may
 also use it," not an independent source of authority.
 
+The built-in Server Owner role's virtual allow is only the fallback for this
+delegation ceiling. An explicit RBAC deny that applies to the owner still
+prevents the capability from being delegated to a bot. This gives even Server
+Owners a meaningful way to constrain all bots they own without weakening their
+own emergency administrative access.
+
 Bots resolve through ordinary RBAC, including the implicit `everyone` baseline,
 assigned roles, direct user decisions, and server, group, and room scopes. A new
 bot has no roles or direct decisions, so its initial authority is the

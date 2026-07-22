@@ -38,6 +38,9 @@ possess.
   authority and its owner's current effective authority at the same resource
   and scope. A bot-specific restriction can narrow that authority; no bot
   setting can widen it beyond the owner.
+- Explicit denies on an owner constrain their bots even when the owner has the
+  built-in Server Owner role. The role's virtual allow cannot be used to
+  delegate through a deny.
 - Changes to the owner's roles, direct permission decisions, or account status
   constrain the bot immediately. Suspending the owner also suspends the bot.
 - Bot administration presents a permission matrix that lets the owner narrow

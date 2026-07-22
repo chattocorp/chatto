@@ -6,6 +6,7 @@ Shared bot permission editor for owner settings and Server Admin. It exposes
 the bot's direct decisions while preserving the owner's permission ceiling.
 -->
 <script lang="ts">
+  import { tick } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createBotAPI, type BotPermissionMatrix } from '$lib/api-client/bots';
   import SubjectPermissionsMatrix, {
@@ -16,7 +17,13 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   import { Hint } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
-  let { botId }: { botId: string } = $props();
+  let {
+    botId,
+    pageScrollContainer
+  }: {
+    botId: string;
+    pageScrollContainer?: HTMLDivElement;
+  } = $props();
 
   const connection = useConnection();
   let matrix = $state<BotPermissionMatrix | null>(null);
@@ -69,6 +76,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     // The server enforces this ceiling too. Keep the impossible grant out of
     // the request entirely so the UI cannot suggest it is configurable.
     if (next === 'allow' && targetCell?.ownerAllowed === false) return;
+    const pageScrollTop = pageScrollContainer?.scrollTop;
     updatingKey = key;
     error = null;
     try {
@@ -104,6 +112,10 @@ the bot's direct decisions while preserving the owner's permission ceiling.
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
       if (generation === loadGeneration && targetBotId === botId) updatingKey = null;
+      if (pageScrollContainer && pageScrollTop !== undefined) {
+        await tick();
+        pageScrollContainer.scrollTop = pageScrollTop;
+      }
     }
   }
 
