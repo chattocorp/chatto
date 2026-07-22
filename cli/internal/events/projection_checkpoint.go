@@ -103,8 +103,8 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 
 	checkpoint, restoreErr := projection.RestoreCheckpoint(ctx, request)
 	invalidReason := restoreErr
-	if restoreErr == nil && checkpoint.CutoffSequence > targetSeq {
-		invalidReason = fmt.Errorf("%w: cutoff %d is newer than matching EVT tail %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, targetSeq)
+	if restoreErr == nil && checkpoint.CutoffSequence > request.LastSequence {
+		invalidReason = fmt.Errorf("%w: cutoff %d is newer than EVT tail %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.LastSequence)
 	}
 	if restoreErr == nil && checkpoint.CutoffSequence > 0 && request.FirstSequence > checkpoint.CutoffSequence+1 {
 		invalidReason = fmt.Errorf("%w: cutoff %d is behind retained EVT start %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.FirstSequence)

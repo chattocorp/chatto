@@ -1058,6 +1058,42 @@ func TestProjectorRestoresLocalCheckpointAndReplaysTail(t *testing.T) {
 	}
 }
 
+func TestProjectorRestoresLocalCheckpointBeyondFilteredTail(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-filtered-tail").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-filtered-tail", "U1")); err != nil {
+		t.Fatalf("append matching event: %v", err)
+	}
+	unrelatedSubject := RoomAggregate("R-checkpoint-unrelated").Subject(EventMessagePosted)
+	unrelatedSeq, err := pub.AppendEventually(ctx, unrelatedSubject, makeEvent("R-checkpoint-unrelated", "U2"))
+	if err != nil {
+		t.Fatalf("append unrelated event: %v", err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = unrelatedSeq
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if projection.resets != 0 || projection.Count() != 0 {
+		t.Fatalf("resets/count = %d/%d, want 0/0", projection.resets, projection.Count())
+	}
+	status := projector.Status()
+	if !status.CheckpointRestored || status.CheckpointCutoffSeq != unrelatedSeq {
+		t.Fatalf("checkpoint status = %+v, want restored cutoff %d", status, unrelatedSeq)
+	}
+}
+
 func TestProjectorResetsInvalidLocalCheckpoint(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())

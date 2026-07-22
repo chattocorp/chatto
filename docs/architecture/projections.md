@@ -45,7 +45,9 @@ The projector framework also supports a projection-owned local checkpoint.
 The checkpoint contract binds the derived state and its highest atomically
 applied EVT sequence to a stable projection key, a projection contract ID, and
 the current EVT stream incarnation and retained sequence bounds. A valid
-checkpoint replays only the remaining EVT tail.
+checkpoint replays only the remaining EVT tail. Its global stream cutoff may
+be newer than the last event matching the projection's current filters; only a
+cutoff beyond the EVT stream tail is a future checkpoint.
 
 A projection uses at most one restore authority: ADR-050 snapshots, a local
 checkpoint, or neither. A projection without either starts empty and cold-replays
