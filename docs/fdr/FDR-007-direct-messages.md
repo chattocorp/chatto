@@ -1,21 +1,21 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-07-22
 
 ## Overview
 
-Users can start a direct conversation (1-to-1 or small group, up to 10 participants) with anyone they can see in a server. DMs are rooms with `kind: dm`: they use the same message, reaction, attachment, notification, unread, and live-delivery machinery as channel rooms, while applying a smaller DM-specific creation and privacy policy. Each Chatto server has its own DM scope; there is currently no cross-server "unified DM inbox".
+Users can start a private, one-to-one conversation with anyone they can see in a server. They can also start a self-DM for personal notes. DMs are rooms with `kind: dm`: they use the same message, reaction, attachment, notification, unread, and live-delivery machinery as channel rooms, while applying a smaller DM-specific creation and privacy policy. Each Chatto server has its own DM scope; there is currently no cross-server "unified DM inbox".
 
 ## Behavior
 
 - A DM is started from user context menus inside the chat UI (member list clicks, @mention clicks, message author clicks).
-- Starting a DM with a user (or set of users) navigates to the resulting DM room. If a DM with the same participant set already exists, the user lands in that room rather than creating a duplicate.
+- Starting a DM with another user navigates to the resulting two-person DM room. If that conversation already exists, the user lands in it rather than creating a duplicate.
+- Users can start a DM with themselves. The product does not let users create group DMs, even though the underlying room model and public API can represent a larger fixed participant set.
 - Starting a DM creates the durable room and participant memberships immediately so the complete composer is available, but the empty conversation stays out of every participant's navigation until its first message is sent.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
-- Maximum 10 participants per DM.
 - A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
 - Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `message.post`.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
@@ -46,8 +46,8 @@ Users can start a direct conversation (1-to-1 or small group, up to 10 participa
 ### 4. Deterministic room IDs
 
 **Decision:** A DM room ID is a hash of the sorted participant user IDs.
-**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID — starting a DM with the same group always lands in the same room without a database lookup.
-**Tradeoff:** Adding or removing a participant from a DM would change the room ID, which means group membership is fixed at creation. Acceptable: in practice, group DMs are short-lived and re-creating with the new set is fine. Users who need a different participant set start a new DM.
+**Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. The more general participant-set model remains an implementation capability rather than a product promise.
+**Tradeoff:** DM membership is fixed at creation. The product has no way to add participants to a conversation or turn a one-to-one DM into a group conversation; users who need a shared conversation with more people use a channel room.
 
 ### 5. Per-server scope (no unified inbox)
 
