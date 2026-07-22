@@ -13,7 +13,7 @@
     createThreadAPI,
     type FollowedThread as APIFollowedThread
   } from '$lib/api-client/threads';
-  import { EmptyState, Hint, PaneHeader } from '$lib/ui';
+  import { EmptyState, Hint, PaneHeader, SegmentedControl } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
@@ -77,6 +77,10 @@
   let loadId = 0;
 
   const filter = $derived(page.state.threadFilter ?? 'all');
+  const filterOptions = $derived([
+    { value: 'all' as const, label: m['chat.threads.filter_all']() },
+    { value: 'unread' as const, label: m['chat.threads.filter_unread']() }
+  ]);
 
   function setFilter(value: 'all' | 'unread') {
     replaceState('', { ...page.state, threadFilter: value });
@@ -292,32 +296,12 @@
     showMobileNav
   >
     {#snippet actions()}
-      <div
-        class="flex rounded-md border border-border text-sm"
-        role="radiogroup"
-        aria-label={m['chat.threads.filter_label']()}
-      >
-        <button
-          class={[
-            'cursor-pointer rounded-l-md px-3 py-1',
-            filter === 'all' ? 'bg-surface-emphasized font-medium' : 'text-muted hover:bg-surface'
-          ]}
-          onclick={() => setFilter('all')}
-          role="radio"
-          aria-checked={filter === 'all'}>{m['chat.threads.filter_all']()}</button
-        >
-        <button
-          class={[
-            'cursor-pointer rounded-r-md border-l border-border px-3 py-1',
-            filter === 'unread'
-              ? 'bg-surface-emphasized font-medium'
-              : 'text-muted hover:bg-surface'
-          ]}
-          onclick={() => setFilter('unread')}
-          role="radio"
-          aria-checked={filter === 'unread'}>{m['chat.threads.filter_unread']()}</button
-        >
-      </div>
+      <SegmentedControl
+        label={m['chat.threads.filter_label']()}
+        options={filterOptions}
+        value={filter}
+        onchange={setFilter}
+      />
     {/snippet}
   </PaneHeader>
 

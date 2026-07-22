@@ -21,7 +21,7 @@ in the active server store so browser Back can restore the current search.
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
   import { formatDateTime } from '$lib/utils/formatTime';
-  import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, ToggleChip } from '$lib/ui';
+  import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, SegmentedControl } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import * as m from '$lib/i18n/messages';
 
@@ -37,6 +37,10 @@ in the active server store so browser Back can restore the current search.
     };
   });
   const activeLocale = $derived(getLocale());
+  const orderOptions = $derived([
+    { value: MessageSearchOrder.RELEVANCE, label: m['search.order.relevance']() },
+    { value: MessageSearchOrder.NEWEST, label: m['search.order.newest']() }
+  ]);
   $effect(() => {
     void store.ensureStatus();
   });
@@ -196,18 +200,12 @@ in the active server store so browser Back can restore the current search.
 
             <div class="flex items-center justify-between gap-2">
               <span class="text-sm text-muted">{m['search.scope.all_rooms']()}</span>
-              <div class="flex items-center gap-2" aria-label={m['search.order.label']()}>
-                <ToggleChip
-                  pressed={store.order === MessageSearchOrder.RELEVANCE}
-                  onclick={() => setOrder(MessageSearchOrder.RELEVANCE)}
-                  >{m['search.order.relevance']()}</ToggleChip
-                >
-                <ToggleChip
-                  pressed={store.order === MessageSearchOrder.NEWEST}
-                  onclick={() => setOrder(MessageSearchOrder.NEWEST)}
-                  >{m['search.order.newest']()}</ToggleChip
-                >
-              </div>
+              <SegmentedControl
+                label={m['search.order.label']()}
+                options={orderOptions}
+                value={store.order}
+                onchange={setOrder}
+              />
             </div>
           </form>
 

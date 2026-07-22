@@ -28,6 +28,7 @@ export { default as PaneContent } from './PaneContent.svelte';
 export { default as Pill } from './Pill.svelte';
 export { default as ScrollFader } from './ScrollFader.svelte';
 export { default as ScrollArea } from './ScrollArea.svelte';
+export { default as SegmentedControl } from './SegmentedControl.svelte';
 export { default as SkeletonImg } from './SkeletonImg.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';

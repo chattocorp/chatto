@@ -33,17 +33,18 @@ semantic utility because their behavior is not a committed form action.
 | Committed text action or button-like link | `Button` from `$lib/ui/form`                                               | Rebuilding `btn-*` recipes in feature code                   |
 | Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
 | One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
+| Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
 | Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
 | Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
-| Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards         |
+| Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
 | Inline icon action                        | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
 | Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
-| Status or scope label                     | `Pill`; `ToggleChip` when interactive                                      | One-off colored badges                                       |
+| Status or scope label                     | `Pill`; `ToggleChip` when independently interactive                        | One-off colored badges                                       |
 | Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
@@ -59,19 +60,19 @@ behaviour, content width, spacing, and panel hierarchy.
 <PageTitle title={pageTitle} />
 
 <div class="pane-page">
-	<PaneHeader title={pageTitle} subtitle={pageSubtitle} />
+  <PaneHeader title={pageTitle} subtitle={pageSubtitle} />
 
-	<PaneContent>
-		<div class="flex flex-col gap-6">
-			<Panel title={formTitle}>
-				<form><!-- padded form content --></form>
-			</Panel>
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={formTitle}>
+        <form><!-- padded form content --></form>
+      </Panel>
 
-			<Panel title={resultsTitle} noPadding>
-				<!-- edge-to-edge list, table, or result state -->
-			</Panel>
-		</div>
-	</PaneContent>
+      <Panel title={resultsTitle} noPadding>
+        <!-- edge-to-edge list, table, or result state -->
+      </Panel>
+    </div>
+  </PaneContent>
 </div>
 ```
 

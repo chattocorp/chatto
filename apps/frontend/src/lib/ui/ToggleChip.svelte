@@ -4,8 +4,8 @@
 A small chip-shaped button. Works two ways:
 
 - **Toggle**: caller drives a `pressed` prop and the chip renders an
-  "active/selected" state when pressed. Use for Allow / Deny pairs in
-  permission editors, on/off filter chips, etc.
+  "active/selected" state when pressed. Use for independent permission or
+  filter chips. For a compact one-of-many mode switch, use `SegmentedControl`.
 - **Action**: leave `pressed` at its default (`false`) and the chip acts
   as a tinted icon/text button. Hover still tints toward `tone` so the
   intent is legible. The chip is the canonical compact secondary affordance,
