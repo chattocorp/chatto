@@ -43,6 +43,10 @@ func (b *synchronizedBuffer) String() string {
 	return b.buffer.String()
 }
 
+func TestUnitName(t *testing.T) {
+	require.Equal(t, "search.BleveProvider", (Unit{}).Name())
+}
+
 func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)

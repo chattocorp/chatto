@@ -40,16 +40,17 @@ func runSearchProvider(configPath string) {
 
 	ctx, stop := runtimeunit.NotifyContext(context.Background())
 	defer stop()
+	unit := searchbleve.Unit{}
 	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, nil)
 	if err != nil {
 		log.Fatal("Failed to connect to NATS", "error", err)
 	}
 	defer runtimeunit.CloseNATSConnection(nc)
-	env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix("search-provider"), Version)
+	env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix(unit.Name()), Version)
 	if err != nil {
 		log.Fatal("Failed to create search provider environment", "error", err)
 	}
-	if err := runtimeunit.Run(ctx, env, searchbleve.Unit{}); err != nil {
+	if err := runtimeunit.Run(ctx, env, unit); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

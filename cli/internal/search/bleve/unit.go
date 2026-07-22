@@ -13,12 +13,15 @@ import (
 	"hmans.de/chatto/internal/search"
 )
 
-const searchIndexingProgressInterval = 10 * time.Second
+const (
+	runtimeUnitName                = "search.BleveProvider"
+	searchIndexingProgressInterval = 10 * time.Second
+)
 
 // Unit runs the bundled Bleve provider either under chatto run or standalone.
 type Unit struct{}
 
-func (Unit) Name() string { return "search-provider" }
+func (Unit) Name() string { return runtimeUnitName }
 
 func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	languages := env.Config.SearchProvider.LanguagesOrDefault()

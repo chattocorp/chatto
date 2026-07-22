@@ -96,7 +96,7 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 		return nil, fmt.Errorf("search index requires a dedicated directory")
 	}
 	if logger == nil {
-		logger = log.WithPrefix("search-provider")
+		logger = log.WithPrefix(runtimeUnitName)
 	}
 	languages, err := resolveLanguageAnalyzers(languageCodes)
 	if err != nil {
