@@ -21,7 +21,7 @@
     },
     "empty": {
       "title": "No bots yet",
-      "owner": "Bots let integrations participate in conversations: they can send and receive messages and perform the actions you permit.",
+      "owner": "Create your own API integrations using Bot Accounts.",
       "admin": "No manageable bot accounts were found."
     },
     "badge": {
