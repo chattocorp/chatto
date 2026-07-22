@@ -7231,7 +7231,7 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
+	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
 		{
 			AttachmentId: variant.Id,
 			Quality:      "720p",

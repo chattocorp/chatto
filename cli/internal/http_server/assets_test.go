@@ -1732,7 +1732,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
 			}
-			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId()); err != nil {
+			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId()); err != nil {
 				t.Fatalf("RecordAssetProcessingStarted: %v", err)
 			}
 			hls := &corev1.AssetProcessedHLS{
@@ -1741,7 +1741,7 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
 				}},
 			}
-			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
+			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
 				t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
 			}
 

@@ -31,7 +31,7 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	}
 
 	content := []byte("pending asset content")
-	attachment, err := core.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
+	attachment, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("uploadAttachmentBinary: %v", err)
 	}

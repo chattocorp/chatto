@@ -43,9 +43,9 @@ Use `ToggleChip` instead when choices can be toggled independently.
   <legend class="sr-only">{label}</legend>
 
   {#each options as option (option.value)}
-    <label class="min-w-0 cursor-pointer">
+    <label class="relative min-w-0 cursor-pointer">
       <input
-        class="peer sr-only"
+        class="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0 disabled:cursor-not-allowed"
         type="radio"
         name={groupName}
         value={String(option.value)}

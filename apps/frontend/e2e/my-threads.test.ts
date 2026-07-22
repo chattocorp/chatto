@@ -430,10 +430,7 @@ test.describe('My Threads', () => {
 
     // Switch to "Unread" filter
     await page.getByRole('radio', { name: 'Unread' }).click();
-    await expect(page.getByRole('radio', { name: 'Unread' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
+    await expect(page.getByRole('radio', { name: 'Unread' })).toBeChecked();
 
     // Click the thread to navigate to it
     // (thread is read, so switch back to All first to see it)
@@ -446,7 +443,7 @@ test.describe('My Threads', () => {
     await page.waitForURL(routes.threads);
 
     // The "All" filter should still be selected (was last set before navigating)
-    await expect(page.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'All' })).toBeChecked();
   });
 
   test('navigating from My Threads thread to a different room does not crash', async ({

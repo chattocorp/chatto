@@ -219,7 +219,7 @@ func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
 func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
 func TestAssetCleanupRejectsMismatchedDeletionSubject(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestAssetCleanupRejectsMismatchedDeletionSubject(t *testing.T) {
 func TestAssetCleanupRejectsNATSPointerToAnotherAsset(t *testing.T) {
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 		cancelSecond()
 	})
 
-	store, err := first.GetAttachmentsStore(ctx)
+	store, err := first.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
