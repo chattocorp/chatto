@@ -94,6 +94,9 @@ func startCoreServices(t testing.TB, core *ChattoCore) {
 func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	core, _ := setupTestCore(t)
 
+	if core.roomModel == nil {
+		t.Fatal("roomModel = nil")
+	}
 	if core.NotificationPreferences() == nil {
 		t.Fatal("NotificationPreferences() = nil")
 	}

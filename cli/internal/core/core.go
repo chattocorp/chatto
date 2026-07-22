@@ -515,7 +515,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return fmt.Errorf("failed to record user key shred event: %w", err)
 	}
 	subject := events.UserAggregate(userID).SubjectFor(event)
-	return c.rooms().waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
+	return c.roomModel.waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
 }
 
 // AssetsConfig returns the assets configuration as an assets.Config.

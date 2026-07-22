@@ -18,8 +18,12 @@ run_mode = "concurrent"
 
 [scripts.run.chatto]
 command = "mise dev"
-default = true
 icon = "message-square"
+
+[scripts.run.chatto-compiled]
+command = "mise dev-compiled"
+default = true
+icon = "package"
 
 [scripts.run.docs-website]
 command = "mise dev-docs-website"

@@ -57,24 +57,6 @@ func newRoomModel(
 	}
 }
 
-func (c *ChattoCore) rooms() *RoomModel {
-	if c.roomModel == nil {
-		c.roomModel = newRoomModel(
-			c.RoomDirectory,
-			c.RoomDirectoryProjector,
-			c.RoomGroupLayout,
-			c.RoomGroupLayoutProjector,
-			c.RoomTimeline,
-			c.RoomTimelineProjector,
-			c.Threads,
-			c.ThreadsProjector,
-			c.Reactions,
-			c.ReactionsProjector,
-		)
-	}
-	return c.roomModel
-}
-
 func (m *RoomModel) waitForDirectory(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos, waitForProjection("room directory", m.directoryProjector))
 }

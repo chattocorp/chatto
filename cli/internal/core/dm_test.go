@@ -1007,7 +1007,7 @@ func TestDMThreadsUnsupported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("append historical thread reply: %v", err)
 	}
-	if err := core.rooms().waitForTimelineAndThreads(ctx, events.SubjectPosition(legacySubject, legacySeq)); err != nil {
+	if err := core.roomModel.waitForTimelineAndThreads(ctx, events.SubjectPosition(legacySubject, legacySeq)); err != nil {
 		t.Fatalf("wait for historical DM thread: %v", err)
 	}
 	threadEvents, err := core.GetThreadEvents(ctx, KindDM, room.Id, root.Id)

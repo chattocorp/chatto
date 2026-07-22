@@ -1076,7 +1076,7 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-3 py-2"
+    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={inputDisabled}
     class:composer-sending={loading}
   >
@@ -1161,7 +1161,7 @@
       </ContextMenu>
     {/if}
     <!-- Text input (TipTap editor) -->
-    <div class="min-h-10 min-w-0 py-1" data-testid="composer-editor-row">
+    <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
       {#await tipTapEditorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
       {:then { default: TipTapEditor }}
@@ -1182,7 +1182,7 @@
     </div>
 
     <div
-      class="mt-1 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-1"
+      class="mt-0 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-0.5"
       data-testid="composer-toolbar"
     >
       <div class="flex items-center gap-1">
@@ -1208,7 +1208,7 @@
                   : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
               ]}
             >
-              <span class={['iconify text-base', control.icon]}></span>
+              <span class={['iconify text-[15px]', control.icon]}></span>
             </button>
           {/each}
         </div>
@@ -1225,7 +1225,7 @@
             aria-label={m['composer.attach_file']()}
             title={m['composer.attach_file']()}
           >
-            <span class="iconify text-base uil--image-upload"></span>
+            <span class="iconify text-[15px] uil--image-upload"></span>
           </button>
         {/if}
 
@@ -1239,7 +1239,7 @@
           aria-label={m['composer.timestamp.insert_label']()}
           title={m['composer.timestamp.insert_label']()}
         >
-          <span class="iconify text-base uil--clock"></span>
+          <span class="iconify text-[15px] uil--clock"></span>
         </button>
       </div>
 
@@ -1264,7 +1264,7 @@
           aria-label={m['composer.send']()}
           title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
         >
-          <span class="iconify text-base uil--telegram-alt"></span>
+          <span class="iconify text-[15px] uil--telegram-alt"></span>
         </button>
       </div>
     </div>

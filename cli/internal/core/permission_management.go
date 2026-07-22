@@ -168,7 +168,7 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 			return fmt.Errorf("%w: group id is required", ErrInvalidArgument)
 		}
 		check := func() error {
-			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+			if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room-group projection: %w", err)
 			}
 			return c.requireCanManageRolePermissionsForGroup(ctx, actorID, scope.ID)
@@ -182,10 +182,10 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 			return fmt.Errorf("%w: room id is required", ErrInvalidArgument)
 		}
 		check := func() error {
-			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+			if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room-group projection: %w", err)
 			}
-			if err := c.rooms().waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
+			if err := c.roomModel.waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
 				return fmt.Errorf("wait for room directory projection: %w", err)
 			}
 			return c.requireCanManageRolePermissionsForRoom(ctx, actorID, scope.ID)

@@ -331,14 +331,14 @@ func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCor
 			t.Fatalf("apply event %s: %v", eventID, err)
 		}
 	}
-	return &ChattoCore{RoomTimeline: projection}
+	return &ChattoCore{roomModel: newRoomModel(nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
 }
 
 func testCoreWithRoomTimelineEvents(t *testing.T, events []*corev1.Event) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()
 	applyAll(t, projection, events)
-	return &ChattoCore{RoomTimeline: projection}
+	return &ChattoCore{roomModel: newRoomModel(nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
 }
 
 func reactionAddedEvent(envID, roomID, messageID, actorID, emoji string) *corev1.Event {
