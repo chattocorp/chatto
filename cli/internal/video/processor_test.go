@@ -62,13 +62,19 @@ func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
 	if err != nil {
 		t.Skip("ffmpeg is not installed")
 	}
+	ffprobePath, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe is not installed")
+	}
 	tmp := t.TempDir()
 	input := filepath.Join(tmp, "input.mp4")
+	output := filepath.Join(tmp, "output.mp4")
 	generate := exec.Command(
 		ffmpegPath,
 		"-f", "lavfi", "-i", "testsrc=size=160x90:rate=24:duration=13",
+		"-f", "lavfi", "-i", "anullsrc=channel_layout=quad:sample_rate=48000:duration=13",
 		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
-		"-force_key_frames", "expr:gte(t,n_forced*6)", "-sc_threshold", "0",
+		"-c:a", "aac", "-shortest",
 		"-y", input,
 	)
 	if output, err := generate.CombinedOutput(); err != nil {
@@ -76,7 +82,10 @@ func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
 	}
 
 	service := &Service{ffmpegPath: ffmpegPath}
-	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), input, filepath.Join(tmp, "hls"))
+	if err := service.transcode(context.Background(), input, output, 90, true, nil); err != nil {
+		t.Fatalf("transcode quad-audio fixture: %v", err)
+	}
+	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), output, filepath.Join(tmp, "hls"))
 	if err != nil {
 		t.Fatalf("packageHLSRendition: %v", err)
 	}
@@ -89,6 +98,24 @@ func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), "#EXT-X-INDEPENDENT-SEGMENTS") || !strings.Contains(string(raw), "#EXT-X-ENDLIST") {
 		t.Fatalf("unexpected media playlist: %s", raw)
+	}
+	for _, segmentPath := range segmentPaths {
+		probe := exec.Command(
+			ffprobePath,
+			"-v", "error", "-select_streams", "a:0",
+			"-show_entries", "stream=sample_rate,channels,channel_layout",
+			"-of", "default=nw=1", segmentPath,
+		)
+		probeOutput, err := probe.CombinedOutput()
+		if err != nil {
+			t.Fatalf("probe HLS segment %s: %v\n%s", filepath.Base(segmentPath), err, probeOutput)
+		}
+		metadata := string(probeOutput)
+		if !strings.Contains(metadata, "sample_rate=48000") ||
+			!strings.Contains(metadata, "channels=2") ||
+			!strings.Contains(metadata, "channel_layout=stereo") {
+			t.Fatalf("HLS segment %s has incompatible audio metadata:\n%s", filepath.Base(segmentPath), metadata)
+		}
 	}
 }
 

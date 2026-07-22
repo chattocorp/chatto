@@ -553,6 +553,8 @@
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
           hlsUrl={attachment.videoProcessing.hlsUrl}
+          fallbackUrl={attachment.url}
+          fallbackContentType={attachment.contentType}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
@@ -581,6 +583,8 @@
           variants={attachment.videoProcessing.variants}
           thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
           hlsUrl={attachment.videoProcessing.hlsUrl}
+          fallbackUrl={attachment.url}
+          fallbackContentType={attachment.contentType}
           width={attachment.videoProcessing.width}
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}

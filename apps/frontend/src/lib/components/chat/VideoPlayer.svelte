@@ -2,7 +2,11 @@
   import { tick, onMount } from 'svelte';
   import type { VideoProcessingStatus } from '$lib/render/types';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
-  import { configureBundledHLSProvider } from '$lib/media/hls';
+  import {
+    configureBundledHLSProvider,
+    recoverFatalHLS,
+    shouldAbortHLSRecovery
+  } from '$lib/media/hls';
   import * as m from '$lib/i18n/messages';
 
   import 'vidstack/player/styles/default/theme.css';
@@ -36,6 +40,8 @@
     variants = [],
     thumbnailUrl = null,
     hlsUrl = null,
+    fallbackUrl = null,
+    fallbackContentType = null,
     width = null,
     height = null,
     reasonCode = null,
@@ -48,6 +54,8 @@
     variants?: Variant[];
     thumbnailUrl?: string | null;
     hlsUrl?: string | null;
+    fallbackUrl?: string | null;
+    fallbackContentType?: string | null;
     width?: number | null;
     height?: number | null;
     reasonCode?: string | null;
@@ -65,6 +73,8 @@
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
   let measuredMedia = $state<{ src: string; width: number; height: number } | null>(null);
+  let hlsRetryUrl = $state<string | null>(null);
+  let failedHlsUrl = $state<string | null>(null);
 
   // Pick the best variant (highest quality available)
   const selectedVariant = $derived(
@@ -73,11 +83,20 @@
       : null
   );
 
+  const fallbackSource = $derived(
+    selectedVariant
+      ? ({ src: selectedVariant.url, type: 'video/mp4' } as const)
+      : fallbackUrl
+        ? { src: fallbackUrl, type: fallbackContentType ?? 'video/mp4' }
+        : undefined
+  );
+
   const playbackSource = $derived.by(() => {
-    if (!autoLoop && hlsUrl) {
-      return { src: hlsUrl, type: 'application/vnd.apple.mpegurl' as const };
+    const effectiveHlsUrl = hlsRetryUrl ?? hlsUrl;
+    if (!autoLoop && effectiveHlsUrl && effectiveHlsUrl !== failedHlsUrl) {
+      return { src: effectiveHlsUrl, type: 'application/vnd.apple.mpegurl' as const };
     }
-    return selectedVariant ? { src: selectedVariant.url, type: 'video/mp4' as const } : undefined;
+    return fallbackSource;
   });
 
   const sourceDimensions = $derived.by(() => {
@@ -195,10 +214,8 @@
       const video = node.querySelector('video');
       if (video) video.pause();
 
-      const fallbackSource =
-        playbackSource.type === 'application/vnd.apple.mpegurl' && selectedVariant
-          ? ({ src: selectedVariant.url, type: 'video/mp4' } as const)
-          : null;
+      const fullscreenFallbackSource =
+        playbackSource.type === 'application/vnd.apple.mpegurl' ? (fallbackSource ?? null) : null;
       const refreshSource =
         playbackSource.type === 'application/vnd.apple.mpegurl' && onMediaError
           ? async () => {
@@ -212,7 +229,7 @@
         playbackSource,
         thumbnailUrl ?? null,
         video?.currentTime ?? 0,
-        fallbackSource,
+        fullscreenFallbackSource,
         refreshSource
       );
 
@@ -234,10 +251,53 @@
   }
 
   function attachMediaPlayer(node: HTMLElement) {
+    let hlsRecoveryInProgress = false;
+
     const handleProviderChange = (event: Event) => {
       configureBundledHLSProvider((event as CustomEvent).detail);
     };
+    const handleHLSError = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        fatal?: boolean;
+        type?: string;
+        details?: string;
+      }>).detail;
+      const bufferAppendFailed =
+        detail?.type === 'mediaError' && detail.details === 'bufferAppendError';
+      if (
+        !shouldAbortHLSRecovery(detail ?? {}) ||
+        hlsRecoveryInProgress ||
+        playbackSource?.type !== 'application/vnd.apple.mpegurl'
+      ) {
+        return;
+      }
+
+      hlsRecoveryInProgress = true;
+      const rejectedUrl = playbackSource.src;
+
+      // Vidstack otherwise invokes hls.js recoverMediaError() for every fatal
+      // media error without a recovery budget. Stop the bad session first so a
+      // malformed segment cannot create an endless request loop.
+      const provider = (node as HTMLElement & { provider?: { instance?: { destroy?: () => void } } })
+        .provider;
+      recoverFatalHLS({
+        instance: provider?.instance,
+        rejectedUrl,
+        // A fresh access ticket cannot repair bytes rejected by SourceBuffer.
+        refreshUrl: bufferAppendFailed ? undefined : onMediaError,
+        retry: (url) => {
+          hlsRetryUrl = url;
+        },
+        fallback: () => {
+          failedHlsUrl = rejectedUrl;
+        }
+      })
+        .finally(() => {
+          hlsRecoveryInProgress = false;
+        });
+    };
     node.addEventListener('provider-change', handleProviderChange);
+    node.addEventListener('hls-error', handleHLSError);
     const cleanupFullscreen = interceptFullscreenRequest(node);
     const cleanupVideoObserver = observePlayerVideo(node);
 
@@ -245,6 +305,7 @@
       cleanupFullscreen();
       cleanupVideoObserver();
       node.removeEventListener('provider-change', handleProviderChange);
+      node.removeEventListener('hls-error', handleHLSError);
     };
   }
 </script>
@@ -265,7 +326,7 @@
       <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
     </video>
   </div>
-{:else if status === 'COMPLETED' && (hlsUrl || selectedVariant) && elementsReady}
+{:else if status === 'COMPLETED' && playbackSource && elementsReady}
   <div class="embed-frame" style={frameStyle}>
     <media-player
       {@attach attachMediaPlayer}

@@ -221,7 +221,7 @@ func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 }
 
 func serverMOTD(api *API) string {
-	if cm := api.core.ConfigManager(); cm != nil {
+	if cm := api.core.ConfigModel(); cm != nil {
 		return cm.GetEffectiveMOTD()
 	}
 	return ""

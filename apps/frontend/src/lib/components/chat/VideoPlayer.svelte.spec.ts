@@ -38,7 +38,7 @@ function renderPostedVideo({
   thumbnailUrl?: string | null;
   hlsUrl?: string | null;
   includeMP4?: boolean;
-  onMediaError?: () => void;
+  onMediaError?: () => void | Promise<string | null>;
 }) {
   return render(VideoPlayer, {
     props: {
