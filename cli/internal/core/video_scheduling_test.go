@@ -81,7 +81,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-present", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-present", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 
@@ -117,7 +117,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-missing", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-missing", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 

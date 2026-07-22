@@ -587,7 +587,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if !options.shouldScheduleVideoProcessingForID(att.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
 			continue
 		}
-		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, kind, room_id, event.Id, att); err != nil {
+		if err := c.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, room_id, event.Id, att); err != nil {
 			c.logger.Warn("Failed to schedule video processing",
 				"room_id", room_id,
 				"message_event_id", event.Id,
@@ -881,9 +881,9 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// event log. Same posture as the legacy DeleteMessage path —
 	// best-effort, log warnings, keep going.
 	if body != nil {
-		for _, att := range c.MessageBodyAttachments(body) {
-			c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, att.GetId())
-			if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, att.GetId()); err != nil {
+		for _, att := range c.mediaModel.MessageBodyAttachments(body) {
+			c.assetModel.DeleteVideoDerivativesForAttachment(ctx, actorID, att.GetId())
+			if err := c.assetModel.RecordAssetDeleted(ctx, actorID, roomID, att.GetId()); err != nil {
 				c.logger.Warn("Failed to publish asset deletion event",
 					"attachment_id", att.GetId(),
 					"event_id", eventID,
@@ -1400,7 +1400,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
 		// Resolve the attachment (new bodies hold IDs; older bodies hold
 		// embedded protos). Then trim from whichever shape holds it.
-		for _, att := range c.MessageBodyAttachments(body) {
+		for _, att := range c.mediaModel.MessageBodyAttachments(body) {
 			if att.GetId() == attachmentID {
 				removed = att
 				break
@@ -1430,8 +1430,8 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	}
 
 	if removed != nil {
-		c.DeleteVideoDerivativesForAttachment(ctx, actorID, kind, removed.GetId())
-		if err := c.RecordAssetDeleted(ctx, actorID, kind, roomID, removed.GetId()); err != nil {
+		c.assetModel.DeleteVideoDerivativesForAttachment(ctx, actorID, removed.GetId())
+		if err := c.assetModel.RecordAssetDeleted(ctx, actorID, roomID, removed.GetId()); err != nil {
 			c.logger.Warn("Failed to publish asset deletion event",
 				"attachment_id", attachmentID,
 				"message_body_key", messageBodyKey,

@@ -77,7 +77,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 	result := &DecryptedMessageBody{
 		AuthorId:    body.GetAuthorId(),
 		Body:        string(plaintext),
-		Attachments: c.MessageBodyAttachments(body),
+		Attachments: c.mediaModel.MessageBodyAttachments(body),
 		LinkPreview: body.GetLinkPreview(),
 		CreatedAt:   entry.Event.GetCreatedAt().AsTime(),
 	}

@@ -109,7 +109,7 @@ func (c *ChattoCore) GetChannelRoomCount(ctx context.Context) (int, error) {
 
 // GetAssetCount returns the number of assets (attachments) on the server.
 func (c *ChattoCore) GetAssetCount(ctx context.Context) (int, error) {
-	store, err := c.GetAttachmentsStore(ctx)
+	store, err := c.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		// If the bucket doesn't exist, return 0
 		return 0, nil
