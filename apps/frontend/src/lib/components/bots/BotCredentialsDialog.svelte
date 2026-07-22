@@ -82,10 +82,11 @@ Creation can open the show-once step directly with `initialSecret`.
 		title={action === 'rotate'
 			? m['bots.credentials.rotate_confirm_title']()
 			: m['bots.credentials.revoke_confirm_title']()}
-		tone={action === 'rotate' ? 'warning' : 'danger'}
+		tone={action === 'rotate' ? 'info' : 'danger'}
 		actionLabel={action === 'rotate'
 			? m['bots.credentials.rotate']()
 			: m['bots.credentials.revoke']()}
+		actionIcon={action === 'rotate' ? 'iconify uil--repeat' : undefined}
 		{loading}
 		onconfirm={confirm}
 		{onclose}

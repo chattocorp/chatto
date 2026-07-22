@@ -69,7 +69,7 @@ describe('BotCredentialsDialog', () => {
 		expect(container.querySelector('[data-testid="bot-api-key-secret"]')?.textContent).toBe(
 			'cht_BK-created-secret'
 		);
-		expect(container.textContent).not.toContain('Generate new API key?');
+		expect(container.textContent).not.toContain('Reset API key?');
 	});
 
 	it('replaces the confirmation with the show-once dialog after rotation', async () => {
@@ -86,13 +86,13 @@ describe('BotCredentialsDialog', () => {
 		});
 
 		expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
-		expect(container.textContent).toContain('Generate new API key?');
-		button(container, 'Generate new API key').click();
+		expect(container.textContent).toContain('Reset API key?');
+		button(container, 'Reset API key').click();
 		await settle();
 
 		expect(mocks.rotateAPIKey).toHaveBeenCalledWith('bot-1');
 		expect(container.querySelectorAll('dialog[open]')).toHaveLength(1);
-		expect(container.textContent).not.toContain('Generate new API key?');
+		expect(container.textContent).not.toContain('Reset API key?');
 		expect(container.querySelector('[data-testid="bot-api-key-secret"]')?.textContent).toBe(
 			'cht_BK-rotated-secret'
 		);
