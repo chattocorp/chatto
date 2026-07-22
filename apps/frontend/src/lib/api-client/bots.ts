@@ -103,6 +103,11 @@ export function createBotAPI(config: BotAPIConfig) {
       return { bot: botAccount(requiredBot(response.bot)), apiKey: response.apiKey };
     },
 
+    async getBot(botId: string): Promise<BotAccount> {
+      const response = await client.getBot({ botId }, { headers: headers() });
+      return botAccount(requiredBot(response.bot));
+    },
+
     async updateBot(input: UpdateBotInput): Promise<BotAccount> {
       const response = await client.updateBot(input, { headers: headers() });
       return botAccount(requiredBot(response.bot));

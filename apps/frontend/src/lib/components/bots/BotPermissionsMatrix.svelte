@@ -6,7 +6,6 @@ Shared bot permission editor for owner settings and Server Admin. It exposes
 the bot's direct decisions while preserving the owner's permission ceiling.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createBotAPI, type BotPermissionMatrix } from '$lib/api-client/bots';
   import SubjectPermissionsMatrix, {
@@ -23,6 +22,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   let matrix = $state<BotPermissionMatrix | null>(null);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let loadGeneration = 0;
 
   const data = $derived<MatrixData | null>(
     matrix
@@ -45,35 +45,47 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
   }
 
-  async function load() {
+  async function load(targetBotId: string) {
+    const generation = ++loadGeneration;
     error = null;
+    matrix = null;
     try {
-      matrix = await api().getPermissionMatrix(botId);
+      const nextMatrix = await api().getPermissionMatrix(targetBotId);
+      if (generation !== loadGeneration || targetBotId !== botId) return;
+      matrix = nextMatrix;
     } catch (cause) {
+      if (generation !== loadGeneration || targetBotId !== botId) return;
       error = cause instanceof Error ? cause.message : String(cause);
     }
   }
 
   async function cycle(scope: MatrixScope, permission: string, next: CellState) {
+    const targetBotId = botId;
+    const generation = loadGeneration;
     const key = `${scope.id}::${permission}`;
     updatingKey = key;
     error = null;
     try {
       await api().setPermission({
-        botId,
+        botId: targetBotId,
         permission,
         scope,
         decision: next === 'allow' ? 'ALLOW' : next === 'deny' ? 'DENY' : 'NONE'
       });
-      matrix = await api().getPermissionMatrix(botId);
+      const nextMatrix = await api().getPermissionMatrix(targetBotId);
+      if (generation !== loadGeneration || targetBotId !== botId) return;
+      matrix = nextMatrix;
     } catch (cause) {
+      if (generation !== loadGeneration || targetBotId !== botId) return;
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
-      updatingKey = null;
+      if (generation === loadGeneration && targetBotId === botId) updatingKey = null;
     }
   }
 
-  onMount(() => void load());
+  $effect(() => {
+    void load(botId);
+  });
 </script>
 
 {#if error}
