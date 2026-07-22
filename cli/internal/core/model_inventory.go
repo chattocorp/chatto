@@ -1,35 +1,25 @@
 package core
 
-type modelRegistration struct {
-	key              string
-	name             string
-	legacyServiceKey string
-}
-
-// ModelMetadata is stable metadata for a core model exposed in operator
-// metrics and diagnostics.
-type ModelMetadata struct {
-	Key              string
-	Name             string
-	LegacyServiceKey string
-}
-
-// ModelMetadata returns the core model inventory registered by this process.
-func (c *ChattoCore) ModelMetadata() []ModelMetadata {
-	out := make([]ModelMetadata, 0, len(c.models))
-	for _, model := range c.models {
-		out = append(out, ModelMetadata{
-			Key:              model.key,
-			Name:             model.name,
-			LegacyServiceKey: model.legacyServiceKeyOrDefault(),
-		})
+// ModelKeys returns the stable metric keys in the core model inventory.
+func ModelKeys() []string {
+	return []string{
+		"chatto_core",
+		"event_publisher",
+		"config_model",
+		"notification_preferences_model",
+		"message_model",
+		"reaction_model",
+		"room_timeline_read_model",
+		"read_state_model",
+		"thread_follow_model",
+		"room_model",
+		"user_model",
+		"rbac_model",
+		"mentionables_model",
+		"presence_model",
+		"my_events_model",
+		"call_model",
+		"media_model",
+		"asset_model",
 	}
-	return out
-}
-
-func (r modelRegistration) legacyServiceKeyOrDefault() string {
-	if r.legacyServiceKey != "" {
-		return r.legacyServiceKey
-	}
-	return r.key
 }

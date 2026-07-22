@@ -64,7 +64,6 @@ type ChattoCore struct {
 	callModel                *CallModel
 	assetModel               *AssetModel
 	assetUploadModel         *AssetUploadModel
-	models                   []modelRegistration
 	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
@@ -1494,27 +1493,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.presenceModel = NewPresenceModel(js, storage.memoryCacheKV, logger)
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
-	core.models = []modelRegistration{
-		{key: "chatto_core", name: "Chatto Core"},
-		{key: "event_publisher", name: "Event Publisher"},
-		{key: "config_model", name: "Config Model", legacyServiceKey: "config_service"},
-		{key: "notification_preferences_model", name: "Notification Preferences Model", legacyServiceKey: "notification_preferences_service"},
-		{key: "message_model", name: "Message Model", legacyServiceKey: "message_service"},
-		{key: "reaction_model", name: "Reaction Model", legacyServiceKey: "reaction_service"},
-		{key: "room_timeline_read_model", name: "Room Timeline Read Model", legacyServiceKey: "room_timeline_read_service"},
-		{key: "read_state_model", name: "Read State Model", legacyServiceKey: "read_state_service"},
-		{key: "thread_follow_model", name: "Thread Follow Model", legacyServiceKey: "thread_follow_service"},
-		{key: "room_model", name: "Room Model", legacyServiceKey: "room_service"},
-		{key: "user_model", name: "User Model", legacyServiceKey: "user_service"},
-		{key: "rbac_model", name: "RBAC Model", legacyServiceKey: "rbac_service"},
-		{key: "mentionables_model", name: "Mentionables Model", legacyServiceKey: "mentionables_service"},
-		{key: "presence_model", name: "Presence Model", legacyServiceKey: "presence_service"},
-		{key: "my_events_model", name: "My Events Model", legacyServiceKey: "my_events_service"},
-		{key: "call_model", name: "Call Model", legacyServiceKey: "call_service"},
-		{key: "media_model", name: "Media Model", legacyServiceKey: "media_service"},
-		{key: "asset_model", name: "Asset Model", legacyServiceKey: "asset_service"},
-	}
-
 	return core, nil
 }
 

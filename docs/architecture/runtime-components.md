@@ -7,7 +7,7 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md)
 and [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
 
-`ChattoCore` keeps a core model inventory with stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`; `chatto_service_info` remains a deprecated compatibility alias that emits the previous `*_service` label values. Display names remain operator-facing text only.
+The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.
 
 | Model                            | Key files                                                                                                                                                   | Responsibility                                                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
