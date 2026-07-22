@@ -11,15 +11,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-type threadAssembler struct {
-	api *API
-}
-
-func newThreadAssembler(api *API) *threadAssembler {
-	return &threadAssembler{api: api}
-}
-
-func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
+func followedThreadsResponse(ctx context.Context, api *API, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
 	if page == nil {
 		return &apiv1.ListFollowedThreadsResponse{
 			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.User{}},
@@ -33,13 +25,13 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 			messageIDs = append(messageIDs, thread.ThreadRootEventID)
 		}
 	}
-	reactionsByMessageID, err := a.api.core.GetReactionsBatch(ctx, messageIDs)
+	reactionsByMessageID, err := api.core.GetReactionsBatch(ctx, messageIDs)
 	if err != nil {
 		return nil, err
 	}
 
 	h := &timelineHydrator{
-		api:                  a.api,
+		api:                  api,
 		ctx:                  ctx,
 		viewerID:             viewerID,
 		kind:                 core.KindChannel,
@@ -53,7 +45,7 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		}
 
 		kind := core.RoomKindFromLegacySpaceID(thread.SpaceID)
-		room, err := a.api.core.GetRoom(ctx, kind, thread.RoomID)
+		room, err := api.core.GetRoom(ctx, kind, thread.RoomID)
 		if err != nil {
 			// List responses omit resources that disappear between the core page
 			// snapshot and response hydration instead of failing the whole page.
@@ -63,7 +55,7 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 			return nil, err
 		}
 
-		event, err := a.api.core.GetRoomEventByEventID(ctx, kind, thread.RoomID, thread.ThreadRootEventID)
+		event, err := api.core.GetRoomEventByEventID(ctx, kind, thread.RoomID, thread.ThreadRootEventID)
 		if err != nil {
 			return nil, err
 		}

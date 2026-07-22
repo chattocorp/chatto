@@ -193,9 +193,9 @@
   --color-presence-invisible: var(--color-presence-invisible);
 }
 
-/* Panel/card shells - canonical bordered surfaces for admin panels, room
- * directory group cards, and similar content containers. Pair with
- * `.panel-header` when the container has a distinct header.
+/* Panel/card shells provide the outer surface frame. Their content sits on a
+ * rounded background work plane owned by `Panel`, keeping the same concentric
+ * geometry for forms, tables, and dense lists.
  */
 @utility panel-shell {
   @apply rounded-lg border border-border bg-surface;
@@ -203,6 +203,20 @@
 
 @utility panel-shell-raised {
   @apply shadow-sm;
+}
+
+/* Concentric work plane inside a panel-shell surface frame. The owning
+ * component supplies p-1 around this inset.
+ */
+@utility panel-inset {
+  @apply rounded-md bg-background;
+}
+
+/* Standard record-table header cell. Matrix headers remain deliberately
+ * bespoke because their vertical labels encode a different interaction.
+ */
+@utility table-header-cell {
+  @apply px-4 py-2.5 font-medium;
 }
 
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */
@@ -612,28 +626,6 @@
   }
 }
 
-@utility composer-sending {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface) 0%,
-    var(--color-surface-selected) 50%,
-    var(--color-surface) 100%
-  );
-  background-size: 200% 100%;
-  animation: composer-shimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes composer-shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
 @utility typing-dot {
   width: 3px;
   height: 3px;
@@ -688,7 +680,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer-sending,
   .typing-dot,
   .quick-switcher[open],
   .quick-switcher[open]::backdrop,

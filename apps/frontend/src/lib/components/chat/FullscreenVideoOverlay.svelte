@@ -10,6 +10,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
+  import { configureBundledHLSProvider } from '$lib/media/hls';
   import * as m from '$lib/i18n/messages';
 
   import 'vidstack/player/styles/default/theme.css';
@@ -28,6 +29,10 @@
 
   // Seek to captured playback position once the player can play
   function attachPlayer(node: HTMLElement) {
+    function handleProviderChange(event: Event) {
+      configureBundledHLSProvider((event as CustomEvent).detail);
+    }
+
     function handleCanPlay() {
       if (fullscreenVideo.startTime > 0) {
         const video = node.querySelector('video');
@@ -40,10 +45,12 @@
     }
 
     node.addEventListener('can-play', handleCanPlay, { once: true });
+    node.addEventListener('provider-change', handleProviderChange);
     // Use capture phase so we intercept before Vidstack's internal handler.
     node.addEventListener('media-enter-fullscreen-request', blockFullscreen, true);
     return () => {
       node.removeEventListener('can-play', handleCanPlay);
+      node.removeEventListener('provider-change', handleProviderChange);
       node.removeEventListener('media-enter-fullscreen-request', blockFullscreen, true);
     };
   }
@@ -63,7 +70,7 @@
   }
 </script>
 
-{#if fullscreenVideo.isOpen && fullscreenVideo.src && elementsReady}
+{#if fullscreenVideo.isOpen && fullscreenVideo.source && elementsReady}
   <div
     class="fullscreen-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black"
     role="dialog"
@@ -83,9 +90,10 @@
 
     <media-player
       {@attach attachPlayer}
-      src={{ src: fullscreenVideo.src, type: 'video/mp4' }}
+      src={fullscreenVideo.source}
       autoplay
       playsinline
+      onerror={() => fullscreenVideo.recover()}
       class="h-full w-full"
     >
       <media-provider>

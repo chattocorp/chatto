@@ -21,6 +21,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md) a
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
+| Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
 | Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
 
@@ -74,3 +75,8 @@ advertise `Accept-Ranges: none` and ignore `Range`, returning `200` with the
 complete object. NATS-backed video is therefore not seekable. Passive S3-backed
 media redirects after authorization to a presigned object URL whose storage
 backend provides byte-range delivery.
+
+Processed videos can instead expose HLS. Six-second MPEG-TS segments make
+seeking and adaptive rendition switching independent of byte-range support.
+HLS child responses remain behind Chatto so membership loss revokes an already
+issued playlist ticket on its next playlist or segment request.

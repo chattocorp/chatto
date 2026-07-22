@@ -18,18 +18,6 @@ func TestNewUserID(t *testing.T) {
 	}
 }
 
-func TestNewSpaceID(t *testing.T) {
-	id := NewSpaceID()
-
-	if !strings.HasPrefix(id, "S") {
-		t.Errorf("NewSpaceID() should start with 'S', got %s", id)
-	}
-
-	if len(id) != 15 {
-		t.Errorf("NewSpaceID() should be 15 characters, got %d", len(id))
-	}
-}
-
 func TestNewRoomID(t *testing.T) {
 	id := NewRoomID()
 

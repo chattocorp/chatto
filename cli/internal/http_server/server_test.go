@@ -505,7 +505,7 @@ func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPC
 
 func setTestServerName(t *testing.T, ctx context.Context, chattoCore *core.ChattoCore, name string) {
 	t.Helper()
-	if err := chattoCore.ConfigManager().SetServerConfig(ctx, "test", &configv1.ServerConfig{ServerName: name}); err != nil {
+	if err := chattoCore.ConfigModel().SetServerConfig(ctx, "test", &configv1.ServerConfig{ServerName: name}); err != nil {
 		t.Fatalf("Failed to set test server name: %v", err)
 	}
 }

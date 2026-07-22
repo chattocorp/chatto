@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
+  import { ScrollFader } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -13,6 +14,10 @@
     getKey,
     getGroupKey,
     group,
+    fitContent = false,
+    stickyHeader = false,
+    fillHeight = false,
+    stickyHeaderFadeOffset = 'top-0',
     hoverable = true,
     hasMore = false,
     loadingMore = false,
@@ -30,6 +35,20 @@
     getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
     group?: Snippet<[T]>;
+    /**
+     * Keep the table at its intrinsic width inside the full-width inset
+     * viewport. Use for dense matrices whose columns should not stretch.
+     */
+    fitContent?: boolean;
+    /**
+     * Keep the header visible while rows scroll inside the table viewport.
+     * Use for dense matrices where column labels must remain available.
+     */
+    stickyHeader?: boolean;
+    /** Fill the remaining height of a flex parent instead of using a viewport cap. */
+    fillHeight?: boolean;
+    /** Tailwind position class for the sticky-header viewport's top fade. */
+    stickyHeaderFadeOffset?: string;
     /**
      * Whether rows highlight on hover. Defaults to `true` for the standard
      * "list of records" treatment; pass `false` for matrix-style tables
@@ -109,55 +128,78 @@
   };
 </script>
 
-<table class="w-full [&_thead_th]:whitespace-nowrap">
-  <thead>
-    <tr class="panel-header text-left text-sm text-muted">
-      {@render header()}
-    </tr>
-  </thead>
-  <tbody>
-    {#each items as item, index (keyFn(item, index))}
-      {#if shouldRenderGroup(item, index)}
-        <tr class="border-b border-border bg-surface/80">
-          <td colspan={columns} class="px-4 py-2">
-            {@render group?.(item)}
+{#snippet tableContent()}
+  <table
+    class={[
+      fitContent ? 'w-max' : 'w-full',
+      '[&_thead_th]:whitespace-nowrap'
+    ]}
+  >
+    <thead class={stickyHeader ? 'sticky top-0 z-20' : ''}>
+      <tr class="panel-header text-left text-sm text-muted">
+        {@render header()}
+      </tr>
+    </thead>
+    <tbody class="bg-background">
+      {#each items as item, index (keyFn(item, index))}
+        {#if shouldRenderGroup(item, index)}
+          <tr class="border-b border-border bg-surface/80">
+            <td colspan={columns} class="px-4 py-2">
+              {@render group?.(item)}
+            </td>
+          </tr>
+        {/if}
+        <tr
+          class={[
+            'border-b border-border last:border-0',
+            hoverable ? 'hover:bg-surface/70' : '',
+            onRowClick ? 'cursor-pointer' : ''
+          ]}
+          onclick={() => onRowClick?.(item)}
+        >
+          {@render row(item)}
+        </tr>
+      {:else}
+        <tr>
+          <td colspan={columns} class="px-4 py-8 text-center text-muted">{emptyMessage}</td>
+        </tr>
+      {/each}
+
+      {#if hasMore || loadingMore}
+        <tr
+          class="border-b border-border last:border-0"
+          aria-hidden={!loadingMore}
+          {@attach hasMore ? loadMoreSentinel : undefined}
+        >
+          <td
+            colspan={columns}
+            class={loadingMore ? 'px-4 py-3 text-center text-sm text-muted' : 'h-px p-0'}
+          >
+            {#if loadingMore}
+              <span class="inline-flex items-center gap-2" aria-live="polite">
+                <span class="iconify animate-spin text-base uil--spinner" aria-hidden="true"></span>
+                {loadingMoreMessage}
+              </span>
+            {/if}
           </td>
         </tr>
       {/if}
-      <tr
-        class={[
-          'border-b border-border last:border-0',
-          hoverable ? 'hover:bg-surface-emphasized/40' : '',
-          onRowClick ? 'cursor-pointer' : ''
-        ]}
-        onclick={() => onRowClick?.(item)}
-      >
-        {@render row(item)}
-      </tr>
-    {:else}
-      <tr>
-        <td colspan={columns} class="px-4 py-8 text-center text-muted">{emptyMessage}</td>
-      </tr>
-    {/each}
+    </tbody>
+  </table>
+{/snippet}
 
-    {#if hasMore || loadingMore}
-      <tr
-        class="border-b border-border last:border-0"
-        aria-hidden={!loadingMore}
-        {@attach hasMore ? loadMoreSentinel : undefined}
-      >
-        <td
-          colspan={columns}
-          class={loadingMore ? 'px-4 py-3 text-center text-sm text-muted' : 'h-px p-0'}
-        >
-          {#if loadingMore}
-            <span class="inline-flex items-center gap-2" aria-live="polite">
-              <span class="iconify animate-spin text-base uil--spinner" aria-hidden="true"></span>
-              {loadingMoreMessage}
-            </span>
-          {/if}
-        </td>
-      </tr>
-    {/if}
-  </tbody>
-</table>
+{#if stickyHeader}
+  <ScrollFader
+    top
+    bottom
+    scrollX
+    topFadeOffset={stickyHeaderFadeOffset}
+    class={`rounded-md bg-background ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
+  >
+    {@render tableContent()}
+  </ScrollFader>
+{:else}
+  <div class="overflow-x-auto rounded-md bg-background">
+    {@render tableContent()}
+  </div>
+{/if}

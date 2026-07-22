@@ -147,13 +147,13 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 	return icons
 }
 
-func (s *HTTPServer) currentPWAServerName(ctx context.Context) string {
-	if s.core == nil || s.core.ConfigManager() == nil {
+func (s *HTTPServer) currentPWAServerName() string {
+	if s.core == nil || s.core.ConfigModel() == nil {
 		return "Chatto"
 	}
 
-	name, err := s.core.ConfigManager().GetEffectiveServerName(ctx)
-	if err != nil || strings.TrimSpace(name) == "" {
+	name := s.core.ConfigModel().GetEffectiveServerName()
+	if strings.TrimSpace(name) == "" {
 		return "Chatto"
 	}
 	return name
@@ -266,7 +266,7 @@ func (s *HTTPServer) servePWAWebManifest(c *gin.Context, clientFS fs.FS) {
 	}
 	content, err = dynamicPWAManifest(
 		content,
-		s.currentPWAServerName(c.Request.Context()),
+		s.currentPWAServerName(),
 		s.currentPWAIconURLs(c.Request.Context()),
 	)
 	if err != nil {

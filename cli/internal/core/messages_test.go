@@ -794,11 +794,14 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "invisible-characters", "Invisible character validation")
+	require.NoError(t, err)
+	user, err := core.CreateUser(ctx, "system", "invisiblechars", "Invisible Characters", "password123")
+	require.NoError(t, err)
 
 	// Join space and room
-	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
 
 	t.Run("zero-width spaces only is rejected", func(t *testing.T) {
 		_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "\u200B\u200B\u200B", nil, "", "", nil, false)
@@ -986,7 +989,7 @@ func TestChattoCore_DeleteEcho_PreservesOriginalAttachment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
@@ -1128,7 +1131,7 @@ func TestChattoCore_DeleteMessage_DeletesAttachments(t *testing.T) {
 	}
 
 	// Verify attachment exists in ObjectStore
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
@@ -1194,7 +1197,7 @@ func TestChattoCore_DeleteAttachmentFromMessage(t *testing.T) {
 	}
 
 	// Verify both attachments exist
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
@@ -1260,7 +1263,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if err := core.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, roomEvent.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
+	if err := core.assetModel.RecordAssetProcessed(ctx, SystemActorID, room.Id, roomEvent.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
 		{
 			AttachmentId: variantAttachment.Id,
 			Quality:      "720p",
@@ -1273,7 +1276,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 		t.Fatalf("Failed to record processed video manifest: %v", err)
 	}
 
-	store, err := core.GetAttachmentsStore(ctx)
+	store, err := core.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
@@ -1329,7 +1332,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_NotAuthor(t *testing.T) {
 	}
 
 	// Verify attachment still exists
-	store, _ := core.GetAttachmentsStore(ctx)
+	store, _ := core.mediaModel.GetAttachmentsStore(ctx)
 	if _, err := store.Get(ctx, attachment.Id); err != nil {
 		t.Error("Attachment should still exist after failed deletion")
 	}

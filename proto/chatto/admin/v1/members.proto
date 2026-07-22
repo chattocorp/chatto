@@ -83,6 +83,15 @@ message GetMemberResponse {
   bool viewer_can_manage_roles = 5;
   // Whether the caller may edit direct user permissions.
   bool viewer_can_manage_user_permissions = 6;
+  // Roles the caller may assign without granting authority the caller does not
+  // possess. Populated when assignment limits are enforced.
+  repeated string assignable_role_names = 7;
+  // Roles the caller may revoke without removing restrictions or authority
+  // beyond the caller's own. Populated when assignment limits are enforced.
+  repeated string revocable_role_names = 8;
+  // True when assignable_role_names and revocable_role_names are authoritative.
+  // Older servers leave this false and clients may retain legacy behaviour.
+  bool role_assignment_limits_enforced = 9;
 }
 
 // Request server-admin member rows for a set of stable user IDs.
@@ -218,9 +227,11 @@ service AdminUserService {
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
   // Gets server member rows for multiple users. Requires admin.view-users.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
-  // Assigns a role to a user. Requires role.assign.
+  // Assigns a role to a user. Requires role.assign, and non-owner callers may
+  // only assign roles whose granted authority they already possess.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
-  // Revokes a role from a user. Requires role.assign.
+  // Revokes a role from a user. Requires role.assign, and non-owner callers may
+  // only revoke roles whose permission decisions are within their authority.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates another user's login and/or display name as an admin action.
   // Requires user.manage-accounts; the caller cannot target their own account.

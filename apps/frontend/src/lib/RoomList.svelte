@@ -46,6 +46,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type ContextMenuTriggerDetails
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
+  import { toast } from '$lib/ui/toast';
 
   // No props — RoomList reads everything from the active server's stores.
   // All store references go through `stores` ($derived), so when the active
@@ -66,9 +67,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const roomUnreadStore = $derived(stores.roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
-  let roomContextMenu = $state<
-    (ContextMenuTriggerDetails & { room: RoomsListItem }) | null
-  >(null);
+  let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
+  let groupContextMenu = $state<(ContextMenuTriggerDetails & { group: RoomsListGroup }) | null>(
+    null
+  );
 
   function roomMenuTrigger(room: RoomsListItem) {
     return contextMenuTrigger((details) => {
@@ -78,6 +80,27 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   function closeRoomContextMenu(): void {
     roomContextMenu = null;
+  }
+
+  function groupMenuTrigger(group: RoomsListGroup) {
+    if (!group.viewerCanManageGroup) return undefined;
+    return contextMenuTrigger((details) => {
+      groupContextMenu = { ...details, group };
+    });
+  }
+
+  function closeGroupContextMenu(): void {
+    groupContextMenu = null;
+  }
+
+  function handleConfigureGroup(group: RoomsListGroup): void {
+    closeGroupContextMenu();
+    void goto(
+      resolve('/chat/[serverId]/manage/room-groups/[groupId]', {
+        serverId: serverSegment,
+        groupId: group.id
+      })
+    );
   }
 
   function handleMarkRoomRead(room: RoomsListItem): void {
@@ -94,6 +117,28 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         roomName: room.name
       }
     });
+  }
+
+  function handleConfigureRoom(room: RoomsListItem): void {
+    closeRoomContextMenu();
+    void goto(
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
+        serverId: serverSegment,
+        roomId: room.id
+      })
+    );
+  }
+
+  async function handleJoinRoom(room: RoomsListItem): Promise<void> {
+    closeRoomContextMenu();
+    const result = await stores.roomDirectory.joinRoom(room.id);
+    if (result.ok) {
+      toast.success(m['room.join.success']({ room: room.name }));
+      return;
+    }
+
+    toast.error(m['room.join.failed']());
+    console.error('Error joining room:', result.error);
   }
 
   // --- Derived layout helpers ---
@@ -119,14 +164,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
-  // Sets that have at least one channel the viewer is a member of
+  // Keep manageable groups discoverable even when none of their rooms are
+  // visible to the viewer.
   let visibleSets = $derived.by(() => {
     const sets = roomsStore.roomGroups;
     if (!sets) return [];
-    return sets.filter((s) => getSetItems(s).length > 0);
+    return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
   });
-
-  const hasSidebarItems = $derived(visibleSets.some((set) => getSetItems(set).length > 0));
 
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
@@ -331,7 +375,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
-    {@attach isJoined && roomMenuTrigger(room)}
+    {@attach roomMenuTrigger(room)}
   >
     {#if isJoined}
       <span class={['sidebar-icon', hasUnreadAttention ? 'text-text-top' : 'text-muted']}>#</span>
@@ -439,7 +483,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && !hasSidebarItems && !roomsStore.isInitialLoading}
+{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !roomsStore.isInitialLoading}
   <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
     {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
@@ -459,6 +503,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
+          contextMenuTrigger={groupMenuTrigger(set)}
         />
       {/each}
     {:else if sortedRooms.length > 0}
@@ -486,6 +531,30 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </nav>
 {/if}
 
+{#if groupContextMenu}
+  {@const contextGroup = groupContextMenu.group}
+  <ContextMenu
+    position={groupContextMenu.position}
+    presentation={groupContextMenu.presentation}
+    ariaLabel={m['room_list.group_settings']({ group: contextGroup.name })}
+    onclose={closeGroupContextMenu}
+  >
+    <div class="menu-section">
+      <nav class="sidebar-nav">
+        <button
+          type="button"
+          class="sidebar-item"
+          onclick={() => handleConfigureGroup(contextGroup)}
+          role="menuitem"
+        >
+          <span class="sidebar-icon iconify uil--setting" aria-hidden="true"></span>
+          {m['room_list.group_settings']({ group: contextGroup.name })}
+        </button>
+      </nav>
+    </div>
+  </ContextMenu>
+{/if}
+
 {#if roomContextMenu}
   {@const contextRoom = roomContextMenu.room}
   <ContextMenu
@@ -496,10 +565,15 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <NavigationContextMenu
       kind="room"
+      isRoomMember={contextRoom.viewerIsMember}
+      canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
+      canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomType.Dm}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
+      onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
+      onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
   </ContextMenu>

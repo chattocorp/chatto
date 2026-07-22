@@ -24,9 +24,9 @@ Provides permission matrix reads and admin permission writes.
 
 ### GetRolePermissionTierMatrix
 
-Gets the role-permission matrix for a single tier. Requires role.manage
-for server/group scope; room scope requires role.manage or room.manage in
-that room.
+Gets the role-permission matrix for a single tier. Server scope requires
+role.manage; group and room scopes require role.manage or effective
+room.manage at the requested resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix
@@ -225,7 +225,8 @@ Permission explanations for all permissions applicable at the requested scope.
 
 ### SetRolePermission
 
-Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+Sets one role permission decision. Server scope requires role.manage;
+group and room scopes also accept effective room.manage at that resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission

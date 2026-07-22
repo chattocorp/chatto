@@ -46,3 +46,22 @@
     <Hint tone="danger" icon="uil--exclamation-octagon">Deleting this space cannot be undone.</Hint>
   </div>
 </Story>
+
+<Story
+  name="Narrow panel"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Long hint copy wraps within narrow panels instead of widening the page.'
+      }
+    }
+  }}
+>
+  <div class="w-72">
+    <Hint>
+      Per-group overrides apply to rooms in this group. Individual rooms can add more specific
+      permission overrides.
+    </Hint>
+  </div>
+</Story>

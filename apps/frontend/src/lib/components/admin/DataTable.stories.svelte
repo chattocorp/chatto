@@ -17,11 +17,17 @@
     { id: 'SPC-2JLA9', name: 'Moderation', members: 12, visibility: 'Private' },
     { id: 'SPC-4MN0X', name: 'Community', members: 87, visibility: 'Invite-only' }
   ];
+  const scrollingRows = Array.from({ length: 24 }, (_, index) => ({
+    id: `SPC-${String(index + 1).padStart(4, '0')}`,
+    name: `Space ${index + 1}`,
+    members: (index + 1) * 12,
+    visibility: index % 3 === 0 ? 'Public' : index % 3 === 1 ? 'Invite-only' : 'Private'
+  })) satisfies SpaceRow[];
 
   const componentDescription = `
-  Admin table primitive with the shared panel-header treatment, empty state row,
-  optional row hover/click affordance, and automatic load-more support. Usually
-  placed inside \`Panel noPadding\` so the table owns the panel edges.
+  Admin table primitive with a rounded scroll viewport, contrasting header and
+  body, empty state row, optional row hover/click affordance, and automatic
+  load-more support. Place it inside \`Panel noPadding\`; Panel owns the shared frame.
   `.trim();
 
   const { Story } = defineMeta({
@@ -45,7 +51,7 @@
     docs: {
       description: {
         story:
-          'The default record table: sticky visual header treatment, hoverable rows, and caller-owned cell layout.'
+          'The default record table: a rounded inset viewport, strong header/body boundary, hoverable ruled rows, and caller-owned cell layout.'
       }
     }
   }}
@@ -56,6 +62,32 @@
         items={rows}
         columns={4}
         getKey={(row) => row.id}
+        header={tableHeader}
+        row={tableRow}
+      />
+    </Panel>
+  </div>
+</Story>
+
+<Story
+  name="Sticky header"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Dense matrices and long administrative tables can retain their column labels in a bounded scrolling viewport.'
+      }
+    }
+  }}
+>
+  <div class="flex h-96 max-w-3xl flex-col">
+    <Panel title="Space permissions" noPadding fillHeight>
+      <DataTable
+        items={scrollingRows}
+        columns={4}
+        getKey={(row) => row.id}
+        stickyHeader
+        fillHeight
         header={tableHeader}
         row={tableRow}
       />
@@ -88,10 +120,10 @@
 </Story>
 
 {#snippet tableHeader()}
-  <th class="px-4 py-3 font-medium">Name</th>
-  <th class="px-4 py-3 font-medium">ID</th>
-  <th class="px-4 py-3 text-right font-medium">Members</th>
-  <th class="px-4 py-3 font-medium">Visibility</th>
+  <th class="table-header-cell">Name</th>
+  <th class="table-header-cell">ID</th>
+  <th class="table-header-cell text-right">Members</th>
+  <th class="table-header-cell">Visibility</th>
 {/snippet}
 
 {#snippet tableRow(row: SpaceRow)}

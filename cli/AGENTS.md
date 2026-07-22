@@ -160,14 +160,22 @@ authorization, live events, backup/restore, and backend tests.
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
   `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`.
+  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
+  by the target role's explicit scoped permission decisions; assigning requires
+  every allow, revoking requires every allow and deny, and the `owner` role is
+  owner-only.
+- Authorization-sensitive event writes must evaluate authorization inside the
+  OCC retry that commits the mutation. Fence every projection input that can
+  change the decision through the narrow authorization boundary; do not use
+  unrelated `evt.>` traffic as the concurrency boundary.
 
 ## Admin Interface
 
 - Owners/admins can see operational metadata, not user content. Message/file
   visibility for moderation must be an explicit audited feature.
-- Server admin routes live under `/chat/[serverId]/server-admin/`.
-- The shared admin `Panel` component is used in both server-admin and settings
+- Management routes live under `/chat/[serverId]/manage/`, with server-only
+  pages under `manage/server/` and delegated room/group pages beside it.
+- The shared admin `Panel` component is used in both management and settings
   surfaces; changes affect both.
 - Implicit roles such as `everyone` must not be editable as normal assignments.
 

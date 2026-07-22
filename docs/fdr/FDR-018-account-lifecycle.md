@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-07-21
 
 ## Overview
 
@@ -11,12 +11,12 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### Registration
 
-- A user signs up with a login, email, and password. The login must pass uniqueness, format, and blocked-username checks; email uniqueness is enforced when the address is verified.
-- After signup, an email is sent to the address with a six-digit verification code.
+- A user starts registration with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
+- Chatto sends a six-digit verification code to an available address. Verifying the code returns a short-lived completion token; it does not create an account.
+- The user then chooses a login and password. The login must pass uniqueness, format, and blocked-username checks, and the email is checked again in case it was claimed while the completion token was outstanding.
+- Successful completion creates the account with the email already verified. There is no partially registered or unverified account state in the direct-registration flow.
 - Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
-- Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
-- Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
-- If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
+- If the verified email matches an entry in `owners.emails` in the server config, the new user is auto-assigned the `owner` role when the verified email is attached.
 
 ### Email management
 
@@ -39,11 +39,11 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Design Decisions
 
-### 1. Email verification gates non-trivial actions, not access itself
+### 1. Verify email before creating a direct-registration account
 
-**Decision:** Unverified users can sign in and see basic surfaces, but the meaningful permissions come from the `verified` implicit role. Operators decide what that role grants.
-**Why:** Hard-blocking unverified users from logging in is annoying — common operational issues (typo'd email, lost verification mail) become lockouts. Permission-gating instead lets operators decide what "verified" means while keeping the user reachable.
-**Tradeoff:** Operators have to actively configure the `verified` role for it to be meaningful. The default grants ensure the role does something out of the box.
+**Decision:** Direct registration proves control of the email address before asking for the login and password that complete account creation. The verification code yields a short-lived completion token; only successful completion creates the account and attaches the already-verified email.
+**Why:** This avoids durable half-created accounts, prevents unverified users from occupying login names, and ensures every directly registered account begins with a usable recovery address. Generic code-request responses avoid turning the flow into an account-enumeration endpoint.
+**Tradeoff:** Direct registration requires working email delivery before the user can choose credentials or enter the application. A lost or expired code restarts the verification step instead of leaving an account that can be resumed.
 
 ### 2. Multiple verified emails per user
 

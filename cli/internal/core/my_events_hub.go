@@ -479,7 +479,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			return true
 		}
 		assetID := assetIDOfLifecycleEvent(&event)
-		assetRoomID, ok := h.model.core.assetLifecycle().AssetRoomID(assetID)
+		assetRoomID, ok := h.model.core.assetModel.AssetRoomID(assetID)
 		if ok {
 			h.fanoutReadyAssetEvent(assetRoomID, &event, seq, bytes)
 		}
@@ -703,7 +703,7 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 			return nil, 0, fmt.Errorf("read RBAC visibility tail: %w", err)
 		}
 		if roomTail > 0 {
-			if err := h.model.core.rooms().waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
+			if err := h.model.core.roomModel.waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
 				return nil, 0, fmt.Errorf("wait for room visibility snapshot: %w", err)
 			}
 		}

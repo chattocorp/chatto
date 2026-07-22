@@ -94,32 +94,22 @@ func ifNoneMatch(headerValue, etag string) bool {
 	return false
 }
 
-func (a *API) effectiveServerName(ctx context.Context) string {
-	if a.core != nil && a.core.ConfigManager() != nil {
-		if n, err := a.core.ConfigManager().GetEffectiveServerName(ctx); err == nil {
-			return n
-		}
+func (a *API) effectiveServerName() string {
+	if a.core != nil && a.core.ConfigModel() != nil {
+		return a.core.ConfigModel().GetEffectiveServerName()
 	}
 	return "Chatto"
 }
 
 func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (*apiv1.ServerPublicProfile, error) {
-	profile := &apiv1.ServerPublicProfile{Name: a.effectiveServerName(ctx), Version: a.version}
+	profile := &apiv1.ServerPublicProfile{Name: a.effectiveServerName(), Version: a.version}
 
-	if a.core != nil && a.core.ConfigManager() != nil {
-		cm := a.core.ConfigManager()
-		if welcome, err := cm.GetEffectiveWelcomeMessage(ctx); err != nil {
-			if !options.tolerateErrors {
-				return nil, connectError(err)
-			}
-		} else if welcome != "" {
+	if a.core != nil && a.core.ConfigModel() != nil {
+		cm := a.core.ConfigModel()
+		if welcome := cm.GetEffectiveWelcomeMessage(); welcome != "" {
 			profile.WelcomeMessage = stringPtr(welcome)
 		}
-		if cfg, err := cm.GetServerConfig(ctx); err != nil {
-			if !options.tolerateErrors {
-				return nil, connectError(err)
-			}
-		} else if cfg != nil && cfg.GetDescription() != "" {
+		if cfg := cm.GetServerConfig(); cfg != nil && cfg.GetDescription() != "" {
 			profile.Description = stringPtr(cfg.GetDescription())
 		}
 	}

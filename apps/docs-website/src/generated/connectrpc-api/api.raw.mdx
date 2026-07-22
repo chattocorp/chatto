@@ -3077,7 +3077,7 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCalls
 
-Lists member channel rooms that currently have active calls as a finite
+Lists member rooms that currently have active calls as a finite
 runtime snapshot. Rooms the caller is not a member of are omitted.
 
 Returns an empty list when LiveKit is not configured.
@@ -3090,14 +3090,14 @@ POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCalls
 
 #### Input: ListActiveCallsRequest
 
-Request for active channel call snapshots.
+Request for active room call snapshots.
 
 
 <a id="chatto-api-v1-ListActiveCallsResponse"></a>
 
 #### Result: ListActiveCallsResponse
 
-Finite runtime snapshot of active channel calls.
+Finite runtime snapshot of active room calls.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3741,6 +3741,18 @@ user has reacted with the same emoji.
 
 
 
+<a id="chatto-api-v1-MessageVideoHLS"></a>
+
+### MessageVideoHLS
+
+HLS adaptive-streaming metadata for a processed video.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `master_playlist_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the HLS master playlist. The URL authorises all playlists and segments in this video generation and expires with the attachment URL. |
+
+
+
 <a id="chatto-api-v1-MessageVideoProcessing"></a>
 
 ### MessageVideoProcessing
@@ -3761,6 +3773,7 @@ state.
 | `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
 | `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the generated thumbnail, when available. |
 | `variants` | repeated [`MessageVideoVariant`](#chatto-api-v1-MessageVideoVariant) | Available transcoded renditions. |
+| `hls` | [`MessageVideoHLS`](#chatto-api-v1-MessageVideoHLS) | Adaptive-streaming metadata. Absent on MP4-only historical results and servers that do not support HLS processing. |
 
 
 

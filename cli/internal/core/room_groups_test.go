@@ -157,6 +157,27 @@ func TestUpdateRoomGroup(t *testing.T) {
 	}
 }
 
+func TestUpdateRoomGroupFieldsPreservesOmittedConcurrentField(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	group, err := core.CreateRoomGroup(ctx, SystemActorID, "Original", "original description")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	if _, err := core.UpdateRoomGroup(ctx, SystemActorID, group.GetId(), "Original", "newer description"); err != nil {
+		t.Fatalf("concurrent UpdateRoomGroup: %v", err)
+	}
+	name := "Renamed"
+	updated, err := core.UpdateRoomGroupFields(ctx, SystemActorID, group.GetId(), &name, nil)
+	if err != nil {
+		t.Fatalf("UpdateRoomGroupFields: %v", err)
+	}
+	if updated.GetName() != name || updated.GetDescription() != "newer description" {
+		t.Fatalf("updated group = %#v, want sparse name update preserving newer description", updated)
+	}
+}
+
 func TestUpdateRoomGroup_NotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -98,18 +98,9 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	return nil
 }
 
-// GetChannelRoomCount returns the number of channel rooms on the server.
-func (c *ChattoCore) GetChannelRoomCount(ctx context.Context) (int, error) {
-	rooms, err := c.ListRooms(ctx, KindChannel)
-	if err != nil {
-		return 0, err
-	}
-	return len(rooms), nil
-}
-
 // GetAssetCount returns the number of assets (attachments) on the server.
 func (c *ChattoCore) GetAssetCount(ctx context.Context) (int, error) {
-	store, err := c.GetAttachmentsStore(ctx)
+	store, err := c.mediaModel.GetAttachmentsStore(ctx)
 	if err != nil {
 		// If the bucket doesn't exist, return 0
 		return 0, nil

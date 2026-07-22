@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
@@ -11,6 +11,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 - **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
+- **Settings access** — a joined room's context menu links `room.manage` holders directly to that room's management page. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
@@ -96,6 +97,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 - `room.create` — create a new channel room in a group. Configurable per group.
 - `room.manage` — edit, archive, unarchive, delete, change Universal state, and add/remove explicit members for a channel room. Configurable per group and per room.
+- `role.manage` — configure role permission decisions at room scope without granting general room-management authority.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
 - `room.list` + `room.join` — together allow a channel-room nonmember to list its effective members. Existing members do not need these grants for member listing.

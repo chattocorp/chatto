@@ -81,7 +81,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-present", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-present", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 
@@ -117,7 +117,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-missing", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-missing", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 
@@ -142,7 +142,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 // TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested exercises the
 // full boot-recovery path: a message-owned video asset with no terminal
-// manifest (e.g. enqueued by a process that crashed before completing) must be
+// manifest (including a STARTED-only attempt interrupted by a crash) must be
 // re-discovered and re-dispatched. This path was dead before message ownership
 // was derived correctly, so it carries no other coverage.
 func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.T) {
@@ -165,7 +165,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	pending := core.assetLifecycle().UnmanifestedVideoAttachments()
+	pending := core.assetModel.UnmanifestedVideoAttachments()
 	if len(pending) != 1 || pending[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
@@ -184,13 +184,14 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatal("expected recovery to dispatch local work")
 	}
 
-	// ...and it must leave a Started marker so a second recovery is a no-op.
+	// A STARTED marker is not terminal. It remains recoverable after a process
+	// restart; the service invokes this scan once per boot.
 	manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}
-	if got := core.assetLifecycle().UnmanifestedVideoAttachments(); len(got) != 0 {
-		t.Fatalf("UnmanifestedVideoAttachments after recovery = %+v, want none", got)
+	if got := core.assetModel.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
+		t.Fatalf("UnmanifestedVideoAttachments after Started = %+v, want %q", got, att.Id)
 	}
 }
 

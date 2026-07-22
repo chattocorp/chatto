@@ -175,10 +175,7 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime server profile: %w", err)
 	}
-	serverState, err := a.BuildRealtimeProjectionServerState(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("assemble realtime authenticated server state: %w", err)
-	}
+	serverState := a.BuildRealtimeProjectionServerState()
 	viewer, err := a.buildViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime viewer: %w", err)
@@ -267,14 +264,13 @@ func (a *API) BuildRealtimeProjectionActiveCalls(ctx context.Context, userID str
 	if !a.config.LiveKit.IsConfigured() {
 		return nil, nil
 	}
-	roomIDs, err := a.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
+	roomIDs, err := a.core.GetActiveCallRoomIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	service := &voiceCallService{api: a}
 	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		call, err := service.activeCall(ctx, userID, roomID)
+		call, err := activeCall(ctx, a, userID, roomID)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
 				continue
@@ -326,13 +322,8 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 
 // BuildRealtimeProjectionServerState returns current authenticated server
 // presentation and runtime settings for snapshot and live convergence.
-func (a *API) BuildRealtimeProjectionServerState(ctx context.Context) (*RealtimeProjectionServerState, error) {
-	service := &serverService{api: a}
-	motd, err := service.serverMotd(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &RealtimeProjectionServerState{MOTD: motd, Runtime: service.serverRuntimeConfig()}, nil
+func (a *API) BuildRealtimeProjectionServerState() *RealtimeProjectionServerState {
+	return &RealtimeProjectionServerState{MOTD: serverMOTD(a), Runtime: serverRuntimeConfig(a)}
 }
 
 func (a *API) realtimeProjectionUsers(ctx context.Context) ([]*apiv1.DirectoryMember, error) {

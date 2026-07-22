@@ -10,6 +10,7 @@ export type RefreshedAttachmentUrls = {
   assetUrl: ExpiringAssetUrl | null;
   thumbnailAssetUrl: ExpiringAssetUrl | null;
   videoThumbnailAssetUrl: ExpiringAssetUrl | null;
+  hlsMasterPlaylistUrl?: ExpiringAssetUrl | null;
   variantAssetUrls: Map<string, ExpiringAssetUrl | null>;
 };
 

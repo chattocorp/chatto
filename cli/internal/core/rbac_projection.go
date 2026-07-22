@@ -29,6 +29,16 @@ type rbacDecisionKey struct {
 	permission  Permission
 }
 
+// ScopedRolePermissionDecision is one explicit permission decision carried by
+// a role. It is used to keep delegated role assignment within the caller's own
+// authority without treating display order as an authorization rank.
+type ScopedRolePermissionDecision struct {
+	Scope      PermissionScope
+	ScopeID    string
+	Permission Permission
+	Decision   DecisionKind
+}
+
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
 		roles:       make(map[string]*corev1.Role),
@@ -425,6 +435,33 @@ func (p *RBACProjection) GetRoleUsers(roleName string) []string {
 	}
 	sort.Strings(users)
 	return users
+}
+
+func (p *RBACProjection) RolePermissionDecisions(roleName string) []ScopedRolePermissionDecision {
+	p.RLock()
+	defer p.RUnlock()
+	decisions := make([]ScopedRolePermissionDecision, 0)
+	for key, decision := range p.decisions {
+		if key.subjectKind != corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || key.subject != roleName {
+			continue
+		}
+		decisions = append(decisions, ScopedRolePermissionDecision{
+			Scope:      key.scope,
+			ScopeID:    key.scopeID,
+			Permission: key.permission,
+			Decision:   decision,
+		})
+	}
+	sort.Slice(decisions, func(i, j int) bool {
+		if decisions[i].Scope != decisions[j].Scope {
+			return decisions[i].Scope < decisions[j].Scope
+		}
+		if decisions[i].ScopeID != decisions[j].ScopeID {
+			return decisions[i].ScopeID < decisions[j].ScopeID
+		}
+		return decisions[i].Permission < decisions[j].Permission
+	})
+	return decisions
 }
 
 func (p *RBACProjection) Assignments() []rbacSeedAssignment {

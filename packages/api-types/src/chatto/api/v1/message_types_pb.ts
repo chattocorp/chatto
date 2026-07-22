@@ -175,6 +175,48 @@ export class MessageVideoVariant extends Message$1<MessageVideoVariant> {
 }
 
 /**
+ * HLS adaptive-streaming metadata for a processed video.
+ *
+ * @generated from message chatto.api.v1.MessageVideoHLS
+ */
+export class MessageVideoHLS extends Message$1<MessageVideoHLS> {
+  /**
+   * Signed URL for the HLS master playlist. The URL authorises all playlists
+   * and segments in this video generation and expires with the attachment URL.
+   *
+   * @generated from field: chatto.api.v1.MessageAssetUrl master_playlist_url = 1;
+   */
+  masterPlaylistUrl?: MessageAssetUrl;
+
+  constructor(data?: PartialMessage<MessageVideoHLS>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.MessageVideoHLS";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "master_playlist_url", kind: "message", T: MessageAssetUrl },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageVideoHLS {
+    return new MessageVideoHLS().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageVideoHLS {
+    return new MessageVideoHLS().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageVideoHLS {
+    return new MessageVideoHLS().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageVideoHLS | PlainMessage<MessageVideoHLS> | undefined, b: MessageVideoHLS | PlainMessage<MessageVideoHLS> | undefined): boolean {
+    return proto3.util.equals(MessageVideoHLS, a, b);
+  }
+}
+
+/**
  * Processing metadata for a video attachment.
  *
  * Clients can use this object to show upload/transcoding progress and decide
@@ -240,6 +282,14 @@ export class MessageVideoProcessing extends Message$1<MessageVideoProcessing> {
    */
   variants: MessageVideoVariant[] = [];
 
+  /**
+   * Adaptive-streaming metadata. Absent on MP4-only historical results and
+   * servers that do not support HLS processing.
+   *
+   * @generated from field: chatto.api.v1.MessageVideoHLS hls = 9;
+   */
+  hls?: MessageVideoHLS;
+
   constructor(data?: PartialMessage<MessageVideoProcessing>) {
     super();
     proto3.util.initPartial(data, this);
@@ -256,6 +306,7 @@ export class MessageVideoProcessing extends Message$1<MessageVideoProcessing> {
     { no: 6, name: "reason_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "thumbnail_asset_url", kind: "message", T: MessageAssetUrl },
     { no: 8, name: "variants", kind: "message", T: MessageVideoVariant, repeated: true },
+    { no: 9, name: "hls", kind: "message", T: MessageVideoHLS },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageVideoProcessing {

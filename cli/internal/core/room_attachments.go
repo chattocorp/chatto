@@ -120,11 +120,11 @@ func (c *ChattoCore) roomAsset(roomID, assetID string) (*corev1.Attachment, erro
 	if assetID == "" {
 		return nil, invalidArgument("asset_id is required")
 	}
-	declared, ok := c.assetLifecycle().AssetCreation(assetID)
-	if !ok || declared == nil || c.assetLifecycle().AssetDeleted(assetID) {
+	declared, ok := c.assetModel.AssetCreation(assetID)
+	if !ok || declared == nil || c.assetModel.AssetDeleted(assetID) {
 		return nil, ErrNotFound
 	}
-	assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetID)
+	assetRoomID, ok := c.assetModel.AssetRoomID(assetID)
 	if !ok || assetRoomID != roomID {
 		return nil, ErrNotFound
 	}
@@ -225,7 +225,7 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 	}
 
 	items := make([]*RoomAttachmentItem, 0)
-	for _, message := range c.rooms().currentRoomAttachmentMessages(roomID) {
+	for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
 		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
 			continue
 		}
@@ -233,7 +233,7 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 		if posted == nil {
 			continue
 		}
-		attachments := c.MessageBodyAttachments(message.Body)
+		attachments := c.mediaModel.MessageBodyAttachments(message.Body)
 		if len(attachments) == 0 {
 			continue
 		}

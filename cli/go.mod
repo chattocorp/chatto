@@ -4,7 +4,6 @@ go 1.26.0
 
 tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go
-	github.com/gzuidhof/tygo
 	github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 	github.com/sanity-io/litter
 	google.golang.org/protobuf/cmd/protoc-gen-go
@@ -104,7 +103,6 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/expr-lang/expr v1.17.8 // indirect
 	github.com/fatih/color v1.19.0 // indirect
-	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/frostbyte73/core v0.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
@@ -124,7 +122,6 @@ require (
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/context v1.1.2 // indirect
-	github.com/gzuidhof/tygo v0.2.20 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/huandu/xstrings v1.0.0 // indirect
@@ -196,14 +193,11 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
-	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.81.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

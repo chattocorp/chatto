@@ -4,7 +4,7 @@ Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go),
 [`cli/internal/core/runtime_token_keys.go`](../../cli/internal/core/runtime_token_keys.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
 [`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go), and
-[`cli/internal/projectionsnapshot/repository.go`](../../cli/internal/projectionsnapshot/repository.go)
+[`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go)
 
 Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 
@@ -21,9 +21,18 @@ Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 | Key                   | Description                       |
 | --------------------- | --------------------------------- |
 | `kek.{keyId}`         | Protobuf `UserKeyEncryptionKey` per-user KEK record; the complete object key is also the opaque KMS key ref |
+| `user.{userId}`       | Legacy raw 32-byte per-user encryption key retained only for decrypting pre-envelope message bodies; account deletion shreds it with the user's current KEK |
 | `call.e2ee.{callId}`  | Protobuf `UserKeyEncryptionKey` record containing the raw LiveKit E2EE key for one active call; referenced by `CallStartedEvent.e2ee_key_ref` and shredded when `CallEndedEvent` commits |
 
-Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process [`internal/kms`](../../cli/internal/kms/) boundary for KEK creation, DEK wrap/unwrap, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{id}`; that complete key is the content-key ref.
+Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content, legacy raw user keys, or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process [`internal/kms`](../../cli/internal/kms/) boundary for KEK creation, DEK wrap/unwrap, legacy-key lookup, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{id}`; that complete key is the content-key ref.
+
+The `user.{userId}` namespace remains a live compatibility constraint: message
+bodies written before envelope encryption still need that key to remain
+readable. It must therefore survive ordinary upgrades and any key-bearing
+backup/export and restore until those bodies no longer need to be read. It is
+not used for new writes. Crypto-shredding must remove both this legacy key and
+the user's current opaque `kek.*` key so deletion covers every message-body
+encryption generation.
 
 The backup CLI stages JetStream snapshots in an owner-only random directory
 beside the destination and always removes plaintext staging. It publishes
@@ -181,9 +190,13 @@ There is no transient NATS Core worker subject or `video_processed` live
 signal. Boot recovery derives missed work from EVT projections and calls the
 same local path.
 
-Successful processing records thumbnail and variant asset IDs. Each derivative
-binary is separately declared with `AssetCreatedEvent` and an owner pointing to
-the original asset. `AssetProcessingFailedEvent.failure_code` records failed or
+Successful processing records a thumbnail plus either historical/animated-GIF
+MP4 variant IDs or an HLS manifest containing rendition metadata and ordered
+segment IDs with durations. Only segment binaries are durable HLS derivatives;
+HTTP handlers generate playlists from the manifest. Each derivative binary is
+separately declared with `AssetCreatedEvent`, a role, and an owner pointing to
+the original asset. Histories created before HLS remain MP4-only and are not
+backfilled. `AssetProcessingFailedEvent.failure_code` records failed or
 unavailable outcomes.
 
 Account deletion follows the projected message asset graph. It appends

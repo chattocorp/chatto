@@ -301,9 +301,9 @@ message SetUserPermissionResponse {
 
 // Provides permission matrix reads and admin permission writes.
 service AdminPermissionService {
-  // Gets the role-permission matrix for a single tier. Requires role.manage
-  // for server/group scope; room scope requires role.manage or room.manage in
-  // that room.
+  // Gets the role-permission matrix for a single tier. Server scope requires
+  // role.manage; group and room scopes require role.manage or effective
+  // room.manage at the requested resource.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
   // Gets one role's full permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
@@ -319,7 +319,8 @@ service AdminPermissionService {
   rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
   // Explains permission resolution for another user. Requires role.manage.
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
-  // Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+  // Sets one role permission decision. Server scope requires role.manage;
+  // group and room scopes also accept effective room.manage at that resource.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
   // Sets one user permission decision. Requires user.manage-permissions.
   rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);

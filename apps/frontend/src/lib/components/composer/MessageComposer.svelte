@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import type { RoomEventView } from '$lib/render/types';
-  import { createMessageAPI } from '$lib/api-client/messages';
+  import { createMessageAPI, type AttachmentUploadUpdate } from '$lib/api-client/messages';
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import { createRoleAPI } from '$lib/api-client/roles';
   import * as m from '$lib/i18n/messages';
@@ -35,7 +36,7 @@
     TipTapEditorApi
   } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
-  import { AttachmentsState } from './attachments.svelte';
+  import { AttachmentsState, formatFileSize } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
   import {
@@ -347,6 +348,12 @@
   });
 
   let loading = $state(false);
+  type AttachmentSubmissionStatus =
+    | { phase: 'preparing' }
+    | { phase: 'uploading'; committedBytes: number; totalBytes: number }
+    | { phase: 'uploaded' }
+    | { phase: 'failed' };
+  const attachmentSubmissionStatuses = new SvelteMap<File, AttachmentSubmissionStatus>();
   let roleMentionCheckLoading = $state(false);
   let fileInputElement = $state<HTMLInputElement>();
   let timestampTriggerElement = $state<HTMLButtonElement>();
@@ -377,10 +384,8 @@
     return null;
   });
 
-  // Input is disabled when user can't post or websocket is disconnected.
-  // Note: loading is intentionally excluded — the editor stays editable during sends
-  // so users can type the next message while the current one is in flight.
-  let inputDisabled = $derived(!canPost || connection().showConnectionLostBanner);
+  // Keep the submitted draft stable while its message and attachments are in flight.
+  let inputDisabled = $derived(loading || !canPost || connection().showConnectionLostBanner);
 
   let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
 
@@ -449,7 +454,7 @@
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
-    if (!canAttach) {
+    if (!canAttach || inputDisabled) {
       target.value = '';
       return;
     }
@@ -464,12 +469,41 @@
     attachments.removeFile(index);
   }
 
+  function updateAttachmentSubmission(update: AttachmentUploadUpdate) {
+    const status: AttachmentSubmissionStatus =
+      update.phase === 'uploading'
+        ? {
+            phase: 'uploading',
+            committedBytes: update.committedBytes,
+            totalBytes: update.totalBytes
+          }
+        : { phase: update.phase };
+    attachmentSubmissionStatuses.set(update.file, status);
+  }
+
+  function attachmentSubmissionStatus(file: File): AttachmentSubmissionStatus | null {
+    return attachmentSubmissionStatuses.get(file) ?? null;
+  }
+
+  function uploadPercentage(status: AttachmentSubmissionStatus): number | null {
+    if (status.phase === 'uploaded') return 100;
+    if (status.phase !== 'uploading' || status.totalBytes <= 0) return null;
+    return Math.min(100, Math.round((status.committedBytes / status.totalBytes) * 100));
+  }
+
+  function uploadStatusLabel(status: AttachmentSubmissionStatus): string {
+    if (status.phase === 'preparing') return m['composer.upload.preparing']();
+    if (status.phase === 'failed') return m['composer.upload.failed']();
+    if (status.phase === 'uploaded') return m['composer.upload.uploaded']();
+    return m['composer.upload.uploading']({ percentage: uploadPercentage(status) ?? 0 });
+  }
+
   /**
    * Add files from an external source (e.g., drag-and-drop).
    * Creates object URLs for preview and adds to the attachment list.
    */
   async function addFiles(files: File[]) {
-    if (!canAttach) return;
+    if (!canAttach || inputDisabled) return;
     await attachments.stageFiles(files);
   }
 
@@ -582,7 +616,7 @@
   // Handle paste events - intercept images before TipTap processes them
   function handlePaste(event: ClipboardEvent): boolean {
     // Don't accept file attachments in edit mode (editMessage only supports text)
-    if (isEditing) return false;
+    if (isEditing || inputDisabled) return false;
 
     const items = event.clipboardData?.items;
     if (!items) return false;
@@ -627,6 +661,7 @@
   }
 
   type PreparedPost = {
+    draftKey: string;
     roomId: string;
     bodyToSend: string;
     filesToSend: File[] | null;
@@ -635,7 +670,6 @@
     inReplyTo: string | null;
     linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
     alsoSendToChannel: boolean;
-    wasRichComposer: boolean;
   };
 
   type SendPreparedPostResponse = {
@@ -674,6 +708,7 @@
         body: post.bodyToSend,
         attachmentAssetIds: post.attachmentAssetIds,
         attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
+        onAttachmentUploadUpdate: updateAttachmentSubmission,
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
         linkPreview: post.linkPreviewInput,
@@ -686,62 +721,62 @@
     }
   }
 
-  function restorePreparedPost(post: PreparedPost) {
-    autocomplete.reset();
-    message = post.bodyToSend;
-    manualRichMode = post.wasRichComposer;
-    editorApi?.setContent(post.bodyToSend);
-    if (post.filesToSend) {
-      attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
+  function handlePostFailure(error: unknown) {
+    if (![...attachmentSubmissionStatuses.values()].some((status) => status.phase === 'failed')) {
+      attachmentSubmissionStatuses.clear();
     }
-  }
-
-  function handlePostFailure(error: unknown, post: PreparedPost) {
     toast.error(m['composer.send_failed']());
     console.error('Error creating message:', error);
-    restorePreparedPost(post);
   }
 
   function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
-    // Notify parent before scrolling so it can synchronously ingest the
-    // returned event and make the target row available.
-    onMessageSent?.(response.event);
+    if (DRAFT_KEY === post.draftKey) {
+      // Notify the still-active parent before scrolling so it can synchronously
+      // ingest the returned event and make the target row available.
+      onMessageSent?.(response.event);
 
-    // Scroll the enclosing pane to the user's new message. The composer
-    // reads `scrollState` from its surrounding ComposerContext, so this
-    // targets the main room's EventList in a room composer and the
-    // thread's EventList in a thread composer.
-    scrollState?.requestScrollToBottom();
+      // The composer reads `scrollState` from its surrounding ComposerContext,
+      // so this targets the active room or thread EventList.
+      scrollState?.requestScrollToBottom();
 
-    // Clear reply-in-room state after sending
-    onCancelReply?.();
+      // Clear reply-in-room state after sending.
+      onCancelReply?.();
 
-    // Mark this room as read (we just posted, so we've seen all messages)
+      // Reset active composer options after successful send.
+      alsoSendToChannel = false;
+      manualRichMode = false;
+    }
+
+    // Mark the submitted room as read even if the user navigated away while sending.
     roomUnreadStore.setRoomUnread(post.roomId, false);
-
-    // Reset "also send to channel" checkbox after successful send
-    alsoSendToChannel = false;
-    manualRichMode = false;
   }
 
   async function submitPreparedPost(preparedPost: PreparedPost) {
-    // Optimistically clear the editor so the user can start typing the next
-    // message immediately (matches Slack/Discord behavior).
-    autocomplete.reset();
-    message = '';
-    manualRichMode = false;
-    editorApi?.setContent('');
-    attachments.clear();
-    linkPreviews.clear();
-
+    attachmentSubmissionStatuses.clear();
+    for (const file of preparedPost.filesToSend ?? []) {
+      attachmentSubmissionStatuses.set(file, { phase: 'preparing' });
+    }
     loading = true;
 
     try {
       const response = await sendPreparedPost(preparedPost);
 
       if (response.error) {
-        handlePostFailure(response.error, preparedPost);
+        handlePostFailure(response.error);
       } else {
+        const activeDraftWasSent = DRAFT_KEY === preparedPost.draftKey;
+        const stashedFiles = draftState.discardFiles(preparedPost.draftKey);
+        draftState.clearText(preparedPost.draftKey);
+        if (activeDraftWasSent) {
+          autocomplete.reset();
+          message = '';
+          editorApi?.setContent('');
+          attachments.clear();
+          linkPreviews.clear();
+        } else {
+          for (const { url } of stashedFiles) URL.revokeObjectURL(url);
+        }
+        attachmentSubmissionStatuses.clear();
         handlePostSuccess(response, preparedPost);
       }
     } finally {
@@ -775,14 +810,14 @@
     if (!hasBody && !filesToSend) return;
 
     const preparedPost: PreparedPost = {
+      draftKey: DRAFT_KEY,
       roomId,
       bodyToSend,
       filesToSend,
       threadRootEventId: inThread ?? null,
       inReplyTo: inReplyTo ?? null,
       linkPreviewInput: linkPreviews.buildInput(),
-      alsoSendToChannel,
-      wasRichComposer: isRichComposer
+      alsoSendToChannel
     };
 
     let rolesAvailable = mentionRolesLoadComplete && !mentionRolesLoadFailed;
@@ -1020,42 +1055,91 @@
 
   <!-- Selected files preview -->
   {#if attachments.filesWithUrls.length > 0}
-    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-strong p-2">
+    <div class="flex flex-wrap gap-2">
       {#each attachments.filesWithUrls as { file, url }, index (url)}
-        <div class="relative">
-          {#if file.type.startsWith('image/')}
-            <img src={url} alt={file.name} class="h-16 w-16 rounded-md object-cover" />
-          {:else if file.type.startsWith('video/')}
-            <!-- Browser renders the first frame as a thumbnail from the object URL -->
-            <video
-              data-testid="video-attachment-preview"
-              src="{url}#t=0.1"
-              preload="metadata"
-              muted
-              class="h-16 w-16 rounded-md object-cover"
-            ></video>
-          {:else if file.type.startsWith('audio/')}
-            <div
-              data-testid="audio-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
-            >
-              <span class="iconify text-lg text-muted uil--music"></span>
+        {@const submissionStatus = attachmentSubmissionStatus(file)}
+        {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
+        <div
+          class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
+          data-testid="composer-attachment-preview"
+        >
+          <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
+            {#if file.type.startsWith('image/')}
+              <img src={url} alt={file.name} class="h-full w-full object-cover" />
+            {:else if file.type.startsWith('video/')}
+              <!-- Browser renders the first frame as a thumbnail from the object URL -->
+              <video
+                data-testid="video-attachment-preview"
+                src="{url}#t=0.1"
+                preload="metadata"
+                muted
+                class="h-full w-full object-cover"
+              ></video>
+            {:else if file.type.startsWith('audio/')}
+              <div
+                data-testid="audio-attachment-preview"
+                class="flex h-full w-full items-center justify-center bg-surface-strong"
+              >
+                <span class="iconify text-lg text-muted uil--music"></span>
+              </div>
+            {:else}
+              <div
+                data-testid="file-attachment-preview"
+                class="flex h-full w-full items-center justify-center bg-surface-strong"
+              >
+                <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
+              </div>
+            {/if}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="truncate font-medium text-text" title={file.name}>{file.name}</span>
+              <button
+                type="button"
+                onclick={() => removeFile(index)}
+                disabled={loading}
+                class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={m['composer.upload.remove']({ filename: file.name })}
+                title={m['composer.upload.remove']({ filename: file.name })}
+              >
+                <span class="iconify uil--times"></span>
+              </button>
             </div>
-          {:else}
             <div
-              data-testid="file-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-emphasized"
+              class={[
+                'mt-0.5 truncate text-xs',
+                submissionStatus?.phase === 'failed' ? 'text-danger' : 'text-muted'
+              ]}
             >
-              <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
+              {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
             </div>
-          {/if}
-          <button
-            type="button"
-            onclick={() => removeFile(index)}
-            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-xs text-on-danger transition-[background-color] hover:bg-danger/80"
-          >
-            ×
-          </button>
+            <div
+              data-testid="attachment-upload-progress"
+              class={[
+                'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong',
+                !submissionStatus && 'invisible'
+              ]}
+              role={submissionStatus ? 'progressbar' : undefined}
+              aria-hidden={submissionStatus ? undefined : 'true'}
+              aria-label={submissionStatus ? file.name : undefined}
+              aria-valuemin={submissionStatus ? 0 : undefined}
+              aria-valuemax={submissionStatus ? 100 : undefined}
+              aria-valuenow={percentage ?? undefined}
+              aria-valuetext={submissionStatus ? uploadStatusLabel(submissionStatus) : undefined}
+            >
+              {#if submissionStatus}
+                {#if percentage !== null}
+                  <div
+                    class={[
+                      'h-full rounded-full',
+                      submissionStatus.phase === 'failed' ? 'bg-danger' : 'bg-action'
+                    ]}
+                    style:width={`${percentage}%`}
+                  ></div>
+                {/if}
+              {/if}
+            </div>
+          </div>
         </div>
       {/each}
     </div>
@@ -1076,9 +1160,8 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-3 py-2"
+    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={inputDisabled}
-    class:composer-sending={loading}
   >
     <!-- Emoji autocomplete popup -->
     {#if autocomplete.emoji}
@@ -1161,7 +1244,7 @@
       </ContextMenu>
     {/if}
     <!-- Text input (TipTap editor) -->
-    <div class="min-h-10 min-w-0 py-1" data-testid="composer-editor-row">
+    <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
       {#await tipTapEditorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
       {:then { default: TipTapEditor }}
@@ -1182,7 +1265,7 @@
     </div>
 
     <div
-      class="mt-1 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-1"
+      class="mt-0 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-0.5"
       data-testid="composer-toolbar"
     >
       <div class="flex items-center gap-1">
@@ -1208,7 +1291,7 @@
                   : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
               ]}
             >
-              <span class={['iconify text-base', control.icon]}></span>
+              <span class={['iconify text-[15px]', control.icon]}></span>
             </button>
           {/each}
         </div>
@@ -1225,7 +1308,7 @@
             aria-label={m['composer.attach_file']()}
             title={m['composer.attach_file']()}
           >
-            <span class="iconify text-base uil--image-upload"></span>
+            <span class="iconify text-[15px] uil--image-upload"></span>
           </button>
         {/if}
 
@@ -1239,7 +1322,7 @@
           aria-label={m['composer.timestamp.insert_label']()}
           title={m['composer.timestamp.insert_label']()}
         >
-          <span class="iconify text-base uil--clock"></span>
+          <span class="iconify text-[15px] uil--clock"></span>
         </button>
       </div>
 
@@ -1264,7 +1347,7 @@
           aria-label={m['composer.send']()}
           title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
         >
-          <span class="iconify text-base uil--telegram-alt"></span>
+          <span class="iconify text-[15px] uil--telegram-alt"></span>
         </button>
       </div>
     </div>

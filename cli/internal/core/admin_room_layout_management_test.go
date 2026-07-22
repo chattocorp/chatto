@@ -23,14 +23,17 @@ func TestAdminRoomLayoutManagementAuthorization(t *testing.T) {
 	sourceGroupID := groups[0].Id
 
 	if _, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Managed", ""); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("AdminCreateRoomGroup without role.manage error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("AdminCreateRoomGroup without room.manage error = %v, want ErrPermissionDenied", err)
 	}
-	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoleManage); err != nil {
-		t.Fatalf("GrantServerPermission role.manage: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserPermission room.manage: %v", err)
 	}
 	targetGroup, err := core.AdminCreateRoomGroup(ctx, actor.Id, "Managed", "")
 	if err != nil {
-		t.Fatalf("AdminCreateRoomGroup with role.manage: %v", err)
+		t.Fatalf("AdminCreateRoomGroup with room.manage: %v", err)
+	}
+	if err := core.ClearUserPermissionState(ctx, SystemActorID, actor.Id, PermRoomManage); err != nil {
+		t.Fatalf("ClearUserPermissionState room.manage: %v", err)
 	}
 
 	if _, err := core.AdminCreateSidebarLink(ctx, actor.Id, sourceGroupID, "Docs", "/docs"); !errors.Is(err, ErrPermissionDenied) {

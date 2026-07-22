@@ -56,6 +56,9 @@ class MockIntersectionObserver implements IntersectionObserver {
 
 function renderTable(
   props: {
+    fitContent?: boolean;
+    stickyHeader?: boolean;
+    fillHeight?: boolean;
     hoverable?: boolean;
     hasMore?: boolean;
     loadingMore?: boolean;
@@ -92,13 +95,63 @@ describe('DataTable.hoverable', () => {
   it('applies hover bg by default', async () => {
     const { container } = renderTable();
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).toContain('hover:bg-surface-emphasized/40');
+    expect(tr.className).toContain('hover:bg-surface/70');
   });
 
   it('omits hover bg when hoverable=false', async () => {
     const { container } = renderTable({ hoverable: false });
     const tr = container.querySelector('tbody tr') as HTMLElement;
-    expect(tr.className).not.toContain('hover:bg-surface-emphasized/40');
+    expect(tr.className).not.toContain('hover:bg-surface/70');
+  });
+
+  it('uses a rounded background viewport beneath the surface header', async () => {
+    const { container } = renderTable();
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement as HTMLElement;
+    const header = container.querySelector('thead tr') as HTMLElement;
+    const body = container.querySelector('tbody') as HTMLElement;
+
+    expect(viewport.className).toContain('rounded-md');
+    expect(viewport.className).toContain('overflow-x-auto');
+    expect(header.className).toContain('panel-header');
+    expect(body.className).toContain('bg-background');
+  });
+
+  it('keeps matrix-style tables at their intrinsic width', async () => {
+    const { container } = renderTable({ fitContent: true });
+    const table = container.querySelector('table') as HTMLTableElement;
+
+    expect(table.className).toContain('w-max');
+    expect(table.className).not.toContain('w-full');
+  });
+
+  it('configures a bounded matrix viewport with a sticky header', async () => {
+    const { container } = render(DataTable, {
+      props: {
+        items: Array.from({ length: 40 }, (_, index) => ({ id: String(index) })),
+        columns: 1,
+        stickyHeader: true,
+        header: testSnippet('<th>Permission</th>'),
+        row: testSnippet('<td class="h-12">Permission</td>')
+      }
+    });
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement?.parentElement as HTMLElement;
+    const header = container.querySelector('thead') as HTMLElement;
+
+    expect(viewport.className).toContain('max-h-[70dvh]');
+    expect((table.parentElement as HTMLElement).className).toContain('overflow-y-auto');
+    expect((table.parentElement as HTMLElement).className).toContain('overflow-x-auto');
+    expect(header.className).toContain('sticky');
+  });
+
+  it('fills a flex parent instead of using the sticky-header viewport cap when requested', () => {
+    const { container } = renderTable({ stickyHeader: true, fillHeight: true });
+    const viewport = (container.querySelector('table') as HTMLTableElement).parentElement
+      ?.parentElement as HTMLElement;
+
+    expect(viewport.className).toContain('flex-1');
+    expect(viewport.className).not.toContain('max-h-[70dvh]');
   });
 
   it('still renders cursor-pointer on hoverable=false rows when onRowClick is set', async () => {

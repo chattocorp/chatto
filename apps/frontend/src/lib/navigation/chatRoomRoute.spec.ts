@@ -11,9 +11,7 @@ describe('chatRoomIdFromRoute', () => {
   });
 
   it('ignores non-room routes that also use a roomId param', () => {
-    expect(chatRoomIdFromRoute('/chat/[serverId]/server-admin/rooms/room/[roomId]', 'room-1')).toBe(
-      null
-    );
+    expect(chatRoomIdFromRoute('/chat/[serverId]/manage/rooms/[roomId]', 'room-1')).toBe(null);
   });
 
   it('ignores chat routes without a room id', () => {

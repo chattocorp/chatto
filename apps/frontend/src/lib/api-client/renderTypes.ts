@@ -131,6 +131,7 @@ export type VideoProcessingView = {
   thumbnailAssetUrl?: AssetURL | null;
   sourceAvailable: boolean;
   variants: VideoVariantView[];
+  hlsMasterPlaylistUrl?: AssetURL | null;
   reasonCode?: string | null;
 };
 

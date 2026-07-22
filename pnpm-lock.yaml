@@ -56,6 +56,9 @@ importers:
       heic2any:
         specifier: ^0.0.4
         version: 0.0.4
+      hls.js:
+        specifier: ^1.6.16
+        version: 1.6.16
       js-sha256:
         specifier: ^0.11.1
         version: 0.11.1
@@ -2918,6 +2921,9 @@ packages:
   highlight.js@11.11.1:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
+
+  hls.js@1.6.16:
+    resolution: {integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==}
 
   html-escaper@3.0.3:
     resolution: {integrity: sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==}
@@ -7325,6 +7331,8 @@ snapshots:
   heic2any@0.0.4: {}
 
   highlight.js@11.11.1: {}
+
+  hls.js@1.6.16: {}
 
   html-escaper@3.0.3: {}
 

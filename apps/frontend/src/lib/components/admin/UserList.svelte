@@ -34,7 +34,7 @@
       onUserClick(user);
     } else {
       goto(
-        resolve('/chat/[serverId]/server-admin/members/[userId]', {
+        resolve('/chat/[serverId]/manage/server/members/[userId]', {
           serverId: serverIdToSegment(getActiveServer()),
           userId: user.id
         })
@@ -54,10 +54,10 @@
       onRowClick={clickable ? handleRowClick : undefined}
     >
       {#snippet header()}
-        <th class="px-4 py-3 font-medium">{m['admin.users.login']()}</th>
-        <th class="px-4 py-3 font-medium">{m['admin.users.display_name']()}</th>
-        <th class="px-4 py-3 font-medium">{m['admin.users.email']()}</th>
-        <th class="px-4 py-3 font-medium">{m['admin.users.id']()}</th>
+        <th class="table-header-cell">{m['admin.users.login']()}</th>
+        <th class="table-header-cell">{m['admin.users.display_name']()}</th>
+        <th class="table-header-cell">{m['admin.users.email']()}</th>
+        <th class="table-header-cell">{m['admin.users.id']()}</th>
       {/snippet}
       {#snippet row(user: User)}
         <td class="px-4 py-3 font-medium">{user.login}</td>

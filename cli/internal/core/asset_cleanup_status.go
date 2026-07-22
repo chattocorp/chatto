@@ -81,7 +81,7 @@ func (s *AssetModel) setAssetCleanupPassFinished(err error) {
 }
 
 func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusRecord {
-	consumer := s.cleanupConsumer.Status()
+	consumer := s.assetCleanupConsumerStatus()
 	s.cleanupStatusMu.RLock()
 	pass := s.cleanupPass
 	s.cleanupStatusMu.RUnlock()
@@ -97,6 +97,10 @@ func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusR
 		LastPassFailed:       pass.LastPassFailed,
 		LastInspectedSeq:     consumer.AfterSeq,
 	}
+}
+
+func (s *AssetModel) assetCleanupConsumerStatus() events.IncrementalEffectConsumerStatus {
+	return s.cleanupConsumer.Status()
 }
 
 func (s *AssetModel) writeAssetCleanupStatus(ctx context.Context) error {
@@ -124,7 +128,6 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		return status, fmt.Errorf("read latest asset deletion sequence: %w", err)
 	}
 	status.LatestDeletionSeq = latestSeq
-
 	var record assetCleanupStatusRecord
 	entry, err := s.storage.memoryCacheKV.Get(ctx, assetCleanupStatusKey)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {

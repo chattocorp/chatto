@@ -2,10 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
-import {
-  RoomDirectoryStore,
-  type DirectoryRoom
-} from '$lib/state/server/roomDirectory.svelte';
+import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 import { RoomType } from '$lib/render/types';
 
@@ -25,6 +22,7 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
   isUniversal: overrides.isUniversal ?? false,
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerCanManageRoom: overrides.viewerCanManageRoom ?? false,
   viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
   members: overrides.members ?? []
 });
@@ -32,9 +30,9 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
 const joined = (id: string): RoomsListItem => listedRoom(id, { viewerIsMember: true });
 
 function findButton(container: Element, label: string): HTMLButtonElement | undefined {
-  return [...container.querySelectorAll('button')].find(
-    (b) => b.textContent?.trim() === label
-  ) as HTMLButtonElement | undefined;
+  return [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === label) as
+    | HTMLButtonElement
+    | undefined;
 }
 
 describe('RoomDirectory', () => {
@@ -78,6 +76,13 @@ describe('RoomDirectory', () => {
     // so we look for either via textContent.
     expect(container.textContent).toContain('Joined');
     expect(container.textContent).toContain('Join');
+
+    const joinedRow = [...container.querySelectorAll('li')].find((item) =>
+      item.textContent?.includes('r1')
+    ) as HTMLElement;
+    expect(joinedRow.className).toContain('rounded-md');
+    expect(joinedRow.className).toContain('hover:bg-surface/70');
+    expect(joinedRow.className).not.toContain('hover:bg-surface-emphasized');
   });
 
   it('renders universal joined rooms without a leave action', () => {
@@ -166,13 +171,20 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('r1', { name: 'general' }), room('r2', { name: 'random' })],
         joinedRooms: [],
-        roomGroups: [{ id: 'sec', name: 'Important', roomIds: ['r1'] }]
+        roomGroups: [{ id: 'sec', name: 'Important', viewerCanManageGroup: false, roomIds: ['r1'] }]
       }
     });
     flushSync();
 
     // The section header is rendered.
     expect(container.textContent).toContain('Important');
+
+    const shell = container.querySelector('.panel-shell') as HTMLElement;
+    const header = shell.querySelector(':scope > .panel-header') as HTMLElement;
+    const inset = shell.querySelector('.panel-inset') as HTMLElement;
+    expect(shell.className).toContain('shrink-0');
+    expect(header.className).toContain('px-6');
+    expect(inset).not.toBeNull();
   });
 
   // -- "Join all" group action -----------------------------------------------
@@ -182,7 +194,9 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [],
-        roomGroups: [{ id: 'g1', name: 'Group One', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          { id: 'g1', name: 'Group One', viewerCanManageGroup: false, roomIds: ['a', 'b'] }
+        ]
       }
     });
     flushSync();
@@ -194,7 +208,9 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [joined('a'), joined('b')],
-        roomGroups: [{ id: 'g1', name: 'All Joined', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          { id: 'g1', name: 'All Joined', viewerCanManageGroup: false, roomIds: ['a', 'b'] }
+        ]
       }
     });
     flushSync();
@@ -209,7 +225,14 @@ describe('RoomDirectory', () => {
           room('b', { viewerCanJoinRoom: false })
         ],
         joinedRooms: [],
-        roomGroups: [{ id: 'g1', name: 'Restricted Only', roomIds: ['a', 'b'] }]
+        roomGroups: [
+          {
+            id: 'g1',
+            name: 'Restricted Only',
+            viewerCanManageGroup: false,
+            roomIds: ['a', 'b']
+          }
+        ]
       }
     });
     flushSync();
@@ -226,7 +249,7 @@ describe('RoomDirectory', () => {
       props: {
         initialRooms: [room('a'), room('b')],
         joinedRooms: [joined('b')],
-        roomGroups: [{ id: 'g1', name: 'Mixed', roomIds: ['a', 'b'] }]
+        roomGroups: [{ id: 'g1', name: 'Mixed', viewerCanManageGroup: false, roomIds: ['a', 'b'] }]
       }
     });
     flushSync();

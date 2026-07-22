@@ -41,7 +41,7 @@ export function getAdminNavItems({
 
   if (chrome.canManage) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/general', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/general', { serverId: serverSegment }),
       label: m['admin.nav.general'](),
       icon: 'iconify uil--setting'
     });
@@ -49,7 +49,7 @@ export function getAdminNavItems({
 
   if (server.canAdminViewUsers) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/members', { serverId: serverSegment }),
       label: m['admin.nav.members'](),
       icon: 'iconify uil--users-alt'
     });
@@ -57,7 +57,7 @@ export function getAdminNavItems({
 
   if (chrome.canManageRooms) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }),
       label: m['admin.nav.rooms'](),
       icon: 'iconify uil--apps'
     });
@@ -65,7 +65,7 @@ export function getAdminNavItems({
 
   if (chrome.canViewAdmin) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/moderation', { serverId: serverSegment }),
       label: m['admin.nav.moderation'](),
       icon: 'iconify uil--ban'
     });
@@ -73,7 +73,7 @@ export function getAdminNavItems({
 
   if (chrome.canManageRoles) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m['admin.nav.permissions'](),
       icon: 'iconify uil--shield-check'
     });
@@ -81,7 +81,7 @@ export function getAdminNavItems({
 
   if (chrome.canManage) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/security', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/security', { serverId: serverSegment }),
       label: m['admin.nav.security'](),
       icon: 'iconify uil--shield-exclamation'
     });
@@ -89,7 +89,7 @@ export function getAdminNavItems({
 
   if (server.canAdminViewAudit) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/event-log', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/event-log', { serverId: serverSegment }),
       label: m['admin.nav.event_log'](),
       icon: 'iconify uil--history'
     });
@@ -97,7 +97,7 @@ export function getAdminNavItems({
 
   if (server.canAdminViewSystem) {
     items.push({
-      href: resolve('/chat/[serverId]/server-admin/system', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/manage/server/system', { serverId: serverSegment }),
       label: m['admin.nav.system'](),
       icon: 'iconify uil--server'
     });

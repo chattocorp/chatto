@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,9 +15,32 @@ export const AdminRoomLayoutService = {
   typeName: "chatto.admin.v1.AdminRoomLayoutService",
   methods: {
     /**
-     * Lists the editable room group layout. Requires role.manage and returns
-     * visible room entries, including archived rooms for administrative actions
-     * such as unarchiving.
+     * Gets management-authorized channel room metadata. Requires role.manage or
+     * effective room.manage for the room.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetRoom
+     */
+    getRoom: {
+      name: "GetRoom",
+      I: GetRoomRequest,
+      O: GetRoomResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets management-authorized room group metadata. Requires role.manage or
+     * effective room.manage for the group.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup
+     */
+    getRoomGroup: {
+      name: "GetRoomGroup",
+      I: GetRoomGroupRequest,
+      O: GetRoomGroupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists the editable room group layout. Requires server-scope room.manage
+     * and includes archived rooms for administrative actions such as unarchiving.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups
      */
@@ -28,7 +51,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a room group. Requires role.manage.
+     * Creates a room group. Requires server-scope room.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup
      */
@@ -39,7 +62,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a room group's metadata. Requires role.manage.
+     * Updates a room group's metadata. Requires effective room.manage for the group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup
      */
@@ -50,7 +73,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes an empty room group. Requires role.manage.
+     * Deletes an empty room group. Requires effective room.manage for the group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup
      */
@@ -61,7 +84,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Replaces the global room group order. Requires role.manage.
+     * Replaces the global room group order. Requires server-scope room.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups
      */

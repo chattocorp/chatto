@@ -3,6 +3,7 @@ package connectapi
 import (
 	"context"
 
+	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -11,15 +12,22 @@ type userService struct {
 	api *API
 }
 
-func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
-	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
+func userSummary(ctx context.Context, api *API, user *corev1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
+	presence, err := api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return s.userSummaryWithPresence(ctx, user, avatar, presence)
+	return userSummaryWithPresence(ctx, api, user, avatar, presence)
 }
 
-func (s *userService) userSummaryWithPresence(ctx context.Context, user *corev1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
+func requiredUserSummary(ctx context.Context, api *API, user *corev1.User) (*apiv1.User, error) {
+	if user == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
+	return userSummary(ctx, api, user, nil)
+}
+
+func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
@@ -28,19 +36,19 @@ func (s *userService) userSummaryWithPresence(ctx context.Context, user *corev1.
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 	}
-	avatarURL, err := s.userAvatarURL(ctx, user.GetId(), avatar)
+	avatarURL, err := userAvatarURL(ctx, api, user.GetId(), avatar)
 	if err != nil {
 		return nil, err
 	}
 	if avatarURL != "" {
-		summary.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		summary.AvatarUrl = stringPtr(api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return summary, nil
 }
 
-func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {
+func userAvatarURL(ctx context.Context, api *API, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {
 	if avatar == nil {
-		url, err := s.api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
+		url, err := api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
 		if err != nil {
 			return "", connectError(err)
 		}
@@ -52,7 +60,7 @@ func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *
 	if avatar.GetFit() == apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN {
 		fit = "contain"
 	}
-	url, err := s.api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)
+	url, err := api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)
 	if err != nil {
 		return "", connectError(err)
 	}

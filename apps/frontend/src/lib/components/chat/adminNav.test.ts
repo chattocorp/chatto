@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getAdminNavItems, type AdminNavChromePermissions, type AdminNavServerPermissions } from './adminNav';
+import {
+  getAdminNavItems,
+  type AdminNavChromePermissions,
+  type AdminNavServerPermissions
+} from './adminNav';
 
 function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChromePermissions {
   return {
@@ -64,5 +68,18 @@ describe('getAdminNavItems', () => {
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+  });
+
+  it('keeps server pages beneath manage/server and rooms as sibling resources', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManage: true, canManageRooms: true }),
+      server: server()
+    });
+
+    expect(items.find((item) => item.label === 'General')?.href).toBe(
+      '/chat/local/manage/server/general'
+    );
+    expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });

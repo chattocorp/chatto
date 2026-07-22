@@ -150,7 +150,10 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
 		ViewerState: &apiv1.RoomGroupViewerState{
-			Permissions: permissionGrants(permissionGrant(core.PermRoomCreate, group.ViewerState.CanCreateRoom)),
+			Permissions: permissionGrants(
+				permissionGrant(core.PermRoomCreate, group.ViewerState.CanCreateRoom),
+				permissionGrant(core.PermRoomManage, group.ViewerState.CanManageRoomGroup),
+			),
 		},
 	}
 	for _, item := range group.Items {

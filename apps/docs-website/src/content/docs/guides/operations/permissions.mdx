@@ -20,12 +20,12 @@ The main rules are:
 
 Every Chatto server starts with four system roles. You cannot delete them.
 
-| Role          | Default behavior |
-| ------------- | ---------------- |
-| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account. |
-| **moderator** | Adds server-wide moderation defaults for managing messages and banning room members. |
+| Role          | Default behavior                                                                                                                                                                                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account.                                                             |
+| **moderator** | Adds server-wide moderation defaults for managing messages and banning room members.                                                                                                                                                                                                     |
 | **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
-| **owner**     | Always has every permission. You cannot edit the owner's permission grants. |
+| **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants.                                                                                                                                                                                              |
 
 The order of roles in the admin UI does not affect which permissions win.
 
@@ -41,25 +41,28 @@ When a user tries to do something, Chatto checks permissions in this order:
 
 Here are three common examples:
 
-| Settings | Result |
-| -------- | ------ |
-| Server `everyone`: Deny; server `admin`: Allow | **Allowed** for admins because both settings are at the same scope. |
-| Room `everyone`: Deny; server `admin`: Allow | **Denied** because the room setting is more specific. Add a room-level admin allow to make an exception. |
-| Server `admin`: Allow; server `suspended`: Deny | **Denied** because a deny on an assigned role wins. |
+| Settings                                        | Result                                                                                                   |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Server `everyone`: Deny; server `admin`: Allow  | **Allowed** for admins because both settings are at the same scope.                                      |
+| Room `everyone`: Deny; server `admin`: Allow    | **Denied** because the room setting is more specific. Add a room-level admin allow to make an exception. |
+| Server `admin`: Allow; server `suspended`: Deny | **Denied** because a deny on an assigned role wins.                                                      |
 
 <Aside type="tip">
-  Set ordinary member defaults on `everyone`. Use roles for rules shared by several people, and direct user settings for one-off exceptions. Put room-specific rules on the room.
+  Set ordinary member defaults on `everyone`. Use named roles for reusable
+  access, and direct-user settings for one-off exceptions. Put room-specific
+  rules on the room. For restrictions, use a direct-user or restriction-role
+  deny and avoid adding a nearer allow to that same subject.
 </Aside>
 
 ## Scopes
 
 Permissions can be configured at different scopes:
 
-| Scope | Meaning |
-| ----- | ------- |
+| Scope      | Meaning                                                  |
+| ---------- | -------------------------------------------------------- |
 | **Server** | Global defaults or restrictions across the whole server. |
-| **Group** | Defaults or restrictions for a room group. |
-| **Room** | Local exceptions for one room. |
+| **Group**  | Defaults or restrictions for a room group.               |
+| **Room**   | Local exceptions for one room.                           |
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
@@ -67,25 +70,25 @@ Room-relevant permissions such as `message.post`, `message.attach`, `message.rea
 
 ## Important permissions
 
-| Permission | Meaning |
-| ---------- | ------- |
-| `message.post` | Post root messages and start DMs. |
-| `message.post-in-thread` | Post messages inside threads. |
-| `message.attach` | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
-| `message.manage` | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission. |
-| `message.react` | Add or remove reactions. |
-| `message.echo` | Echo thread replies to the main channel. |
-| `room.list` | See rooms in the directory and room lists. |
-| `room.join` | Join channel rooms. |
-| `room.create` | Create channel rooms. |
-| `room.manage` | Configure, rename, archive, or delete rooms. |
-| `room.ban-member` | Ban members from channel rooms. |
-| `role.manage` | Create, edit, delete, reorder roles, and edit role permissions. |
-| `role.assign` | Assign or revoke roles for users. |
-| `user.manage-accounts` | Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns. |
-| `user.manage-permissions` | Edit direct per-user permission overrides. |
-| `user.delete-any` | Delete any user's account. |
-| `user.delete-self` | Delete your own account. |
+| Permission                | Meaning                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.post`            | Post root messages and start DMs.                                                                                                                                               |
+| `message.post-in-thread`  | Post messages inside threads.                                                                                                                                                   |
+| `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
+| `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
+| `message.react`           | Add or remove reactions.                                                                                                                                                        |
+| `message.echo`            | Echo thread replies to the main channel.                                                                                                                                        |
+| `room.list`               | See rooms in the directory and room lists.                                                                                                                                      |
+| `room.join`               | Join channel rooms.                                                                                                                                                             |
+| `room.create`             | Create channel rooms.                                                                                                                                                           |
+| `room.manage`             | Configure, rename, archive, or delete rooms and room groups at the effective scope. A server-scope grant also permits global room-group creation and ordering.                  |
+| `room.ban-member`         | Ban members from channel rooms.                                                                                                                                                 |
+| `role.manage`             | Configure role definitions and role permission decisions, including room and room-group overrides.                                                                              |
+| `role.assign`             | Assign or revoke roles for users. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only.              |
+| `user.manage-accounts`    | Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.                                                                        |
+| `user.manage-permissions` | Edit direct per-user permission overrides.                                                                                                                                      |
+| `user.delete-any`         | Delete any user's account.                                                                                                                                                      |
+| `user.delete-self`        | Delete your own account.                                                                                                                                                        |
 
 The full list is visible in the admin UI.
 
@@ -172,21 +175,26 @@ Only participants can access a DM. Owners cannot read or moderate a DM they are 
 
 ## Where to configure permissions
 
-| What you want to do | Where |
-| ------------------- | ----- |
-| Set recovery owners | `owners.emails` in `chatto.toml` |
-| Create or edit roles | Admin UI -> **Roles** |
-| Assign roles to users | Admin UI -> **Members** |
-| Edit role permissions | Admin UI -> **Roles -> [role name]** |
-| Configure room-specific behavior | Room settings -> **Permissions** |
-| Set per-user overrides | Admin UI -> **Members -> [user]** |
+| What you want to do              | Where                                |
+| -------------------------------- | ------------------------------------ |
+| Set recovery owners              | `owners.emails` in `chatto.toml`     |
+| Create or edit roles             | Admin UI -> **Roles**                |
+| Assign roles to users            | Admin UI -> **Members**              |
+| Edit role permissions            | Admin UI -> **Roles -> [role name]** |
+| Configure room-specific behavior | Room settings -> **Permissions**     |
+| Set per-user overrides           | Admin UI -> **Members -> [user]**    |
 
 <Aside type="caution">
-  Keep `owners.emails` configured as your lockout recovery option. Chatto has no operator command to reset all roles and permissions in a normal deployment.
+  Treat `owners.emails` as the lockout recovery path. Chatto does not expose an
+  operator command to wipe and reseed RBAC state in normal deployments.
 </Aside>
 
 <Aside type="caution" title="Authorization behavior changed">
-  If you are upgrading from the old deny-wins system, review any setup that combines an `everyone` deny with an allow on a user or role. An allow at the same or a more specific scope can now override the `everyone` deny. For suspended users, remove more specific allows from the user or suspension role.
+  When upgrading from the older literal deny-wins resolver, review
+  configurations that combine an `everyone` deny with a named-role or
+  direct-user allow. Same-scope or nearer allows can now widen access; the
+  change does not newly narrow access. For suspensions, clear nearer decisions
+  on the same user or restriction role.
 </Aside>
 
 <LinkCard

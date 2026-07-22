@@ -15,9 +15,9 @@ export const AdminPermissionService = {
   typeName: "chatto.admin.v1.AdminPermissionService",
   methods: {
     /**
-     * Gets the role-permission matrix for a single tier. Requires role.manage
-     * for server/group scope; room scope requires role.manage or room.manage in
-     * that room.
+     * Gets the role-permission matrix for a single tier. Server scope requires
+     * role.manage; group and room scopes require role.manage or effective
+     * room.manage at the requested resource.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix
      */
@@ -87,7 +87,8 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+     * Sets one role permission decision. Server scope requires role.manage;
+     * group and room scopes also accept effective room.manage at that resource.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetRolePermission
      */

@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { VideoProcessingStatus } from '$lib/render/types';
 import VideoPlayer from './VideoPlayer.svelte';
@@ -28,11 +28,17 @@ function renderAutoLoopVideo({ width, height }: { width: number; height: number 
 function renderPostedVideo({
   width,
   height,
-  thumbnailUrl = null
+  thumbnailUrl = null,
+  hlsUrl = null,
+  includeMP4 = true,
+  onMediaError
 }: {
   width: number;
   height: number;
   thumbnailUrl?: string | null;
+  hlsUrl?: string | null;
+  includeMP4?: boolean;
+  onMediaError?: () => void | Promise<string | null>;
 }) {
   return render(VideoPlayer, {
     props: {
@@ -41,15 +47,19 @@ function renderPostedVideo({
       width,
       height,
       thumbnailUrl,
-      variants: [
-        {
-          url: 'https://chat.example.test/clip.mp4',
-          quality: `${height}p`,
-          width,
-          height,
-          size: 1024
-        }
-      ]
+      hlsUrl,
+      onMediaError,
+      variants: includeMP4
+        ? [
+            {
+              url: 'https://chat.example.test/clip.mp4',
+              quality: `${height}p`,
+              width,
+              height,
+              size: 1024
+            }
+          ]
+        : []
     }
   });
 }
@@ -82,6 +92,41 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 }
 
 describe('VideoPlayer', () => {
+  it('plays a newly processed HLS-only video', async () => {
+    const canPlayType = vi
+      .spyOn(HTMLMediaElement.prototype, 'canPlayType')
+      .mockImplementation((type) =>
+        type === 'application/vnd.apple.mpegurl' ? 'probably' : ''
+      );
+    const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
+    try {
+      const { container } = renderPostedVideo({
+        width: 1280,
+        height: 720,
+        hlsUrl,
+        includeMP4: false
+      });
+      const player = (await mediaPlayer(container)) as HTMLElement & {
+        src?: { src?: string; type?: string };
+      };
+
+      await expect.poll(() => player.src?.src).toBe(hlsUrl);
+      expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+    } finally {
+      canPlayType.mockRestore();
+    }
+  });
+
+  it('plays a historical MP4-only video', async () => {
+    const { container } = renderPostedVideo({ width: 1280, height: 720 });
+    const player = (await mediaPlayer(container)) as HTMLElement & {
+      src?: { src?: string; type?: string };
+    };
+
+    await expect.poll(() => player.src?.src).toBe('https://chat.example.test/clip.mp4');
+    expect(player.src?.type).toBe('video/mp4');
+  });
+
   it('frames 16:9 videos as 16:9 embeds', () => {
     const { container } = renderAutoLoopVideo({ width: 1600, height: 900 });
 

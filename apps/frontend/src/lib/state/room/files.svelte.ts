@@ -44,6 +44,7 @@ function attachmentState(item: RoomFileItem) {
           height: processing.height,
           sourceAvailable: processing.sourceAvailable,
           reasonCode: processing.reasonCode,
+          hasHLS: Boolean(processing.hlsMasterPlaylistUrl),
           variants: processing.variants.map(({ quality, width, height, size }) => ({
             quality,
             width,
@@ -68,13 +69,19 @@ function sameAttachmentState(current: RoomFileItem[], replacement: RoomFileItem[
 
 function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentUrls | undefined) {
   if (refreshed) {
-    return [refreshed.assetUrl, refreshed.thumbnailAssetUrl, refreshed.videoThumbnailAssetUrl];
+    return [
+      refreshed.assetUrl,
+      refreshed.thumbnailAssetUrl,
+      refreshed.videoThumbnailAssetUrl,
+      refreshed.hlsMasterPlaylistUrl
+    ];
   }
 
   return [
     item.attachment.assetUrl,
     item.attachment.thumbnailAssetUrl,
-    item.attachment.videoProcessing?.thumbnailAssetUrl
+    item.attachment.videoProcessing?.thumbnailAssetUrl,
+    item.attachment.videoProcessing?.hlsMasterPlaylistUrl
   ];
 }
 

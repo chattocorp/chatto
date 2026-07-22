@@ -149,7 +149,10 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "attachment-retrieval", "Attachment retrieval")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
 
 	originalData := []byte("This is the original attachment content!")
 
@@ -167,7 +170,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	}
 
 	t.Run("retrieve existing attachment", func(t *testing.T) {
-		reader, info, err := core.GetAttachment(ctx, attachment.Id)
+		reader, info, err := core.mediaModel.GetAttachment(ctx, attachment.Id)
 		if err != nil {
 			t.Fatalf("Failed to get attachment: %v", err)
 		}
@@ -197,7 +200,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	})
 
 	t.Run("retrieve non-existent attachment", func(t *testing.T) {
-		_, _, err := core.GetAttachment(ctx, "nonexistent-attachment-id")
+		_, _, err := core.mediaModel.GetAttachment(ctx, "nonexistent-attachment-id")
 		if err == nil {
 			t.Fatal("Expected error for non-existent attachment")
 		}
@@ -230,7 +233,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 
 	t.Run("delete existing attachment", func(t *testing.T) {
 		// Verify it exists first
-		_, _, err := core.GetAttachment(ctx, attachment.Id)
+		_, _, err := core.mediaModel.GetAttachment(ctx, attachment.Id)
 		if err != nil {
 			t.Fatalf("Attachment should exist before deletion: %v", err)
 		}
@@ -241,7 +244,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Verify it no longer exists
-		_, _, err = core.GetAttachment(ctx, attachment.Id)
+		_, _, err = core.mediaModel.GetAttachment(ctx, attachment.Id)
 		if err == nil {
 			t.Fatal("Expected error after deletion")
 		}
@@ -600,7 +603,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 	t.Run("GetStableAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
+		url := core.mediaModel.GetStableAttachmentURL("attachment456", "Uviewer")
 		if !bytes.HasPrefix([]byte(url), []byte("/assets/files/attachment456?access=")) {
 			t.Errorf("Expected relative URL, got '%s'", url)
 		}
@@ -610,7 +613,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
+		url := core.mediaModel.GetStableAttachmentURL("attachment456", "Uviewer")
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456?access=")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
@@ -621,7 +624,7 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain")
+		url := core.mediaModel.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain")
 
 		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456/image/200x150/contain?access=")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
@@ -651,7 +654,7 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 	// Create a space (no longer needed for store access but kept for test setup parity)
 
 	t.Run("get attachments store creates lazily", func(t *testing.T) {
-		store, err := core.GetAttachmentsStore(ctx)
+		store, err := core.mediaModel.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get attachments store: %v", err)
 		}
@@ -662,12 +665,12 @@ func TestChattoCore_GetAttachmentsStore(t *testing.T) {
 	})
 
 	t.Run("get attachments store returns cached instance", func(t *testing.T) {
-		store1, err := core.GetAttachmentsStore(ctx)
+		store1, err := core.mediaModel.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get store first time: %v", err)
 		}
 
-		store2, err := core.GetAttachmentsStore(ctx)
+		store2, err := core.mediaModel.GetAttachmentsStore(ctx)
 		if err != nil {
 			t.Fatalf("Failed to get store second time: %v", err)
 		}
@@ -706,13 +709,13 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 2. Verify stable access-ticket URL generation
-	url := core.GetStableAttachmentURL(attachment.Id, SystemActorID)
+	url := core.mediaModel.GetStableAttachmentURL(attachment.Id, SystemActorID)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
 
 	// 3. Retrieve and verify content
-	reader, _, err := core.GetAttachment(ctx, attachment.Id)
+	reader, _, err := core.mediaModel.GetAttachment(ctx, attachment.Id)
 	if err != nil {
 		t.Fatalf("Retrieval failed: %v", err)
 	}
@@ -728,7 +731,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 5. Verify deleted
-	_, _, err = core.GetAttachment(ctx, attachment.Id)
+	_, _, err = core.mediaModel.GetAttachment(ctx, attachment.Id)
 	if err == nil {
 		t.Error("Attachment should not exist after deletion")
 	}
@@ -770,7 +773,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		ids[id] = true
 
 		// Verify each can be retrieved
-		_, _, err := core.GetAttachment(ctx, id)
+		_, _, err := core.mediaModel.GetAttachment(ctx, id)
 		if err != nil {
 			t.Errorf("Failed to retrieve attachment %s: %v", id, err)
 		}
@@ -1129,7 +1132,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *test
 		t.Fatal("Cache entry should be deleted for storage-less attachment")
 	}
 
-	if _, _, err := core.GetAttachment(ctx, attachment.Id); err == nil {
+	if _, _, err := core.mediaModel.GetAttachment(ctx, attachment.Id); err == nil {
 		t.Fatal("Expected backing attachment binary to be deleted")
 	}
 }
@@ -1157,6 +1160,10 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(64, 64)))
 	if err != nil {
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
+	}
+	hlsSegment, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("Failed to upload HLS segment derivative: %v", err)
 	}
 	inheritedRoomDerivativeID := "A-inherited-room-derivative"
 	inheritedCreated := &corev1.Event{
@@ -1192,8 +1199,11 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 3 {
+	if deleted := core.assetModel.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 4 {
 		t.Fatalf("Expected original and derivative assets to be deleted, got %d", deleted)
+	}
+	if _, _, err := core.mediaModel.GetAttachment(ctx, hlsSegment.Id); err == nil {
+		t.Fatal("HLS segment binary still exists after owned asset cleanup")
 	}
 
 	if roomID, ok := core.Assets.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {
@@ -1215,7 +1225,7 @@ func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T
 	ctx := testContext(t)
 
 	// Should not error when cache is disabled
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
+	deleted, err := core.mediaModel.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error when cache is disabled: %v", err)
 	}
@@ -1229,7 +1239,7 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 	ctx := testContext(t)
 
 	// Should handle empty cache gracefully
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
+	deleted, err := core.mediaModel.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error on empty cache: %v", err)
 	}

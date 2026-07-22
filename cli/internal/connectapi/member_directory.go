@@ -261,7 +261,7 @@ func directoryMemberWithPresence(ctx context.Context, api *API, user *corev1.Use
 		Height: int32(avatarSize),
 		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
 	}
-	apiUser, err := (&userService{api: api}).userSummaryWithPresence(ctx, user, avatar, presence)
+	apiUser, err := userSummaryWithPresence(ctx, api, user, avatar, presence)
 	if err != nil {
 		return nil, err
 	}

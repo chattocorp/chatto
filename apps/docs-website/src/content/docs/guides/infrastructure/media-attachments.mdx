@@ -56,14 +56,14 @@ Supported public Bluesky and Mastodon post URLs render as native Chatto cards. P
 | ---------- | ------------------- |
 | Small server with light uploads | NATS ObjectStore, the default. |
 | Active community with many files | S3-compatible storage. |
-| Video playback with seeking | S3-compatible storage plus video processing. |
+| Video playback with seeking | Enable video processing; HLS works with either storage backend. |
 | Replicated NATS cluster | S3-compatible storage to avoid multiplying large binary storage. |
 
 Switching to S3 affects new assets. Existing NATS-stored assets continue to work because each asset records its own backend.
 
 ## Video And Animated GIF Processing
 
-Video processing is optional and disabled by default. When enabled, Chatto requires `ffmpeg` and `ffprobe`, stores the original upload, generates a thumbnail, and creates web-friendly MP4 variants based on the source resolution.
+Video processing is optional and disabled by default. When enabled, Chatto requires `ffmpeg` and `ffprobe`, stores the original upload, generates a thumbnail, and packages temporary renditions into durable six-second HLS segments. Chatto generates the small HLS playlists on demand rather than storing them.
 
 Enable it only when the server has CPU and temporary disk space for transcoding:
 
@@ -79,8 +79,8 @@ The official Docker image includes the required ffmpeg tools. Host installs need
   Video processing is currently in-process and best-effort. Chatto records durable asset processing state and retries missed unmanifested video assets on boot, but operators should still treat transcoding as CPU-heavy background work.
 </Aside>
 
-<Aside type="caution">
-  NATS ObjectStore serves video as a complete, non-seekable response. Configure S3-compatible asset storage when members need reliable duration detection or timeline seeking; authorised S3-backed video redirects to object storage with byte-range support.
+<Aside type="note">
+  New processed videos use HLS for reliable duration detection, seeking, and adaptive quality on both NATS ObjectStore and S3. Videos processed by older Chatto versions are not backfilled and continue using their MP4 variants; unprocessed NATS-backed video files remain complete, non-seekable responses.
 </Aside>
 
 ## Active Document Safety

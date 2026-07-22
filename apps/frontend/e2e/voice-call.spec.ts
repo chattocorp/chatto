@@ -457,6 +457,53 @@ test.describe('Voice calls', () => {
     });
   });
 
+  test('active-call icon and participant avatar appear for a DM participant', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+      const roomB = await new DMPage(page2).startConversation(userA.login);
+      await roomB.sendMessage(`seed DM call sidebar ${Date.now()}`);
+      const { roomId } = await getIdsFromUrlViaConnect(page2);
+
+      const dmRow = new DMPage(page).getConversation(userB.displayName);
+      await expect(dmRow).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      const callIcon = dmRow.getByTestId('room-call-icon');
+      const callParticipants = dmRow.getByTestId('room-call-participants');
+      await expect(callIcon).not.toBeVisible();
+      await expect(callParticipants).not.toBeVisible();
+
+      const joinResponse = await page.request.post('/webhooks/test/call-join', {
+        data: {
+          spaceId: 'DM',
+          roomId,
+          userId: userB.id,
+          displayName: userB.displayName,
+          login: userB.login
+        }
+      });
+      expect(joinResponse.ok()).toBe(true);
+
+      await expect(callIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
+      await expect(callParticipants).toBeVisible();
+      await expect(callParticipants.getByTestId('room-call-participant-avatar')).toBeVisible();
+
+      const leaveResponse = await page.request.post('/webhooks/test/call-leave', {
+        data: { spaceId: 'DM', roomId, userId: userB.id }
+      });
+      expect(leaveResponse.ok()).toBe(true);
+
+      await expect(callIcon).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callParticipants).not.toBeVisible();
+    });
+  });
+
   test('livekitUrl is exposed in instance info', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

@@ -23,6 +23,7 @@ export type RoomsListItem = {
   isUniversal: boolean;
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
+  viewerCanManageRoom: boolean;
   viewerNotificationCount: number;
   // Null means the connected server predates projection support for this
   // distinction; only an explicit false hides an empty DM from navigation.
@@ -38,6 +39,7 @@ export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
 export type RoomsListGroup = {
   id: string;
   name: string;
+  viewerCanManageGroup: boolean;
   roomIds: string[];
   items?: RoomsListGroupItem[];
 };
@@ -132,6 +134,7 @@ function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
     a.isUniversal === b.isUniversal &&
     a.viewerIsMember === b.viewerIsMember &&
     a.viewerCanJoinRoom === b.viewerCanJoinRoom &&
+    a.viewerCanManageRoom === b.viewerCanManageRoom &&
     a.viewerNotificationCount === b.viewerNotificationCount &&
     a.hasMessageHistory === b.hasMessageHistory &&
     sameAvatarUsers(a.members, b.members)
@@ -164,6 +167,7 @@ function sameRoomGroup(a: RoomsListGroup, b: RoomsListGroup): boolean {
   return (
     a.id === b.id &&
     a.name === b.name &&
+    a.viewerCanManageGroup === b.viewerCanManageGroup &&
     sameStringArray(a.roomIds, b.roomIds) &&
     sameRoomGroupItems(a.items ?? [], b.items ?? [])
   );
@@ -273,6 +277,7 @@ export class RoomsStore {
     const nextRoomGroups = roomGroups.map((group) => ({
       id: group.id,
       name: group.name,
+      viewerCanManageGroup: group.canManageGroup,
       roomIds: group.roomIds,
       items: group.items.map(roomGroupItem)
     }));
@@ -316,6 +321,7 @@ export class RoomsStore {
     this.roomGroups = roomGroups.map((group) => ({
       id: group.id,
       name: group.name,
+      viewerCanManageGroup: group.canManageGroup,
       roomIds: group.roomIds,
       items: group.items.map(roomGroupItem)
     }));
@@ -341,6 +347,7 @@ export class RoomsStore {
       isUniversal: room.isUniversal,
       viewerIsMember: room.isMember,
       viewerCanJoinRoom: room.canJoinRoom,
+      viewerCanManageRoom: room.canManageRoom,
       viewerNotificationCount: 0,
       hasMessageHistory: room.kind === RoomKind.DM ? true : null,
       members

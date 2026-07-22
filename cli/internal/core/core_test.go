@@ -94,6 +94,24 @@ func startCoreServices(t testing.TB, core *ChattoCore) {
 func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	core, _ := setupTestCore(t)
 
+	if core.roomModel == nil {
+		t.Fatal("roomModel = nil")
+	}
+	if core.assetModel == nil {
+		t.Fatal("assetModel = nil")
+	}
+	if core.mediaModel == nil {
+		t.Fatal("mediaModel = nil")
+	}
+	if core.myEventsModel == nil {
+		t.Fatal("myEventsModel = nil")
+	}
+	if core.assetUploadModel == nil {
+		t.Fatal("assetUploadModel = nil")
+	}
+	if core.AssetUploads() != core.assetUploadModel {
+		t.Fatal("AssetUploads() did not return the eagerly wired model")
+	}
 	if core.NotificationPreferences() == nil {
 		t.Fatal("NotificationPreferences() = nil")
 	}

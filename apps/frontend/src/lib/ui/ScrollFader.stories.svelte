@@ -11,8 +11,8 @@ boundary.
 
 ### How it composes
 
-\`ScrollFader\` owns the positioning wrapper and the inner scroll
-container. Children render **inside** the scroll container, so the
+\`ScrollFader\` composes the reusable \`ScrollArea\` positioning wrapper and
+inner scroll container. Children render **inside** the scroll container, so the
 recommended pattern is to nest your own padding/layout wrapper:
 
 \`\`\`svelte
@@ -26,6 +26,9 @@ recommended pattern is to nest your own padding/layout wrapper:
 Reserve \`scrollClass\` for properties that target the scroll container
 itself (e.g. \`overscroll-y-contain\`, \`scrollbar-hide\`). Padding,
 gap, alignment, and \`[&>*]\` selectors belong on the nested wrapper.
+
+Set \`fill={false}\` for a scrollable region that should retain its intrinsic
+height up to a max-height, such as a linked-message preview.
 
 ### Plumbing the scroll element out
 
@@ -107,6 +110,33 @@ fades use \`transition-opacity\` so the show/hide is animated.
           <div class="rounded-md bg-surface px-3 py-2 text-sm">Item {i + 1}</div>
         {/each}
       </div>
+    </ScrollFader>
+  </div>
+</Story>
+
+<Story
+  name="Sticky table"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'A horizontally scrollable table can use the same edge fades, with the top fade starting below its sticky header.'
+      }
+    }
+  }}
+>
+  <div class="flex h-80 w-96 flex-col border border-border bg-background">
+    <ScrollFader top bottom scrollX topFadeOffset="top-12">
+      <table class="w-[40rem] text-sm">
+        <thead class="sticky top-0 bg-surface">
+          <tr><th class="px-3 py-2 text-left">Permission</th><th>Owner</th><th>Admin</th></tr>
+        </thead>
+        <tbody>
+          {#each Array(24) as _, i (i)}
+            <tr class="border-t border-border"><td class="px-3 py-2">message.permission-{i + 1}</td><td>✓</td><td>✓</td></tr>
+          {/each}
+        </tbody>
+      </table>
     </ScrollFader>
   </div>
 </Story>

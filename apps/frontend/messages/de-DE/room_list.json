@@ -16,6 +16,8 @@
     "mark_as_read": "Als gelesen markieren",
     "remove_server": "Server entfernen",
     "leave_room": "Raum verlassen",
+    "room_settings": "Raumeinstellungen",
+    "group_settings": "Einstellungen für {group}",
     "server_actions": "Aktionen für {server}",
     "room_actions": "Aktionen für #{room}"
   }

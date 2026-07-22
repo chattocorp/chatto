@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import { FitMode, type MessageAttachmentView } from '$lib/render/types';
+import {
+  FitMode,
+  VideoProcessingStatus,
+  type MessageAttachmentView
+} from '$lib/render/types';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
@@ -20,6 +24,10 @@ vi.mock('$lib/api-client/attachments', async (importActual) => ({
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))
+}));
+
+vi.mock('$lib/components/chat/VideoPlayer.svelte', async () => ({
+  default: (await import('./MessageAttachmentsVideoPlayerStub.svelte')).default
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
@@ -74,6 +82,33 @@ function fileAttachment(overrides: Partial<MessageAttachmentView>): MessageAttac
     },
     thumbnailAssetUrl: null,
     videoProcessing: null,
+    ...overrides
+  };
+}
+
+function hlsVideoAttachment(overrides: Partial<MessageAttachmentView> = {}): MessageAttachmentView {
+  return {
+    id: 'video_1',
+    filename: 'clip.mp4',
+    contentType: 'video/mp4',
+    width: 1280,
+    height: 720,
+    assetUrl: null,
+    thumbnailAssetUrl: null,
+    videoProcessing: {
+      status: VideoProcessingStatus.Completed,
+      durationMs: 12_000,
+      width: 1280,
+      height: 720,
+      thumbnailAssetUrl: null,
+      sourceAvailable: true,
+      variants: [],
+      hlsMasterPlaylistUrl: {
+        url: 'https://chat.example.test/assets/hls/video_1/master.m3u8?access=expired',
+        expiresAt: '2099-01-01T00:00:00Z'
+      },
+      reasonCode: null
+    },
     ...overrides
   };
 }
@@ -200,6 +235,39 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('video[src=""]')).toBeNull();
     expect(container.querySelector('audio[src=""]')).toBeNull();
     expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
+  });
+
+  it('retries HLS URL recovery after an earlier refresh request fails', async () => {
+    attachmentMocks.refreshAssetUrls
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce(
+        new Map([
+          [
+            'video_1',
+            {
+              ...emptyRefreshedUrls(),
+              hlsMasterPlaylistUrl: {
+                url: 'https://chat.example.test/assets/hls/video_1/master.m3u8?access=fresh',
+                expiresAt: '2099-01-02T00:00:00Z'
+              }
+            }
+          ]
+        ])
+    );
+    const { container } = renderAttachment(hlsVideoAttachment());
+
+    const player = container.querySelector<HTMLButtonElement>(
+      '[data-testid="message-attachments-video-player"]'
+    );
+    expect(player).not.toBeNull();
+
+    player!.click();
+    await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    player!.click();
+    await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledTimes(2));
+    await expect.poll(() => player!.dataset.hlsUrl?.includes('access=fresh') ?? false).toBe(true);
   });
 
   it('clears stale image URLs when refresh returns null asset URLs', async () => {

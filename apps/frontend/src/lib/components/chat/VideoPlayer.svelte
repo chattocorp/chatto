@@ -2,6 +2,11 @@
   import { tick, onMount } from 'svelte';
   import type { VideoProcessingStatus } from '$lib/render/types';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
+  import {
+    configureBundledHLSProvider,
+    recoverFatalHLS,
+    shouldAbortHLSRecovery
+  } from '$lib/media/hls';
   import * as m from '$lib/i18n/messages';
 
   import 'vidstack/player/styles/default/theme.css';
@@ -34,22 +39,30 @@
     status,
     variants = [],
     thumbnailUrl = null,
+    hlsUrl = null,
+    fallbackUrl = null,
+    fallbackContentType = null,
     width = null,
     height = null,
     reasonCode = null,
     filename,
     autoLoop = false,
-    onMediaError
+    onMediaError,
+    onPosterError
   }: {
     status: VideoProcessingStatus;
     variants?: Variant[];
     thumbnailUrl?: string | null;
+    hlsUrl?: string | null;
+    fallbackUrl?: string | null;
+    fallbackContentType?: string | null;
     width?: number | null;
     height?: number | null;
     reasonCode?: string | null;
     filename: string;
     autoLoop?: boolean;
-    onMediaError?: () => void;
+    onMediaError?: () => void | Promise<string | null>;
+    onPosterError?: () => void;
   } = $props();
 
   const MAX_WIDTH = 480;
@@ -60,6 +73,8 @@
   // Existing processed videos can carry stale encoded dimensions. Once the
   // browser loads the media, prefer its intrinsic display size for the frame.
   let measuredMedia = $state<{ src: string; width: number; height: number } | null>(null);
+  let hlsRetryUrl = $state<string | null>(null);
+  let failedHlsUrl = $state<string | null>(null);
 
   // Pick the best variant (highest quality available)
   const selectedVariant = $derived(
@@ -68,8 +83,24 @@
       : null
   );
 
+  const fallbackSource = $derived(
+    selectedVariant
+      ? ({ src: selectedVariant.url, type: 'video/mp4' } as const)
+      : fallbackUrl
+        ? { src: fallbackUrl, type: fallbackContentType ?? 'video/mp4' }
+        : undefined
+  );
+
+  const playbackSource = $derived.by(() => {
+    const effectiveHlsUrl = hlsRetryUrl ?? hlsUrl;
+    if (!autoLoop && effectiveHlsUrl && effectiveHlsUrl !== failedHlsUrl) {
+      return { src: effectiveHlsUrl, type: 'application/vnd.apple.mpegurl' as const };
+    }
+    return fallbackSource;
+  });
+
   const sourceDimensions = $derived.by(() => {
-    if (measuredMedia && measuredMedia.src === selectedVariant?.url) {
+    if (measuredMedia && measuredMedia.src === playbackSource?.src) {
       return measuredMedia;
     }
     return {
@@ -104,9 +135,7 @@
   // Vidstack auto-detects media type from URL extensions, but our stable asset
   // URLs have no extension (/assets/files/...). We must provide an
   // explicit type so Vidstack recognizes it as video/mp4.
-  const videoSrc = $derived(
-    selectedVariant ? { src: selectedVariant.url, type: 'video/mp4' } : undefined
-  );
+  const videoSrc = $derived(playbackSource);
 
   const failureMessage = $derived.by(() => {
     switch (reasonCode) {
@@ -124,12 +153,12 @@
   }
 
   function syncVideoDimensions(video: HTMLVideoElement) {
-    if (!selectedVariant) return;
+    if (!playbackSource) return;
     const videoWidth = positiveDimension(video.videoWidth);
     const videoHeight = positiveDimension(video.videoHeight);
     if (!videoWidth || !videoHeight) return;
     measuredMedia = {
-      src: selectedVariant.url,
+      src: playbackSource.src,
       width: videoWidth,
       height: videoHeight
     };
@@ -139,6 +168,10 @@
     if (event.currentTarget instanceof HTMLVideoElement) {
       syncVideoDimensions(event.currentTarget);
     }
+  }
+
+  function handlePlayerError() {
+    onMediaError?.();
   }
 
   function observePlayerVideo(node: HTMLElement) {
@@ -176,12 +209,29 @@
   function interceptFullscreenRequest(node: HTMLElement) {
     function handleFullscreenRequest(e: Event) {
       e.preventDefault();
-      if (!selectedVariant) return;
+      if (!playbackSource) return;
 
       const video = node.querySelector('video');
       if (video) video.pause();
 
-      fullscreenVideo.open(selectedVariant.url, thumbnailUrl ?? null, video?.currentTime ?? 0);
+      const fullscreenFallbackSource =
+        playbackSource.type === 'application/vnd.apple.mpegurl' ? (fallbackSource ?? null) : null;
+      const refreshSource =
+        playbackSource.type === 'application/vnd.apple.mpegurl' && onMediaError
+          ? async () => {
+              const refreshedURL = await onMediaError();
+              return typeof refreshedURL === 'string'
+                ? ({ src: refreshedURL, type: 'application/vnd.apple.mpegurl' } as const)
+                : null;
+            }
+          : null;
+      fullscreenVideo.open(
+        playbackSource,
+        thumbnailUrl ?? null,
+        video?.currentTime ?? 0,
+        fullscreenFallbackSource,
+        refreshSource
+      );
 
       // Request native fullscreen on the overlay after Svelte renders it.
       // tick() preserves the user activation from this click event.
@@ -201,12 +251,61 @@
   }
 
   function attachMediaPlayer(node: HTMLElement) {
+    let hlsRecoveryInProgress = false;
+
+    const handleProviderChange = (event: Event) => {
+      configureBundledHLSProvider((event as CustomEvent).detail);
+    };
+    const handleHLSError = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        fatal?: boolean;
+        type?: string;
+        details?: string;
+      }>).detail;
+      const bufferAppendFailed =
+        detail?.type === 'mediaError' && detail.details === 'bufferAppendError';
+      if (
+        !shouldAbortHLSRecovery(detail ?? {}) ||
+        hlsRecoveryInProgress ||
+        playbackSource?.type !== 'application/vnd.apple.mpegurl'
+      ) {
+        return;
+      }
+
+      hlsRecoveryInProgress = true;
+      const rejectedUrl = playbackSource.src;
+
+      // Vidstack otherwise invokes hls.js recoverMediaError() for every fatal
+      // media error without a recovery budget. Stop the bad session first so a
+      // malformed segment cannot create an endless request loop.
+      const provider = (node as HTMLElement & { provider?: { instance?: { destroy?: () => void } } })
+        .provider;
+      recoverFatalHLS({
+        instance: provider?.instance,
+        rejectedUrl,
+        // A fresh access ticket cannot repair bytes rejected by SourceBuffer.
+        refreshUrl: bufferAppendFailed ? undefined : onMediaError,
+        retry: (url) => {
+          hlsRetryUrl = url;
+        },
+        fallback: () => {
+          failedHlsUrl = rejectedUrl;
+        }
+      })
+        .finally(() => {
+          hlsRecoveryInProgress = false;
+        });
+    };
+    node.addEventListener('provider-change', handleProviderChange);
+    node.addEventListener('hls-error', handleHLSError);
     const cleanupFullscreen = interceptFullscreenRequest(node);
     const cleanupVideoObserver = observePlayerVideo(node);
 
     return () => {
       cleanupFullscreen();
       cleanupVideoObserver();
+      node.removeEventListener('provider-change', handleProviderChange);
+      node.removeEventListener('hls-error', handleHLSError);
     };
   }
 </script>
@@ -220,25 +319,29 @@
       muted
       playsinline
       data-autoloop
-      onerror={onMediaError}
+      onerror={handlePlayerError}
       onloadedmetadata={handleVideoMetadata}
       class="block h-full w-full object-contain"
     >
       <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
     </video>
   </div>
-{:else if status === 'COMPLETED' && selectedVariant && elementsReady}
+{:else if status === 'COMPLETED' && playbackSource && elementsReady}
   <div class="embed-frame" style={frameStyle}>
     <media-player
       {@attach attachMediaPlayer}
       src={videoSrc}
       playsinline
-      onerror={onMediaError}
+      onerror={handlePlayerError}
       class="block h-full w-full"
     >
       <media-provider>
         {#if thumbnailUrl}
-          <media-poster class="vds-poster" src={thumbnailUrl} alt={filename} onerror={onMediaError}
+          <media-poster
+            class="vds-poster"
+            src={thumbnailUrl}
+            alt={filename}
+            onerror={onPosterError ?? onMediaError}
           ></media-poster>
         {/if}
       </media-provider>

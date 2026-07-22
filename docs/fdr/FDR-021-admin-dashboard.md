@@ -1,20 +1,22 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-06-20
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
-The admin section gives owners and admins visibility into the server's operational state: user counts, room counts, storage resource usage, projection health, and audit/event-log diagnostics. It deliberately exposes operational metadata — never message content, never per-user activity logs, never per-room conversation summaries.
+The server-management section gives owners and admins visibility into the server's operational state: user counts, room counts, storage resource usage, projection health, and audit/event-log diagnostics. It lives within a broader management area that also gives delegated managers direct access to the rooms and room groups they are authorised to configure. Operational views deliberately expose metadata — never message content, never per-user activity logs, never per-room conversation summaries.
 
 ## Behavior
 
-- The admin UI lives under `/chat/[serverId]/server-admin/`. Non-admins see an "access denied" panel; the server-header gear entry point is hidden from them.
-- Admin-capable users enter through the gear icon in the server name pane header. Once inside server-admin, the server sidebar switches from room navigation to the admin section navigation with a Back to Server affordance.
+- Management UI lives under `/chat/[serverId]/manage/`. Server-wide pages live below `/manage/server/`; individual room and room-group settings use sibling resource routes.
+- Legacy `/chat/[serverId]/server-admin/...` deep links permanently redirect to their equivalent management routes so bookmarks and shared links continue to work.
+- Admin-capable users enter server management through the gear icon in the server name pane header. The server sidebar switches from room navigation to management navigation with a Back to Server affordance.
+- Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show the raw payload JSON for human inspection.
-- The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-admin page does not expose time-range controls.
+- The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
 - Filtered audit-log browsing is a bounded diagnostic scan over retained EVT rows, not an indexed analytics query. The connection reports `scannedCount`, `scanLimit`, and `scanLimited` so the UI can tell operators when older matches may exist beyond the inspected window.
 
@@ -52,22 +54,30 @@ The admin section gives owners and admins visibility into the server's operation
 
 ### 6. Event-log filters are bounded diagnostic scans
 
-**Decision:** `AdminEventLogService.ListEvents` supports exact event-type and actor-ID matching plus inclusive created-at bounds, but filtered reads scan at most 5,000 retained EVT rows per request. The server-admin UI currently exposes event-type and actor filters and groups the newest-first table by creation date.
+**Decision:** `AdminEventLogService.ListEvents` supports exact event-type and actor-ID matching plus inclusive created-at bounds, but filtered reads scan at most 5,000 retained EVT rows per request. The server-management UI currently exposes event-type and actor filters and groups the newest-first table by creation date.
 **Why:** EVT is the source of truth, not an indexed analytics store. The filters make the admin page useful for common investigations without adding a second durable index or allowing one request to walk an unbounded stream.
 **Tradeoff:** A sparse filter on a large server may report `scanLimited: true` before finding every historical match. Operators can narrow the time range or inspect older windows explicitly; a future export/analytics feature should get a dedicated read model.
 
 ### 7. Admin APIs use service-level grouping with field-specific capability gates
 
-**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, owner-only diagnostics) before returning data.
+**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, scoped `room.manage`, owner-only diagnostics) before returning data.
 **Why:** Dedicated service grouping gives the API obvious admin-tooling namespaces, and method-level checks let operators delegate user, system, audit, and RBAC-editor visibility independently.
 **Tradeoff:** A user may be able to enter the admin area but see permission denials or empty panels for specific sections. The UI has to reflect that capability split clearly.
+
+### 8. One management namespace, scoped by resource
+
+**Decision:** Server, room, and room-group configuration share the `/manage` namespace. Server-only operations live under `/manage/server`, while rooms and room groups are addressed as resources alongside it.
+**Why:** Room and room-group permissions can be delegated without granting server-wide administration. A resource-oriented management area gives those managers a direct destination without creating a separate top-level settings section for every manageable resource.
+**Tradeoff:** The management shell cannot assume every viewer has a common server-wide navigation set. It must derive navigation and access from the selected resource and the viewer's effective capabilities.
 
 ## Permissions
 
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - System diagnostics are owner-only; `admin.view-system` is exposed only as a viewer capability key, not as a grantable RBAC permission.
 - `admin.view-audit` — gates admin event log, event type, and event detail reads.
-- `role.assign` — gates user role assignment and revocation.
+- `role.manage` — configures roles and role permission decisions, including scoped room and room-group matrices without granting general room-management authority.
+- `role.assign` — gates user role assignment and revocation; non-owner assignments remain bounded by the actor's own scoped authority.
+- `room.manage` — gates general room and room-group settings at the effective resource scope; server-scope grants also gate global room-group creation and ordering.
 - `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.
 
 ## Related

@@ -1,11 +1,7 @@
 package core
 
 import (
-	"sort"
-	"strings"
-
 	"hmans.de/chatto/internal/events"
-	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -38,16 +34,8 @@ type userConfigState struct {
 	roomLevelByRoom map[string]corev1.NotificationLevel
 }
 
-// ServerConfigProjection is kept as a compatibility alias while callers and
-// tests move from the old singleton server-config projection name.
-type ServerConfigProjection = ConfigProjection
-
 func NewConfigProjection() *ConfigProjection {
 	return &ConfigProjection{users: make(map[string]*userConfigState)}
-}
-
-func NewServerConfigProjection() *ConfigProjection {
-	return NewConfigProjection()
 }
 
 func (p *ConfigProjection) Subjects() []string {
@@ -152,153 +140,4 @@ func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServer
 	}
 	tf := prefs.GetTimeFormat()
 	u.timeFormat = &tf
-}
-
-func (p *ConfigProjection) Get() *configv1.ServerConfig {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.serverName == "" &&
-		p.server.description == "" &&
-		p.server.welcomeMessage == "" &&
-		p.server.motd == "" &&
-		p.server.blockedUsernames == nil {
-		return nil
-	}
-	cfg := &configv1.ServerConfig{
-		ServerName:     p.server.serverName,
-		Description:    p.server.description,
-		WelcomeMessage: p.server.welcomeMessage,
-		Motd:           p.server.motd,
-	}
-	if p.server.blockedUsernames != nil {
-		cfg.BlockedUsernames = *p.server.blockedUsernames
-	}
-	return cfg
-}
-
-func (p *ConfigProjection) ServerLogo() (*corev1.AssetRecord, bool, error) {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.logo == nil {
-		return nil, false, nil
-	}
-	return cloneAssetRecord(p.server.logo), true, nil
-}
-
-func (p *ConfigProjection) ServerBanner() (*corev1.AssetRecord, bool, error) {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.banner == nil {
-		return nil, false, nil
-	}
-	return cloneAssetRecord(p.server.banner), true, nil
-}
-
-func (p *ConfigProjection) UserSettings(userID string) (*corev1.ServerUserPreferences, bool, error) {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
-		return nil, false, nil
-	}
-	prefs := &corev1.ServerUserPreferences{}
-	if u.timezone != nil {
-		tz := *u.timezone
-		prefs.Timezone = &tz
-	}
-	if u.timeFormat != nil {
-		prefs.TimeFormat = *u.timeFormat
-	}
-	return prefs, true, nil
-}
-
-func (p *ConfigProjection) EffectiveServerName() string {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.serverName != "" {
-		return p.server.serverName
-	}
-	return "Chatto"
-}
-
-func (p *ConfigProjection) EffectiveWelcomeMessage() string {
-	p.RLock()
-	defer p.RUnlock()
-	return p.server.welcomeMessage
-}
-
-func (p *ConfigProjection) EffectiveMOTD() string {
-	p.RLock()
-	defer p.RUnlock()
-	return p.server.motd
-}
-
-func (p *ConfigProjection) EffectiveDescription() string {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.description != "" {
-		return p.server.description
-	}
-	return DefaultDescription
-}
-
-func (p *ConfigProjection) EffectiveBlockedUsernames() string {
-	p.RLock()
-	defer p.RUnlock()
-	if p.server.blockedUsernames == nil {
-		return DefaultBlockedUsernames
-	}
-	return *p.server.blockedUsernames
-}
-
-func (p *ConfigProjection) BlockedUsernamesList() []string {
-	return parseBlockedUsernames(p.EffectiveBlockedUsernames())
-}
-
-func (p *ConfigProjection) IsUsernameBlocked(login string) bool {
-	loginLower := strings.ToLower(login)
-	for _, blocked := range p.BlockedUsernamesList() {
-		if blocked == loginLower {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *ConfigProjection) NotificationServerLevel(userID string) corev1.NotificationLevel {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.serverLevel == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-	}
-	return *u.serverLevel
-}
-
-func (p *ConfigProjection) NotificationRoomLevel(userID, roomID string) corev1.NotificationLevel {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.roomLevelByRoom == nil {
-		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-	}
-	if level, ok := u.roomLevelByRoom[roomID]; ok {
-		return level
-	}
-	return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-}
-
-func (p *ConfigProjection) NotificationRoomIDs(userID string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || len(u.roomLevelByRoom) == 0 {
-		return nil
-	}
-	ids := make([]string, 0, len(u.roomLevelByRoom))
-	for roomID := range u.roomLevelByRoom {
-		ids = append(ids, roomID)
-	}
-	sort.Strings(ids)
-	return ids
 }

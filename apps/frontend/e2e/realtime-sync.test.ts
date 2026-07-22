@@ -165,19 +165,20 @@ test.describe('Real-time synchronization', () => {
         await viewerRoom.postThreadReply(replyText);
 
         await setUniversal(false);
-        await expect(viewerPage.getByText(rootText, { exact: true })).not.toBeVisible({
+        await expect(viewerPage.locator('[role="article"]', { hasText: rootText })).toHaveCount(0, {
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(viewerPage.getByText(replyText, { exact: true })).not.toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
+        await expect(viewerPage.locator('[role="article"]', { hasText: replyText })).toHaveCount(
+          0,
+          { timeout: TIMEOUTS.REALTIME_EVENT }
+        );
 
         await setUniversal(true);
         await viewerRoom.expectThreadPaneVisible();
-        await expect(viewerRoom.threadPane.getByText(rootText, { exact: true })).toBeVisible({
+        await expect(viewerRoom.getThreadMessage(rootText).locator).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(viewerRoom.threadPane.getByText(replyText, { exact: true })).toBeVisible({
+        await expect(viewerRoom.getThreadMessage(replyText).locator).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
       }

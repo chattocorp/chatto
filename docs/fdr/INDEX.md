@@ -16,8 +16,8 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-07-10 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-07-16 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-07-20 |
-| [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-07-20 |
-| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-07-19 |
+| [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-07-22 |
+| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-07-20 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-07-15 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-07-18 |
@@ -26,11 +26,11 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-05-31 |
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-07-15 |
-| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-06-18 |
-| [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-07-13 |
-| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-07-15 |
+| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-07-20 |
+| [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-07-21 |
+| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-07-20 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-07-14 |
-| [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-06-15 |
+| [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-07-20 |
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-06-23 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-07-15 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-06-15 |

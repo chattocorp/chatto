@@ -50,7 +50,7 @@ func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (boo
 }
 
 // CanAdminAuditView checks if a user can view the audit log (event log)
-// page in admin. The event-log inspection view in /server-admin/event-log
+// page in admin. The event-log inspection view in /manage/server/event-log
 // is the first concrete use; future log exports / search endpoints gate
 // on the same permission.
 func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool, error) {
@@ -211,7 +211,7 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // members are exactly the users for whom this returns true. Active room bans
 // deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	if kind == KindChannel && c.rooms().isRoomBanActive(roomID, userID, time.Now()) {
+	if kind == KindChannel && c.roomModel.isRoomBanActive(roomID, userID, time.Now()) {
 		return false, nil
 	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)

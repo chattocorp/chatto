@@ -49,6 +49,9 @@
       "level_group": "Gruppe",
       "level_room": "Raum",
       "empty_category": "Keine Berechtigungen in dieser Kategorie",
+      "filter_label": "Berechtigungen filtern",
+      "filter_placeholder": "Berechtigungen filtern...",
+      "no_filter_matches": "Keine Berechtigungen entsprechen diesem Filter.",
       "categories": {
         "space": {
           "title": "Serverberechtigungen",

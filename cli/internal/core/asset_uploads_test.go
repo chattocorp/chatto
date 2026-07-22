@@ -31,12 +31,12 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	}
 
 	content := []byte("pending asset content")
-	attachment, err := core.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
+	attachment, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("uploadAttachmentBinary: %v", err)
 	}
 	sum := sha256.Sum256(content)
-	if err := core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, user.Id, room.Id, attachment, hex.EncodeToString(sum[:]), time.Now().Add(-time.Minute), false); err != nil {
+	if err := core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, user.Id, room.Id, attachment, hex.EncodeToString(sum[:]), time.Now().Add(-time.Minute), false); err != nil {
 		t.Fatalf("RecordUploadedPendingAttachmentAsset: %v", err)
 	}
 

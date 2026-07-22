@@ -29,6 +29,7 @@ export type DirectoryRoomSummary = {
   isMember: boolean;
   hasUnread: boolean;
   canJoinRoom: boolean;
+  canManageRoom: boolean;
 };
 
 export type DirectoryRoomDetails = DirectoryRoomSummary & {
@@ -38,7 +39,6 @@ export type DirectoryRoomDetails = DirectoryRoomSummary & {
   canReact: boolean;
   canEchoMessage: boolean;
   canManageOthersMessage: boolean;
-  canManageRoom: boolean;
   canBanRoomMembers: boolean;
 };
 
@@ -65,6 +65,7 @@ export type DirectoryRoomGroup = {
   id: string;
   name: string;
   canCreateRoom: boolean;
+  canManageGroup: boolean;
   roomIds: string[];
   items: DirectoryRoomGroupItem[];
 };
@@ -189,7 +190,8 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     isUniversal: entry.room.universal,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
-    canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom)
+    canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
+    canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }
 
@@ -198,6 +200,7 @@ export function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
     id: group.id,
     name: group.name,
     canCreateRoom: hasRoomGroupPermission(group.viewerState, RoomPermission.CreateRoom),
+    canManageGroup: hasRoomGroupPermission(group.viewerState, RoomPermission.ManageRoom),
     roomIds: uniqueRoomIds(group.items),
     items: sidebarItemsFromAPI(group)
   };

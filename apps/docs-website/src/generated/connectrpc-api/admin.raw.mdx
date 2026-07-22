@@ -448,6 +448,9 @@ Server-admin member detail payload.
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
+| `assignable_role_names` | `repeated string` | Roles the caller may assign without granting authority the caller does not possess. Populated when assignment limits are enforced. |
+| `revocable_role_names` | `repeated string` | Roles the caller may revoke without removing restrictions or authority beyond the caller's own. Populated when assignment limits are enforced. |
+| `role_assignment_limits_enforced` | `bool` | True when assignable_role_names and revocable_role_names are authoritative. Older servers leave this false and clients may retain legacy behaviour. |
 
 
 <a id="chatto-admin-v1-AdminUserService-BatchGetMembers"></a>
@@ -487,7 +490,8 @@ Batch server-admin member response.
 
 ### AssignRole
 
-Assigns a role to a user. Requires role.assign.
+Assigns a role to a user. Requires role.assign, and non-owner callers may
+only assign roles whose granted authority they already possess.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -520,7 +524,8 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user. Requires role.assign.
+Revokes a role from a user. Requires role.assign, and non-owner callers may
+only revoke roles whose permission decisions are within their authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole
@@ -698,9 +703,9 @@ Provides permission matrix reads and admin permission writes.
 
 ### GetRolePermissionTierMatrix
 
-Gets the role-permission matrix for a single tier. Requires role.manage
-for server/group scope; room scope requires role.manage or room.manage in
-that room.
+Gets the role-permission matrix for a single tier. Server scope requires
+role.manage; group and room scopes require role.manage or effective
+room.manage at the requested resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix
@@ -899,7 +904,8 @@ Permission explanations for all permissions applicable at the requested scope.
 
 ### SetRolePermission
 
-Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+Sets one role permission decision. Server scope requires role.manage;
+group and room scopes also accept effective room.manage at that resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -971,13 +977,82 @@ Result of setting one user permission state.
 
 Reads and mutates the server-admin room layout.
 
+<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoom"></a>
+
+### GetRoom
+
+Gets management-authorized channel room metadata. Requires role.manage or
+effective room.manage for the room.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoom
+```
+
+<a id="chatto-admin-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for management-authorized channel room metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+
+
+<a id="chatto-admin-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Channel room metadata and the caller's management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | `chatto.api.v1.Room` | Requested channel room. This read does not require ordinary directory visibility when the caller can configure the room's role permissions. |
+| `viewer_can_manage_room` | `bool` | Whether the caller can update the room's general settings. |
+| `viewer_can_manage_permissions` | `bool` | Whether the caller can configure role permissions for the room. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoomGroup"></a>
+
+### GetRoomGroup
+
+Gets management-authorized room group metadata. Requires role.manage or
+effective room.manage for the group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoomGroup
+```
+
+<a id="chatto-admin-v1-GetRoomGroupRequest"></a>
+
+#### Input: GetRoomGroupRequest
+
+Request for management-authorized room group metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group ID. |
+
+
+<a id="chatto-admin-v1-GetRoomGroupResponse"></a>
+
+#### Result: GetRoomGroupResponse
+
+Room group metadata and the caller's management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Requested room group metadata. Ordered room and link entries are omitted so role permission managers do not gain visibility into private room names. |
+| `viewer_can_manage_group` | `bool` | Whether the caller can update the room group's general settings. |
+| `viewer_can_manage_permissions` | `bool` | Whether the caller can configure role permissions for the room group. |
+
+
 <a id="chatto-admin-v1-AdminRoomLayoutService-ListRoomGroups"></a>
 
 ### ListRoomGroups
 
-Lists the editable room group layout. Requires role.manage and returns
-visible room entries, including archived rooms for administrative actions
-such as unarchiving.
+Lists the editable room group layout. Requires server-scope room.manage
+and includes archived rooms for administrative actions such as unarchiving.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups
@@ -1005,7 +1080,7 @@ Server-admin room group layout response.
 
 ### CreateRoomGroup
 
-Creates a room group. Requires role.manage.
+Creates a room group. Requires server-scope room.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -1038,7 +1113,7 @@ Result of creating a room group.
 
 ### UpdateRoomGroup
 
-Updates a room group's metadata. Requires role.manage.
+Updates a room group's metadata. Requires effective room.manage for the group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -1072,7 +1147,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. Requires role.manage.
+Deletes an empty room group. Requires effective room.manage for the group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -1104,7 +1179,7 @@ Result of deleting a room group.
 
 ### ReorderRoomGroups
 
-Replaces the global room group order. Requires role.manage.
+Replaces the global room group order. Requires server-scope room.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups

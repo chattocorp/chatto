@@ -312,6 +312,30 @@ export class GetMemberResponse extends Message<GetMemberResponse> {
    */
   viewerCanManageUserPermissions = false;
 
+  /**
+   * Roles the caller may assign without granting authority the caller does not
+   * possess. Populated when assignment limits are enforced.
+   *
+   * @generated from field: repeated string assignable_role_names = 7;
+   */
+  assignableRoleNames: string[] = [];
+
+  /**
+   * Roles the caller may revoke without removing restrictions or authority
+   * beyond the caller's own. Populated when assignment limits are enforced.
+   *
+   * @generated from field: repeated string revocable_role_names = 8;
+   */
+  revocableRoleNames: string[] = [];
+
+  /**
+   * True when assignable_role_names and revocable_role_names are authoritative.
+   * Older servers leave this false and clients may retain legacy behaviour.
+   *
+   * @generated from field: bool role_assignment_limits_enforced = 9;
+   */
+  roleAssignmentLimitsEnforced = false;
+
   constructor(data?: PartialMessage<GetMemberResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -326,6 +350,9 @@ export class GetMemberResponse extends Message<GetMemberResponse> {
     { no: 4, name: "viewer_can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "viewer_can_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "viewer_can_manage_user_permissions", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "assignable_role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 8, name: "revocable_role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 9, name: "role_assignment_limits_enforced", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMemberResponse {
