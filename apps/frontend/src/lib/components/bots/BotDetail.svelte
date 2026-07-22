@@ -199,7 +199,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
         <Panel title={m['bots.field.api_key']()} icon="iconify uil--key-skeleton">
           <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0 max-w-2xl">
-              <p class="font-medium">
+              <p>
                 {bot.apiKeyCreatedAt
                   ? m['bots.credentials.active_description']()
                   : m['bots.credentials.none_description']()}

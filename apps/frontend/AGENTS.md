@@ -90,7 +90,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   then raw Tailwind for local layout. Do not use `!` overrides to invent
   missing component variants; extend the component and its story instead.
 - Svelte files use tabs; match local style.
-- Use base text size by default. Reserve smaller text for metadata.
+- Ordinary text always uses the default body size and normal weight. Never use
+  `text-sm`, `text-xs`, `font-medium`, `font-semibold`, or `font-bold` for
+  explanatory copy or other normal prose. Smaller text is only for genuine
+  metadata, timestamps, and terse labels; heavier text is only for actual
+  headings, labels, and controls.
 - Keep one text size within a compact surface such as a menu, popover, control,
   or nested row. Do not mix smaller metadata text with base-sized actions in
   the same surface; express hierarchy with color, weight, spacing, and icons.
