@@ -1,136 +1,75 @@
 <!--
 @component
 
-Per-role permission matrix loader. Owns the ConnectRPC query for the
-role's matrix and the mutation dispatch for cell clicks; delegates
-rendering to `SubjectPermissionsMatrix` (shared with the user variant).
-
-  Mutations go through the admin permission API via `setRolePermission`.
+Per-role adapter for the shared managed permission matrix.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { Hint } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
-  import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
   import {
     setRolePermission,
-    type MutationScope as RoleMutationScope,
+    type MutationScope,
     type PermissionState
   } from './permissionMutations';
-  import SubjectPermissionsMatrix, {
-    type MatrixData,
-    type MatrixScope,
-    type CellState
-  } from './SubjectPermissionsMatrix.svelte';
-
-  type Matrix = MatrixData & { roleName: string };
+  import ManagedSubjectPermissionsMatrix from './ManagedSubjectPermissionsMatrix.svelte';
+  import type { CellState, MatrixData, MatrixScope } from './SubjectPermissionsMatrix.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { roleName }: { roleName: string } = $props();
 
   const connection = useConnection();
-
-  function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-  }
-
-  let data = $state<Matrix | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let updatingKey = $state<string | null>(null);
   const isOwnerRole = $derived(roleName === 'owner');
 
-  $effect(() => {
-    void load(roleName);
-  });
-
-  async function load(name: string) {
-    const current = untrack(() => data);
-    if (!current || current.roleName !== name) loading = true;
-    error = null;
-
-    let matrix: Matrix | null = null;
-    try {
-      matrix = await permissionAPI().getRolePermissionMatrix(name);
-    } catch (err) {
-      if (name !== roleName) return;
-      loading = false;
-      error = err instanceof Error ? err.message : String(err);
-      return;
-    }
-
-    if (name !== roleName) return;
-
-    loading = false;
-    if (!matrix) {
-      error = m['admin.permissions.role_not_found']();
-      return;
-    }
-    const loadedMatrix = matrix;
-    data = {
-      roleName: loadedMatrix.roleName,
-      applicablePermissions: [...loadedMatrix.applicablePermissions],
-      scopes: loadedMatrix.scopes.map((s) => ({ ...s })),
-      cells: loadedMatrix.cells.map((c) => ({ ...c }))
-    };
+  function api() {
+    const conn = connection();
+    return createPermissionAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
   }
 
-  function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
+  function mutationScope(scope: MatrixScope, targetRoleName: string): MutationScope {
     if (scope.kind === 'GROUP') {
-      const groupId = scope.id.startsWith('group:') ? scope.id.slice('group:'.length) : '';
-      return { tier: 'group', roleName: name, groupId };
+      return {
+        tier: 'group',
+        roleName: targetRoleName,
+        groupId: scope.id.replace(/^group:/, '')
+      };
     }
     if (scope.kind === 'ROOM') {
-      const roomId = scope.id.startsWith('room:') ? scope.id.slice('room:'.length) : '';
-      return { tier: 'room', roleName: name, roomId };
+      return {
+        tier: 'room',
+        roleName: targetRoleName,
+        roomId: scope.id.replace(/^room:/, '')
+      };
     }
-    return { tier: 'server', roleName: name };
+    return { tier: 'server', roleName: targetRoleName };
   }
 
-  async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data) return;
-    const cellKey = `${scope.id}::${permission}`;
-    updatingKey = cellKey;
-    error = null;
+  async function load(targetRoleName: string): Promise<MatrixData | null> {
+    return api().getRolePermissionMatrix(targetRoleName);
+  }
 
+  async function mutate(
+    targetRoleName: string,
+    scope: MatrixScope,
+    permission: string,
+    next: CellState
+  ) {
     const result = await setRolePermission(
-      permissionAPI(),
-      mutationScopeFor(scope, data.roleName),
+      api(),
+      mutationScope(scope, targetRoleName),
       permission,
       next as PermissionState
     );
-    if (result.error) {
-      error = result.error;
-      toast.error(result.error);
-      updatingKey = null;
-      return;
-    }
-
-    await load(data.roleName);
-    updatingKey = null;
+    if (result.error) throw new Error(result.error);
   }
 </script>
 
-{#if error}
-  <Hint tone="danger">{error}</Hint>
-{/if}
-
-{#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
-{:else if !data}
-  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
-{:else}
-  <SubjectPermissionsMatrix
-    {data}
-    {updatingKey}
-    onCycle={handleCycle}
-    subjectKind="role"
-    forceAllow={isOwnerRole}
-    readOnly={isOwnerRole}
-  />
-{/if}
+<ManagedSubjectPermissionsMatrix
+  resourceKey={roleName}
+  {load}
+  {mutate}
+  subjectKind="role"
+  forceAllow={isOwnerRole}
+  readOnly={isOwnerRole}
+  emptyMessage={m['admin.permissions.role_not_found']()}
+  toastErrors
+/>
