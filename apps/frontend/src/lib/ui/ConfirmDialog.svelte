@@ -35,6 +35,7 @@ Use the `tone` prop to communicate the weight of the action:
     children,
     visible = $bindable(true),
     title,
+    size = 'sm',
     tone = 'danger',
     actionLabel = m['common.confirm'](),
     actionIcon,
@@ -45,6 +46,8 @@ Use the `tone` prop to communicate the weight of the action:
     children: Snippet;
     visible?: boolean;
     title: string;
+    /** Dialog width. Use `md` when translated copy or action labels need more room. */
+    size?: 'sm' | 'md' | 'lg';
     /** Communicates the weight of the action. Drives the confirm button's color and default icon. */
     tone?: Tone;
     actionLabel?: string;
@@ -67,7 +70,7 @@ Use the `tone` prop to communicate the weight of the action:
 <FormDialog
   bind:visible
   {title}
-  size="sm"
+  {size}
   submitLabel={actionLabel}
   submitTone={tone === 'info' ? 'action' : tone}
   submitIcon={resolvedIcon}

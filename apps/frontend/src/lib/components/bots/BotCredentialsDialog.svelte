@@ -79,6 +79,7 @@ Creation can open the show-once step directly with `initialSecret`.
 {#if stage === 'confirm'}
 	<ConfirmDialog
 		visible
+		size="md"
 		title={action === 'rotate'
 			? m['bots.credentials.rotate_confirm_title']()
 			: m['bots.credentials.revoke_confirm_title']()}

@@ -99,6 +99,7 @@
   <ConfirmDialog
     bind:visible={infoVisible}
     title="Sign Out"
+    size="md"
     tone="info"
     actionLabel="Sign Out"
     actionIcon="iconify uil--signout"
