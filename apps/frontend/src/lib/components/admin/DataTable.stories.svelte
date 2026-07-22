@@ -17,6 +17,12 @@
     { id: 'SPC-2JLA9', name: 'Moderation', members: 12, visibility: 'Private' },
     { id: 'SPC-4MN0X', name: 'Community', members: 87, visibility: 'Invite-only' }
   ];
+  const scrollingRows = Array.from({ length: 24 }, (_, index) => ({
+    id: `SPC-${String(index + 1).padStart(4, '0')}`,
+    name: `Space ${index + 1}`,
+    members: (index + 1) * 12,
+    visibility: index % 3 === 0 ? 'Public' : index % 3 === 1 ? 'Invite-only' : 'Private'
+  })) satisfies SpaceRow[];
 
   const componentDescription = `
   Admin table primitive with a rounded scroll viewport, contrasting header and
@@ -56,6 +62,32 @@
         items={rows}
         columns={4}
         getKey={(row) => row.id}
+        header={tableHeader}
+        row={tableRow}
+      />
+    </Panel>
+  </div>
+</Story>
+
+<Story
+  name="Sticky header"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Dense matrices and long administrative tables can retain their column labels in a bounded scrolling viewport.'
+      }
+    }
+  }}
+>
+  <div class="flex h-96 max-w-3xl flex-col">
+    <Panel title="Space permissions" noPadding fillHeight>
+      <DataTable
+        items={scrollingRows}
+        columns={4}
+        getKey={(row) => row.id}
+        stickyHeader
+        fillHeight
         header={tableHeader}
         row={tableRow}
       />

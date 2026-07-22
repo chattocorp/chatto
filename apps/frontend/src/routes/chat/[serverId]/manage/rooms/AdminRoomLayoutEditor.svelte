@@ -19,7 +19,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';
   import { flip } from 'svelte/animate';
-  import { dndzone, type DndEvent } from 'svelte-dnd-action';
+  import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -469,7 +469,7 @@
             <div class="px-1 pb-1">
               <div
                 class="min-h-12 overflow-hidden panel-inset p-2"
-                use:dndzone={{
+                use:dragHandleZone={{
                   items: group.items,
                   flipDurationMs: 200,
                   dropTargetStyle: {
@@ -491,6 +491,11 @@
                       room.kind === 'room' && room.room.archived && 'opacity-60'
                     ]}
                   >
+                    <span
+                      use:dragHandle
+                      class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text uil--draggabledots"
+                      aria-label={m['admin.rooms_admin.drag_room']()}
+                    ></span>
                     <div class="min-w-0 flex-1">
                       {#if room.kind === 'room'}
                         <div class="flex min-w-0 items-start gap-2">

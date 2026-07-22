@@ -49,6 +49,9 @@
       "level_group": "Groep",
       "level_room": "Kamer",
       "empty_category": "Geen rechten in deze categorie",
+      "filter_label": "Machtigingen filteren",
+      "filter_placeholder": "Machtigingen filteren...",
+      "no_filter_matches": "Geen machtigingen komen overeen met dit filter.",
       "categories": {
         "space": {
           "title": "Serverrechten",

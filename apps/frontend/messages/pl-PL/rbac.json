@@ -49,6 +49,9 @@
       "level_group": "Grupa",
       "level_room": "Pokój",
       "empty_category": "Brak uprawnień w tej kategorii",
+      "filter_label": "Filtruj uprawnienia",
+      "filter_placeholder": "Filtruj uprawnienia...",
+      "no_filter_matches": "Żadne uprawnienia nie pasują do tego filtra.",
       "categories": {
         "space": {
           "title": "Uprawnienia serwera",

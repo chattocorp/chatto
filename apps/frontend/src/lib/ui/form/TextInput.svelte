@@ -12,6 +12,7 @@
     error,
     description,
     required = false,
+    labelHidden = false,
     disabled = false,
     autocomplete,
     minlength,
@@ -31,6 +32,8 @@
     error?: string;
     description?: string;
     required?: boolean;
+    /** Keep the label available to assistive technology without displaying it. */
+    labelHidden?: boolean;
     disabled?: boolean;
     autocomplete?: HTMLInputAttributes['autocomplete'];
     minlength?: number;
@@ -45,7 +48,7 @@
   } = $props();
 </script>
 
-<FormField {label} {id} {error} {description} {required}>
+<FormField {label} {id} {error} {description} {required} {labelHidden}>
   <div class="relative">
     {#if leadingIcon}
       <span

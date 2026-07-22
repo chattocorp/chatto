@@ -10,7 +10,7 @@
     AdminEventLogEntry,
     AdminEventLogFilter
   } from '$lib/state/server/adminEventLog.svelte';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import { AdminPageContent, Panel, DataTable } from '$lib/components/admin';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -169,8 +169,8 @@
     showMobileNav
   />
 
-  <div class="min-h-0 flex-1 overflow-y-auto" bind:this={scrollContainer}>
-    <div class="flex flex-col gap-4 p-6">
+  <AdminPageContent bind:scrollContainer>
+    <div class="flex flex-col gap-4">
       {#if eventLog.error}
         <Hint tone="danger">{eventLog.error}</Hint>
       {/if}
@@ -303,5 +303,5 @@
         </DataTable>
       </Panel>
     </div>
-  </div>
+  </AdminPageContent>
 </div>

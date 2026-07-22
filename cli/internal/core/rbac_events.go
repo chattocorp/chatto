@@ -182,7 +182,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 		if err != nil {
 			return 0, fmt.Errorf("read room-group projection position: %w", err)
 		}
-		if err := c.rooms().waitForGroupLayout(ctx, groupPos); err != nil {
+		if err := c.roomModel.waitForGroupLayout(ctx, groupPos); err != nil {
 			return 0, fmt.Errorf("wait for room-group projection: %w", err)
 		}
 
@@ -190,7 +190,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 		if err != nil {
 			return 0, fmt.Errorf("read room directory projection position: %w", err)
 		}
-		if err := c.rooms().waitForDirectory(ctx, roomPos); err != nil {
+		if err := c.roomModel.waitForDirectory(ctx, roomPos); err != nil {
 			return 0, fmt.Errorf("wait for room directory projection: %w", err)
 		}
 

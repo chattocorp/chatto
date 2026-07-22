@@ -57,7 +57,7 @@ const maxThreadParticipants = 50
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
-	rootEntry, ok := c.rooms().timelineEntry(threadRootEventId)
+	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventId)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
 	}
@@ -65,7 +65,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventId)
 	}
 
-	replies := c.rooms().threadEvents(threadRootEventId)
+	replies := c.roomModel.threadEvents(threadRootEventId)
 	events := make([]*corev1.Event, 0, 1+len(replies))
 	events = append(events, rootEntry.Event)
 	for _, r := range replies {
@@ -87,7 +87,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, roomID, threadRootEventID string, limit int, beforeSeq *uint64, afterSeq *uint64) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	rootEntry, ok := c.rooms().timelineEntry(threadRootEventID)
+	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventID)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
@@ -98,7 +98,7 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
-	entries := c.rooms().threadEvents(threadRootEventID)
+	entries := c.roomModel.threadEvents(threadRootEventID)
 	if afterSeq != nil && *afterSeq > 0 {
 		return threadReplyEventsAfter(entries, *afterSeq, limit), nil
 	}
@@ -145,7 +145,7 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKind, roomID, threadRootEventID, anchorEventID string, limit int) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	rootEntry, ok := c.rooms().timelineEntry(threadRootEventID)
+	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventID)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
@@ -156,7 +156,7 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
-	entries := c.rooms().threadEvents(threadRootEventID)
+	entries := c.roomModel.threadEvents(threadRootEventID)
 	replies := make([]*TimelineEntry, 0, len(entries))
 	targetIndex := 0
 	foundAnchor := anchorEventID == threadRootEventID
@@ -405,7 +405,7 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 // participants for a thread root message. Returns zero values if the
 // thread has no replies. Derived from the ThreadProjection's cached summary.
 func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
-	return c.rooms().threadMetadata(rootEventId), nil
+	return c.roomModel.threadMetadata(rootEventId), nil
 }
 
 // threadLastOpenedKey returns the RUNTIME_STATE key for tracking the latest
@@ -459,7 +459,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
 				}
 				c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 				return previousTime, nil
 			}
 			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
@@ -481,7 +481,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 		}
 
 		c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -512,7 +512,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
 				}
 				c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 				return previousTime, nil
 			}
 			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
@@ -535,7 +535,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
 		}
 		c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.rooms().threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -565,7 +565,7 @@ func (c *ChattoCore) threadReadMarkerTime(ctx context.Context, kind RoomKind, ro
 }
 
 func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string {
-	entries := c.rooms().threadEvents(threadRootEventID)
+	entries := c.roomModel.threadEvents(threadRootEventID)
 	for i := len(entries) - 1; i >= 0; i-- {
 		event := entries[i].Event
 		if event == nil || event.GetMessagePosted() == nil {
@@ -579,7 +579,7 @@ func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string
 }
 
 func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadFollowState, error) {
-	return c.rooms().threadFollowState(userID, roomID, threadRootEventID), nil
+	return c.roomModel.threadFollowState(userID, roomID, threadRootEventID), nil
 }
 
 func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, target ThreadFollowState, source corev1.ThreadFollowSource, onlyIfNeverSet bool) (bool, error) {
@@ -596,7 +596,7 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 			return false, err
 		}
 
-		current := c.rooms().threadFollowState(userID, roomID, threadRootEventID)
+		current := c.roomModel.threadFollowState(userID, roomID, threadRootEventID)
 		if onlyIfNeverSet && current != ThreadFollowStateNone {
 			return false, nil
 		}
@@ -629,7 +629,7 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, pos.Seq)
 		if err == nil {
-			if err := c.rooms().waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
+			if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, err
 			}
 			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, target == ThreadFollowStateFollowing)
@@ -658,7 +658,7 @@ func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg ev
 		if pos.IsZero() {
 			continue
 		}
-		if err := c.rooms().waitForThreads(ctx, pos); err != nil {
+		if err := c.roomModel.waitForThreads(ctx, pos); err != nil {
 			return err
 		}
 	}
@@ -724,7 +724,7 @@ func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userI
 // GetThreadFollowers returns all user IDs following a specific thread.
 func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) ([]string, error) {
 	var userIDs []string
-	for _, userID := range c.rooms().threadFollowers(roomID, threadRootEventID) {
+	for _, userID := range c.roomModel.threadFollowers(roomID, threadRootEventID) {
 		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
 		if err != nil {
 			c.logger.Warn("Failed to check thread follower state", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
@@ -811,7 +811,7 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 // listFollowedThreadsInSpace returns all threads followed by the user in a single space.
 func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind) ([]*FollowedThread, error) {
 	var result []*FollowedThread
-	for _, ref := range c.rooms().followedThreadsForUser(userID) {
+	for _, ref := range c.roomModel.followedThreadsForUser(userID) {
 		roomID := ref.roomID
 		threadRootEventID := ref.threadRootEventID
 
@@ -866,7 +866,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 // realtime replacement operations. Any uncertain lookup fails the whole read;
 // only confirmed missing/inaccessible/non-followed threads are omitted.
 func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string) ([]*FollowedThread, error) {
-	refs := c.rooms().followedThreadsForUser(userID)
+	refs := c.roomModel.followedThreadsForUser(userID)
 	result := make([]*FollowedThread, 0, len(refs))
 	for _, ref := range refs {
 		room, err := c.FindRoomByID(ctx, ref.roomID)

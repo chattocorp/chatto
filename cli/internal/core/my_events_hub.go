@@ -703,7 +703,7 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 			return nil, 0, fmt.Errorf("read RBAC visibility tail: %w", err)
 		}
 		if roomTail > 0 {
-			if err := h.model.core.rooms().waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
+			if err := h.model.core.roomModel.waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
 				return nil, 0, fmt.Errorf("wait for room visibility snapshot: %w", err)
 			}
 		}

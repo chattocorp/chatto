@@ -225,7 +225,7 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 	}
 
 	items := make([]*RoomAttachmentItem, 0)
-	for _, message := range c.rooms().currentRoomAttachmentMessages(roomID) {
+	for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
 		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
 			continue
 		}

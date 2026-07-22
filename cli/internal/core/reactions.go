@@ -131,7 +131,7 @@ type ReactionSummary struct {
 // Results are ordered by the time each emoji was first added (earliest first).
 func (c *ChattoCore) GetReactions(ctx context.Context, messageEventID string) ([]ReactionSummary, error) {
 	messageEventID, _ = c.canonicalReactionMessageEventID("", messageEventID)
-	return c.rooms().reactionsForMessage(messageEventID), nil
+	return c.roomModel.reactionsForMessage(messageEventID), nil
 }
 
 // GetReactionsBatch returns reactions for multiple messages in a single pass.
@@ -147,7 +147,7 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (
 		canonicalEventIDs = append(canonicalEventIDs, canonicalID)
 		requestedByCanonical[canonicalID] = append(requestedByCanonical[canonicalID], eventID)
 	}
-	canonicalReactions := c.rooms().reactionsBatch(canonicalEventIDs)
+	canonicalReactions := c.roomModel.reactionsBatch(canonicalEventIDs)
 	result := make(map[string][]ReactionSummary, len(canonicalReactions))
 	for canonicalID, summaries := range canonicalReactions {
 		for _, requestedID := range requestedByCanonical[canonicalID] {
@@ -262,7 +262,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 	occFilter := agg.AllEventsFilter()
 
 	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
-		snapshot := c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+		snapshot := c.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 		if add && snapshot.Exists {
 			var err error
 			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
@@ -286,7 +286,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 
 		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
 		if err == nil {
-			if err := c.rooms().waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
+			if err := c.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
 			}
 			return true, nil
@@ -295,7 +295,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 			return false, err
 		}
 
-		if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+		if err := c.roomModel.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
 			return false, err
 		}
 
@@ -309,8 +309,8 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 }
 
 func (c *ChattoCore) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
-	if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+	if err := c.roomModel.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
 		return ReactionMutationSnapshot{}, err
 	}
-	return c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
+	return c.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
 }
