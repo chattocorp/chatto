@@ -688,7 +688,7 @@ export class RoomPage {
    * Assert that text is visible in the thread pane.
    */
   async expectTextInThreadPane(text: string): Promise<void> {
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
   /**
