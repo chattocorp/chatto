@@ -275,7 +275,7 @@ export class RoomPage {
    * Assert that a message with the given text is visible.
    */
   async expectMessageVisible(text: string, options?: { timeout?: number }): Promise<void> {
-    await expect(this.page.getByText(text)).toBeVisible(options);
+    await expect(this.getMessage(text).locator).toBeVisible(options);
   }
 
   /**
