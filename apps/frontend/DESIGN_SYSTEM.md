@@ -37,6 +37,7 @@ semantic utility because their behavior is not a committed form action.
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
 | Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
+| Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards         |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
 | Inline icon action                        | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
@@ -47,6 +48,64 @@ semantic utility because their behavior is not a committed form action.
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
 | Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
+
+## Standard Pane Pages
+
+Use the pane-page composition for primary application pages such as search,
+settings, and Server Admin. It gives these pages the same header, scrolling
+behaviour, content width, spacing, and panel hierarchy.
+
+```svelte
+<PageTitle title={pageTitle} />
+
+<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+	<PaneHeader title={pageTitle} subtitle={pageSubtitle} />
+
+	<PaneContent>
+		<div class="flex flex-col gap-6">
+			<Panel title={formTitle}>
+				<form><!-- padded form content --></form>
+			</Panel>
+
+			<Panel title={resultsTitle} noPadding>
+				<!-- edge-to-edge list, table, or result state -->
+			</Panel>
+		</div>
+	</PaneContent>
+</div>
+```
+
+Follow these defaults:
+
+- `PageTitle` owns the browser title. `PaneHeader` owns the visible page title,
+  optional subtitle, back affordance, and icon actions.
+- Keep the outer `flex min-h-0 min-w-0 flex-1 flex-col` wrapper. It lets the
+  pane shrink inside the application shell without creating an accidental
+  second page scrollbar.
+- Let `PaneContent` own scrolling, the `max-w-5xl` content width, and page
+  padding. Do not reproduce those constraints in each route.
+- Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
+  deliberately dense surface, not as a page-by-page styling choice.
+- Give peer panels short, descriptive titles. A form panel names the task or
+  input group; a list panel names the collection. If a panel title repeats a
+  single form field's visible label, keep the field label available to
+  assistive technology with the field component's `labelHidden` option.
+- Use the default padded `Panel` for forms, prose, summaries, and grouped
+  controls. Use `noPadding` for tables, lists, search results, and other
+  edge-to-edge collections; the child owns its row padding and dividers.
+- Render loading, error, and empty states inside the panel whose content they
+  replace. A single full-page availability state may use one untitled panel
+  because there are no peer sections to distinguish.
+- Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
+  dense table or editor should consume the remaining pane height. Ordinary
+  forms and document-like pages should remain content-sized.
+- Do not nest `Panel` components. Use `surface-box` for compact structure
+  inside a panel, and place page-level `Hint` notices above the affected panel.
+
+Panel titles are structural navigation, not decorative headings. Do not omit
+them merely because the page header already names the overall feature: the
+page title answers “where am I?”, while panel titles answer “what is in this
+section?”.
 
 ## Semantic Color Language
 
