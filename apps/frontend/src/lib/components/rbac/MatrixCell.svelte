@@ -57,8 +57,12 @@ to render an inert "—" cell with an explanation tooltip.
   // The cell is colored by the *override* when present, otherwise by the
   // inherited baseline (so a row's effective state is visible at a glance,
   // matching the editor's "permission name reflects effective state" rule).
-  const visual = $derived(override !== 'neutral' ? override : inherited);
-  const isOverride = $derived(override !== 'neutral');
+  // An allow that now exceeds an external ceiling must not look selectable or
+  // effective. Keep the stored value available to the next-state logic so one
+  // click can replace it with a deny, but render the bounded result.
+  const visibleOverride = $derived(override === 'allow' && !canAllow ? 'neutral' : override);
+  const visual = $derived(visibleOverride !== 'neutral' ? visibleOverride : inherited);
+  const isOverride = $derived(visibleOverride !== 'neutral');
 
   // Overrides use a solid semantic fill and its contrast-safe foreground.
   // Inherited states use a quiet tint; neutral uses the surface ladder.
@@ -100,7 +104,8 @@ to render an inert "—" cell with an explanation tooltip.
       disabled || updating ? 'cursor-not-allowed' : '',
       disabled ? 'opacity-60' : ''
     ]}
-    disabled={disabled || updating}
+    disabled={disabled}
+    aria-disabled={disabled || updating}
     {title}
     aria-label={ariaLabel}
     aria-busy={updating || undefined}

@@ -10,6 +10,7 @@ function renderCell(
     override: State;
     inherited: State;
     applicable: boolean;
+    canAllow: boolean;
     disabled: boolean;
     updating: boolean;
     ariaLabel: string;
@@ -95,7 +96,8 @@ describe('MatrixCell', () => {
     const { container } = renderCell({ updating: true, onCycle });
     const button = container.querySelector('button') as HTMLButtonElement;
 
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(button.className).toContain('ring-action/40');
     expect(button.querySelector('.h-4.w-4.animate-spin.uil--spinner')).not.toBeNull();
@@ -104,6 +106,43 @@ describe('MatrixCell', () => {
     button.click();
     flushSync();
     expect(onCycle).not.toHaveBeenCalled();
+  });
+
+  it('retains focus while an update is in flight', async () => {
+    const { container, rerender } = renderCell({ updating: false });
+    const button = container.querySelector('button') as HTMLButtonElement;
+    button.focus();
+
+    await rerender({
+      override: 'neutral',
+      inherited: 'neutral',
+      applicable: true,
+      disabled: false,
+      updating: true,
+      ariaLabel: 'cell',
+      onCycle: vi.fn()
+    });
+
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('never offers or displays an allow above the owner ceiling', async () => {
+    const onCycle = vi.fn();
+    const { container } = renderCell({
+      override: 'allow',
+      inherited: 'deny',
+      canAllow: false,
+      onCycle
+    });
+    const button = container.querySelector('button') as HTMLButtonElement;
+
+    expect(container.querySelector('.uil--times')).not.toBeNull();
+    expect(container.querySelector('.uil--check')).toBeNull();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    button.click();
+    flushSync();
+    expect(onCycle).toHaveBeenCalledWith('deny');
   });
 
   it('shows the allow icon when override is allow', async () => {

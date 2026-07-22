@@ -63,6 +63,12 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     const targetBotId = botId;
     const generation = loadGeneration;
     const key = `${scope.id}::${permission}`;
+    const targetCell = matrix?.cells.find(
+      (cell) => cell.scopeId === scope.id && cell.permission === permission
+    );
+    // The server enforces this ceiling too. Keep the impossible grant out of
+    // the request entirely so the UI cannot suggest it is configurable.
+    if (next === 'allow' && targetCell?.ownerAllowed === false) return;
     updatingKey = key;
     error = null;
     try {
@@ -74,7 +80,25 @@ the bot's direct decisions while preserving the owner's permission ceiling.
       });
       const nextMatrix = await api().getPermissionMatrix(targetBotId);
       if (generation !== loadGeneration || targetBotId !== botId) return;
-      matrix = nextMatrix;
+      if (!matrix || matrix.cells.length !== nextMatrix.cells.length) {
+        matrix = nextMatrix;
+      } else {
+        const nextCells = new Map(
+          nextMatrix.cells.map((cell) => [`${cell.scopeId}::${cell.permission}`, cell])
+        );
+        let sameShape = true;
+        for (const cell of matrix.cells) {
+          const updated = nextCells.get(`${cell.scopeId}::${cell.permission}`);
+          if (!updated) {
+            sameShape = false;
+            break;
+          }
+          cell.directDecision = updated.directDecision;
+          cell.effectiveDecision = updated.effectiveDecision;
+          cell.ownerAllowed = updated.ownerAllowed;
+        }
+        if (!sameShape) matrix = nextMatrix;
+      }
     } catch (cause) {
       if (generation !== loadGeneration || targetBotId !== botId) return;
       error = cause instanceof Error ? cause.message : String(cause);
