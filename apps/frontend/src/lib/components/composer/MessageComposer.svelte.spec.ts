@@ -541,6 +541,7 @@ describe('MessageComposer', () => {
         .toBeTruthy();
       const preview = q(container, '[data-testid="composer-attachment-preview"]')!;
       expect(preview.className).toContain('w-72');
+      expect(preview.querySelector('img')?.parentElement?.className).toContain('w-12');
       await expect.element(preview).toHaveTextContent('2 KB');
     });
 

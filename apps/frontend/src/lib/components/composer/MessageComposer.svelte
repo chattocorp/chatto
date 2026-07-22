@@ -1063,9 +1063,9 @@
           class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
           data-testid="composer-attachment-preview"
         >
-          <div class="relative shrink-0">
+          <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
             {#if file.type.startsWith('image/')}
-              <img src={url} alt={file.name} class="h-12 w-12 rounded-md object-cover" />
+              <img src={url} alt={file.name} class="h-full w-full object-cover" />
             {:else if file.type.startsWith('video/')}
               <!-- Browser renders the first frame as a thumbnail from the object URL -->
               <video
@@ -1073,19 +1073,19 @@
                 src="{url}#t=0.1"
                 preload="metadata"
                 muted
-                class="h-12 w-12 rounded-md object-cover"
+                class="h-full w-full object-cover"
               ></video>
             {:else if file.type.startsWith('audio/')}
               <div
                 data-testid="audio-attachment-preview"
-                class="flex h-12 w-12 items-center justify-center rounded-md bg-surface-strong"
+                class="flex h-full w-full items-center justify-center bg-surface-strong"
               >
                 <span class="iconify text-lg text-muted uil--music"></span>
               </div>
             {:else}
               <div
                 data-testid="file-attachment-preview"
-                class="flex h-12 w-12 items-center justify-center rounded-md bg-surface-strong"
+                class="flex h-full w-full items-center justify-center bg-surface-strong"
               >
                 <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
               </div>
