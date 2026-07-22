@@ -17,11 +17,11 @@ setup = "mise trust && mise setup"
 run_mode = "concurrent"
 
 [scripts.run.chatto]
-command = "exec mise dev"
+command = "exec tools/dev-supervisor.sh mise dev"
 icon = "message-square"
 
 [scripts.run.chatto-compiled]
-command = "exec mise dev-compiled"
+command = "exec tools/dev-supervisor.sh mise dev-compiled"
 default = true
 icon = "package"
 
