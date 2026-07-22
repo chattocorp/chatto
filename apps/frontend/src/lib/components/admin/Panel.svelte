@@ -9,7 +9,8 @@
     children,
     actions,
     noPadding = false,
-    fillHeight = false
+    fillHeight = false,
+    clipContent = true
   }: {
     title?: string;
     subtitle?: string | Snippet;
@@ -20,12 +21,15 @@
     noPadding?: boolean;
     /** Let a dense child, such as a matrix, fill a flex page's remaining height. */
     fillHeight?: boolean;
+    /** Clip children to the panel shell. Disable when an ancestor owns overflow and sticky positioning. */
+    clipContent?: boolean;
   } = $props();
 </script>
 
 <div
   class={[
-    'overflow-hidden panel-shell panel-shell-raised',
+    clipContent ? 'overflow-hidden' : 'overflow-visible',
+    'panel-shell panel-shell-raised',
     fillHeight ? 'flex min-h-0 flex-1 flex-col' : 'shrink-0'
   ]}
 >
@@ -62,7 +66,7 @@
     <div
       class={[
         'panel-inset',
-        noPadding ? 'overflow-hidden' : 'p-5',
+        noPadding ? (clipContent ? 'overflow-hidden' : 'overflow-visible') : 'p-5',
         fillHeight && 'flex min-h-0 flex-1 flex-col'
       ]}
     >

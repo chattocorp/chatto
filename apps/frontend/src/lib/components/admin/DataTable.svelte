@@ -16,6 +16,7 @@
     group,
     fitContent = false,
     stickyHeader = false,
+    boundedStickyHeader = true,
     fillHeight = false,
     stickyHeaderFadeOffset = 'top-0',
     hoverable = true,
@@ -45,6 +46,8 @@
      * Use for dense matrices where column labels must remain available.
      */
     stickyHeader?: boolean;
+    /** Give a sticky-header table its own vertical viewport instead of using an ancestor's scroll. */
+    boundedStickyHeader?: boolean;
     /** Fill the remaining height of a flex parent instead of using a viewport cap. */
     fillHeight?: boolean;
     /** Tailwind position class for the sticky-header viewport's top fade. */
@@ -188,7 +191,7 @@
   </table>
 {/snippet}
 
-{#if stickyHeader}
+{#if stickyHeader && boundedStickyHeader}
   <ScrollFader
     top
     bottom
@@ -198,6 +201,10 @@
   >
     {@render tableContent()}
   </ScrollFader>
+{:else if stickyHeader}
+  <div class="rounded-md bg-background">
+    {@render tableContent()}
+  </div>
 {:else}
   <div class="overflow-x-auto rounded-md bg-background">
     {@render tableContent()}

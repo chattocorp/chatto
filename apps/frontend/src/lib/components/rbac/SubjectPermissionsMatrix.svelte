@@ -180,7 +180,11 @@ its dense matrix rows scroll.
 {#if orderedScopes.length === 0}
   <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
 {:else}
-  <Panel title={m['admin.permissions.title']()} noPadding>
+  <Panel
+    title={m['admin.permissions.title']()}
+    noPadding
+    clipContent={scrollWithinTable}
+  >
     {#snippet actions()}
       <div class="w-48 sm:w-64">
         <ShortcutTextInput
@@ -201,7 +205,8 @@ its dense matrix rows scroll.
       columns={matrixScopes.length + 2}
       getKey={(permission) => permission}
       emptyMessage={m['rbac.permissions.no_filter_matches']()}
-      stickyHeader={scrollWithinTable}
+      stickyHeader
+      boundedStickyHeader={scrollWithinTable}
       stickyHeaderFadeOffset={scrollWithinTable ? 'top-48' : 'top-0'}
       hoverable={false}
     >
