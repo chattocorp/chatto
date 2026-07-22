@@ -5,6 +5,9 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 )
 
 // ParsedQuery is the provider-neutral meaning of Chatto's public message
@@ -24,11 +27,36 @@ type queryToken struct {
 	quoted bool
 }
 
+type querySyntax struct {
+	Parts []*querySyntaxPart `@@*`
+}
+
+// querySyntaxPart is one bare or quoted fragment. Participle positions let us
+// join adjacent fragments into the whitespace-delimited tokens understood by
+// Chatto's query semantics without hand-scanning the input.
+type querySyntaxPart struct {
+	Pos    lexer.Position
+	Bare   *string `  @Bare`
+	Quoted *string `| @Quoted`
+	EndPos lexer.Position
+}
+
+var querySyntaxParser = participle.MustBuild[querySyntax](
+	participle.Lexer(lexer.MustSimple([]lexer.SimpleRule{
+		{Name: "Whitespace", Pattern: `[ \t\n\r]+`},
+		{Name: "Quoted", Pattern: `"(?s:[^"\\]|\\.)*"`},
+		{Name: "Bare", Pattern: `[^ \t\n\r"]+`},
+	})),
+	participle.Elide("Whitespace"),
+)
+
+var queryQuotedEscapes = strings.NewReplacer(`\"`, `"`, `\\`, `\`)
+
 // ParseQuery parses Chatto's public message-search syntax. Unknown field-like
 // tokens remain ordinary required terms so adding future filters does not make
 // existing literal searches disappear silently.
 func ParseQuery(input string) (ParsedQuery, error) {
-	tokens, err := scanQueryTokens(strings.TrimSpace(input))
+	tokens, err := parseQueryTokens(strings.TrimSpace(input))
 	if err != nil {
 		return ParsedQuery{}, err
 	}
@@ -118,58 +146,31 @@ func containsSearchableRune(value string) bool {
 	}) >= 0
 }
 
-func scanQueryTokens(input string) ([]queryToken, error) {
-	var tokens []queryToken
-	for offset := 0; offset < len(input); {
-		for offset < len(input) && isQuerySpace(input[offset]) {
-			offset++
-		}
-		if offset == len(input) {
-			break
-		}
+func parseQueryTokens(input string) ([]queryToken, error) {
+	syntax, err := querySyntaxParser.ParseString("", input)
+	if err != nil {
+		return nil, fmt.Errorf("invalid search query syntax: %w", err)
+	}
 
-		var token strings.Builder
-		quotedOnly := input[offset] == '"'
-		for offset < len(input) && !isQuerySpace(input[offset]) {
-			if input[offset] != '"' {
-				token.WriteByte(input[offset])
-				offset++
-				continue
-			}
-			offset++
-			closed := false
-			for offset < len(input) {
-				switch input[offset] {
-				case '\\':
-					if offset+1 < len(input) && (input[offset+1] == '"' || input[offset+1] == '\\') {
-						token.WriteByte(input[offset+1])
-						offset += 2
-						continue
-					}
-					token.WriteByte(input[offset])
-					offset++
-				case '"':
-					offset++
-					closed = true
-				default:
-					token.WriteByte(input[offset])
-					offset++
-				}
-				if closed {
-					break
-				}
-			}
-			if !closed {
-				return nil, fmt.Errorf("search query contains an unterminated quote")
-			}
+	tokens := make([]queryToken, 0, len(syntax.Parts))
+	previousEnd := -1
+	for _, part := range syntax.Parts {
+		value, quoted := querySyntaxPartValue(part)
+		if len(tokens) == 0 || part.Pos.Offset != previousEnd {
+			tokens = append(tokens, queryToken{quoted: quoted})
 		}
-		tokens = append(tokens, queryToken{value: token.String(), quoted: quotedOnly})
+		tokens[len(tokens)-1].value += value
+		previousEnd = part.EndPos.Offset
 	}
 	return tokens, nil
 }
 
-func isQuerySpace(value byte) bool {
-	return value == ' ' || value == '\t' || value == '\n' || value == '\r'
+func querySyntaxPartValue(part *querySyntaxPart) (string, bool) {
+	if part.Bare != nil {
+		return *part.Bare, false
+	}
+	quoted := strings.TrimSuffix(strings.TrimPrefix(*part.Quoted, `"`), `"`)
+	return queryQuotedEscapes.Replace(quoted), true
 }
 
 func parseQueryTime(value string) (time.Time, error) {

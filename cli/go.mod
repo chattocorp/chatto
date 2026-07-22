@@ -18,6 +18,7 @@ require (
 	filippo.io/age v1.3.1
 	github.com/HugoSmits86/nativewebp v1.3.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
+	github.com/alecthomas/participle/v2 v2.1.4
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0

@@ -49,9 +49,21 @@ func TestParseQueryRejectsInvalidSyntax(t *testing.T) {
 }
 
 func TestParseQueryKeepsUnknownFiltersAsTerms(t *testing.T) {
-	parsed, err := ParseQuery("search future:value")
+	parsed, err := ParseQuery(`search future:value future:"two words"`)
 	require.NoError(t, err)
-	require.Equal(t, []string{"search", "future:value"}, parsed.RequiredTerms)
+	require.Equal(t, []string{"search", "future:value", "future:two words"}, parsed.RequiredTerms)
+}
+
+func TestParseQueryPreservesQuotedAndAdjacentTokenSemantics(t *testing.T) {
+	parsed, err := ParseQuery(`search "exact \"phrase\" with C:\\Users" pre"joined phrase"post "quoted first"tail slash\q`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"search", "prejoined phrasepost", `slash\q`}, parsed.RequiredTerms)
+	require.Equal(t, []string{`exact "phrase" with C:\Users`, "quoted firsttail"}, parsed.RequiredPhrases)
+}
+
+func TestParseQueryDoesNotJoinAcrossWhitespace(t *testing.T) {
+	_, err := ParseQuery(`search in: "Archived Room"`)
+	require.ErrorContains(t, err, "in filter requires a room")
 }
 
 func TestParseQueryRejectsLimitsBeforeScopeResolution(t *testing.T) {
