@@ -8,7 +8,7 @@ in the active server store so browser Back can restore the current search.
   import type { Attachment } from 'svelte/attachments';
   import { tick } from 'svelte';
   import { resolve } from '$app/paths';
-  import { Panel } from '$lib/components/admin';
+  import { AdminPageContent, Panel } from '$lib/components/admin';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
@@ -97,11 +97,11 @@ in the active server store so browser Back can restore the current search.
 
 <PageTitle title={m['search.title']()} />
 
-<div class="flex h-full w-full flex-col">
+<div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader title={m['search.title']()} showMobileNav />
 
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <div class="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 md:gap-6 md:p-6">
+  <AdminPageContent>
+    <div class="flex flex-col gap-6">
       {#if store.statusLoading && !store.statusLoaded}
         <Panel>
           <div class="flex min-h-64 items-center justify-center text-muted" aria-live="polite">
@@ -281,5 +281,5 @@ in the active server store so browser Back can restore the current search.
         </Panel>
       {/if}
     </div>
-  </div>
+  </AdminPageContent>
 </div>
