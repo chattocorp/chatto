@@ -53,6 +53,18 @@ func (s staticDEKStore) Get(context.Context, string) (*corev1.UserDataEncryption
 	return s.value, nil
 }
 
+func TestProjectionSubjectsOnlyConsumeSearchFacts(t *testing.T) {
+	projection := &Projection{}
+	require.Equal(t, []string{
+		events.RoomEventTypeFilter(events.EventMessageBody),
+		events.RoomEventTypeFilter(events.EventMessagePosted),
+		events.RoomEventTypeFilter(events.EventMessageRetracted),
+		events.RoomEventTypeFilter(events.EventRoomDeleted),
+		events.UserEventTypeFilter(events.EventUserDEKGenerated),
+		events.UserEventTypeFilter(events.EventUserKeyShredded),
+	}, projection.Subjects())
+}
+
 func TestProjectionIndexesRestoresAndRemovesMessages(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)

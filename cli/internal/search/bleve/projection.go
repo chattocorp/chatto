@@ -120,8 +120,12 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 
 func (p *Projection) Subjects() []string {
 	return []string{
-		events.SubjectRoot + events.AggregateRoom + ".>",
-		events.SubjectRoot + events.AggregateUser + ".>",
+		events.RoomEventTypeFilter(events.EventMessageBody),
+		events.RoomEventTypeFilter(events.EventMessagePosted),
+		events.RoomEventTypeFilter(events.EventMessageRetracted),
+		events.RoomEventTypeFilter(events.EventRoomDeleted),
+		events.UserEventTypeFilter(events.EventUserDEKGenerated),
+		events.UserEventTypeFilter(events.EventUserKeyShredded),
 	}
 }
 

@@ -63,4 +63,3 @@ Persistence formats remain disposable accelerators rather than sources of
 truth. Contract changes, storage corruption, or lost history may require a
 cold replay. Each feature documents whether that recovery is automatic or an
 explicit operator action and defines its own backup and privacy treatment.
-
