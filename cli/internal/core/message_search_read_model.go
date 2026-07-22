@@ -26,9 +26,9 @@ type MessageSearchReadModel struct {
 // selectors parsed from the canonical query language.
 type MessageSearchScopeInput struct {
 	ActorID         string
-	RoomIDs         []string
+	RoomID          string
 	RoomSelectors   []string
-	AuthorIDs       []string
+	AuthorID        string
 	AuthorSelectors []string
 }
 
@@ -75,7 +75,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 		}
 	}
 
-	rooms = filterSearchRoomsByIDs(rooms, input.RoomIDs)
+	rooms = filterSearchRoomByID(rooms, input.RoomID)
 	rooms = filterSearchRoomsBySelectors(rooms, input.RoomSelectors)
 	roomIDs := make([]string, 0, len(rooms))
 	for roomID := range rooms {
@@ -83,7 +83,10 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 	}
 	slices.Sort(roomIDs)
 
-	authorIDs := uniqueSortedStrings(input.AuthorIDs)
+	var authorIDs []string
+	if input.AuthorID != "" {
+		authorIDs = []string{input.AuthorID}
+	}
 	noMatches := false
 	if len(input.AuthorSelectors) > 0 {
 		selectorIDs, err := s.resolveAuthorSelectors(ctx, input.AuthorSelectors)
@@ -179,15 +182,13 @@ func (s *MessageSearchReadModel) resolveAuthorSelectors(ctx context.Context, sel
 	return uniqueSortedStrings(ids), nil
 }
 
-func filterSearchRoomsByIDs(rooms map[string]*corev1.Room, requested []string) map[string]*corev1.Room {
-	if len(requested) == 0 {
+func filterSearchRoomByID(rooms map[string]*corev1.Room, requested string) map[string]*corev1.Room {
+	if requested == "" {
 		return rooms
 	}
 	result := make(map[string]*corev1.Room)
-	for _, roomID := range requested {
-		if room := rooms[roomID]; room != nil {
-			result[roomID] = room
-		}
+	if room := rooms[requested]; room != nil {
+		result[requested] = room
 	}
 	return result
 }

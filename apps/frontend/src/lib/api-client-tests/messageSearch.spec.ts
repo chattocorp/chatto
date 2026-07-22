@@ -98,14 +98,16 @@ describe('createMessageSearchAPI', () => {
 
     const response = await createAPI().searchMessages({
       query: 'hello',
-      roomIds: ['room-2'],
+      roomId: 'room-2',
+      authorId: 'user-2',
       order: MessageSearchOrder.NEWEST
     });
 
     expect(mocks.searchMessages).toHaveBeenCalledWith(
       {
         query: 'hello',
-        roomIds: ['room-2'],
+        roomId: 'room-2',
+        authorId: 'user-2',
         order: MessageSearchOrder.NEWEST,
         pageSize: 20,
         cursor: ''

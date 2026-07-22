@@ -57,7 +57,7 @@ describe('MessageSearchStore', () => {
     const store = new MessageSearchStore(client);
     const input = {
       query: 'hello',
-      roomIds: ['room-1'],
+      roomId: 'room-1',
       order: MessageSearchOrder.RELEVANCE
     };
 
@@ -86,10 +86,9 @@ describe('MessageSearchStore', () => {
 
     const older = store.search({
       query: 'old',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
-    await store.search({ query: 'new', roomIds: [], order: MessageSearchOrder.NEWEST });
+    await store.search({ query: 'new', order: MessageSearchOrder.NEWEST });
     resolveFirst(page([result('old')], null));
     await older;
 
@@ -107,11 +106,11 @@ describe('MessageSearchStore', () => {
       .mockResolvedValueOnce(page([result('newer')], null));
     const store = new MessageSearchStore(api({ searchMessages }));
 
-    await store.search({ query: 'old', roomIds: [], order: MessageSearchOrder.RELEVANCE });
+    await store.search({ query: 'old', order: MessageSearchOrder.RELEVANCE });
     const staleLoadMore = store.loadMore();
     expect(store.loadingMore).toBe(true);
 
-    await store.search({ query: 'new', roomIds: [], order: MessageSearchOrder.NEWEST });
+    await store.search({ query: 'new', order: MessageSearchOrder.NEWEST });
     expect(store.loadingMore).toBe(false);
     resolveStalePage(page([result('stale')], null));
     await staleLoadMore;
@@ -166,7 +165,7 @@ describe('MessageSearchStore', () => {
       api({ searchMessages: vi.fn().mockResolvedValue(page([], null)) })
     );
 
-    await store.search({ query: 'nothing', roomIds: [], order: MessageSearchOrder.NEWEST });
+    await store.search({ query: 'nothing', order: MessageSearchOrder.NEWEST });
 
     expect(store.hasSearched).toBe(true);
     expect(store.query).toBe('nothing');
@@ -182,7 +181,6 @@ describe('MessageSearchStore', () => {
     );
     const search = store.search({
       query: 'hello',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
 
@@ -209,7 +207,7 @@ describe('MessageSearchStore', () => {
     const store = new MessageSearchStore(
       api({ searchMessages })
     );
-    await store.search({ query: 'hello', roomIds: [], order: MessageSearchOrder.NEWEST });
+    await store.search({ query: 'hello', order: MessageSearchOrder.NEWEST });
 
     store.revokeRoom('room-1');
 
@@ -234,7 +232,6 @@ describe('MessageSearchStore', () => {
 
     const search = store.search({
       query: 'hello',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
     store.invalidateMessage('room-1', 'new-message');
@@ -256,7 +253,6 @@ describe('MessageSearchStore', () => {
 
     const firstSearch = store.search({
       query: 'hello',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
     store.refreshRetainedResults();

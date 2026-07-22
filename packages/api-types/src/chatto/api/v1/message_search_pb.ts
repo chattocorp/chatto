@@ -123,20 +123,20 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
   query = "";
 
   /**
-   * Optional room-ID scope. The server intersects this list with rooms the
+   * Optional room-ID scope. The server intersects this room with rooms the
    * current user may read and with any `in:` filters in query.
    *
-   * @generated from field: repeated string room_ids = 2;
+   * @generated from field: optional string room_id = 2;
    */
-  roomIds: string[] = [];
+  roomId?: string;
 
   /**
-   * Optional author-ID scope. The server intersects this list with any
+   * Optional author-ID scope. The server intersects this author with any
    * `from:` filters in query.
    *
-   * @generated from field: repeated string author_ids = 3;
+   * @generated from field: optional string author_id = 3;
    */
-  authorIds: string[] = [];
+  authorId?: string;
 
   /**
    * Exclusive lower bound on message creation time. The stricter bound wins
@@ -194,8 +194,8 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
   static readonly typeName = "chatto.api.v1.SearchMessagesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "query", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "author_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "created_after", kind: "message", T: Timestamp },
     { no: 5, name: "created_before", kind: "message", T: Timestamp },
     { no: 6, name: "has_attachments", kind: "scalar", T: 8 /* ScalarType.BOOL */ },

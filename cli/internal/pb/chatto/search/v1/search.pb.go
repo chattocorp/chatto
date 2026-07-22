@@ -149,9 +149,10 @@ type QueryRequest struct {
 	RequiredTerms []string `protobuf:"bytes,1,rep,name=required_terms,json=requiredTerms,proto3" json:"required_terms,omitempty"`
 	// Normalized exact phrases that every result must contain.
 	RequiredPhrases []string `protobuf:"bytes,2,rep,name=required_phrases,json=requiredPhrases,proto3" json:"required_phrases,omitempty"`
-	// Complete authorized room scope for this query. A hit must belong to one;
-	// empty means all rooms for trusted callers that intentionally request it.
-	// Chatto's public search service always supplies its caller's full scope.
+	// Complete authorized room scope for this query. Chatto resolves public
+	// filters against the caller's current room membership before invoking a
+	// provider, and re-authorizes returned hits. A hit must belong to one;
+	// empty means all rooms only for trusted callers that intentionally request it.
 	RoomIds []string `protobuf:"bytes,3,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`
 	// Candidate author IDs. A hit must have one; empty means all authors.
 	AuthorIds []string `protobuf:"bytes,4,rep,name=author_ids,json=authorIds,proto3" json:"author_ids,omitempty"`

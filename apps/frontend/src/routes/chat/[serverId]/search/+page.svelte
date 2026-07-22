@@ -40,13 +40,13 @@ in the active server store so browser Back can restore the current search.
     event.preventDefault();
     const trimmed = store.query.trim();
     if (!trimmed || !store.available) return;
-    void store.search({ query: trimmed, roomIds: [], order: store.order });
+    void store.search({ query: trimmed, order: store.order });
   }
 
   function setOrder(nextOrder: MessageSearchOrder): void {
     store.order = nextOrder;
     if (store.hasSearched && store.query.trim()) {
-      void store.search({ query: store.query.trim(), roomIds: [], order: store.order });
+      void store.search({ query: store.query.trim(), order: store.order });
     }
   }
 

@@ -42,29 +42,19 @@ message SearchMessagesRequest {
   // `from:`, `before:`, `after:`, and `has:attachment` filters.
   string query = 1 [(buf.validate.field).string = {
     min_len: 1
-    max_bytes: 4096
+    max_bytes: 1024
   }];
-  // Optional room-ID scope. The server intersects this list with rooms the
+  // Optional room-ID scope. The server intersects this room with rooms the
   // current user may read and with any `in:` filters in query.
-  repeated string room_ids = 2 [(buf.validate.field).repeated = {
-    max_items: 100
-    items: {
-      string: {
-        min_len: 1
-        max_bytes: 128
-      }
-    }
+  optional string room_id = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 128
   }];
-  // Optional author-ID scope. The server intersects this list with any
+  // Optional author-ID scope. The server intersects this author with any
   // `from:` filters in query.
-  repeated string author_ids = 3 [(buf.validate.field).repeated = {
-    max_items: 100
-    items: {
-      string: {
-        min_len: 1
-        max_bytes: 128
-      }
-    }
+  optional string author_id = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 128
   }];
   // Exclusive lower bound on message creation time. The stricter bound wins
   // when query also contains `after:`.

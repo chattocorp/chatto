@@ -40,9 +40,10 @@ message QueryRequest {
   repeated string required_terms = 1;
   // Normalized exact phrases that every result must contain.
   repeated string required_phrases = 2;
-  // Complete authorized room scope for this query. A hit must belong to one;
-  // empty means all rooms for trusted callers that intentionally request it.
-  // Chatto's public search service always supplies its caller's full scope.
+  // Complete authorized room scope for this query. Chatto resolves public
+  // filters against the caller's current room membership before invoking a
+  // provider, and re-authorizes returned hits. A hit must belong to one;
+  // empty means all rooms only for trusted callers that intentionally request it.
   repeated string room_ids = 3;
   // Candidate author IDs. A hit must have one; empty means all authors.
   repeated string author_ids = 4;

@@ -153,12 +153,12 @@ type SearchMessagesRequest struct {
 	// phrase, and `AND` may separate terms. The query also accepts `in:`,
 	// `from:`, `before:`, `after:`, and `has:attachment` filters.
 	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	// Optional room-ID scope. The server intersects this list with rooms the
+	// Optional room-ID scope. The server intersects this room with rooms the
 	// current user may read and with any `in:` filters in query.
-	RoomIds []string `protobuf:"bytes,2,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`
-	// Optional author-ID scope. The server intersects this list with any
+	RoomId *string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	// Optional author-ID scope. The server intersects this author with any
 	// `from:` filters in query.
-	AuthorIds []string `protobuf:"bytes,3,rep,name=author_ids,json=authorIds,proto3" json:"author_ids,omitempty"`
+	AuthorId *string `protobuf:"bytes,3,opt,name=author_id,json=authorId,proto3,oneof" json:"author_id,omitempty"`
 	// Exclusive lower bound on message creation time. The stricter bound wins
 	// when query also contains `after:`.
 	CreatedAfter *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_after,json=createdAfter,proto3" json:"created_after,omitempty"`
@@ -217,18 +217,18 @@ func (x *SearchMessagesRequest) GetQuery() string {
 	return ""
 }
 
-func (x *SearchMessagesRequest) GetRoomIds() []string {
-	if x != nil {
-		return x.RoomIds
+func (x *SearchMessagesRequest) GetRoomId() string {
+	if x != nil && x.RoomId != nil {
+		return *x.RoomId
 	}
-	return nil
+	return ""
 }
 
-func (x *SearchMessagesRequest) GetAuthorIds() []string {
-	if x != nil {
-		return x.AuthorIds
+func (x *SearchMessagesRequest) GetAuthorId() string {
+	if x != nil && x.AuthorId != nil {
+		return *x.AuthorId
 	}
-	return nil
+	return ""
 }
 
 func (x *SearchMessagesRequest) GetCreatedAfter() *timestamppb.Timestamp {
@@ -425,19 +425,24 @@ var File_chatto_api_v1_message_search_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/message_search.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x03\n" +
+	"\"chatto/api/v1/message_search.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe3\x03\n" +
 	"\x15SearchMessagesRequest\x12 \n" +
 	"\x05query\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01(\x80 R\x05query\x12,\n" +
-	"\broom_ids\x18\x02 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01(\x80\x01R\aroomIds\x120\n" +
-	"\n" +
-	"author_ids\x18\x03 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01(\x80\x01R\tauthorIds\x12?\n" +
+	"\xbaH\ar\x05\x10\x01(\x80\bR\x05query\x12(\n" +
+	"\aroom_id\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01(\x80\x01H\x00R\x06roomId\x88\x01\x01\x12,\n" +
+	"\tauthor_id\x18\x03 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01(\x80\x01H\x01R\bauthorId\x88\x01\x01\x12?\n" +
 	"\rcreated_after\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fcreatedAfter\x12A\n" +
 	"\x0ecreated_before\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rcreatedBefore\x12'\n" +
 	"\x0fhas_attachments\x18\x06 \x01(\bR\x0ehasAttachments\x12A\n" +
 	"\x05order\x18\a \x01(\x0e2!.chatto.api.v1.MessageSearchOrderB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05order\x12$\n" +
 	"\tpage_size\x18\b \x01(\rB\a\xbaH\x04*\x02\x18dR\bpageSize\x12 \n" +
-	"\x06cursor\x18\t \x01(\tB\b\xbaH\x05r\x03(\x80@R\x06cursor\"m\n" +
+	"\x06cursor\x18\t \x01(\tB\b\xbaH\x05r\x03(\x80@R\x06cursorB\n" +
+	"\n" +
+	"\b_room_idB\f\n" +
+	"\n" +
+	"_author_id\"m\n" +
 	"\x16SearchMessagesResponse\x122\n" +
 	"\bmessages\x18\x01 \x03(\v2\x16.chatto.api.v1.MessageR\bmessages\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
@@ -513,6 +518,7 @@ func file_chatto_api_v1_message_search_proto_init() {
 		return
 	}
 	file_chatto_api_v1_message_types_proto_init()
+	file_chatto_api_v1_message_search_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

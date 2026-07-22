@@ -44,7 +44,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.False(t, scope.NoMatches)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
-		ActorID: viewer.Id, RoomIDs: []string{hidden.Id}, AuthorSelectors: []string{"missing-user"},
+		ActorID: viewer.Id, RoomID: hidden.Id, AuthorSelectors: []string{"missing-user"},
 	})
 	require.NoError(t, err)
 	require.Empty(t, scope.RoomIDs)

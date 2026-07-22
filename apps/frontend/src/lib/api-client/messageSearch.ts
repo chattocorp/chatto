@@ -30,7 +30,8 @@ export type MessageSearchPage = {
 
 export type MessageSearchInput = {
   query: string;
-  roomIds: string[];
+  roomId?: string;
+  authorId?: string;
   order: MessageSearchOrder;
   cursor?: string | null;
 };
@@ -61,7 +62,8 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
         const response = await search.searchMessages(
           {
             query: input.query,
-            roomIds: input.roomIds,
+            roomId: input.roomId,
+            authorId: input.authorId,
             order: input.order,
             pageSize: 20,
             cursor: input.cursor ?? ''

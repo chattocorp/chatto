@@ -73,7 +73,7 @@ export class MessageSearchStore {
 
   async search(input: Omit<MessageSearchInput, 'cursor'>): Promise<void> {
     const requestId = ++this.requestId;
-    this.activeInput = { ...input, roomIds: [...input.roomIds] };
+    this.activeInput = { ...input };
     this.hasSearched = true;
     this.query = input.query;
     this.order = input.order;

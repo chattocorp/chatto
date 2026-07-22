@@ -90,6 +90,47 @@ CHATTO_SEARCH_PROVIDER_DIRECTORY=./data/search
   processes.
 </Aside>
 
+## Keep the Index in RAM
+
+The bundled provider requires a filesystem directory, but that directory can
+live on a RAM-backed volume. Point `search_provider.directory` at the mounted
+path; no separate Chatto setting is required.
+
+For Docker Compose, mount a size-limited `tmpfs` at the configured directory:
+
+```yaml
+services:
+  chatto:
+    tmpfs:
+      - /var/lib/chatto/search:size=2g,mode=0700
+```
+
+```toml
+[search_provider]
+directory = "/var/lib/chatto/search"
+```
+
+For Kubernetes, use a memory-backed `emptyDir` and mount it at the same path:
+
+```yaml
+volumes:
+  - name: search-index
+    emptyDir:
+      medium: Memory
+      sizeLimit: 2Gi
+containers:
+  - name: chatto
+    volumeMounts:
+      - name: search-index
+        mountPath: /var/lib/chatto/search
+```
+
+RAM-backed indexes trade persistence for predictable disk usage. Every pod or
+host restart discards the index, so Search remains unavailable while the
+provider rebuilds it from `EVT`. Index memory also counts towards the process
+or container memory budget; leave enough headroom for Chatto, embedded NATS,
+and indexing work. Each provider replica still needs its own volume.
+
 ## Monitor Indexing
 
 The bundled provider writes structured lifecycle logs when it starts, opens its

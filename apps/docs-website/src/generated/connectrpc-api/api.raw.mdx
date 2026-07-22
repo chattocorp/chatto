@@ -1035,8 +1035,8 @@ Request to search current message bodies visible to the authenticated user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `query` | `string` | Required query text. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters. |
-| `room_ids` | `repeated string` | Optional room-ID scope. The server intersects this list with rooms the current user may read and with any `in:` filters in query. |
-| `author_ids` | `repeated string` | Optional author-ID scope. The server intersects this list with any `from:` filters in query. |
+| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
+| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
 | `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
 | `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
 | `has_attachments` | `bool` | When true, return only messages that currently have attachments. |

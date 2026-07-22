@@ -83,7 +83,6 @@ describe('message search page', () => {
     expect(mocks.ensureStatus).toHaveBeenCalledOnce();
     expect(mocks.search).toHaveBeenCalledWith({
       query: 'motherfucking search',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
   });
@@ -106,7 +105,6 @@ describe('message search page', () => {
     );
     expect(mocks.search).toHaveBeenCalledWith({
       query: 'remote query',
-      roomIds: [],
       order: MessageSearchOrder.RELEVANCE
     });
   });
