@@ -20,7 +20,7 @@
       "title": "Bot accounts"
     },
     "empty": {
-      "title": "No bots yet",
+      "title": "Облікові записи ботів",
       "owner": "Створюйте власні API-інтеграції за допомогою облікових записів ботів.",
       "admin": "No manageable bot accounts were found."
     },
