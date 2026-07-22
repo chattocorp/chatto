@@ -618,6 +618,10 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'large upload');
+      const progressSlot = q(container, '[data-testid="attachment-upload-progress"]');
+
+      await expect.element(progressSlot).toHaveClass('invisible');
+      expect(progressSlot?.getAttribute('role')).toBeNull();
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
@@ -636,6 +640,7 @@ describe('MessageComposer', () => {
       await expect
         .element(q(container, `[role="progressbar"][aria-label="${file.name}"]`))
         .toHaveAttribute('aria-valuenow', '25');
+      await expect.element(progressSlot).not.toHaveClass('invisible');
 
       submittedInput.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
       await expect.element(container).toHaveTextContent('Uploaded');

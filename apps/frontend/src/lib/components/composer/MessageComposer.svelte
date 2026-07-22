@@ -1113,16 +1113,21 @@
             >
               {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
             </div>
-            {#if submissionStatus}
-              <div
-                class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong"
-                role="progressbar"
-                aria-label={file.name}
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-valuenow={percentage ?? undefined}
-                aria-valuetext={uploadStatusLabel(submissionStatus)}
-              >
+            <div
+              data-testid="attachment-upload-progress"
+              class={[
+                'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong',
+                !submissionStatus && 'invisible'
+              ]}
+              role={submissionStatus ? 'progressbar' : undefined}
+              aria-hidden={submissionStatus ? undefined : 'true'}
+              aria-label={submissionStatus ? file.name : undefined}
+              aria-valuemin={submissionStatus ? 0 : undefined}
+              aria-valuemax={submissionStatus ? 100 : undefined}
+              aria-valuenow={percentage ?? undefined}
+              aria-valuetext={submissionStatus ? uploadStatusLabel(submissionStatus) : undefined}
+            >
+              {#if submissionStatus}
                 {#if percentage !== null}
                   <div
                     class={[
@@ -1132,8 +1137,8 @@
                     style:width={`${percentage}%`}
                   ></div>
                 {/if}
-              </div>
-            {/if}
+              {/if}
+            </div>
           </div>
         </div>
       {/each}
