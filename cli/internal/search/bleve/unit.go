@@ -16,6 +16,7 @@ import (
 const (
 	runtimeUnitName                = "search.BleveProvider"
 	searchIndexingProgressInterval = 10 * time.Second
+	searchStartupPollInterval      = 10 * time.Millisecond
 )
 
 // Unit runs the bundled Bleve provider either under chatto run or standalone.
@@ -66,25 +67,75 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		return err
 	}
 	provider := &Provider{Projection: projection, Projector: projector}
-	service, err := search.AddService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
+	service, err := search.AddStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
 	if err != nil {
-		return fmt.Errorf("register search provider service: %w", err)
+		return fmt.Errorf("register search provider status service: %w", err)
 	}
 	defer service.Stop()
-	env.Logger.Info("Search provider service registered",
-		"stage", "service_ready",
-		"query_subject", search.QuerySubject,
+	env.Logger.Info("Search provider status service registered",
+		"stage", "status_ready",
 		"status_subject", search.StatusSubject)
 
 	monitorContext, stopMonitor := context.WithCancel(ctx)
 	defer stopMonitor()
 	go logSearchIndexingProgress(monitorContext, projector, env.Logger, searchIndexingProgressInterval)
 
-	err = projector.Run(ctx)
+	projectorContext, stopProjector := context.WithCancel(ctx)
+	projectorDone := make(chan error, 1)
+	go func() {
+		projectorDone <- projector.Run(projectorContext)
+	}()
+	projectorStopped, err := waitForSearchProjectionStartup(ctx, projector, projectorDone, searchStartupPollInterval)
+	if err != nil {
+		stopProjector()
+		if !projectorStopped {
+			<-projectorDone
+		}
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	if err := search.AddQueryEndpoint(ctx, service, provider); err != nil {
+		stopProjector()
+		<-projectorDone
+		return fmt.Errorf("register search provider query endpoint: %w", err)
+	}
+	env.Logger.Info("Search provider service registered",
+		"stage", "service_ready",
+		"query_subject", search.QuerySubject,
+		"status_subject", search.StatusSubject)
+
+	err = <-projectorDone
+	stopProjector()
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}
 	return err
+}
+
+func waitForSearchProjectionStartup(ctx context.Context, projector *events.Projector, done <-chan error, pollInterval time.Duration) (bool, error) {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+	for {
+		status := projector.Status()
+		if status.StartupComplete {
+			return false, nil
+		}
+		if status.Failed {
+			if status.Err != nil {
+				return false, status.Err
+			}
+			return false, events.ErrProjectionFailed
+		}
+		select {
+		case err := <-done:
+			return true, err
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-ticker.C:
+		}
+	}
 }
 
 func logSearchIndexingProgress(ctx context.Context, projector *events.Projector, logger events.Logger, interval time.Duration) {

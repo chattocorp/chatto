@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
@@ -12,14 +13,17 @@ import (
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 )
 
+const defaultProviderRequestTimeout = 10 * time.Second
+
 // Client calls one compatible search provider through NATS request/reply.
 type Client struct {
-	nc *nats.Conn
+	nc             *nats.Conn
+	requestTimeout time.Duration
 }
 
 // NewClient returns a provider client using nc.
 func NewClient(nc *nats.Conn) *Client {
-	return &Client{nc: nc}
+	return &Client{nc: nc, requestTimeout: defaultProviderRequestTimeout}
 }
 
 // Query requests one ordered page of thin provider hits.
@@ -57,9 +61,11 @@ func (c *Client) request(ctx context.Context, subject string, request, response 
 	if err != nil {
 		return fmt.Errorf("marshal search provider request: %w", err)
 	}
-	message, err := c.nc.RequestMsgWithContext(ctx, &nats.Msg{Subject: subject, Data: payload})
+	requestContext, cancel := context.WithTimeout(ctx, c.requestTimeout)
+	defer cancel()
+	message, err := c.nc.RequestMsgWithContext(requestContext, &nats.Msg{Subject: subject, Data: payload})
 	if err != nil {
-		if errors.Is(err, nats.ErrNoResponders) {
+		if errors.Is(err, nats.ErrNoResponders) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
 			return fmt.Errorf("%w: %v", ErrUnavailable, err)
 		}
 		return fmt.Errorf("request search provider: %w", err)

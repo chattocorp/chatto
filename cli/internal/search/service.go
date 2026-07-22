@@ -28,6 +28,21 @@ type ServiceOptions struct {
 // AddService registers a queue-grouped search provider on the well-known v1
 // subjects. The caller owns stopping the returned service during shutdown.
 func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
+	service, err := AddStatusService(ctx, nc, provider, options)
+	if err != nil {
+		return nil, err
+	}
+	if err := AddQueryEndpoint(ctx, service, provider); err != nil {
+		_ = service.Stop()
+		return nil, err
+	}
+	return service, nil
+}
+
+// AddStatusService registers provider status without joining the query queue.
+// Providers that rebuild local state at startup can expose indexing progress,
+// then call AddQueryEndpoint only after they can answer queries.
+func AddStatusService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("search service context is required")
 	}
@@ -52,21 +67,30 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 	if err != nil {
 		return nil, err
 	}
-	stopOnError := func(err error) (micro.Service, error) {
-		_ = service.Stop()
-		return nil, err
-	}
-	if err := service.AddEndpoint("query", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
-		handleQuery(ctx, provider, request)
-	}), micro.WithEndpointSubject(QuerySubject)); err != nil {
-		return stopOnError(err)
-	}
 	if err := service.AddEndpoint("status", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
 		handleStatus(ctx, provider, request)
 	}), micro.WithEndpointSubject(StatusSubject)); err != nil {
-		return stopOnError(err)
+		_ = service.Stop()
+		return nil, err
 	}
 	return service, nil
+}
+
+// AddQueryEndpoint joins an existing provider service to the shared query
+// queue. Callers must not register it until the provider can answer queries.
+func AddQueryEndpoint(ctx context.Context, service micro.Service, provider Provider) error {
+	if ctx == nil {
+		return fmt.Errorf("search service context is required")
+	}
+	if service == nil {
+		return fmt.Errorf("search service is required")
+	}
+	if provider == nil {
+		return fmt.Errorf("search service provider is required")
+	}
+	return service.AddEndpoint("query", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
+		handleQuery(ctx, provider, request)
+	}), micro.WithEndpointSubject(QuerySubject))
 }
 
 func handleQuery(ctx context.Context, provider Provider, request micro.Request) {

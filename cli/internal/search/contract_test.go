@@ -120,6 +120,35 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStatusServiceJoinsQueryQueueOnlyWhenReady(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	provider := &testProvider{
+		queryResult: &searchv1.QueryResponse{},
+		status:      &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_INDEXING},
+	}
+	service, err := AddStatusService(testContext(t), nc, provider, ServiceOptions{})
+	if err != nil {
+		t.Fatalf("AddStatusService: %v", err)
+	}
+	t.Cleanup(func() { _ = service.Stop() })
+
+	status, err := NewClient(nc).GetStatus(testContext(t))
+	if err != nil || status.GetState() != searchv1.ProviderState_PROVIDER_STATE_INDEXING {
+		t.Fatalf("GetStatus = %+v, %v", status, err)
+	}
+	_, err = NewClient(nc).Query(testContext(t), validQuery())
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("Query before readiness = %v, want unavailable", err)
+	}
+
+	if err := AddQueryEndpoint(testContext(t), service, provider); err != nil {
+		t.Fatalf("AddQueryEndpoint: %v", err)
+	}
+	if _, err := NewClient(nc).Query(testContext(t), validQuery()); err != nil {
+		t.Fatalf("Query after readiness: %v", err)
+	}
+}
+
 func TestServiceRejectsInvalidQueryBeforeProvider(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	provider := &testProvider{status: &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}}
@@ -166,6 +195,29 @@ func TestClientReportsNoRespondersAsUnavailable(t *testing.T) {
 	_, err := NewClient(nc).Query(testContext(t), validQuery())
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("Query error = %v, want unavailable", err)
+	}
+}
+
+func TestClientBoundsUnresponsiveProviderRequests(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	subscription, err := nc.Subscribe(QuerySubject, func(*nats.Msg) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	if err := nc.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	client := NewClient(nc)
+	client.requestTimeout = 20 * time.Millisecond
+	started := time.Now()
+	_, err = client.Query(context.Background(), validQuery())
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("Query error = %v, want unavailable", err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("Query took %s, want a bounded request", elapsed)
 	}
 }
 

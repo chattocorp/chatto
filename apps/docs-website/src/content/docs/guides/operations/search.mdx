@@ -274,6 +274,12 @@ and serves `svc.chatto_ext.search.v1.query` and
 public API remain unchanged. Matching quality, ranking, index storage, and
 operational requirements are the provider's responsibility.
 
+Chatto gives each provider query or status request up to 10 seconds to answer;
+a missing or late response makes Search temporarily unavailable. A provider
+that rebuilds local state at startup should serve indexing status immediately
+but join the shared query queue only after it can answer queries. This keeps a
+rebuilding replica from receiving traffic that a ready replica could handle.
+
 The canonical query language is parsed by Chatto before the provider receives a
 request. Alternative providers should implement the normalized request rather
 than inventing client-visible query syntax; exact ranking and recall may still
