@@ -136,7 +136,7 @@ func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, input
 			return ErrPermissionDenied
 		}
 		if loginChanged && !strings.EqualFold(bot.GetLogin(), nextLogin) {
-			if c.configManager.IsUsernameBlocked(nextLogin) || c.loginConflictsWithMentionHandle(nextLogin) {
+			if c.configModel.IsUsernameBlocked(nextLogin) || c.loginConflictsWithMentionHandle(nextLogin) {
 				return ErrUsernameBlocked
 			}
 			return c.requireLoginMentionHandleAvailable(nextLogin)
