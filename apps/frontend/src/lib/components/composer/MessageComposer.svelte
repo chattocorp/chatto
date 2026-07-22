@@ -454,7 +454,7 @@
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
-    if (!canAttach) {
+    if (!canAttach || inputDisabled) {
       target.value = '';
       return;
     }
@@ -503,7 +503,7 @@
    * Creates object URLs for preview and adds to the attachment list.
    */
   async function addFiles(files: File[]) {
-    if (!canAttach) return;
+    if (!canAttach || inputDisabled) return;
     await attachments.stageFiles(files);
   }
 
@@ -616,7 +616,7 @@
   // Handle paste events - intercept images before TipTap processes them
   function handlePaste(event: ClipboardEvent): boolean {
     // Don't accept file attachments in edit mode (editMessage only supports text)
-    if (isEditing) return false;
+    if (isEditing || inputDisabled) return false;
 
     const items = event.clipboardData?.items;
     if (!items) return false;
@@ -661,6 +661,7 @@
   }
 
   type PreparedPost = {
+    draftKey: string;
     roomId: string;
     bodyToSend: string;
     filesToSend: File[] | null;
@@ -737,17 +738,23 @@
     // reads `scrollState` from its surrounding ComposerContext, so this
     // targets the main room's EventList in a room composer and the
     // thread's EventList in a thread composer.
-    scrollState?.requestScrollToBottom();
+    if (DRAFT_KEY === post.draftKey) {
+      scrollState?.requestScrollToBottom();
+    }
 
     // Clear reply-in-room state after sending
-    onCancelReply?.();
+    if (DRAFT_KEY === post.draftKey) {
+      onCancelReply?.();
+    }
 
     // Mark this room as read (we just posted, so we've seen all messages)
     roomUnreadStore.setRoomUnread(post.roomId, false);
 
     // Reset "also send to channel" checkbox after successful send
-    alsoSendToChannel = false;
-    manualRichMode = false;
+    if (DRAFT_KEY === post.draftKey) {
+      alsoSendToChannel = false;
+      manualRichMode = false;
+    }
   }
 
   async function submitPreparedPost(preparedPost: PreparedPost) {
@@ -763,11 +770,18 @@
       if (response.error) {
         handlePostFailure(response.error);
       } else {
-        autocomplete.reset();
-        message = '';
-        editorApi?.setContent('');
-        attachments.clear();
-        linkPreviews.clear();
+        const activeDraftWasSent = DRAFT_KEY === preparedPost.draftKey;
+        const stashedFiles = draftState.discardFiles(preparedPost.draftKey);
+        draftState.clearText(preparedPost.draftKey);
+        if (activeDraftWasSent) {
+          autocomplete.reset();
+          message = '';
+          editorApi?.setContent('');
+          attachments.clear();
+          linkPreviews.clear();
+        } else {
+          for (const { url } of stashedFiles) URL.revokeObjectURL(url);
+        }
         attachmentSubmissionStatuses.clear();
         handlePostSuccess(response, preparedPost);
       }
@@ -802,6 +816,7 @@
     if (!hasBody && !filesToSend) return;
 
     const preparedPost: PreparedPost = {
+      draftKey: DRAFT_KEY,
       roomId,
       bodyToSend,
       filesToSend,
@@ -1088,7 +1103,6 @@
                     'shrink-0 whitespace-nowrap',
                     submissionStatus.phase === 'failed' ? 'text-danger' : 'text-muted'
                   ]}
-                  aria-live="polite"
                 >
                   {uploadStatusLabel(submissionStatus)}
                 </span>

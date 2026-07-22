@@ -625,6 +625,56 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
 
+    it('does not clear the next room draft when an earlier room send completes', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const rendered = renderMessageComposer(
+        { roomId: 'room-uploading' },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      selectFirstAttachment(
+        q(rendered.container, 'input[type="file"]') as HTMLInputElement,
+        imageFile('room-a.png')
+      );
+      await typeInEditor(editor, 'room A message');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      sessionStorage.setItem('chatto:draft:room-next', 'room B draft');
+      await rendered.rerender({ roomId: 'room-next' });
+      await expect.element(editor).toHaveTextContent('room B draft');
+
+      pendingSend.resolve({ event: postedMessageEvent('msg-a', 'room-uploading') });
+
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(sessionStorage.getItem('chatto:draft:room-next')).toBe('room B draft');
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room-uploading')).toBeNull()
+      );
+    });
+
+    it('ignores externally added files while a send is in flight', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const readyApis: MessageComposerApi[] = [];
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => readyApis.push(api)
+      });
+      const editor = await findEditor(container);
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'sending');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      await readyApis.at(-1)!.addFiles([imageFile('late.png')]);
+
+      expect(prepareFilesMock).toHaveBeenCalledOnce();
+      expect(container.textContent).not.toContain('late.png');
+      pendingSend.resolve({ event: postedMessageEvent() });
+    });
+
     it('hides the keyboard shortcut hint in simple mode', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
