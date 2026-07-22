@@ -3,6 +3,7 @@ package bleve
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
@@ -113,19 +115,32 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	var unitLogs synchronizedBuffer
 	unitLogger := log.New(&unitLogs)
 	unitLogger.SetFormatter(log.JSONFormatter)
-	unitContext, stopUnit := context.WithCancel(context.Background())
-	done := make(chan error, 1)
 	indexDirectory := t.TempDir() + "/index"
-	go func() {
-		done <- (Unit{}).Run(unitContext, runtimeunit.Env{
-			Config: config.ChattoConfig{SearchProvider: config.SearchProviderConfig{Directory: indexDirectory}},
-			NC:     nc, JS: js, Logger: unitLogger, Version: "test",
-		})
-	}()
-	t.Cleanup(func() {
+	unitConfig := config.ChattoConfig{SearchProvider: config.SearchProviderConfig{Directory: indexDirectory, Languages: []string{}}}
+	var stopUnit context.CancelFunc
+	var done chan error
+	startUnit := func() {
+		unitContext, cancelUnit := context.WithCancel(context.Background())
+		stopUnit = cancelUnit
+		done = make(chan error, 1)
+		go func() {
+			done <- (Unit{}).Run(unitContext, runtimeunit.Env{
+				Config: unitConfig,
+				NC:     nc, JS: js, Logger: unitLogger, Version: "test",
+			})
+		}()
+	}
+	stopActiveUnit := func() {
+		if stopUnit == nil {
+			return
+		}
 		stopUnit()
 		require.NoError(t, <-done)
-	})
+		stopUnit = nil
+		done = nil
+	}
+	t.Cleanup(stopActiveUnit)
+	startUnit()
 
 	client := search.NewClient(nc)
 	var response *searchv1.QueryResponse
@@ -149,6 +164,161 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.Contains(t, logged, "Search provider service registered")
 	require.Contains(t, logged, "Projection startup complete")
 	require.Contains(t, logged, `"projection":"message_search"`)
+
+	stopActiveUnit()
+	unrelatedAck, err := js.Publish(ctx, "evt.unrelated.integration", []byte{0xff})
+	require.NoError(t, err)
+	streamInfo, err := stream.Info(ctx)
+	require.NoError(t, err)
+	legacyProjection, err := NewProjection(
+		indexDirectory,
+		unitConfig.SearchProvider.LanguagesOrDefault(),
+		keyStore,
+		keyStore,
+		dekstore.New(runtimeState, unitLogger),
+		unitLogger,
+	)
+	require.NoError(t, err)
+	checkpoint, err := legacyProjection.RestoreCheckpoint(ctx, events.ProjectionCheckpointRequest{
+		ProjectionKey:  "message_search",
+		ContractID:     legacyProjection.CheckpointContractID(),
+		StreamName:     streamInfo.Config.Name,
+		StreamIdentity: streamInfo.Config.Metadata[events.EVTStreamIdentityMetadataKey],
+		FirstSequence:  streamInfo.State.FirstSeq,
+		LastSequence:   streamInfo.State.LastSeq,
+	})
+	require.NoError(t, err)
+	require.Less(t, checkpoint.CutoffSequence, unrelatedAck.Sequence)
+	// Simulate the previous broad projection filters, which atomically recorded
+	// irrelevant EVT positions even though they did not change the search index.
+	require.NoError(t, legacyProjection.Apply(&corev1.Event{Id: "ignored-legacy-event"}, unrelatedAck.Sequence))
+	require.NoError(t, legacyProjection.Close())
+
+	startUnit()
+	response = nil
+	for ctx.Err() == nil {
+		response, err = client.Query(ctx, &searchv1.QueryRequest{
+			RequiredTerms: []string{"integration"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+		})
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.NoError(t, err)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+	status, err := client.GetStatus(ctx)
+	require.NoError(t, err)
+	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_READY, status.GetState())
+	require.Eventually(t, func() bool {
+		return strings.Contains(unitLogs.String(), "Projection checkpoint restored")
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
+		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
+	})
+	require.NoError(t, err)
+	encryptionKeys, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "ENCRYPTION_KEYS", Storage: jetstream.MemoryStorage})
+	require.NoError(t, err)
+	runtimeState, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "RUNTIME_STATE", Storage: jetstream.MemoryStorage})
+	require.NoError(t, err)
+	logger := log.New(io.Discard)
+	keyStore := kms.NewBuiltin(encryptionKeys, logger)
+
+	retraction := &corev1.Event{
+		Id: "E1", ActorId: "U1", CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}},
+	}
+	payload, err := proto.Marshal(retraction)
+	require.NoError(t, err)
+	var sequences []uint64
+	for range 3 {
+		ack, publishErr := js.Publish(ctx, events.RoomAggregate("R1").Subject(events.EventMessageRetracted), payload)
+		require.NoError(t, publishErr)
+		sequences = append(sequences, ack.Sequence)
+	}
+
+	unitConfig := config.ChattoConfig{SearchProvider: config.SearchProviderConfig{
+		Directory: t.TempDir() + "/index",
+		Languages: []string{},
+	}}
+	projection, err := NewProjection(
+		unitConfig.SearchProvider.Directory,
+		unitConfig.SearchProvider.LanguagesOrDefault(),
+		keyStore,
+		keyStore,
+		dekstore.New(runtimeState, logger),
+		logger,
+	)
+	require.NoError(t, err)
+	streamInfo, err := stream.Info(ctx)
+	require.NoError(t, err)
+	_, err = projection.RestoreCheckpoint(ctx, events.ProjectionCheckpointRequest{
+		ProjectionKey:  "message_search",
+		ContractID:     projection.CheckpointContractID(),
+		StreamName:     streamInfo.Config.Name,
+		StreamIdentity: streamInfo.Config.Metadata[events.EVTStreamIdentityMetadataKey],
+		FirstSequence:  streamInfo.State.FirstSeq,
+		LastSequence:   streamInfo.State.LastSeq,
+	})
+	require.NoError(t, err)
+	require.NoError(t, projection.Apply(retraction, sequences[0]))
+	require.NoError(t, projection.Close())
+	require.NoError(t, stream.Purge(ctx, jetstream.WithPurgeSequence(sequences[2])))
+
+	startupResult := make(chan error, 1)
+	releaseStartupFailure := make(chan struct{})
+	unit := Unit{startupResultHook: func(err error) {
+		startupResult <- err
+		<-releaseStartupFailure
+	}}
+	unitContext, stopUnit := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- unit.Run(unitContext, runtimeunit.Env{
+			Config: unitConfig,
+			NC:     nc, JS: js, Logger: logger, Version: "test",
+		})
+	}()
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseStartupFailure) }) }
+	finished := false
+	t.Cleanup(func() {
+		release()
+		stopUnit()
+		if !finished {
+			<-done
+		}
+	})
+
+	startupErr := <-startupResult
+	require.ErrorContains(t, startupErr, "behind retained EVT start")
+	client := search.NewClient(nc)
+	status, err := client.GetStatus(ctx)
+	require.NoError(t, err)
+	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, status.GetState())
+	_, err = client.Query(ctx, &searchv1.QueryRequest{
+		RequiredTerms: []string{"anything"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+	})
+	require.ErrorIs(t, err, search.ErrUnavailable)
+
+	release()
+	unitErr := <-done
+	finished = true
+	require.ErrorContains(t, unitErr, "behind retained EVT start")
+	require.ErrorContains(t, unitErr, "move or delete")
+	afterContext, cancelAfter := context.WithTimeout(context.Background(), time.Second)
+	defer cancelAfter()
+	_, err = client.GetStatus(afterContext)
+	require.True(t, errors.Is(err, search.ErrUnavailable), "GetStatus after unit exit = %v", err)
 }
 
 func TestLogSearchIndexingStatusReportsSafeProgressFields(t *testing.T) {

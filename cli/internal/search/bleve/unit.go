@@ -20,11 +20,15 @@ const (
 )
 
 // Unit runs the bundled Bleve provider either under chatto run or standalone.
-type Unit struct{}
+type Unit struct {
+	// startupResultHook is a test seam for observing the NATS boundary after
+	// projection startup resolves but before failure cleanup removes it.
+	startupResultHook func(error)
+}
 
 func (Unit) Name() string { return runtimeUnitName }
 
-func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
+func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	languages := env.Config.SearchProvider.LanguagesOrDefault()
 	env.Logger.Info("Starting bundled search provider",
 		"stage", "startup",
@@ -87,6 +91,9 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	}()
 	projectorStopped, err := waitForSearchProjectionStartup(ctx, projector, projectorDone, searchStartupPollInterval)
 	if err != nil {
+		if u.startupResultHook != nil {
+			u.startupResultHook(err)
+		}
 		stopProjector()
 		if !projectorStopped {
 			<-projectorDone

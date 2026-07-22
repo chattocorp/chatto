@@ -783,7 +783,12 @@ func (p *Projector) fail(seq uint64, err error) {
 
 // Run starts the consumer + apply loop. Blocks until ctx is cancelled.
 // Returns the context's error on shutdown.
-func (p *Projector) Run(ctx context.Context) error {
+func (p *Projector) Run(ctx context.Context) (runErr error) {
+	defer func() {
+		if runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
+			p.fail(0, runErr)
+		}
+	}()
 	startedAt := time.Now()
 	p.mu.Lock()
 	p.started = true

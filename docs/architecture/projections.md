@@ -14,6 +14,11 @@ state, and readiness. Chatto still waits for every registered projection to
 become current before completing boot. Writers wait for the relevant projector
 sequence before returning read-your-writes.
 
+Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
+or event application moves the projector into its failed state before its run
+loop returns. Readiness and provider status therefore cannot remain
+healthy-looking after an incomplete startup.
+
 Projection consumers use a five-minute inactivity cleanup threshold. Because
 event application is synchronous and disk-backed commits can temporarily stop
 the pull loop, a shorter broker threshold could delete a live consumer while

@@ -1063,7 +1063,8 @@ func TestProjectorRestoresLocalCheckpointBeyondFilteredTail(t *testing.T) {
 	pub := NewPublisher(js, stream, testLogger())
 	ctx := testContext(t)
 	subject := RoomAggregate("R-checkpoint-filtered-tail").Subject(EventUserJoinedRoom)
-	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-filtered-tail", "U1")); err != nil {
+	matchingSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-filtered-tail", "U1"))
+	if err != nil {
 		t.Fatalf("append matching event: %v", err)
 	}
 	unrelatedSubject := RoomAggregate("R-checkpoint-unrelated").Subject(EventMessagePosted)
@@ -1091,6 +1092,9 @@ func TestProjectorRestoresLocalCheckpointBeyondFilteredTail(t *testing.T) {
 	status := projector.Status()
 	if !status.CheckpointRestored || status.CheckpointCutoffSeq != unrelatedSeq {
 		t.Fatalf("checkpoint status = %+v, want restored cutoff %d", status, unrelatedSeq)
+	}
+	if status.StartupTargetSeq != matchingSeq || status.LastSeq != unrelatedSeq {
+		t.Fatalf("checkpoint status = %+v, want filtered target %d behind restored cutoff %d", status, matchingSeq, unrelatedSeq)
 	}
 }
 
@@ -1141,6 +1145,10 @@ func TestProjectorDoesNotResetCheckpointOnOperationalRestoreFailure(t *testing.T
 	if projection.resets != 0 {
 		t.Fatalf("checkpoint resets = %d, want 0", projection.resets)
 	}
+	status := projector.Status()
+	if !status.Failed || status.Err == nil {
+		t.Fatalf("restore failure status = %+v, want failed projector", status)
+	}
 }
 
 func TestProjectorResetsFutureLocalCheckpoint(t *testing.T) {
@@ -1167,6 +1175,44 @@ func TestProjectorResetsFutureLocalCheckpoint(t *testing.T) {
 	})
 	if projection.resets != 1 || projection.Count() != 1 {
 		t.Fatalf("resets/count = %d/%d, want 1/1", projection.resets, projection.Count())
+	}
+}
+
+func TestProjectorResetsCheckpointBehindRetainedEVT(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-retention-gap").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for _, userID := range []string{"U1", "U2", "U3"} {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-retention-gap", userID))
+		if err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+		seqs = append(seqs, seq)
+	}
+	if err := stream.Purge(ctx, jetstream.WithPurgeSequence(seqs[2])); err != nil {
+		t.Fatalf("purge EVT before sequence %d: %v", seqs[2], err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seqs[0]
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if projection.resets != 1 || projection.Count() != 1 {
+		t.Fatalf("resets/count = %d/%d, want reset plus one retained event", projection.resets, projection.Count())
+	}
+	if projector.Status().CheckpointRestored {
+		t.Fatal("retention-gapped checkpoint reported as restored")
 	}
 }
 
