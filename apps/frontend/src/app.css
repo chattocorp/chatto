@@ -193,6 +193,13 @@
   --color-presence-invisible: var(--color-presence-invisible);
 }
 
+/* Primary pane-page shell. Keeps the fixed header and scrollable body in one
+ * shrinkable column inside the application layout.
+ */
+@utility pane-page {
+  @apply flex min-h-0 min-w-0 flex-1 flex-col;
+}
+
 /* Panel/card shells provide the outer surface frame. Their content sits on a
  * rounded background work plane owned by `Panel`, keeping the same concentric
  * geometry for forms, tables, and dense lists.
@@ -626,28 +633,6 @@
   }
 }
 
-@utility composer-sending {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface) 0%,
-    var(--color-surface-selected) 50%,
-    var(--color-surface) 100%
-  );
-  background-size: 200% 100%;
-  animation: composer-shimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes composer-shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
 @utility typing-dot {
   width: 3px;
   height: 3px;
@@ -702,7 +687,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer-sending,
   .typing-dot,
   .quick-switcher[open],
   .quick-switcher[open]::backdrop,

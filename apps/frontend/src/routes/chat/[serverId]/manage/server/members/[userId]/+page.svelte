@@ -11,9 +11,9 @@
     type AdminRoleDetails
   } from '$lib/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { AdminPageContent, CopyId, Panel } from '$lib/components/admin';
+  import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
-  import { Hint, Pill } from '$lib/ui';
+  import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, Form, FormError, TextInput, z, validate } from '$lib/ui/form';
@@ -329,7 +329,7 @@
   })}
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.members.member_details']()}
     subtitle={member?.displayName ?? m['common.loading']()}
@@ -340,7 +340,7 @@
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.members.loading_member']()}</div>
@@ -630,5 +630,5 @@
       {/if}
     {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

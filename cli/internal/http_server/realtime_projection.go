@@ -361,6 +361,19 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			RoomTimelineEventRemove: &realtimev1.RealtimeProjectionRoomTimelineEventRemove{RoomId: roomID, EventId: eventID},
 		}})
 	}
+	appendSearchRefreshFence := func(roomID string) error {
+		if !s.config.Search.Enabled {
+			return nil
+		}
+		serverState := s.connectAPI.BuildRealtimeProjectionServerState()
+		// Reuse an operation understood by every projection-v1 client. New
+		// clients treat this as a search refresh fence; older clients safely
+		// reapply the same server state and advance their cursor.
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{
+			ServerStateUpsert: realtimeProjectionServerState(serverState),
+		}})
+		return nil
+	}
 	appendRoomViewerState := func(roomID string) error {
 		viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
 		if err != nil {
@@ -503,6 +516,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	case *corev1.Event_MessageEdited:
 		roomID := payload.MessageEdited.GetRoomId()
 		eventID := payload.MessageEdited.GetEventId()
+		if err := appendSearchRefreshFence(roomID); err != nil {
+			return nil, false, err
+		}
 		if s.core.IsHiddenChannelEcho(eventID) {
 			appendTimelineRemove(roomID, eventID)
 		} else if err := appendTimeline(roomID, eventID, nil); err != nil {
@@ -511,6 +527,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	case *corev1.Event_MessageRetracted:
 		roomID := payload.MessageRetracted.GetRoomId()
 		eventID := payload.MessageRetracted.GetEventId()
+		if err := appendSearchRefreshFence(roomID); err != nil {
+			return nil, false, err
+		}
 		if s.core.IsHiddenChannelEcho(eventID) {
 			// A directly retracted channel echo is a projection artifact, not a
 			// deleted-message tombstone. Its current authoritative state is absence.

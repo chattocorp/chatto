@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Serĉi mesaĝojn",
+    "open": "Serĉi mesaĝojn",
+    "in_room": "Serĉi en ĉi tiu ĉambro",
+    "action": "Serĉi",
+    "checking": "Kontrolante la haveblecon de serĉo…",
+    "searching": "Serĉante mesaĝojn…",
+    "loading_more": "Ŝargante pliajn rezultojn…",
+    "check_again": "Kontroli denove",
+    "degraded": "Serĉo disponeblas, sed kelkaj rezultoj eble mankas.",
+    "attachments": "{count} alkroĉita(j)",
+    "results": "Rezultoj",
+    "query": {
+      "label": "Serĉpeto",
+      "placeholder": "Vortoj, frazoj aŭ filtriloj…"
+    },
+    "scope": {
+      "all_rooms": "Ĉiuj ĉambroj",
+      "room": "Ĉambro",
+      "clear": "Serĉi ĉiujn ĉambrojn"
+    },
+    "order": {
+      "label": "Ordo de rezultoj",
+      "relevance": "Plej rilataj",
+      "newest": "Plej novaj"
+    },
+    "prompt": {
+      "title": "Trovi mesaĝon",
+      "description": "Serĉu mesaĝtekston en ĉiuj ĉambroj, kiujn vi povas legi."
+    },
+    "no_results": {
+      "title": "Neniu mesaĝo trovita",
+      "description": "Provu aliajn vortojn aŭ filtrilojn."
+    },
+    "error": {
+      "title": "Serĉo malsukcesis",
+      "description": "Kontrolu vian serĉpeton kaj reprovu."
+    },
+    "disabled": {
+      "title": "Serĉo estas malŝaltita",
+      "description": "La servila administranto ne ŝaltis mesaĝserĉon."
+    },
+    "unavailable": {
+      "title": "Serĉo ne disponeblas",
+      "description": "La serĉprovizanto ne povas respondi nun."
+    },
+    "indexing": {
+      "title": "Serĉo pretiĝas",
+      "description": "Mesaĝoj estas indeksataj. Serĉo disponeblos post la fino."
+    }
+  }
+}

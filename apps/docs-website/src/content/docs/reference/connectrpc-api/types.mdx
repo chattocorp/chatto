@@ -47,7 +47,7 @@ has not declared a lower bound for the bundled Chatto web client.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.api.bots.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
+| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.api.bots.v1`, `chatto.api.message-search.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
 | `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
 
 <a id="chatto-api-v1-ImageTransformOptions"></a>
@@ -1620,6 +1620,34 @@ Scope tier for bot permission matrices and writes.
 | `BOT_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
 | `BOT_PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `BOT_PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
+
+<a id="chatto-api-v1-MessageSearchOrder"></a>
+
+### MessageSearchOrder
+
+Ordering for message-search results.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_ORDER_UNSPECIFIED` | `0` | Use relevance order. |
+| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Return the most relevant messages first. |
+| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Return the most recently created messages first. |
+
+<a id="chatto-api-v1-MessageSearchState"></a>
+
+### MessageSearchState
+
+Current availability of message search on this server.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_STATE_UNSPECIFIED` | `0` | The server did not report a meaningful state. |
+| `MESSAGE_SEARCH_STATE_DISABLED` | `1` | Search is disabled by the server operator. |
+| `MESSAGE_SEARCH_STATE_STARTING` | `2` | Search is enabled but its provider has not established index state yet. |
+| `MESSAGE_SEARCH_STATE_INDEXING` | `3` | The provider is rebuilding or catching up and cannot answer queries yet. |
+| `MESSAGE_SEARCH_STATE_READY` | `4` | Search is ready to answer queries. |
+| `MESSAGE_SEARCH_STATE_DEGRADED` | `5` | Search can answer queries but has a known non-fatal limitation. |
+| `MESSAGE_SEARCH_STATE_UNAVAILABLE` | `6` | Search is enabled but no provider can currently answer. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 

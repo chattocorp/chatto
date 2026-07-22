@@ -29,6 +29,10 @@
   <MessageRowStoryFrame variant="compact-grouped" />
 </Story>
 
+<Story name="Search result" asChild>
+  <MessageRowStoryFrame variant="search-result" />
+</Story>
+
 <Story name="Deleted message" asChild>
   <MessageRowStoryFrame variant="deleted" />
 </Story>

@@ -1526,7 +1526,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		// Continue - this is best-effort
 	}
 
-	if deleted := c.DeleteMessageOwnedAssetsForUser(ctx, actorID, userID); deleted > 0 {
+	if deleted := c.assetModel.DeleteMessageOwnedAssetsForUser(ctx, actorID, userID); deleted > 0 {
 		c.logger.Info("Deleted message-owned assets during user deletion", "user_id", userID, "count", deleted)
 	}
 

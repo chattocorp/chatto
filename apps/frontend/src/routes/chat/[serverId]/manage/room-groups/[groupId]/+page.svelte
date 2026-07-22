@@ -171,7 +171,7 @@
     backLabel={m['admin.nav.back_to_server']()}
   />
 {:else}
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <div class="pane-page">
     <PaneHeader
       title={group.name}
       subtitle={m['admin.rooms_admin.rename_group']()}

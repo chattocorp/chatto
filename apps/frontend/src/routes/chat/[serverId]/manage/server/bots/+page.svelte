@@ -3,8 +3,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { BotManagement } from '$lib/components/bots';
-  import { AdminPageContent } from '$lib/components/admin';
-  import { PaneHeader, PageTitle } from '$lib/ui';
+  import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
   const store = serverRegistry.getStore(getActiveServer());
@@ -19,7 +18,7 @@
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
   <PaneHeader title={m['bots.admin.title']()} subtitle={m['bots.admin.subtitle']()} showMobileNav />
-  <AdminPageContent bind:scrollContainer>
+  <PaneContent bind:scrollContainer>
     <BotManagement scope="admin" {canCreate} {scrollContainer} />
-  </AdminPageContent>
+  </PaneContent>
 </div>

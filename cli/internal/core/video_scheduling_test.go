@@ -81,7 +81,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-present", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-present", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 
@@ -117,7 +117,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 
 		requests := captureVideoProcessingRequests(t, core)
 
-		if err := core.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, KindChannel, room.Id, "M-missing", att); err != nil {
+		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-missing", att); err != nil {
 			t.Fatalf("schedule: %v", err)
 		}
 
@@ -165,7 +165,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	pending := core.assetLifecycle().UnmanifestedVideoAttachments()
+	pending := core.assetModel.UnmanifestedVideoAttachments()
 	if len(pending) != 1 || pending[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
@@ -190,7 +190,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}
-	if got := core.assetLifecycle().UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
+	if got := core.assetModel.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments after Started = %+v, want %q", got, att.Id)
 	}
 }

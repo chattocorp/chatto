@@ -22,6 +22,13 @@
     "drop_files_subtitle": "Zdjęcia i filmy zostaną dodane do Twojej wiadomości",
     "send_failed": "Nie udało się wysłać wiadomości",
     "edit_failed": "Nie udało się edytować wiadomości",
+    "upload": {
+      "preparing": "Przygotowywanie…",
+      "uploading": "Przesłano {percentage}%",
+      "uploaded": "Przesłano",
+      "failed": "Przesyłanie nie powiodło się",
+      "remove": "Usuń {filename}"
+    },
     "format": {
       "bold": "Pogrubienie",
       "italic": "Kursywa",

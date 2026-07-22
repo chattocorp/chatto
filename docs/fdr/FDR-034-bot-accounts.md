@@ -1,4 +1,4 @@
-# FDR-033: Bot Accounts
+# FDR-034: Bot Accounts
 
 **Status:** Proposed
 **Last reviewed:** 2026-07-22
@@ -96,7 +96,7 @@ separate ownership-transfer feature exists.
 ### 3. Bot authority is an owner-bounded intersection
 
 **Decision:** Resolve each bot capability from both the bot and its owner at
-authorization time. Both must be allowed for the bot to act. See ADR-053.
+authorization time. Both must be allowed for the bot to act. See ADR-056.
 **Why:** Copying permissions at creation would become stale after role,
 permission, or suspension changes. A dynamic ceiling makes it
 impossible for an owner to delegate authority they no longer possess.
@@ -208,7 +208,7 @@ implementation should be tracked separately unless required for safe bot use.
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-033
   (event-sourced state), ADR-037 (DM access via membership), ADR-042
   (protobuf-first public API), ADR-046 (typed runtime credentials), ADR-052
-  (subject-specific RBAC), ADR-053 (owner-bounded bot authorization)
+  (subject-specific RBAC), ADR-056 (owner-bounded bot authorization)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
   (Account Lifecycle), FDR-023 (Authentication & Sessions), FDR-025 (User Search
   & Member Directory)

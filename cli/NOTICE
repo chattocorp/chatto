@@ -14,6 +14,7 @@ Server and CLI Go Components:
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
+- Bleve full-text search (https://github.com/blevesearch/bleve) - Apache License 2.0
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
@@ -41,6 +42,7 @@ Server and CLI Go Components:
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
 - opengraph (https://github.com/otiai10/opengraph) - MIT License
+- Participle parser library (https://github.com/alecthomas/participle) - MIT License
 - Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
 - protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License

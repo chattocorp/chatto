@@ -2,14 +2,13 @@
   import { onMount } from 'svelte';
   import { getAdminSystemInfo, type AdminSystemInfo } from '$lib/api-client/adminDiagnostics';
   import {
-    AdminPageContent,
     Panel,
     StatCard,
     DataTable,
     formatBytes,
     formatNumber
   } from '$lib/components/admin';
-  import { Hint, Pill } from '$lib/ui';
+  import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
@@ -130,14 +129,14 @@
 
 <PageTitle title={m['admin.common.page_title']({ title: m['admin.system.title']() })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.system.title']()}
     subtitle={m['admin.system.subtitle']()}
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
         <div class="text-muted">{m['admin.system.loading']()}</div>
@@ -541,5 +540,5 @@
         <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

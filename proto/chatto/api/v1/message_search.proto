@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/message_types.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Ordering for message-search results.
+enum MessageSearchOrder {
+  // Use relevance order.
+  MESSAGE_SEARCH_ORDER_UNSPECIFIED = 0;
+  // Return the most relevant messages first.
+  MESSAGE_SEARCH_ORDER_RELEVANCE = 1;
+  // Return the most recently created messages first.
+  MESSAGE_SEARCH_ORDER_NEWEST = 2;
+}
+
+// Current availability of message search on this server.
+enum MessageSearchState {
+  // The server did not report a meaningful state.
+  MESSAGE_SEARCH_STATE_UNSPECIFIED = 0;
+  // Search is disabled by the server operator.
+  MESSAGE_SEARCH_STATE_DISABLED = 1;
+  // Search is enabled but its provider has not established index state yet.
+  MESSAGE_SEARCH_STATE_STARTING = 2;
+  // The provider is rebuilding or catching up and cannot answer queries yet.
+  MESSAGE_SEARCH_STATE_INDEXING = 3;
+  // Search is ready to answer queries.
+  MESSAGE_SEARCH_STATE_READY = 4;
+  // Search can answer queries but has a known non-fatal limitation.
+  MESSAGE_SEARCH_STATE_DEGRADED = 5;
+  // Search is enabled but no provider can currently answer.
+  MESSAGE_SEARCH_STATE_UNAVAILABLE = 6;
+}
+
+// Request to search current message bodies visible to the authenticated user.
+message SearchMessagesRequest {
+  // Required query text. Words are required terms, quoted text is an exact
+  // phrase, and `AND` may separate terms. The query also accepts `in:`,
+  // `from:`, `before:`, `after:`, and `has:attachment` filters.
+  string query = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 1024
+  }];
+  // Optional room-ID scope. The server intersects this room with rooms the
+  // current user may read and with any `in:` filters in query.
+  optional string room_id = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 128
+  }];
+  // Optional author-ID scope. The server intersects this author with any
+  // `from:` filters in query.
+  optional string author_id = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 128
+  }];
+  // Exclusive lower bound on message creation time. The stricter bound wins
+  // when query also contains `after:`.
+  google.protobuf.Timestamp created_after = 4;
+  // Exclusive upper bound on message creation time. The stricter bound wins
+  // when query also contains `before:`.
+  google.protobuf.Timestamp created_before = 5;
+  // When true, return only messages that currently have attachments.
+  bool has_attachments = 6;
+  // Result ordering. Unspecified defaults to relevance.
+  MessageSearchOrder order = 7 [(buf.validate.field).enum.defined_only = true];
+  // Maximum messages to return. Zero uses the server default of 50; the
+  // maximum is 100. Stale or no-longer-visible provider hits are omitted, so a
+  // page may contain fewer messages than requested even when next_cursor is
+  // present.
+  uint32 page_size = 8 [(buf.validate.field).uint32.lte = 100];
+  // Opaque cursor returned by the preceding response. It is bound to the
+  // authenticated user and every other query field.
+  string cursor = 9 [(buf.validate.field).string.max_bytes = 8192];
+}
+
+// One ordered page of current, authorized messages. Pagination reads a live
+// search index rather than a pinned snapshot, so results may move, repeat, or
+// disappear between page requests while the index advances.
+message SearchMessagesResponse {
+  // Current renderable messages in provider result order. Clients can batch
+  // hydrate the referenced room and actor IDs through the existing APIs.
+  repeated Message messages = 1;
+  // Opaque cursor for the next provider page. Empty means no more matches.
+  string next_cursor = 2;
+}
+
+// Request for current message-search availability.
+message GetStatusRequest {}
+
+// Current message-search availability.
+message GetStatusResponse {
+  reserved 2, 3;
+  reserved "indexed_event_count", "target_event_count";
+
+  // Current feature/provider state.
+  MessageSearchState state = 1;
+  // Suggested delay before checking again while search is not ready.
+  google.protobuf.Duration retry_after = 4;
+}
+
+// Searches current message content visible to an authenticated user.
+service MessageSearchService {
+  // Reports whether the operator enabled Search and whether its provider can
+  // currently answer. This method remains available when Search is disabled.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // Searches current message bodies. Results are authorized and hydrated from
+  // current Chatto state after provider matching. Returns FAILED_PRECONDITION
+  // when Search is disabled and UNAVAILABLE when its provider is not ready.
+  rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
+}

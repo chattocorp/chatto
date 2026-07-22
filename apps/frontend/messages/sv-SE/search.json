@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Sök bland meddelanden",
+    "open": "Sök bland meddelanden",
+    "in_room": "Sök i det här rummet",
+    "action": "Sök",
+    "checking": "Kontrollerar om sökning är tillgänglig…",
+    "searching": "Söker bland meddelanden…",
+    "loading_more": "Läser in fler resultat…",
+    "check_again": "Kontrollera igen",
+    "degraded": "Sökning är tillgänglig, men vissa resultat kan saknas.",
+    "attachments": "{count} bifogade",
+    "results": "Resultat",
+    "query": {
+      "label": "Sökfråga",
+      "placeholder": "Ord, fraser eller filter…"
+    },
+    "scope": {
+      "all_rooms": "Alla rum",
+      "room": "Rum",
+      "clear": "Sök i alla rum"
+    },
+    "order": {
+      "label": "Resultatordning",
+      "relevance": "Mest relevanta",
+      "newest": "Nyaste"
+    },
+    "prompt": {
+      "title": "Hitta ett meddelande",
+      "description": "Sök i meddelandetext i alla rum som du kan läsa."
+    },
+    "no_results": {
+      "title": "Inga meddelanden hittades",
+      "description": "Prova andra ord eller filter."
+    },
+    "error": {
+      "title": "Sökningen misslyckades",
+      "description": "Kontrollera sökfrågan och försök igen."
+    },
+    "disabled": {
+      "title": "Sökning är inaktiverad",
+      "description": "Serveroperatören har inte aktiverat meddelandesökning."
+    },
+    "unavailable": {
+      "title": "Sökning är inte tillgänglig",
+      "description": "Sökleverantören kan inte svara just nu."
+    },
+    "indexing": {
+      "title": "Sökningen förbereds",
+      "description": "Meddelanden indexeras. Sökning blir tillgänglig när det är klart."
+    }
+  }
+}

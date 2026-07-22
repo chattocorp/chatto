@@ -1,13 +1,15 @@
 # Subject and Event Inventory
 
 Key files: [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go),
-[`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go),
-[`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto), and
-[`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto)
+[`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
+[`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
+[`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto), and
+[`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md), and
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
 
 ## Event envelopes
 
@@ -139,6 +141,25 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
 The aggregate ID is intentionally part of the subject; actor/user and detailed context stay in the protobuf payload. Asset subjects are keyed by asset ID, while room scope lives in `AssetCreatedEvent` and is resolved by `AssetProjection`. Cross-event-type invariants use wildcard OCC filters such as `evt.room.>`, `evt.asset.>`, or `evt.rbac.>`.
+
+## NATS service subjects
+
+Trusted request/reply services use
+`svc.{servingAuthority}.{service}.{majorVersion}.{endpoint}`. Chatto Core owns
+`svc.chatto.>`, while replaceable providers, including bundled
+implementations, own `svc.chatto_ext.>`. Payloads are protobuf, and standard
+NATS micro error headers carry transport-level failures.
+
+| Subject | Protobuf request / response | Queue group | Owner |
+| ------- | --------------------------- | ----------- | ----- |
+| `svc.chatto_ext.search.v1.query` | `chatto.search.v1.QueryRequest` / `QueryResponse` | `svc.chatto_ext.search.v1` | Any compatible message-search provider replica |
+| `svc.chatto_ext.search.v1.status` | `chatto.search.v1.GetStatusRequest` / `GetStatusResponse` | `svc.chatto_ext.search.v1` | Queryable message-search provider replicas |
+| `svc.chatto_ext.search.v1.status.startup` | `chatto.search.v1.GetStatusRequest` / `GetStatusResponse` | `svc.chatto_ext.search.v1` | Provider replicas still starting or indexing; queried only when no ready status responder exists |
+
+The Search contract returns ordered message and room IDs. It does not grant
+room visibility or make indexed content authoritative; Chatto Core rehydrates
+and authorizes current message state before any public response. Provider
+cursors are trusted integration coordinates and are not public API cursors.
 
 ## Durable EVT event inventory
 

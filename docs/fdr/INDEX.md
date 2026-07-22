@@ -42,4 +42,5 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-030](FDR-030-inline-message-timestamps.md) | Inline Message Timestamps | Active | 2026-07-12 |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-07-16 |
 | [FDR-032](FDR-032-message-formatting.md) | Message Formatting | Active | 2026-07-19 |
-| [FDR-033](FDR-033-bot-accounts.md) | Bot Accounts | Proposed | 2026-07-22 |
+| [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-07-21 |
+| [FDR-034](FDR-034-bot-accounts.md) | Bot Accounts | Proposed | 2026-07-22 |

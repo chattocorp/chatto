@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Pesquisar mensagens",
+    "open": "Pesquisar mensagens",
+    "in_room": "Pesquisar nesta sala",
+    "action": "Pesquisar",
+    "checking": "A verificar a disponibilidade da pesquisa…",
+    "searching": "A pesquisar mensagens…",
+    "loading_more": "A carregar mais resultados…",
+    "check_again": "Verificar novamente",
+    "degraded": "A pesquisa está disponível, mas alguns resultados podem estar em falta.",
+    "attachments": "{count} anexo(s)",
+    "results": "Resultados",
+    "query": {
+      "label": "Consulta de pesquisa",
+      "placeholder": "Palavras, frases ou filtros…"
+    },
+    "scope": {
+      "all_rooms": "Todas as salas",
+      "room": "Sala",
+      "clear": "Pesquisar em todas as salas"
+    },
+    "order": {
+      "label": "Ordem dos resultados",
+      "relevance": "Mais relevantes",
+      "newest": "Mais recentes"
+    },
+    "prompt": {
+      "title": "Encontrar uma mensagem",
+      "description": "Pesquisa o texto das mensagens em todas as salas que podes ler."
+    },
+    "no_results": {
+      "title": "Nenhuma mensagem encontrada",
+      "description": "Tente outras palavras ou filtros."
+    },
+    "error": {
+      "title": "A pesquisa falhou",
+      "description": "Verifica a consulta e tenta novamente."
+    },
+    "disabled": {
+      "title": "A pesquisa está desativada",
+      "description": "O operador do servidor não ativou a pesquisa de mensagens."
+    },
+    "unavailable": {
+      "title": "A pesquisa não está disponível",
+      "description": "O fornecedor de pesquisa não consegue responder neste momento."
+    },
+    "indexing": {
+      "title": "A preparar a pesquisa",
+      "description": "As mensagens estão a ser indexadas. A pesquisa ficará disponível quando terminar."
+    }
+  }
+}

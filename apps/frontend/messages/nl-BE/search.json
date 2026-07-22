@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Berichten doorzoeken",
+    "open": "Berichten doorzoeken",
+    "in_room": "In deze kamer zoeken",
+    "action": "Zoeken",
+    "checking": "Beschikbaarheid van zoeken controleren…",
+    "searching": "Berichten doorzoeken…",
+    "loading_more": "Meer resultaten laden…",
+    "check_again": "Opnieuw controleren",
+    "degraded": "Zoeken is beschikbaar, maar sommige resultaten ontbreken mogelijk.",
+    "attachments": "{count} bijgevoegd",
+    "results": "Resultaten",
+    "query": {
+      "label": "Zoekopdracht",
+      "placeholder": "Woorden, zinnen of filters…"
+    },
+    "scope": {
+      "all_rooms": "Alle kamers",
+      "room": "Kamer",
+      "clear": "Alle kamers doorzoeken"
+    },
+    "order": {
+      "label": "Volgorde van resultaten",
+      "relevance": "Meest relevant",
+      "newest": "Nieuwste"
+    },
+    "prompt": {
+      "title": "Een bericht vinden",
+      "description": "Doorzoek berichttekst in alle kamers die je kunt lezen."
+    },
+    "no_results": {
+      "title": "Geen berichten gevonden",
+      "description": "Probeer andere woorden of filters."
+    },
+    "error": {
+      "title": "Zoeken mislukt",
+      "description": "Controleer je zoekopdracht en probeer het opnieuw."
+    },
+    "disabled": {
+      "title": "Zoeken is uitgeschakeld",
+      "description": "De serverbeheerder heeft berichten zoeken niet ingeschakeld."
+    },
+    "unavailable": {
+      "title": "Zoeken is niet beschikbaar",
+      "description": "De zoekprovider kan momenteel niet antwoorden."
+    },
+    "indexing": {
+      "title": "Zoeken wordt voorbereid",
+      "description": "Berichten worden geïndexeerd. Daarna is zoeken beschikbaar."
+    }
+  }
+}

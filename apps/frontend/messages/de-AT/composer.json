@@ -22,6 +22,13 @@
     "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
     "send_failed": "Nachricht konnte nicht gesendet werden",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
+    "upload": {
+      "preparing": "Wird vorbereitet…",
+      "uploading": "{percentage} % hochgeladen",
+      "uploaded": "Hochgeladen",
+      "failed": "Upload fehlgeschlagen",
+      "remove": "{filename} entfernen"
+    },
     "format": {
       "bold": "Fett",
       "italic": "Kursiv",

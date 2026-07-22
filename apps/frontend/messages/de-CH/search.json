@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Nachrichten durchsuchen",
+    "open": "Nachrichten durchsuchen",
+    "in_room": "In diesem Raum suchen",
+    "action": "Suchen",
+    "checking": "Suchverfügbarkeit wird geprüft …",
+    "searching": "Nachrichten werden durchsucht …",
+    "loading_more": "Weitere Ergebnisse werden geladen …",
+    "check_again": "Erneut prüfen",
+    "degraded": "Die Suche ist verfügbar, aber einige Ergebnisse könnten fehlen.",
+    "attachments": "{count} angehängt",
+    "results": "Ergebnisse",
+    "query": {
+      "label": "Suchanfrage",
+      "placeholder": "Wörter, Ausdrücke oder Filter …"
+    },
+    "scope": {
+      "all_rooms": "Alle Räume",
+      "room": "Raum",
+      "clear": "Alle Räume durchsuchen"
+    },
+    "order": {
+      "label": "Ergebnisreihenfolge",
+      "relevance": "Relevanteste",
+      "newest": "Neueste"
+    },
+    "prompt": {
+      "title": "Nachricht finden",
+      "description": "Durchsuche den Nachrichtentext in allen Räumen, die du lesen kannst."
+    },
+    "no_results": {
+      "title": "Keine Nachrichten gefunden",
+      "description": "Versuche andere Wörter oder Filter."
+    },
+    "error": {
+      "title": "Suche fehlgeschlagen",
+      "description": "Überprüfe deine Suchanfrage und versuche es erneut."
+    },
+    "disabled": {
+      "title": "Suche ist deaktiviert",
+      "description": "Der Serverbetreiber hat die Nachrichtensuche nicht aktiviert."
+    },
+    "unavailable": {
+      "title": "Suche ist nicht verfügbar",
+      "description": "Der Suchanbieter kann derzeit nicht antworten."
+    },
+    "indexing": {
+      "title": "Suche wird vorbereitet",
+      "description": "Nachrichten werden indiziert. Die Suche ist anschließend verfügbar."
+    }
+  }
+}

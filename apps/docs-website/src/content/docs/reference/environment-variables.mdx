@@ -143,6 +143,28 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
+## Message Search
+
+The consumer-facing feature and bundled provider have separate switches. This lets you expose Search through Chatto while running a compatible provider separately, or embed the bundled Bleve provider in `chatto run` for a single-process deployment.
+
+See [Enabling Search](/guides/operations/search/) for a complete setup guide, analyzer names, storage guidance, and troubleshooting.
+
+<EnvVar name="CHATTO_SEARCH_ENABLED" toml="search.enabled" default="false">
+  Enable consumer-facing message queries. Compatible clients discover the Search protocol independently and use the Search status RPC to distinguish disabled, indexing, ready, degraded, and unavailable states.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_ENABLED" toml="search_provider.enabled" default="false">
+  Start the bundled Bleve provider inside `chatto run`. This does not by itself expose the consumer-facing Search feature.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_DIRECTORY" toml="search_provider.directory" default="./data/search">
+  Directory for the bundled provider's disposable local index. Protect this directory like message data: it contains plaintext-derived search content, is not included in Chatto backups, and can be rebuilt from retained `EVT` history. Do not set it to the embedded NATS data directory or one of its parent directories.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_LANGUAGES" toml="search_provider.languages" default="all bundled analyzers">
+  Comma-separated Bleve analyzer codes to use when indexing messages and analyzing queries. Supported values are `ar`, `cjk`, `ckb`, `da`, `de`, `en`, `es`, `fa`, `fi`, `fr`, `hi`, `hr`, `hu`, `it`, `nl`, `no`, `pl`, `pt`, `ro`, `ru`, `sv`, and `tr`. Changing the set rebuilds the disposable index. Use `none` for language-neutral literal and typo-tolerant matching only; the TOML equivalent is `languages = []`.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

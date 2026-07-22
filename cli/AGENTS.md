@@ -119,6 +119,17 @@ authorization, live events, backup/restore, and backend tests.
   boot-time sequence waiters when installing a restored cutoff, and test
   all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
   waiter interleavings.
+- Projection snapshot methods are optional. Locally checkpointed projections
+  own disposable derived state and must bind it to a stable projection key,
+  contract ID, EVT stream incarnation, and retained sequence bounds. A
+  successful `Apply` must atomically persist both its materialized changes and
+  the supplied logical EVT sequence.
+- Give each projection exactly one restore authority: shared snapshots or a
+  local checkpoint, never both. Missing, corrupt, incompatible, future, or
+  retention-gapped local state may be reset and replayed; transient filesystem
+  and volume failures must fail startup without destructively resetting a
+  potentially valid checkpoint. Define backup exclusion, deletion, and
+  plaintext/privacy behavior for each checkpointed feature.
 
 ## Live Events
 

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Rechercher des messages",
+    "open": "Rechercher des messages",
+    "in_room": "Rechercher dans ce salon",
+    "action": "Rechercher",
+    "checking": "Vérification de la disponibilité de la recherche…",
+    "searching": "Recherche dans les messages…",
+    "loading_more": "Chargement de résultats supplémentaires…",
+    "check_again": "Vérifier à nouveau",
+    "degraded": "La recherche est disponible, mais certains résultats peuvent manquer.",
+    "attachments": "{count} pièce(s) jointe(s)",
+    "results": "Résultats",
+    "query": {
+      "label": "Requête de recherche",
+      "placeholder": "Mots, expressions ou filtres…"
+    },
+    "scope": {
+      "all_rooms": "Tous les salons",
+      "room": "Salon",
+      "clear": "Rechercher dans tous les salons"
+    },
+    "order": {
+      "label": "Ordre des résultats",
+      "relevance": "Plus pertinents",
+      "newest": "Plus récents"
+    },
+    "prompt": {
+      "title": "Trouver un message",
+      "description": "Recherchez dans le texte des messages de tous les salons que vous pouvez lire."
+    },
+    "no_results": {
+      "title": "Aucun message trouvé",
+      "description": "Essayez d’autres mots ou filtres."
+    },
+    "error": {
+      "title": "Échec de la recherche",
+      "description": "Vérifiez votre requête et réessayez."
+    },
+    "disabled": {
+      "title": "La recherche est désactivée",
+      "description": "L’administrateur du serveur n’a pas activé la recherche de messages."
+    },
+    "unavailable": {
+      "title": "La recherche est indisponible",
+      "description": "Le fournisseur de recherche ne peut pas répondre pour le moment."
+    },
+    "indexing": {
+      "title": "Préparation de la recherche",
+      "description": "Les messages sont en cours d’indexation. La recherche sera ensuite disponible."
+    }
+  }
+}

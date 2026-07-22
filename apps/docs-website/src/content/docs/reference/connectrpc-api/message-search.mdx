@@ -1,0 +1,95 @@
+---
+title: MessageSearchService
+description: Authorized full-text message search and provider availability RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-MessageSearchService"></a>
+
+## MessageSearchService
+
+Searches current message content visible to an authenticated user.
+
+<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
+
+### GetStatus
+
+Reports whether the operator enabled Search and whether its provider can
+currently answer. This method remains available when Search is disabled.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
+```
+
+<a id="chatto-api-v1-GetStatusRequest"></a>
+
+#### Input: GetStatusRequest
+
+Request for current message-search availability.
+
+
+<a id="chatto-api-v1-GetStatusResponse"></a>
+
+#### Result: GetStatusResponse
+
+Current message-search availability.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`MessageSearchState`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
+| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
+
+
+<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
+
+### SearchMessages
+
+Searches current message bodies. Results are authorized and hydrated from
+current Chatto state after provider matching. Returns FAILED_PRECONDITION
+when Search is disabled and UNAVAILABLE when its provider is not ready.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
+```
+
+<a id="chatto-api-v1-SearchMessagesRequest"></a>
+
+#### Input: SearchMessagesRequest
+
+Request to search current message bodies visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `query` | `string` | Required query text. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters. |
+| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
+| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
+| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
+| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
+| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
+| `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
+| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
+
+
+<a id="chatto-api-v1-SearchMessagesResponse"></a>
+
+#### Result: SearchMessagesResponse
+
+One ordered page of current, authorized messages. Pagination reads a live
+search index rather than a pinned snapshot, so results may move, repeat, or
+disappear between page requests while the index advances.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | repeated [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Current renderable messages in provider result order. Clients can batch hydrate the referenced room and actor IDs through the existing APIs. |
+| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |

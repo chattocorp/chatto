@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Søk i meldinger",
+    "open": "Søk i meldinger",
+    "in_room": "Søk i dette rommet",
+    "action": "Søk",
+    "checking": "Kontrollerer om søk er tilgjengelig…",
+    "searching": "Søker i meldinger…",
+    "loading_more": "Laster inn flere resultater…",
+    "check_again": "Kontroller igjen",
+    "degraded": "Søk er tilgjengelig, men noen resultater kan mangle.",
+    "attachments": "{count} vedlagt",
+    "results": "Resultater",
+    "query": {
+      "label": "Søk",
+      "placeholder": "Ord, uttrykk eller filtre…"
+    },
+    "scope": {
+      "all_rooms": "Alle rom",
+      "room": "Rom",
+      "clear": "Søk i alle rom"
+    },
+    "order": {
+      "label": "Resultatrekkefølge",
+      "relevance": "Mest relevante",
+      "newest": "Nyeste"
+    },
+    "prompt": {
+      "title": "Finn en melding",
+      "description": "Søk i meldingsteksten i alle rom du kan lese."
+    },
+    "no_results": {
+      "title": "Fant ingen meldinger",
+      "description": "Prøv andre ord eller filtre."
+    },
+    "error": {
+      "title": "Søket mislyktes",
+      "description": "Kontroller søket og prøv igjen."
+    },
+    "disabled": {
+      "title": "Søk er deaktivert",
+      "description": "Serveroperatøren har ikke aktivert meldingssøk."
+    },
+    "unavailable": {
+      "title": "Søk er utilgjengelig",
+      "description": "Søkeleverandøren kan ikke svare akkurat nå."
+    },
+    "indexing": {
+      "title": "Søket klargjøres",
+      "description": "Meldinger indekseres. Søk blir tilgjengelig når det er ferdig."
+    }
+  }
+}

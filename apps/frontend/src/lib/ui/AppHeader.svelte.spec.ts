@@ -5,6 +5,8 @@ import AppHeader from './AppHeader.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
+    activeServer: '',
+    activeStore: undefined as undefined,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -15,7 +17,9 @@ const { mocks } = vi.hoisted(() => ({
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
-vi.mock('$lib/state/activeServer.svelte', () => ({ getActiveServer: () => '' }));
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => mocks.activeServer
+}));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     get servers() {
@@ -25,7 +29,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       return undefined;
     },
     getStore: mocks.getStore,
-    tryGetStore: () => undefined
+    tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
   }
 }));
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
@@ -49,6 +53,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
 describe('AppHeader', () => {
   beforeEach(() => {
     mocks.servers = [];
+    mocks.activeServer = '';
+    mocks.activeStore = undefined;
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });

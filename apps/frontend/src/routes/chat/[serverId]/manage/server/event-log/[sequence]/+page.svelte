@@ -4,8 +4,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { AdminPageContent, Panel } from '$lib/components/admin';
-  import { Hint, Pill } from '$lib/ui';
+  import { Panel } from '$lib/components/admin';
+  import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -32,7 +32,7 @@
 
 <PageTitle title={m['admin.event_log.event_page_title']({ sequence })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.event_log.event_title']({ sequence })}
     subtitle={m['admin.event_log.event_subtitle']()}
@@ -40,7 +40,7 @@
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex min-h-0 flex-col gap-6">
     {#await entryPromise}
       <div class="text-muted">{m['admin.event_log.loading_event']()}</div>
@@ -90,5 +90,5 @@
       >
     {/await}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

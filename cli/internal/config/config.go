@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -101,6 +102,59 @@ type ExporterConfig struct {
 	Path              string   `toml:"path,commented" env:"CHATTO_EXPORTER_PATH" comment:"HTTP path for Prometheus scrapes. Default: /metrics."`
 	S3RefreshInterval Duration `toml:"s3_refresh_interval,commented" env:"CHATTO_EXPORTER_S3_REFRESH_INTERVAL" comment:"How often to refresh cached S3 bucket size metrics. Default: 15m."`
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
+}
+
+// SearchConfig controls Chatto's consumer-facing search API and UI.
+type SearchConfig struct {
+	Enabled bool `toml:"enabled" env:"CHATTO_SEARCH_ENABLED" comment:"Enable consumer-facing message search queries. Default: false."`
+}
+
+// SearchProviderConfig controls the bundled Bleve search provider.
+type SearchProviderConfig struct {
+	Enabled   bool     `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_ENABLED" comment:"Start the bundled Bleve search provider from chatto run. Default: false."`
+	Directory string   `toml:"directory,commented" env:"CHATTO_SEARCH_PROVIDER_DIRECTORY" comment:"Directory for the disposable local Bleve index. Default: ./data/search."`
+	Languages []string `toml:"languages,commented" env:"CHATTO_SEARCH_PROVIDER_LANGUAGES" comment:"Bleve language analyzers used for message indexing and queries. Omit to enable all bundled analyzers; use an empty list for literal matching only."`
+}
+
+var searchProviderLanguageCodes = []string{
+	"ar", "cjk", "ckb", "da", "de", "en", "es", "fa", "fi", "fr", "hi",
+	"hr", "hu", "it", "nl", "no", "pl", "pt", "ro", "ru", "sv", "tr",
+}
+
+// SupportedSearchProviderLanguages returns the language analyzer codes accepted
+// by the bundled Bleve provider.
+func SupportedSearchProviderLanguages() []string {
+	return append([]string(nil), searchProviderLanguageCodes...)
+}
+
+// DirectoryOrDefault returns the bundled provider's local index directory.
+func (c SearchProviderConfig) DirectoryOrDefault() string {
+	if strings.TrimSpace(c.Directory) == "" {
+		return "./data/search"
+	}
+	return strings.TrimSpace(c.Directory)
+}
+
+// LanguagesOrDefault returns the normalized configured analyzer codes. An
+// omitted setting enables every bundled analyzer, while an explicit empty list
+// retains only language-neutral literal and fuzzy matching.
+func (c SearchProviderConfig) LanguagesOrDefault() []string {
+	if c.Languages == nil {
+		return SupportedSearchProviderLanguages()
+	}
+	return normalizeSearchProviderLanguages(c.Languages)
+}
+
+func normalizeSearchProviderLanguages(languages []string) []string {
+	normalized := make([]string, len(languages))
+	for i, language := range languages {
+		normalized[i] = strings.ToLower(strings.TrimSpace(language))
+	}
+	if len(normalized) == 1 && normalized[0] == "none" {
+		return []string{}
+	}
+	sort.Strings(normalized)
+	return normalized
 }
 
 // ShieldsConfig controls public Shields.io-compatible community badges.
@@ -903,22 +957,24 @@ type BootstrapServer struct {
 }
 
 type ChattoConfig struct {
-	General     GeneralConfig     `toml:"general"`
-	Owners      OwnersConfig      `toml:"owners" comment:"Email addresses that confer owner status."`
-	Webserver   WebserverConfig   `toml:"webserver"`
-	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
-	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
-	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
-	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
-	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
-	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
-	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP        SMTPConfig        `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push        PushConfig        `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video       VideoConfig       `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit     LiveKitConfig     `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS        NATSConfig        `toml:"nats"`
-	Bootstrap   BootstrapConfig   `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	General        GeneralConfig        `toml:"general"`
+	Owners         OwnersConfig         `toml:"owners" comment:"Email addresses that confer owner status."`
+	Webserver      WebserverConfig      `toml:"webserver"`
+	Metrics        MetricsConfig        `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Exporter       ExporterConfig       `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
+	Search         SearchConfig         `toml:"search,commented" comment:"Consumer-facing message search configuration."`
+	SearchProvider SearchProviderConfig `toml:"search_provider,commented" comment:"Bundled Bleve message search provider."`
+	Diagnostics    DiagnosticsConfig    `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	OperatorAPI    OperatorAPIConfig    `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
+	Core           CoreConfig           `toml:"core" comment:"Core service configuration."`
+	Auth           AuthConfig           `toml:"auth" comment:"Authentication configuration."`
+	Limits         LimitsConfig         `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP           SMTPConfig           `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push           PushConfig           `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video          VideoConfig          `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
+	LiveKit        LiveKitConfig        `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS           NATSConfig           `toml:"nats"`
+	Bootstrap      BootstrapConfig      `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other
@@ -961,6 +1017,9 @@ func (c *ChattoConfig) ApplyDefaults() {
 // semantic defaults.
 func (c *ChattoConfig) Normalize() {
 	c.Core.Assets.S3.NormalizePathPrefix()
+	if c.SearchProvider.Languages != nil {
+		c.SearchProvider.Languages = normalizeSearchProviderLanguages(c.SearchProvider.Languages)
+	}
 }
 
 func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
@@ -1036,6 +1095,42 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.Exporter.S3Timeout.Duration() < 0 {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
+		}
+	}
+	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {
+		searchDirectory := filepath.Clean(c.SearchProvider.DirectoryOrDefault())
+		if searchDirectory == "." || filepath.IsAbs(searchDirectory) && searchDirectory == filepath.VolumeName(searchDirectory)+string(filepath.Separator) {
+			errs = append(errs, "search_provider.directory must name a dedicated index directory")
+		}
+		if dataDirectory := strings.TrimSpace(c.NATS.Embedded.DataDir); dataDirectory != "" {
+			absoluteSearch, searchErr := filepath.Abs(searchDirectory)
+			absoluteData, dataErr := filepath.Abs(filepath.Clean(dataDirectory))
+			if searchErr == nil && dataErr == nil {
+				relativeData, relErr := filepath.Rel(absoluteSearch, absoluteData)
+				if relErr == nil && relativeData != ".." && !strings.HasPrefix(relativeData, ".."+string(filepath.Separator)) {
+					errs = append(errs, "search_provider.directory must not contain the embedded NATS data directory")
+				}
+			}
+		}
+		supportedLanguages := make(map[string]struct{}, len(searchProviderLanguageCodes))
+		for _, language := range searchProviderLanguageCodes {
+			supportedLanguages[language] = struct{}{}
+		}
+		languages := normalizeSearchProviderLanguages(c.SearchProvider.Languages)
+		seenLanguages := make(map[string]struct{}, len(languages))
+		for _, language := range languages {
+			if language == "" {
+				errs = append(errs, "search_provider.languages must not contain empty language codes")
+				continue
+			}
+			if _, duplicate := seenLanguages[language]; duplicate {
+				errs = append(errs, fmt.Sprintf("search_provider.languages contains duplicate language %q", language))
+				continue
+			}
+			seenLanguages[language] = struct{}{}
+			if _, ok := supportedLanguages[language]; !ok {
+				errs = append(errs, fmt.Sprintf("search_provider.languages contains unsupported language %q", language))
+			}
 		}
 	}
 	if c.NATS.Embedded.Enabled {

@@ -76,5 +76,5 @@ DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-053 (owner-bounded bot authorization)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-033 (Bot Accounts)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-056 (owner-bounded bot authorization)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-034 (Bot Accounts)

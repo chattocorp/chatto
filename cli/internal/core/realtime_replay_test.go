@@ -270,13 +270,13 @@ func TestPlanRealtimeReplayReplaysAuthorizedAssetLifecycleGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	if err := chatto.RecordAssetProcessingStarted(ctx, SystemActorID, KindChannel, room.Id, message.Id, attachment.Id); err != nil {
+	if err := chatto.RecordAssetProcessingStarted(ctx, SystemActorID, room.Id, message.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetProcessingStarted: %v", err)
 	}
-	if err := chatto.RecordAssetProcessingFailed(ctx, SystemActorID, KindChannel, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := chatto.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed: %v", err)
 	}
-	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, attachment.Id); err != nil {
+	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, room.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
@@ -360,10 +360,10 @@ func TestAssetEventTimelineTargetResolvesDeletedProcessedDerivative(t *testing.T
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if err := chatto.RecordAssetProcessed(ctx, SystemActorID, KindChannel, room.Id, message.Id, original.Id, 1000, 640, 360, thumbnail, nil); err != nil {
+	if err := chatto.assetModel.RecordAssetProcessed(ctx, SystemActorID, room.Id, message.Id, original.Id, 1000, 640, 360, thumbnail, nil); err != nil {
 		t.Fatalf("RecordAssetProcessed: %v", err)
 	}
-	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, KindChannel, room.Id, thumbnail.Id); err != nil {
+	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, room.Id, thumbnail.Id); err != nil {
 		t.Fatalf("RecordAssetDeleted thumbnail: %v", err)
 	}
 

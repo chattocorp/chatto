@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "メッセージを検索",
+    "open": "メッセージを検索",
+    "in_room": "このルーム内を検索",
+    "action": "検索",
+    "checking": "検索機能を確認しています…",
+    "searching": "メッセージを検索しています…",
+    "loading_more": "さらに結果を読み込んでいます…",
+    "check_again": "もう一度確認",
+    "degraded": "検索は利用できますが、一部の結果が表示されない場合があります。",
+    "attachments": "添付: {count}件",
+    "results": "検索結果",
+    "query": {
+      "label": "検索クエリ",
+      "placeholder": "単語、フレーズ、フィルター…"
+    },
+    "scope": {
+      "all_rooms": "すべてのルーム",
+      "room": "ルーム",
+      "clear": "すべてのルームを検索"
+    },
+    "order": {
+      "label": "結果の順序",
+      "relevance": "関連度順",
+      "newest": "新しい順"
+    },
+    "prompt": {
+      "title": "メッセージを探す",
+      "description": "閲覧できるすべてのルームのメッセージ本文を検索します。"
+    },
+    "no_results": {
+      "title": "メッセージが見つかりません",
+      "description": "別の単語やフィルターを試してください。"
+    },
+    "error": {
+      "title": "検索に失敗しました",
+      "description": "クエリを確認して、もう一度お試しください。"
+    },
+    "disabled": {
+      "title": "検索は無効です",
+      "description": "サーバー管理者がメッセージ検索を有効にしていません。"
+    },
+    "unavailable": {
+      "title": "検索を利用できません",
+      "description": "検索プロバイダーが現在応答できません。"
+    },
+    "indexing": {
+      "title": "検索を準備しています",
+      "description": "メッセージをインデックスしています。完了すると検索を利用できます。"
+    }
+  }
+}

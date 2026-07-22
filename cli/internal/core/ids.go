@@ -28,11 +28,6 @@ func NewUserID() string {
 	return newID("U")
 }
 
-// NewSpaceID generates a new space ID with "S" prefix.
-func NewSpaceID() string {
-	return newID("S")
-}
-
 // NewRoomID generates a new room ID with "R" prefix.
 func NewRoomID() string {
 	return newID("R")

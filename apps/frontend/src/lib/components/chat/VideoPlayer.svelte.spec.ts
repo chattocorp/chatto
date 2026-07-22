@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { VideoProcessingStatus } from '$lib/render/types';
 import VideoPlayer from './VideoPlayer.svelte';
@@ -93,19 +93,28 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 
 describe('VideoPlayer', () => {
   it('plays a newly processed HLS-only video', async () => {
+    const canPlayType = vi
+      .spyOn(HTMLMediaElement.prototype, 'canPlayType')
+      .mockImplementation((type) =>
+        type === 'application/vnd.apple.mpegurl' ? 'probably' : ''
+      );
     const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
-    const { container } = renderPostedVideo({
-      width: 1280,
-      height: 720,
-      hlsUrl,
-      includeMP4: false
-    });
-    const player = (await mediaPlayer(container)) as HTMLElement & {
-      src?: { src?: string; type?: string };
-    };
+    try {
+      const { container } = renderPostedVideo({
+        width: 1280,
+        height: 720,
+        hlsUrl,
+        includeMP4: false
+      });
+      const player = (await mediaPlayer(container)) as HTMLElement & {
+        src?: { src?: string; type?: string };
+      };
 
-    await expect.poll(() => player.src?.src).toBe(hlsUrl);
-    expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+      await expect.poll(() => player.src?.src).toBe(hlsUrl);
+      expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+    } finally {
+      canPlayType.mockRestore();
+    }
   });
 
   it('plays a historical MP4-only video', async () => {

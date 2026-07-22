@@ -5,7 +5,8 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createRoleAPI } from '$lib/api-client/roles';
-  import { AdminPageContent, Panel } from '$lib/components/admin';
+  import { Panel } from '$lib/components/admin';
+  import { PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
@@ -83,7 +84,7 @@
   })}
 />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.permissions.create_role_title']()}
     subtitle={m['admin.permissions.create_role_subtitle']()}
@@ -94,7 +95,7 @@
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.common.loading']()}</div>
@@ -124,5 +125,5 @@
       </Panel>
     {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

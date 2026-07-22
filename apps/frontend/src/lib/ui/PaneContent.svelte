@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { ScrollFader } from '$lib/ui';
+  import ScrollFader from './ScrollFader.svelte';
 
   let {
     children,

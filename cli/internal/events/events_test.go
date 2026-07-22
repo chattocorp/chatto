@@ -3,8 +3,11 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -608,6 +611,117 @@ type countingSubjectsProjection struct {
 	subjectCalls int
 }
 
+type minimalProjection struct {
+	mu      sync.Mutex
+	count   int
+	subject string
+}
+
+func (p *minimalProjection) Subjects() []string { return []string{p.subject} }
+
+func (p *minimalProjection) Apply(*corev1.Event, uint64) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.count++
+	return nil
+}
+
+func (p *minimalProjection) Count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.count
+}
+
+type checkpointTrackingProjection struct {
+	*trackingProjection
+	contractID string
+	checkpoint uint64
+	restoreErr error
+	resetErr   error
+	request    ProjectionCheckpointRequest
+	resets     int
+}
+
+type startupBatchTrackingProjection struct {
+	*trackingProjection
+	batchSize int
+	batchErr  error
+	batchMu   sync.Mutex
+	batches   [][]uint64
+	liveCalls int
+}
+
+func newStartupBatchTrackingProjection(batchSize int, subject string) *startupBatchTrackingProjection {
+	return &startupBatchTrackingProjection{
+		trackingProjection: newTrackingProjection(subject),
+		batchSize:          batchSize,
+	}
+}
+
+func (p *startupBatchTrackingProjection) StartupBatchSize() int { return p.batchSize }
+
+func (p *startupBatchTrackingProjection) ApplyStartupBatch(items []SequencedEvent) error {
+	if p.batchErr != nil {
+		return p.batchErr
+	}
+	seqs := make([]uint64, 0, len(items))
+	for _, item := range items {
+		if err := p.trackingProjection.Apply(item.Event, item.Sequence); err != nil {
+			return err
+		}
+		seqs = append(seqs, item.Sequence)
+	}
+	p.batchMu.Lock()
+	p.batches = append(p.batches, seqs)
+	p.batchMu.Unlock()
+	return nil
+}
+
+func (p *startupBatchTrackingProjection) Apply(event *corev1.Event, seq uint64) error {
+	p.batchMu.Lock()
+	p.liveCalls++
+	p.batchMu.Unlock()
+	return p.trackingProjection.Apply(event, seq)
+}
+
+func (p *startupBatchTrackingProjection) BatchSequences() [][]uint64 {
+	p.batchMu.Lock()
+	defer p.batchMu.Unlock()
+	result := make([][]uint64, len(p.batches))
+	for i := range p.batches {
+		result[i] = append([]uint64(nil), p.batches[i]...)
+	}
+	return result
+}
+
+func (p *startupBatchTrackingProjection) LiveCalls() int {
+	p.batchMu.Lock()
+	defer p.batchMu.Unlock()
+	return p.liveCalls
+}
+
+func newCheckpointTrackingProjection(subject string) *checkpointTrackingProjection {
+	return &checkpointTrackingProjection{
+		trackingProjection: newTrackingProjection(subject),
+		contractID:         "checkpoint-v1",
+	}
+}
+
+func (p *checkpointTrackingProjection) CheckpointContractID() string { return p.contractID }
+func (*checkpointTrackingProjection) SnapshotContractID() string     { return "snapshot-v1" }
+
+func (p *checkpointTrackingProjection) RestoreCheckpoint(_ context.Context, request ProjectionCheckpointRequest) (ProjectionCheckpoint, error) {
+	p.request = request
+	return ProjectionCheckpoint{CutoffSequence: p.checkpoint}, p.restoreErr
+}
+
+func (p *checkpointTrackingProjection) ResetCheckpoint(_ context.Context, request ProjectionCheckpointRequest) error {
+	p.request = request
+	p.resets++
+	p.checkpoint = 0
+	return p.resetErr
+}
+
 func newCountingSubjectsProjection(subs ...string) *countingSubjectsProjection {
 	return &countingSubjectsProjection{
 		trackingProjection: newTrackingProjection(subs...),
@@ -751,6 +865,376 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	}
 	if got := proj.ReplayCompletions(); got != 1 {
 		t.Errorf("startup replay completions = %d, want 1", got)
+	}
+}
+
+func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-minimal").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-minimal", "U1")); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	projection := &minimalProjection{subject: subject}
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if got := projection.Count(); got != 1 {
+		t.Fatalf("Apply count = %d, want 1", got)
+	}
+	if _, err := projector.CaptureSnapshot(); err == nil {
+		t.Fatal("CaptureSnapshot succeeded for projection without snapshot methods")
+	}
+}
+
+func TestProjectorBatchesOnlyCapturedStartupReplay(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for i := range 5 {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch", "U"+itoa(i)))
+		if err != nil {
+			t.Fatalf("AppendEventually %d: %v", i, err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	projection := newStartupBatchTrackingProjection(2, subject)
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+
+	wantBatches := [][]uint64{{seqs[0], seqs[1]}, {seqs[2], seqs[3]}, {seqs[4]}}
+	if got := projection.BatchSequences(); !reflect.DeepEqual(got, wantBatches) {
+		t.Fatalf("startup batches = %v, want %v", got, wantBatches)
+	}
+	if got := projection.LiveCalls(); got != 0 {
+		t.Fatalf("live Apply calls during startup = %d, want 0", got)
+	}
+	if got := projector.Status().StartupMessages; got != 5 {
+		t.Fatalf("startup messages = %d, want 5", got)
+	}
+
+	liveSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch", "U-live"))
+	if err != nil {
+		t.Fatalf("append live event: %v", err)
+	}
+	if err := projector.WaitFor(ctx, SubjectPosition(subject, liveSeq)); err != nil {
+		t.Fatalf("wait for live event: %v", err)
+	}
+	if got := projection.LiveCalls(); got != 1 {
+		t.Fatalf("live Apply calls after startup = %d, want 1", got)
+	}
+	if got := projection.BatchSequences(); !reflect.DeepEqual(got, wantBatches) {
+		t.Fatalf("live event changed startup batches: %v", got)
+	}
+}
+
+func TestProjectorStartupBatchFailureStartsAtFirstUncommittedSequence(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch-fail").Subject(EventUserJoinedRoom)
+	firstSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-fail", "U1"))
+	if err != nil {
+		t.Fatalf("append first event: %v", err)
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-fail", "U2")); err != nil {
+		t.Fatalf("append second event: %v", err)
+	}
+
+	applyErr := errors.New("batch apply failed")
+	projection := newStartupBatchTrackingProjection(2, subject)
+	projection.batchErr = applyErr
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, applyErr) {
+			t.Fatalf("Run error = %v, want batch error", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector did not fail after startup batch error")
+	}
+	status := projector.Status()
+	if status.FailedSeq != firstSeq || status.LastSeq >= firstSeq {
+		t.Fatalf("failed startup batch status = %+v, want failure at %d before advancement", status, firstSeq)
+	}
+}
+
+func TestProjectorDecodeFailureIncludesPendingStartupBatch(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-batch-decode").Subject(EventUserJoinedRoom)
+	firstSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-batch-decode", "U1"))
+	if err != nil {
+		t.Fatalf("append first event: %v", err)
+	}
+	if _, err := js.Publish(ctx, subject, []byte{0xff}, jetstream.WithExpectLastSequencePerSubject(firstSeq), jetstream.WithMsgID("bad-batch-protobuf")); err != nil {
+		t.Fatalf("publish malformed event: %v", err)
+	}
+
+	projection := newStartupBatchTrackingProjection(3, subject)
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	errCh := make(chan error, 1)
+	go func() { errCh <- projector.Run(runCtx) }()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, ErrProjectionFailed) {
+			t.Fatalf("Run error = %v, want projection failure", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("projector did not fail after malformed batched event")
+	}
+	status := projector.Status()
+	if status.FailedSeq != firstSeq || status.LastSeq >= firstSeq || projection.Count() != 0 {
+		t.Fatalf("decode failure status = %+v count=%d, want pending batch uncommitted from %d", status, projection.Count(), firstSeq)
+	}
+}
+
+func TestProjectorRestoresLocalCheckpointAndReplaysTail(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for _, userID := range []string{"U1", "U2", "U3"} {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint", userID))
+		if err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+		seqs = append(seqs, seq)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seqs[1]
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	// Configuration captures the contract before the projection can change it.
+	projection.contractID = "checkpoint-v2"
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if got := projection.Count(); got != 1 {
+		t.Fatalf("tail Apply count = %d, want 1", got)
+	}
+	status := projector.Status()
+	if !status.CheckpointRestored || status.CheckpointCutoffSeq != seqs[1] || status.CheckpointContractID != "checkpoint-v1" {
+		t.Fatalf("checkpoint status = %+v", status)
+	}
+	if status.SnapshotRestored {
+		t.Fatalf("checkpoint restore reported as snapshot restore: %+v", status)
+	}
+	if projection.request.ProjectionKey != "search" || projection.request.ContractID != "checkpoint-v1" {
+		t.Fatalf("checkpoint request = %+v", projection.request)
+	}
+	if projection.request.StreamIdentity != testStreamIdentity(t, stream) || projection.request.FirstSequence != seqs[0] || projection.request.LastSequence != seqs[2] {
+		t.Fatalf("checkpoint stream request = %+v", projection.request)
+	}
+}
+
+func TestProjectorRestoresLocalCheckpointBeyondFilteredTail(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-filtered-tail").Subject(EventUserJoinedRoom)
+	matchingSeq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-filtered-tail", "U1"))
+	if err != nil {
+		t.Fatalf("append matching event: %v", err)
+	}
+	unrelatedSubject := RoomAggregate("R-checkpoint-unrelated").Subject(EventMessagePosted)
+	unrelatedSeq, err := pub.AppendEventually(ctx, unrelatedSubject, makeEvent("R-checkpoint-unrelated", "U2"))
+	if err != nil {
+		t.Fatalf("append unrelated event: %v", err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = unrelatedSeq
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if projection.resets != 0 || projection.Count() != 0 {
+		t.Fatalf("resets/count = %d/%d, want 0/0", projection.resets, projection.Count())
+	}
+	status := projector.Status()
+	if !status.CheckpointRestored || status.CheckpointCutoffSeq != unrelatedSeq {
+		t.Fatalf("checkpoint status = %+v, want restored cutoff %d", status, unrelatedSeq)
+	}
+	if status.StartupTargetSeq != matchingSeq || status.LastSeq != unrelatedSeq {
+		t.Fatalf("checkpoint status = %+v, want filtered target %d behind restored cutoff %d", status, matchingSeq, unrelatedSeq)
+	}
+}
+
+func TestProjectorResetsInvalidLocalCheckpoint(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-reset").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-reset", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.restoreErr = fmt.Errorf("%w: contract mismatch", ErrProjectionCheckpointInvalid)
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if projection.resets != 1 || projection.Count() != 2 {
+		t.Fatalf("resets/count = %d/%d, want 1/2", projection.resets, projection.Count())
+	}
+	if projector.Status().CheckpointRestored {
+		t.Fatal("invalid checkpoint reported as restored")
+	}
+}
+
+func TestProjectorDoesNotResetCheckpointOnOperationalRestoreFailure(t *testing.T) {
+	js, stream := setupTestStream(t)
+	projection := newCheckpointTrackingProjection(RoomSubjectFilter())
+	projection.restoreErr = errors.New("local volume unavailable")
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+
+	err := projector.Run(testContext(t))
+	if err == nil || !strings.Contains(err.Error(), "local volume unavailable") {
+		t.Fatalf("Run error = %v, want local volume failure", err)
+	}
+	if projection.resets != 0 {
+		t.Fatalf("checkpoint resets = %d, want 0", projection.resets)
+	}
+	status := projector.Status()
+	if !status.Failed || status.Err == nil {
+		t.Fatalf("restore failure status = %+v, want failed projector", status)
+	}
+}
+
+func TestProjectorResetsFutureLocalCheckpoint(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-future").Subject(EventUserJoinedRoom)
+	seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-future", "U1"))
+	if err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seq + 1
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if projection.resets != 1 || projection.Count() != 1 {
+		t.Fatalf("resets/count = %d/%d, want 1/1", projection.resets, projection.Count())
+	}
+}
+
+func TestProjectorResetsCheckpointBehindRetainedEVT(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-checkpoint-retention-gap").Subject(EventUserJoinedRoom)
+	var seqs []uint64
+	for _, userID := range []string{"U1", "U2", "U3"} {
+		seq, err := pub.AppendEventually(ctx, subject, makeEvent("R-checkpoint-retention-gap", userID))
+		if err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+		seqs = append(seqs, seq)
+	}
+	if err := stream.Purge(ctx, jetstream.WithPurgeSequence(seqs[2])); err != nil {
+		t.Fatalf("purge EVT before sequence %d: %v", seqs[2], err)
+	}
+
+	projection := newCheckpointTrackingProjection(subject)
+	projection.checkpoint = seqs[0]
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	if projection.resets != 1 || projection.Count() != 1 {
+		t.Fatalf("resets/count = %d/%d, want reset plus one retained event", projection.resets, projection.Count())
+	}
+	if projector.Status().CheckpointRestored {
+		t.Fatal("retention-gapped checkpoint reported as restored")
+	}
+}
+
+func TestProjectorRejectsCompetingRestoreAuthorities(t *testing.T) {
+	js, stream := setupTestStream(t)
+	source := &staticSnapshotSource{}
+	identity := testStreamIdentity(t, stream)
+
+	checkpointFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
+	if err := checkpointFirst.ConfigureCheckpoint("search"); err != nil {
+		t.Fatalf("ConfigureCheckpoint: %v", err)
+	}
+	if err := checkpointFirst.ConfigureSnapshots("search", source, identity); err == nil {
+		t.Fatal("ConfigureSnapshots succeeded after ConfigureCheckpoint")
+	}
+
+	snapshotFirst := NewProjector(js, stream, newCheckpointTrackingProjection(RoomSubjectFilter()), testLogger())
+	if err := snapshotFirst.ConfigureSnapshots("search", source, identity); err != nil {
+		t.Fatalf("ConfigureSnapshots: %v", err)
+	}
+	if err := snapshotFirst.ConfigureCheckpoint("search"); err == nil {
+		t.Fatal("ConfigureCheckpoint succeeded after ConfigureSnapshots")
 	}
 }
 

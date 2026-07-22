@@ -15,6 +15,7 @@
       "./messages/{locale}/server_settings.json",
       "./messages/{locale}/ui.json",
       "./messages/{locale}/quick_switcher.json",
+      "./messages/{locale}/search.json",
       "./messages/{locale}/preview.json",
       "./messages/{locale}/message_preview.json",
       "./messages/{locale}/welcome.json",

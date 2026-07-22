@@ -479,7 +479,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			return true
 		}
 		assetID := assetIDOfLifecycleEvent(&event)
-		assetRoomID, ok := h.model.core.assetLifecycle().AssetRoomID(assetID)
+		assetRoomID, ok := h.model.core.assetModel.AssetRoomID(assetID)
 		if ok {
 			h.fanoutReadyAssetEvent(assetRoomID, &event, seq, bytes)
 		}

@@ -4,8 +4,7 @@
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { BOT_ACCOUNTS_CAPABILITY } from '$lib/state/server/compatibility';
   import { BotManagement } from '$lib/components/bots';
-  import { AdminPageContent } from '$lib/components/admin';
-  import { AccessDenied, PaneHeader, PageTitle } from '$lib/ui';
+  import { AccessDenied, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
 
   const store = serverRegistry.getStore(getActiveServer());
@@ -30,7 +29,7 @@
     subtitle={m['bots.settings.subtitle']()}
     showMobileNav
   />
-  <AdminPageContent bind:scrollContainer>
+  <PaneContent bind:scrollContainer>
     {#if !accessReady}
       <!-- Keep the settings shell stable while discovery and viewer permissions hydrate. -->
     {:else if supported && canCreate}
@@ -38,5 +37,5 @@
     {:else}
       <AccessDenied message={m['bots.unavailable.owner']()} />
     {/if}
-  </AdminPageContent>
+  </PaneContent>
 </div>

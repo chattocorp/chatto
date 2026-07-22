@@ -57,7 +57,7 @@ depends = ["deps-frontend"]
 
 [tasks.license-check]
 description = "Check SPDX/REUSE license metadata"
-run = "uvx --from 'reuse[charset-normalizer]' reuse lint"
+run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 
 # =============================================================================
 # Code Generation
@@ -201,7 +201,7 @@ run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
@@ -320,7 +320,10 @@ run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionR
 description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
+run = [
+    "../tools/dev-supervisor_test.sh",
+    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
+]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.test-cli-shutdown]

@@ -1,10 +1,12 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
-Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore`
-registers each top-level projector once with a stable machine-readable key, such
-as `content_keys`, and a human display name, such as `Content Keys`.
+Projections are derived read models rebuilt from `EVT`. Most live in memory;
+optional providers may own disposable locally checkpointed indexes.
+`NewChattoCore` registers each top-level core projector once with a stable
+machine-readable key, such as `content_keys`, and a human display name, such as
+`Content Keys`.
 
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
@@ -12,9 +14,22 @@ state, and readiness. Chatto still waits for every registered projection to
 become current before completing boot. Writers wait for the relevant projector
 sequence before returning read-your-writes.
 
+Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
+or event application moves the projector into its failed state before its run
+loop returns. Readiness and provider status therefore cannot remain
+healthy-looking after an incomplete startup.
+
+Projection consumers use a five-minute inactivity cleanup threshold. Because
+event application is synchronous and disk-backed commits can temporarily stop
+the pull loop, a shorter broker threshold could delete a live consumer while
+its projection is still applying a batch. Projector shutdown still stops the
+pull subscription; NATS later removes its ephemeral consumer.
+
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do
-not inspect consumer sequence numbers or raw JetStream metadata.
+not inspect consumer sequence numbers or raw JetStream metadata. An optional
+startup-batch capability groups only the replay through the target captured at
+startup; live events continue through individual `Apply` calls.
 
 Projections that require event-envelope idempotency keep event-ID sets only
 through the captured startup target. Clean histories then release those sets
@@ -24,8 +39,61 @@ its set and first-event-wins compatibility behaviour. Projection diagnostics
 report both retained event-ID memory and whether compatibility mode is active.
 
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
-[ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md), and
-[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md).
+[ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
+[ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
+[ADR-054](../adr/ADR-054-optional-projection-persistence.md), and
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md).
+
+## Local checkpoint support
+
+The projector framework also supports a projection-owned local checkpoint.
+The checkpoint contract binds the derived state and its highest atomically
+applied EVT sequence to a stable projection key, a projection contract ID, and
+the current EVT stream incarnation and retained sequence bounds. A valid
+checkpoint replays only the remaining EVT tail. Its global stream cutoff may
+be newer than the last event matching the projection's current filters; only a
+cutoff beyond the EVT stream tail is a future checkpoint.
+
+A projection uses at most one restore authority: ADR-050 snapshots, a local
+checkpoint, or neither. A projection without either starts empty and cold-replays
+`EVT`. Missing, corrupt, incompatible, future, or retention-gapped checkpoints
+are invalid; the projection may safely reset owned state or fail startup for
+operator recovery. A successful individual `Apply` or startup batch must
+atomically commit its derived changes and supplied final stream sequence.
+
+The bundled search provider owns the first locally checkpointed projection. It
+is registered by its runtime unit rather than by `ChattoCore`. It consumes only
+message body, message posting, message retraction, room deletion, user DEK
+generation, and user key shredding event families, and uses projector key
+`message_search`. During captured startup replay it commits up to 256 ordered
+events and the final checkpoint in one Bleve transaction, including a smaller
+final batch; once current, each relevant live event is committed immediately.
+Its checkpoint contract starts with `bleve-message-index-v8-` and includes a
+stable fingerprint of the configured language analyzer set, so changing that
+set forces a cold EVT replay.
+
+The index stores current decrypted message text plus its body-event revision and
+message/room/author/filter metadata. The state needed to apply a later edit or
+posting event is a stored, non-indexed field in that same Bleve document; it is
+not duplicated as one internal Bolt key per message. Candidate revisions must
+match current core state before hydration, fencing provider catch-up races.
+
+Message bodies use BM25 scoring over a language-neutral field plus the
+operator-selected subset of all 22 complete language analyzers available in
+the bundled Bleve version. Omitting `search_provider.languages` selects all
+analyzers; an explicit empty list selects none of the language-specific fields.
+The index also stores non-plaintext DEK event metadata required to decrypt
+later EVT tail records after restart. Retraction, room deletion, and user key
+shredding remove matching documents in the same committed batch. Bleve's normal
+background merger reclaims obsolete segments; Chatto does not use Scorch's
+manual `ForceMerge` operation as part of projection correctness or startup
+readiness.
+
+The directory is a privileged, disposable local cache excluded from Chatto
+backups. Chatto creates it only when the configured path does not exist and
+never recursively deletes an unreadable or incompatible disk index. Those
+conditions fail provider startup; an operator must move or delete the dedicated
+directory explicitly before restarting it for a cold EVT replay.
 
 ## Snapshot support
 

@@ -1,4 +1,4 @@
-# ADR-053: Owner-Bounded Bot Authorization
+# ADR-056: Owner-Bounded Bot Authorization
 
 **Date:** 2026-07-22
 

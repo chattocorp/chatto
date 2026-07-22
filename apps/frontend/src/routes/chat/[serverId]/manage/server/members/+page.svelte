@@ -9,8 +9,8 @@
     type AdminMember,
     type AdminRoleSummary
   } from '$lib/api-client/adminUsers';
-  import { AdminPageContent, Panel, DataTable } from '$lib/components/admin';
-  import { Hint, Pill } from '$lib/ui';
+  import { Panel, DataTable } from '$lib/components/admin';
+  import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
@@ -148,14 +148,14 @@
 
 <PageTitle title={m['admin.common.page_title']({ title: m['admin.members.title']() })} />
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+<div class="pane-page">
   <PaneHeader
     title={m['admin.members.title']()}
     subtitle={m['admin.members.subtitle']()}
     showMobileNav
   />
 
-  <AdminPageContent bind:scrollContainer>
+  <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       <!-- Search input -->
       <div class="max-w-md">
@@ -233,5 +233,5 @@
         </div>
       {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

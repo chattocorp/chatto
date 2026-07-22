@@ -1,0 +1,336 @@
+---
+title: Enabling Search
+description: Enable Chatto Search with the bundled Bleve provider or a compatible external provider.
+---
+
+import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Search in Chatto is pluggable. Chatto owns the client-facing feature while a
+provider supplies indexing, matching, and ranking through a versioned,
+server-side NATS service. Operators can replace the provider without changing
+the Search page or public API.
+
+Chatto ships with a simple Bleve-based provider out of the box. It keeps a
+disposable full-text index on a local volume and should scale to most Chatto
+installations. You can run it inside `chatto run`, move it into a separate
+process, or replace it with another compatible provider.
+
+## How Search Providers Work
+
+Chatto sends normalized queries and the rooms the requesting member is allowed
+to search. The provider returns ordered message and room identifiers rather
+than client-facing message data. Before returning results, Chatto checks current
+room membership and message state again, then hydrates the identifiers into the
+canonical public message representation. A stale provider index therefore
+cannot grant access to a message.
+
+The provider contract uses messages from the `chatto.search.v1` protobuf
+package. Providers exchange those messages on the `svc.chatto_ext.search.v1`
+NATS subject namespace:
+
+| Subject | Purpose |
+| ------- | ------- |
+| `svc.chatto_ext.search.v1.query` | Accept a normalized query and return ordered, lightweight hits. |
+| `svc.chatto_ext.search.v1.status` | Report ready or degraded state for a provider that can answer queries. |
+| `svc.chatto_ext.search.v1.status.startup` | Report starting or indexing state while no provider replica is queryable. |
+
+Compatible provider replicas share the `svc.chatto_ext.search.v1` queue group,
+allowing NATS to load-balance requests. Do not put implementations with
+different matching behaviour or incompatible index readiness in the same queue
+group: callers could otherwise receive inconsistent results from one request
+to the next. Cursors must be accepted by every compatible replica, but they do
+not pin an index snapshot. Results can move, repeat, or disappear between page
+requests while replicas continue indexing. Chatto's bundled client requests 50
+results at a time, so most searches do not need a continuation request.
+
+<Aside type="caution">
+  A provider is a trusted server component, not a public browser or integration
+  API. It sees search terms and authorized room scopes, and an indexing provider
+  may process decrypted message bodies. Protect its credentials, logs, index,
+  and network access like the Chatto server itself.
+</Aside>
+
+## Enable Search with Bleve
+
+For a typical single-process installation, enable the Search feature and the
+bundled provider together:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = true
+directory = "./data/search"
+```
+
+`search.enabled` exposes the Search API and UI. `search_provider.enabled` starts
+the bundled provider inside `chatto run`. Keeping them as separate settings is
+what allows the provider to run elsewhere or be replaced.
+
+<Steps>
+
+1. Add the configuration above to `chatto.toml`.
+2. Make sure the Chatto process can create and write the configured directory.
+3. Restart Chatto.
+4. Open **Search** in the server sidebar. The page reports that indexing is in
+   progress until the provider has replayed the retained `EVT` history.
+
+</Steps>
+
+You can configure the same settings with environment variables:
+
+```bash
+CHATTO_SEARCH_ENABLED=true
+CHATTO_SEARCH_PROVIDER_ENABLED=true
+CHATTO_SEARCH_PROVIDER_DIRECTORY=./data/search
+```
+
+<Aside type="caution">
+  The index contains searchable information derived from decrypted message
+  bodies. Protect its volume like message data. Never configure the Search
+  directory as the embedded NATS data directory or one of its parents, include
+  it in normal backups, or share it between concurrently running provider
+  processes.
+</Aside>
+
+## Keep the Index in RAM
+
+The bundled provider requires a filesystem directory, but that directory can
+live on a RAM-backed volume. Point `search_provider.directory` at the mounted
+path; no separate Chatto setting is required.
+
+For Docker Compose, mount a size-limited `tmpfs` at the configured directory:
+
+```yaml
+services:
+  chatto:
+    tmpfs:
+      - /var/lib/chatto/search:size=2g,mode=0700
+```
+
+```toml
+[search_provider]
+directory = "/var/lib/chatto/search"
+```
+
+For Kubernetes, use a memory-backed `emptyDir` and mount it at the same path:
+
+```yaml
+volumes:
+  - name: search-index
+    emptyDir:
+      medium: Memory
+      sizeLimit: 2Gi
+containers:
+  - name: chatto
+    volumeMounts:
+      - name: search-index
+        mountPath: /var/lib/chatto/search
+```
+
+RAM-backed indexes trade persistence for predictable disk usage. Every pod or
+host restart discards the index, so Search remains unavailable while the
+provider rebuilds it from `EVT`. Index memory also counts towards the process
+or container memory budget; leave enough headroom for Chatto, embedded NATS,
+and indexing work. Each provider replica still needs its own volume.
+
+## Monitor Indexing
+
+The bundled provider writes structured lifecycle logs when it starts, opens its
+index, registers the NATS service, restores or resets its checkpoint, and
+finishes startup replay. If replay takes longer than ten seconds, it also logs
+periodic progress with the number of indexed events, processing rate, elapsed
+time, and current and target EVT sequence positions.
+
+Search lifecycle logs do not include query text, message bodies, or user, room,
+and message identifiers. Exact replay counts and rates are operator telemetry
+and are not exposed through the member-facing Search API. Use the progress logs
+together with the coarse Search status to distinguish an active rebuild from a
+provider that is unavailable or degraded.
+
+## Choose Language Analyzers
+
+The provider always maintains a language-neutral field for case-insensitive
+literal matching and conservative typo tolerance. Language analyzers add
+stemming, normalization, stop-word handling, or CJK tokenization.
+
+Omitting `languages` enables every bundled analyzer. Each selected analyzer
+adds another indexed representation of every message. To reduce index storage,
+indexing work, and query work, select only the languages your community is
+likely to use:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[search_provider]
+enabled = true
+directory = "./data/search"
+languages = ["en", "de", "fr", "cjk"]
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_SEARCH_PROVIDER_LANGUAGES=en,de,fr,cjk
+```
+
+</TabItem>
+</Tabs>
+
+| Code | Analyzer |
+| ---- | -------- |
+| `ar` | Arabic |
+| `cjk` | Chinese, Japanese, and Korean tokenization |
+| `ckb` | Central Kurdish (Sorani) |
+| `da` | Danish |
+| `de` | German |
+| `en` | English |
+| `es` | Spanish |
+| `fa` | Persian |
+| `fi` | Finnish |
+| `fr` | French |
+| `hi` | Hindi |
+| `hr` | Croatian |
+| `hu` | Hungarian |
+| `it` | Italian |
+| `nl` | Dutch |
+| `no` | Norwegian |
+| `pl` | Polish |
+| `pt` | Portuguese |
+| `ro` | Romanian |
+| `ru` | Russian |
+| `sv` | Swedish |
+| `tr` | Turkish |
+
+Use an explicit empty list when you want only the language-neutral field:
+
+```toml
+[search_provider]
+languages = []
+```
+
+The environment-variable equivalent is:
+
+```bash
+CHATTO_SEARCH_PROVIDER_LANGUAGES=none
+```
+
+Analyzer order does not matter. Changing the selected set changes the index
+schema. Stop the provider, move or delete only its configured Search directory,
+then restart it to rebuild the index safely from `EVT`. Chatto does not modify
+or remove an incompatible index directory automatically.
+
+## Run Bleve Separately
+
+Use a standalone provider when you want indexing CPU, memory, and storage away
+from the server process. The provider must connect to the same NATS account and
+needs its own local index directory.
+
+In the configuration used by `chatto run`, expose Search without embedding the
+provider:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = false
+```
+
+Configure a NATS client URL reachable from the provider host, then start the
+standalone unit:
+
+```bash
+chatto search-provider --config chatto.toml
+```
+
+The standalone command runs the provider regardless of
+`search_provider.enabled`; that switch controls only whether `chatto run`
+starts it. The remaining `[search_provider]` settings still configure its
+directory and language analyzers.
+
+<Aside type="note">
+  Embedded NATS listens locally by default. To place the provider on another
+  host or in another container, expose the NATS client listener only to the
+  trusted network and configure `nats.client.url` and authentication for both
+  processes.
+</Aside>
+
+## Use Another Provider
+
+To replace Bleve, keep the client-facing feature enabled and prevent
+`chatto run` from starting the bundled implementation:
+
+```toml
+[search]
+enabled = true
+
+[search_provider]
+enabled = false
+```
+
+Run a trusted provider that understands the `chatto.search.v1` protobuf messages
+and serves `svc.chatto_ext.search.v1.query` and
+`svc.chatto_ext.search.v1.status` on the same NATS account. While rebuilding,
+it can serve progress on `svc.chatto_ext.search.v1.status.startup` before
+joining the ready status and query queues. The Search page and public API remain
+unchanged. Matching quality, ranking, index storage, and operational
+requirements are the provider's responsibility.
+
+Chatto gives each provider query or status request up to 10 seconds to answer;
+a missing or late response makes Search temporarily unavailable. Chatto checks
+the ready status queue before startup progress, so one ready replica keeps
+Search available while another rebuilds. A rebuilding provider should join the
+ready status and query queues together only after it can answer queries.
+
+The canonical query language is parsed by Chatto before the provider receives a
+request. Alternative providers should implement the normalized request rather
+than inventing client-visible query syntax; exact ranking and recall may still
+vary between implementations.
+
+## Bleve Index Lifecycle
+
+The Bleve directory is derived state, not a source of truth:
+
+- The `chatto backup` command does not include it; restore `EVT` and let the
+  provider rebuild.
+- A missing index is created and rebuilt automatically. A corrupt,
+  incompatible, or differently configured disk index stops the provider
+  without modifying the directory.
+- Message edits replace indexed content. Retractions, room deletion, and user
+  key shredding immediately remove matching documents from search results.
+- Bleve reclaims logically deleted data during normal background segment
+  merging. Protect the index as privileged plaintext-derived data; keep it out
+  of backups and use an encrypted volume when physical media erasure matters.
+- Search candidates are checked against current room membership and message
+  state before Chatto returns hydrated results.
+- Disabling the provider does not remove its directory. Stop the provider and
+  delete the dedicated directory yourself if you want to remove the cache.
+
+To force a clean rebuild, stop every process using the directory, delete only
+the configured Search directory, and restart the provider. Never delete a
+parent directory or the embedded NATS data directory.
+
+## Troubleshooting
+
+| Symptom | Check |
+| ------- | ----- |
+| Search is absent from the sidebar | Set `search.enabled = true`, then restart `chatto run`. |
+| Search reports unavailable | Confirm a bundled or standalone provider is running against the same NATS account. |
+| Search reports indexing | Let the provider finish replaying `EVT`; large histories take longer. |
+| Inflected words do not match | Confirm the relevant code is present in `search_provider.languages`. |
+| A language change prevents startup | Stop the provider, move or delete only its configured Search directory, then restart it for a clean replay. |
+| Startup rejects the index directory | Choose a dedicated child directory that does not contain the embedded NATS data directory. |
+| Two provider processes fail against one index | Give each process its own directory; Bleve directories are not shared volumes. |
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Server Operations" href="/guides/operations/server-operations/" description="Day-to-day server health, metrics, upgrades, and recovery." />
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Back up durable Chatto data without copying disposable indexes." />
+  <LinkCard title="Environment Variables" href="/reference/environment-variables/#message-search" description="Reference for Search and provider environment variables." />
+  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Separate runtime responsibilities across processes." />
+</CardGrid>

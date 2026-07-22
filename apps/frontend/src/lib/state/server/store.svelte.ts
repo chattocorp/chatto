@@ -23,6 +23,7 @@ import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
+import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
@@ -30,7 +31,7 @@ import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore } from '$lib/state/room';
 import type { RoomMember } from '$lib/state/room';
@@ -47,6 +48,7 @@ import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationPage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { MessageSearchStore } from './messageSearch.svelte';
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -83,6 +85,7 @@ export class ServerStateStore {
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
+  readonly messageSearch: MessageSearchStore;
   readonly projection = new ServerProjectionStore();
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
@@ -130,6 +133,7 @@ export class ServerStateStore {
     const roomDirectoryAPI = createRoomDirectoryAPI(connectAPIConfig);
     const adminRoomLayoutAPI = createAdminRoomLayoutAPI(connectAPIConfig);
     const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
+    const messageSearchAPI = createMessageSearchAPI(connectAPIConfig);
     const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
     this.currentUser = new CurrentUserState(
       cookieAuth,
@@ -164,6 +168,7 @@ export class ServerStateStore {
     );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
+    this.messageSearch = new MessageSearchStore(messageSearchAPI);
 
     // Apply the canonical projection delivered by this server's bus. Transient
     // envelopes are consumed only by components that need one-shot signals.
@@ -300,12 +305,26 @@ export class ServerStateStore {
   }
 
   private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
+    const existingTimelineRows = new SvelteSet<string>();
+    for (const operation of event.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (
+        update.event &&
+        this.projection.timelines
+          .get(update.roomId)
+          ?.events.some((candidate) => candidate.id === update.event?.id)
+      ) {
+        existingTimelineRows.add(`${update.roomId}\u0000${update.event.id}`);
+      }
+    }
     this.projection.apply(event);
     let adminRoomLayoutChanged = false;
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
           this.resetProjectionMirrors();
+          this.messageSearch.clearResults();
           adminRoomLayoutChanged = true;
           break;
         case 'serverUpsert':
@@ -313,6 +332,7 @@ export class ServerStateStore {
           break;
         case 'serverStateUpsert':
           this.serverInfo.applyProjectionState(operation.operation.value);
+          this.messageSearch.refreshRetainedResults();
           break;
         case 'viewerUpsert': {
           const viewer = viewerResponseToState(operation.operation.value);
@@ -333,6 +353,7 @@ export class ServerStateStore {
         }
         case 'userRemove': {
           const userId = operation.operation.value.userId;
+          this.messageSearch.invalidateAuthor(userId);
           removeUserSummaryCacheEntry(this.serverId, userId);
           this.notifications.scrubUser(userId);
           this.activeCallRooms.scrubUser(userId);
@@ -356,6 +377,7 @@ export class ServerStateStore {
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
           if (operation.operation.value.room?.viewerState?.isMember === false) {
+            this.messageSearch.revokeRoom(roomId);
             this.clearRoomAccess(roomId);
           } else if (operation.operation.value.room?.viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
@@ -365,6 +387,7 @@ export class ServerStateStore {
         case 'roomRemove': {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
+          this.messageSearch.revokeRoom(roomId);
           this.clearRoomAccess(roomId, true);
           const viewerResponse = this.projection.viewer;
           if (viewerResponse)
@@ -380,6 +403,7 @@ export class ServerStateStore {
         }
         case 'roomTimelineReplace': {
           const replacement = operation.operation.value;
+          this.messageSearch.invalidateRoom(replacement.roomId);
           if (replacement.page) {
             this.#roomMessages[replacement.roomId]?.replaceRoomProjectionPage(
               replacement.roomId,
@@ -390,6 +414,13 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
+          if (update.event && !update.reactionChange) {
+            this.messageSearch.invalidateMessage(
+              update.roomId,
+              update.event.id,
+              existingTimelineRows.has(`${update.roomId}\u0000${update.event.id}`)
+            );
+          }
           if (update.event) {
             const retainedByProjection = Boolean(
               this.projection.timelines
@@ -432,6 +463,7 @@ export class ServerStateStore {
         case 'roomViewerStateReplace': {
           const replacement = operation.operation.value;
           if (replacement.viewerState?.isMember === false) {
+            this.messageSearch.revokeRoom(replacement.roomId);
             this.clearRoomAccess(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.restoreRoomAccess(replacement.roomId);
@@ -479,6 +511,7 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
+          this.messageSearch.invalidateMessage(removal.roomId, removal.eventId, true);
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
             removal.roomId,
             removal.eventId
@@ -756,6 +789,7 @@ export class ServerStateStore {
     this.notificationLevels.clear();
     this.pendingHighlights.clear();
     this.activeCallRooms.clear();
+    this.messageSearch.reset();
   }
 }
 

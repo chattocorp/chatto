@@ -77,6 +77,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/",
 		"/" + grpcreflect.ReflectV1ServiceName + "/",
 		"/" + apiv1connect.MessageServiceName + "/",
+		"/" + apiv1connect.MessageSearchServiceName + "/",
 		"/" + apiv1connect.NotificationServiceName + "/",
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + adminv1connect.AdminPermissionServiceName + "/",
@@ -122,6 +123,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
 		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
 		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MessageSearchServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminPermissionServiceName + "/":       AuthPolicyAuthenticatedUser,
@@ -498,6 +500,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.auth.v1",
 		"chatto.api.v1",
 		"chatto.api.bots.v1",
+		"chatto.api.message-search.v1",
 		"chatto.admin.v1",
 		"chatto.realtime.v1",
 		"chatto.realtime.projection.v1",
@@ -5088,7 +5091,7 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
-	if err := env.core.RecordCallParticipantJoined(env.ctx, core.KindChannel, room.Id, target.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := env.core.RecordCallParticipantJoined(env.ctx, room.Id, target.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined: %v", err)
 	}
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
@@ -7434,7 +7437,7 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
+	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
 		{
 			AttachmentId: variant.Id,
 			Quality:      "720p",

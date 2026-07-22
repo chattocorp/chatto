@@ -52,7 +52,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
-**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-033](fdr/FDR-033-bot-accounts.md) and [ADR-053](adr/ADR-053-owner-bounded-bot-authorization.md).
+**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-034](fdr/FDR-034-bot-accounts.md) and [ADR-056](adr/ADR-056-owner-bounded-bot-authorization.md).
 
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
 
@@ -132,7 +132,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Event** — Durable domain fact stored on `EVT` using the `corev1.Event` wrapper. Contrast with *Live Event*.
 
-**Projection** — In-memory read model rebuilt from `EVT` and owned independently by each Chatto process. Projections serve current-state and timeline reads while `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
+**Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

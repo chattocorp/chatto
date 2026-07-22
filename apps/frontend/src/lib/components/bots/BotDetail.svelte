@@ -11,9 +11,9 @@ the authorization boundary; `scope` controls navigation and credential actions.
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
-  import { AdminPageContent, Panel } from '$lib/components/admin';
+  import { Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
-  import { AccessDenied, EmptyState, Hint, PaneHeader, PageTitle } from '$lib/ui';
+  import { AccessDenied, EmptyState, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
@@ -153,7 +153,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <PaneHeader title={bot.displayName} subtitle={`@${bot.login}`} {backHref} showMobileNav />
 
-    <AdminPageContent>
+    <PaneContent>
       <div class="flex flex-col gap-6">
         <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
           <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
@@ -221,7 +221,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
 
         <BotPermissionsMatrix {botId} />
       </div>
-    </AdminPageContent>
+    </PaneContent>
   </div>
 {/if}
 

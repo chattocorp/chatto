@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Szukaj wiadomości",
+    "open": "Szukaj wiadomości",
+    "in_room": "Szukaj w tym pokoju",
+    "action": "Szukaj",
+    "checking": "Sprawdzanie dostępności wyszukiwania…",
+    "searching": "Wyszukiwanie wiadomości…",
+    "loading_more": "Wczytywanie kolejnych wyników…",
+    "check_again": "Sprawdź ponownie",
+    "degraded": "Wyszukiwanie jest dostępne, ale może brakować niektórych wyników.",
+    "attachments": "Załączniki: {count}",
+    "results": "Wyniki",
+    "query": {
+      "label": "Zapytanie",
+      "placeholder": "Słowa, wyrażenia lub filtry…"
+    },
+    "scope": {
+      "all_rooms": "Wszystkie pokoje",
+      "room": "Pokój",
+      "clear": "Szukaj we wszystkich pokojach"
+    },
+    "order": {
+      "label": "Kolejność wyników",
+      "relevance": "Najtrafniejsze",
+      "newest": "Najnowsze"
+    },
+    "prompt": {
+      "title": "Znajdź wiadomość",
+      "description": "Przeszukuj treść wiadomości we wszystkich pokojach, które możesz czytać."
+    },
+    "no_results": {
+      "title": "Nie znaleziono wiadomości",
+      "description": "Spróbuj innych słów lub filtrów."
+    },
+    "error": {
+      "title": "Wyszukiwanie nie powiodło się",
+      "description": "Sprawdź zapytanie i spróbuj ponownie."
+    },
+    "disabled": {
+      "title": "Wyszukiwanie jest wyłączone",
+      "description": "Operator serwera nie włączył wyszukiwania wiadomości."
+    },
+    "unavailable": {
+      "title": "Wyszukiwanie jest niedostępne",
+      "description": "Dostawca wyszukiwania nie może teraz odpowiedzieć."
+    },
+    "indexing": {
+      "title": "Przygotowywanie wyszukiwania",
+      "description": "Wiadomości są indeksowane. Po zakończeniu wyszukiwanie będzie dostępne."
+    }
+  }
+}

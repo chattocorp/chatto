@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Search messages",
+    "open": "Search messages",
+    "in_room": "Search in this room",
+    "action": "Search",
+    "checking": "Checking search availability...",
+    "searching": "Searching messages...",
+    "loading_more": "Loading more results...",
+    "check_again": "Check again",
+    "degraded": "Search is available, but some results may be missing.",
+    "attachments": "{count} attached",
+    "results": "Results",
+    "query": {
+      "label": "Search query",
+      "placeholder": "Words, phrases, or filters..."
+    },
+    "scope": {
+      "all_rooms": "All rooms",
+      "room": "Room",
+      "clear": "Search all rooms"
+    },
+    "order": {
+      "label": "Result order",
+      "relevance": "Most relevant",
+      "newest": "Newest"
+    },
+    "prompt": {
+      "title": "Find a message",
+      "description": "Search message text across the rooms you can read."
+    },
+    "no_results": {
+      "title": "No messages found",
+      "description": "Try different words or filters."
+    },
+    "error": {
+      "title": "Search failed",
+      "description": "Check your query and try again."
+    },
+    "disabled": {
+      "title": "Search is disabled",
+      "description": "The server operator has not enabled message search."
+    },
+    "unavailable": {
+      "title": "Search is unavailable",
+      "description": "The search provider cannot answer right now."
+    },
+    "indexing": {
+      "title": "Search is getting ready",
+      "description": "Messages are being indexed. Search will become available automatically."
+    }
+  }
+}

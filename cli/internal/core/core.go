@@ -50,6 +50,7 @@ type ChattoCore struct {
 	roomCommands             *RoomCommandModel
 	roomDirectoryReads       *RoomDirectoryReadModel
 	messageModel             *MessageModel
+	messageSearchReads       *MessageSearchReadModel
 	notificationPrefs        *NotificationPreferencesModel
 	roomTimelineReads        *RoomTimelineReadModel
 	readStateModel           *ReadStateModel
@@ -63,7 +64,7 @@ type ChattoCore struct {
 	mediaModel               *MediaModel
 	callModel                *CallModel
 	assetModel               *AssetModel
-	models                   []modelRegistration
+	assetUploadModel         *AssetUploadModel
 	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
@@ -301,7 +302,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
-	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })
+	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)
@@ -1096,7 +1097,7 @@ func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, asse
 	deletedCount := 0
 	var cacheErr error
 	for _, assetKey := range assetKeys {
-		count, err := c.DeleteCachedResizesForServerAsset(ctx, assetKey)
+		count, err := c.mediaModel.DeleteCachedResizesForServerAsset(ctx, assetKey)
 		deletedCount += count
 		cacheErr = errors.Join(cacheErr, err)
 	}
@@ -1460,9 +1461,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
 	core.assetModel = NewAssetModel(core)
 	core.assetModel.cleanupLease = assetCleanupLease
+	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
+	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
 	core.readStateModel = &ReadStateModel{core: core}
@@ -1492,27 +1495,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.presenceModel = NewPresenceModel(js, storage.memoryCacheKV, logger)
 	core.PresenceHub = core.presenceModel.hub
 	core.myEventsModel = NewMyEventsModel(core)
-	core.models = []modelRegistration{
-		{key: "chatto_core", name: "Chatto Core"},
-		{key: "event_publisher", name: "Event Publisher"},
-		{key: "config_model", name: "Config Model", legacyServiceKey: "config_service"},
-		{key: "notification_preferences_model", name: "Notification Preferences Model", legacyServiceKey: "notification_preferences_service"},
-		{key: "message_model", name: "Message Model", legacyServiceKey: "message_service"},
-		{key: "reaction_model", name: "Reaction Model", legacyServiceKey: "reaction_service"},
-		{key: "room_timeline_read_model", name: "Room Timeline Read Model", legacyServiceKey: "room_timeline_read_service"},
-		{key: "read_state_model", name: "Read State Model", legacyServiceKey: "read_state_service"},
-		{key: "thread_follow_model", name: "Thread Follow Model", legacyServiceKey: "thread_follow_service"},
-		{key: "room_model", name: "Room Model", legacyServiceKey: "room_service"},
-		{key: "user_model", name: "User Model", legacyServiceKey: "user_service"},
-		{key: "rbac_model", name: "RBAC Model", legacyServiceKey: "rbac_service"},
-		{key: "mentionables_model", name: "Mentionables Model", legacyServiceKey: "mentionables_service"},
-		{key: "presence_model", name: "Presence Model", legacyServiceKey: "presence_service"},
-		{key: "my_events_model", name: "My Events Model", legacyServiceKey: "my_events_service"},
-		{key: "call_model", name: "Call Model", legacyServiceKey: "call_service"},
-		{key: "media_model", name: "Media Model", legacyServiceKey: "media_service"},
-		{key: "asset_model", name: "Asset Model", legacyServiceKey: "asset_service"},
-	}
-
 	return core, nil
 }
 
@@ -1895,17 +1877,6 @@ func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
 		event.CreatedAt = timestamppb.New(time.Now())
 	}
 	return event
-}
-
-// ============================================================================
-// Stream Management
-// ============================================================================
-
-// createSpaceResources is now a no-op: room/user domain state lives in EVT and
-// deployment-wide projections. Kept as a stub so callers don't have to be
-// edited until the broader Space-retirement pass.
-func (c *ChattoCore) createSpaceResources(_ context.Context, _ string) error {
-	return nil
 }
 
 // ============================================================================

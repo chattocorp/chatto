@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package chatto.search.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/search/v1;searchv1";
+
+// SearchOrder selects the provider-neutral ordering of message hits.
+enum SearchOrder {
+  // The caller must choose an ordering explicitly.
+  SEARCH_ORDER_UNSPECIFIED = 0;
+  // Most relevant hits are returned first.
+  SEARCH_ORDER_RELEVANCE = 1;
+  // Most recently created messages are returned first.
+  SEARCH_ORDER_NEWEST = 2;
+}
+
+// ProviderState describes whether a search provider can answer queries.
+enum ProviderState {
+  // The provider did not report a meaningful state.
+  PROVIDER_STATE_UNSPECIFIED = 0;
+  // The provider is starting and has not established its index state.
+  PROVIDER_STATE_STARTING = 1;
+  // The provider is rebuilding or catching up and cannot yet answer queries.
+  PROVIDER_STATE_INDEXING = 2;
+  // The provider is current enough to answer queries.
+  PROVIDER_STATE_READY = 3;
+  // The provider can answer queries but has a known non-fatal limitation.
+  PROVIDER_STATE_DEGRADED = 4;
+  // The provider cannot answer queries because startup or indexing failed.
+  PROVIDER_STATE_UNAVAILABLE = 5;
+}
+
+// QueryRequest is a parsed, provider-neutral message search. Every term and
+// phrase is required; providers must not reinterpret these fields as an OR.
+message QueryRequest {
+  // Normalized individual terms that every result must contain.
+  repeated string required_terms = 1;
+  // Normalized exact phrases that every result must contain.
+  repeated string required_phrases = 2;
+  // Complete authorized room scope for this query. Chatto resolves public
+  // filters against the caller's current room membership before invoking a
+  // provider, and re-authorizes returned hits. A hit must belong to one;
+  // empty means all rooms only for trusted callers that intentionally request it.
+  repeated string room_ids = 3;
+  // Candidate author IDs. A hit must have one; empty means all authors.
+  repeated string author_ids = 4;
+  // Exclusive lower bound on message creation time.
+  google.protobuf.Timestamp created_after = 5;
+  // Exclusive upper bound on message creation time.
+  google.protobuf.Timestamp created_before = 6;
+  // When true, return only messages that currently have attachments.
+  bool has_attachments = 7;
+  // Required result ordering.
+  SearchOrder order = 8;
+  // Maximum hits to return. Must be between 1 and 100.
+  uint32 page_size = 9;
+  // Provider-issued cursor from the preceding response. Empty starts a query.
+  bytes cursor = 10;
+}
+
+// QueryHit identifies one ordered provider match. Chatto rehydrates and
+// authorizes the current message before exposing it through a public API.
+message QueryHit {
+  // Matching message ID.
+  string message_id = 1;
+  // Room containing the matching message.
+  string room_id = 2;
+  // MessageBodyEvent ID whose plaintext matched this candidate. Chatto drops
+  // the hit when it no longer matches the current projected body revision.
+  string body_event_id = 3;
+}
+
+// QueryResponse contains one provider page. Providers use deterministic tie
+// breaking within the selected order. The cursor is opaque to Chatto's
+// provider client, must only be reused with the same normalized query, and
+// must be accepted by every compatible provider replica in the NATS queue
+// group. Cursors do not pin an index snapshot; hits may move, repeat, or
+// disappear between page requests as compatible replicas advance.
+message QueryResponse {
+  // Ordered provider matches.
+  repeated QueryHit hits = 1;
+  // Cursor for the next provider page. Empty means there are no more hits.
+  bytes next_cursor = 2;
+}
+
+// GetStatusRequest asks for provider readiness.
+message GetStatusRequest {}
+
+// GetStatusResponse reports readiness independently from NATS service
+// availability. Event counts are optional because some providers cannot
+// calculate progress cheaply.
+message GetStatusResponse {
+  // Current provider state.
+  ProviderState state = 1;
+  // Number of EVT records processed during the current build, when known.
+  optional uint64 indexed_event_count = 2;
+  // EVT records targeted by the current build, when known.
+  optional uint64 target_event_count = 3;
+  // Suggested delay before polling again while the provider is not ready.
+  google.protobuf.Duration retry_after = 4;
+}

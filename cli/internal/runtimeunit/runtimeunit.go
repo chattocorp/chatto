@@ -27,6 +27,41 @@ type Unit interface {
 	Run(ctx context.Context, env Env) error
 }
 
+// Registration describes one optional unit that chatto run may compose into
+// the main process. Standalone commands run the same Unit directly and ignore
+// StartWithRun.
+type Registration struct {
+	Unit         Unit
+	StartWithRun func(config.ChattoConfig) bool
+}
+
+// Enabled reports whether this registration should start under chatto run.
+func (r Registration) Enabled(cfg config.ChattoConfig) bool {
+	return r.Unit != nil && r.StartWithRun != nil && r.StartWithRun(cfg)
+}
+
+// ValidateRegistrations rejects incomplete or duplicate runtime-unit entries.
+func ValidateRegistrations(registrations []Registration) error {
+	seen := make(map[string]struct{}, len(registrations))
+	for i, registration := range registrations {
+		if registration.Unit == nil {
+			return fmt.Errorf("runtime unit registration %d has no unit", i)
+		}
+		name := registration.Unit.Name()
+		if name == "" {
+			return fmt.Errorf("runtime unit registration %d has an empty name", i)
+		}
+		if registration.StartWithRun == nil {
+			return fmt.Errorf("runtime unit %q has no chatto run predicate", name)
+		}
+		if _, exists := seen[name]; exists {
+			return fmt.Errorf("runtime unit %q is registered more than once", name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
 // Env is the shared runtime environment given to a unit.
 type Env struct {
 	Config  config.ChattoConfig

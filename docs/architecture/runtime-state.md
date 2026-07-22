@@ -40,8 +40,7 @@ owner-only archives through a same-directory temporary file and atomic rename.
 
 Backup, restore, and key export/import accept passphrases through hidden
 terminal prompts or explicit `--passphrase-file` and `--passphrase-stdin`
-automation sources. The process-argument `--passphrase` compatibility path is
-deprecated for removal in 0.5.
+automation sources. They do not accept passphrases in process arguments.
 
 Restore extracts into an owner-only temporary directory. Before connecting
 restored paths to JetStream, it rejects non-local manifest stream names and

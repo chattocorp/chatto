@@ -335,8 +335,7 @@
         href={resolve('/chat/[serverId]/settings/account', {
           serverId: serverIdToSegment(modalServerId)
         })}
-        class="link"
-        >{m['room.server.remove_account_link']()}</a
+        class="link">{m['room.server.remove_account_link']()}</a
       >{m['room.server.remove_account_suffix']()}
     </p>
   </ConfirmDialog>

@@ -29,8 +29,9 @@ Introduce **runtime units** as the convention for optional Chatto processes.
 A runtime unit:
 
 - can run standalone as `chatto <unit>`
-- can run embedded in `chatto run` when its config section has
-  `enabled = true`
+- can run embedded in `chatto run` when its provider or unit config section has
+  `enabled = true`; this selects process composition rather than whether a
+  separate consumer-facing feature is exposed
 - receives shared config, NATS, JetStream, logger, and version through a small
   runtime environment
 - decides explicitly which existing resources or domain services it opens
@@ -40,6 +41,15 @@ Standalone units connect to an existing NATS server as clients. For default
 single-process embedded-NATS installs, operators either enable the embedded TCP
 listener or set the unit's `enabled = true` flag so `chatto run` starts it in
 process using the already-established NATS connection.
+
+Runtime units use a shared explicit registration catalogue for composition and
+diagnostics. `chatto run` starts enabled registrations under one coordinated
+lifecycle, while a standalone unit command starts the same implementation
+regardless of its embedded `enabled` setting. Feature-consumer configuration
+stays separate when a replaceable provider is involved. For example,
+`search.enabled` exposes message search through the main app, while
+`search_provider.enabled` decides whether `chatto run` embeds Chatto's bundled
+provider.
 
 Runtime units are classified by behavior:
 
@@ -72,3 +82,6 @@ setup, signal handling, NATS connection logic, or ad hoc embedded-mode flags.
 Workers that need singleton behavior must still coordinate through NATS
 primitives such as `MEMORY_CACHE` leases; embedding a unit in `chatto run` is an
 operator convenience, not a correctness boundary.
+
+Replaceable provider units communicate with the main app through the same
+versioned NATS contract in embedded and standalone topologies. See ADR-053.
