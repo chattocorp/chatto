@@ -17,7 +17,7 @@ setup = "mise trust && mise setup"
 run_mode = "concurrent"
 
 [scripts.run.chatto]
-command = "mise dev"
+command = "exec mise dev"
 default = true
 icon = "message-square"
 

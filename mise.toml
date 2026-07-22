@@ -244,7 +244,7 @@ env = {
   CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
   CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
 }
-run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
+run = "exec tools/dev-supervisor.sh"
 
 [tasks.dev-docs-website]
 description = "Run the docs website development server with workspace-safe ports"
@@ -316,7 +316,10 @@ run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionR
 description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
+run = [
+    "../tools/dev-supervisor_test.sh",
+    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
+]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.test-cli-shutdown]
