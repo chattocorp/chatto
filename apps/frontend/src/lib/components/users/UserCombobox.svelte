@@ -109,7 +109,7 @@
       </div>
     {/if}
     <span class="min-w-0 truncate text-sm text-text">{user.displayName}</span>
-    {#if user.isBot || user.login.toLowerCase().endsWith('_bot')}<BotBadge />{/if}
+    {#if user.isBot}<BotBadge />{/if}
     <span class="min-w-0 truncate text-sm text-muted">@{user.login}</span>
   {/snippet}
 </Combobox>

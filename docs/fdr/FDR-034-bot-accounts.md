@@ -176,7 +176,9 @@ facts.
 
 **Decision:** Give each bot one API key with no automatic expiry. Bot creation
 issues the first show-once secret. Replacing it issues a new show-once secret
-and immediately invalidates the old one.
+and immediately invalidates the old one. Creation is exposed as one workflow:
+if initial key issuance fails, the newly created bot is deleted so the client
+does not receive an error for a committed, inaccessible account.
 **Why:** Long-running integrations generally need a durable credential. A
 single replacement action covers the first-version leak and rotation workflow
 without expiry policy, multiple-key administration, or overlapping credential

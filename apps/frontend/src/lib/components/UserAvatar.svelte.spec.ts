@@ -91,4 +91,14 @@ describe('UserAvatar', () => {
     expect(q(container, '[data-testid="bot-account-marker"]')).toBeTruthy();
     expect(q(container, '[aria-label="Bot: helper_bot"]')).toBeTruthy();
   });
+
+  it('does not infer bot identity from a legacy human username suffix', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'md',
+      login: 'legacy_bot',
+      isBot: false
+    });
+
+    expect(q(container, '[data-testid="bot-account-marker"]')).toBeFalsy();
+  });
 });

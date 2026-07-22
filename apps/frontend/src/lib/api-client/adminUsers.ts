@@ -16,6 +16,7 @@ export type AdminManagedUser = {
   login: string;
   displayName: string;
   avatarUrl?: string | null;
+  isBot: boolean;
 };
 
 export type AdminMember = AdminManagedUser & {
@@ -223,6 +224,7 @@ function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
     login: user.login,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
+    isBot: user.accountProfile?.case === "bot",
   };
 }
 
@@ -236,6 +238,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     login: summary.login,
     displayName: summary.displayName,
     avatarUrl: summary.avatarUrl ?? null,
+    isBot: summary.accountProfile?.case === "bot",
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,
     deleted: summary.deleted,

@@ -160,11 +160,7 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.CreateBotAs(ctx, caller.UserID, req.Msg.GetLogin(), req.Msg.GetDisplayName(), req.Msg.GetDescription())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	apiKey, _, err := s.api.core.RotateBotAPIKey(ctx, caller.UserID, bot.GetId())
+	bot, apiKey, err := s.api.core.CreateBotWithAPIKeyAs(ctx, caller.UserID, req.Msg.GetLogin(), req.Msg.GetDisplayName(), req.Msg.GetDescription())
 	if err != nil {
 		return nil, connectError(err)
 	}

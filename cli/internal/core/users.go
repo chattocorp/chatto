@@ -79,6 +79,22 @@ func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayNam
 	})
 }
 
+// CreateBotWithAPIKeyAs creates the account and its required first credential
+// as one recoverable operation. If credential issuance fails after account
+// creation commits, the account is durably deleted so the login can be reused.
+func (c *ChattoCore) CreateBotWithAPIKeyAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, string, error) {
+	bot, err := c.CreateBotAs(ctx, actorID, login, displayName, description)
+	if err != nil {
+		return nil, "", err
+	}
+	apiKey, _, err := c.RotateBotAPIKey(ctx, actorID, bot.GetId())
+	if err != nil {
+		c.rollbackUserCreation(ctx, bot)
+		return nil, "", err
+	}
+	return bot, apiKey, nil
+}
+
 func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, bot *corev1.BotAccountProfile, authorizationCheck func() error) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
@@ -373,7 +389,11 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 // failures are logged but not returned, since the caller is already in an error path.
 func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id)
-	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if err := c.DeleteUser(rollbackCtx, "system:rollback", user.Id); err != nil {
+		c.logger.Error("failed to roll back user creation", "user_id", user.Id, "error", err)
+	}
 }
 
 // GetUser retrieves a user from the user projection.

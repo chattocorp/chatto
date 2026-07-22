@@ -256,7 +256,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), events.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 8)
+	require.Len(t, p.Subjects(), 10)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {

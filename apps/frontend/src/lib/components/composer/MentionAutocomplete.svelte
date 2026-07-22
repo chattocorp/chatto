@@ -112,7 +112,7 @@ Shows matching room members when typing @username in chat input.
         </div>
       {/if}
       <span class="min-w-0 truncate text-sm text-text">{result.member.displayName}</span>
-      {#if result.member.isBot || result.member.login.toLowerCase().endsWith('_bot')}
+      {#if result.member.isBot}
         <BotBadge />
       {/if}
       <span class="min-w-0 truncate text-sm text-muted">@{result.member.login}</span>

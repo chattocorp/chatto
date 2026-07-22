@@ -100,4 +100,27 @@ describe('BotPermissionsMatrix', () => {
     expect(tableViewport?.className).toContain('overflow-x-auto');
     expect(tableViewport?.className).not.toContain('overflow-y-auto');
   });
+
+  it('clears an in-flight cell state when navigating to another bot', async () => {
+    let resolveMutation: (() => void) | undefined;
+    mocks.setPermission.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveMutation = resolve;
+      })
+    );
+    const { container, rerender } = render(BotPermissionsMatrix, {
+      props: { botId: 'bot-1' }
+    });
+    await settle();
+
+    permissionButton(container).click();
+    await settle();
+    expect(permissionButton(container).getAttribute('aria-busy')).toBe('true');
+
+    await rerender({ botId: 'bot-2' });
+    await settle();
+    expect(permissionButton(container).getAttribute('aria-busy')).toBeNull();
+
+    resolveMutation?.();
+  });
 });

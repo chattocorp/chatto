@@ -51,8 +51,10 @@ state, refreshes, and the shared matrix presentation.
   let loadedKey = $state<string | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let updatingKey = $state<string | null>(null);
+  let updating = $state<{ resourceKey: string; cellKey: string } | null>(null);
   let generation = 0;
+
+  const updatingKey = $derived(updating?.resourceKey === resourceKey ? updating.cellKey : null);
 
   function grantAllowed(cell: MatrixCellData): boolean {
     return cell.canAllow !== false && (canGrant?.(cell) ?? true);
@@ -99,7 +101,8 @@ state, refreshes, and the shared matrix presentation.
     );
     if (next === 'allow' && cell && !grantAllowed(cell)) return;
 
-    updatingKey = `${scope.id}::${permission}`;
+    const pending = { resourceKey: key, cellKey: `${scope.id}::${permission}` };
+    updating = pending;
     error = null;
     try {
       await mutate(key, scope, permission, next);
@@ -109,13 +112,15 @@ state, refreshes, and the shared matrix presentation.
       error = errorMessage(cause);
       if (toastErrors) toast.error(error);
     } finally {
-      if (key === resourceKey) updatingKey = null;
+      if (updating === pending) updating = null;
     }
   }
 
   $effect(() => {
     const key = resourceKey;
-    untrack(() => void refresh(key, true));
+    untrack(() => {
+      void refresh(key, true);
+    });
   });
 </script>
 

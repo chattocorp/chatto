@@ -83,7 +83,7 @@ ContextMenu, which handles both modes automatically.
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 font-semibold"><span class="min-w-0 truncate"
             >{displayName}</span
-          >{#if user.isBot || user.login.toLowerCase().endsWith('_bot')}<BotBadge />{/if}</div
+          >{#if user.isBot}<BotBadge />{/if}</div
         >
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />

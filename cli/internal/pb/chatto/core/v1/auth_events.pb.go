@@ -943,8 +943,10 @@ type BotAPIKeyRotatedEvent struct {
 	UserId           string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	ReplacedExisting bool                   `protobuf:"varint,2,opt,name=replaced_existing,json=replacedExisting,proto3" json:"replaced_existing,omitempty"`
 	Request          *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Domain-separated HMAC verifier for the intended active key. Never the raw key.
+	TokenHash     string `protobuf:"bytes,4,opt,name=token_hash,json=tokenHash,proto3" json:"token_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BotAPIKeyRotatedEvent) Reset() {
@@ -996,6 +998,13 @@ func (x *BotAPIKeyRotatedEvent) GetRequest() *AuditRequestMetadata {
 		return x.Request
 	}
 	return nil
+}
+
+func (x *BotAPIKeyRotatedEvent) GetTokenHash() string {
+	if x != nil {
+		return x.TokenHash
+	}
+	return ""
 }
 
 type BotAPIKeyRevokedEvent struct {
@@ -1125,11 +1134,13 @@ const file_chatto_core_v1_auth_events_proto_rawDesc = "" +
 	"\x17OAuthConsentDeniedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12>\n" +
-	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\x9d\x01\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\xbc\x01\n" +
 	"\x15BotAPIKeyRotatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12+\n" +
 	"\x11replaced_existing\x18\x02 \x01(\bR\x10replacedExisting\x12>\n" +
-	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"p\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\x12\x1d\n" +
+	"\n" +
+	"token_hash\x18\x04 \x01(\tR\ttokenHash\"p\n" +
 	"\x15BotAPIKeyRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12>\n" +
 	"\arequest\x18\x02 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequestB\xb2\x01\n" +

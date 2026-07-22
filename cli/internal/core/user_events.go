@@ -174,6 +174,8 @@ func isUserAuthEvent(event *corev1.Event) bool {
 		*corev1.Event_UserExternalIdentityLinked,
 		*corev1.Event_UserExternalIdentityUnlinked,
 		*corev1.Event_OauthConsentGranted,
+		*corev1.Event_BotApiKeyRotated,
+		*corev1.Event_BotApiKeyRevoked,
 		*corev1.Event_UserAccountDeleted,
 		*corev1.Event_UserKeyShredded:
 		return true

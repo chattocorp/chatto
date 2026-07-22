@@ -34,8 +34,11 @@ ordinary browser navigation.
 ## Decision
 
 Chatto will converge on one persisted runtime credential model with explicit
-credential types. The stored runtime credential is the source of truth; bearer
-headers and browser cookies are presentation mechanisms for that credential.
+credential types. The stored runtime credential is the verifier presented at
+authentication time; bearer headers and browser cookies are presentation
+mechanisms for that credential. Where a credential mutation depends on durable
+authorization, an EVT intent may additionally fence which runtime record is
+eligible for authentication.
 
 The credential types are:
 
@@ -68,11 +71,17 @@ linking/disconnecting sign-in methods.
 
 Bot API keys use a dedicated `bot_api_key.{botId}` record instead of the
 expiring `session.{hmac}` keyspace. The record contains a domain-separated HMAC
-verifier rather than the raw key and is replaced with KV optimistic concurrency,
-enforcing one active key per bot across replicas. This storage distinction does
-not create a separate authentication path: bearer extraction still normalizes
-the key through the shared runtime-credential validator before ConnectRPC or
-realtime authorization.
+verifier rather than the raw key. Rotation and revocation first append an
+authorization-fenced EVT intent; the runtime record carries that intent's EVT
+sequence, and validation accepts it only when its sequence and verifier match
+the latest projected intent. KV optimistic concurrency prevents blind record
+replacement, while the durable intent prevents a lagging replica from making a
+credential usable after the owner's relevant permission was removed. A failed
+runtime write leaves the bot without an accepted key until the owner retries;
+a failed physical delete is already made ineffective by the revocation intent.
+This storage distinction does not create a separate authentication path: bearer
+extraction still normalizes the key through the shared runtime-credential
+validator before ConnectRPC or realtime authorization.
 
 The multi-server frontend keeps its per-server bearer-token registry. Each
 registered server still has its own opaque bearer credential, scoped by the

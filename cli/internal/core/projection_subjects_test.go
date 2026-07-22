@@ -100,6 +100,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				events.UserEventTypeFilter(events.EventUserExternalIdentityLinked),
 				events.UserEventTypeFilter(events.EventUserExternalIdentityUnlinked),
 				events.UserEventTypeFilter(events.EventOAuthConsentGranted),
+				events.UserEventTypeFilter(events.EventBotAPIKeyRotated),
+				events.UserEventTypeFilter(events.EventBotAPIKeyRevoked),
 				events.UserEventTypeFilter(events.EventUserAccountDeleted),
 				events.UserEventTypeFilter(events.EventUserKeyShredded),
 			},

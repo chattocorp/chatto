@@ -103,6 +103,8 @@ message BotAPIKeyRotatedEvent {
   string user_id = 1;
   bool replaced_existing = 2;
   AuditRequestMetadata request = 3;
+  // Domain-separated HMAC verifier for the intended active key. Never the raw key.
+  string token_hash = 4;
 }
 
 message BotAPIKeyRevokedEvent {

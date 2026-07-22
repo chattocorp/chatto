@@ -106,11 +106,7 @@
     user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
-  // The API profile is authoritative. The suffix fallback keeps bot identity
-  // visible through compatibility DTOs that have not yet carried the marker.
-  const isBot = $derived(
-    !!user && (user.isBot === true || user.login.toLowerCase().endsWith('_bot'))
-  );
+  const isBot = $derived(user?.isBot === true);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || isBot);
   const wrapperClass = $derived(

@@ -50,6 +50,7 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 	if err := json.Unmarshal(entry.Value(), &record); err != nil || record.TokenHash == "" {
 		t.Fatalf("stored record = %+v, err = %v", record, err)
 	}
+	firstRecord := append([]byte(nil), entry.Value()...)
 	stream, err := c.js.Stream(ctx, "KV_RUNTIME_STATE")
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +76,26 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 	if _, err := c.ValidateBotAPIKey(ctx, second); err != nil {
 		t.Fatalf("new key validation: %v", err)
 	}
+	currentEntry, err := c.storage.runtimeStateKV.Get(ctx, botAPIKeyRecordKey(bot.GetId()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.storage.runtimeStateKV.Update(ctx, botAPIKeyRecordKey(bot.GetId()), firstRecord, currentEntry.Revision()); err != nil {
+		t.Fatalf("restore stale runtime key record: %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, first); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("stale runtime key validation = %v, want not found", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, second); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("key with mismatched runtime intent = %v, want not found", err)
+	}
+	if status, err := c.GetBotAPIKeyStatus(ctx, bot.GetId()); err != nil || status != nil {
+		t.Fatalf("status with mismatched runtime intent = %+v, %v; want no active key", status, err)
+	}
+	second, _, err = c.RotateBotAPIKey(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("recover rotation after stale runtime record: %v", err)
+	}
 	if _, _, err := c.RotateBotAPIKey(ctx, bot.GetId(), bot.GetId()); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("bot self-rotation = %v, want permission denied", err)
 	}
@@ -93,7 +114,7 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rotations) != 2 || rotations[0].GetBotApiKeyRotated().GetReplacedExisting() || !rotations[1].GetBotApiKeyRotated().GetReplacedExisting() {
+	if len(rotations) != 3 || rotations[0].GetBotApiKeyRotated().GetReplacedExisting() || !rotations[1].GetBotApiKeyRotated().GetReplacedExisting() || !rotations[2].GetBotApiKeyRotated().GetReplacedExisting() {
 		t.Fatalf("rotation audit events = %+v", rotations)
 	}
 	if rotations[0].GetActorId() != owner.GetId() || strings.Contains(rotations[0].String(), first) {
