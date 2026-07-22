@@ -1060,7 +1060,7 @@
         {@const submissionStatus = attachmentSubmissionStatus(file)}
         {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
         <div
-          class="relative flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
+          class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
           data-testid="composer-attachment-preview"
         >
           <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
@@ -1113,28 +1113,28 @@
             >
               {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
             </div>
+            {#if submissionStatus}
+              <div
+                class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong"
+                role="progressbar"
+                aria-label={file.name}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={percentage ?? undefined}
+                aria-valuetext={uploadStatusLabel(submissionStatus)}
+              >
+                {#if percentage !== null}
+                  <div
+                    class={[
+                      'h-full rounded-full',
+                      submissionStatus.phase === 'failed' ? 'bg-danger' : 'bg-action'
+                    ]}
+                    style:width={`${percentage}%`}
+                  ></div>
+                {/if}
+              </div>
+            {/if}
           </div>
-          {#if submissionStatus}
-            <div
-              class="absolute inset-x-2 bottom-1 h-1 overflow-hidden rounded-full bg-surface-strong"
-              role="progressbar"
-              aria-label={file.name}
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-valuenow={percentage ?? undefined}
-              aria-valuetext={uploadStatusLabel(submissionStatus)}
-            >
-              {#if percentage !== null}
-                <div
-                  class={[
-                    'h-full rounded-full',
-                    submissionStatus.phase === 'failed' ? 'bg-danger' : 'bg-action'
-                  ]}
-                  style:width={`${percentage}%`}
-                ></div>
-              {/if}
-            </div>
-          {/if}
         </div>
       {/each}
     </div>
