@@ -443,7 +443,7 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 		if user == nil {
 			user = core.DeletedUserReference(id)
 		}
-		summary, err := (&userService{api: h.api}).userSummaryWithPresence(h.ctx, user, &apiv1.ImageTransformOptions{
+		summary, err := userSummaryWithPresence(h.ctx, h.api, user, &apiv1.ImageTransformOptions{
 			Width:  int32(avatarWidth),
 			Height: int32(avatarHeight),
 			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,

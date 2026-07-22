@@ -314,7 +314,7 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, nil)
+	apiUser, err := userSummary(ctx, s.api, user, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context,
 	for _, email := range user.VerifiedEmails {
 		verifiedEmails = append(verifiedEmails, email.Email)
 	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user.User, nil)
+	apiUser, err := userSummary(ctx, s.api, user.User, nil)
 	if err != nil {
 		return nil, err
 	}

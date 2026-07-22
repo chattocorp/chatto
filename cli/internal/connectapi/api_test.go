@@ -206,7 +206,7 @@ func TestRequireCaller(t *testing.T) {
 func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	user, err := (&userService{api: env.api}).userSummary(env.ctx, core.DeletedUserReference("bad>"), nil)
+	user, err := userSummary(env.ctx, env.api, core.DeletedUserReference("bad>"), nil)
 	if err != nil {
 		t.Fatalf("userSummary: %v", err)
 	}
@@ -7998,7 +7998,7 @@ func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
 		TotalCount: 1,
 	}
 
-	resp, err := newThreadAssembler(env.api).followedThreadsResponse(env.ctx, env.viewer.Id, page)
+	resp, err := followedThreadsResponse(env.ctx, env.api, env.viewer.Id, page)
 	if err != nil {
 		t.Fatalf("followedThreadsResponse: %v", err)
 	}

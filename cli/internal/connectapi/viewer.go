@@ -86,7 +86,7 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, nil)
+	apiUser, err := userSummary(ctx, s.api, user, nil)
 	if err != nil {
 		return nil, connectError(err)
 	}
