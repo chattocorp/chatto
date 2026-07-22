@@ -287,6 +287,10 @@ env = {
 }
 run = "exec bin/chatto"
 
+[tasks.dev-compiled]
+description = "Build and run the bundled Chatto stack with LiveKit and Mailpit"
+run = { tasks = ["chatto", "dev-livekit", "dev-mailpit"] }
+
 # =============================================================================
 # Benchmarking
 # =============================================================================

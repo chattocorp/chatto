@@ -21,6 +21,10 @@ command = "mise dev"
 default = true
 icon = "message-square"
 
+[scripts.run.dev-compiled]
+command = "mise dev-compiled"
+icon = "package"
+
 [scripts.run.docs-website]
 command = "mise dev-docs-website"
 icon = "book-open"
