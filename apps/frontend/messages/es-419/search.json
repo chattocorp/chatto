@@ -11,6 +11,7 @@
     "check_again": "Comprobar de nuevo",
     "degraded": "La búsqueda está disponible, pero podrían faltar algunos resultados.",
     "attachments": "{count} adjunto(s)",
+    "results": "Resultados",
     "query": {
       "label": "Consulta de búsqueda",
       "placeholder": "Palabras, frases o filtros…"

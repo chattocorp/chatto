@@ -31,17 +31,17 @@ export class RoomPage {
 
   /** Attachment preview (shown when file is selected before sending) */
   get attachmentPreview(): Locator {
-    return this.page.locator('img.h-16.w-16');
+    return this.page.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the main room composer. */
   get roomAttachmentPreview(): Locator {
-    return this.roomDropZone.locator('img.h-16.w-16');
+    return this.roomDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the thread composer. */
   get threadAttachmentPreview(): Locator {
-    return this.threadDropZone.locator('img.h-16.w-16');
+    return this.threadDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** The attach file button */
@@ -275,7 +275,7 @@ export class RoomPage {
    * Assert that a message with the given text is visible.
    */
   async expectMessageVisible(text: string, options?: { timeout?: number }): Promise<void> {
-    await expect(this.page.getByText(text)).toBeVisible(options);
+    await expect(this.getMessage(text).locator).toBeVisible(options);
   }
 
   /**
@@ -589,7 +589,9 @@ export class RoomPage {
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
     await this.threadReplyInput.press('Enter');
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
   }
 
   /**
@@ -686,7 +688,7 @@ export class RoomPage {
    * Assert that text is visible in the thread pane.
    */
   async expectTextInThreadPane(text: string): Promise<void> {
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
   /**

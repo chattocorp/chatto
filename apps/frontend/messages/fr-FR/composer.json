@@ -22,6 +22,13 @@
     "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
     "send_failed": "Échec de l'envoi du message",
     "edit_failed": "Échec de la modification du message",
+    "upload": {
+      "preparing": "Préparation…",
+      "uploading": "{percentage} % téléversé",
+      "uploaded": "Téléversé",
+      "failed": "Échec du téléversement",
+      "remove": "Supprimer {filename}"
+    },
     "format": {
       "bold": "Gras",
       "italic": "Italique",

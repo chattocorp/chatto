@@ -11,6 +11,7 @@
     "check_again": "Kontroli denove",
     "degraded": "Serĉo disponeblas, sed kelkaj rezultoj eble mankas.",
     "attachments": "{count} alkroĉita(j)",
+    "results": "Rezultoj",
     "query": {
       "label": "Serĉpeto",
       "placeholder": "Vortoj, frazoj aŭ filtriloj…"

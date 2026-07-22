@@ -9,6 +9,7 @@ import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { renderMarkdown } from '$lib/markdown';
+import type { CreateMessageInput } from '$lib/api-client/messages';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -525,6 +526,25 @@ describe('MessageComposer', () => {
         .toBeTruthy();
     });
 
+    it('shows selected files in consistently sized cards with their file size', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [
+        new File([new Uint8Array(2 * 1024)], 'a-long-filename-that-needs-truncating.png', {
+          type: 'image/png'
+        })
+      ]);
+
+      await expect
+        .poll(() => q(container, '[data-testid="composer-attachment-preview"]'))
+        .toBeTruthy();
+      const preview = q(container, '[data-testid="composer-attachment-preview"]')!;
+      expect(preview.className).toContain('w-72');
+      expect(preview.querySelector('img')?.parentElement?.className).toContain('w-12');
+      await expect.element(preview).toHaveTextContent('2 KB');
+    });
+
     it('rejects selected files over the server upload size limit', async () => {
       mockInstanceStores.serverInfo.maxUploadSize = 1;
       const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -585,6 +605,100 @@ describe('MessageComposer', () => {
       const sendButton = q(container, 'button[aria-label="Send message"]');
       const icon = sendButton?.querySelector('.uil--telegram-alt');
       expect(icon).not.toBeNull();
+    });
+
+    it('disables the composer and shows per-file upload progress while sending', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      let submittedInput!: CreateMessageInput;
+      createMessageConnectMock.mockImplementationOnce((input) => {
+        submittedInput = input;
+        return pendingSend.promise;
+      });
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'large upload');
+      const progressSlot = q(container, '[data-testid="attachment-upload-progress"]');
+
+      await expect.element(progressSlot).toHaveClass('invisible');
+      expect(progressSlot?.getAttribute('role')).toBeNull();
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+      await expect.element(q(container, `button[aria-label="Remove ${file.name}"]`)).toBeDisabled();
+      await expect.element(container).toHaveTextContent('Preparing…');
+
+      submittedInput.onAttachmentUploadUpdate?.({
+        file,
+        phase: 'uploading',
+        committedBytes: 1,
+        totalBytes: 4
+      });
+
+      await expect.element(container).toHaveTextContent('25% uploaded');
+      await expect
+        .element(q(container, `[role="progressbar"][aria-label="${file.name}"]`))
+        .toHaveAttribute('aria-valuenow', '25');
+      await expect.element(progressSlot).not.toHaveClass('invisible');
+
+      submittedInput.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
+      await expect.element(container).toHaveTextContent('Uploaded');
+
+      pendingSend.resolve({ event: postedMessageEvent() });
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
+    });
+
+    it('does not clear the next room draft when an earlier room send completes', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const onMessageSent = vi.fn();
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const rendered = renderMessageComposer(
+        { roomId: 'room-uploading', onMessageSent },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      selectFirstAttachment(
+        q(rendered.container, 'input[type="file"]') as HTMLInputElement,
+        imageFile('room-a.png')
+      );
+      await typeInEditor(editor, 'room A message');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      sessionStorage.setItem('chatto:draft:room-next', 'room B draft');
+      await rendered.rerender({ roomId: 'room-next', onMessageSent });
+      await expect.element(editor).toHaveTextContent('room B draft');
+
+      pendingSend.resolve({ event: postedMessageEvent('msg-a', 'room-uploading') });
+
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(sessionStorage.getItem('chatto:draft:room-next')).toBe('room B draft');
+      expect(onMessageSent).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room-uploading')).toBeNull()
+      );
+    });
+
+    it('ignores externally added files while a send is in flight', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const readyApis: MessageComposerApi[] = [];
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => readyApis.push(api)
+      });
+      const editor = await findEditor(container);
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'sending');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      await readyApis.at(-1)!.addFiles([imageFile('late.png')]);
+
+      expect(prepareFilesMock).toHaveBeenCalledOnce();
+      expect(container.textContent).not.toContain('late.png');
+      pendingSend.resolve({ event: postedMessageEvent() });
     });
 
     it('hides the keyboard shortcut hint in simple mode', async () => {
@@ -2630,7 +2744,7 @@ describe('MessageComposer', () => {
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
 
-      (q(container, 'button.absolute') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Remove paste.png"]') as HTMLButtonElement).click();
 
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
       await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
@@ -2645,8 +2759,8 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
-      expect(q(container, 'img')).toBeNull();
+      await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test'));
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
   });
 

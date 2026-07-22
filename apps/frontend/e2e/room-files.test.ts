@@ -38,7 +38,7 @@ test('room Files sidebar jumps to root files and opens thread reply files', asyn
   await roomPage.threadPane
     .locator('input[type="file"]')
     .setInputFiles('e2e/fixtures/brighton2.jpg');
-  await expect(roomPage.threadPane.locator('img.h-16.w-16')).toBeVisible({
+  await expect(roomPage.threadPane.getByTestId('composer-attachment-preview')).toBeVisible({
     timeout: TIMEOUTS.UI_STANDARD
   });
   await roomPage.threadReplyInput.fill(threadReplyText);

@@ -12,6 +12,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - The composer accepts files via drag-and-drop, paste, and a file picker button when the viewer has `message.attach`.
 - Draft attachments persist across room switches inside the same session.
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
+- While a message's attachments are being prepared and uploaded, the bundled composer keeps their previews visible, reports committed upload progress for each file, and disables editing and composer actions until the send finishes. A failed send keeps the submitted text and attachments available for correction or retry.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.

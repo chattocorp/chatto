@@ -11,6 +11,7 @@
     "check_again": "Opnieuw controleren",
     "degraded": "Zoeken is beschikbaar, maar sommige resultaten ontbreken mogelijk.",
     "attachments": "{count} bijgevoegd",
+    "results": "Resultaten",
     "query": {
       "label": "Zoekopdracht",
       "placeholder": "Woorden, zinnen of filters…"

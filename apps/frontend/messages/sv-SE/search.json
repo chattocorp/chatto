@@ -11,6 +11,7 @@
     "check_again": "Kontrollera igen",
     "degraded": "Sökning är tillgänglig, men vissa resultat kan saknas.",
     "attachments": "{count} bifogade",
+    "results": "Resultat",
     "query": {
       "label": "Sökfråga",
       "placeholder": "Ord, fraser eller filter…"

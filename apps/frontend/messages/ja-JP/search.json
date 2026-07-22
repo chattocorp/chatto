@@ -11,6 +11,7 @@
     "check_again": "もう一度確認",
     "degraded": "検索は利用できますが、一部の結果が表示されない場合があります。",
     "attachments": "添付: {count}件",
+    "results": "検索結果",
     "query": {
       "label": "検索クエリ",
       "placeholder": "単語、フレーズ、フィルター…"

@@ -11,6 +11,7 @@
     "check_again": "Vérifier à nouveau",
     "degraded": "La recherche est disponible, mais certains résultats peuvent manquer.",
     "attachments": "{count} pièce(s) jointe(s)",
+    "results": "Résultats",
     "query": {
       "label": "Requête de recherche",
       "placeholder": "Mots, expressions ou filtres…"

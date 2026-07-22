@@ -11,6 +11,7 @@
     "check_again": "Check again",
     "degraded": "Search is available, but some results may be missing.",
     "attachments": "{count} attached",
+    "results": "Results",
     "query": {
       "label": "Search query",
       "placeholder": "Words, phrases, or filters..."

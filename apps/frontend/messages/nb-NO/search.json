@@ -11,6 +11,7 @@
     "check_again": "Kontroller igjen",
     "degraded": "Søk er tilgjengelig, men noen resultater kan mangle.",
     "attachments": "{count} vedlagt",
+    "results": "Resultater",
     "query": {
       "label": "Søk",
       "placeholder": "Ord, uttrykk eller filtre…"

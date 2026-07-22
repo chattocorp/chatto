@@ -22,6 +22,13 @@
     "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
     "send_failed": "Malsukcesis sendi mesaĝon",
     "edit_failed": "Malsukcesis redakti mesaĝon",
+    "upload": {
+      "preparing": "Preparante…",
+      "uploading": "{percentage}% alŝutita",
+      "uploaded": "Alŝutita",
+      "failed": "Alŝuto malsukcesis",
+      "remove": "Forigi {filename}"
+    },
     "format": {
       "bold": "Grasa",
       "italic": "Kursiva",

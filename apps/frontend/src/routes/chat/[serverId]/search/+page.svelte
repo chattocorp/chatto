@@ -138,12 +138,13 @@ in the active server store so browser Back can restore the current search.
           </EmptyState>
         </Panel>
       {:else}
-        <Panel>
+        <Panel title={m['search.query.label']()}>
           <form class="flex flex-col gap-3" onsubmit={submit}>
             <div class="flex items-end gap-2">
               <div class="min-w-0 flex-1">
                 <TextInput
                   label={m['search.query.label']()}
+                  labelHidden
                   bind:value={store.query}
                   placeholder={m['search.query.placeholder']()}
                   leadingIcon="uil--search"
@@ -180,7 +181,7 @@ in the active server store so browser Back can restore the current search.
           {/if}
         </Panel>
 
-        <Panel noPadding>
+        <Panel title={m['search.results']()} noPadding>
           <div class="flex min-h-72 flex-col" aria-live="polite">
             {#if store.loading}
               <div class="flex flex-1 items-center justify-center text-muted">
