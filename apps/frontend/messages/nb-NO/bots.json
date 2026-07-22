@@ -20,7 +20,7 @@
       "title": "Bot accounts"
     },
     "empty": {
-      "title": "Botkontoer",
+      "title": "Ingen boter enn",
       "owner": "Lag dine egne API-integrasjoner med botkontoer.",
       "admin": "No manageable bot accounts were found."
     },

@@ -20,7 +20,7 @@
       "title": "Bot accounts"
     },
     "empty": {
-      "title": "Bot accounts",
+      "title": "No bots yet",
       "owner": "Create your own API integrations using bot accounts.",
       "admin": "No manageable bot accounts were found."
     },

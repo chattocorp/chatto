@@ -164,7 +164,7 @@ all loading, pagination, owner hydration, and mutations stay in this component.
   {#if store.loading && store.bots.length === 0}
     <div class="text-muted">{m['bots.loading']()}</div>
   {:else if store.bots.length === 0}
-    <Panel>
+    <Panel title={m['bots.list.title']()}>
       <EmptyState icon="uil--robot" title={m['bots.empty.title']()}>
         <div class="flex flex-col items-center gap-4">
           <p>{scope === 'owner' ? m['bots.empty.owner']() : m['bots.empty.admin']()}</p>
