@@ -18,7 +18,8 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
-- Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- Subscribed users can send a test notification from the origin server's notification settings.
+- Push payloads include a mutable declarative-compatible notification envelope with a title, a short word-boundary-aware message preview, a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
@@ -45,7 +46,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 ### 3. VAPID with self-managed keys
 
 **Decision:** Operators provide a VAPID key pair and subject (contact URL). Without configuration, the feature is disabled.
-**Why:** VAPID is the standard for Web Push. Self-managed keys mean the operator's server is the only entity that can send push notifications to its users — no third-party relay. Hiding the UI when unconfigured prevents user confusion.
+**Why:** VAPID is the standard for Web Push. Self-managed keys keep sender identity and authorization under the operator's control, and Chatto introduces no centralized Chatto-operated relay. Browser-vendor push services still carry delivery. Hiding the UI when unconfigured prevents user confusion.
 **Tradeoff:** Operators have to generate keys and configure them. The setup docs cover this; it's a one-time cost.
 
 ### 4. Automatic cleanup of expired subscriptions
@@ -96,4 +97,13 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
+- **ADRs:** ADR-051 (server-scoped resumable client projection), ADR-053 (convergent notification policy and pending state)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)
+
+## Open Questions
+
+ADR-053 describes planned Notifications 2.0 behavior rather than the currently
+shipped push policy. Web Push will remain an alert surface for authoritative
+pending notifications, while cause-specific delivery intensities, compatibility
+mapping, and migration remain owned by FDR-012 and
+[issue #1556](https://github.com/chattocorp/chatto/issues/1556).

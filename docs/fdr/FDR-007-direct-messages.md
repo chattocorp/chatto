@@ -20,6 +20,8 @@ Users can start a private, one-to-one conversation with anyone they can see in a
 - Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `message.post`.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
 - Inside a DM room, ordinary message-related features apply: posting, flat reply attribution, reactions, edits, deletes, mentions, and attachments.
+- Each DM message creates a pending DM notification for every other participant unless the room is muted. Do Not Disturb preserves the pending notification but suppresses its immediate sound and Web Push alert.
+- Marking a DM room read dismisses pending notifications covered by that read position. Pending DM notifications also contribute to the installed app's numeric DM badge when the client can determine an exact count.
 - DMs do not support threads. The client does not offer thread actions, and the server rejects attempts to create or extend a DM thread even for owners. Thread data written by older versions remains readable but read-only.
 - Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
 
@@ -76,5 +78,5 @@ DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-053 (convergent notification policy and pending state)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-013 (Web Push Notifications)

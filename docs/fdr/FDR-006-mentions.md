@@ -1,11 +1,11 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-07-04
+**Last reviewed:** 2026-07-20
 
 ## Overview
 
-Users can mention users, roles, and room-scoped virtual groups with `@handle` syntax. A delivered mention notifies the recipient users, contributes to the room's pending-notification indicator in the sidebar, and renders the mention as styled text in the message body.
+Users can mention users, roles, and room-scoped virtual groups with `@handle` syntax. A delivered mention notifies the recipient users, contributes to the room's aggregate pending-notification badge in the sidebar, and renders the mention as styled text in the message body.
 
 ## Behavior
 
@@ -68,9 +68,9 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 
 ### 7. Mention attention state is a notification
 
-**Decision:** A delivered mention creates a pending notification. Sidebar mention dots derive from pending notifications, not from a separate room-level mention-status key.
+**Decision:** A delivered mention creates a pending notification. Its contribution to the sidebar's aggregate room badge derives from pending notifications, not from a separate room-level mention-status key.
 **Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
-**Tradeoff:** Mention dots follow notification dismissal semantics. Dismissing a mention notification clears the corresponding sidebar attention signal.
+**Tradeoff:** Dismissing a mention notification removes its contribution to the room count, but the badge remains while replies or other pending notifications still target that room.
 
 ### 8. Direct thread mentions can subscribe the recipient
 
@@ -84,9 +84,10 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 mentions a role or the room-wide virtual handles `@all` or `@here`. The prompt
 is client-side only; the public `MessageService.CreateMessage` API posts
 authorized messages directly and does not issue or require a mention
-confirmation token. Notification fanout is still resolved server-side at post
-time after deduplication, excluding the author, excluding users muted for the
-room, and applying room-membership constraints.
+confirmation token. Mention recipients are deduplicated within mention
+resolution, and fanout excludes the author, users muted for the room, and users
+outside the room's membership boundary. Other overlapping notification causes
+remain governed by FDR-012.
 **Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
 **Tradeoff:** Integrators are responsible for their own UX friction when they
 expose role or room-wide mention sending, while the bundled client keeps the
@@ -98,5 +99,15 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-053 (convergent notification policy and pending state)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications)
+
+## Open Questions
+
+Notifications 2.0 will evaluate direct mentions, role and room-wide mentions,
+replies, followed-thread activity, DMs, and followed-room activity together.
+The current system prevents duplicates within mention resolution and between a
+direct mention and reply attribution, but does not yet converge every
+overlapping cause into one pending notification. ADR-053 and
+[issue #1556](https://github.com/chattocorp/chatto/issues/1556) track that
+redesign.
