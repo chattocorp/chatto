@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
@@ -29,23 +30,23 @@ import (
 // Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetSpaceNotificationLevel(_ context.Context, userID string) (corev1.NotificationLevel, error) {
-	if c.ServerConfig == nil {
+	if c.configModel == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
 	}
-	return c.ServerConfig.NotificationServerLevel(userID), nil
+	return c.configModel.notificationServerLevel(userID), nil
 }
 
 // SetSpaceNotificationLevel sets the user's server-wide notification level.
 // Pass NOTIFICATION_LEVEL_UNSPECIFIED to clear the override.
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID string, level corev1.NotificationLevel) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
 	changed := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current := c.ServerConfig.NotificationServerLevel(userID)
+		current := c.configModel.notificationServerLevel(userID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
 			return nil, nil
@@ -81,10 +82,10 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 // Returns NOTIFICATION_LEVEL_UNSPECIFIED if no preference is set.
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID string) (corev1.NotificationLevel, error) {
-	if c.ServerConfig == nil {
+	if c.configModel == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED, nil
 	}
-	return c.ServerConfig.NotificationRoomLevel(userID, roomID), nil
+	return c.configModel.notificationRoomLevel(userID, roomID), nil
 }
 
 // SetRoomNotificationLevel sets the user's notification level for a room and
@@ -95,13 +96,13 @@ func (c *ChattoCore) GetRoomNotificationLevel(_ context.Context, userID, roomID 
 // membership; callers that serve user requests should use
 // NotificationPreferencesModel.SetRoomNotificationLevel instead.
 func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomID string, level corev1.NotificationLevel) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
 	changed := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current := c.ServerConfig.NotificationRoomLevel(userID, roomID)
+		current := c.configModel.notificationRoomLevel(userID, roomID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
 			return nil, nil
@@ -173,6 +174,53 @@ func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, user
 	}
 
 	return corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, nil
+}
+
+func (cm *ConfigModel) notificationServerLevel(userID string) corev1.NotificationLevel {
+	if cm == nil || cm.projection == nil {
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	}
+	cm.projection.RLock()
+	defer cm.projection.RUnlock()
+	u := cm.projection.users[userID]
+	if u == nil || u.serverLevel == nil {
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	}
+	return *u.serverLevel
+}
+
+func (cm *ConfigModel) notificationRoomLevel(userID, roomID string) corev1.NotificationLevel {
+	if cm == nil || cm.projection == nil {
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	}
+	cm.projection.RLock()
+	defer cm.projection.RUnlock()
+	u := cm.projection.users[userID]
+	if u == nil || u.roomLevelByRoom == nil {
+		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	}
+	if level, ok := u.roomLevelByRoom[roomID]; ok {
+		return level
+	}
+	return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+}
+
+func (cm *ConfigModel) notificationRoomIDs(userID string) []string {
+	if cm == nil || cm.projection == nil {
+		return nil
+	}
+	cm.projection.RLock()
+	defer cm.projection.RUnlock()
+	u := cm.projection.users[userID]
+	if u == nil || len(u.roomLevelByRoom) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(u.roomLevelByRoom))
+	for roomID := range u.roomLevelByRoom {
+		ids = append(ids, roomID)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // RoomNotificationPreference holds a resolved notification preference for a
@@ -308,17 +356,17 @@ func (c *ChattoCore) GetAllRoomNotificationPreferences(ctx context.Context, user
 // deleteUserNotificationLevels removes all notification level preferences for a
 // user. Called during account deletion. Best-effort.
 func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID string) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return nil
 	}
 	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		var evs []*corev1.Event
-		if c.ServerConfig.NotificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
+		if c.configModel.notificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			evs = append(evs, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserServerNotificationLevelCleared{
 				UserServerNotificationLevelCleared: &corev1.UserServerNotificationLevelClearedEvent{UserId: userID},
 			}}))
 		}
-		for _, roomID := range c.ServerConfig.NotificationRoomIDs(userID) {
+		for _, roomID := range c.configModel.notificationRoomIDs(userID) {
 			evs = append(evs, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserRoomNotificationLevelCleared{
 				UserRoomNotificationLevelCleared: &corev1.UserRoomNotificationLevelClearedEvent{UserId: userID, RoomId: roomID},
 			}}))

@@ -115,7 +115,7 @@ func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset 
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
 func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.AssetRecord) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 	if asset == nil {
@@ -167,22 +167,26 @@ func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.AssetRecord, 
 }
 
 func (c *ChattoCore) getServerBrandingAsset(_ context.Context, kind string) (*corev1.AssetRecord, error) {
-	if c.ServerConfig == nil {
+	if c.configModel == nil {
 		return nil, nil
 	}
 	return c.projectedServerBrandingAsset(kind), nil
 }
 
 func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.AssetRecord {
-	if c.ServerConfig == nil {
+	return c.configModel.serverBrandingAsset(kind)
+}
+
+func (cm *ConfigModel) serverBrandingAsset(kind string) *corev1.AssetRecord {
+	if cm == nil || cm.projection == nil {
 		return nil
 	}
+	cm.projection.RLock()
+	defer cm.projection.RUnlock()
 	if kind == "logo" {
-		asset, _ := c.ServerConfig.ServerLogo()
-		return asset
+		return cloneAssetRecord(cm.projection.server.logo)
 	}
-	asset, _ := c.ServerConfig.ServerBanner()
-	return asset
+	return cloneAssetRecord(cm.projection.server.banner)
 }
 
 // GetServerLogoURL returns the URL for the server's logo, optionally
@@ -236,7 +240,7 @@ func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) err
 }
 
 func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kind string) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
