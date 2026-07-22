@@ -86,6 +86,35 @@ async function mediaPlayer(container: HTMLElement): Promise<HTMLElement> {
   return container.querySelector<HTMLElement>('media-player')!;
 }
 
+function waitForHLSInstance(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      document.removeEventListener('hls-instance', handleReady, true);
+      document.removeEventListener('hls-lib-load-error', handleError, true);
+      document.removeEventListener('hls-unsupported', handleUnsupported, true);
+    };
+    const handleReady = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = (event: Event) => {
+      cleanup();
+      reject((event as CustomEvent<unknown>).detail);
+    };
+    const handleUnsupported = () => {
+      cleanup();
+      reject(new Error('hls.js is not supported in the test browser'));
+    };
+
+    // Vidstack lifecycle events do not bubble. A document capture listener
+    // still observes them and can be installed before the custom element is
+    // mounted, avoiding a race with the asynchronous provider import.
+    document.addEventListener('hls-instance', handleReady, true);
+    document.addEventListener('hls-lib-load-error', handleError, true);
+    document.addEventListener('hls-unsupported', handleUnsupported, true);
+  });
+}
+
 async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
   await expect.poll(() => container.querySelector('.vds-poster img')).toBeTruthy();
   return container.querySelector<HTMLImageElement>('.vds-poster img')!;
@@ -94,18 +123,23 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 describe('VideoPlayer', () => {
   it('plays a newly processed HLS-only video', async () => {
     const hlsUrl = 'https://chat.example.test/assets/hls/a/master.m3u8?access=ticket';
+    const hlsReady = waitForHLSInstance();
     const { container } = renderPostedVideo({
       width: 1280,
       height: 720,
       hlsUrl,
       includeMP4: false
     });
+    // Wait for the asynchronous bundled hls.js loader before test teardown.
+    // Destroying Vidstack while that import is pending can make its loader
+    // report through an already-detached media context.
     const player = (await mediaPlayer(container)) as HTMLElement & {
       src?: { src?: string; type?: string };
     };
 
     await expect.poll(() => player.src?.src).toBe(hlsUrl);
     expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+    await hlsReady;
   });
 
   it('plays a historical MP4-only video', async () => {
