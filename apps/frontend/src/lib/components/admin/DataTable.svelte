@@ -24,8 +24,7 @@
     onLoadMore,
     loadMoreRoot,
     loadMoreRootMargin = '0px 0px 160px 0px',
-    loadingMoreMessage = m['ui.data_table.loading_more'](),
-    scrollContainer = $bindable<HTMLDivElement | undefined>()
+    loadingMoreMessage = m['ui.data_table.loading_more']()
   }: {
     items: T[];
     columns: number;
@@ -69,8 +68,6 @@
     loadMoreRootMargin?: string;
     /** Compact status text shown in the trailing loading row. */
     loadingMoreMessage?: string;
-    /** The table's own scroll viewport when `stickyHeader` is enabled. */
-    scrollContainer?: HTMLDivElement;
   } = $props();
 
   let loadMoreInFlight = false;
@@ -198,7 +195,6 @@
     scrollX
     topFadeOffset={stickyHeaderFadeOffset}
     class={`rounded-md bg-background ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
-    bind:scrollEl={scrollContainer}
   >
     {@render tableContent()}
   </ScrollFader>

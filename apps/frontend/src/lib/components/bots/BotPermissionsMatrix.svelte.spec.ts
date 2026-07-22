@@ -74,22 +74,12 @@ describe('BotPermissionsMatrix', () => {
     );
   });
 
-  it('preserves the permissions table scroll position across a mutation', async () => {
+  it('renders at full height without an internal vertical viewport', async () => {
     const { container } = render(BotPermissionsMatrix, { props: { botId: 'bot-1' } });
     await settle();
-    const table = container.querySelector('table');
-    const scrollContainer = table?.parentElement as HTMLDivElement;
-    let scrollTop = 0;
-    Object.defineProperty(scrollContainer, 'scrollTop', {
-      configurable: true,
-      get: () => scrollTop,
-      set: (value: number) => (scrollTop = value)
-    });
-    scrollContainer.scrollTop = 240;
 
-    permissionButton(container).click();
-    await settle();
-
-    expect(scrollContainer.scrollTop).toBe(240);
+    const tableViewport = container.querySelector('table')?.parentElement;
+    expect(tableViewport?.className).toContain('overflow-x-auto');
+    expect(tableViewport?.className).not.toContain('overflow-y-auto');
   });
 });

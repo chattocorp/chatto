@@ -29,7 +29,6 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   let matrix = $state<BotPermissionMatrix | null>(null);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
-  let matrixScrollContainer = $state<HTMLDivElement>();
   let loadGeneration = 0;
 
   const data = $derived<MatrixData | null>(
@@ -78,9 +77,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     // the request entirely so the UI cannot suggest it is configurable.
     if (next === 'allow' && targetCell?.ownerAllowed === false) return;
     const pageScroller = pageScrollContainer;
-    const matrixScroller = matrixScrollContainer;
     const pageScrollTop = pageScroller?.scrollTop;
-    const matrixScrollTop = matrixScroller?.scrollTop;
     updatingKey = key;
     error = null;
     try {
@@ -120,10 +117,6 @@ the bot's direct decisions while preserving the owner's permission ceiling.
         await tick();
         pageScroller.scrollTop = pageScrollTop;
       }
-      if (matrixScroller && matrixScrollTop !== undefined) {
-        await tick();
-        matrixScroller.scrollTop = matrixScrollTop;
-      }
     }
   }
 
@@ -141,8 +134,8 @@ the bot's direct decisions while preserving the owner's permission ceiling.
     {data}
     {updatingKey}
     subjectKind="bot"
+    containedScroll={false}
     onCycle={cycle}
-    bind:scrollContainer={matrixScrollContainer}
   />
 {:else if !error}
   <div class="text-muted">{m['rbac.permissions.loading']()}</div>
