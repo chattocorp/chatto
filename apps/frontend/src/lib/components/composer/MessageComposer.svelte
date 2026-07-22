@@ -1060,7 +1060,7 @@
         {@const submissionStatus = attachmentSubmissionStatus(file)}
         {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
         <div
-          class="flex min-w-52 items-center gap-2 rounded-md bg-surface-emphasized p-2 text-sm"
+          class="flex min-w-52 items-center gap-2 rounded-md bg-surface p-2 text-sm"
           data-testid="composer-attachment-preview"
         >
           <div class="relative shrink-0">
