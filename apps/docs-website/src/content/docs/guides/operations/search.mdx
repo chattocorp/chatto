@@ -38,7 +38,10 @@ Compatible provider replicas share the `svc.chatto_ext.search.v1` queue group,
 allowing NATS to load-balance requests. Do not put implementations with
 different matching behaviour or incompatible index readiness in the same queue
 group: callers could otherwise receive inconsistent results from one request
-to the next.
+to the next. Cursors must be accepted by every compatible replica, but they do
+not pin an index snapshot. Results can move, repeat, or disappear between page
+requests while replicas continue indexing. Chatto's bundled client requests 50
+results at a time, so most searches do not need a continuation request.
 
 <Aside type="caution">
   A provider is a trusted server component, not a public browser or integration

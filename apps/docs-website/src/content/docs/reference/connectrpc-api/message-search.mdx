@@ -77,7 +77,7 @@ Request to search current message bodies visible to the authenticated user.
 | `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
 | `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
 | `order` | [`MessageSearchOrder`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
-| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
 | `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
 
 
@@ -85,7 +85,9 @@ Request to search current message bodies visible to the authenticated user.
 
 #### Result: SearchMessagesResponse
 
-One ordered page of current, authorized messages.
+One ordered page of current, authorized messages. Pagination reads a live
+search index rather than a pinned snapshot, so results may move, repeat, or
+disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |

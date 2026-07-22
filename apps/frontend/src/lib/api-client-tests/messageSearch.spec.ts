@@ -109,7 +109,7 @@ describe('createMessageSearchAPI', () => {
         roomId: 'room-2',
         authorId: 'user-2',
         order: MessageSearchOrder.NEWEST,
-        pageSize: 20,
+        pageSize: 50,
         cursor: ''
       },
       { headers: { Authorization: 'Bearer secret' } }

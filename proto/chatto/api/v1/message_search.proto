@@ -66,16 +66,19 @@ message SearchMessagesRequest {
   bool has_attachments = 6;
   // Result ordering. Unspecified defaults to relevance.
   MessageSearchOrder order = 7 [(buf.validate.field).enum.defined_only = true];
-  // Maximum messages to return. Zero uses the server default; the maximum is
-  // 100. Stale or no-longer-visible provider hits are omitted, so a page may
-  // contain fewer messages than requested even when next_cursor is present.
+  // Maximum messages to return. Zero uses the server default of 50; the
+  // maximum is 100. Stale or no-longer-visible provider hits are omitted, so a
+  // page may contain fewer messages than requested even when next_cursor is
+  // present.
   uint32 page_size = 8 [(buf.validate.field).uint32.lte = 100];
   // Opaque cursor returned by the preceding response. It is bound to the
   // authenticated user and every other query field.
   string cursor = 9 [(buf.validate.field).string.max_bytes = 8192];
 }
 
-// One ordered page of current, authorized messages.
+// One ordered page of current, authorized messages. Pagination reads a live
+// search index rather than a pinned snapshot, so results may move, repeat, or
+// disappear between page requests while the index advances.
 message SearchMessagesResponse {
   // Current renderable messages in provider result order. Clients can batch
   // hydrate the referenced room and actor IDs through the existing APIs.

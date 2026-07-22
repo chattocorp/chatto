@@ -169,9 +169,10 @@ type SearchMessagesRequest struct {
 	HasAttachments bool `protobuf:"varint,6,opt,name=has_attachments,json=hasAttachments,proto3" json:"has_attachments,omitempty"`
 	// Result ordering. Unspecified defaults to relevance.
 	Order MessageSearchOrder `protobuf:"varint,7,opt,name=order,proto3,enum=chatto.api.v1.MessageSearchOrder" json:"order,omitempty"`
-	// Maximum messages to return. Zero uses the server default; the maximum is
-	// 100. Stale or no-longer-visible provider hits are omitted, so a page may
-	// contain fewer messages than requested even when next_cursor is present.
+	// Maximum messages to return. Zero uses the server default of 50; the
+	// maximum is 100. Stale or no-longer-visible provider hits are omitted, so a
+	// page may contain fewer messages than requested even when next_cursor is
+	// present.
 	PageSize uint32 `protobuf:"varint,8,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// Opaque cursor returned by the preceding response. It is bound to the
 	// authenticated user and every other query field.
@@ -273,7 +274,9 @@ func (x *SearchMessagesRequest) GetCursor() string {
 	return ""
 }
 
-// One ordered page of current, authorized messages.
+// One ordered page of current, authorized messages. Pagination reads a live
+// search index rather than a pinned snapshot, so results may move, repeat, or
+// disappear between page requests while the index advances.
 type SearchMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current renderable messages in provider result order. Clients can batch

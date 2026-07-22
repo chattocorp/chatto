@@ -169,9 +169,10 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
   order = MessageSearchOrder.UNSPECIFIED;
 
   /**
-   * Maximum messages to return. Zero uses the server default; the maximum is
-   * 100. Stale or no-longer-visible provider hits are omitted, so a page may
-   * contain fewer messages than requested even when next_cursor is present.
+   * Maximum messages to return. Zero uses the server default of 50; the
+   * maximum is 100. Stale or no-longer-visible provider hits are omitted, so a
+   * page may contain fewer messages than requested even when next_cursor is
+   * present.
    *
    * @generated from field: uint32 page_size = 8;
    */
@@ -222,7 +223,9 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
 }
 
 /**
- * One ordered page of current, authorized messages.
+ * One ordered page of current, authorized messages. Pagination reads a live
+ * search index rather than a pinned snapshot, so results may move, repeat, or
+ * disappear between page requests while the index advances.
  *
  * @generated from message chatto.api.v1.SearchMessagesResponse
  */

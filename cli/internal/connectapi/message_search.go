@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	messageSearchDefaultPageSize = 20
+	messageSearchDefaultPageSize = 50
 	messageSearchCursorPrefix    = "search:"
 	messageSearchCursorPurpose   = "message-search-v1"
 )

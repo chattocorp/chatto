@@ -35,7 +35,9 @@ subjects. A provider that is rebuilding can report progress on
 `.status.startup` without joining either ready queue. Consumers ask the ready
 status subject first and use startup status only when no queryable provider is
 available, so rolling replacement does not make a healthy search service look
-unready.
+unready. Provider cursors are portable between compatible replicas but do not
+pin an index snapshot; pagination is live and results may shift as replicas
+advance.
 
 Ship a Bleve implementation as a runtime unit under ADR-041. The same unit and
 NATS contract run embedded when `search_provider.enabled` is true or standalone

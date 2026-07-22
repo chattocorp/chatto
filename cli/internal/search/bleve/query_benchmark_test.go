@@ -46,7 +46,7 @@ func BenchmarkQueryAuthorizedRoomScope(b *testing.B) {
 				RequiredTerms: []string{"scopebenchmark"},
 				RoomIds:       roomIDs[:scopeSize],
 				Order:         searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE,
-				PageSize:      20,
+				PageSize:      50,
 			}
 			b.ResetTimer()
 			for range b.N {

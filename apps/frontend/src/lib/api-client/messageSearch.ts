@@ -65,7 +65,7 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             authorId: input.authorId,
             order: input.order,
-            pageSize: 20,
+            pageSize: 50,
             cursor: input.cursor ?? ''
           },
           { headers: headers() }

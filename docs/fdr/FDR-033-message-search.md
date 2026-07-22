@@ -30,8 +30,10 @@ provider supplies results.
 - Each registered server retains its own transient query, ordering, and result
   state. Switching servers never carries a query into another server; returning
   to a server can restore its previous search.
-- Results show the current message, author, room, and timestamp. They load more
-  automatically and can be ordered by relevance or newest first.
+- Results show the current message, author, room, and timestamp. The bundled
+  client requests 50 at a time, loads more automatically, and can order them by
+  relevance or newest first. Pagination reads the live provider index rather
+  than a pinned snapshot, so results may shift while indexing continues.
 - Selecting a result opens the message in its historical room or thread context
   using the normal jumped-mode navigation.
 - Edits replace searchable content. Retracted, deleted, unavailable, or
