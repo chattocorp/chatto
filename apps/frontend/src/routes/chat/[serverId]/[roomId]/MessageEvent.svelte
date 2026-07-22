@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
-  import MessageContent from '$lib/components/MessageContent.svelte';
+  import MessageView from '$lib/components/messages/MessageView.svelte';
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
@@ -655,254 +655,193 @@
 {/snippet}
 
 {#if msg}
-  <div
+  <MessageView
+    eventId={event.id}
+    {actor}
+    {displayName}
+    body={msg.body}
+    deleted={isDeleted}
+    edited={isEdited}
+    {compact}
+    avatarOffset={!!replyPreview}
+    hasFooter={hasMessageFooter}
     class={[
-      'group relative hover:z-10',
       compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
       isCurrentUserMentioned ? 'bg-warning/10' : ''
     ]}
-    role="article"
-    data-event-id={event.id}
+    rowClass={longPressActive || showActionSheet || contextMenuPos ? 'bg-surface' : ''}
+    {members}
+    roleHandles={mentionRoleHandles}
+    timestampSettings={userSettings}
+    timestampLocale={activeLocale}
+    onMentionClick={showPopoverForMember}
+    onActorClick={showPopoverForActor}
+    onActorTouchStart={(e) => e.stopPropagation()}
+    onActorContextMenu={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showPopoverForActor(e);
+    }}
+    ontouchstart={handleTouchStart}
+    ontouchend={handleTouchEnd}
+    ontouchmove={handleTouchMove}
+    ontouchcancel={handleTouchEnd}
+    onmousedown={handleMouseDown}
+    onmouseup={handleMouseUp}
+    onmouseleave={handleMouseLeave}
+    bind:bodyElement={messageBodySelectionRoot}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class={[
-        'group/msg group/badges message-row',
-        hasMessageFooter ? 'message-row-footer' : '',
-        compact && msg?.body ? 'items-baseline' : 'items-start',
-        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface' : ''
-      ]}
-      ontouchstart={handleTouchStart}
-      ontouchend={handleTouchEnd}
-      ontouchmove={handleTouchMove}
-      ontouchcancel={handleTouchEnd}
-      onmousedown={handleMouseDown}
-      onmouseup={handleMouseUp}
-      onmouseleave={handleMouseLeave}
-    >
-      <!-- Left column: timestamp (compact) or avatar (full) -->
-      {#if compact}
-        <div class="flex w-11 shrink-0 items-center justify-center">
-          <a
-            href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-              serverId: serverIdToSegment(getActiveServer()),
-              roomId,
-              messageId: event.id
-            })}
-            onclick={copyMessageLink}
-            oncontextmenu={(e) => e.stopPropagation()}
-            title={m['room.message.meta.copy_link_title']()}
-            class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
-          >
-            {timestamp}
-          </a>
-        </div>
-      {:else}
-        <!-- Spacer maintains left column width; avatar is absolutely positioned
-					 so it doesn't inflate row height for short (single-line) messages -->
-        <div class="w-11 shrink-0"></div>
-        {#if !deletedActor && actor}
-          <button
-            type="button"
-            class={['absolute left-2 z-10 cursor-pointer', replyPreview ? 'top-8' : 'top-1']}
-            onclick={showPopoverForActor}
-            ontouchstart={(e) => e.stopPropagation()}
-            oncontextmenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              showPopoverForActor(e);
-            }}
-          >
-            <UserAvatar user={actor} size="message" class="shadow-md" />
-          </button>
-        {:else}
-          <!-- Deleted user placeholder avatar -->
-          <div
-            class={[
-              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-emphasized text-muted shadow-md ring-1 ring-surface-emphasized/30',
-              replyPreview ? 'top-8' : 'top-1'
-            ]}
-          >
-            <span class="iconify text-xl uil--user-times"></span>
-          </div>
-        {/if}
-      {/if}
+    {#snippet compactLeading()}
+      <a
+        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+          serverId: serverIdToSegment(getActiveServer()),
+          roomId,
+          messageId: event.id
+        })}
+        onclick={copyMessageLink}
+        oncontextmenu={(e) => e.stopPropagation()}
+        title={m['room.message.meta.copy_link_title']()}
+        class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
+      >
+        {timestamp}
+      </a>
+    {/snippet}
 
-      <!-- Message content column -->
-      <div class="message-content-stack">
-        {#if replyPreview}
-          {@const replyJumpText =
-            replyPreview.body ??
-            (replyPreview.actor || replyPreview.deleted
-              ? m['room.message.meta.reply_preview_fallback']()
-              : replyPreview.name)}
-          {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <div
-            data-testid="reply-attribution"
-            aria-label={m['room.message.meta.in_reply_to']()}
-            title={m['room.message.meta.in_reply_to']()}
-            class={[
-              'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
-              compact ? '' : '-ml-[39px] pl-[39px]'
-            ]}
-            onclick={scrollToReplyTarget}
-            onmousedown={(e) => e.stopPropagation()}
-          >
-            {#if compact}
-              <span
-                aria-hidden="true"
-                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
-              ></span>
-            {:else}
-              <span
-                aria-hidden="true"
-                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
-              ></span>
-            {/if}
-            {#if replyPreview.actor}
-              {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
-                roomId,
-                replyPreview.actor.id
-              )}
-              <button
-                type="button"
-                data-testid="reply-attribution-author"
-                class="inline-flex max-w-[45%] min-w-0 shrink-0 cursor-pointer items-center gap-1 hover:underline"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  showPopoverForReplyAuthor(e);
-                }}
-              >
-                <UserAvatar user={replyPreview.actor} size="xs" />
-                <strong class="truncate font-medium">{replyPreview.name}</strong>
-                {@render callPresenceIcon(replyCallPresence)}
-              </button>
-            {:else if replyPreview.deleted}
-              <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong
-              >
-            {/if}
+    {#snippet prelude()}
+      {#if replyPreview}
+        {@const replyJumpText =
+          replyPreview.body ??
+          (replyPreview.actor || replyPreview.deleted
+            ? m['room.message.meta.reply_preview_fallback']()
+            : replyPreview.name)}
+        {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          data-testid="reply-attribution"
+          aria-label={m['room.message.meta.in_reply_to']()}
+          title={m['room.message.meta.in_reply_to']()}
+          class={[
+            'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
+            compact ? '' : '-ml-[39px] pl-[39px]'
+          ]}
+          onclick={scrollToReplyTarget}
+          onmousedown={(e) => e.stopPropagation()}
+        >
+          {#if compact}
+            <span
+              aria-hidden="true"
+              class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+            ></span>
+          {:else}
+            <span
+              aria-hidden="true"
+              class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+            ></span>
+          {/if}
+          {#if replyPreview.actor}
+            {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
+              roomId,
+              replyPreview.actor.id
+            )}
             <button
               type="button"
-              class="min-w-0 flex-1 cursor-pointer truncate text-left opacity-75 hover:text-text"
-              aria-label={replyJumpLabel}
-              title={replyJumpLabel}
+              data-testid="reply-attribution-author"
+              class="inline-flex max-w-[45%] min-w-0 shrink-0 cursor-pointer items-center gap-1 hover:underline"
+              onclick={(e) => {
+                e.stopPropagation();
+                showPopoverForReplyAuthor(e);
+              }}
             >
-              {replyJumpText}
+              <UserAvatar user={replyPreview.actor} size="xs" />
+              <strong class="truncate font-medium">{replyPreview.name}</strong>
+              {@render callPresenceIcon(replyCallPresence)}
             </button>
-          </div>
-        {/if}
+          {:else if replyPreview.deleted}
+            <strong class="max-w-[45%] shrink-0 truncate font-medium"><DeletedUserLabel /></strong>
+          {/if}
+          <button
+            type="button"
+            class="min-w-0 flex-1 cursor-pointer truncate text-left opacity-75 hover:text-text"
+            aria-label={replyJumpLabel}
+            title={replyJumpLabel}
+          >
+            {replyJumpText}
+          </button>
+        </div>
+      {/if}
+    {/snippet}
 
-        <!-- Author and timestamp -->
-        {#if !compact}
-          <div class="flex min-w-0 items-center gap-2">
-            {#if !deletedActor && actor}
-              <button
-                type="button"
-                class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
-                onclick={showPopoverForActor}
-                ontouchstart={(e) => e.stopPropagation()}
-                oncontextmenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  showPopoverForActor(e);
-                }}
-              >
-                <span>{displayName}</span>
-                {@render callPresenceIcon(actorCallPresence)}
-              </button>
-            {:else}
-              <strong class="shrink-0 leading-none font-semibold text-muted"
-                ><DeletedUserLabel /></strong
-              >
-            {/if}
-            <a
-              href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                serverId: serverIdToSegment(getActiveServer()),
-                roomId,
-                messageId: event.id
-              })}
-              onclick={copyMessageLink}
-              oncontextmenu={(e) => e.stopPropagation()}
-              title={m['room.message.meta.copy_link_title']()}
-              class="shrink-0 text-xs leading-none text-muted hover:underline"
-            >
-              {timestamp}
-            </a>
-          </div>
-        {/if}
+    {#snippet authorSuffix()}
+      {@render callPresenceIcon(actorCallPresence)}
+    {/snippet}
 
-        <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
-        {#if isDeleted}
-          <!-- Message deleted or encryption key removed -->
-          <span class="text-muted italic">{m['room.message.meta.deleted']()}</span>
-        {:else if msg.body}
-          <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
-            <MessageContent
-              body={msg.body}
-              {members}
-              roleHandles={mentionRoleHandles}
-              edited={isEdited}
-              timestampSettings={userSettings}
-              timestampLocale={activeLocale}
-              onMentionClick={showPopoverForMember}
-            />
-          </div>
-        {/if}
+    {#snippet headerMeta()}
+      <a
+        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+          serverId: serverIdToSegment(getActiveServer()),
+          roomId,
+          messageId: event.id
+        })}
+        onclick={copyMessageLink}
+        oncontextmenu={(e) => e.stopPropagation()}
+        title={m['room.message.meta.copy_link_title']()}
+        class="shrink-0 text-xs leading-none text-muted hover:underline"
+      >
+        {timestamp}
+      </a>
+    {/snippet}
 
-        <!-- Message attachments -->
-        <MessageAttachments
-          attachments={msg.attachments ?? []}
-          serverId={getActiveServer()}
-          {roomId}
-          eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
-          canDeleteAttachment={isAuthor}
-        />
+    {#snippet afterBody()}
+      <MessageAttachments
+        attachments={msg.attachments ?? []}
+        serverId={getActiveServer()}
+        {roomId}
+        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        canDeleteAttachment={isAuthor}
+      />
 
-        <!-- Link preview (only for MessagePostedEvent) -->
-        {#if messageEvent?.linkPreview}
-          <div class="mt-2">
-            <LinkPreviewCard
-              preview={messageEvent.linkPreview}
-              showDismiss={false}
-              canDelete={isAuthor}
-              {roomId}
-              eventId={event.id}
-            />
-          </div>
-        {/if}
-
-        <!-- Embedded Chatto message link previews -->
-        {#each embeddedMessageLinks as link, i (link.messageId + ':' + i)}
-          <div class="mt-2">
-            <MessagePreviewCard {link} />
-          </div>
-        {/each}
-
-        <!-- Thread echo indicator, thread replies, and reactions -->
-        {#if hasMessageFooter}
-          <MessageMetaBar
+      {#if messageEvent?.linkPreview}
+        <div class="mt-2">
+          <LinkPreviewCard
+            preview={messageEvent.linkPreview}
+            showDismiss={false}
+            canDelete={isAuthor}
             {roomId}
-            messageEventId={event.id}
-            serverSegment={serverIdToSegment(getActiveServer())}
-            {threadRootEventId}
-            reactions={msg?.reactions ?? []}
-            replyCount={messageEvent?.replyCount}
-            threadParticipants={messageEvent?.threadParticipants}
-            {hasThreadNotification}
-            canReact={roomPermissions.canReact}
-            {messageStore}
-            {isFollowingThread}
-            {isThreadFollowPending}
-            onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
-            onOpenThread={onOpenThread ? handleOpenThread : undefined}
-            onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromEvent : undefined}
-            isEchoEvent={isEcho}
+            eventId={event.id}
           />
-        {/if}
-      </div>
-      <!-- Quick actions toolbar (hover-capable input; pure touch uses long-press sheet) -->
+        </div>
+      {/if}
+
+      {#each embeddedMessageLinks as link, i (link.messageId + ':' + i)}
+        <div class="mt-2">
+          <MessagePreviewCard {link} />
+        </div>
+      {/each}
+
+      {#if hasMessageFooter}
+        <MessageMetaBar
+          {roomId}
+          messageEventId={event.id}
+          serverSegment={serverIdToSegment(getActiveServer())}
+          {threadRootEventId}
+          reactions={msg?.reactions ?? []}
+          replyCount={messageEvent?.replyCount}
+          threadParticipants={messageEvent?.threadParticipants}
+          {hasThreadNotification}
+          canReact={roomPermissions.canReact}
+          {messageStore}
+          {isFollowingThread}
+          {isThreadFollowPending}
+          onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
+          onOpenThread={onOpenThread ? handleOpenThread : undefined}
+          onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromEvent : undefined}
+          isEchoEvent={isEcho}
+        />
+      {/if}
+    {/snippet}
+
+    {#snippet actions()}
       {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
           serverId={getActiveServer()}
@@ -927,8 +866,8 @@
           onOpenMenu={openMenuFromToolbar}
         />
       {/if}
-    </div>
-  </div>
+    {/snippet}
+  </MessageView>
 
   <!-- User profile popover (outside article div to avoid content-visibility containment) -->
   {#if popoverUser && popoverAnchorRect}

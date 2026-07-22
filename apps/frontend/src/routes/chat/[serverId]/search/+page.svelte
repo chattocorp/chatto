@@ -7,8 +7,10 @@ in the active server store so browser Back can restore the current search.
 <script lang="ts">
   import type { Attachment } from 'svelte/attachments';
   import { tick } from 'svelte';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import MessageView from '$lib/components/messages/MessageView.svelte';
+  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -50,14 +52,12 @@ in the active server store so browser Back can restore the current search.
     }
   }
 
-  function openResult(result: { roomId: string; id: string }): void {
-    void goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(serverId),
-        roomId: result.roomId,
-        messageId: result.id
-      })
-    );
+  function resultActor(result: MessageSearchResult): UserAvatarUserView | null {
+    if (!result.actor) return null;
+    return {
+      ...result.actor,
+      presenceStatus: PresenceStatus.Offline
+    };
   }
 
   function loadMoreWhenVisible(node: HTMLElement): ReturnType<Attachment> {
@@ -92,7 +92,6 @@ in the active server store so browser Back can restore the current search.
   function formatTimestamp(value: string): string {
     return value ? formatDateTime(value, timeFormatSettings, activeLocale) : '';
   }
-
 </script>
 
 <PageTitle title={m['search.title']()} />
@@ -191,40 +190,65 @@ in the active server store so browser Back can restore the current search.
           {:else}
             <ol class="divide-y divide-border">
               {#each store.results as result (result.id)}
-                <li>
-                  <button
-                    type="button"
-                    class="group w-full cursor-pointer rounded-md px-2 py-3 text-left transition-colors hover:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action"
-                    onclick={() => openResult(result)}
+                <li class="py-2 first:pt-0 last:pb-0">
+                  <MessageView
+                    eventId={result.id}
+                    actor={resultActor(result)}
+                    displayName={result.actor?.displayName ||
+                      result.actor?.login ||
+                      m['common.unknown']()}
+                    missingActorIsDeleted={false}
+                    body={result.body}
+                    timestampSettings={timeFormatSettings}
+                    timestampLocale={activeLocale}
+                    class="my-0.5"
                   >
-                    <div class="flex items-center gap-2 text-xs text-muted">
-                      <span class="font-semibold text-text">
-                        {result.actor?.displayName || result.actor?.login || m['common.unknown']()}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span class="inline-flex min-w-0 items-center gap-0.5">
-                        <span class="uil--hashtag iconify shrink-0" aria-hidden="true"></span>
-                        <span class="truncate">{result.roomName ?? m['search.scope.room']()}</span>
+                    {#snippet headerMeta()}
+                      <span class="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
+                        <span class="shrink-0" aria-hidden="true">#</span>
+                        <a
+                          class="min-w-0 truncate hover:text-text hover:underline"
+                          href={resolve('/chat/[serverId]/[roomId]', {
+                            serverId: serverIdToSegment(serverId),
+                            roomId: result.roomId
+                          })}
+                        >
+                          {result.roomName ?? m['search.scope.room']()}
+                        </a>
                       </span>
                       {#if result.createdAt}
-                        <span aria-hidden="true">·</span>
-                        <time class="truncate" datetime={result.createdAt}
-                          >{formatTimestamp(result.createdAt)}</time
+                        <span class="text-xs text-muted" aria-hidden="true">·</span>
+                        <a
+                          class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                          href={result.threadRootEventId
+                            ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+                                serverId: serverIdToSegment(serverId),
+                                roomId: result.roomId,
+                                threadId: result.threadRootEventId,
+                                messageId: result.id
+                              })
+                            : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+                                serverId: serverIdToSegment(serverId),
+                                roomId: result.roomId,
+                                messageId: result.id
+                              })}
                         >
+                          <time datetime={result.createdAt}
+                            >{formatTimestamp(result.createdAt)}</time
+                          >
+                        </a>
                       {/if}
-                    </div>
-                    {#if result.body}
-                      <p class="mt-1 line-clamp-3 break-words whitespace-pre-wrap text-text/90">
-                        {result.body}
-                      </p>
-                    {/if}
-                    {#if result.attachmentCount > 0}
-                      <p class="mt-1 inline-flex items-center gap-1 text-sm text-muted">
-                        <span class="iconify uil--paperclip" aria-hidden="true"></span>
-                        {m['search.attachments']({ count: result.attachmentCount })}
-                      </p>
-                    {/if}
-                  </button>
+                    {/snippet}
+
+                    {#snippet afterBody()}
+                      {#if result.attachmentCount > 0}
+                        <p class="inline-flex items-center gap-1 text-sm text-muted">
+                          <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                          {m['search.attachments']({ count: result.attachmentCount })}
+                        </p>
+                      {/if}
+                    {/snippet}
+                  </MessageView>
                 </li>
               {/each}
             </ol>
@@ -234,7 +258,8 @@ in the active server store so browser Back can restore the current search.
                 class="flex h-12 items-center justify-center text-muted"
               >
                 {#if store.loadingMore}
-                  <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+                  <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
+                  ></span>
                   {m['search.loading_more']()}
                 {/if}
               </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import MessageMetaBar from './MessageMetaBar.svelte';
+  import MessageView from '$lib/components/messages/MessageView.svelte';
   import { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -10,7 +11,13 @@
     type UserAvatarUserView
   } from '$lib/render/types';
 
-  type Variant = 'plain' | 'with-meta-bar' | 'footer-comparison' | 'compact-grouped' | 'deleted';
+  type Variant =
+    | 'plain'
+    | 'with-meta-bar'
+    | 'footer-comparison'
+    | 'compact-grouped'
+    | 'search-result'
+    | 'deleted';
 
   let { variant }: { variant: Variant } = $props();
 
@@ -47,6 +54,15 @@
       presenceStatus: PresenceStatus.Away
     }
   ];
+  const alice = threadParticipants[0];
+  const bea: UserAvatarUserView = {
+    id: 'user-bea',
+    login: 'bea',
+    displayName: 'Bea',
+    deleted: false,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.Offline
+  };
 
   const reactions: ReactionSummaryView[] = [
     {
@@ -68,25 +84,6 @@
 
   function noop() {}
 </script>
-
-{#snippet avatar(initials: string)}
-  <div
-    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-lg font-semibold text-muted shadow-md"
-  >
-    {initials}
-  </div>
-{/snippet}
-
-{#snippet header(name: string, time: string)}
-  <div class="flex min-w-0 items-center gap-2">
-    <strong class="shrink-0 leading-none font-semibold">{name}</strong>
-    <span class="shrink-0 text-xs leading-none text-muted">{time}</span>
-  </div>
-{/snippet}
-
-{#snippet body(text: string)}
-  <p class="leading-snug text-text">{text}</p>
-{/snippet}
 
 {#snippet metaBar(replyCount = 2)}
   <MessageMetaBar
@@ -113,63 +110,103 @@
       : ''}"
   >
     {#if variant === 'plain'}
-      <div class="group/msg group/badges message-row items-start bg-surface">
-        {@render avatar('A')}
-        <div class="message-content-stack">
-          {@render header('Alice', '10:23')}
-          {@render body('Hello!')}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-plain"
+        actor={alice}
+        displayName="Alice"
+        body="Hello!"
+        rowClass="bg-surface"
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:23</span>{/snippet}
+      </MessageView>
     {:else if variant === 'with-meta-bar'}
-      <div class="group/msg group/badges message-row items-start bg-surface message-row-footer">
-        {@render avatar('A')}
-        <div class="message-content-stack">
-          {@render header('Alice', '10:23')}
-          {@render body('Hello!')}
-          {@render metaBar(2)}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-with-meta"
+        actor={alice}
+        displayName="Alice"
+        body="Hello!"
+        rowClass="bg-surface"
+        hasFooter
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:23</span>{/snippet}
+        {#snippet afterBody()}{@render metaBar(2)}{/snippet}
+      </MessageView>
     {:else if variant === 'footer-comparison'}
-      <div class="group/msg group/badges message-row items-start bg-surface">
-        {@render avatar('A')}
-        <div class="message-content-stack">
-          {@render header('Alice', '10:23')}
-          {@render body('No footer: the hover shell keeps the default row padding.')}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-no-footer"
+        actor={alice}
+        displayName="Alice"
+        body="No footer: the hover shell keeps the default row padding."
+        rowClass="bg-surface"
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:23</span>{/snippet}
+      </MessageView>
 
-      <div class="group/msg group/badges message-row items-start bg-surface message-row-footer">
-        {@render avatar('B')}
-        <div class="message-content-stack">
-          {@render header('Bea', '10:24')}
-          {@render body('With footer: the hover shell uses the footer row padding primitive.')}
-          {@render metaBar(1)}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-footer"
+        actor={bea}
+        displayName="Bea"
+        body="With footer: the hover shell uses the footer row padding primitive."
+        rowClass="bg-surface"
+        hasFooter
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:24</span>{/snippet}
+        {#snippet afterBody()}{@render metaBar(1)}{/snippet}
+      </MessageView>
     {:else if variant === 'compact-grouped'}
-      <div class="group/msg group/badges message-row items-start">
-        {@render avatar('A')}
-        <div class="message-content-stack">
-          {@render header('Alice', '10:23')}
-          {@render body('First message in a short burst.')}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-group-root"
+        actor={alice}
+        displayName="Alice"
+        body="First message in a short burst."
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:23</span>{/snippet}
+      </MessageView>
 
-      <div class="group/msg group/badges message-row items-baseline bg-surface message-row-footer">
-        <div class="flex w-11 shrink-0 items-center justify-center text-xs text-muted">10:24</div>
-        <div class="message-content-stack">
-          {@render body('Grouped follow-up with reactions.')}
-          {@render metaBar(0)}
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-grouped"
+        actor={alice}
+        displayName="Alice"
+        body="Grouped follow-up with reactions."
+        rowClass="bg-surface"
+        compact
+        hasFooter
+      >
+        {#snippet compactLeading()}<span class="text-xs text-muted">10:24</span>{/snippet}
+        {#snippet afterBody()}{@render metaBar(0)}{/snippet}
+      </MessageView>
+    {:else if variant === 'search-result'}
+      <MessageView
+        eventId="evt-search"
+        actor={alice}
+        displayName="Alice"
+        body="I found the deployment notes in **Operations** — the checklist is still current."
+      >
+        {#snippet headerMeta()}
+          <span class="inline-flex items-center gap-1 text-xs text-muted">
+            <span aria-hidden="true">#</span>
+            <span>operations</span>
+          </span>
+          <span class="text-xs text-muted" aria-hidden="true">·</span>
+          <span class="text-xs text-muted">22 July 2026 at 11:42</span>
+        {/snippet}
+        {#snippet afterBody()}
+          <span class="inline-flex items-center gap-1 text-sm text-muted">
+            <span class="iconify uil--paperclip" aria-hidden="true"></span>
+            2 attachments
+          </span>
+        {/snippet}
+      </MessageView>
     {:else}
-      <div class="group/msg group/badges message-row items-start bg-surface">
-        {@render avatar('D')}
-        <div class="message-content-stack">
-          {@render header('Deleted User', '10:25')}
-          <span class="text-muted italic">Message deleted</span>
-        </div>
-      </div>
+      <MessageView
+        eventId="evt-deleted"
+        actor={null}
+        displayName="Deleted User"
+        deleted
+        rowClass="bg-surface"
+      >
+        {#snippet headerMeta()}<span class="text-xs text-muted">10:25</span>{/snippet}
+      </MessageView>
     {/if}
   </div>
 </div>
