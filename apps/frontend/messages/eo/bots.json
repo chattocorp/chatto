@@ -46,7 +46,7 @@
     },
     "credentials": {
       "title": "{bot} API key",
-      "active_description": "This bot currently has an API key.",
+      "active_description": "Pro sekureco, API-ŝlosiloj montriĝas nur unufoje. Restarigo anstataŭigas ĉi tiun ŝlosilon per nova.",
       "none_description": "This bot does not currently have an API key.",
       "generate": "Generate API key",
       "rotate": "Restarigi API-ŝlosilon",

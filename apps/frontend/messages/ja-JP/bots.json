@@ -46,7 +46,7 @@
     },
     "credentials": {
       "title": "{bot} API key",
-      "active_description": "This bot currently has an API key.",
+      "active_description": "セキュリティ保護のため、APIキーが表示されるのは一度だけです。リセットすると、このキーは新しいキーに置き換わります。",
       "none_description": "This bot does not currently have an API key.",
       "generate": "Generate API key",
       "rotate": "API キーをリセット",

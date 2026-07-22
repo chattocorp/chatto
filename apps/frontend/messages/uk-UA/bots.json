@@ -46,7 +46,7 @@
     },
     "credentials": {
       "title": "{bot} API key",
-      "active_description": "This bot currently has an API key.",
+      "active_description": "З міркувань безпеки ключі API показуються лише один раз. Після скидання цей ключ буде замінено новим.",
       "none_description": "This bot does not currently have an API key.",
       "generate": "Generate API key",
       "rotate": "Скинути API-ключ",

@@ -46,7 +46,7 @@
     },
     "credentials": {
       "title": "{bot} API key",
-      "active_description": "This bot currently has an API key.",
+      "active_description": "Om veiligheidsredenen worden API-sleutels maar één keer getoond. Bij opnieuw instellen wordt deze sleutel vervangen door een nieuwe.",
       "none_description": "This bot does not currently have an API key.",
       "generate": "Generate API key",
       "rotate": "API-sleutel opnieuw instellen",

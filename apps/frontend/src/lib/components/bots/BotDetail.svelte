@@ -13,7 +13,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
   import { AdminPageContent, Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
-  import { AccessDenied, EmptyState, Hint, PaneHeader, PageTitle, Pill } from '$lib/ui';
+  import { AccessDenied, EmptyState, Hint, PaneHeader, PageTitle } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
@@ -204,9 +204,6 @@ the authorization boundary; `scope` controls navigation and credential actions.
                   ? m['bots.credentials.active_description']()
                   : m['bots.credentials.none_description']()}
               </p>
-              <Pill tone={bot.apiKeyCreatedAt ? 'success' : 'neutral'}>
-                {bot.apiKeyCreatedAt ? m['bots.api_key.active']() : m['bots.api_key.none']()}
-              </Pill>
             </div>
             {#if scope === 'owner'}
               <Button variant="secondary" onclick={() => (credentialAction = 'rotate')}>
