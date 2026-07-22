@@ -144,11 +144,11 @@ func TestStartupStatusServiceJoinsReadyQueuesOnlyWhenReady(t *testing.T) {
 	provider.mu.Lock()
 	provider.status = &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}
 	provider.mu.Unlock()
-	if err := AddStatusEndpoint(testContext(t), service, provider); err != nil {
-		t.Fatalf("AddStatusEndpoint: %v", err)
-	}
 	if err := AddQueryEndpoint(testContext(t), service, provider); err != nil {
 		t.Fatalf("AddQueryEndpoint: %v", err)
+	}
+	if err := AddStatusEndpoint(testContext(t), service, provider); err != nil {
+		t.Fatalf("AddStatusEndpoint: %v", err)
 	}
 	if _, err := NewClient(nc).Query(testContext(t), validQuery()); err != nil {
 		t.Fatalf("Query after readiness: %v", err)

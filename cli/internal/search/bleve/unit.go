@@ -96,15 +96,15 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		}
 		return err
 	}
-	if err := search.AddStatusEndpoint(ctx, service, provider); err != nil {
-		stopProjector()
-		<-projectorDone
-		return fmt.Errorf("register search provider ready status endpoint: %w", err)
-	}
 	if err := search.AddQueryEndpoint(ctx, service, provider); err != nil {
 		stopProjector()
 		<-projectorDone
 		return fmt.Errorf("register search provider query endpoint: %w", err)
+	}
+	if err := search.AddStatusEndpoint(ctx, service, provider); err != nil {
+		stopProjector()
+		<-projectorDone
+		return fmt.Errorf("register search provider ready status endpoint: %w", err)
 	}
 	env.Logger.Info("Search provider service registered",
 		"stage", "service_ready",

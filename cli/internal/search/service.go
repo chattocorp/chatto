@@ -32,11 +32,11 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 	if err != nil {
 		return nil, err
 	}
-	if err := AddStatusEndpoint(ctx, service, provider); err != nil {
+	if err := AddQueryEndpoint(ctx, service, provider); err != nil {
 		_ = service.Stop()
 		return nil, err
 	}
-	if err := AddQueryEndpoint(ctx, service, provider); err != nil {
+	if err := AddStatusEndpoint(ctx, service, provider); err != nil {
 		_ = service.Stop()
 		return nil, err
 	}
@@ -44,8 +44,8 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 }
 
 // AddStartupStatusService reports startup progress without joining the ready
-// status or query queues. After startup, call AddStatusEndpoint and
-// AddQueryEndpoint to advertise that the provider can answer queries.
+// status or query queues. After startup, call AddQueryEndpoint and then
+// AddStatusEndpoint to advertise that the provider can answer queries.
 func AddStartupStatusService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
 	service, err := addProviderService(ctx, nc, provider, options)
 	if err != nil {
