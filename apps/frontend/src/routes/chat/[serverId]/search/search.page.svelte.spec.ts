@@ -234,7 +234,7 @@ describe('message search page', () => {
     expect(firstResult.getAttribute('role')).toBe('link');
     expect(firstResult.querySelector('.message-row')?.classList).toContain('md:mx-0');
     expect(container.querySelector('ol')?.classList).not.toContain('divide-y');
-    expect(container.querySelector('ol')?.classList).toContain('gap-1');
+    expect(container.querySelector('ol')?.classList).toContain('gap-4');
 
     await userEvent.click(firstResult);
     expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');

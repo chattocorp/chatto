@@ -238,7 +238,7 @@ in the active server store so browser Back can restore the current search.
                 {m['search.prompt.description']()}
               </EmptyState>
             {:else}
-              <ol class="flex flex-col gap-1 p-1">
+              <ol class="flex flex-col gap-4 p-1">
                 {#each store.results as result (result.id)}
                   <li>
                     <div
