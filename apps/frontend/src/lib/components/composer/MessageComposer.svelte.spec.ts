@@ -618,6 +618,8 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'large upload');
+      const preview = q(container, '[data-testid="composer-attachment-preview"]')!;
+      const idleHeight = preview.getBoundingClientRect().height;
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
@@ -636,6 +638,7 @@ describe('MessageComposer', () => {
       await expect
         .element(q(container, `[role="progressbar"][aria-label="${file.name}"]`))
         .toHaveAttribute('aria-valuenow', '25');
+      expect(preview.getBoundingClientRect().height).toBe(idleHeight);
 
       submittedInput.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
       await expect.element(container).toHaveTextContent('Uploaded');
