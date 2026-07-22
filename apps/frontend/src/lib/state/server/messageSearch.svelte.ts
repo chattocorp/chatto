@@ -29,6 +29,7 @@ export class MessageSearchStore {
   order = $state(MessageSearchOrder.RELEVANCE);
 
   private requestId = 0;
+  private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
   private statusPromise: Promise<void> | null = null;
 
@@ -43,19 +44,24 @@ export class MessageSearchStore {
 
   async ensureStatus(): Promise<void> {
     if (this.statusLoaded || this.statusPromise) return this.statusPromise ?? Promise.resolve();
+    const requestId = ++this.statusRequestId;
     this.statusLoading = true;
     this.statusError = false;
-    const promise = (async () => {
-      try {
-        this.status = await this.api.getStatus();
+    const promise = Promise.resolve()
+      .then(() => this.api.getStatus())
+      .then((status) => {
+        if (requestId !== this.statusRequestId) return;
+        this.status = status;
         this.statusLoaded = true;
-      } catch {
-        this.statusError = true;
-      } finally {
+      })
+      .catch(() => {
+        if (requestId === this.statusRequestId) this.statusError = true;
+      })
+      .finally(() => {
+        if (requestId !== this.statusRequestId) return;
         this.statusLoading = false;
         this.statusPromise = null;
-      }
-    })();
+      });
     this.statusPromise = promise;
     return promise;
   }
@@ -74,6 +80,7 @@ export class MessageSearchStore {
     this.results = [];
     this.nextCursor = null;
     this.loading = true;
+    this.loadingMore = false;
     this.error = false;
     try {
       const page = await this.api.searchMessages(input);
@@ -166,6 +173,7 @@ export class MessageSearchStore {
 
   reset(): void {
     this.clearResults();
+    this.statusRequestId++;
     this.status = EMPTY_STATUS;
     this.statusLoaded = false;
     this.statusLoading = false;

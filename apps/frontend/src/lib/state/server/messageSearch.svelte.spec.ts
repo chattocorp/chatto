@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   MessageSearchAPI,
   MessageSearchPage,
-  MessageSearchResult
+  MessageSearchResult,
+  MessageSearchStatus
 } from '$lib/api-client/messageSearch';
 import { MessageSearchOrder, MessageSearchState, MessageSearchStore } from './messageSearch.svelte';
 
@@ -93,6 +94,71 @@ describe('MessageSearchStore', () => {
     await older;
 
     expect(store.results.map((item) => item.id)).toEqual(['new']);
+  });
+
+  it('allows pagination after a new search supersedes an in-flight page', async () => {
+    let resolveStalePage!: (value: MessageSearchPage) => void;
+    const stalePage = new Promise<MessageSearchPage>((resolve) => (resolveStalePage = resolve));
+    const searchMessages = vi
+      .fn()
+      .mockResolvedValueOnce(page([result('old')], 'old-cursor'))
+      .mockReturnValueOnce(stalePage)
+      .mockResolvedValueOnce(page([result('new')], 'new-cursor'))
+      .mockResolvedValueOnce(page([result('newer')], null));
+    const store = new MessageSearchStore(api({ searchMessages }));
+
+    await store.search({ query: 'old', roomIds: [], order: MessageSearchOrder.RELEVANCE });
+    const staleLoadMore = store.loadMore();
+    expect(store.loadingMore).toBe(true);
+
+    await store.search({ query: 'new', roomIds: [], order: MessageSearchOrder.NEWEST });
+    expect(store.loadingMore).toBe(false);
+    resolveStalePage(page([result('stale')], null));
+    await staleLoadMore;
+    await store.loadMore();
+
+    expect(searchMessages).toHaveBeenCalledTimes(4);
+    expect(store.results.map((item) => item.id)).toEqual(['new', 'newer']);
+    expect(store.nextCursor).toBeNull();
+  });
+
+  it('fences status responses and cleanup across reset', async () => {
+    let resolveStaleStatus!: (value: MessageSearchStatus) => void;
+    let resolveCurrentStatus!: (value: MessageSearchStatus) => void;
+    const staleStatus = new Promise<MessageSearchStatus>(
+      (resolve) => (resolveStaleStatus = resolve)
+    );
+    const currentStatus = new Promise<MessageSearchStatus>(
+      (resolve) => (resolveCurrentStatus = resolve)
+    );
+    const store = new MessageSearchStore(
+      api({
+        getStatus: vi.fn().mockReturnValueOnce(staleStatus).mockReturnValueOnce(currentStatus)
+      })
+    );
+
+    const staleRequest = store.ensureStatus();
+    store.reset();
+    const currentRequest = store.ensureStatus();
+    resolveStaleStatus({ state: MessageSearchState.READY, retryAfterMs: null });
+    await staleRequest;
+
+    expect(store.status).toEqual({
+      state: MessageSearchState.UNSPECIFIED,
+      retryAfterMs: null
+    });
+    expect(store.statusLoaded).toBe(false);
+    expect(store.statusLoading).toBe(true);
+
+    resolveCurrentStatus({ state: MessageSearchState.DEGRADED, retryAfterMs: 1000 });
+    await currentRequest;
+
+    expect(store.status).toEqual({
+      state: MessageSearchState.DEGRADED,
+      retryAfterMs: 1000
+    });
+    expect(store.statusLoaded).toBe(true);
+    expect(store.statusLoading).toBe(false);
   });
 
   it('retains empty-search state for browser Back restoration', async () => {
