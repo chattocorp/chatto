@@ -42,7 +42,13 @@
     onsubmit={(event) => event.preventDefault()}
   >
     <div class="min-w-64 flex-1">
-      <TextInput label="Search query" labelHidden bind:value={query} leadingIcon="uil--search" />
+      <TextInput
+        label="Search query"
+        labelHidden
+        bind:value={query}
+        placeholder="Search messages"
+        leadingIcon="uil--search"
+      />
     </div>
     <Button type="submit">Search</Button>
     <SegmentedControl
