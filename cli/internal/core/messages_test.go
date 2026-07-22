@@ -794,11 +794,14 @@ func TestChattoCore_PostMessage_InvisibleChars(t *testing.T) {
 	ctx := testContext(t)
 
 	// Create space, room, and user
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "invisible-characters", "Invisible character validation")
+	require.NoError(t, err)
+	user, err := core.CreateUser(ctx, "system", "invisiblechars", "Invisible Characters", "password123")
+	require.NoError(t, err)
 
 	// Join space and room
-	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
 
 	t.Run("zero-width spaces only is rejected", func(t *testing.T) {
 		_, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "\u200B\u200B\u200B", nil, "", "", nil, false)
