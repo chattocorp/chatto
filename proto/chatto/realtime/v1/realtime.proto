@@ -348,6 +348,10 @@ message RealtimeProjectionNotificationChange {
   string notification_id = 2;
   // True when a created notification must not produce an alert.
   bool silent = 3;
+  // Exact followed-thread target of a created reply or mention, when present.
+  // This remains available even if the notification was concurrently dismissed.
+  string room_id = 4;
+  string thread_root_event_id = 5;
 }
 
 // Kind of live notification transition.

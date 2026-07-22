@@ -1604,6 +1604,19 @@ export class RealtimeProjectionNotificationChange extends Message<RealtimeProjec
    */
   silent = false;
 
+  /**
+   * Exact followed-thread target of a created reply or mention, when present.
+   * This remains available even if the notification was concurrently dismissed.
+   *
+   * @generated from field: string room_id = 4;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 5;
+   */
+  threadRootEventId = "";
+
   constructor(data?: PartialMessage<RealtimeProjectionNotificationChange>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1615,6 +1628,8 @@ export class RealtimeProjectionNotificationChange extends Message<RealtimeProjec
     { no: 1, name: "action", kind: "enum", T: proto3.getEnumType(RealtimeProjectionNotificationAction) },
     { no: 2, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationChange {

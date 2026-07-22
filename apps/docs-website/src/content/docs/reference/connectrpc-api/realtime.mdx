@@ -250,6 +250,8 @@ enclosing replacement remains the canonical notification state.
 | `action` | [`RealtimeProjectionNotificationAction`](#chatto-realtime-v1-RealtimeProjectionNotificationAction) | No field description provided. |
 | `notification_id` | `string` | No field description provided. |
 | `silent` | `bool` | True when a created notification must not produce an alert. |
+| `room_id` | `string` | Exact followed-thread target of a created reply or mention, when present. This remains available even if the notification was concurrently dismissed. |
+| `thread_root_event_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionNotificationsReplace"></a>
 

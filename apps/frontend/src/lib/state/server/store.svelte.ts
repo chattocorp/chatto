@@ -256,6 +256,7 @@ export class ServerStateStore {
         delete this.#threadMessageRefCounts[key];
       }
     }
+    this.synchronizeUnreadFollowedThreads();
   }
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
@@ -456,6 +457,7 @@ export class ServerStateStore {
           break;
         }
         case 'threadViewerStatesReplace': {
+          this.synchronizeUnreadFollowedThreads();
           for (const [roomId, page] of this.projection.timelines) {
             for (const projectedEvent of page.events) {
               if (
@@ -551,7 +553,15 @@ export class ServerStateStore {
       notificationCountsByRoomId,
       messageHistoryByRoomId
     );
+    this.synchronizeUnreadFollowedThreads();
     this.roomDirectory.replaceProjection(rooms);
+  }
+
+  private synchronizeUnreadFollowedThreads(): void {
+    if (!this.projection.hasThreadViewerStatesSnapshot) return;
+    this.rooms.setHasUnreadFollowedThreads(
+      this.projection.hasUnreadFollowedThreads((roomId) => !this.rooms.isRoomMuted(roomId))
+    );
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */

@@ -8,9 +8,13 @@ import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ListNotificationsResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionRoom
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   RealtimeProjectionEvent,
+  RealtimeProjectionNotificationsReplace,
   RealtimeProjectionServerState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -26,6 +30,8 @@ export class ServerProjectionStore {
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
   threadViewerStates = new SvelteMap<string, ThreadViewerState>();
+  /** Whether the complete thread viewer-state replacement has been received. */
+  hasThreadViewerStatesSnapshot = false;
   timelines = new SvelteMap<string, RoomTimelinePage>();
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
   private revokedRoomIds = new SvelteSet<string>();
@@ -92,7 +98,9 @@ export class ServerProjectionStore {
               this.timelines.delete(roomId);
               this.timelineEventCursors.delete(roomId);
               this.removeActiveCallRoom(roomId);
-            } else if (room.room?.viewerState?.isMember === true) this.revokedRoomIds.delete(roomId);
+              this.removeThreadViewerStatesForRoom(roomId);
+            } else if (room.room?.viewerState?.isMember === true)
+              this.revokedRoomIds.delete(roomId);
           }
           break;
         }
@@ -102,6 +110,7 @@ export class ServerProjectionStore {
           this.timelines.delete(operation.operation.value.roomId);
           this.timelineEventCursors.delete(operation.operation.value.roomId);
           this.removeActiveCallRoom(operation.operation.value.roomId);
+          this.removeThreadViewerStatesForRoom(operation.operation.value.roomId);
           break;
         case 'roomGroupsReplace':
           this.roomGroups = [...operation.operation.value.groups];
@@ -132,6 +141,7 @@ export class ServerProjectionStore {
         case 'notificationsReplace': {
           const replacement = operation.operation.value;
           this.notifications = replacement.page ?? null;
+          this.markCreatedNotificationThreadUnread(replacement);
           const counts = Object.fromEntries(
             replacement.roomCounts.map((count) => [count.roomId, count.totalCount])
           );
@@ -170,6 +180,7 @@ export class ServerProjectionStore {
             this.timelines.delete(replacement.roomId);
             this.timelineEventCursors.delete(replacement.roomId);
             this.removeActiveCallRoom(replacement.roomId);
+            this.removeThreadViewerStatesForRoom(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.revokedRoomIds.delete(replacement.roomId);
           }
@@ -191,6 +202,7 @@ export class ServerProjectionStore {
           }
           break;
         case 'threadViewerStatesReplace': {
+          this.hasThreadViewerStatesSnapshot = true;
           this.threadViewerStates.clear();
           for (const state of operation.operation.value.states) {
             this.threadViewerStates.set(
@@ -268,9 +280,65 @@ export class ServerProjectionStore {
     this.notifications = null;
     this.activeCalls = [];
     this.threadViewerStates.clear();
+    this.hasThreadViewerStatesSnapshot = false;
     this.timelines.clear();
     this.timelineEventCursors.clear();
     this.revokedRoomIds.clear();
+  }
+
+  /** Whether an included accessible room contains a followed thread with unread replies. */
+  hasUnreadFollowedThreads(includeRoom: (roomId: string) => boolean = () => true): boolean {
+    for (const [key, state] of this.threadViewerStates) {
+      if (!state.isFollowing || !state.hasUnread) continue;
+      const roomId = key.slice(0, key.indexOf('\u0000'));
+      if (this.rooms.get(roomId)?.room?.viewerState?.isMember === true && includeRoom(roomId))
+        return true;
+    }
+    return false;
+  }
+
+  private markCreatedNotificationThreadUnread(
+    replacement: RealtimeProjectionNotificationsReplace
+  ): void {
+    const change = replacement.change;
+    if (
+      !this.hasThreadViewerStatesSnapshot ||
+      change?.action !== RealtimeProjectionNotificationAction.CREATED
+    )
+      return;
+    let roomId = change.roomId;
+    let threadRootEventId = change.threadRootEventId;
+    if (!roomId || !threadRootEventId) {
+      const notification = replacement.page?.notifications.find(
+        (candidate) => candidate.id === change.notificationId
+      );
+      if (!notification) return;
+      switch (notification.kind.case) {
+        case 'mention':
+          roomId = notification.kind.value.room?.id ?? '';
+          threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+          break;
+        case 'reply':
+          roomId = notification.kind.value.room?.id ?? '';
+          threadRootEventId = notification.kind.value.threadRootEventId ?? '';
+          break;
+      }
+    }
+    if (!roomId || !threadRootEventId) return;
+
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    const current = this.threadViewerStates.get(key);
+    if (!current?.isFollowing) return;
+    const next = current.clone();
+    next.hasUnread = true;
+    this.threadViewerStates.set(key, next);
+  }
+
+  private removeThreadViewerStatesForRoom(roomId: string): void {
+    const prefix = `${roomId}\u0000`;
+    for (const key of this.threadViewerStates.keys()) {
+      if (key.startsWith(prefix)) this.threadViewerStates.delete(key);
+    }
   }
 
   /**

@@ -204,6 +204,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		_, ok := retainedRooms[roomID]
 		return ok
 	}
+	appendThreadViewerStates := func() error {
+		threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+		if err != nil {
+			return err
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+			ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+		}})
+		return nil
+	}
 	if evt == nil {
 		live := event.LiveEvent()
 		if live == nil {
@@ -248,33 +258,32 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
+			// Muting hides thread unread state while unmuting may reveal replies
+			// accumulated during the mute. Preference changes are rare and
+			// user-scoped, so replace the complete set here rather than on each
+			// room reply.
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, err
+			}
 		case *corev1.LiveEvent_NotificationCreated:
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
 			}
 			replacement := realtimeProjectionNotifications(notifications)
-			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
+			change := &realtimev1.RealtimeProjectionNotificationChange{
 				Action:         realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED,
 				NotificationId: payload.NotificationCreated.GetNotificationId(),
 				Silent:         payload.NotificationCreated.GetSilent(),
 			}
+			if roomID, threadRootID := s.realtimeNotificationThreadTarget(ctx, payload.NotificationCreated); threadRootID != "" {
+				change.RoomId = roomID
+				change.ThreadRootEventId = threadRootID
+			}
+			replacement.Change = change
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
-			// Reply notifications are also the live signal that a followed
-			// thread became unread. Replace the complete latest-value set so
-			// unretained rooms and the My Threads view converge without a
-			// ConnectRPC refresh.
-			if payload.NotificationCreated.GetInReplyToId() != "" {
-				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-				if err != nil {
-					return nil, false, err
-				}
-				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-				}})
-			}
 		case *corev1.LiveEvent_NotificationDismissed:
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
@@ -308,13 +317,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
-			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-			if err != nil {
+			if err := appendThreadViewerStates(); err != nil {
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-				ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-			}})
 			if retainsTimeline(thread.GetRoomId()) {
 				timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
 				if err != nil {
@@ -484,7 +489,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendRoomViewerState(roomID); err != nil {
 			return nil, false, err
 		}
-		if payload.MessagePosted.GetInThread() == "" {
+		threadRootID := payload.MessagePosted.GetInThread()
+		if threadRootID == "" {
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomActivity{
 				RoomActivity: &realtimev1.RealtimeProjectionRoomActivity{RoomId: roomID},
 			}})
@@ -495,8 +501,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		// Deliver the reply before the authoritative root summary. Existing
 		// reducers optimistically increment a root when ingesting a reply; the
 		// following root upsert then converges that count instead of doubling it.
-		if rootID := payload.MessagePosted.GetInThread(); rootID != "" {
-			if err := appendTimeline(roomID, rootID, nil); err != nil {
+		if threadRootID != "" {
+			if err := appendTimeline(roomID, threadRootID, nil); err != nil {
 				return nil, false, err
 			}
 		}
@@ -613,7 +619,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 	case *corev1.Event_RoomUnarchived:
 		roomID := payload.RoomUnarchived.GetRoomId()
-		if err := appendRoom(roomID); err != nil {
+		room, err := appendRoomResult(roomID)
+		if err != nil {
 			return nil, false, err
 		}
 		if err := appendRoomTimelineIfMember(roomID); err != nil {
@@ -621,6 +628,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
+		}
+		if room != nil && room.Room.GetViewerState().GetIsMember() {
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room unarchive: %w", err)
+			}
 		}
 	case *corev1.Event_RoomUniversalChanged:
 		roomID := payload.RoomUniversalChanged.GetRoomId()
@@ -639,6 +651,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
 			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after universal room access gain: %w", err)
+			}
 		} else {
 			// A universal-membership revocation must remove already-decrypted
 			// timeline state in the same ordered projection event as metadata.
@@ -655,6 +670,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if evt.GetActorId() == viewerID {
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
+			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room join: %w", err)
 			}
 		}
 		if err := appendSourceTimeline(roomID); err != nil {
@@ -682,6 +700,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if payload.RoomMemberAdded.GetUserId() == viewerID {
 			if err := appendRoomTimeline(roomID); err != nil {
 				return nil, false, err
+			}
+			if err := appendThreadViewerStates(); err != nil {
+				return nil, false, fmt.Errorf("assemble thread viewer states after room membership add: %w", err)
 			}
 		}
 	case *corev1.Event_RoomMemberRemoved:
@@ -774,6 +795,24 @@ func realtimeProjectionRoom(room *connectapi.RealtimeProjectionRoom) *realtimev1
 		ViewerNotificationCount: room.ViewerNotificationCount,
 		HasMessageHistory:       room.HasMessageHistory,
 	}
+}
+
+// realtimeNotificationThreadTarget resolves the immutable message target from
+// the creation signal, rather than relying on the notification still being
+// pending when a slower socket maps the signal.
+func (s *HTTPServer) realtimeNotificationThreadTarget(ctx context.Context, created *corev1.NotificationCreatedEvent) (string, string) {
+	if created == nil || created.GetRoomId() == "" || created.GetEventId() == "" {
+		return "", ""
+	}
+	event, err := s.core.GetRoomEventByEventID(ctx, core.KindChannel, created.GetRoomId(), created.GetEventId())
+	if err != nil || event == nil {
+		return "", ""
+	}
+	threadRootID := event.GetMessagePosted().GetInThread()
+	if threadRootID == "" {
+		return "", ""
+	}
+	return created.GetRoomId(), threadRootID
 }
 
 func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectionNotifications) *realtimev1.RealtimeProjectionNotificationsReplace {

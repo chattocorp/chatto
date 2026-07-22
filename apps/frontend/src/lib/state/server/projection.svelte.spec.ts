@@ -20,17 +20,20 @@ import {
   RoomTimelineEvent,
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
   ListNotificationsResponse,
   NotificationItem,
+  ReplyNotification,
   RoomNotificationCount
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
+  RealtimeProjectionNotificationAction,
+  RealtimeProjectionNotificationChange,
   RealtimeProjectionOperation,
   RealtimeProjectionPresencesReplace,
   RealtimeProjectionThreadViewerState,
@@ -124,6 +127,7 @@ describe('ServerProjectionStore', () => {
     expect(viewerState()?.isFollowing).toBe(true);
     expect(viewerState()?.hasUnread).toBe(true);
     expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnread).toBe(true);
+    expect(store.hasThreadViewerStatesSnapshot).toBe(true);
 
     store.apply(
       event(
@@ -136,6 +140,162 @@ describe('ServerProjectionStore', () => {
     expect(viewerState()?.isFollowing).toBe(false);
     expect(viewerState()?.hasUnread).toBe(false);
     expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasThreadViewerStatesSnapshot).toBe(true);
+  });
+
+  it('invalidates thread viewer-state snapshot authority on reset', () => {
+    const store = new ServerProjectionStore();
+    store.apply(
+      event(
+        operation({
+          case: 'threadViewerStatesReplace',
+          value: new RealtimeProjectionThreadViewerStatesReplace()
+        }),
+        operation({ case: 'reset', value: new RealtimeProjectionReset() })
+      )
+    );
+
+    expect(store.hasThreadViewerStatesSnapshot).toBe(false);
+  });
+
+  it('purges followed-thread state when room access is revoked or removed', () => {
+    const store = new ServerProjectionStore();
+    const room = (isMember: boolean) =>
+      operation({
+        case: 'roomUpsert',
+        value: new RealtimeProjectionRoom({
+          room: new RoomWithViewerState({
+            room: new Room({ id: 'R1' }),
+            viewerState: new RoomViewerState({ isMember })
+          })
+        })
+      });
+    const unreadThread = operation({
+      case: 'threadViewerStatesReplace',
+      value: new RealtimeProjectionThreadViewerStatesReplace({
+        states: [
+          new RealtimeProjectionThreadViewerState({
+            roomId: 'R1',
+            threadRootEventId: 'ROOT',
+            viewerState: new ThreadViewerState({ isFollowing: true, hasUnread: true })
+          })
+        ]
+      })
+    });
+
+    store.apply(event(room(true), unreadThread));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: false })
+          })
+        })
+      )
+    );
+    expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+
+    store.apply(event(room(true), unreadThread));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'R1' })
+        })
+      )
+    );
+    expect(store.threadViewerStates.size).toBe(0);
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+  });
+
+  it('marks only an already-followed thread unread from a created reply notification', () => {
+    const store = new ServerProjectionStore();
+    const room = operation({
+      case: 'roomUpsert',
+      value: new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'R1' }),
+          viewerState: new RoomViewerState({ isMember: true })
+        })
+      })
+    });
+    const threadStates = (isFollowing: boolean) =>
+      operation({
+        case: 'threadViewerStatesReplace',
+        value: new RealtimeProjectionThreadViewerStatesReplace({
+          states: [
+            new RealtimeProjectionThreadViewerState({
+              roomId: 'R1',
+              threadRootEventId: 'ROOT',
+              viewerState: new ThreadViewerState({ isFollowing, hasUnread: false })
+            })
+          ]
+        })
+      });
+    const createdReply = operation({
+      case: 'notificationsReplace',
+      value: new RealtimeProjectionNotificationsReplace({
+        page: new ListNotificationsResponse({
+          notifications: [
+            new NotificationItem({
+              id: 'N1',
+              kind: {
+                case: 'reply',
+                value: new ReplyNotification({
+                  room: new RoomSummary({ id: 'R1' }),
+                  threadRootEventId: 'ROOT'
+                })
+              }
+            })
+          ]
+        }),
+        change: new RealtimeProjectionNotificationChange({
+          action: RealtimeProjectionNotificationAction.CREATED,
+          notificationId: 'N1'
+        })
+      })
+    });
+    const createdAfterConcurrentDismissal = operation({
+      case: 'notificationsReplace',
+      value: new RealtimeProjectionNotificationsReplace({
+        page: new ListNotificationsResponse(),
+        change: new RealtimeProjectionNotificationChange({
+          action: RealtimeProjectionNotificationAction.CREATED,
+          notificationId: 'N1',
+          roomId: 'R1',
+          threadRootEventId: 'ROOT'
+        })
+      })
+    });
+
+    store.apply(event(room, threadStates(false), createdReply));
+    expect(store.hasUnreadFollowedThreads()).toBe(false);
+
+    store.apply(event(threadStates(true), createdAfterConcurrentDismissal));
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({
+            page: new ListNotificationsResponse(),
+            change: new RealtimeProjectionNotificationChange({
+              action: RealtimeProjectionNotificationAction.DISMISSED,
+              notificationId: 'N1'
+            })
+          })
+        })
+      )
+    );
+    expect(store.hasUnreadFollowedThreads()).toBe(true);
   });
 
   it('reconciles complete transient presence without changing user profiles', () => {

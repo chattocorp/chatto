@@ -1954,6 +1954,85 @@ func TestChattoCore_SetThreadLastReadEventIDDoesNotRegress(t *testing.T) {
 	}
 }
 
+func TestChattoCore_HasUnreadFollowedThreadsExcludesMutedRooms(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := chattoCore.CreateUser(ctx, SystemActorID, "unread-thread-owner", "Unread Thread Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	viewer, err := chattoCore.CreateUser(ctx, SystemActorID, "unread-thread-viewer", "Unread Thread Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "unread-thread-author", "Unread Thread Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, owner.Id, KindChannel, "", "unread-thread-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{owner.Id, viewer.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, owner.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if _, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "first reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage first reply: %v", err)
+	}
+	if err := chattoCore.FollowThread(ctx, KindChannel, viewer.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "unread reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	if following, err := chattoCore.IsFollowingThread(ctx, KindChannel, viewer.Id, room.Id, root.Id); err != nil || !following {
+		t.Fatalf("IsFollowingThread = %v, %v", following, err)
+	}
+	if _, err := chattoCore.GetThreadMetadata(ctx, KindChannel, room.Id, root.Id); err != nil {
+		t.Fatalf("GetThreadMetadata: %v", err)
+	}
+	if member, err := chattoCore.RoomMembershipExists(ctx, KindChannel, viewer.Id, room.Id); err != nil || !member {
+		t.Fatalf("RoomMembershipExists = %v, %v", member, err)
+	}
+
+	hasUnread, err := chattoCore.HasUnreadFollowedThreads(ctx, viewer.Id, []string{LegacyServerSpaceID})
+	if err != nil {
+		t.Fatalf("HasUnreadFollowedThreads before mute: %v", err)
+	}
+	if !hasUnread {
+		threads, listErr := chattoCore.ListFollowedThreads(ctx, viewer.Id, []string{LegacyServerSpaceID})
+		t.Fatalf("unmuted followed thread should be unread; threads=%+v listErr=%v", threads, listErr)
+	}
+	if err := chattoCore.SetRoomNotificationLevel(ctx, viewer.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); err != nil {
+		t.Fatalf("SetRoomNotificationLevel muted: %v", err)
+	}
+	hasUnread, err = chattoCore.HasUnreadFollowedThreads(ctx, viewer.Id, []string{LegacyServerSpaceID})
+	if err != nil {
+		t.Fatalf("HasUnreadFollowedThreads while muted: %v", err)
+	}
+	if hasUnread {
+		t.Fatal("muted followed thread should not contribute unread state")
+	}
+	if err := chattoCore.SetRoomNotificationLevel(ctx, viewer.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED); err != nil {
+		t.Fatalf("SetRoomNotificationLevel unmuted: %v", err)
+	}
+	hasUnread, err = chattoCore.HasUnreadFollowedThreads(ctx, viewer.Id, []string{LegacyServerSpaceID})
+	if err != nil {
+		t.Fatalf("HasUnreadFollowedThreads after unmute: %v", err)
+	}
+	if !hasUnread {
+		t.Fatal("unmuting should reveal the unread followed thread")
+	}
+}
+
 func eventIDsForTest(events []*RoomEvent) []string {
 	ids := make([]string, 0, len(events))
 	for _, event := range events {

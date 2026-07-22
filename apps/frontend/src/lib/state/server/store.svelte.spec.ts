@@ -9,12 +9,14 @@ import { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { Message, MessageAttachment } from '@chatto/api-types/api/v1/message_types_pb';
-import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import {
-  RoomViewerState,
-  RoomWithViewerState
-} from '@chatto/api-types/api/v1/room_directory_pb';
+  Message,
+  MessageAttachment,
+  ThreadViewerState
+} from '@chatto/api-types/api/v1/message_types_pb';
+import { ListNotificationsResponse } from '@chatto/api-types/api/v1/notifications_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -23,14 +25,18 @@ import {
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
+  RealtimeProjectionNotificationsReplace,
   RealtimeProjectionOperation,
   RealtimeProjectionRoomActivity,
+  RealtimeProjectionRoomRemove,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionReactionChange,
   RealtimeProjectionRoomTimelineEventRemove,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
   RealtimeProjectionServerState,
+  RealtimeProjectionThreadViewerState,
+  RealtimeProjectionThreadViewerStatesReplace,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
   RealtimeProjectionUserRemove
@@ -138,6 +144,7 @@ const { soundMocks, apiMocks } = vi.hoisted(() => ({
         canAdminViewSystem: false,
         canAdminViewAudit: false,
         canManageUserPermissions: false,
+        hasUnreadFollowedThreads: false,
         serverNotificationPreference: {
           level: 'DEFAULT',
           effectiveLevel: 'NORMAL'
@@ -469,6 +476,7 @@ beforeEach(() => {
     canAdminViewSystem: false,
     canAdminViewAudit: false,
     canManageUserPermissions: false,
+    hasUnreadFollowedThreads: false,
     serverNotificationPreference: {
       level: 'DEFAULT',
       effectiveLevel: 'NORMAL'
@@ -622,6 +630,7 @@ describe('ServerStateStore live server updates', () => {
     );
     store.rooms.rooms = [{ id: 'R1' } as never];
     store.rooms.roomGroups = [{ id: 'G1' } as never];
+    store.rooms.hasUnreadFollowedThreads = true;
     store.rooms.isInitialLoading = false;
     store.roomDirectory.allRooms = [{ id: 'R1' } as never];
     store.roomDirectory.isLoading = false;
@@ -652,6 +661,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.livekitUrl).toBeNull();
     expect(store.rooms.rooms).toEqual([]);
     expect(store.rooms.roomGroups).toEqual([]);
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
     expect(store.rooms.isInitialLoading).toBe(true);
     expect(store.roomDirectory.allRooms).toEqual([]);
     expect(store.roomDirectory.isLoading).toBe(true);
@@ -685,6 +695,122 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.motd).toBe('rehydrated');
     expect(store.serverInfo.livekitUrl).toBe('wss://fresh');
     expect(store.activeCallRooms.has('R2')).toBe(true);
+  });
+
+  it('derives My Threads unread state from complete projection replacements', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const dispatch = (...operations: RealtimeProjectionOperation[]) => {
+      for (const handler of bus.projectionHandlers) {
+        handler(new RealtimeProjectionEvent({ operations }));
+      }
+    };
+    const threadStates = (isFollowing: boolean, hasUnread: boolean) =>
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'threadViewerStatesReplace',
+          value: new RealtimeProjectionThreadViewerStatesReplace({
+            states: [
+              new RealtimeProjectionThreadViewerState({
+                roomId: 'R1',
+                threadRootEventId: 'ROOT',
+                viewerState: new ThreadViewerState({ isFollowing, hasUnread })
+              })
+            ]
+          })
+        }
+      });
+    const roomState = (isMember: boolean) =>
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({ isMember })
+            })
+          })
+        }
+      });
+
+    // Initial projection: an unread unfollowed thread is outside My Threads.
+    dispatch(roomState(true), threadStates(false, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    // Follow, read-marker, and unfollow replacements are exact latest-value state.
+    dispatch(roomState(true), threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    // Dismissing its notification does not make the followed thread read.
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'notificationsReplace',
+          value: new RealtimeProjectionNotificationsReplace({
+            page: new ListNotificationsResponse()
+          })
+        }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    dispatch(threadStates(true, false));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    dispatch(threadStates(false, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    // A reconnect reset clears stale state; catch-up establishes it again.
+    dispatch(threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: { case: 'reset', value: new RealtimeProjectionReset() }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    dispatch(roomState(true), threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    // Muted rooms keep their thread state but do not contribute sidebar unread.
+    store.notificationLevels.setRoomPreference('R1', 'MUTED' as never, 'MUTED' as never);
+    dispatch(threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+    store.notificationLevels.setRoomPreference('R1', 'NORMAL' as never, 'NORMAL' as never);
+    dispatch(threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    // Access loss clears cached state even before a complete replacement arrives.
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomViewerStateReplace',
+          value: new RealtimeProjectionRoomViewerStateReplace({
+            roomId: 'R1',
+            viewerState: new RoomViewerState({ isMember: false })
+          })
+        }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
+
+    dispatch(roomState(true), threadStates(true, true));
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(true);
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'R1' })
+        }
+      })
+    );
+    expect(store.rooms.hasUnreadFollowedThreads).toBe(false);
   });
 
   it('purges removed users from navigation and retained render stores', () => {

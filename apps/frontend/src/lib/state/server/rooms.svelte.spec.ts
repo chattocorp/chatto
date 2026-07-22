@@ -95,6 +95,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
     roomNotificationPreferences: [],
     viewerPermissions: {},
     viewerHasUnreadRooms: false,
+    hasUnreadFollowedThreads: false,
     ...overrides
   };
 }
@@ -253,7 +254,8 @@ describe('RoomsStore - refresh', () => {
               level: NotificationLevel.AllMessages,
               effectiveLevel: NotificationLevel.AllMessages
             }
-          ]
+          ],
+          hasUnreadFollowedThreads: true
         })
       )
     });
@@ -261,6 +263,7 @@ describe('RoomsStore - refresh', () => {
     await store.refresh();
 
     expect(store.currentUserId).toBe('U2');
+    expect(store.hasUnreadFollowedThreads).toBe(true);
     expect(notificationLevels.getServerPreference()).toEqual({
       level: NotificationLevel.Muted,
       effectiveLevel: NotificationLevel.Muted
@@ -269,6 +272,41 @@ describe('RoomsStore - refresh', () => {
       level: NotificationLevel.AllMessages,
       effectiveLevel: NotificationLevel.AllMessages
     });
+  });
+
+  it('replaces followed-thread unread state from viewer projection state', () => {
+    const store = makeStore();
+
+    store.replaceProjection(makeViewer({ hasUnreadFollowedThreads: true }), [], []);
+    expect(store.hasUnreadFollowedThreads).toBe(true);
+
+    store.replaceProjection(makeViewer({ hasUnreadFollowedThreads: false }), [], []);
+    expect(store.hasUnreadFollowedThreads).toBe(false);
+  });
+
+  it('does not let a delayed refresh overwrite newer realtime thread unread state', async () => {
+    let resolveViewer!: (viewer: ViewerState) => void;
+    const store = makeStore({
+      viewerStateLoader: vi.fn(
+        () => new Promise<ViewerState>((resolve) => (resolveViewer = resolve))
+      )
+    });
+
+    const refresh = store.refresh();
+    store.setHasUnreadFollowedThreads(true);
+    resolveViewer(makeViewer({ hasUnreadFollowedThreads: false }));
+    await refresh;
+
+    expect(store.hasUnreadFollowedThreads).toBe(true);
+  });
+
+  it('clears followed-thread unread state during projection reset', () => {
+    const store = makeStore();
+    store.setHasUnreadFollowedThreads(true);
+
+    store.resetProjectionState();
+
+    expect(store.hasUnreadFollowedThreads).toBe(false);
   });
 
   it('discards out-of-order responses', async () => {

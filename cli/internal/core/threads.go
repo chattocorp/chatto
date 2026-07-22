@@ -933,6 +933,14 @@ func (c *ChattoCore) HasUnreadFollowedThreads(ctx context.Context, userID string
 			continue
 		}
 		for _, thread := range threads {
+			level, err := c.GetEffectiveNotificationLevel(ctx, userID, thread.RoomID)
+			if err != nil {
+				c.logger.Warn("Failed to resolve followed thread notification level", "room_id", thread.RoomID, "error", err)
+				continue
+			}
+			if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+				continue
+			}
 			if c.followedThreadHasUnread(ctx, userID, thread) {
 				return true, nil
 			}
