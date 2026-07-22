@@ -627,9 +627,10 @@ describe('MessageComposer', () => {
 
     it('does not clear the next room draft when an earlier room send completes', async () => {
       const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const onMessageSent = vi.fn();
       createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
       const rendered = renderMessageComposer(
-        { roomId: 'room-uploading' },
+        { roomId: 'room-uploading', onMessageSent },
         { exactRoomId: true }
       );
       const editor = await findEditor(rendered.container);
@@ -642,13 +643,14 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
 
       sessionStorage.setItem('chatto:draft:room-next', 'room B draft');
-      await rendered.rerender({ roomId: 'room-next' });
+      await rendered.rerender({ roomId: 'room-next', onMessageSent });
       await expect.element(editor).toHaveTextContent('room B draft');
 
       pendingSend.resolve({ event: postedMessageEvent('msg-a', 'room-uploading') });
 
       await expect.element(editor).toHaveTextContent('room B draft');
       expect(sessionStorage.getItem('chatto:draft:room-next')).toBe('room B draft');
+      expect(onMessageSent).not.toHaveBeenCalled();
       await vi.waitFor(() =>
         expect(sessionStorage.getItem('chatto:draft:room-uploading')).toBeNull()
       );

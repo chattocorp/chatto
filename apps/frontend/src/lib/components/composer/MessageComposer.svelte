@@ -730,31 +730,25 @@
   }
 
   function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
-    // Notify parent before scrolling so it can synchronously ingest the
-    // returned event and make the target row available.
-    onMessageSent?.(response.event);
-
-    // Scroll the enclosing pane to the user's new message. The composer
-    // reads `scrollState` from its surrounding ComposerContext, so this
-    // targets the main room's EventList in a room composer and the
-    // thread's EventList in a thread composer.
     if (DRAFT_KEY === post.draftKey) {
+      // Notify the still-active parent before scrolling so it can synchronously
+      // ingest the returned event and make the target row available.
+      onMessageSent?.(response.event);
+
+      // The composer reads `scrollState` from its surrounding ComposerContext,
+      // so this targets the active room or thread EventList.
       scrollState?.requestScrollToBottom();
-    }
 
-    // Clear reply-in-room state after sending
-    if (DRAFT_KEY === post.draftKey) {
+      // Clear reply-in-room state after sending.
       onCancelReply?.();
-    }
 
-    // Mark this room as read (we just posted, so we've seen all messages)
-    roomUnreadStore.setRoomUnread(post.roomId, false);
-
-    // Reset "also send to channel" checkbox after successful send
-    if (DRAFT_KEY === post.draftKey) {
+      // Reset active composer options after successful send.
       alsoSendToChannel = false;
       manualRichMode = false;
     }
+
+    // Mark the submitted room as read even if the user navigated away while sending.
+    roomUnreadStore.setRoomUnread(post.roomId, false);
   }
 
   async function submitPreparedPost(preparedPost: PreparedPost) {
