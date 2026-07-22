@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { MessagesStore } from '$lib/state/room';
 import {
@@ -35,6 +36,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       replaceState: vi.fn(),
       markRoomAsRead: vi.fn(),
+      projectionEventHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
         toPromise: vi.fn().mockResolvedValue({ data: queryData, error: null })
@@ -136,7 +138,9 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useProjectionEvent: vi.fn(),
+  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+    mocks.projectionEventHandler = handler;
+  },
   usePresenceChange: vi.fn(),
   createTypingIndicator: () => ({
     userIds: [],
@@ -342,6 +346,7 @@ beforeEach(() => {
   mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
+  mocks.projectionEventHandler = null;
   mocks.roomFilesRetain.mockReset();
   mocks.roomFilesRetain.mockReturnValue(vi.fn());
   mocks.messagesForRoom.mockReturnValue(
@@ -366,6 +371,32 @@ beforeEach(() => {
 });
 
 describe('Room local message echo', () => {
+  it('anchors projected row replacements to the room timeline event ID', async () => {
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(new RealtimeProjectionEvent({
+      id: 'asset-processing-succeeded-id',
+      actorId: 'system',
+      operations: [
+        {
+          operation: {
+            case: 'roomTimelineEventUpsert',
+            value: {
+              roomId: 'room-1',
+              event: {
+                id: 'message-event-id',
+                event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
+              }
+            }
+          }
+        }
+      ]
+    }));
+
+    expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
+  });
+
   it('opens and highlights the explicit message from a nested thread route', async () => {
     const { container } = render(Room, {
       props: {

@@ -5,7 +5,7 @@ description: How to enable and configure video processing in Chatto.
 
 import { Aside } from '@astrojs/starlight/components';
 
-Chatto can transcode uploaded videos into multiple quality renditions for adaptive HLS playback. When a user uploads a video, the server stores HLS segments and a thumbnail, generates playlists on demand, and serves them through a built-in video player.
+Chatto can transcode uploaded videos into multiple quality renditions for adaptive HLS playback. When a user uploads a video, the server stores HLS segments and a thumbnail, generates playlists on demand, and serves them through a built-in video player. Processed video audio is normalized to AAC stereo for consistent browser playback, including for uploads with unusual multichannel layouts.
 
 ## Prerequisites
 

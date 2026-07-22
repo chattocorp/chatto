@@ -329,7 +329,10 @@
         const actorId = event.actorId;
         if (actorId) typingIndicator.removeTypingUser(actorId);
         if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-          unread.markRoomAsRead(roomId, event.id);
+          // Projection envelopes for row replacements can be driven by an
+          // asset/reaction fact whose ID is not itself part of the room
+          // timeline. Anchor read state to the row being upserted.
+          unread.markRoomAsRead(roomId, update.event.id);
         }
       }
     }
