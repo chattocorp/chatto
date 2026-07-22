@@ -46,7 +46,7 @@
     },
     "credentials": {
       "title": "API-Schlüssel für {bot}",
-      "active_description": "Aus Sicherheitsgründen werden API-Schlüssel nur einmal angezeigt. Beim Zurücksetzen wird dieser Schlüssel durch einen neuen ersetzt.",
+      "active_description": "Aus Sicherheitsgründen werden API-Schlüssel nur einmal angezeigt. Setze diesen Schlüssel zurück, um ihn zu ersetzen.",
       "none_description": "Dieser Bot hat derzeit keinen API-Schlüssel.",
       "generate": "API-Schlüssel erstellen",
       "rotate": "API-Schlüssel zurücksetzen",

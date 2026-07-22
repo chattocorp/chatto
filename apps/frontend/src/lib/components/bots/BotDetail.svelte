@@ -197,8 +197,8 @@ the authorization boundary; `scope` controls navigation and credential actions.
         </Panel>
 
         <Panel title={m['bots.field.api_key']()} icon="iconify uil--key-skeleton">
-          <div class="flex max-w-2xl items-center justify-between gap-4">
-            <div class="min-w-0">
+          <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0 max-w-2xl">
               <p class="font-medium">
                 {bot.apiKeyCreatedAt
                   ? m['bots.credentials.active_description']()
@@ -206,15 +206,19 @@ the authorization boundary; `scope` controls navigation and credential actions.
               </p>
             </div>
             {#if scope === 'owner'}
-              <Button variant="secondary" onclick={() => (credentialAction = 'rotate')}>
-                <span class="iconify uil--repeat" aria-hidden="true"></span>
-                {m['bots.credentials.rotate']()}
-              </Button>
+              <div class="shrink-0 whitespace-nowrap">
+                <Button variant="secondary" onclick={() => (credentialAction = 'rotate')}>
+                  <span class="iconify uil--repeat" aria-hidden="true"></span>
+                  {m['bots.credentials.rotate']()}
+                </Button>
+              </div>
             {:else if bot.apiKeyCreatedAt}
-              <Button variant="danger-secondary" onclick={() => (credentialAction = 'revoke')}>
-                <span class="iconify uil--key-skeleton-alt" aria-hidden="true"></span>
-                {m['bots.credentials.revoke']()}
-              </Button>
+              <div class="shrink-0 whitespace-nowrap">
+                <Button variant="danger-secondary" onclick={() => (credentialAction = 'revoke')}>
+                  <span class="iconify uil--key-skeleton-alt" aria-hidden="true"></span>
+                  {m['bots.credentials.revoke']()}
+                </Button>
+              </div>
             {/if}
           </div>
         </Panel>
