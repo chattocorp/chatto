@@ -9,10 +9,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-type attachmentMapper struct {
-	api *API
-}
-
 type assetService struct {
 	api *API
 }
@@ -45,14 +41,13 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 	}
 
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
-	mapper := attachmentMapper{api: s.api}
 	attachments := make([]*apiv1.RoomAttachmentListItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		if item == nil {
 			continue
 		}
 		attachments = append(attachments, &apiv1.RoomAttachmentListItem{
-			Attachment:        mapper.asset(item.Attachment, caller.UserID, thumbnail),
+			Attachment:        apiAsset(s.api, item.Attachment, caller.UserID, thumbnail),
 			MessageEventId:    item.MessageEventID,
 			ThreadRootEventId: item.ThreadRootEventID,
 			CreatedAt:         item.CreatedAt,
@@ -78,9 +73,8 @@ func (s *assetService) GetAsset(ctx context.Context, req *connect.Request[apiv1.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapper := attachmentMapper{api: s.api}
 	return connect.NewResponse(&apiv1.GetAssetResponse{
-		Asset: mapper.asset(asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
+		Asset: apiAsset(s.api, asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
 	}), nil
 }
 
@@ -98,20 +92,19 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 		return nil, connectError(err)
 	}
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
-	mapper := attachmentMapper{api: s.api}
 	out := make([]*apiv1.Asset, 0, len(assets))
 	for _, asset := range assets {
-		out = append(out, mapper.asset(asset, caller.UserID, thumbnail))
+		out = append(out, apiAsset(s.api, asset, caller.UserID, thumbnail))
 	}
 	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
-func (s *attachmentMapper) asset(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
+func apiAsset(api *API, attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
 	if attachment == nil {
 		return nil
 	}
 	h := &timelineHydrator{
-		api:      s.api,
+		api:      api,
 		viewerID: viewerID,
 	}
 	return &apiv1.Asset{
@@ -121,8 +114,8 @@ func (s *attachmentMapper) asset(attachment *corev1.Attachment, viewerID string,
 		Size:              attachment.Size,
 		Width:             attachment.Width,
 		Height:            attachment.Height,
-		AssetUrl:          assetURLView(s.api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
-		ThumbnailAssetUrl: assetURLView(s.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
+		AssetUrl:          assetURLView(api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
+		ThumbnailAssetUrl: assetURLView(api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
 		VideoProcessing:   h.videoProcessing(attachment),
 	}
 }
