@@ -58,7 +58,6 @@ function renderTable(
   props: {
     fitContent?: boolean;
     stickyHeader?: boolean;
-    boundedStickyHeader?: boolean;
     fillHeight?: boolean;
     hoverable?: boolean;
     hasMore?: boolean;
@@ -153,14 +152,6 @@ describe('DataTable.hoverable', () => {
 
     expect(viewport.className).toContain('flex-1');
     expect(viewport.className).not.toContain('max-h-[70dvh]');
-  });
-
-  it('can keep its header sticky while an ancestor owns scrolling', () => {
-    const { container } = renderTable({ stickyHeader: true, boundedStickyHeader: false });
-    const table = container.querySelector('table') as HTMLTableElement;
-
-    expect(table.parentElement?.className).not.toContain('overflow-y-auto');
-    expect(container.querySelector('thead')?.className).toContain('sticky');
   });
 
   it('still renders cursor-pointer on hoverable=false rows when onRowClick is set', async () => {
