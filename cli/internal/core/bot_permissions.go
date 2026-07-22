@@ -57,7 +57,7 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 		if decision != DecisionAllow {
 			return nil
 		}
-		_, ownerID, _, _ := c.Users.AuthorizationIdentity(botID)
+		ownerID, _, _, _ := c.Users.AuthorizationIdentity(botID)
 		ownerAllowed, err := c.hasPermissionAtScope(ctx, ownerID, scope, scopeID, perm)
 		if err != nil {
 			return err
@@ -79,7 +79,7 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 			return err
 		}
 	}
-	_, ownerID, _, exists := c.Users.AuthorizationIdentity(botID)
+	ownerID, _, _, exists := c.Users.AuthorizationIdentity(botID)
 	if exists && ownerID != "" {
 		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner permission", events.UserAggregate(ownerID).AllEventsFilter()); err != nil {
 			return err

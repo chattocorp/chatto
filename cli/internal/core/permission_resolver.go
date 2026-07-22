@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -89,13 +87,13 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	accountKind, ownerID, active, exists := r.core.Users.AuthorizationIdentity(userID)
-	if exists && accountKind == corev1.UserKind_USER_KIND_BOT {
+	ownerID, bot, active, exists := r.core.Users.AuthorizationIdentity(userID)
+	if exists && bot {
 		if !active {
 			return DecisionDeny, nil
 		}
-		ownerKind, _, ownerActive, ownerExists := r.core.Users.AuthorizationIdentity(ownerID)
-		if !ownerExists || !ownerActive || ownerKind == corev1.UserKind_USER_KIND_BOT {
+		_, ownerBot, ownerActive, ownerExists := r.core.Users.AuthorizationIdentity(ownerID)
+		if !ownerExists || !ownerActive || ownerBot {
 			return DecisionDeny, nil
 		}
 		botDecision, err := r.resolveAccountWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)

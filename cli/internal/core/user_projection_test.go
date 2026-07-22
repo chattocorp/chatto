@@ -131,9 +131,20 @@ func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID
 	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
 		UserId:               userID,
+		AccountProfile:       &corev1.UserAccountCreatedEvent_Human{Human: &corev1.HumanAccountCreated{}},
 		EncryptedLogin:       encryptedLogin,
 		EncryptedDisplayName: encryptedDisplayName,
 	}}}
+}
+
+func TestUserProjectionTreatsHistoricalMissingAccountProfileAsHuman(t *testing.T) {
+	p, contentKey := newEncryptedUserProjection(t, "U1")
+	created := accountCreated(t, contentKey, "E1", "U1", "alice", "Alice")
+	created.GetUserAccountCreated().AccountProfile = nil
+	require.NoError(t, p.Apply(userEvent("E1", time.Now(), created), 2))
+	user, ok := p.Get("U1")
+	require.True(t, ok)
+	require.NotNil(t, user.GetHuman())
 }
 
 func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, login string) *corev1.Event {

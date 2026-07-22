@@ -203,17 +203,22 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	u.user = &corev1.User{
-		Id:         e.GetUserId(),
-		CreatedAt:  envelopeCreatedAt,
-		Kind:       normalizedUserKind(e.GetKind()),
-		BotOwnerId: e.GetBotOwnerId(),
+		Id:        e.GetUserId(),
+		CreatedAt: envelopeCreatedAt,
+	}
+	switch profile := e.GetAccountProfile().(type) {
+	case *corev1.UserAccountCreatedEvent_Bot:
+		u.user.AccountProfile = &corev1.User_Bot{Bot: &corev1.BotAccountProfile{OwnerId: profile.Bot.GetOwnerId()}}
+		if profile.Bot.GetEncryptedDescription() != nil {
+			u.botDescription = newProjectedUserPII(eventID, events.EventUserAccountCreated, "bot_description", profile.Bot.GetEncryptedDescription())
+		}
+	default:
+		// Historical creation events have no account profile and are human.
+		u.user.AccountProfile = &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}
 	}
 	u.login = newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	u.displayName = newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
-	if e.GetEncryptedBotDescription() != nil {
-		u.botDescription = newProjectedUserPII(eventID, events.EventUserAccountCreated, "bot_description", e.GetEncryptedBotDescription())
-	}
 	u.deleted = false
 	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
@@ -585,7 +590,7 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 	}
 	snapshot.user.Login = login
 	snapshot.user.DisplayName = displayName
-	if snapshot.user.GetKind() == corev1.UserKind_USER_KIND_BOT {
+	if isBotAccount(snapshot.user) {
 		botDescription, descriptionOK, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.botDescription)
 		if err != nil {
 			return nil, false, err
@@ -593,7 +598,7 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 		if !descriptionOK || botDescription == "" {
 			return nil, false, nil
 		}
-		snapshot.user.BotDescription = botDescription
+		snapshot.user.GetBot().Description = botDescription
 	}
 	if statusExpired(snapshot.user.GetCustomStatus(), now) {
 		snapshot.user.CustomStatus = nil
@@ -601,19 +606,12 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 	return snapshot.user, true, nil
 }
 
-func normalizedUserKind(kind corev1.UserKind) corev1.UserKind {
-	if kind == corev1.UserKind_USER_KIND_UNSPECIFIED {
-		return corev1.UserKind_USER_KIND_HUMAN
-	}
-	return kind
-}
-
 func (p *UserProjection) BotIDsByOwner(ownerID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	var ids []string
 	for id, u := range p.users {
-		if u != nil && !u.deleted && !u.shredded && u.user != nil && u.user.GetKind() == corev1.UserKind_USER_KIND_BOT && u.user.GetBotOwnerId() == ownerID {
+		if u != nil && !u.deleted && !u.shredded && u.user != nil && isBotAccount(u.user) && u.user.GetBot().GetOwnerId() == ownerID {
 			ids = append(ids, id)
 		}
 	}
@@ -630,15 +628,17 @@ func (p *UserProjection) DeletionStarted(userID string) bool {
 
 // AuthorizationIdentity returns the non-PII account facts needed by the
 // authorization layer. Active becomes false as soon as deletion starts.
-func (p *UserProjection) AuthorizationIdentity(userID string) (kind corev1.UserKind, botOwnerID string, active, exists bool) {
+func (p *UserProjection) AuthorizationIdentity(userID string) (botOwnerID string, bot, active, exists bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.user == nil {
-		return corev1.UserKind_USER_KIND_UNSPECIFIED, "", false, false
+		return "", false, false, false
 	}
-	kind = normalizedUserKind(u.user.GetKind())
-	return kind, u.user.GetBotOwnerId(), !u.deleted && !u.shredded && !u.deletionStarted, true
+	if profile := u.user.GetBot(); profile != nil {
+		return profile.GetOwnerId(), true, !u.deleted && !u.shredded && !u.deletionStarted, true
+	}
+	return "", false, !u.deleted && !u.shredded && !u.deletionStarted, true
 }
 
 func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1.User, bool, error) {

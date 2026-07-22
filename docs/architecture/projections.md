@@ -33,7 +33,7 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Most contracts currently use
-`v1`; the user profile contract uses `v4`.
+`v1`; the user profile contract uses `v5`.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A

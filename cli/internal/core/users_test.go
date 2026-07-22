@@ -67,22 +67,22 @@ func TestBotAccountIdentityAndLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
 	}
-	if owner.GetKind() != corev1.UserKind_USER_KIND_HUMAN {
-		t.Fatalf("owner kind = %v, want HUMAN", owner.GetKind())
+	if owner.GetHuman() == nil {
+		t.Fatalf("owner account profile = %T, want human", owner.GetAccountProfile())
 	}
 	bot, err := core.CreateBot(ctx, owner.GetId(), owner.GetId(), "helper_bot", "Helper", "Answers questions and sends message content to no third parties.")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	if bot.GetKind() != corev1.UserKind_USER_KIND_BOT || bot.GetBotOwnerId() != owner.GetId() {
+	if bot.GetBot() == nil || bot.GetBot().GetOwnerId() != owner.GetId() {
 		t.Fatalf("bot identity = %#v", bot)
 	}
 	projected, err := core.GetUser(ctx, bot.GetId())
 	if err != nil {
 		t.Fatalf("GetUser bot: %v", err)
 	}
-	if projected.GetBotDescription() != bot.GetBotDescription() {
-		t.Fatalf("projected bot description = %q, want %q", projected.GetBotDescription(), bot.GetBotDescription())
+	if projected.GetBot().GetDescription() != bot.GetBot().GetDescription() {
+		t.Fatalf("projected bot description = %q, want %q", projected.GetBot().GetDescription(), bot.GetBot().GetDescription())
 	}
 	if ids := core.Users.BotIDsByOwner(owner.GetId()); len(ids) != 1 || ids[0] != bot.GetId() {
 		t.Fatalf("BotIDsByOwner = %v, want [%s]", ids, bot.GetId())

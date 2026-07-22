@@ -134,7 +134,7 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"users", func() snapshotProjection { return NewUserProjection(nil, nil) }, func(raw snapshotProjection) {
 			p := raw.(*UserProjection)
-			p.users["U1"] = &projectedUser{user: &corev1.User{Id: "U1", Kind: corev1.UserKind_USER_KIND_HUMAN, CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
+			p.users["U1"] = &projectedUser{user: &corev1.User{Id: "U1", AccountProfile: &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}, CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},
@@ -143,7 +143,7 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedContract := map[string]string{
 		"room_directory": "v1", "server_config": "v1", "room_group_layout": "v1",
 		"room_timeline": "v1", "call_state": "v1", "assets": "v1", "reactions": "v1",
-		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v4",
+		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v5",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

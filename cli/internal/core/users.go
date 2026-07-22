@@ -48,19 +48,19 @@ func DeletedUserReference(userID string) *corev1.User {
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, password, corev1.UserKind_USER_KIND_HUMAN, "", "", nil)
+	return c.createUserAccount(ctx, actorID, login, displayName, password, nil, nil)
 }
 
 // CreateBot creates a bot account owned by an existing human account. Public
 // authorization is added by the bot-management operation layer.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, ownerID, login, displayName, description string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, ownerID, description, nil)
+	return c.createUserAccount(ctx, actorID, login, displayName, "", &corev1.BotAccountProfile{OwnerId: ownerID, Description: description}, nil)
 }
 
 // CreateBotAs creates a bot owned by the acting human and evaluates bot.create
 // inside the authorization-fenced account-creation retry.
 func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, "", corev1.UserKind_USER_KIND_BOT, actorID, description, func() error {
+	return c.createUserAccount(ctx, actorID, login, displayName, "", &corev1.BotAccountProfile{OwnerId: actorID, Description: description}, func() error {
 		position, err := c.EventPublisher.LastSubjectPosition(ctx, events.RBACSubjectFilter())
 		if err != nil {
 			return fmt.Errorf("read RBAC position for bot creation: %w", err)
@@ -79,18 +79,20 @@ func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayNam
 	})
 }
 
-func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, kind corev1.UserKind, botOwnerID, botDescription string, authorizationCheck func() error) (*corev1.User, error) {
+func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, bot *corev1.BotAccountProfile, authorizationCheck func() error) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	if err := ValidateLogin(login); err != nil {
 		return nil, err
 	}
-	if err := validateLoginForUserKind(login, kind); err != nil {
+	if err := validateLoginForAccount(login, bot != nil); err != nil {
 		return nil, err
 	}
-	botOwnerID = strings.TrimSpace(botOwnerID)
-	botDescription = strings.TrimSpace(botDescription)
-	if kind == corev1.UserKind_USER_KIND_BOT {
+	if bot != nil {
+		bot.OwnerId = strings.TrimSpace(bot.GetOwnerId())
+		bot.Description = strings.TrimSpace(bot.GetDescription())
+		botOwnerID := bot.GetOwnerId()
+		botDescription := bot.GetDescription()
 		if botOwnerID == "" {
 			return nil, ErrBotOwnerRequired
 		}
@@ -106,10 +108,6 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 		if err := c.requireValidBotOwner(ctx, botOwnerID); err != nil {
 			return nil, err
 		}
-	} else {
-		kind = corev1.UserKind_USER_KIND_HUMAN
-		botOwnerID = ""
-		botDescription = ""
 	}
 
 	// Normalize and validate display name
@@ -139,7 +137,7 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	// Enforce server-wide user limit at signup as a UX gate so people don't sign up
 	// only to be blocked when adding their first verified sign-in factor. The
 	// factor-add checks remain the race-safe hard gate.
-	if max := c.config.Limits.MaxUsersOrDefault(); kind == corev1.UserKind_USER_KIND_HUMAN && max >= 0 {
+	if max := c.config.Limits.MaxUsersOrDefault(); bot == nil && max >= 0 {
 		count, err := c.CountVerifiedAccounts(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to count verified accounts: %w", err)
@@ -158,13 +156,15 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 
 	now := timestamppb.Now()
 	user := &corev1.User{
-		Id:             userID,
-		Login:          login,
-		DisplayName:    displayName,
-		CreatedAt:      now,
-		Kind:           kind,
-		BotOwnerId:     botOwnerID,
-		BotDescription: botDescription,
+		Id:          userID,
+		Login:       login,
+		DisplayName: displayName,
+		CreatedAt:   now,
+	}
+	if bot == nil {
+		user.AccountProfile = &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}
+	} else {
+		user.AccountProfile = &corev1.User_Bot{Bot: bot}
 	}
 
 	// Create encryption key for this user. Keys are always created so they
@@ -208,9 +208,13 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 		UserDekGenerated: wrappedPIIDEK,
 	}})
 	piiDEKEvent.CreatedAt = now
-	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
-		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID, Kind: kind, BotOwnerId: botOwnerID},
-	}})
+	accountCreatedPayload := &corev1.UserAccountCreatedEvent{UserId: userID}
+	if bot == nil {
+		accountCreatedPayload.AccountProfile = &corev1.UserAccountCreatedEvent_Human{Human: &corev1.HumanAccountCreated{}}
+	} else {
+		accountCreatedPayload.AccountProfile = &corev1.UserAccountCreatedEvent_Bot{Bot: &corev1.BotAccountCreated{OwnerId: bot.GetOwnerId()}}
+	}
+	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: accountCreatedPayload}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
 	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
@@ -221,8 +225,8 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	if err != nil {
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
-	if kind == corev1.UserKind_USER_KIND_BOT {
-		account.EncryptedBotDescription, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "bot_description", botDescription)
+	if bot != nil {
+		account.GetBot().EncryptedDescription, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "bot_description", bot.GetDescription())
 		if err != nil {
 			return nil, fmt.Errorf("encrypt bot description: %w", err)
 		}
@@ -257,8 +261,8 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	}
 
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
-		if kind == corev1.UserKind_USER_KIND_BOT {
-			if err := c.requireValidBotOwner(ctx, botOwnerID); err != nil {
+		if bot != nil {
+			if err := c.requireValidBotOwner(ctx, bot.GetOwnerId()); err != nil {
 				return err
 			}
 		}
@@ -298,9 +302,9 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	return user, nil
 }
 
-func validateLoginForUserKind(login string, kind corev1.UserKind) error {
+func validateLoginForAccount(login string, bot bool) error {
 	hasBotSuffix := strings.HasSuffix(strings.ToLower(login), "_bot")
-	if kind == corev1.UserKind_USER_KIND_BOT {
+	if bot {
 		if !hasBotSuffix {
 			return ErrBotUsernameRequired
 		}
@@ -310,6 +314,10 @@ func validateLoginForUserKind(login string, kind corev1.UserKind) error {
 		return ErrBotUsernameReserved
 	}
 	return nil
+}
+
+func isBotAccount(user *corev1.User) bool {
+	return user != nil && user.GetBot() != nil
 }
 
 func (c *ChattoCore) requireValidBotOwner(ctx context.Context, ownerID string) error {
@@ -324,7 +332,7 @@ func (c *ChattoCore) requireValidBotOwner(ctx context.Context, ownerID string) e
 	if err != nil {
 		return ErrBotOwnerInvalid
 	}
-	if owner.GetKind() == corev1.UserKind_USER_KIND_BOT {
+	if isBotAccount(owner) {
 		return ErrBotOwnerInvalid
 	}
 	if c.Users.DeletionStarted(ownerID) {
@@ -602,7 +610,7 @@ func (c *ChattoCore) requireHumanAccount(ctx context.Context, userID string) err
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
-	if user.GetKind() == corev1.UserKind_USER_KIND_BOT {
+	if isBotAccount(user) {
 		return ErrBotInteractiveAuthNotAllowed
 	}
 	return nil
@@ -1026,7 +1034,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		if err := ValidateLogin(nextLogin); err != nil {
 			return nil, err
 		}
-		if err := validateLoginForUserKind(nextLogin, user.GetKind()); err != nil {
+		if err := validateLoginForAccount(nextLogin, isBotAccount(user)); err != nil {
 			return nil, err
 		}
 		loginChanged = user.GetLogin() != nextLogin
@@ -1203,7 +1211,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	if err := validateLoginForUserKind(newLogin, user.GetKind()); err != nil {
+	if err := validateLoginForAccount(newLogin, isBotAccount(user)); err != nil {
 		return nil, err
 	}
 
@@ -1498,7 +1506,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 			return fmt.Errorf("start user deletion: %w", err)
 		}
 	}
-	if user.GetKind() != corev1.UserKind_USER_KIND_BOT {
+	if !isBotAccount(user) {
 		for _, botID := range c.Users.BotIDsByOwner(userID) {
 			if err := c.DeleteUser(ctx, actorID, botID); err != nil {
 				return fmt.Errorf("delete owned bot %s: %w", botID, err)

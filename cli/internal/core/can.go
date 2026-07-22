@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"time"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // can.go provides semantic helper functions for permission checks. These wrap
@@ -119,8 +117,8 @@ var adminPermissions = []Permission{
 // bot accounts. Bot actors are categorically excluded even if RBAC grants the
 // permission.
 func (c *ChattoCore) CanCreateBots(ctx context.Context, userID string) (bool, error) {
-	kind, _, active, exists := c.Users.AuthorizationIdentity(userID)
-	if exists && (kind == corev1.UserKind_USER_KIND_BOT || !active) {
+	_, bot, active, exists := c.Users.AuthorizationIdentity(userID)
+	if exists && (bot || !active) {
 		return false, nil
 	}
 	return c.HasServerPermission(ctx, userID, PermBotCreate)
@@ -132,12 +130,12 @@ func (c *ChattoCore) CanManageBot(ctx context.Context, actorID, botID string) (b
 	if actorID == SystemActorID {
 		return true, nil
 	}
-	actorKind, _, actorActive, actorExists := c.Users.AuthorizationIdentity(actorID)
-	if actorExists && (actorKind == corev1.UserKind_USER_KIND_BOT || !actorActive) {
+	_, actorBot, actorActive, actorExists := c.Users.AuthorizationIdentity(actorID)
+	if actorExists && (actorBot || !actorActive) {
 		return false, nil
 	}
-	kind, ownerID, active, exists := c.Users.AuthorizationIdentity(botID)
-	if !exists || !active || kind != corev1.UserKind_USER_KIND_BOT {
+	ownerID, bot, active, exists := c.Users.AuthorizationIdentity(botID)
+	if !exists || !active || !bot {
 		return false, nil
 	}
 	if actorID == ownerID {

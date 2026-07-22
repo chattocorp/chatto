@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const userSnapshotContractID = "v4"
+const userSnapshotContractID = "v5"
 
 func (*UserProjection) SnapshotContractID() string { return userSnapshotContractID }
 
@@ -40,6 +40,9 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			// Clear defensively so a regression cannot leak plaintext to storage.
 			entry.User.Login = ""
 			entry.User.DisplayName = ""
+			if entry.User.GetBot() != nil {
+				entry.User.GetBot().Description = ""
+			}
 		}
 		if u.avatar != nil {
 			entry.Avatar = proto.Clone(u.avatar).(*corev1.AssetRecord)
@@ -141,7 +144,7 @@ func (p *UserProjection) Restore(data []byte) error {
 		if _, duplicate := restored.users[userID]; duplicate {
 			return fmt.Errorf("user profile snapshot repeats user %q", userID)
 		}
-		if entry.GetUser() != nil && (entry.GetUser().GetId() != userID || entry.GetUser().GetLogin() != "" || entry.GetUser().GetDisplayName() != "") {
+		if entry.GetUser() != nil && (entry.GetUser().GetId() != userID || entry.GetUser().GetLogin() != "" || entry.GetUser().GetDisplayName() != "" || entry.GetUser().GetBot().GetDescription() != "") {
 			return fmt.Errorf("user profile snapshot has invalid or plaintext user %q", userID)
 		}
 		login, err := restoreProjectedUserPII(entry.GetLogin())
@@ -160,7 +163,7 @@ func (p *UserProjection) Restore(data []byte) error {
 			return fmt.Errorf("user profile snapshot bot description for %q: %w", userID, err)
 		}
 		active := !entry.GetDeleted() && !entry.GetShredded()
-		if active && (entry.GetUser() == nil || login == nil || displayName == nil || (entry.GetUser().GetKind() == corev1.UserKind_USER_KIND_BOT && botDescription == nil)) {
+		if active && (entry.GetUser() == nil || entry.GetUser().GetAccountProfile() == nil || login == nil || displayName == nil || (isBotAccount(entry.GetUser()) && botDescription == nil)) {
 			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
 		}
 		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || botDescription != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
@@ -177,8 +180,7 @@ func (p *UserProjection) Restore(data []byte) error {
 		}
 		if entry.GetUser() != nil {
 			u.user = proto.Clone(entry.GetUser()).(*corev1.User)
-			u.user.Kind = normalizedUserKind(u.user.GetKind())
-			if u.user.GetKind() == corev1.UserKind_USER_KIND_BOT && u.user.GetBotOwnerId() == "" {
+			if isBotAccount(u.user) && u.user.GetBot().GetOwnerId() == "" {
 				return fmt.Errorf("user profile snapshot bot %q has no owner", userID)
 			}
 		}

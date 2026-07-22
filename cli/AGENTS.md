@@ -108,7 +108,7 @@ authorization, live events, backup/restore, and backend tests.
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.
 - Most current snapshot contracts use projection-local ID `v1`;
-  the user profile projection uses `v2`. Keep password
+  the user profile projection uses `v5`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.

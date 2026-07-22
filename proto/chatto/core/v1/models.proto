@@ -48,14 +48,6 @@ message Room {
   bool universal = 9;
 }
 
-// UserKind distinguishes human and automation accounts. Historical users with
-// an unspecified kind are human accounts.
-enum UserKind {
-  USER_KIND_UNSPECIFIED = 0;
-  USER_KIND_HUMAN = 1;
-  USER_KIND_BOT = 2;
-}
-
 // User represents a user account.
 message User {
   string id = 1;
@@ -65,11 +57,23 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
   CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
-  UserKind kind = 7;
-  // Owning human account for bots; empty for human accounts.
-  string bot_owner_id = 8;
-  // Required public purpose and data-handling disclosure for bots.
-  string bot_description = 9;
+  // Account-kind-specific profile. Historical users without a profile are
+  // human accounts.
+  oneof account_profile {
+    HumanAccountProfile human = 7;
+    BotAccountProfile bot = 8;
+  }
+}
+
+// HumanAccountProfile contains account details specific to human users.
+message HumanAccountProfile {}
+
+// BotAccountProfile contains account details specific to automation users.
+message BotAccountProfile {
+  // Human account responsible for this bot.
+  string owner_id = 1;
+  // Required public purpose and data-handling disclosure.
+  string description = 2;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is
