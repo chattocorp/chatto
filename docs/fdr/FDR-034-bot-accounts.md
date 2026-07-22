@@ -44,9 +44,10 @@ possess.
 - Changes to the owner's roles, direct permission decisions, or account status
   constrain the bot immediately. Suspending the owner also suspends the bot.
 - Bot administration presents a permission matrix that lets the owner narrow
-  the bot's baseline or deliberately grant additional capabilities within the
-  owner's current authority. It makes that ceiling clear and does not offer
-  apparently selectable grants that the owner cannot delegate.
+  the bot's baseline or grant an otherwise undecided capability within the
+  owner's current authority. The matrix does not offer a direct grant while a
+  cell inherits a deny. It makes both constraints clear instead of presenting
+  that denied state as selectable authority.
 - Bot-kind invariants prohibit human authentication and security-identity
   operations regardless of RBAC. Bots cannot use interactive login, create or
   own bots, manage their own API credentials, or change passwords, verified

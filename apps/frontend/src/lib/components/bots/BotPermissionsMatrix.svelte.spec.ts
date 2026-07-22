@@ -74,6 +74,24 @@ describe('BotPermissionsMatrix', () => {
     );
   });
 
+  it('never sends an allow over an inherited deny', async () => {
+    const inheritedDeny = structuredClone(deniedByOwnerMatrix);
+    inheritedDeny.cells[0].ownerAllowed = true;
+    mocks.getPermissionMatrix.mockResolvedValue(inheritedDeny);
+    const { container } = render(BotPermissionsMatrix, { props: { botId: 'bot-1' } });
+    await settle();
+
+    permissionButton(container).click();
+    await settle();
+
+    expect(mocks.setPermission).toHaveBeenCalledWith(
+      expect.objectContaining({ permission: 'room.manage', decision: 'DENY' })
+    );
+    expect(mocks.setPermission).not.toHaveBeenCalledWith(
+      expect.objectContaining({ decision: 'ALLOW' })
+    );
+  });
+
   it('renders at full height without an internal vertical viewport', async () => {
     const { container } = render(BotPermissionsMatrix, { props: { botId: 'bot-1' } });
     await settle();

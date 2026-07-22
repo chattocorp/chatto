@@ -12,6 +12,7 @@ state, refreshes, and the shared matrix presentation.
   import * as m from '$lib/i18n/messages';
   import SubjectPermissionsMatrix, {
     type CellState,
+    type MatrixCellData,
     type MatrixData,
     type MatrixScope
   } from './SubjectPermissionsMatrix.svelte';
@@ -25,7 +26,8 @@ state, refreshes, and the shared matrix presentation.
     readOnly = false,
     containedScroll = true,
     emptyMessage = m['rbac.permissions.no_data'](),
-    toastErrors = false
+    toastErrors = false,
+    canGrant
   }: {
     resourceKey: string;
     load: (resourceKey: string) => Promise<MatrixData | null>;
@@ -41,6 +43,8 @@ state, refreshes, and the shared matrix presentation.
     containedScroll?: boolean;
     emptyMessage?: string;
     toastErrors?: boolean;
+    /** Optional subject-specific ceiling for direct grants. */
+    canGrant?: (cell: MatrixCellData) => boolean;
   } = $props();
 
   let data = $state<MatrixData | null>(null);
@@ -49,6 +53,19 @@ state, refreshes, and the shared matrix presentation.
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
   let generation = 0;
+
+  function grantAllowed(cell: MatrixCellData): boolean {
+    return cell.canAllow !== false && (canGrant?.(cell) ?? true);
+  }
+
+  const presentedData = $derived.by<MatrixData | null>(() =>
+    data
+      ? {
+          ...data,
+          cells: data.cells.map((cell) => ({ ...cell, canAllow: grantAllowed(cell) }))
+        }
+      : null
+  );
 
   function errorMessage(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
@@ -80,7 +97,7 @@ state, refreshes, and the shared matrix presentation.
     const cell = data?.cells.find(
       (candidate) => candidate.scopeId === scope.id && candidate.permission === permission
     );
-    if (next === 'allow' && cell?.canAllow === false) return;
+    if (next === 'allow' && cell && !grantAllowed(cell)) return;
 
     updatingKey = `${scope.id}::${permission}`;
     error = null;
@@ -108,11 +125,11 @@ state, refreshes, and the shared matrix presentation.
 
 {#if loading && !data}
   <div class="text-muted">{m['rbac.permissions.loading']()}</div>
-{:else if !data}
+{:else if !presentedData}
   <Hint tone="info">{emptyMessage}</Hint>
 {:else}
   <SubjectPermissionsMatrix
-    {data}
+    data={presentedData}
     {updatingKey}
     {subjectKind}
     {forceAllow}

@@ -11,6 +11,7 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   import ManagedSubjectPermissionsMatrix from '$lib/components/rbac/ManagedSubjectPermissionsMatrix.svelte';
   import type {
     CellState,
+    MatrixCellData,
     MatrixData,
     MatrixScope
   } from '$lib/components/rbac/SubjectPermissionsMatrix.svelte';
@@ -47,6 +48,10 @@ the bot's direct decisions while preserving the owner's permission ceiling.
       decision: next === 'allow' ? 'ALLOW' : next === 'deny' ? 'DENY' : 'NONE'
     });
   }
+
+  function canGrant(cell: MatrixCellData): boolean {
+    return cell.effective !== 'DENY';
+  }
 </script>
 
 <ManagedSubjectPermissionsMatrix
@@ -55,4 +60,5 @@ the bot's direct decisions while preserving the owner's permission ceiling.
   {mutate}
   subjectKind="bot"
   containedScroll={false}
+  {canGrant}
 />
