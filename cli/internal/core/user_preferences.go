@@ -32,11 +32,32 @@ type UserSettingsInput struct {
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
-	if c.ServerConfig == nil {
+	if c.configModel == nil {
 		return nil, nil
 	}
-	settings, _ := c.ServerConfig.UserSettings(userID)
+	settings, _ := c.configModel.userSettings(userID)
 	return settings, nil
+}
+
+func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreferences, bool) {
+	if cm == nil || cm.projection == nil {
+		return nil, false
+	}
+	cm.projection.RLock()
+	defer cm.projection.RUnlock()
+	u := cm.projection.users[userID]
+	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
+		return nil, false
+	}
+	prefs := &corev1.ServerUserPreferences{}
+	if u.timezone != nil {
+		tz := *u.timezone
+		prefs.Timezone = &tz
+	}
+	if u.timeFormat != nil {
+		prefs.TimeFormat = *u.timeFormat
+	}
+	return prefs, true
 }
 
 // UpdateUserSettings merges the provided fields into the user's existing settings.
@@ -59,7 +80,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	changed := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current, _ := c.ServerConfig.UserSettings(userID)
+		current, _ := c.configModel.userSettings(userID)
 		var evs []*corev1.Event
 		if input.Timezone != nil {
 			tz := *input.Timezone
@@ -128,11 +149,11 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 // deleteUserSettings removes a user's settings. Called during account deletion.
 func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) error {
-	if c.configModel == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return nil
 	}
 	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		current, _ := c.ServerConfig.UserSettings(userID)
+		current, _ := c.configModel.userSettings(userID)
 		if current == nil {
 			return nil, nil
 		}

@@ -124,17 +124,6 @@ type ChattoCore struct {
 	// RoomBans is the active moderation-ban index inside RoomDirectory.
 	RoomBans *RoomBanProjection
 
-	// ServerConfig is the projection holding current dynamic configuration
-	// rebuilt from EVT. The field name is retained for compatibility with
-	// existing admin/verification code while the projection now stores more
-	// than the old server-config snapshot.
-	ServerConfig *ConfigProjection
-
-	// ServerConfigProjector runs the consumer + apply loop that keeps
-	// ServerConfig current. Started by (*ChattoCore).Run; exposed here
-	// for compatibility with existing verification code.
-	ServerConfigProjector *events.Projector
-
 	// RoomCatalog is the room metadata index inside RoomDirectory.
 	RoomCatalog *RoomCatalogProjection
 
@@ -874,9 +863,9 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 	// Historical public objects predate the explicit visibility header. Their
 	// durable/current public references provide the positive declaration.
 	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
-	if c.ServerConfig != nil {
-		logo, _ := c.ServerConfig.ServerLogo()
-		banner, _ := c.ServerConfig.ServerBanner()
+	if c.configModel != nil {
+		logo := c.configModel.serverBrandingAsset("logo")
+		banner := c.configModel.serverBrandingAsset("banner")
 		if assetRecordMatchesKey(logo, assetID) || assetRecordMatchesKey(banner, assetID) {
 			legacyDeclaredPublic = true
 		}
@@ -1383,8 +1372,6 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		RoomDirectoryProjector:   roomDirectoryProjector,
 		RoomMembership:           roomMembership,
 		RoomBans:                 roomBans,
-		ServerConfig:             serverConfigProjection,
-		ServerConfigProjector:    serverConfigProjector,
 		RoomCatalog:              roomCatalog,
 		RoomGroupLayout:          roomGroupLayout,
 		RoomGroupLayoutProjector: roomGroupLayoutProjector,
