@@ -236,7 +236,8 @@ matches the action.
   font weight. Never apply `text-sm`, `text-xs`, `font-medium`, `font-semibold`,
   or `font-bold` to explanatory copy or other normal prose. Smaller text is
   reserved for genuine metadata, timestamps, and terse labels; heavier text is
-  reserved for actual headings, labels, and controls.
+  reserved for actual headings, labels, and controls. Form labels, descriptions,
+  help text, and validation errors all use the default body size.
 - A compact surface uses one text size throughout. Menus, popovers, controls,
   and nested rows must not mix smaller metadata text with base-sized actions;
   express hierarchy with color, weight, spacing, and icons instead.
