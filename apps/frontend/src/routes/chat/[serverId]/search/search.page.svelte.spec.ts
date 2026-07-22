@@ -209,8 +209,8 @@ describe('message search page', () => {
         'searchable'
       )
     );
-    expect(container.querySelector('a[href="/chat/origin/room-1"]')?.textContent).toContain(
-      'general'
+    expect(container.querySelector('a[href="/chat/origin/room-1"]')?.textContent?.trim()).toBe(
+      '#general'
     );
     expect(container.querySelector('a[href="/chat/origin/dm-1"]')?.textContent?.trim()).toBe(
       'Direct Message'

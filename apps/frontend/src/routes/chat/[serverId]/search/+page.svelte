@@ -262,22 +262,17 @@ in the active server store so browser Back can restore the current search.
                         rowClass="md:mx-0 md:pr-2"
                       >
                         {#snippet headerMeta()}
-                          <span class="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
-                            {#if result.roomKind !== RoomKind.DM}
-                              <span class="shrink-0" aria-hidden="true">#</span>
-                            {/if}
-                            <a
-                              class="min-w-0 truncate hover:text-text hover:underline"
-                              href={resolve('/chat/[serverId]/[roomId]', {
-                                serverId: serverIdToSegment(serverId),
-                                roomId: result.roomId
-                              })}
-                            >
-                              {result.roomKind === RoomKind.DM
-                                ? m['room.title.direct_message']()
-                                : (result.roomName ?? m['search.scope.room']())}
-                            </a>
-                          </span>
+                          <a
+                            class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                            href={resolve('/chat/[serverId]/[roomId]', {
+                              serverId: serverIdToSegment(serverId),
+                              roomId: result.roomId
+                            })}
+                          >
+                            {result.roomKind === RoomKind.DM
+                              ? m['room.title.direct_message']()
+                              : `#${result.roomName ?? m['search.scope.room']()}`}
+                          </a>
                           {#if result.createdAt}
                             <span class="text-xs text-muted" aria-hidden="true">·</span>
                             <a
