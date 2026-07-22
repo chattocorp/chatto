@@ -589,7 +589,9 @@ export class RoomPage {
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
     await this.threadReplyInput.press('Enter');
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
   }
 
   /**

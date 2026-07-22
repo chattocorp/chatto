@@ -529,7 +529,6 @@ test.describe('Permission-only Resolution', () => {
 
       // Actually post a message
       await roomPage.sendMessage('Hello from a regular member!');
-      await expect(page.getByText('Hello from a regular member!')).toBeVisible();
     });
 
     test('joining from an unjoined sidebar room shows inline join and enables posting', async ({
@@ -566,7 +565,6 @@ test.describe('Permission-only Resolution', () => {
 
       const body = `Posted after inline join ${Date.now()}`;
       await roomPage.sendMessage(body);
-      await expect(page.getByText(body)).toBeVisible();
     });
 
     test('message deep links to unjoined rooms preserve the target after inline join', async ({
@@ -644,7 +642,6 @@ test.describe('Permission-only Resolution', () => {
       const ownerChatInput = page.getByTestId('message-input');
       await expect(ownerChatInput).toHaveAttribute('contenteditable', 'true');
       await roomPage.sendMessage('Important announcement from owner!');
-      await expect(page.getByText('Important announcement from owner!')).toBeVisible();
 
       // Create regular member
       const member = await createSecondTestUser(page);
