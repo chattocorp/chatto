@@ -234,6 +234,8 @@ The aggregate ID is intentionally part of the subject; actor/user and detailed c
 | `evt.user.{userId}.auth_code_exchange_failed`               | `AuthCodeExchangeFailedEvent`                       |
 | `evt.user.{userId}.bearer_token_issued`                     | `BearerTokenIssuedEvent`                            |
 | `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
+| `evt.user.{userId}.bot_api_key_rotated`                     | `BotAPIKeyRotatedEvent`                             |
+| `evt.user.{userId}.bot_api_key_revoked`                     | `BotAPIKeyRevokedEvent`                             |
 | `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
 | `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
 | `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |

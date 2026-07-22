@@ -29,6 +29,14 @@ export class Bot extends Message<Bot> {
    */
   createdAt?: Timestamp;
 
+  /**
+   * Active API-key metadata, when a key has been issued. The secret is never
+   * returned by bot reads.
+   *
+   * @generated from field: chatto.api.v1.BotAPIKey api_key = 3;
+   */
+  apiKey?: BotAPIKey;
+
   constructor(data?: PartialMessage<Bot>) {
     super();
     proto3.util.initPartial(data, this);
@@ -39,6 +47,7 @@ export class Bot extends Message<Bot> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: User },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
+    { no: 3, name: "api_key", kind: "message", T: BotAPIKey },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Bot {
@@ -55,6 +64,47 @@ export class Bot extends Message<Bot> {
 
   static equals(a: Bot | PlainMessage<Bot> | undefined, b: Bot | PlainMessage<Bot> | undefined): boolean {
     return proto3.util.equals(Bot, a, b);
+  }
+}
+
+/**
+ * Non-secret metadata for a bot's single active API key.
+ *
+ * @generated from message chatto.api.v1.BotAPIKey
+ */
+export class BotAPIKey extends Message<BotAPIKey> {
+  /**
+   * Time at which the active key was issued.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 1;
+   */
+  createdAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BotAPIKey>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotAPIKey";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "created_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotAPIKey {
+    return new BotAPIKey().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotAPIKey {
+    return new BotAPIKey().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotAPIKey {
+    return new BotAPIKey().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotAPIKey | PlainMessage<BotAPIKey> | undefined, b: BotAPIKey | PlainMessage<BotAPIKey> | undefined): boolean {
+    return proto3.util.equals(BotAPIKey, a, b);
   }
 }
 
@@ -603,5 +653,177 @@ export class DeleteBotResponse extends Message<DeleteBotResponse> {
 
   static equals(a: DeleteBotResponse | PlainMessage<DeleteBotResponse> | undefined, b: DeleteBotResponse | PlainMessage<DeleteBotResponse> | undefined): boolean {
     return proto3.util.equals(DeleteBotResponse, a, b);
+  }
+}
+
+/**
+ * Request replacement of one manageable bot's API key.
+ *
+ * @generated from message chatto.api.v1.RotateBotAPIKeyRequest
+ */
+export class RotateBotAPIKeyRequest extends Message<RotateBotAPIKeyRequest> {
+  /**
+   * Required bot account ID.
+   *
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  constructor(data?: PartialMessage<RotateBotAPIKeyRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RotateBotAPIKeyRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotAPIKeyRequest {
+    return new RotateBotAPIKeyRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotAPIKeyRequest {
+    return new RotateBotAPIKeyRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotAPIKeyRequest {
+    return new RotateBotAPIKeyRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RotateBotAPIKeyRequest | PlainMessage<RotateBotAPIKeyRequest> | undefined, b: RotateBotAPIKeyRequest | PlainMessage<RotateBotAPIKeyRequest> | undefined): boolean {
+    return proto3.util.equals(RotateBotAPIKeyRequest, a, b);
+  }
+}
+
+/**
+ * Show-once bot API-key response.
+ *
+ * @generated from message chatto.api.v1.RotateBotAPIKeyResponse
+ */
+export class RotateBotAPIKeyResponse extends Message<RotateBotAPIKeyResponse> {
+  /**
+   * Bot with current non-secret API-key metadata.
+   *
+   * @generated from field: chatto.api.v1.Bot bot = 1;
+   */
+  bot?: Bot;
+
+  /**
+   * Newly issued raw API key. Chatto does not store or return it again.
+   *
+   * @generated from field: string api_key = 2;
+   */
+  apiKey = "";
+
+  constructor(data?: PartialMessage<RotateBotAPIKeyResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RotateBotAPIKeyResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot", kind: "message", T: Bot },
+    { no: 2, name: "api_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotAPIKeyResponse {
+    return new RotateBotAPIKeyResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotAPIKeyResponse {
+    return new RotateBotAPIKeyResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotAPIKeyResponse {
+    return new RotateBotAPIKeyResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RotateBotAPIKeyResponse | PlainMessage<RotateBotAPIKeyResponse> | undefined, b: RotateBotAPIKeyResponse | PlainMessage<RotateBotAPIKeyResponse> | undefined): boolean {
+    return proto3.util.equals(RotateBotAPIKeyResponse, a, b);
+  }
+}
+
+/**
+ * Request revocation of one manageable bot's API key.
+ *
+ * @generated from message chatto.api.v1.RevokeBotAPIKeyRequest
+ */
+export class RevokeBotAPIKeyRequest extends Message<RevokeBotAPIKeyRequest> {
+  /**
+   * Required bot account ID.
+   *
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  constructor(data?: PartialMessage<RevokeBotAPIKeyRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RevokeBotAPIKeyRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeBotAPIKeyRequest {
+    return new RevokeBotAPIKeyRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeBotAPIKeyRequest {
+    return new RevokeBotAPIKeyRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeBotAPIKeyRequest {
+    return new RevokeBotAPIKeyRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RevokeBotAPIKeyRequest | PlainMessage<RevokeBotAPIKeyRequest> | undefined, b: RevokeBotAPIKeyRequest | PlainMessage<RevokeBotAPIKeyRequest> | undefined): boolean {
+    return proto3.util.equals(RevokeBotAPIKeyRequest, a, b);
+  }
+}
+
+/**
+ * Bot API-key revocation response.
+ *
+ * @generated from message chatto.api.v1.RevokeBotAPIKeyResponse
+ */
+export class RevokeBotAPIKeyResponse extends Message<RevokeBotAPIKeyResponse> {
+  /**
+   * Bot with absent API-key metadata after successful revocation.
+   *
+   * @generated from field: chatto.api.v1.Bot bot = 1;
+   */
+  bot?: Bot;
+
+  constructor(data?: PartialMessage<RevokeBotAPIKeyResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RevokeBotAPIKeyResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot", kind: "message", T: Bot },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeBotAPIKeyResponse {
+    return new RevokeBotAPIKeyResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeBotAPIKeyResponse {
+    return new RevokeBotAPIKeyResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeBotAPIKeyResponse {
+    return new RevokeBotAPIKeyResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RevokeBotAPIKeyResponse | PlainMessage<RevokeBotAPIKeyResponse> | undefined, b: RevokeBotAPIKeyResponse | PlainMessage<RevokeBotAPIKeyResponse> | undefined): boolean {
+    return proto3.util.equals(RevokeBotAPIKeyResponse, a, b);
   }
 }

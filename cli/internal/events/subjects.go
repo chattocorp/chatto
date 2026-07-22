@@ -192,6 +192,8 @@ const (
 	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
 	EventBearerTokenIssued                  = "bearer_token_issued"
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventBotAPIKeyRotated                   = "bot_api_key_rotated"
+	EventBotAPIKeyRevoked                   = "bot_api_key_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
 )
@@ -421,6 +423,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBearerTokenIssued
 	case *corev1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *corev1.Event_BotApiKeyRotated:
+		return EventBotAPIKeyRotated
+	case *corev1.Event_BotApiKeyRevoked:
+		return EventBotAPIKeyRevoked
 	case *corev1.Event_OauthConsentGranted:
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:

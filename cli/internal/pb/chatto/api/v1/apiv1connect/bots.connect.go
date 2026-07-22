@@ -45,6 +45,12 @@ const (
 	BotServiceUpdateBotProcedure = "/chatto.api.v1.BotService/UpdateBot"
 	// BotServiceDeleteBotProcedure is the fully-qualified name of the BotService's DeleteBot RPC.
 	BotServiceDeleteBotProcedure = "/chatto.api.v1.BotService/DeleteBot"
+	// BotServiceRotateBotAPIKeyProcedure is the fully-qualified name of the BotService's
+	// RotateBotAPIKey RPC.
+	BotServiceRotateBotAPIKeyProcedure = "/chatto.api.v1.BotService/RotateBotAPIKey"
+	// BotServiceRevokeBotAPIKeyProcedure is the fully-qualified name of the BotService's
+	// RevokeBotAPIKey RPC.
+	BotServiceRevokeBotAPIKeyProcedure = "/chatto.api.v1.BotService/RevokeBotAPIKey"
 )
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
@@ -66,6 +72,12 @@ type BotServiceClient interface {
 	// Permanently deletes one manageable bot and applies ordinary account and
 	// authored-content deletion behavior.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
+	// Issues the bot's first API key or replaces its existing key. The previous
+	// key is invalidated immediately and the new secret is returned only once.
+	RotateBotAPIKey(context.Context, *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error)
+	// Revokes the bot's active API key. This operation is idempotent when the bot
+	// has no active key.
+	RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error)
 }
 
 // NewBotServiceClient constructs a client for the chatto.api.v1.BotService service. By default, it
@@ -115,17 +127,31 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("DeleteBot")),
 			connect.WithClientOptions(opts...),
 		),
+		rotateBotAPIKey: connect.NewClient[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse](
+			httpClient,
+			baseURL+BotServiceRotateBotAPIKeyProcedure,
+			connect.WithSchema(botServiceMethods.ByName("RotateBotAPIKey")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeBotAPIKey: connect.NewClient[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse](
+			httpClient,
+			baseURL+BotServiceRevokeBotAPIKeyProcedure,
+			connect.WithSchema(botServiceMethods.ByName("RevokeBotAPIKey")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	listBots     *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot       *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot    *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot    *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deleteBot    *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	listBots        *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot          *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots    *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	createBot       *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot       *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	deleteBot       *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	rotateBotAPIKey *connect.Client[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse]
+	revokeBotAPIKey *connect.Client[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse]
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -158,6 +184,16 @@ func (c *botServiceClient) DeleteBot(ctx context.Context, req *connect.Request[v
 	return c.deleteBot.CallUnary(ctx, req)
 }
 
+// RotateBotAPIKey calls chatto.api.v1.BotService.RotateBotAPIKey.
+func (c *botServiceClient) RotateBotAPIKey(ctx context.Context, req *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error) {
+	return c.rotateBotAPIKey.CallUnary(ctx, req)
+}
+
+// RevokeBotAPIKey calls chatto.api.v1.BotService.RevokeBotAPIKey.
+func (c *botServiceClient) RevokeBotAPIKey(ctx context.Context, req *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error) {
+	return c.revokeBotAPIKey.CallUnary(ctx, req)
+}
+
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
 	// Lists bots the caller may manage. Owners need `bot.create`; administrators
@@ -177,6 +213,12 @@ type BotServiceHandler interface {
 	// Permanently deletes one manageable bot and applies ordinary account and
 	// authored-content deletion behavior.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
+	// Issues the bot's first API key or replaces its existing key. The previous
+	// key is invalidated immediately and the new secret is returned only once.
+	RotateBotAPIKey(context.Context, *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error)
+	// Revokes the bot's active API key. This operation is idempotent when the bot
+	// has no active key.
+	RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error)
 }
 
 // NewBotServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -222,6 +264,18 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("DeleteBot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	botServiceRotateBotAPIKeyHandler := connect.NewUnaryHandler(
+		BotServiceRotateBotAPIKeyProcedure,
+		svc.RotateBotAPIKey,
+		connect.WithSchema(botServiceMethods.ByName("RotateBotAPIKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	botServiceRevokeBotAPIKeyHandler := connect.NewUnaryHandler(
+		BotServiceRevokeBotAPIKeyProcedure,
+		svc.RevokeBotAPIKey,
+		connect.WithSchema(botServiceMethods.ByName("RevokeBotAPIKey")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.BotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BotServiceListBotsProcedure:
@@ -236,6 +290,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceUpdateBotHandler.ServeHTTP(w, r)
 		case BotServiceDeleteBotProcedure:
 			botServiceDeleteBotHandler.ServeHTTP(w, r)
+		case BotServiceRotateBotAPIKeyProcedure:
+			botServiceRotateBotAPIKeyHandler.ServeHTTP(w, r)
+		case BotServiceRevokeBotAPIKeyProcedure:
+			botServiceRevokeBotAPIKeyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -267,4 +325,12 @@ func (UnimplementedBotServiceHandler) UpdateBot(context.Context, *connect.Reques
 
 func (UnimplementedBotServiceHandler) DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.DeleteBot is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) RotateBotAPIKey(context.Context, *connect.Request[v1.RotateBotAPIKeyRequest]) (*connect.Response[v1.RotateBotAPIKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RotateBotAPIKey is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RevokeBotAPIKey is not implemented"))
 }

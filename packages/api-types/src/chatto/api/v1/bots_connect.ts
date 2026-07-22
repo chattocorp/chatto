@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RevokeBotAPIKeyRequest, RevokeBotAPIKeyResponse, RotateBotAPIKeyRequest, RotateBotAPIKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -84,6 +84,30 @@ export const BotService = {
       name: "DeleteBot",
       I: DeleteBotRequest,
       O: DeleteBotResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Issues the bot's first API key or replaces its existing key. The previous
+     * key is invalidated immediately and the new secret is returned only once.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RotateBotAPIKey
+     */
+    rotateBotAPIKey: {
+      name: "RotateBotAPIKey",
+      I: RotateBotAPIKeyRequest,
+      O: RotateBotAPIKeyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Revokes the bot's active API key. This operation is idempotent when the bot
+     * has no active key.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotAPIKey
+     */
+    revokeBotAPIKey: {
+      name: "RevokeBotAPIKey",
+      I: RevokeBotAPIKeyRequest,
+      O: RevokeBotAPIKeyResponse,
       kind: MethodKind.Unary,
     },
   }

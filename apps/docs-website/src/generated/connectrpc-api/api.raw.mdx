@@ -1081,6 +1081,73 @@ Bot deletion acknowledgement.
 | `deleted` | `bool` | True when deletion completed. |
 
 
+<a id="chatto-api-v1-BotService-RotateBotAPIKey"></a>
+
+### RotateBotAPIKey
+
+Issues the bot's first API key or replaces its existing key. The previous
+key is invalidated immediately and the new secret is returned only once.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotAPIKey
+```
+
+<a id="chatto-api-v1-RotateBotAPIKeyRequest"></a>
+
+#### Input: RotateBotAPIKeyRequest
+
+Request replacement of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RotateBotAPIKeyResponse"></a>
+
+#### Result: RotateBotAPIKeyResponse
+
+Show-once bot API-key response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with current non-secret API-key metadata. |
+| `api_key` | `string` | Newly issued raw API key. Chatto does not store or return it again. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotAPIKey"></a>
+
+### RevokeBotAPIKey
+
+Revokes the bot's active API key. This operation is idempotent when the bot
+has no active key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotAPIKey
+```
+
+<a id="chatto-api-v1-RevokeBotAPIKeyRequest"></a>
+
+#### Input: RevokeBotAPIKeyRequest
+
+Request revocation of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RevokeBotAPIKeyResponse"></a>
+
+#### Result: RevokeBotAPIKeyResponse
+
+Bot API-key revocation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with absent API-key metadata after successful revocation. |
+
+
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -4149,6 +4216,19 @@ A bot account manageable by the authenticated user.
 | --- | --- | --- |
 | `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
+
+
+
+<a id="chatto-api-v1-BotAPIKey"></a>
+
+### BotAPIKey
+
+Non-secret metadata for a bot's single active API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
 
 
 

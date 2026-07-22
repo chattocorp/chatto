@@ -590,6 +590,17 @@ A bot account manageable by the authenticated user.
 | --- | --- | --- |
 | `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
+
+<a id="chatto-api-v1-BotAPIKey"></a>
+
+### BotAPIKey
+
+Non-secret metadata for a bot's single active API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
 
 <a id="chatto-api-v1-DirectoryMember"></a>
 

@@ -4,12 +4,13 @@
 
 ## Context
 
-Chatto currently authenticates runtime requests through two persisted credential
-models:
+Chatto authenticates runtime requests through persisted credential models in
+`RUNTIME_STATE`:
 
 - Bearer auth token records under `RUNTIME_STATE` `session.{hmac}` keys.
 - HTTP-only browser cookie session records under `RUNTIME_STATE`
   `cookie_session.{userId}.{hmac}` keys.
+- Bot API-key records under `RUNTIME_STATE` `bot_api_key.{botId}` keys.
 
 That split was practical when bearer tokens were added for cross-origin and
 multi-server clients, but the SSO account-creation and account-linking work made
@@ -46,6 +47,11 @@ The credential types are:
   authorization-code exchange for a trusted client origin. These credentials may
   authenticate normal API and realtime requests, but they are not first-party
   sessions and cannot satisfy or acquire fresh-auth status.
+- `bot_api_key`: the single integration credential for a bot account. It is
+  presented as a bearer token, has no automatic expiry, cannot satisfy or acquire
+  fresh-auth status, and is valid only while the bot and its owner remain active.
+  Rotation immediately replaces the previous key; explicit revocation or account
+  deletion removes it.
 
 Fresh-auth metadata, auth generation, source, request metadata, expiry, sliding
 TTL behavior, validation, and revocation eligibility belong to the typed runtime
@@ -59,6 +65,14 @@ fields. Fresh credential checks must explicitly require a first-party runtime
 credential. OAuth access tokens remain useful for multi-server clients, but they
 must not authorize account-security operations such as adding a password or
 linking/disconnecting sign-in methods.
+
+Bot API keys use a dedicated `bot_api_key.{botId}` record instead of the
+expiring `session.{hmac}` keyspace. The record contains a domain-separated HMAC
+verifier rather than the raw key and is replaced with KV optimistic concurrency,
+enforcing one active key per bot across replicas. This storage distinction does
+not create a separate authentication path: bearer extraction still normalizes
+the key through the shared runtime-credential validator before ConnectRPC or
+realtime authorization.
 
 The multi-server frontend keeps its per-server bearer-token registry. Each
 registered server still has its own opaque bearer credential, scoped by the
@@ -96,6 +110,11 @@ Runtime credential revocation becomes easier to reason about because password
 changes, password resets, external-identity disconnects, and account deletion can
 target one credential model instead of coordinating separate cookie-session and
 bearer-token stores.
+
+Bot credentials remain operationally distinct from interactive sessions: their
+indefinite lifetime and single-active-key invariant require dedicated storage,
+while their validation result and authorization behavior remain shared with
+other runtime credentials.
 
 The OAuth/external-provider browser flow gets a cleaner continuation story:
 creating or resuming a first-party session can use the same runtime credential

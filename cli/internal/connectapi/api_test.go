@@ -4161,6 +4161,13 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if updated.Msg.GetBot().GetUser().GetDisplayName() != displayName || updated.Msg.GetBot().GetUser().GetBot().GetDescription() != description {
 		t.Fatalf("updated bot = %+v", updated.Msg.GetBot())
 	}
+	rotated, err := env.bots.RotateBotAPIKey(ownerCtx, connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if rotated.Msg.GetApiKey() == "" || rotated.Msg.GetBot().GetApiKey().GetCreatedAt() == nil {
+		t.Fatalf("RotateBotAPIKey response = %+v", rotated.Msg)
+	}
 
 	list, err := env.bots.ListBots(ownerCtx, connect.NewRequest(&apiv1.ListBotsRequest{Search: "updated"}))
 	if err != nil {
@@ -4176,6 +4183,9 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	}
 	if _, err := env.bots.GetBot(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("other GetBot code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.bots.RotateBotAPIKey(withCaller(env.ctx, other), connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other RotateBotAPIKey code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	batch, err := env.bots.BatchGetBots(withCaller(env.ctx, other), connect.NewRequest(&apiv1.BatchGetBotsRequest{BotIds: []string{botID, "missing"}}))
 	if err != nil {
@@ -4194,6 +4204,13 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	}
 	if _, err := env.bots.GetBot(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); err != nil {
 		t.Fatalf("admin GetBot: %v", err)
+	}
+	revoked, err := env.bots.RevokeBotAPIKey(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.RevokeBotAPIKeyRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("admin RevokeBotAPIKey: %v", err)
+	}
+	if revoked.Msg.GetBot().GetApiKey() != nil {
+		t.Fatalf("revoked bot API key metadata = %+v, want absent", revoked.Msg.GetBot().GetApiKey())
 	}
 
 	deleted, err := env.bots.DeleteBot(ownerCtx, connect.NewRequest(&apiv1.DeleteBotRequest{BotId: botID}))
@@ -8194,13 +8211,14 @@ func TestConnectErrorMapping(t *testing.T) {
 }
 
 func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
-	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
+	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 bot_key=cht_BKU12345678901234abcdefghijklmn redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
 
 	got := safeInternalErrorForLog(err)
 	for _, forbidden := range []string{
 		"person@example.test",
 		"other@example.test",
 		"cht_ATabcdef123456",
+		"cht_BKU12345678901234abcdefghijklmn",
 		"code=secret",
 		"state=s",
 	} {

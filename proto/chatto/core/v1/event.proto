@@ -221,6 +221,8 @@ message Event {
     BearerTokenRevokedEvent bearer_token_revoked = 912;
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
+    BotAPIKeyRotatedEvent bot_api_key_rotated = 915;
+    BotAPIKeyRevokedEvent bot_api_key_revoked = 916;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

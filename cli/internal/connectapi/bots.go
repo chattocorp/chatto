@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -161,6 +162,45 @@ func (s *botService) DeleteBot(ctx context.Context, req *connect.Request[apiv1.D
 	return connect.NewResponse(&apiv1.DeleteBotResponse{Deleted: true}), nil
 }
 
+func (s *botService) RotateBotAPIKey(ctx context.Context, req *connect.Request[apiv1.RotateBotAPIKeyRequest]) (*connect.Response[apiv1.RotateBotAPIKeyResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	apiKey, _, err := s.api.core.RotateBotAPIKey(ctx, caller.UserID, req.Msg.GetBotId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	bot, err := s.api.core.GetUser(ctx, req.Msg.GetBotId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	item, err := s.bot(ctx, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.RotateBotAPIKeyResponse{Bot: item, ApiKey: apiKey}), nil
+}
+
+func (s *botService) RevokeBotAPIKey(ctx context.Context, req *connect.Request[apiv1.RevokeBotAPIKeyRequest]) (*connect.Response[apiv1.RevokeBotAPIKeyResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.RevokeBotAPIKey(ctx, caller.UserID, req.Msg.GetBotId()); err != nil {
+		return nil, connectError(err)
+	}
+	bot, err := s.api.core.GetUser(ctx, req.Msg.GetBotId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	item, err := s.bot(ctx, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.RevokeBotAPIKeyResponse{Bot: item}), nil
+}
+
 func (s *botService) manageableBot(ctx context.Context, actorID, botID string) (*corev1.User, error) {
 	bot, err := s.api.core.GetUser(ctx, botID)
 	if err != nil {
@@ -190,7 +230,15 @@ func (s *botService) bot(ctx context.Context, bot *corev1.User) (*apiv1.Bot, err
 		}
 		return nil, err
 	}
-	return &apiv1.Bot{
+	item := &apiv1.Bot{
 		User: user, CreatedAt: bot.GetCreatedAt(),
-	}, nil
+	}
+	status, err := s.api.core.GetBotAPIKeyStatus(ctx, bot.GetId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if status != nil {
+		item.ApiKey = &apiv1.BotAPIKey{CreatedAt: timestamppb.New(status.CreatedAt)}
+	}
+	return item, nil
 }

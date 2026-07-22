@@ -98,3 +98,14 @@ message OAuthConsentDeniedEvent {
   string redirect_origin = 2;
   AuditRequestMetadata request = 3;
 }
+
+message BotAPIKeyRotatedEvent {
+  string user_id = 1;
+  bool replaced_existing = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message BotAPIKeyRevokedEvent {
+  string user_id = 1;
+  AuditRequestMetadata request = 2;
+}
