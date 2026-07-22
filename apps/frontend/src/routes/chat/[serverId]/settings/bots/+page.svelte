@@ -16,6 +16,9 @@
     store.serverInfo.supportsProtocolCapability(BOT_ACCOUNTS_CAPABILITY) === true
   );
   const canCreate = $derived(viewer?.viewerPermissions['bot.create'] ?? false);
+  const accessReady = $derived(
+    !store.serverInfo.loading && store.permissions.loaded && viewer !== null
+  );
   let scrollContainer = $state<HTMLDivElement>();
 </script>
 
@@ -28,7 +31,9 @@
     showMobileNav
   />
   <AdminPageContent bind:scrollContainer>
-    {#if supported && canCreate}
+    {#if !accessReady}
+      <!-- Keep the settings shell stable while discovery and viewer permissions hydrate. -->
+    {:else if supported && canCreate}
       <BotManagement scope="owner" {canCreate} {scrollContainer} />
     {:else}
       <AccessDenied message={m['bots.unavailable.owner']()} />
