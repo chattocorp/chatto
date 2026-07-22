@@ -4,8 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { Hint } from '$lib/ui';
-  import { AdminPageContent } from '$lib/components/admin';
+  import { Hint, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
@@ -41,7 +40,7 @@
     showMobileNav
   />
 
-  <AdminPageContent fillHeight>
+  <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">
       {#if error}
         <Hint tone="danger">{error}</Hint>
@@ -66,5 +65,5 @@
         </PermissionMatrix>
       {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>

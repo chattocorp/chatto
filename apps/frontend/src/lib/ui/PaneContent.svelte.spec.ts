@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
-import AdminPageContent from './AdminPageContent.svelte';
+import PaneContent from './PaneContent.svelte';
 
-describe('AdminPageContent', () => {
-  it('provides one readable-width, scrollable admin page column', () => {
-    const { container } = render(AdminPageContent, {
+describe('PaneContent', () => {
+  it('provides one readable-width, scrollable pane column', () => {
+    const { container } = render(PaneContent, {
       props: { children: testSnippet('<div data-testid="content">Content</div>') }
     });
     const fader = container.firstElementChild as HTMLElement;
@@ -19,7 +19,7 @@ describe('AdminPageContent', () => {
   });
 
   it('can give a primary child the available page height', () => {
-    const { container } = render(AdminPageContent, {
+    const { container } = render(PaneContent, {
       props: { fillHeight: true, children: testSnippet('<div>Content</div>') }
     });
     const content = container.firstElementChild?.firstElementChild?.firstElementChild as HTMLElement;

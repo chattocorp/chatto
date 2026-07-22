@@ -1,6 +1,6 @@
 <script lang="ts">
   import ServerSettings from '$lib/ServerSettings.svelte';
-  import { AdminPageContent } from '$lib/components/admin';
+  import { PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import * as m from '$lib/i18n/messages';
@@ -16,6 +16,6 @@
   showMobileNav
 />
 
-<AdminPageContent>
+<PaneContent>
   <ServerSettings />
-</AdminPageContent>
+</PaneContent>

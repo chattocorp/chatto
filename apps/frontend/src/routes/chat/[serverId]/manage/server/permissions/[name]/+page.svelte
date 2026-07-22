@@ -6,8 +6,8 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createRoleAPI, type RoleUser } from '$lib/api-client/roles';
-  import { AdminPageContent, Panel, UserList } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Panel, UserList } from '$lib/components/admin';
+  import { Hint, PaneContent } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -176,7 +176,7 @@
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.permissions.loading_role']()}</div>
@@ -302,7 +302,7 @@
       </Panel>
     {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>
 
 <!-- Delete Confirmation Dialog -->

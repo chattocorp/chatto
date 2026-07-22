@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { createRoomCommandAPI, type RoomBanSummary } from '$lib/api-client/rooms';
-  import { AdminPageContent, Panel, DataTable } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Panel, DataTable } from '$lib/components/admin';
+  import { Hint, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -118,7 +118,7 @@
     showMobileNav
   />
 
-  <AdminPageContent>
+  <PaneContent>
     <div class="flex flex-col gap-6">
     {#if loading}
       <div class="text-muted">{m['admin.moderation.loading_bans']()}</div>
@@ -181,7 +181,7 @@
       </Panel>
     {/if}
     </div>
-  </AdminPageContent>
+  </PaneContent>
 </div>
 
 {#if unbanDialogBan}

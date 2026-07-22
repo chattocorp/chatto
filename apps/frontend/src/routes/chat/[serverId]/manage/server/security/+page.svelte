@@ -5,8 +5,8 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { AdminPageContent, Panel } from '$lib/components/admin';
-  import { Hint } from '$lib/ui';
+  import { Panel } from '$lib/components/admin';
+  import { Hint, PaneContent } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
 
@@ -70,7 +70,7 @@
   showMobileNav
 />
 
-<AdminPageContent>
+<PaneContent>
   <div class="flex flex-col gap-6">
   <Panel title={m['admin.security.blocked_usernames']()} icon="iconify uil--shield-exclamation">
     {#if loading}
@@ -100,4 +100,4 @@
     {/if}
   </Panel>
   </div>
-</AdminPageContent>
+</PaneContent>
