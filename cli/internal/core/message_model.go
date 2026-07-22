@@ -479,7 +479,7 @@ func (s *MessageModel) videoProcessingAssetIDsForPost(input MessagePostInput) []
 		if _, ok := seen[assetID]; ok || assetID == "" {
 			continue
 		}
-		declared, ok := s.core.assetLifecycle().AssetCreation(assetID)
+		declared, ok := s.core.assetModel.AssetCreation(assetID)
 		if !ok || declared == nil {
 			continue
 		}

@@ -203,7 +203,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, ErrPermissionDenied
 	}
 	if session.Status == AssetUploadStatusCompleted {
-		declared, ok := m.core.assetLifecycle().AssetCreation(session.AssetID)
+		declared, ok := m.core.assetModel.AssetCreation(session.AssetID)
 		if !ok {
 			return nil, nil, ErrNotFound
 		}
@@ -234,8 +234,8 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
 	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
-	if err := m.core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
-		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
+	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, nil, err
 	}
 	session.Status = AssetUploadStatusCompleted
@@ -358,12 +358,12 @@ func (m *AssetUploadModel) cleanupOrphanUploadChunks(ctx context.Context, now ti
 
 func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now time.Time) error {
 	claimed := make(map[string]struct{})
-	for _, owner := range m.core.assetLifecycle().MessageAssetOwners() {
-		if owner.AssetID != "" && !m.core.assetLifecycle().MessageTombstoned(owner.MessageEventID) {
+	for _, owner := range m.core.assetModel.MessageAssetOwners() {
+		if owner.AssetID != "" && !m.core.assetModel.MessageTombstoned(owner.MessageEventID) {
 			claimed[owner.AssetID] = struct{}{}
 		}
 	}
-	for _, declared := range m.core.assetLifecycle().PendingExpiredAssets(now) {
+	for _, declared := range m.core.assetModel.PendingExpiredAssets(now) {
 		asset := declared.GetAsset()
 		if asset == nil || asset.GetId() == "" {
 			continue
@@ -373,7 +373,7 @@ func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now 
 		}
 		roomID := declared.GetRoomId()
 		if roomID == "" {
-			if projectedRoomID, ok := m.core.assetLifecycle().AssetRoomID(asset.GetId()); ok {
+			if projectedRoomID, ok := m.core.assetModel.AssetRoomID(asset.GetId()); ok {
 				roomID = projectedRoomID
 			}
 		}
@@ -385,10 +385,10 @@ func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now 
 			continue
 		}
 		attachment.RoomId = roomID
-		if err := m.core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, roomID, asset.GetId()); err != nil {
+		if err := m.core.assetModel.RecordAssetDeleted(ctx, SystemActorID, roomID, asset.GetId()); err != nil {
 			return fmt.Errorf("record expired pending asset deletion: %w", err)
 		}
-		if err := m.core.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		if err := m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			m.core.logger.Warn("Failed to delete expired pending attachment binary", "attachment_id", asset.GetId(), "error", err)
 		}
 	}

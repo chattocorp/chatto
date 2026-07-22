@@ -95,7 +95,7 @@ func (c *MediaModel) UploadAttachment(
 	if err != nil {
 		return nil, err
 	}
-	if err := c.assetLifecycle().RecordUploadedAsset(ctx, actorID, roomID, attachment); err != nil {
+	if err := c.assetModel.RecordUploadedAsset(ctx, actorID, roomID, attachment); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +245,7 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 		attachment.Width = width
 		attachment.Height = height
 	}
-	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+	if err := c.assetModel.RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
 		if errors.Is(err, ErrAssetCommitUnknown) {
 			// Preserve the storage handle so the worker can attempt prompt cleanup.
 			return attachment, err
@@ -545,7 +545,7 @@ func (c *MediaModel) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.
 		if id == "" {
 			continue
 		}
-		declared, ok := c.assetLifecycle().AssetCreation(id)
+		declared, ok := c.assetModel.AssetCreation(id)
 		if !ok {
 			continue
 		}

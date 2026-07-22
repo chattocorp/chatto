@@ -118,7 +118,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	if attachment == nil {
 		return fmt.Errorf("asset creation %s has invalid storage metadata", deleted.GetAssetId())
 	}
-	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+	if err := s.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		return fmt.Errorf("delete asset %s from storage: %w", deleted.GetAssetId(), err)
 	}
 	return nil

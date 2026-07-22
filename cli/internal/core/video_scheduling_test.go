@@ -165,7 +165,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	pending := core.assetLifecycle().UnmanifestedVideoAttachments()
+	pending := core.assetModel.UnmanifestedVideoAttachments()
 	if len(pending) != 1 || pending[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
@@ -190,7 +190,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}
-	if got := core.assetLifecycle().UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
+	if got := core.assetModel.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments after Started = %+v, want %q", got, att.Id)
 	}
 }

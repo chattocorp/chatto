@@ -17,10 +17,3 @@ type MediaModel struct {
 func NewMediaModel(core *ChattoCore) *MediaModel {
 	return &MediaModel{ChattoCore: core, now: time.Now}
 }
-
-func (c *ChattoCore) media() *MediaModel {
-	if c.mediaModel == nil {
-		c.mediaModel = NewMediaModel(c)
-	}
-	return c.mediaModel
-}
