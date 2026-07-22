@@ -232,6 +232,7 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 [tasks.dev]
 description = "Run the local backend and frontend development servers"
 depends = ["setup-cli", "build-api-types"]
+raw = true
 env = {
   VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
   CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
