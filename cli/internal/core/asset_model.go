@@ -62,13 +62,6 @@ func NewAssetModel(core *ChattoCore) *AssetModel {
 	return model
 }
 
-func (c *ChattoCore) assetLifecycle() *AssetModel {
-	if c.assetModel == nil {
-		c.assetModel = NewAssetModel(c)
-	}
-	return c.assetModel
-}
-
 // RecordUploadedAsset writes the AssetCreatedEvent for a user-uploaded binary.
 func (s *AssetModel) RecordUploadedAsset(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment) error {
 	if actorID == "" {
@@ -177,7 +170,7 @@ func (s *AssetModel) DeleteVideoDerivativesForAttachment(ctx context.Context, ac
 				"error", err)
 			return
 		}
-		if err := s.media().DeleteAttachmentFromStorage(ctx, att); err != nil {
+		if err := s.mediaModel.DeleteAttachmentFromStorage(ctx, att); err != nil {
 			s.logger.Warn("Failed to delete video derivative binary",
 				"attachment_id", att.GetId(),
 				"origin_attachment_id", attachmentID,
@@ -250,7 +243,7 @@ func (s *AssetModel) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorI
 			continue
 		}
 		if target.attachment != nil {
-			if err := s.media().DeleteAttachmentFromStorage(ctx, target.attachment); err != nil {
+			if err := s.mediaModel.DeleteAttachmentFromStorage(ctx, target.attachment); err != nil {
 				s.logger.Warn("Failed to delete attachment during user asset cleanup",
 					"asset_id", target.assetID,
 					"room_id", target.roomID,
@@ -529,7 +522,7 @@ func (s *AssetModel) cleanupVideoDerivativeOutput(ctx context.Context, actorID s
 			return
 		}
 	}
-	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+	if err := s.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		s.logger.Warn("Failed to delete derivative binary after skipped video manifest",
 			"attachment_id", assetID,
 			"origin_attachment_id", originAssetID,

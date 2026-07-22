@@ -62,13 +62,6 @@ type StreamMyEventsOptions struct {
 	TouchPresence bool
 }
 
-func (c *ChattoCore) myEvents() *MyEventsModel {
-	if c.myEventsModel == nil {
-		c.myEventsModel = NewMyEventsModel(c)
-	}
-	return c.myEventsModel
-}
-
 // MyEventsMetrics is a process-local snapshot of the realtime event stream.
 type MyEventsMetrics struct {
 	ActiveStreams     int64
@@ -129,7 +122,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 // StreamMyEventsWithOptions creates a myEvents stream with explicit compatibility options.
 func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
-	return c.myEvents().StreamMyEvents(ctx, userID, options)
+	return c.myEventsModel.StreamMyEvents(ctx, userID, options)
 }
 
 func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
@@ -296,7 +289,7 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 }
 
 func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
-	return c.myEvents().filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
+	return c.myEventsModel.filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
 }
 
 func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
@@ -422,7 +415,7 @@ func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject str
 	}
 
 	if isAssetLifecycleEvent(event) {
-		if err := s.core.assetLifecycle().waitForAssets(ctx, pos); err != nil {
+		if err := s.core.assetModel.waitForAssets(ctx, pos); err != nil {
 			return err
 		}
 	}
@@ -430,7 +423,7 @@ func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject str
 }
 
 func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
-	return s.core.assetLifecycle().waitForAssets(ctx, events.SubjectPosition(subject, seq))
+	return s.core.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))
 }
 
 func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
@@ -440,7 +433,7 @@ func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject str
 // isAuthorizedForLiveEvent checks whether a user can receive a non-room
 // transient live event based on its live.sync subject.
 func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	return c.myEvents().isAuthorizedForLiveEvent(ctx, userID, subject)
+	return c.myEventsModel.isAuthorizedForLiveEvent(ctx, userID, subject)
 }
 
 func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {

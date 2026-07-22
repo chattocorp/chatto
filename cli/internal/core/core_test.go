@@ -97,6 +97,15 @@ func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	if core.roomModel == nil {
 		t.Fatal("roomModel = nil")
 	}
+	if core.assetModel == nil {
+		t.Fatal("assetModel = nil")
+	}
+	if core.mediaModel == nil {
+		t.Fatal("mediaModel = nil")
+	}
+	if core.myEventsModel == nil {
+		t.Fatal("myEventsModel = nil")
+	}
 	if core.NotificationPreferences() == nil {
 		t.Fatal("NotificationPreferences() = nil")
 	}

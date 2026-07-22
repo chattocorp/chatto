@@ -166,7 +166,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	plan.StartCursor = resumeCursor
 
 	memberRooms := make(map[string]struct{})
-	if err := c.myEvents().populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
+	if err := c.myEventsModel.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("load replay room visibility: %w", err)
 	}
 
@@ -232,13 +232,13 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				continue
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			err = c.myEvents().waitForLiveEVTRoomEvent(waitCtx, msg.Subject, &event, seq)
+			err = c.myEventsModel.waitForLiveEVTRoomEvent(waitCtx, msg.Subject, &event, seq)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
 			}
 			if legacyAssetEvent {
-				assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetIDOfLifecycleEvent(&event))
+				assetRoomID, ok := c.assetModel.AssetRoomID(assetIDOfLifecycleEvent(&event))
 				if !ok || assetRoomID != roomID {
 					continue
 				}
@@ -248,12 +248,12 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				continue
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			err = c.myEvents().waitForLiveEVTAssetEvent(waitCtx, msg.Subject, seq)
+			err = c.myEventsModel.waitForLiveEVTAssetEvent(waitCtx, msg.Subject, seq)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
 			}
-			assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetID)
+			assetRoomID, ok := c.assetModel.AssetRoomID(assetID)
 			if !ok {
 				continue
 			}
@@ -265,7 +265,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				continue
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			err = c.myEvents().waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq)
+			err = c.myEventsModel.waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
