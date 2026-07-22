@@ -66,6 +66,13 @@ func TestParseQueryPreservesQuotedAndAdjacentTokenSemantics(t *testing.T) {
 	require.Equal(t, []string{`exact "phrase" with C:\Users`, "quoted firsttail"}, parsed.RequiredPhrases)
 }
 
+func TestParseQuerySupportsUnicodeAndASCIIWhitespace(t *testing.T) {
+	parsed, err := ParseQuery("über\tAND\n東京\r\"two\nlines\"")
+	require.NoError(t, err)
+	require.Equal(t, []string{"über", "東京"}, parsed.RequiredTerms)
+	require.Equal(t, []string{"two\nlines"}, parsed.RequiredPhrases)
+}
+
 func TestParseQueryDoesNotJoinAcrossWhitespace(t *testing.T) {
 	_, err := ParseQuery(`search in: "Archived Room"`)
 	require.ErrorContains(t, err, "in filter requires a room")
