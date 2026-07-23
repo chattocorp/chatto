@@ -76,6 +76,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		h.addUserIDs(participantPreviewUserIDs)
 		following := true
 		hasUnread := thread.HasUnread
+		hasPendingNotification := thread.HasPendingNotification
 		return &apiv1.FollowedThread{
 			RootMessage: rootMessage,
 			Room:        apiRoomSummary(room),
@@ -86,8 +87,9 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				ParticipantPreviewUserIds: participantPreviewUserIDs,
 				ParticipantCount:          int32(len(thread.ParticipantIDs)),
 				ViewerState: &apiv1.ThreadViewerState{
-					IsFollowing: &following,
-					HasUnread:   &hasUnread,
+					IsFollowing:            &following,
+					HasUnread:              &hasUnread,
+					HasPendingNotification: &hasPendingNotification,
 				},
 			},
 		}, nil

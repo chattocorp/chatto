@@ -331,6 +331,25 @@ describe('NotificationStore', () => {
     expect(store.hasDMRoomNotification('dm-room')).toBe(true);
   });
 
+  it('treats thread mentions as pending thread notifications', () => {
+    const threadMention = {
+      kind: NotificationItemKind.Mention,
+      id: 'thread-mention-kind',
+      createdAt: new Date().toISOString(),
+      actor: null,
+      summary: 'mentioned you',
+      mentionRoom: { id: 'room-kind', name: 'general' },
+      mentionEventId: 'mention-event',
+      mentionInThread: 'thread-root'
+    } as unknown as NotificationItem;
+
+    const store = new NotificationStore(makeAPI());
+    store.notifications = [threadMention];
+
+    expect(store.hasThreadNotification('thread-root')).toBe(true);
+    expect(store.threadsWithNotifications.has('thread-root')).toBe(true);
+  });
+
   it('retains existing notifications when the server returns an API error', async () => {
     const store = new NotificationStore(
       makeAPI({

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-07-23
 
 ## Overview
 
@@ -18,6 +18,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - While the installed PWA is visible, its app-icon badge shows the exact pending DM count when known. Other pending notifications, or an incomplete notification page that cannot provide an exact DM count, show a non-numeric attention flag. Ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
+- My Threads and individual thread badges use a gray dot for unread replies and an orange dot only while the thread contains a pending notification.
 - A recipient's Do Not Disturb presence still stores new notifications and updates counts, but those creation events are silent: no notification sound and no web push while DND is active.
 
 ## Notification Levels
@@ -101,6 +102,12 @@ from API callers.
 **Decision:** Do Not Disturb is checked at notification creation time. While the recipient has live DND presence, Chatto still creates the persistent notification and publishes a silent live sync event, but it suppresses legacy attention live events, notification sounds, and web push delivery.
 **Why:** DND means "do not interrupt me now", not "discard things I should review later". Storing the notification preserves missed activity in the notification center and sidebar counts, while the silent marker lets clients update state without making noise.
 **Tradeoff:** A user may see badge/sidebar changes while actively viewing Chatto in DND. That is less disruptive than sound or push, and it avoids losing important mentions or DMs.
+
+### 11. Thread badges distinguish unread activity from pending attention
+
+**Decision:** Thread indicators use gray for unread replies and reserve orange for threads with pending notifications. The same precedence applies to the My Threads navigation item and thread badges in room timelines.
+**Why:** Unread activity means new content is available, while a pending notification means the user has an unhandled attention item. Reusing the room-sidebar color language keeps those meanings consistent.
+**Tradeoff:** A thread can remain gray after its notification is dismissed until the user reads the replies. This is intentional because dismissal and reading represent different actions.
 
 ## Permissions
 

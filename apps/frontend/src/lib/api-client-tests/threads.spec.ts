@@ -58,6 +58,7 @@ describe('createThreadAPI', () => {
         }
       ],
       page: { totalCount: 3n, hasMore: true },
+      unreadOnly: true,
       includes: { users: {} }
     });
 
@@ -66,10 +67,10 @@ describe('createThreadAPI', () => {
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: 'remote-token'
     });
-    const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
+    const page = await api.listFollowedThreads({ limit: 20, offset: 40, unreadOnly: true });
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { page: { limit: 20, offset: 40 } },
+      { page: { limit: 20, offset: 40 }, unreadOnly: true },
       {
         headers: { Authorization: 'Bearer remote-token' }
       }
@@ -87,7 +88,8 @@ describe('createThreadAPI', () => {
         }
       ],
       totalCount: 3,
-      hasMore: true
+      hasMore: true,
+      unreadOnlyApplied: true
     });
   });
 

@@ -959,18 +959,12 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
 
-		// Should still work, including the orphaned thread (with zero metadata)
-		foundOrphan := false
+		// Invalid follow records are ignored rather than surfaced as thread
+		// roots in My Threads.
 		for _, thread := range threads {
 			if thread.ThreadRootEventID == "nonexistent-thread-id" {
-				foundOrphan = true
-				if thread.ReplyCount != 0 {
-					t.Errorf("Expected 0 replies for orphaned thread, got %d", thread.ReplyCount)
-				}
+				t.Fatal("orphaned follow record was returned as a thread")
 			}
-		}
-		if !foundOrphan {
-			t.Error("Expected orphaned thread to still appear in list (with zero metadata)")
 		}
 
 		// Clean up
@@ -1377,10 +1371,10 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		}
 		roomEvents := roomEventsResult.Events
 
-		var foundEcho bool
+		var echoEventID string
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
-				foundEcho = true
+				echoEventID = e.Id
 				// The echo has its own envelope id. EchoOfEventId /
 				// EchoFromThreadRootEventId are the shared identifiers.
 				if msg.EchoOfEventId != replyEvent.Id {
@@ -1392,8 +1386,21 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 				break
 			}
 		}
-		if !foundEcho {
+		if echoEventID == "" {
 			t.Error("Expected echo MessagePostedEvent in GetRoomEvents")
+		}
+
+		if err := core.FollowThread(ctx, KindChannel, user.Id, room.Id, echoEventID); err != nil {
+			t.Fatalf("FollowThread echo: %v", err)
+		}
+		followed, err := core.ListFollowedThreads(ctx, user.Id, []string{LegacyServerSpaceID})
+		if err != nil {
+			t.Fatalf("ListFollowedThreads: %v", err)
+		}
+		for _, thread := range followed {
+			if thread.ThreadRootEventID == echoEventID {
+				t.Fatal("channel echo was returned as a followed thread root")
+			}
 		}
 
 		// GetThreadEvents should NOT contain the echo (only original reply)

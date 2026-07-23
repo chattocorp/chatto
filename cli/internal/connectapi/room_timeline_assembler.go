@@ -245,7 +245,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		}
 	}
 
-	if payload.GetInThread() == "" {
+	if payload.GetInThread() == "" && payload.GetEchoOfEventId() == "" {
 		thread := &apiv1.ThreadSummary{
 			ThreadRootEventId: event.Id,
 		}

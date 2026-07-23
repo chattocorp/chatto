@@ -583,9 +583,12 @@ type ThreadViewerState struct {
 	// Whether the current user follows this message's thread, when known.
 	IsFollowing *bool `protobuf:"varint,1,opt,name=is_following,json=isFollowing,proto3,oneof" json:"is_following,omitempty"`
 	// True when the thread has unread replies for the current user, when known.
-	HasUnread     *bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3,oneof" json:"has_unread,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	HasUnread *bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3,oneof" json:"has_unread,omitempty"`
+	// True when the thread has a pending notification for the current user,
+	// when known.
+	HasPendingNotification *bool `protobuf:"varint,3,opt,name=has_pending_notification,json=hasPendingNotification,proto3,oneof" json:"has_pending_notification,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ThreadViewerState) Reset() {
@@ -628,6 +631,13 @@ func (x *ThreadViewerState) GetIsFollowing() bool {
 func (x *ThreadViewerState) GetHasUnread() bool {
 	if x != nil && x.HasUnread != nil {
 		return *x.HasUnread
+	}
+	return false
+}
+
+func (x *ThreadViewerState) GetHasPendingNotification() bool {
+	if x != nil && x.HasPendingNotification != nil {
+		return *x.HasPendingNotification
 	}
 	return false
 }
@@ -957,13 +967,15 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vhas_reacted\x18\x03 \x01(\bR\n" +
 	"hasReacted\x12(\n" +
-	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\x7f\n" +
+	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\xdb\x01\n" +
 	"\x11ThreadViewerState\x12&\n" +
 	"\fis_following\x18\x01 \x01(\bH\x00R\visFollowing\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"has_unread\x18\x02 \x01(\bH\x01R\thasUnread\x88\x01\x01B\x0f\n" +
+	"has_unread\x18\x02 \x01(\bH\x01R\thasUnread\x88\x01\x01\x12=\n" +
+	"\x18has_pending_notification\x18\x03 \x01(\bH\x02R\x16hasPendingNotification\x88\x01\x01B\x0f\n" +
 	"\r_is_followingB\r\n" +
-	"\v_has_unread\"\xd4\x02\n" +
+	"\v_has_unreadB\x1b\n" +
+	"\x19_has_pending_notification\"\xd4\x02\n" +
 	"\rThreadSummary\x12/\n" +
 	"\x14thread_root_event_id\x18\x01 \x01(\tR\x11threadRootEventId\x12\x1f\n" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +

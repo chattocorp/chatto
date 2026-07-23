@@ -5390,6 +5390,9 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	if echoEvent == nil || echoEvent.GetMessagePosted() == nil {
 		t.Fatalf("echo event %s missing from room page", echoID)
 	}
+	if got := echoEvent.GetMessagePosted().GetMessage().GetThread(); got != nil {
+		t.Fatalf("echo thread summary = %+v, want nil", got)
+	}
 	if got := echoEvent.GetMessagePosted().GetMessage().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
 		t.Fatalf("echo reactions = %+v, want thumbsup count 1 hasReacted", got)
 	}
@@ -7945,6 +7948,9 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	if resp.Msg.GetPage().GetTotalCount() != 1 || resp.Msg.GetPage().GetHasMore() {
 		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 1 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
 	}
+	if resp.Msg.UnreadOnly == nil || resp.Msg.GetUnreadOnly() {
+		t.Fatalf("ListFollowedThreads unread_only confirmation = %v, want explicit false", resp.Msg.UnreadOnly)
+	}
 	if len(resp.Msg.GetThreads()) != 1 {
 		t.Fatalf("ListFollowedThreads returned %d threads, want 1", len(resp.Msg.GetThreads()))
 	}
@@ -7956,6 +7962,9 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	if thread.GetThread().GetReplyCount() != 1 || !thread.GetThread().GetViewerState().GetHasUnread() || thread.GetThread().GetLastReplyAt() == nil {
 		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetThread().GetReplyCount(), thread.GetThread().GetViewerState().GetHasUnread(), thread.GetThread().GetLastReplyAt())
 	}
+	if !thread.GetThread().GetViewerState().GetHasPendingNotification() {
+		t.Fatal("followed thread pending notification = false, want true")
+	}
 	rootMessage := thread.GetRootMessage()
 	if rootMessage == nil || rootMessage.GetId() != root.Id {
 		t.Fatalf("root message = %+v, want hydrated message %s", rootMessage, root.Id)
@@ -7966,6 +7975,25 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	users := resp.Msg.GetIncludes().GetUsers()
 	if users[env.viewer.Id] == nil || users[participant.Id] == nil {
 		t.Fatalf("includes users missing viewer or participant: got %d included users", len(users))
+	}
+
+	if _, err := env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+		RoomId: room.Id, ThreadRootEventId: root.Id,
+	})); err != nil {
+		t.Fatalf("MarkThreadAsRead: %v", err)
+	}
+	unreadOnly := true
+	unreadResp, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 20}, UnreadOnly: &unreadOnly,
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads unread only: %v", err)
+	}
+	if unreadResp.Msg.UnreadOnly == nil || !unreadResp.Msg.GetUnreadOnly() {
+		t.Fatalf("ListFollowedThreads unread_only confirmation = %v, want explicit true", unreadResp.Msg.UnreadOnly)
+	}
+	if got := len(unreadResp.Msg.GetThreads()); got != 0 {
+		t.Fatalf("ListFollowedThreads unread only returned %d read threads, want 0", got)
 	}
 }
 

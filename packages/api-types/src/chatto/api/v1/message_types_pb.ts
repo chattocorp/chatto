@@ -514,6 +514,14 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
    */
   hasUnread?: boolean;
 
+  /**
+   * True when the thread has a pending notification for the current user,
+   * when known.
+   *
+   * @generated from field: optional bool has_pending_notification = 3;
+   */
+  hasPendingNotification?: boolean;
+
   constructor(data?: PartialMessage<ThreadViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -524,6 +532,7 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "is_following", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "has_pending_notification", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadViewerState {

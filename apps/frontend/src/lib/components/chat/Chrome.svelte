@@ -92,6 +92,14 @@
   const isMyThreadsActive = $derived(
     page.url.pathname === resolve('/chat/[serverId]/threads', { serverId: serverSegment })
   );
+  const hasUnreadFollowedThread = $derived(
+    [...activeStore.projection.threadViewerStates.values()].some((state) => state.hasUnread)
+  );
+  const hasPendingFollowedThreadNotification = $derived(
+    [...activeStore.projection.threadViewerStates.values()].some(
+      (state) => state.hasPendingNotification
+    )
+  );
 
   // Create server chrome permissions context (must be synchronous during init)
   const updateChromePermissions = createChromePermissions();
@@ -269,7 +277,11 @@
               {m['search.action']()}
             </a>
           {/if}
-          <MyThreadsNavItem active={isMyThreadsActive} />
+          <MyThreadsNavItem
+            active={isMyThreadsActive}
+            hasUnread={hasUnreadFollowedThread}
+            hasNotification={hasPendingFollowedThreadNotification}
+          />
         </nav>
 
         <hr class="border-border" />

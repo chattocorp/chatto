@@ -107,7 +107,11 @@ describe('ServerProjectionStore', () => {
               new RealtimeProjectionThreadViewerState({
                 roomId: 'R1',
                 threadRootEventId: 'ROOT',
-                viewerState: new ThreadViewerState({ isFollowing: true, hasUnread: true })
+                viewerState: new ThreadViewerState({
+                  isFollowing: true,
+                  hasUnread: true,
+                  hasPendingNotification: true
+                })
               })
             ]
           })
@@ -124,6 +128,11 @@ describe('ServerProjectionStore', () => {
     expect(viewerState()?.isFollowing).toBe(true);
     expect(viewerState()?.hasUnread).toBe(true);
     expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnread).toBe(true);
+    expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasPendingNotification).toBe(true);
+
+    store.markThreadRead('R1', 'ROOT');
+    expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnread).toBe(false);
+    expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasPendingNotification).toBe(true);
 
     store.apply(
       event(

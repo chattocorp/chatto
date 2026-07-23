@@ -429,9 +429,21 @@
     return { name, body, actor: activeRepliedActor, deleted: !activeRepliedActor };
   });
 
-  // Check if this thread has pending reply notifications
+  const projectedThreadViewerState = $derived(
+    event
+      ? stores.projection.threadViewerStates.get(`${roomId}\u0000${event.id}`)
+      : undefined
+  );
+  const hasThreadUnread = $derived(hasReplies && (projectedThreadViewerState?.hasUnread ?? false));
+  // Followed threads have an exhaustive projected notification state. The
+  // finite notification page remains a fallback for explicitly unfollowed
+  // threads that receive a direct mention.
   const hasThreadNotification = $derived(
-    hasReplies && event && notificationStore.hasThreadNotification(event.id)
+    hasReplies &&
+      event &&
+      (projectedThreadViewerState
+        ? (projectedThreadViewerState.hasPendingNotification ?? false)
+        : notificationStore.hasThreadNotification(event.id))
   );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||
@@ -828,6 +840,7 @@
           reactions={msg?.reactions ?? []}
           replyCount={messageEvent?.replyCount}
           threadParticipants={messageEvent?.threadParticipants}
+          {hasThreadUnread}
           {hasThreadNotification}
           canReact={roomPermissions.canReact}
           {messageStore}

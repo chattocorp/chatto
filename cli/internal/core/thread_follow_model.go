@@ -15,9 +15,12 @@ type ThreadFollowModel struct {
 	core *ChattoCore
 }
 
-func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, limit, offset int) (*FollowedThreadsPage, error) {
+func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
+	}
+	if unreadOnly {
+		return s.core.ListUnreadFollowedThreadsPage(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)}, limit, offset)
 	}
 	return s.core.ListFollowedThreadsPage(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)}, limit, offset)
 }

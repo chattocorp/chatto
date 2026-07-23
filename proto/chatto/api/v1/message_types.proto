@@ -120,6 +120,9 @@ message ThreadViewerState {
   optional bool is_following = 1;
   // True when the thread has unread replies for the current user, when known.
   optional bool has_unread = 2;
+  // True when the thread has a pending notification for the current user,
+  // when known.
+  optional bool has_pending_notification = 3;
 }
 
 // Aggregated state for one message thread.

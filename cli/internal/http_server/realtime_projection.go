@@ -262,19 +262,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
-			// Reply notifications are also the live signal that a followed
-			// thread became unread. Replace the complete latest-value set so
-			// unretained rooms and the My Threads view converge without a
-			// ConnectRPC refresh.
-			if payload.NotificationCreated.GetInReplyToId() != "" {
-				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-				if err != nil {
-					return nil, false, err
-				}
-				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-				}})
+			// Notifications are also the live signal for a followed thread's
+			// pending-attention state. Mentions and replies both participate.
+			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
 			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+				ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+			}})
 		case *corev1.LiveEvent_NotificationDismissed:
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
@@ -287,6 +283,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
+			}})
+			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+				ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
 			}})
 		case *corev1.LiveEvent_RoomMarkedAsRead:
 			roomID := payload.RoomMarkedAsRead.GetRoomId()

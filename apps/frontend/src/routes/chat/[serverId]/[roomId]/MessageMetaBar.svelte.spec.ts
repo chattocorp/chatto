@@ -188,6 +188,27 @@ describe('MessageMetaBar', () => {
     expect(followButton?.closest('a')).toBeNull();
   });
 
+  it('uses gray for merely unread threads and orange for notifications', () => {
+    const unread = render(MessageMetaBar, {
+      props: { ...baseProps, replyCount: 1, hasThreadUnread: true }
+    });
+    expect(q(unread.container, '[data-testid="thread-notification-dot"]')?.className).toContain(
+      'bg-neutral-action'
+    );
+
+    const notified = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 1,
+        hasThreadUnread: true,
+        hasThreadNotification: true
+      }
+    });
+    expect(q(notified.container, '[data-testid="thread-notification-dot"]')?.className).toContain(
+      'bg-attention'
+    );
+  });
+
   it('disables the follow toggle while a request is pending', () => {
     const onToggleThreadFollow = vi.fn();
     const { container } = render(MessageMetaBar, {

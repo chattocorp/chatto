@@ -14,6 +14,7 @@
     | 'reactions'
     | 'replies-and-reactions'
     | 'unread-followed-thread'
+    | 'notified-followed-thread'
     | 'thread-echo'
     | 'read-only-reactions'
     | 'short-reaction-popover'
@@ -140,6 +141,23 @@
       reactions={[]}
       replyCount={5}
       threadParticipants={[alice, jordan, mika]}
+      hasThreadUnread
+      canReact
+      isFollowingThread
+      onToggleThreadFollow={noop}
+      onOpenThread={noop}
+      onOpenEmojiPicker={noop}
+    />
+  {:else if variant === 'notified-followed-thread'}
+    <MessageMetaBar
+      {roomId}
+      {messageEventId}
+      {serverSegment}
+      {threadRootEventId}
+      reactions={[]}
+      replyCount={5}
+      threadParticipants={[alice, jordan, mika]}
+      hasThreadUnread
       hasThreadNotification
       canReact
       isFollowingThread

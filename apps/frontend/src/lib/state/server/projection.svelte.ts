@@ -30,6 +30,16 @@ export class ServerProjectionStore {
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
   private revokedRoomIds = new SvelteSet<string>();
 
+  /** Optimistically clear one thread's unread marker after a successful read. */
+  markThreadRead(roomId: string, threadRootEventId: string): void {
+    const key = `${roomId}\u0000${threadRootEventId}`;
+    const current = this.threadViewerStates.get(key);
+    if (!current?.hasUnread) return;
+    const next = current.clone();
+    next.hasUnread = false;
+    this.threadViewerStates.set(key, next);
+  }
+
   apply(event: RealtimeProjectionEvent): void {
     // Validate the entire atomic event before mutating anything. An unknown
     // operation must fail the subscription without partially applying state

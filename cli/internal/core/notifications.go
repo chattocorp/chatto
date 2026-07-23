@@ -26,6 +26,34 @@ const (
 	notificationKeyPrefix = "notification."
 )
 
+type threadNotificationTarget struct {
+	roomID            string
+	threadRootEventID string
+}
+
+// pendingThreadNotificationTargets returns the complete set of thread roots
+// with pending mention or reply notifications for one user.
+func (c *ChattoCore) pendingThreadNotificationTargets(ctx context.Context, userID string) (map[threadNotificationTarget]bool, error) {
+	notifications, err := c.GetNotifications(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	targets := make(map[threadNotificationTarget]bool)
+	for _, notification := range notifications {
+		var roomID, threadRootEventID string
+		switch payload := notification.GetNotification().(type) {
+		case *corev1.Notification_Mention:
+			roomID, threadRootEventID = payload.Mention.GetRoomId(), payload.Mention.GetInThread()
+		case *corev1.Notification_Reply:
+			roomID, threadRootEventID = payload.Reply.GetRoomId(), payload.Reply.GetInThread()
+		}
+		if roomID != "" && threadRootEventID != "" {
+			targets[threadNotificationTarget{roomID: roomID, threadRootEventID: threadRootEventID}] = true
+		}
+	}
+	return targets, nil
+}
+
 // notificationKey returns the KV key for a notification.
 // Format: notification.{userId}.{notificationId}
 func notificationKey(userID, notificationID string) string {

@@ -1463,6 +1463,9 @@ func TestRealtimeProjectionNotificationChangesReplaceStateAndCarryLiveTransition
 	if threadStates == nil || len(threadStates.GetStates()) != 1 || threadStates.GetStates()[0].GetThreadRootEventId() != message.Id {
 		t.Fatalf("reply notification thread-state replacement = %+v, want followed thread %q", threadStates, message.Id)
 	}
+	if !threadStates.GetStates()[0].GetViewerState().GetHasPendingNotification() {
+		t.Fatal("followed thread notification state = false, want true")
+	}
 
 	dismissed, err := env.core.DismissNotification(env.ctx, viewer.Id, notification.Id)
 	if err != nil || !dismissed {
@@ -1487,6 +1490,13 @@ func TestRealtimeProjectionNotificationChangesReplaceStateAndCarryLiveTransition
 	dismissChange := dismissReplacement.GetChange()
 	if dismissChange.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED || dismissChange.GetNotificationId() != notification.Id || dismissChange.GetSilent() {
 		t.Fatalf("dismissed notification transition = %+v", dismissChange)
+	}
+	dismissThreadStates := dismissFrame.GetProjectionEvent().GetOperations()[1].GetThreadViewerStatesReplace()
+	if dismissThreadStates == nil || len(dismissThreadStates.GetStates()) != 1 {
+		t.Fatalf("dismissed thread-state replacement = %+v, want followed thread", dismissThreadStates)
+	}
+	if dismissThreadStates.GetStates()[0].GetViewerState().GetHasPendingNotification() {
+		t.Fatal("followed thread notification state after dismissal = true, want false")
 	}
 }
 

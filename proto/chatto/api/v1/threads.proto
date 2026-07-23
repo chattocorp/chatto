@@ -71,6 +71,9 @@ message ListFollowedThreadsRequest {
 
   // Page request. Defaults to 20 results when absent or limit is zero.
   PageRequest page = 3;
+  // When true, returns only threads with unread replies. Filtering is applied
+  // before pagination.
+  optional bool unread_only = 4;
 }
 
 // Response containing one followed-thread page.
@@ -85,6 +88,9 @@ message ListFollowedThreadsResponse {
   RoomTimelineIncludes includes = 4;
   // Page metadata.
   PageInfo page = 5;
+  // Confirms whether unread-only filtering was applied by the server. Older
+  // servers omit this field so clients can fall back to local filtering.
+  optional bool unread_only = 6;
 }
 
 // Manages thread follow state for the current user.

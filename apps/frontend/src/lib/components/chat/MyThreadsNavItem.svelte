@@ -2,18 +2,14 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import * as m from '$lib/i18n/messages';
 
-  let { active }: { active: boolean } = $props();
-
-  const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
-
-  const hasUnread = $derived(
-    notificationStore.notifications.some((n) => notificationTarget(n).threadRootId !== null)
-  );
+  let {
+    active,
+    hasUnread = false,
+    hasNotification = false
+  }: { active: boolean; hasUnread?: boolean; hasNotification?: boolean } = $props();
 </script>
 
 <a
@@ -22,7 +18,11 @@
 >
   <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
   {m['chat.threads.title']()}
-  {#if hasUnread}
-    <UnreadDot class="ml-auto" testid="my-threads-unread-dot" />
+  {#if hasNotification || hasUnread}
+    <UnreadDot
+      class="ml-auto"
+      color={hasNotification ? 'warning' : 'neutral'}
+      testid="my-threads-unread-dot"
+    />
   {/if}
 </a>

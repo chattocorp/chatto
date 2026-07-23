@@ -2946,6 +2946,7 @@ Request for a page of followed threads for the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `unread_only` | `optional bool` | When true, returns only threads with unread replies. Filtering is applied before pagination. |
 
 
 <a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
@@ -2959,6 +2960,7 @@ Response containing one followed-thread page.
 | `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
 | `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `unread_only` | `optional bool` | Confirms whether unread-only filtering was applied by the server. Older servers omit this field so clients can fall back to local filtering. |
 
 
 <a id="chatto-api-v1-ThreadService-FollowThread"></a>
@@ -3903,6 +3905,7 @@ Viewer-specific state for one message thread.
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread` | `optional bool` | True when the thread has unread replies for the current user, when known. |
+| `has_pending_notification` | `optional bool` | True when the thread has a pending notification for the current user, when known. |
 
 
 

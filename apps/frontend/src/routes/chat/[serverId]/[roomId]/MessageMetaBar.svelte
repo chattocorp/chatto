@@ -14,6 +14,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 - `replyCount` - Number of thread replies
 - `threadParticipants` - Thread participant user fragments (for avatars)
 - `hasThreadNotification` - Whether there's an unread thread notification
+- `hasThreadUnread` - Whether the thread merely contains unread replies
 - `canReact` - Whether the user can add reactions
 - `isFollowingThread` - Whether the viewer is following this thread
 - `onToggleThreadFollow` - Callback to toggle thread follow state
@@ -50,6 +51,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     reactions,
     replyCount = 0,
     threadParticipants,
+    hasThreadUnread = false,
     hasThreadNotification = false,
     canReact = false,
     messageStore = null,
@@ -67,6 +69,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     reactions: ReactionSummary[];
     replyCount?: number;
     threadParticipants?: MessagePostedEvent['threadParticipants'];
+    hasThreadUnread?: boolean;
     hasThreadNotification?: boolean;
     canReact?: boolean;
     messageStore?: MessagesStore | null;
@@ -204,8 +207,11 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       <span>
         {replyCountLabel}
       </span>
-      {#if hasThreadNotification}
-        <UnreadDot testid="thread-notification-dot" />
+      {#if hasThreadNotification || hasThreadUnread}
+        <UnreadDot
+          color={hasThreadNotification ? 'warning' : 'neutral'}
+          testid="thread-notification-dot"
+        />
       {/if}
     </a>
     {#if onToggleThreadFollow}

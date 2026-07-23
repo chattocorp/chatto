@@ -86,8 +86,9 @@
     replaceState('', { ...page.state, threadFilter: value });
   }
 
+  let serverFilteredUnread = $state(false);
   const filteredThreads = $derived(
-    filter === 'unread' ? threads.filter((t) => t.hasUnread) : threads
+    filter === 'unread' && !serverFilteredUnread ? threads.filter((t) => t.hasUnread) : threads
   );
 
   async function loadThreads({ append = false }: { append?: boolean } = {}) {
@@ -107,13 +108,15 @@
         bearerToken: conn.bearerToken
       }).listFollowedThreads({
         limit: PAGE_SIZE,
-        offset: append ? threads.length : 0
+        offset: append ? threads.length : 0,
+        unreadOnly: filter === 'unread'
       });
 
       if (thisId !== loadId) return;
 
       const nextThreads = result.threads.map(mapThread);
       threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
+      serverFilteredUnread = filter === 'unread' && result.unreadOnlyApplied;
       hasMore = result.hasMore;
       totalCount = result.totalCount;
     } catch (e) {
@@ -312,11 +315,7 @@
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>
       </div>
-    {:else if threads.length === 0}
-      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
-        {m['chat.threads.empty_body']()}
-      </EmptyState>
-    {:else if filteredThreads.length === 0}
+    {:else if filter === 'unread' && filteredThreads.length === 0}
       <EmptyState
         icon="uil--comment-check"
         title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
@@ -338,6 +337,10 @@
         {:else}
           {m['chat.threads.no_unread']()}
         {/if}
+      </EmptyState>
+    {:else if threads.length === 0}
+      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
+        {m['chat.threads.empty_body']()}
       </EmptyState>
     {:else}
       <div class="flex flex-col divide-y divide-border">

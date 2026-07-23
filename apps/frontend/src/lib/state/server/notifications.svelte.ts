@@ -203,27 +203,19 @@ export class NotificationStore {
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
   }
 
-  /**
-   * Get the set of thread root IDs that have pending reply notifications.
-   * Used to show notification indicators on thread buttons.
-   */
+  /** Get thread roots with pending mention or reply notifications. */
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
     for (const n of this.notifications) {
-      if (isReplyNotification(n) && n.replyInThread) {
-        threadIds.add(n.replyInThread);
-      }
+      const threadRootId = notificationTarget(n).threadRootId;
+      if (threadRootId) threadIds.add(threadRootId);
     }
     return threadIds;
   }
 
-  /**
-   * Check if a specific thread has pending notifications.
-   */
+  /** Check if a specific thread has a pending mention or reply notification. */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.notifications.some(
-      (n) => isReplyNotification(n) && n.replyInThread === threadRootId
-    );
+    return this.notifications.some((n) => notificationTarget(n).threadRootId === threadRootId);
   }
 
   /**
