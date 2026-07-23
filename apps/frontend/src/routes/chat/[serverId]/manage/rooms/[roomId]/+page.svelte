@@ -24,7 +24,6 @@
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
-  import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { buildRoomSettingsUpdate } from './roomSettings';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
@@ -48,6 +47,7 @@
   let originalDescription = $state('');
   let originalUniversal = $state(false);
   let loadId = 0;
+  let identityGeneration = 0;
   let scrollContainer = $state<HTMLDivElement>();
 
   const memberManagement = new RoomMemberManagementStore((serverId) => {
@@ -106,6 +106,18 @@
 
   function isCurrentLoad(requestId: number, targetServerId: string, targetRoomId: string): boolean {
     return requestId === loadId && targetServerId === activeServerId && targetRoomId === roomId;
+  }
+
+  function isCurrentIdentity(target: {
+    serverId: string;
+    roomId: string;
+    identityGeneration: number;
+  }): boolean {
+    return (
+      target.serverId === activeServerId &&
+      target.roomId === roomId &&
+      target.identityGeneration === identityGeneration
+    );
   }
 
   async function loadRoom(
@@ -174,20 +186,30 @@
   $effect(() => {
     const targetServerId = activeServerId;
     const targetRoomId = roomId;
-    untrack(() => void loadRoom(targetServerId, targetRoomId));
+    untrack(() => {
+      identityGeneration++;
+      saving = false;
+      void loadRoom(targetServerId, targetRoomId);
+    });
   });
 
   useProjectionEvent((event) => {
     for (const operation of event.operations) {
-      const projectedRoomId =
-        operation.operation.case === 'roomUpsert'
-          ? operation.operation.value.room?.room?.id
-          : operation.operation.case === 'roomRemove'
-            ? operation.operation.value.roomId
-            : null;
-      if (projectedRoomId === roomId) {
-        void loadRoom(activeServerId, roomId, true);
-        return;
+      switch (operation.operation.case) {
+        case 'roomUpsert':
+          if (operation.operation.value.room?.room?.id === roomId) {
+            void loadRoom(activeServerId, roomId, true);
+            return;
+          }
+          break;
+        case 'roomRemove':
+          if (operation.operation.value.roomId === roomId) {
+            identityGeneration++;
+            saving = false;
+            void loadRoom(activeServerId, roomId);
+            return;
+          }
+          break;
       }
     }
   });
@@ -196,9 +218,14 @@
     event.preventDefault();
     if (!canManageRoom || saving || nameError || !name.trim() || !changed) return;
 
-    const target = { serverId: activeServerId, resourceId: roomId, generation: loadId };
+    const target = {
+      serverId: activeServerId,
+      roomId,
+      identityGeneration,
+      loadId
+    };
     const update = buildRoomSettingsUpdate(
-      target.resourceId,
+      target.roomId,
       { name, description, universal },
       {
         name: originalName,
@@ -215,42 +242,29 @@
         bearerToken: conn.bearerToken
       });
       const updated = await api.updateRoom(update);
-      if (
-        target.serverId !== activeServerId ||
-        !isCurrentResourceOperation(target, roomId, loadId)
-      ) {
-        return;
-      }
-      if (!updated || !room) throw new Error('Room update returned no room');
+      if (!isCurrentIdentity(target)) return;
+      if (!updated) throw new Error('Room update returned no room');
 
-      applyRoom({
-        ...room,
-        name: updated.name,
-        description: updated.description || null,
-        isUniversal: updated.universal,
-        archived: updated.archived
-      });
+      if (target.loadId === loadId && room) {
+        applyRoom({
+          ...room,
+          name: updated.name,
+          description: updated.description || null,
+          isUniversal: updated.universal,
+          archived: updated.archived
+        });
+      }
       void serverRegistry.getStore(activeServerId).rooms.refresh();
       toast.success(m['admin.rooms_admin.room_updated']());
     } catch (error) {
-      if (
-        target.serverId !== activeServerId ||
-        !isCurrentResourceOperation(target, roomId, loadId)
-      ) {
-        return;
-      }
+      if (!isCurrentIdentity(target)) return;
       toast.error(
         m['admin.rooms_admin.update_room_failed']({
           error: error instanceof Error ? error.message : String(error)
         })
       );
     } finally {
-      if (
-        target.serverId === activeServerId &&
-        isCurrentResourceOperation(target, roomId, loadId)
-      ) {
-        saving = false;
-      }
+      if (isCurrentIdentity(target)) saving = false;
     }
   }
 

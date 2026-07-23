@@ -4,7 +4,8 @@ import { render } from 'vitest-browser-svelte';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
-  RealtimeProjectionRoom
+  RealtimeProjectionRoom,
+  RealtimeProjectionRoomRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
   refreshRooms: vi.fn(),
+  updateRoom: vi.fn(),
   protocolCapabilities: ['chatto.api.room-manager-member-reads.v1'] as string[]
 }));
 
@@ -82,7 +84,7 @@ vi.mock('$lib/api-client/memberDirectory', () => ({
 
 vi.mock('$lib/api-client/rooms', () => ({
   createRoomCommandAPI: () => ({
-    updateRoom: vi.fn(),
+    updateRoom: mocks.updateRoom,
     addMember: vi.fn(),
     removeMember: vi.fn()
   })
@@ -121,11 +123,44 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function dispatchProjection(operation: RealtimeProjectionOperation): void {
+  const event = new RealtimeProjectionEvent({ operations: [operation] });
+  for (const handler of mocks.projectionHandlers) handler(event);
+}
+
+function roomUpsert(): RealtimeProjectionOperation {
+  return new RealtimeProjectionOperation({
+    operation: {
+      case: 'roomUpsert',
+      value: new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'shared-room', name: 'general' })
+        })
+      })
+    }
+  });
+}
+
 describe('room management page identity and realtime authority', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
     mocks.protocolCapabilities = ['chatto.api.room-manager-member-reads.v1'];
+    mocks.updateRoom.mockResolvedValue({
+      id: 'shared-room',
+      name: 'general',
+      description: '',
+      universal: false,
+      archived: false
+    });
     roomManagementPageTestState.reset();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
@@ -160,24 +195,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
     expect(container.querySelector('#room-member-picker')).not.toBeNull();
 
-    for (const handler of mocks.projectionHandlers) {
-      handler(
-        new RealtimeProjectionEvent({
-          operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomUpsert',
-                value: new RealtimeProjectionRoom({
-                  room: new RoomWithViewerState({
-                    room: new Room({ id: 'shared-room', name: 'general' })
-                  })
-                })
-              }
-            })
-          ]
-        })
-      );
-    }
+    dispatchProjection(roomUpsert());
     await settle();
 
     expect(container.querySelector('#room-member-picker')).toBeNull();
@@ -193,5 +211,71 @@ describe('room management page identity and realtime authority', () => {
 
     expect(container.textContent).not.toContain('Members');
     expect(container.querySelector('#room-member-picker')).toBeNull();
+  });
+
+  it('purges room metadata synchronously when realtime removes access', async () => {
+    mocks.getRoom.mockResolvedValueOnce(managedRoom('private-room'));
+    const pendingReload = deferred<ReturnType<typeof managedRoom>>();
+    const { container } = render(RoomManagementPage);
+    await settle();
+    expect(container.textContent).toContain('#private-room');
+
+    mocks.getRoom.mockReturnValueOnce(pendingReload.promise);
+    dispatchProjection(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
+        }
+      })
+    );
+    flushSync();
+
+    expect(container.textContent).not.toContain('#private-room');
+    expect(container.querySelector('#room-settings-name')).toBeNull();
+
+    pendingReload.resolve(managedRoom('private-room'));
+    await settle();
+  });
+
+  it('clears saving after a realtime refresh supersedes the save response', async () => {
+    const pendingSave = deferred<{
+      id: string;
+      name: string;
+      description: string;
+      universal: boolean;
+      archived: boolean;
+    }>();
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    mocks.updateRoom.mockReturnValueOnce(pendingSave.promise);
+    const { container } = render(RoomManagementPage);
+    await settle();
+
+    const nameInput = container.querySelector('#room-settings-name') as HTMLInputElement;
+    nameInput.value = 'renamed';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    (container.querySelector('form button[type="submit"]') as HTMLButtonElement).click();
+    await settle();
+
+    dispatchProjection(roomUpsert());
+    await settle();
+    pendingSave.resolve({
+      id: 'shared-room',
+      name: 'renamed',
+      description: '',
+      universal: false,
+      archived: false
+    });
+    await settle();
+
+    const refreshedInput = container.querySelector('#room-settings-name') as HTMLInputElement;
+    refreshedInput.value = 'later';
+    refreshedInput.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    expect(
+      (container.querySelector('form button[type="submit"]') as HTMLButtonElement).disabled
+    ).toBe(false);
   });
 });
