@@ -3,8 +3,10 @@
 	The canvas is decorative; the live status text remains accessible.
 -->
 <script module lang="ts">
-  const TEXTURE_WIDTH = 384;
-  const TEXTURE_HEIGHT = 256;
+  const TEXTURE_WIDTH = 256;
+  const TEXTURE_HEIGHT = 160;
+  const SOURCE_VIEW_WIDTH = 208;
+  const MAX_REFINEMENT_LEVEL = 4;
   const ACTIVE_FRAME_INTERVAL = 250;
   const RESOLVED_FRAME_INTERVAL = 1000;
   const AMBIENT_REFINEMENT_SECONDS = 14;
@@ -129,7 +131,10 @@
       function draw(now = performance.now()) {
         timer = undefined;
         const fidelity = effectiveProgress(now);
-        const refinementLevel = Math.min(5, Math.floor(fidelity * 6));
+        const refinementLevel = Math.min(
+          MAX_REFINEMENT_LEVEL,
+          Math.floor(fidelity * (MAX_REFINEMENT_LEVEL + 1))
+        );
         const refinementScale = 2 ** refinementLevel;
         const bounds = canvas.getBoundingClientRect();
         const aspectRatio = bounds.width > 0 ? bounds.height / bounds.width : 9 / 16;
@@ -141,7 +146,7 @@
           canvas.height = rows;
         }
 
-        const sourceWidth = 320;
+        const sourceWidth = SOURCE_VIEW_WIDTH;
         const sourceHeight = Math.min(TEXTURE_HEIGHT - 16, sourceWidth * aspectRatio);
         const travelX = TEXTURE_WIDTH - sourceWidth;
         const travelY = TEXTURE_HEIGHT - sourceHeight;
