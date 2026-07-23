@@ -20,7 +20,7 @@ func (*RoomTimelineProjection) SnapshotContractID() string {
 func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
+	snapshot := &corev1.RoomTimelineProjectionSnapshotV2{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
 	for _, entry := range p.entries {
 		snapshot.Entries = append(snapshot.Entries, &corev1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*corev1.Event)})
 	}
@@ -56,7 +56,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomTimelineProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
+	snapshot := &corev1.RoomTimelineProjectionSnapshotV2{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room timeline snapshot: %w", err)

@@ -68,6 +68,13 @@ Snapshot codecs use explicit protobuf messages. They do not serialize internal
 Go structs through reflection, `gob`, or generic JSON. A codec may omit derived
 indexes and rebuild them during restore.
 
+The contract ID and protobuf message schema are separate compatibility
+boundaries. Additive payload evolution may reuse an existing message. If a
+payload needs to remove, reinterpret, or retype a field, the previous persisted
+message remains unchanged and the new contract uses a versioned codec message.
+This preserves stored generations and rollback code without carrying obsolete
+fields into the new schema.
+
 ### Snapshots reuse the configured binary-storage backend
 
 Snapshot persistence uses a private internal blob-store boundary backed by the

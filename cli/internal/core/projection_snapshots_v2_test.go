@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/encryption"
 
@@ -17,6 +19,36 @@ type snapshotProjection interface {
 	SnapshotContractID() string
 	Snapshot() ([]byte, error)
 	Restore([]byte) error
+}
+
+func TestV2ProjectionSnapshotCodecsUseVersionedMessages(t *testing.T) {
+	assets := NewAssetProjection()
+	assets.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
+	assetPayload, err := assets.Snapshot()
+	require.NoError(t, err)
+	assetV2 := &corev1.AssetProjectionSnapshotV2{}
+	require.NoError(t, proto.Unmarshal(assetPayload, assetV2))
+	require.Len(t, assetV2.GetMessageOwners(), 1)
+	require.Equal(t, "A1", assetV2.GetMessageOwners()[0].GetAssetId())
+	assetV1Fields := (&corev1.AssetProjectionSnapshot{}).ProtoReflect().Descriptor().Fields()
+	ownerV1Fields := (&corev1.AssetMessageOwnerSnapshot{}).ProtoReflect().Descriptor().Fields()
+	ownerV2Fields := (&corev1.AssetMessageOwnerSnapshotV2{}).ProtoReflect().Descriptor().Fields()
+	require.Nil(t, assetV1Fields.ByNumber(protoreflect.FieldNumber(6)))
+	require.Nil(t, ownerV1Fields.ByNumber(protoreflect.FieldNumber(4)))
+	require.Equal(t, "author_id", string(ownerV2Fields.ByNumber(protoreflect.FieldNumber(4)).Name()))
+
+	timeline := NewRoomTimelineProjection()
+	timeline.replayGuard.highestSeq = 41
+	timeline.replayGuard.completeReplay()
+	timelinePayload, err := timeline.Snapshot()
+	require.NoError(t, err)
+	timelineV2 := &corev1.RoomTimelineProjectionSnapshotV2{}
+	require.NoError(t, proto.Unmarshal(timelinePayload, timelineV2))
+	require.Equal(t, uint64(41), timelineV2.GetReplayGuard().GetHighestSequence())
+	timelineV1Fields := (&corev1.RoomTimelineProjectionSnapshot{}).ProtoReflect().Descriptor().Fields()
+	timelineV2Fields := timelineV2.ProtoReflect().Descriptor().Fields()
+	require.Equal(t, "legacy_assets", string(timelineV1Fields.ByNumber(protoreflect.FieldNumber(8)).Name()))
+	require.Equal(t, "replay_guard", string(timelineV2Fields.ByNumber(protoreflect.FieldNumber(8)).Name()))
 }
 
 func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *testing.T) {

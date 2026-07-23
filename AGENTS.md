@@ -154,8 +154,15 @@ leave a dev stack running in a detached or yielded terminal session.
   `UserProfile` when presence/custom status is included, and
   `DirectoryMember` for directory/member rows with roles.
 - Persisted protobuf messages in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and
-  other JetStream resources are comparatively stable. Do not renumber fields or
-  change field types; prefer additive evolution and migrations/repair code.
+  other JetStream resources are comparatively stable. Do not remove or
+  renumber fields or change field types; prefer additive evolution and
+  migrations/repair code. Reserving a removed field is not sufficient for
+  these storage contracts.
+- Projection snapshot contracts may change incompatibly because missing
+  snapshots cold-replay from EVT. When their protobuf payload needs to remove,
+  reinterpret, or retype a field, preserve the prior message and add a new
+  versioned codec message. Bump the projection contract ID separately whenever
+  restore equivalence changes.
 - Transient protobufs can change more freely, but still consider public API
   behavior and mixed-version clients.
 - When changing room timeline event visibility, update ConnectRPC room timeline

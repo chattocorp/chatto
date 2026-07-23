@@ -204,7 +204,15 @@ message AssetProjectionSnapshot {
   repeated AssetManifestSnapshot manifests = 3;
   repeated DeletedAssetSnapshot deleted_assets = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
-  repeated AssetMessageOwnerSnapshot message_owners = 6;
+}
+
+message AssetProjectionSnapshotV2 {
+  repeated AssetCreatedEvent creations = 1;
+  repeated AssetChildrenSnapshot children = 2;
+  repeated AssetManifestSnapshot manifests = 3;
+  repeated DeletedAssetSnapshot deleted_assets = 4;
+  ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated AssetMessageOwnerSnapshotV2 message_owners = 6;
   repeated string public_link_preview_asset_ids = 7;
 }
 
@@ -304,12 +312,21 @@ message RoomTimelineProjectionSnapshot {
   repeated string retracted_event_ids = 5;
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
-  // Compatibility-only fields written by the v1 snapshot contract. The v2
-  // contract leaves them empty because AssetProjection owns this state.
-  AssetProjectionSnapshot legacy_assets = 8 [deprecated = true];
-  repeated AssetMessageOwnerSnapshot asset_message_owners = 9 [deprecated = true];
-  repeated string public_link_preview_asset_ids = 10 [deprecated = true];
+  AssetProjectionSnapshot legacy_assets = 8;
+  repeated AssetMessageOwnerSnapshot asset_message_owners = 9;
+  repeated string public_link_preview_asset_ids = 10;
   ProjectionReplayGuardSnapshot replay_guard = 11;
+}
+
+message RoomTimelineProjectionSnapshotV2 {
+  repeated TimelineEntrySnapshot entries = 1;
+  repeated TimelineBodySnapshot bodies = 2;
+  repeated StringTimestampSnapshot tombstoned_at = 3;
+  repeated StringTimestampSnapshot shredded_at = 4;
+  repeated string retracted_event_ids = 5;
+  repeated string hidden_echo_event_ids = 6;
+  repeated string shredded_user_ids = 7;
+  ProjectionReplayGuardSnapshot replay_guard = 8;
 }
 
 message TimelineEntrySnapshot {
@@ -330,6 +347,12 @@ message StringTimestampSnapshot {
 }
 
 message AssetMessageOwnerSnapshot {
+  string asset_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+}
+
+message AssetMessageOwnerSnapshotV2 {
   string asset_id = 1;
   string room_id = 2;
   string message_event_id = 3;

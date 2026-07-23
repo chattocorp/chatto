@@ -36,8 +36,14 @@ For public API packages:
   and the `api-breaking-change` PR label.
 - Do not renumber fields that may be persisted or consumed by clients.
 - Do not change a field type at an existing tag. Add a new tag instead.
-- Removing a persisted field requires both `reserved <tag>` and
-  `reserved "<name>"`.
+- Do not remove fields from persisted messages. Reserving the old tag and name
+  preserves wire safety but does not satisfy Chatto's source-compatibility or
+  storage-contract policy.
+- A contract-scoped projection snapshot may use a new versioned protobuf
+  message when its payload needs to remove, reinterpret, or retype fields.
+  Keep the prior message unchanged for stored generations and rollback code;
+  evolve the new message independently and bump the projection contract ID
+  whenever restore equivalence changes.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
 - Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
