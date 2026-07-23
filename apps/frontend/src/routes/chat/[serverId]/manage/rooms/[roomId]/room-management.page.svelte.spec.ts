@@ -173,6 +173,11 @@ describe('room management page identity and realtime authority', () => {
     const { container } = render(RoomManagementPage);
     await settle();
     expect(container.textContent).toContain('#alpha');
+    expect(
+      container
+        .querySelector('[data-testid="permission-matrix"]')
+        ?.getAttribute('data-scroll-contents')
+    ).toBe('false');
 
     roomManagementPageTestState.serverId = 'server-b';
     flushSync();

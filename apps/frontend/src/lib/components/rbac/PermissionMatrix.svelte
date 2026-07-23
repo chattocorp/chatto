@@ -17,8 +17,9 @@ Scope is implied by which of `spaceId` / `roomId` are set:
   set     | set    | same role set at room scope, inheriting the
                      resolved space + instance state per role
 
-The table viewport scrolls when there are too many rows or roles to fit;
-the role header and first column (permission name) remain sticky. Column
+The table viewport scrolls when there are too many rows or roles to fit unless
+`scrollContents` is disabled for a page-owned scroll container. The role header
+and first column (permission name) remain sticky in the contained variant. Column
 headers are clickable when `onRoleClick` is provided
 (routing to per-role detail pages owned by the parent route). Hovering or
 focusing a cell highlights its permission row and role column.
@@ -97,7 +98,8 @@ focusing a cell highlights its permission row and role column.
     isRoleClickable,
     newRoleHref,
     subtitle,
-    fillHeight = false
+    fillHeight = false,
+    scrollContents = true
   }: {
     spaceId?: string | null;
     roomId?: string | null;
@@ -126,6 +128,8 @@ focusing a cell highlights its permission row and role column.
     subtitle?: string | Snippet;
     /** Fill the remaining height when this matrix is the page's primary content. */
     fillHeight?: boolean;
+    /** Use a contained vertical viewport instead of flowing with the owning page. */
+    scrollContents?: boolean;
   } = $props();
 
   const connection = useConnection();
@@ -209,7 +213,9 @@ focusing a cell highlights its permission row and role column.
   let permissionFilter = $state('');
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
-    return query ? permissions.filter((permission) => permission.toLowerCase().includes(query)) : permissions;
+    return query
+      ? permissions.filter((permission) => permission.toLowerCase().includes(query))
+      : permissions;
   });
   const panelTitle = $derived(
     !spaceId && !roomId && !groupId ? CATEGORY_META.space.title : m['admin.permissions.title']()
@@ -336,7 +342,7 @@ focusing a cell highlights its permission row and role column.
       columns={columnCount}
       getKey={(permission) => permission}
       emptyMessage={m['rbac.permissions.no_filter_matches']()}
-      stickyHeader
+      stickyHeader={scrollContents}
       {fillHeight}
       stickyHeaderFadeOffset="top-48"
       hoverable={false}
@@ -350,7 +356,9 @@ focusing a cell highlights its permission row and role column.
         </th>
         {#each roles as role (role.roleName)}
           {@const handle =
-            onRoleClick && (isRoleClickable ? isRoleClickable(role) : true) ? onRoleClick : undefined}
+            onRoleClick && (isRoleClickable ? isRoleClickable(role) : true)
+              ? onRoleClick
+              : undefined}
           <th
             class={[
               'px-0 py-3 text-center align-bottom font-medium',
@@ -412,7 +420,8 @@ focusing a cell highlights its permission row and role column.
             </HelpTooltip>
             <code
               data-testid="permission-name"
-              class={['text-sm', rowIsHighlighted(category, permission) ? 'text-action' : '']}>{permission}</code
+              class={['text-sm', rowIsHighlighted(category, permission) ? 'text-action' : '']}
+              >{permission}</code
             >
           </div>
         </td>

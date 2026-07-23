@@ -248,6 +248,22 @@ describe('PermissionMatrix', () => {
     expect(fades[fades.length - 1].className).toContain('z-30');
   });
 
+  it('flows vertically with the page when contained scrolling is disabled', async () => {
+    const { container } = render(PermissionMatrix, {
+      props: { roomId: 'room-1', scrollContents: false }
+    });
+    await settle();
+
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement as HTMLElement;
+    const header = container.querySelector('thead') as HTMLElement;
+
+    expect(viewport.className).toContain('overflow-x-auto');
+    expect(viewport.className).not.toContain('overflow-y-auto');
+    expect(viewport.className).not.toContain('max-h-[70dvh]');
+    expect(header.className).not.toContain('sticky');
+  });
+
   it('highlights the hovered permission row and the role column across categories', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();

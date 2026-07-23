@@ -361,7 +361,7 @@
           </h2>
           <Hint>{m['admin.rooms_admin.room_permissions_hint']()}</Hint>
           <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
-          <PermissionMatrix {roomId} />
+          <PermissionMatrix {roomId} scrollContents={false} />
         </div>
       </div>
     </PaneContent>
