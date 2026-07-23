@@ -59,11 +59,14 @@
     const context = canvas.getContext('2d');
     if (!context) return canvas;
 
+    const randomValues = globalThis.crypto.getRandomValues(new Uint32Array(2));
+    const seedX = ((randomValues[0] ?? 0) / 0xffffffff) * 1024;
+    const seedY = ((randomValues[1] ?? 0) / 0xffffffff) * 1024;
     const image = context.createImageData(TEXTURE_WIDTH, TEXTURE_HEIGHT);
     for (let y = 0; y < TEXTURE_HEIGHT; y += 1) {
       for (let x = 0; x < TEXTURE_WIDTH; x += 1) {
-        let pointX = (x / TEXTURE_WIDTH) * 4.4;
-        let pointY = (y / TEXTURE_HEIGHT) * 2.9;
+        let pointX = (x / TEXTURE_WIDTH) * 4.4 + seedX;
+        let pointY = (y / TEXTURE_HEIGHT) * 2.9 + seedY;
         const warpX = layeredNoise(pointX * 0.72 + 3.8, pointY * 0.72 + 1.2);
         const warpY = layeredNoise(pointX * 0.68 - 2.1, pointY * 0.68 + 7.6);
         pointX += (warpX - 0.5) * 1.15;
