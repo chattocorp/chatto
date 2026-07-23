@@ -224,7 +224,7 @@ in the active server store so browser Back can restore the current search.
         </Panel>
 
         <Panel title={m['search.results']()} noPadding fillHeight>
-          <ScrollFader top bottom class="min-h-0 flex-1">
+          <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
             <div class="flex min-h-full flex-col" aria-live="polite">
               {#if store.error}
                 <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>

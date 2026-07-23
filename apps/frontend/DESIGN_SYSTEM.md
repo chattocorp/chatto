@@ -148,9 +148,11 @@ glow. Invalid fields follow the same treatment with the error-coloured border.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-white labels. The action colour is the single blue accent in each theme: primary
-buttons, links, focus borders, selection indicators, and compact status UI all
-derive from that same token rather than maintaining a separate button blue.
+contrast-safe labels. The action colour is the single blue accent in each theme:
+primary buttons, links, focus borders, selection indicators, and compact status
+UI all derive from that same token rather than maintaining a separate button blue.
+Each theme's action token must retain WCAG AA contrast both as text on its
+surrounding work surfaces and with its paired `on-action` button label.
 Buttons frame their fills with a tight inset related to `SegmentedControl`.
 Prominent semantic buttons tint the outer border to match their fill; quieter
 secondary and ghost buttons retain the input-coloured border. The tight inset

@@ -60,11 +60,7 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
-  --color-action: color-mix(
-    in srgb,
-    var(--color-sky-600),
-    var(--color-sky-700) 35%
-  );
+  --color-action: var(--color-sky-700);
   --color-action-hover: color-mix(in srgb, var(--color-action), black 15%);
   --color-on-action: var(--color-white);
   --color-button-success: var(--color-green-700);
@@ -123,9 +119,9 @@
   --color-input: var(--color-neutral-950);
   --color-input-border: var(--color-neutral-700);
 
-  --color-action: var(--color-sky-700);
+  --color-action: var(--color-sky-400);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
-  --color-on-action: var(--color-white);
+  --color-on-action: var(--color-neutral-950);
   --color-button-success: var(--color-green-700);
   --color-button-warning: var(--color-amber-700);
   --color-button-danger: var(--color-red-700);
