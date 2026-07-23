@@ -26,6 +26,8 @@ primitive when a scroll viewport also needs edge fades.
     scrollEl?: HTMLDivElement;
     /** Optional lifecycle attachment for the inner scroll container. */
     scrollAttachment?: Attachment<HTMLDivElement>;
+    /** Keep the scroll viewport in the tab order for keyboard scrolling. */
+    keyboardFocusable?: boolean;
     [key: string]: unknown;
   };
 
@@ -38,22 +40,27 @@ primitive when a scroll viewport also needs edge fades.
     scrollClass = '',
     scrollEl = $bindable(),
     scrollAttachment,
+    keyboardFocusable = true,
     ...rest
   }: Props = $props();
 
-  let scrollProps = $derived({ tabindex: 0, ...rest });
 </script>
 
 <div class={['relative flex min-h-0 min-w-0 flex-col', fill && 'flex-1', className]}>
+  <!-- A scroll viewport must be keyboard-focusable for WCAG 2.1. Svelte's
+       generic non-interactive tabindex warning does not model that exception. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
     bind:this={scrollEl}
     {@attach scrollAttachment}
+    role={keyboardFocusable ? 'region' : undefined}
+    tabindex={keyboardFocusable ? 0 : undefined}
     class={[
       'flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto',
       scrollX ? 'overflow-x-auto' : 'overflow-x-hidden',
       scrollClass
     ]}
-    {...scrollProps}
+    {...rest}
   >
     {@render children()}
   </div>

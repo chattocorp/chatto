@@ -35,15 +35,15 @@ Use `ToggleChip` instead when choices can be toggled independently.
 
 <fieldset
   class={[
-    'inline-flex min-h-10 w-fit min-w-0 items-center rounded-md border border-input-border bg-input p-0.5',
+    'control-frame inline-flex h-10 w-fit min-w-0 items-center gap-px bg-input p-px',
     className
   ]}
   {disabled}
 >
   <legend class="sr-only">{label}</legend>
 
-  {#each options as option (option.value)}
-    <label class="relative min-w-0 cursor-pointer">
+  {#each options as option, index (option.value)}
+    <label class="relative flex min-w-0 cursor-pointer">
       <input
         class="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0 disabled:cursor-not-allowed"
         type="radio"
@@ -54,7 +54,11 @@ Use `ToggleChip` instead when choices can be toggled independently.
         onchange={() => onchange(option.value)}
       />
       <span
-        class="inline-flex min-h-9 min-w-10 items-center justify-center rounded px-3 text-sm font-medium text-muted transition-[background-color,color] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 hover:bg-surface-emphasized hover:text-text"
+        class={[
+          'inline-flex min-h-9 min-w-10 items-center justify-center px-3 text-sm font-medium text-muted transition-[background-color,color] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60',
+          index === 0 ? 'rounded-l' : '',
+          index === options.length - 1 ? 'rounded-r' : ''
+        ]}
       >
         {option.label}
       </span>

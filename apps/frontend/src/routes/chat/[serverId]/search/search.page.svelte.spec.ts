@@ -107,6 +107,19 @@ describe('message search page', () => {
       query: 'motherfucking search',
       order: MessageSearchOrder.RELEVANCE
     });
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(input.value.length);
+
+    await userEvent.type(input, 'replacement query');
+    await userEvent.keyboard('{Enter}');
+
+    expect(mocks.search).toHaveBeenLastCalledWith({
+      query: 'replacement query',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(input.value.length);
   });
 
   it('switches form state when SvelteKit reuses the page for another server', async () => {

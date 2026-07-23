@@ -58,6 +58,12 @@ in the active server store so browser Back can restore the current search.
     const trimmed = store.query.trim();
     if (!trimmed || !store.available) return;
     void store.search({ query: trimmed, order: store.order });
+
+    const queryInput = (event.currentTarget as HTMLFormElement).querySelector<HTMLInputElement>(
+      'input[type="text"]'
+    );
+    queryInput?.focus({ preventScroll: true });
+    queryInput?.select();
   }
 
   function setOrder(nextOrder: MessageSearchOrder): void {
@@ -199,7 +205,7 @@ in the active server store so browser Back can restore the current search.
                 autofocus
               />
             </div>
-            <Button type="submit" disabled={!store.query.trim()} loading={store.loading}>
+            <Button type="submit" disabled={!store.query.trim()}>
               {m['search.action']()}
             </Button>
             <SegmentedControl
@@ -218,19 +224,16 @@ in the active server store so browser Back can restore the current search.
         </Panel>
 
         <Panel title={m['search.results']()} noPadding fillHeight>
-          <ScrollFader top bottom class="min-h-0 flex-1">
+          <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
             <div class="flex min-h-full flex-col" aria-live="polite">
-              {#if store.loading}
-                <div class="flex flex-1 items-center justify-center text-muted">
-                  <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
-                  ></span>
-                  {m['search.searching']()}
-                </div>
-              {:else if store.error}
+              {#if store.error}
                 <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
                   {m['search.error.description']()}
                 </EmptyState>
-              {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
+              {:else if store.hasSearched &&
+                !store.loading &&
+                store.results.length === 0 &&
+                !store.nextCursor}
                 <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
                   {m['search.no_results.description']()}
                 </EmptyState>
@@ -239,14 +242,14 @@ in the active server store so browser Back can restore the current search.
                   {m['search.prompt.description']()}
                 </EmptyState>
               {:else}
-                <ol class="flex flex-col gap-4 p-1">
+                <ol class="selectable-list gap-4">
                   {#each store.results as result (result.id)}
                     <li>
                       <div
                         role="link"
                         tabindex="0"
                         data-search-result-id={result.id}
-                        class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-action"
+                        class="selectable-list-item cursor-pointer"
                         onclick={(event) => openResult(event, result)}
                         onkeydown={(event) => openResultFromKeyboard(event, result)}
                       >
@@ -260,7 +263,7 @@ in the active server store so browser Back can restore the current search.
                           body={result.body}
                           timestampSettings={timeFormatSettings}
                           timestampLocale={activeLocale}
-                          rowClass="md:mx-0 md:pr-2"
+                          rowClass="hover:bg-transparent md:mx-0 md:pr-2"
                         >
                           {#snippet headerMeta()}
                             <a
