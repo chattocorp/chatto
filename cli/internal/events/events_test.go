@@ -868,6 +868,35 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	}
 }
 
+func TestProjectorSkipsBroadReplaySubjectsBeforeDecoding(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	if _, err := js.Publish(ctx, ConfigAggregate().Subject(EventServerNameChanged), []byte("not protobuf")); err != nil {
+		t.Fatalf("publish malformed unrelated event: %v", err)
+	}
+	pub := NewPublisher(js, stream, testLogger())
+	if _, err := pub.Append(ctx, RoomAggregate("R1").Subject(EventUserJoinedRoom), makeEvent("R1", "U1")); err != nil {
+		t.Fatalf("publish logical event: %v", err)
+	}
+
+	projection := newReplayTrackingProjection(
+		[]string{RoomEventTypeFilter(EventUserJoinedRoom)},
+		[]string{EventSubjectFilter()},
+	)
+	projector := NewProjector(js, stream, projection, testLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+	if err := projector.Err(); err != nil {
+		t.Fatalf("broad physical replay decoded unrelated payload: %v", err)
+	}
+	if got := projection.Count(); got != 1 {
+		t.Fatalf("Apply count = %d, want 1 logical event", got)
+	}
+}
+
 func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())

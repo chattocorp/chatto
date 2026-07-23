@@ -119,6 +119,12 @@ authorization, live events, backup/restore, and backend tests.
   boot-time sequence waiters when installing a restored cutoff, and test
   all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
   waiter interleavings.
+- Keep projection `Subjects()` precise as the logical application and readiness
+  contract. Prefer one physical replay filter where practical. In particular,
+  benchmark a broad wildcard combined with sparse extra families against one
+  broader `ReplaySubjects()` filter on real EVT history: JetStream multi-filter
+  scanning can cost more than delivering extra envelopes, and the projector
+  rejects non-logical subjects before protobuf decoding.
 - Projection snapshot methods are optional. Locally checkpointed projections
   own disposable derived state and must bind it to a stable projection key,
   contract ID, EVT stream incarnation, and retained sequence bounds. A

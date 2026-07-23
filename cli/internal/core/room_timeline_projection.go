@@ -130,6 +130,14 @@ func (p *RoomTimelineProjection) Subjects() []string {
 	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
 }
 
+// ReplaySubjects uses one stream-wide physical filter because JetStream's
+// multi-filter scan is expensive when it combines the broad room wildcard with
+// the sparse user-key-shredded family. The Projector rejects unrelated subjects
+// before decoding or applying them.
+func (p *RoomTimelineProjection) ReplaySubjects() []string {
+	return []string{events.EventSubjectFilter()}
+}
+
 // Apply implements events.Projection. Extracts the room_id from whichever
 // room-scoped event variant we recognise and appends visible entries to that
 // room's slice. Events that don't carry a room_id (shouldn't appear on
