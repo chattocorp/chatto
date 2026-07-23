@@ -6,6 +6,7 @@ export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
 export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
 export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
 export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
+export const ROOM_MANAGER_MEMBER_READS_CAPABILITY = 'chatto.api.room-manager-member-reads.v1';
 
 export const REQUIRED_PROTOCOL_CAPABILITIES = [
   'chatto.api.v1',
@@ -108,4 +109,20 @@ export function hasProtocolCapability(
   capability: string
 ): boolean | null {
   return capabilities === null ? null : capabilities.includes(capability);
+}
+
+/**
+ * Whether room managers can read channel membership without joining first.
+ *
+ * Capability metadata is authoritative when present. The version fallback is
+ * limited to servers that predate discovery capabilities altogether.
+ */
+export function supportsRoomManagerMemberReads(
+  capabilities: readonly string[] | null,
+  serverVersion: string
+): boolean {
+  const advertised = hasProtocolCapability(capabilities, ROOM_MANAGER_MEMBER_READS_CAPABILITY);
+  if (advertised !== null) return advertised;
+  const comparison = compareReleaseVersions(serverVersion, LEGACY_SERVER_WARNING_BEFORE_VERSION);
+  return comparison !== null && comparison >= 0;
 }

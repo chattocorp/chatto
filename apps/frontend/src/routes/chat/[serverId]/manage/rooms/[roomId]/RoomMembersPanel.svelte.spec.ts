@@ -106,6 +106,8 @@ function setup(
 function renderPanel(
   store: RoomMemberManagementStore,
   overrides: Partial<{
+    serverId: string;
+    roomId: string;
     isUniversal: boolean;
     archived: boolean;
     canManageMembers: boolean;
@@ -113,8 +115,8 @@ function renderPanel(
 ) {
   return render(RoomMembersPanel, {
     props: {
-      serverId: 'server-1',
-      roomId: 'room-1',
+      serverId: overrides.serverId ?? 'server-1',
+      roomId: overrides.roomId ?? 'room-1',
       roomName: 'general',
       isUniversal: overrides.isUniversal ?? false,
       archived: overrides.archived ?? false,
@@ -259,6 +261,61 @@ describe('RoomMembersPanel', () => {
     await settle();
     expect(container.textContent).toContain('permission denied');
     expect(container.textContent).not.toContain('Alice');
+  });
+
+  it('clears a selected add candidate when the server identity changes', async () => {
+    const bob = member('bob', 'Bob');
+    const { store, addMember } = setup({ directoryUsers: [bob] });
+    const rendered = renderPanel(store);
+    await settle();
+
+    const input = rendered.container.querySelector('#room-member-picker') as HTMLInputElement;
+    input.value = 'bob';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settleDirectorySearch();
+    (document.querySelector('[role="option"]') as HTMLButtonElement).click();
+    flushSync();
+    expect(buttonByText(rendered.container, 'Add member').disabled).toBe(false);
+
+    await rendered.rerender({
+      serverId: 'server-2',
+      roomId: 'room-1',
+      roomName: 'general',
+      isUniversal: false,
+      archived: false,
+      canManageMembers: true,
+      store
+    });
+    await settle();
+
+    expect(buttonByText(rendered.container, 'Add member').disabled).toBe(true);
+    buttonByText(rendered.container, 'Add member').click();
+    await settle();
+    expect(addMember).not.toHaveBeenCalled();
+  });
+
+  it('closes a removal confirmation when the server identity changes', async () => {
+    const { store, removeMember } = setup();
+    const rendered = renderPanel(store);
+    await settle();
+
+    buttonByText(rendered.container, 'Remove member').click();
+    flushSync();
+    expect(document.querySelector('dialog')).not.toBeNull();
+
+    await rendered.rerender({
+      serverId: 'server-2',
+      roomId: 'room-1',
+      roomName: 'general',
+      isUniversal: false,
+      archived: false,
+      canManageMembers: true,
+      store
+    });
+    await settle();
+
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(removeMember).not.toHaveBeenCalled();
   });
 
   it('reports add and remove API errors without claiming success', async () => {

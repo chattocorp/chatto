@@ -45,6 +45,7 @@
     const selectedServerId = serverId;
     const selectedRoomId = roomId;
     untrack(() => {
+      clearLocalState();
       store.setRoom(selectedServerId, selectedRoomId);
       void store.loadFirstPage();
     });

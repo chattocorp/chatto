@@ -14,7 +14,7 @@ export type RoomMemberManagementAPIs = {
   commands: RoomCommandAPI;
 };
 
-type APIProvider = () => RoomMemberManagementAPIs;
+type APIProvider = (serverId: string) => RoomMemberManagementAPIs;
 
 function appendMembers(current: DirectoryMember[], incoming: DirectoryMember[]): DirectoryMember[] {
   const incomingIds = new Set(incoming.map((member) => member.id));
@@ -101,7 +101,7 @@ export class RoomMemberManagementStore {
     this.loadError = null;
 
     try {
-      const page = await this.#getAPIs().directory.listRoomMembers(
+      const page = await this.#getAPIs(serverId).directory.listRoomMembers(
         roomId,
         '',
         ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
@@ -136,7 +136,7 @@ export class RoomMemberManagementStore {
     this.loadError = null;
 
     try {
-      const page = await this.#getAPIs().directory.listRoomMembers(
+      const page = await this.#getAPIs(serverId).directory.listRoomMembers(
         roomId,
         '',
         ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
@@ -170,7 +170,7 @@ export class RoomMemberManagementStore {
 
     this.directoryLoading = true;
     try {
-      const api = this.#getAPIs().directory;
+      const api = this.#getAPIs(serverId).directory;
       const eligible: DirectoryMember[] = [];
       const seenIds = new SvelteSet<string>();
       let offset = 0;
@@ -224,7 +224,7 @@ export class RoomMemberManagementStore {
     const serverId = this.#serverId;
     const roomId = this.#roomId;
     const roomGeneration = this.#roomGeneration;
-    const api = this.#getAPIs();
+    const api = this.#getAPIs(serverId);
     this.addingUserId = user.id;
     try {
       await api.commands.addMember({ roomId, userId: user.id });
@@ -242,7 +242,7 @@ export class RoomMemberManagementStore {
     const serverId = this.#serverId;
     const roomId = this.#roomId;
     const roomGeneration = this.#roomGeneration;
-    const api = this.#getAPIs();
+    const api = this.#getAPIs(serverId);
     this.removingUserId = user.id;
     try {
       await api.commands.removeMember({ roomId, userId: user.id });
