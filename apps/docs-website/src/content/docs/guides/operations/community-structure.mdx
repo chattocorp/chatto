@@ -50,6 +50,12 @@ Universal rooms do not write one membership record per user. Chatto derives effe
   Members cannot leave a universal room. Tell members to mute noisy universal rooms instead of trying to leave them.
 </Aside>
 
+## Explicit Room Members
+
+Use explicit membership for private or opt-in channel rooms. Open **Server Admin → Rooms**, select the room, and use its **Members** section to search the server directory, add a user, or remove an existing member with confirmation. You need effective `room.manage` permission for that room.
+
+Explicit membership can grant access independently of `room.list` and `room.join`. Review the member list when tightening a room's permissions, because denying discovery or self-join does not remove people who are already explicit members. Membership cannot be edited while the room is archived. Universal rooms derive membership automatically and therefore do not expose add or remove controls.
+
 ## Permissions Strategy
 
 Start broad and add local exceptions:
