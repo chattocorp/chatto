@@ -71,6 +71,7 @@
   let error = $state<string | null>(null);
   let hasMore = $state(false);
   let totalCount = $state(0);
+  let serverFilteredUnread = $state(false);
   let loadId = 0;
 
   const filter = $derived(page.state.threadFilter ?? 'all');
@@ -79,8 +80,10 @@
     replaceState('', { ...page.state, threadFilter: value });
   }
 
-  const filteredThreads = $derived(
-    filter === 'unread' ? threads.filter((t) => t.hasUnread) : threads
+  const displayedThreads = $derived(
+    filter === 'unread' && !serverFilteredUnread
+      ? threads.filter((thread) => thread.hasUnread)
+      : threads
   );
 
   async function loadThreads({ append = false }: { append?: boolean } = {}) {
@@ -100,7 +103,8 @@
         bearerToken: conn.bearerToken
       }).listFollowedThreads({
         limit: PAGE_SIZE,
-        offset: append ? threads.length : 0
+        offset: append ? threads.length : 0,
+        unreadOnly: filter === 'unread'
       });
 
       if (thisId !== loadId) return;
@@ -109,6 +113,7 @@
       threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
       hasMore = result.hasMore;
       totalCount = result.totalCount;
+      serverFilteredUnread = result.unreadOnly;
     } catch (e) {
       if (thisId !== loadId) return;
       error = e instanceof Error ? e.message : 'Failed to load threads';
@@ -219,10 +224,15 @@
         <Hint tone="danger">{error}</Hint>
       </div>
     {:else if threads.length === 0}
-      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
-        {m['chat.threads.empty_body']()}
+      <EmptyState
+        icon={filter === 'unread' ? 'uil--comment-check' : 'uil--comment-lines'}
+        title={filter === 'unread'
+          ? m['chat.threads.all_caught_up']()
+          : m['chat.threads.empty_title']()}
+      >
+        {filter === 'unread' ? m['chat.threads.no_unread']() : m['chat.threads.empty_body']()}
       </EmptyState>
-    {:else if filteredThreads.length === 0}
+    {:else if displayedThreads.length === 0}
       <EmptyState
         icon="uil--comment-check"
         title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
@@ -247,7 +257,7 @@
       </EmptyState>
     {:else}
       <div class="flex flex-col divide-y divide-border">
-        {#each filteredThreads as thread (thread.threadRootEventId)}
+        {#each displayedThreads as thread (thread.threadRootEventId)}
           <div class="group relative" data-testid="my-thread-item">
             <!-- Channel label above the message -->
             <div class="flex gap-4 px-2 pt-4 pb-2 md:mx-2">

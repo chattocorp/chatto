@@ -84,6 +84,29 @@ describe('MessageMetaBar', () => {
     expect(link.textContent?.replace(/\s+/g, ' ').trim()).toContain('2 replies');
   });
 
+  it('uses gray for unread replies and orange for pending notifications', async () => {
+    const rendered = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 2,
+        hasThreadUnread: true
+      }
+    });
+
+    expect(rendered.container.querySelector('.bg-primary')).not.toBeNull();
+    expect(rendered.container.querySelector('.bg-warning')).toBeNull();
+
+    await rendered.rerender({
+      ...baseProps,
+      replyCount: 2,
+      hasThreadUnread: true,
+      hasThreadNotification: true
+    });
+
+    expect(rendered.container.querySelector('.bg-warning')).not.toBeNull();
+    expect(rendered.container.querySelector('.bg-primary')).toBeNull();
+  });
+
   it('renders the echo thread badge as a native thread link', async () => {
     const { container } = render(MessageMetaBar, {
       props: {

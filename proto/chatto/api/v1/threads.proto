@@ -71,6 +71,8 @@ message ListFollowedThreadsRequest {
 
   // Page request. Defaults to 20 results when absent or limit is zero.
   PageRequest page = 3;
+  // When true, returns only threads with unread replies.
+  bool unread_only = 4;
 }
 
 // Response containing one followed-thread page.
@@ -85,6 +87,8 @@ message ListFollowedThreadsResponse {
   RoomTimelineIncludes includes = 4;
   // Page metadata.
   PageInfo page = 5;
+  // True when the response is restricted to threads with unread replies.
+  bool unread_only = 6;
 }
 
 // Manages thread follow state for the current user.

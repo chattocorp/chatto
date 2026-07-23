@@ -92,6 +92,7 @@ type EventEnvelopeEvent =
       lastReplyAt?: string | null;
       threadParticipants?: UserAvatarUserView[];
       viewerIsFollowingThread?: boolean | null;
+      viewerHasUnreadThread?: boolean | null;
     }
   | {
       kind: typeof RoomEventKind.MessageRetracted;

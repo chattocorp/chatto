@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-07-23
 
 ## Overview
 
@@ -16,6 +16,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- My Threads lists followed threads by their valid root messages. Channel echoes link back to their source thread but never appear as thread roots themselves.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
 - A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread — each gated by separate permissions, so a room can be configured for many threading styles.

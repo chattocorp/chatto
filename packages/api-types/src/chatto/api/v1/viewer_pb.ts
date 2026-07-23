@@ -202,6 +202,13 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
    */
   hasUnreadFollowedThreads = false;
 
+  /**
+   * Whether a followed channel thread has a pending notification.
+   *
+   * @generated from field: bool has_pending_followed_thread_notifications = 3;
+   */
+  hasPendingFollowedThreadNotifications = false;
+
   constructor(data?: PartialMessage<ViewerCapabilities>) {
     super();
     proto3.util.initPartial(data, this);
@@ -212,6 +219,7 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "grants", kind: "message", T: CapabilityGrant, repeated: true },
     { no: 2, name: "has_unread_followed_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "has_pending_followed_thread_notifications", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerCapabilities {

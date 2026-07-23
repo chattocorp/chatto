@@ -25,6 +25,7 @@ export type FollowedThreadsPage = {
   threads: FollowedThread[];
   totalCount: number;
   hasMore: boolean;
+  unreadOnly: boolean;
 };
 
 export type ThreadFollowState = {
@@ -45,10 +46,14 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     async listFollowedThreads(input: {
       limit: number;
       offset: number;
+      unreadOnly?: boolean;
     }): Promise<FollowedThreadsPage> {
       try {
         const response = await client.listFollowedThreads(
-          { page: { limit: input.limit, offset: input.offset } },
+          {
+            page: { limit: input.limit, offset: input.offset },
+            unreadOnly: input.unreadOnly ?? false
+          },
           { headers: headers() }
         );
         const users = response.includes?.users ?? {};
@@ -65,7 +70,8 @@ export function createThreadAPI(config: ConnectAPIConfig) {
             hasUnread: thread.thread?.viewerState?.hasUnread ?? false
           })),
           totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false
+          hasMore: response.page?.hasMore ?? false,
+          unreadOnly: response.unreadOnly
         };
       } catch (err) {
         return handleAuthError(config, err);

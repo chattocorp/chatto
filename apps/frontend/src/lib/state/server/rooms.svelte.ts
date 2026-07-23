@@ -212,6 +212,7 @@ export class RoomsStore {
   roomGroups = $state<RoomsListGroup[] | null>(null);
   isInitialLoading = $state(true);
   hasUnreadFollowedThreads = $state(false);
+  hasPendingFollowedThreadNotifications = $state(false);
   // The viewer's user ID, captured from the same sidebar bootstrap query that
   // produced DM `room.members`. Use this in preference to a global auth
   // context when filtering self out of DM labels and avatars.
@@ -250,6 +251,8 @@ export class RoomsStore {
     this.currentUserId = viewer.user.id;
     if (this.threadUnreadRevision === threadUnreadSnapshotRevision) {
       this.hasUnreadFollowedThreads = viewer.viewerHasUnreadFollowedThreads;
+      this.hasPendingFollowedThreadNotifications =
+        viewer.viewerHasPendingFollowedThreadNotifications;
     }
     this.notificationLevels.setServerPreference(
       viewer.serverNotificationPreference.level,
@@ -385,6 +388,8 @@ export class RoomsStore {
           const viewer = await this.viewerStateLoader();
           this.threadUnreadRevision += 1;
           this.hasUnreadFollowedThreads = viewer.viewerHasUnreadFollowedThreads;
+          this.hasPendingFollowedThreadNotifications =
+            viewer.viewerHasPendingFollowedThreadNotifications;
         } catch (err) {
           console.warn('failed to refresh followed-thread unread state', err);
         }
@@ -478,6 +483,7 @@ export class RoomsStore {
     }
     if (
       kind === RoomEventKind.ThreadFollowChanged ||
+      kind === RoomEventKind.NotificationCreated ||
       kind === RoomEventKind.NotificationDismissed ||
       (isMessagePostedEvent(event) && !!event.threadRootEventId)
     ) {

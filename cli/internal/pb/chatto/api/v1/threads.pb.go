@@ -374,7 +374,9 @@ func (x *FollowedThread) GetThread() *ThreadSummary {
 type ListFollowedThreadsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page request. Defaults to 20 results when absent or limit is zero.
-	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Page *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// When true, returns only threads with unread replies.
+	UnreadOnly    bool `protobuf:"varint,4,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -416,6 +418,13 @@ func (x *ListFollowedThreadsRequest) GetPage() *PageRequest {
 	return nil
 }
 
+func (x *ListFollowedThreadsRequest) GetUnreadOnly() bool {
+	if x != nil {
+		return x.UnreadOnly
+	}
+	return false
+}
+
 // Response containing one followed-thread page.
 type ListFollowedThreadsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -425,7 +434,9 @@ type ListFollowedThreadsResponse struct {
 	// per-thread hydration.
 	Includes *RoomTimelineIncludes `protobuf:"bytes,4,opt,name=includes,proto3" json:"includes,omitempty"`
 	// Page metadata.
-	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	Page *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	// True when the response is restricted to threads with unread replies.
+	UnreadOnly    bool `protobuf:"varint,6,opt,name=unread_only,json=unreadOnly,proto3" json:"unread_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -481,6 +492,13 @@ func (x *ListFollowedThreadsResponse) GetPage() *PageInfo {
 	return nil
 }
 
+func (x *ListFollowedThreadsResponse) GetUnreadOnly() bool {
+	if x != nil {
+		return x.UnreadOnly
+	}
+	return false
+}
+
 var File_chatto_api_v1_threads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_threads_proto_rawDesc = "" +
@@ -506,13 +524,17 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\froot_message\x18\x04 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12.\n" +
 	"\x04room\x18\b \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x124\n" +
 	"\x06thread\x18\t \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06threadJ\x04\b\x01\x10\x04J\x04\b\x05\x10\bR\aroom_idR\troom_nameR\x14thread_root_event_idR\vreply_countR\rlast_reply_atR\n" +
-	"has_unread\"g\n" +
+	"has_unread\"\x88\x01\n" +
 	"\x1aListFollowedThreadsRequest\x12.\n" +
-	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12\x1f\n" +
+	"\vunread_only\x18\x04 \x01(\bR\n" +
+	"unreadOnlyJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\x88\x02\n" +
 	"\x1bListFollowedThreadsResponse\x127\n" +
 	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12?\n" +
 	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\x12+\n" +
-	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more2\xf0\x04\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x12\x1f\n" +
+	"\vunread_only\x18\x06 \x01(\bR\n" +
+	"unreadOnlyJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more2\xf0\x04\n" +
 	"\rThreadService\x12l\n" +
 	"\x13ListFollowedThreads\x12).chatto.api.v1.ListFollowedThreadsRequest\x1a*.chatto.api.v1.ListFollowedThreadsResponse\x12W\n" +
 	"\fFollowThread\x12\".chatto.api.v1.FollowThreadRequest\x1a#.chatto.api.v1.FollowThreadResponse\x12]\n" +

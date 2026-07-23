@@ -96,6 +96,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
     viewerPermissions: {},
     viewerHasUnreadRooms: false,
     viewerHasUnreadFollowedThreads: false,
+    viewerHasPendingFollowedThreadNotifications: false,
     ...overrides
   };
 }
@@ -254,7 +255,8 @@ describe('RoomsStore - refresh', () => {
               effectiveLevel: NotificationLevel.AllMessages
             }
           ],
-          viewerHasUnreadFollowedThreads: true
+          viewerHasUnreadFollowedThreads: true,
+          viewerHasPendingFollowedThreadNotifications: true
         })
       )
     });
@@ -263,6 +265,7 @@ describe('RoomsStore - refresh', () => {
 
     expect(store.currentUserId).toBe('U2');
     expect(store.hasUnreadFollowedThreads).toBe(true);
+    expect(store.hasPendingFollowedThreadNotifications).toBe(true);
     expect(notificationLevels.getServerPreference()).toEqual({
       level: NotificationLevel.Muted,
       effectiveLevel: NotificationLevel.Muted
@@ -287,11 +290,17 @@ describe('RoomsStore - refresh', () => {
     expect(first).toBe(second);
     expect(viewerStateLoader).toHaveBeenCalledOnce();
 
-    resolveFirst(makeViewer({ viewerHasUnreadFollowedThreads: true }));
+    resolveFirst(
+      makeViewer({
+        viewerHasUnreadFollowedThreads: true,
+        viewerHasPendingFollowedThreadNotifications: true
+      })
+    );
     await first;
 
     expect(viewerStateLoader).toHaveBeenCalledTimes(2);
     expect(store.hasUnreadFollowedThreads).toBe(false);
+    expect(store.hasPendingFollowedThreadNotifications).toBe(false);
   });
 
   it('does not let an older full refresh overwrite newer followed-thread unread state', async () => {
@@ -304,10 +313,16 @@ describe('RoomsStore - refresh', () => {
 
     const fullRefresh = store.refresh();
     await store.refreshUnreadFollowedThreads();
-    resolveFullViewer(makeViewer({ viewerHasUnreadFollowedThreads: true }));
+    resolveFullViewer(
+      makeViewer({
+        viewerHasUnreadFollowedThreads: true,
+        viewerHasPendingFollowedThreadNotifications: true
+      })
+    );
     await fullRefresh;
 
     expect(store.hasUnreadFollowedThreads).toBe(false);
+    expect(store.hasPendingFollowedThreadNotifications).toBe(false);
   });
 
   it('discards out-of-order responses', async () => {
@@ -712,6 +727,7 @@ describe('RoomsStore - ingestServerEvent', () => {
 
   it.each([
     [RoomEventKind.ThreadFollowChanged, {}],
+    [RoomEventKind.NotificationCreated, {}],
     [RoomEventKind.NotificationDismissed, {}],
     [RoomEventKind.MessagePosted, { threadRootEventId: 'thread-root', roomId: 'room-1' }]
   ])('refreshes followed-thread unread state on %s', (kind, extra) => {

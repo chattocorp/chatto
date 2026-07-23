@@ -333,6 +333,13 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
    */
   page?: PageRequest;
 
+  /**
+   * When true, returns only threads with unread replies.
+   *
+   * @generated from field: bool unread_only = 4;
+   */
+  unreadOnly = false;
+
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -342,6 +349,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
   static readonly typeName = "chatto.api.v1.ListFollowedThreadsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 3, name: "page", kind: "message", T: PageRequest },
+    { no: 4, name: "unread_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
@@ -389,6 +397,13 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
    */
   page?: PageInfo;
 
+  /**
+   * True when the response is restricted to threads with unread replies.
+   *
+   * @generated from field: bool unread_only = 6;
+   */
+  unreadOnly = false;
+
   constructor(data?: PartialMessage<ListFollowedThreadsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -400,6 +415,7 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
     { no: 1, name: "threads", kind: "message", T: FollowedThread, repeated: true },
     { no: 4, name: "includes", kind: "message", T: RoomTimelineIncludes },
     { no: 5, name: "page", kind: "message", T: PageInfo },
+    { no: 6, name: "unread_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsResponse {

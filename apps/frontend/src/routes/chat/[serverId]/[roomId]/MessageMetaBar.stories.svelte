@@ -33,6 +33,10 @@
   <MessageMetaBarStoryFrame variant="unread-followed-thread" />
 </Story>
 
+<Story name="Notified followed thread" asChild>
+  <MessageMetaBarStoryFrame variant="notified-followed-thread" />
+</Story>
+
 <Story name="Thread echo" asChild>
   <MessageMetaBarStoryFrame variant="thread-echo" />
 </Story>

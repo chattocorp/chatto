@@ -616,6 +616,7 @@
           onReplyConsumed={() => {
             pendingThreadReply = null;
           }}
+          onMarkedRead={() => roomMessageStore.markThreadRead(threadId)}
         />
       {/if}
 

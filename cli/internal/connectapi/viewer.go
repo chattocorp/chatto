@@ -151,6 +151,10 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	if err != nil {
 		return nil, connectError(err)
 	}
+	hasPendingFollowedThreadNotifications, err := s.api.core.HasPendingFollowedThreadNotifications(ctx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
+	if err != nil {
+		return nil, connectError(err)
+	}
 
 	return &apiv1.ViewerCapabilities{
 		Grants: []*apiv1.CapabilityGrant{
@@ -165,7 +169,8 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 			{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},
 			{Capability: viewerCapabilityManageUserPerms, Granted: canManageUserPermissions},
 		},
-		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
+		HasUnreadFollowedThreads:              hasUnreadFollowedThreads,
+		HasPendingFollowedThreadNotifications: hasPendingFollowedThreadNotifications,
 	}, nil
 }
 

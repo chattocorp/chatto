@@ -16,21 +16,26 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 describe('MyThreadsNavItem', () => {
-  it('renders and clears the dot from followed-thread unread state', async () => {
+  it('uses the room-unread color for unread activity and warning for notifications', async () => {
     const rendered = render(MyThreadsNavItem, {
-      props: { active: false, hasUnread: false }
+      props: { active: false, hasUnread: false, hasNotification: false }
     });
 
     expect(rendered.container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
 
-    await rendered.rerender({ active: false, hasUnread: true });
-    await expect
-      .element(
-        rendered.container.querySelector<HTMLElement>('[data-testid="my-threads-unread-dot"]')
-      )
-      .toBeInTheDocument();
+    await rendered.rerender({ active: false, hasUnread: true, hasNotification: false });
+    const unreadDot = rendered.container.querySelector<HTMLElement>(
+      '[data-testid="my-threads-unread-dot"]'
+    );
+    await expect.element(unreadDot).toBeInTheDocument();
+    expect(unreadDot).toHaveClass('bg-primary');
 
-    await rendered.rerender({ active: false, hasUnread: false });
+    await rendered.rerender({ active: false, hasUnread: true, hasNotification: true });
+    expect(
+      rendered.container.querySelector<HTMLElement>('[data-testid="my-threads-unread-dot"]')
+    ).toHaveClass('bg-warning');
+
+    await rendered.rerender({ active: false, hasUnread: false, hasNotification: false });
     expect(rendered.container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 });
