@@ -188,7 +188,7 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 	if event == nil || event.GetMessagePosted() == nil {
 		return nil, ErrMessageNotFound
 	}
-	body, err := c.GetFullMessageBodyByEventID(ctx, eventID)
+	body, err := c.GetFullMessageBody(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}

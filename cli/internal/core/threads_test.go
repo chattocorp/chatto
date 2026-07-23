@@ -1482,11 +1482,11 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		if string(echoBody.EncryptedBody) == string(replyBody.EncryptedBody) {
 			t.Errorf("Echo body ciphertext should be independently encrypted")
 		}
-		echoText, err := core.GetMessageBody(ctx, KindChannel, echoID)
+		echoText, err := core.GetMessageBody(ctx, echoID)
 		if err != nil {
 			t.Fatalf("Failed to decrypt echo body: %v", err)
 		}
-		replyText, err := core.GetMessageBody(ctx, KindChannel, replyEvent.Id)
+		replyText, err := core.GetMessageBody(ctx, replyEvent.Id)
 		if err != nil {
 			t.Fatalf("Failed to decrypt reply body: %v", err)
 		}

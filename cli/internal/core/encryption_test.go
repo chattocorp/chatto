@@ -126,7 +126,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.Error(t, err, "wrapped DEK should not be stored in ENCRYPTION_KEYS")
 
 	// Verify we can read the message back (decrypted)
-	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
+	body, err := core.GetMessageBody(ctx, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body, "decrypted message should match original")
 }
@@ -286,10 +286,10 @@ func TestGetMessageBody_ReusesRequestCachedMessageBodyDEK(t *testing.T) {
 	core.dekResolver.keyWrapper = wrapper
 
 	readCtx := WithDEKRequestCache(ctx)
-	body, err := core.GetMessageBody(readCtx, KindChannel, event.Id)
+	body, err := core.GetMessageBody(readCtx, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
-	body, err = core.GetMessageBody(readCtx, KindChannel, event.Id)
+	body, err = core.GetMessageBody(readCtx, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 	require.EqualValues(t, 1, wrapper.unwraps.Load(), "message body DEK should be unwrapped once and then served from cache")
@@ -382,13 +382,13 @@ func TestDeleteUserEncryptionKeyAsInvalidatesRequestCachedDEK(t *testing.T) {
 	require.NoError(t, err)
 
 	readCtx := WithDEKRequestCache(ctx)
-	body, err := core.GetMessageBody(readCtx, KindChannel, event.Id)
+	body, err := core.GetMessageBody(readCtx, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 
 	require.NoError(t, core.DeleteUserEncryptionKeyAs(readCtx, user.Id, user.Id))
 
-	body, err = core.GetMessageBody(readCtx, KindChannel, event.Id)
+	body, err = core.GetMessageBody(readCtx, event.Id)
 	require.NoError(t, err)
 	require.Empty(t, body, "same request context should not keep using a DEK after deleting it")
 }
@@ -411,7 +411,7 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify message can be read before key deletion
-	body, err := core.GetMessageBody(ctx, KindChannel, event.Id)
+	body, err := core.GetMessageBody(ctx, event.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 
@@ -419,12 +419,12 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
 
 	// Verify message now returns empty string (crypto-shredded)
-	body, err = core.GetMessageBody(ctx, KindChannel, event.Id)
+	body, err = core.GetMessageBody(ctx, event.Id)
 	require.NoError(t, err)
 	require.Empty(t, body, "message should be empty after crypto-shredding")
 
 	// Also test GetFullMessageBody - returns nil for crypto-shredded (same as deleted)
-	fullBody, err := core.GetFullMessageBody(ctx, KindChannel, event.Id)
+	fullBody, err := core.GetFullMessageBody(ctx, event.Id)
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message should be nil after crypto-shredding (treated same as deleted)")
 }
@@ -549,7 +549,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.Equal(t, author.Id, shredEvents[0].GetActorId())
 	require.Equal(t, author.Id, shredEvents[0].GetUserKeyShredded().GetUserId())
 
-	fullBody, err := core.GetFullMessageBodyByEventID(ctx, event.Id)
+	fullBody, err := core.GetFullMessageBody(ctx, event.Id)
 	require.NoError(t, err)
 	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
 
@@ -600,10 +600,10 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	// Post an encrypted message
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Original content", nil, "", "", nil, false)
 	require.NoError(t, err)
-	messageBodyID := event.Id
+	eventID := event.Id
 
 	// Edit the message
-	err = core.EditMessage(ctx, user.Id, KindChannel, room.Id, messageBodyID, "Edited content")
+	err = core.EditMessage(ctx, user.Id, KindChannel, room.Id, eventID, "Edited content")
 	require.NoError(t, err)
 
 	// Post-#597 cutover: the edited body rides on a MessageEditedEvent
@@ -618,7 +618,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 	require.EqualValues(t, 1, stored.ContentKeyEpoch, "edited messages should reference the active message-body DEK epoch")
 
 	// Verify we can read the edited content
-	body, err := core.GetMessageBody(ctx, KindChannel, messageBodyID)
+	body, err := core.GetMessageBody(ctx, eventID)
 	require.NoError(t, err)
 	require.Equal(t, "Edited content", body)
 }
@@ -645,7 +645,7 @@ func TestCrossUserDecryption(t *testing.T) {
 	require.NoError(t, err)
 
 	// User B should be able to read User A's message (decrypted)
-	bodyA, err := core.GetMessageBody(ctx, KindChannel, eventA.Id)
+	bodyA, err := core.GetMessageBody(ctx, eventA.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Message from User A", bodyA, "User B should be able to read User A's decrypted message")
 
@@ -654,7 +654,7 @@ func TestCrossUserDecryption(t *testing.T) {
 	require.NoError(t, err)
 
 	// User A should be able to read User B's message (decrypted)
-	bodyB, err := core.GetMessageBody(ctx, KindChannel, eventB.Id)
+	bodyB, err := core.GetMessageBody(ctx, eventB.Id)
 	require.NoError(t, err)
 	require.Equal(t, "Message from User B", bodyB, "User A should be able to read User B's decrypted message")
 }

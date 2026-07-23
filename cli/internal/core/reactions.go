@@ -43,18 +43,18 @@ func parseReactionKey(key string) (string, string, string, error) {
 // Reactions API
 // ============================================================================
 
-// AddReaction adds an emoji reaction to a message.
+// addReaction adds an emoji reaction to a message.
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was added, false if it already existed.
 // Publishes a durable ReactionAddedEvent after successful OCC write.
-func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
+func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
 	// Block reactions in archived rooms.
-	room, err := c.GetRoom(ctx, kind, roomID)
+	room, err := s.core.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return false, err
 	}
@@ -62,12 +62,12 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, ErrRoomArchived
 	}
 
-	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
+	messageEventID, err = s.core.canonicalReactionMessageEventID(roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
-	added, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
+	added, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
@@ -75,7 +75,7 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, nil
 	}
 
-	c.logger.Debug("Reaction added",
+	s.core.logger.Debug("Reaction added",
 		"kind", kind,
 		"room_id", roomID,
 		"message_event_id", messageEventID,
@@ -86,22 +86,22 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 	return true, nil
 }
 
-// RemoveReaction removes an emoji reaction from a message.
+// removeReaction removes an emoji reaction from a message.
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was removed, false if it didn't exist.
 // Publishes a durable ReactionRemovedEvent after successful OCC write.
-func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
+func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
-	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
+	messageEventID, err = s.core.canonicalReactionMessageEventID(roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
 	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
-	removed, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
+	removed, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
@@ -109,7 +109,7 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, 
 		return false, nil
 	}
 
-	c.logger.Debug("Reaction removed",
+	s.core.logger.Debug("Reaction removed",
 		"kind", kind,
 		"room_id", roomID,
 		"message_event_id", messageEventID,
@@ -250,7 +250,7 @@ func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *core
 	})
 }
 
-func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, error) {
+func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
 	if !add && !remove {
@@ -262,10 +262,10 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 	occFilter := agg.AllEventsFilter()
 
 	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
-		snapshot := c.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+		snapshot := s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 		if add && snapshot.Exists {
 			var err error
-			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			snapshot, err = s.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
 			if err != nil {
 				return false, err
 			}
@@ -275,7 +275,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 		}
 		if remove && !snapshot.Exists {
 			var err error
-			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			snapshot, err = s.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
 			if err != nil {
 				return false, err
 			}
@@ -284,9 +284,9 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 			}
 		}
 
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
+		seq, err := s.core.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
 		if err == nil {
-			if err := c.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
+			if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
 				return false, fmt.Errorf("wait for reactions projection: %w", err)
 			}
 			return true, nil
@@ -295,7 +295,7 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 			return false, err
 		}
 
-		if err := c.roomModel.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+		if err := s.core.roomModel.waitForReactionsCurrent(ctx, s.core.EventPublisher, roomID); err != nil {
 			return false, err
 		}
 
@@ -308,9 +308,9 @@ func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind,
 	return false, fmt.Errorf("reaction OCC retry exhausted after %d attempts: %w", maxReactionMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
-	if err := c.roomModel.waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+func (s *ReactionModel) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
+	if err := s.core.roomModel.waitForReactionsCurrent(ctx, s.core.EventPublisher, roomID); err != nil {
 		return ReactionMutationSnapshot{}, err
 	}
-	return c.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
+	return s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
 }

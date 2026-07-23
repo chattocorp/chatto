@@ -47,7 +47,7 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	for _, event := range events {
 		if msg := event.GetMessagePosted(); msg != nil {
 			// Body lookup is keyed by the durable event envelope id.
-			fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
+			fetchedBody, err := core.GetMessageBody(ctx, event.Id)
 			if err != nil {
 				t.Errorf("Failed to fetch message body: %v", err)
 			}
@@ -287,7 +287,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	messagePosted := messageEvent.GetMessagePosted()
 
 	// Verify the body is empty (deleted) when fetched via GetMessageBody
-	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messageEvent.Id)
+	fetchedBody, err := core.GetMessageBody(ctx, messageEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}
@@ -342,7 +342,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The last message in our result should be "Message 100" (most recent)
-		lastMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[len(messageEvents)-1].Id)
+		lastMsgBody, err := core.GetMessageBody(ctx, messageEvents[len(messageEvents)-1].Id)
 		if err != nil {
 			t.Fatalf("Failed to get last message body: %v", err)
 		}
@@ -351,7 +351,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The first message in our result should be "Message 51" (51st newest)
-		firstMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[0].Id)
+		firstMsgBody, err := core.GetMessageBody(ctx, messageEvents[0].Id)
 		if err != nil {
 			t.Fatalf("Failed to get first message body: %v", err)
 		}
@@ -398,7 +398,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 
 		// The newest message in the older batch should be before our cursor
 		if len(olderMessageEvents) > 0 {
-			newestOldBody, err := core.GetMessageBody(ctx, KindChannel, olderMessageEvents[len(olderMessageEvents)-1].Id)
+			newestOldBody, err := core.GetMessageBody(ctx, olderMessageEvents[len(olderMessageEvents)-1].Id)
 			if err != nil {
 				t.Fatalf("Failed to get newest old message body: %v", err)
 			}

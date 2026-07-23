@@ -217,7 +217,18 @@
       "archive_room_failed": "Det gick inte att arkivera rum: {error}",
       "unarchive_room_failed": "Det gick inte att ta bort rum: {error}",
       "save_link_failed": "Det gick inte att spara länken: {error}",
-      "delete_link_failed": "Det gick inte att ta bort länken: {error}"
+      "delete_link_failed": "Det gick inte att ta bort länken: {error}",
+      "universal_members_description": "Medlemskap är automatiskt i universella rum. Alla som har behörighet att komma åt rummet ingår.",
+      "archived_members_description": "Medlemskapet kan inte ändras medan rummet är arkiverat.",
+      "add_member": "Lägg till medlem",
+      "adding_member": "Lägger till medlem...",
+      "load_members_failed": "Det gick inte att läsa in rummets medlemmar: {error}",
+      "remove_member": "Ta bort medlem",
+      "remove_member_prompt": "Ta bort {name} från {room}? Personen kommer inte längre att vara uttrycklig medlem i rummet.",
+      "member_added": "{name} lades till i rummet",
+      "add_member_failed": "Det gick inte att lägga till medlemmen: {error}",
+      "member_removed": "{name} togs bort från rummet",
+      "remove_member_failed": "Det gick inte att ta bort medlemmen: {error}"
     },
     "security": {
       "title": "Säkerhet",

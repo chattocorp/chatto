@@ -2068,8 +2068,8 @@ Result of leaving a room.
 
 ### ListMembers
 
-Lists effective room members. Existing members may list their room;
-nonmembers of a channel room need both room.list and room.join.
+Lists effective room members. Existing members and room.manage holders may
+list a channel room; other nonmembers need both room.list and room.join.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListMembers
@@ -2083,7 +2083,7 @@ Request for members of one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose effective members should be listed. Existing members may list their room; nonmembers of a channel room need both room.list and room.join. |
+| `room_id` | `string` | Required. Room whose effective members should be listed. Existing members and room.manage holders may list a channel room; other nonmembers need both room.list and room.join. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 250 results when absent or limit is zero. |
 
@@ -2104,8 +2104,9 @@ Room member page.
 
 ### GetMember
 
-Gets one explicit member of a room. The caller must be a member of the
-room. Returns NOT_FOUND when the target is unknown or not a room member.
+Gets one explicit member of a room. Existing members and room.manage
+holders may read channel-room members; DMs remain membership-only. Returns
+NOT_FOUND when the target is unknown or not a room member.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetMember
@@ -2138,8 +2139,9 @@ Room member response.
 
 ### BatchGetMembers
 
-Gets explicit room member rows for multiple users. The caller must be a
-member of the room.
+Gets explicit room member rows for multiple users. Existing members and
+room.manage holders may read channel-room members; DMs remain
+membership-only.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/BatchGetMembers
@@ -2172,9 +2174,9 @@ Batch room member response.
 
 ### AddMember
 
-Adds a user as an explicit member of a channel room. The caller must be
-allowed to manage the room. Direct-message and universal rooms cannot be
-managed this way.
+Adds a human user as an explicit member of a channel room. The caller must
+be allowed to manage the room. Bot accounts, direct-message rooms, and
+universal rooms cannot be managed this way.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/AddMember
@@ -2189,7 +2191,7 @@ Request to add a user to a channel room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Channel room to add the user to. |
-| `user_id` | `string` | Required. User to add as an explicit room member. |
+| `user_id` | `string` | Required. Human user to add as an explicit room member. |
 
 
 <a id="chatto-api-v1-AddMemberResponse"></a>

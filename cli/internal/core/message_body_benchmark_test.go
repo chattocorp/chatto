@@ -19,10 +19,10 @@ type messageBodyBenchmarkPage struct {
 	eventIDs []string
 }
 
-// BenchmarkGetFullMessageBodyByEventID_DEKCache measures timeline body
+// BenchmarkGetFullMessageBody_DEKCache measures timeline body
 // hydration with a request-scoped DEK cache compared to no request cache, which
 // approximates the old per-message unwrap behavior.
-func BenchmarkGetFullMessageBodyByEventID_DEKCache(b *testing.B) {
+func BenchmarkGetFullMessageBody_DEKCache(b *testing.B) {
 	runMessageBodyPageBenchmark(b, "same_author_page_50", 1, 50)
 	runMessageBodyPageBenchmark(b, "five_authors_page_50", 5, 50)
 }
@@ -109,7 +109,7 @@ func readBenchmarkPage(b *testing.B, ctx context.Context, page messageBodyBenchm
 
 func readBenchmarkBody(b *testing.B, ctx context.Context, core *ChattoCore, eventID string) int {
 	b.Helper()
-	body, err := core.GetFullMessageBodyByEventID(ctx, eventID)
+	body, err := core.GetFullMessageBody(ctx, eventID)
 	require.NoError(b, err)
 	require.NotNil(b, body)
 	return len(body.Body)

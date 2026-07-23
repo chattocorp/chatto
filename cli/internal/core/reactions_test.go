@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestChattoCore_AddReaction(t *testing.T) {
+func TestReactionModel_AddReactionWrite(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -35,7 +35,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	eventID := event.Id
 
 	t.Run("add new reaction", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -46,7 +46,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 
 	t.Run("add duplicate reaction returns false", func(t *testing.T) {
 		// Try to add the same reaction again
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -56,7 +56,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("different users can add same emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "other-user")
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "other-user")
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -66,7 +66,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("same user can add different emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "heart", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -76,21 +76,21 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("add reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "🎉", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "🎉", user.Id)
 		if err == nil {
 			t.Error("Expected error when adding reaction with Unicode emoji")
 		}
 	})
 
 	t.Run("add reaction with invalid input", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
 		if err == nil {
 			t.Error("Expected error for invalid emoji input")
 		}
 	})
 }
 
-func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
+func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -102,7 +102,7 @@ func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 			if err != nil {
 				t.Errorf("AddReaction failed: %v", err)
 				return
@@ -126,7 +126,7 @@ func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
 	}
 }
 
-func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
+func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
@@ -139,6 +139,7 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 		ReactionsProjector: reactionsProjector,
 	}
 	core.roomModel = newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := &ReactionModel{core: core}
 
 	addedOnOtherReplica := newReactionAddedEvent("U1", "R1", "M1", "thumbsup")
 	addSubject := events.RoomAggregate("R1").SubjectFor(addedOnOtherReplica)
@@ -165,7 +166,7 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 	resultCh := make(chan result, 1)
 	go func() {
-		added, err := core.publishReactionMutation(
+		added, err := service.publishReactionMutation(
 			ctx,
 			KindChannel,
 			"R1",
@@ -196,7 +197,7 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RemoveReaction(t *testing.T) {
+func TestReactionModel_RemoveReactionWrite(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -220,13 +221,13 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	eventID := event.Id
 
 	// Add a reaction first
-	_, err = core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+	_, err = core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("AddReaction failed: %v", err)
 	}
 
 	t.Run("remove existing reaction", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -236,7 +237,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove non-existent reaction returns false", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -246,7 +247,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction that was never added", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "tada", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "tada", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -256,7 +257,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
+		_, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
 		if err == nil {
 			t.Error("Expected error when removing reaction with Unicode emoji")
 		}
@@ -297,9 +298,9 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	})
 
 	// Add some reactions
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user1")
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user2")
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", "user1")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user1")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user2")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "heart", "user1")
 
 	t.Run("get aggregated reactions", func(t *testing.T) {
 		reactions, err := core.GetReactions(ctx, eventID)
@@ -370,11 +371,11 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	event2, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Message 2", nil, "", "", nil, false)
 
 	// Add reactions to message 1
-	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "thumbsup", user.Id)
-	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "heart", "user2")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event1.Id, "thumbsup", user.Id)
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event1.Id, "heart", "user2")
 
 	// Add reaction to message 2
-	core.AddReaction(ctx, KindChannel, room.Id, event2.Id, "tada", user.Id)
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event2.Id, "tada", user.Id)
 
 	t.Run("batch fetch returns reactions for multiple messages", func(t *testing.T) {
 		result, err := core.GetReactionsBatch(ctx, []string{event1.Id, event2.Id})
@@ -443,7 +444,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	})
 }
 
-func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
+func TestReactionModel_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -483,7 +484,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatal("Echo event not found in room events")
 	}
 
-	added, err := core.AddReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("AddReaction on echo failed: %v", err)
 	}
@@ -515,7 +516,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatalf("batch reactions = %+v, want matching original and echo entries", batch)
 	}
 
-	added, err = core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
+	added, err = core.ReactionModel().addReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("duplicate AddReaction via original failed: %v", err)
 	}
@@ -523,7 +524,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatal("duplicate AddReaction via original added = true, want false")
 	}
 
-	removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
+	removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("RemoveReaction via echo failed: %v", err)
 	}

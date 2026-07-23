@@ -217,7 +217,18 @@
       "archive_room_failed": "Kan ruimte niet archiveren: {error}",
       "unarchive_room_failed": "Kan kamer niet uit het archief halen: {error}",
       "save_link_failed": "Kan link niet opslaan: {error}",
-      "delete_link_failed": "Kan link niet verwijderen: {error}"
+      "delete_link_failed": "Kan link niet verwijderen: {error}",
+      "universal_members_description": "Lidmaatschap is automatisch in universele ruimtes. Iedereen met toegang tot deze ruimte wordt opgenomen.",
+      "archived_members_description": "Het lidmaatschap kan niet worden gewijzigd zolang deze ruimte is gearchiveerd.",
+      "add_member": "Lid toevoegen",
+      "adding_member": "Lid wordt toegevoegd...",
+      "load_members_failed": "Kan ruimteleden niet laden: {error}",
+      "remove_member": "Lid verwijderen",
+      "remove_member_prompt": "{name} uit {room} verwijderen? Deze persoon is dan niet langer expliciet lid van deze ruimte.",
+      "member_added": "{name} is aan de ruimte toegevoegd",
+      "add_member_failed": "Kan lid niet toevoegen: {error}",
+      "member_removed": "{name} is uit de ruimte verwijderd",
+      "remove_member_failed": "Kan lid niet verwijderen: {error}"
     },
     "security": {
       "title": "Beveiliging",

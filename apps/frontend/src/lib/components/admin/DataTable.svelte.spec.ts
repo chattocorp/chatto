@@ -104,14 +104,14 @@ describe('DataTable.hoverable', () => {
     expect(tr.className).not.toContain('hover:bg-surface/70');
   });
 
-  it('uses a rounded background viewport beneath the surface header', async () => {
+  it('uses the shared table viewport beneath the surface header', async () => {
     const { container } = renderTable();
     const table = container.querySelector('table') as HTMLTableElement;
     const viewport = table.parentElement as HTMLElement;
     const header = container.querySelector('thead tr') as HTMLElement;
     const body = container.querySelector('tbody') as HTMLElement;
 
-    expect(viewport.className).toContain('rounded-md');
+    expect(viewport.className).toContain('data-table-viewport');
     expect(viewport.className).toContain('overflow-x-auto');
     expect(header.className).toContain('panel-header');
     expect(body.className).toContain('bg-background');
@@ -139,6 +139,7 @@ describe('DataTable.hoverable', () => {
     const viewport = table.parentElement?.parentElement as HTMLElement;
     const header = container.querySelector('thead') as HTMLElement;
 
+    expect(viewport.className).toContain('data-table-viewport');
     expect(viewport.className).toContain('max-h-[70dvh]');
     expect((table.parentElement as HTMLElement).className).toContain('overflow-y-auto');
     expect((table.parentElement as HTMLElement).className).toContain('overflow-x-auto');

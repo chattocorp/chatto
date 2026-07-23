@@ -2020,7 +2020,9 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	conn := env.connectRealtime(t)
 	subscribeRealtime(t, conn, token, room.Id)
 
-	if added, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, reply.Id, "thumbsup", user.Id); err != nil || !added {
+	if added, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: user.Id, RoomID: room.Id, MessageEventID: reply.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
 		t.Fatalf("AddReaction: added=%v err=%v", added, err)
 	}
 	echoUpsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
@@ -2228,7 +2230,9 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	resumeCursor := boundary.GetCursor()
 	boundaryConn.Close()
 
-	if added, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, message.Id, "thumbsup", user.Id); err != nil || !added {
+	if added, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: user.Id, RoomID: room.Id, MessageEventID: message.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
 		t.Fatalf("AddReaction = %v, %v", added, err)
 	}
 

@@ -105,7 +105,9 @@ describe('PermissionMatrix', () => {
     // The permission and role columns, followed by the flexible spacer.
     expect(container.querySelectorAll('thead th')).toHaveLength(5);
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
-    expect(container.querySelectorAll('[data-testid="permission-section-divider"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-testid="permission-section-divider"]')).toHaveLength(
+      0
+    );
     expect(container.querySelector('table')?.className).toContain('w-full');
     expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(2);
     expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
@@ -115,12 +117,7 @@ describe('PermissionMatrix', () => {
   it('orders permission names alphabetically', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
-      applicablePermissions: [
-        'user.delete-self',
-        'room.manage',
-        'server.manage',
-        'user.delete-any'
-      ]
+      applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
     };
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
@@ -141,9 +138,11 @@ describe('PermissionMatrix', () => {
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    expect([...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)).toEqual(
-      ['room.create']
-    );
+    expect(
+      [...container.querySelectorAll('[data-testid="permission-name"]')].map(
+        (row) => row.textContent
+      )
+    ).toEqual(['room.create']);
 
     filter.value = 'missing';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
@@ -232,7 +231,8 @@ describe('PermissionMatrix', () => {
     expect(getComputedStyle(viewport).backgroundColor).toBe(backgroundColor);
     expect(frame.className).toContain('px-1');
     expect(frame.className).toContain('pb-1');
-    expect(viewport.className).toContain('rounded-md');
+    expect(viewport.className).toContain('data-table-viewport');
+    expect(viewport.className).not.toContain('rounded-md');
     expect((panel.querySelector('table')?.parentElement as HTMLElement).className).toContain(
       'overflow-y-auto'
     );
@@ -246,6 +246,22 @@ describe('PermissionMatrix', () => {
     expect(stickyBody.className).toContain('z-10');
     const fades = panel.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
     expect(fades[fades.length - 1].className).toContain('z-30');
+  });
+
+  it('flows vertically with the page when contained scrolling is disabled', async () => {
+    const { container } = render(PermissionMatrix, {
+      props: { roomId: 'room-1', scrollContents: false }
+    });
+    await settle();
+
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement as HTMLElement;
+    const header = container.querySelector('thead') as HTMLElement;
+
+    expect(viewport.className).toContain('overflow-x-auto');
+    expect(viewport.className).not.toContain('overflow-y-auto');
+    expect(viewport.className).not.toContain('max-h-[70dvh]');
+    expect(header.className).not.toContain('sticky');
   });
 
   it('highlights the hovered permission row and the role column across categories', async () => {

@@ -242,7 +242,7 @@ func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind,
 	if err != nil {
 		return nil, err
 	}
-	body, err := s.core.GetFullMessageBodyByEventID(ctx, eventID)
+	body, err := s.core.GetFullMessageBody(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}

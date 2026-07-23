@@ -74,7 +74,7 @@
       {autofocus}
       {onkeydown}
       {oninput}
-      class={['input', leadingIcon && 'pl-7', trailingText && 'pr-10']}
+      class={['input', leadingIcon && 'pl-8', trailingText && 'pr-10']}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
     />

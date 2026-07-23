@@ -310,7 +310,7 @@ func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInp
 		return nil, kind, invalidArgument("body or also_send_to_channel is required")
 	}
 
-	body, err := s.core.GetFullMessageBodyByEventID(ctx, input.EventID)
+	body, err := s.core.GetFullMessageBody(ctx, input.EventID)
 	if err != nil {
 		return nil, kind, err
 	}
@@ -372,14 +372,12 @@ func (s *MessageModel) DeleteMessage(ctx context.Context, input MessageDeleteInp
 	if strings.TrimSpace(input.EventID) == "" {
 		return invalidArgument("event_id is required")
 	}
-	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
-		return err
-	}
-
-	authorID, err := s.core.GetMessageAuthorID(ctx, kind, input.EventID)
+	event, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID)
 	if err != nil {
 		return err
 	}
+
+	authorID := event.GetActorId()
 	if authorID != "" && authorID != input.ActorID {
 		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {

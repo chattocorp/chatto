@@ -217,7 +217,18 @@
       "archive_room_failed": "No se pudo archivar la sala: {error}",
       "unarchive_room_failed": "No se pudo desarchivar la sala: {error}",
       "save_link_failed": "No se pudo guardar el enlace: {error}",
-      "delete_link_failed": "No se pudo eliminar el enlace: {error}"
+      "delete_link_failed": "No se pudo eliminar el enlace: {error}",
+      "universal_members_description": "La pertenencia es automática en las salas universales. Se incluye a toda persona con permiso para acceder a esta sala.",
+      "archived_members_description": "No se puede cambiar la pertenencia mientras esta sala esté archivada.",
+      "add_member": "Añadir miembro",
+      "adding_member": "Añadiendo miembro...",
+      "load_members_failed": "No se pudieron cargar los miembros de la sala: {error}",
+      "remove_member": "Quitar miembro",
+      "remove_member_prompt": "¿Quitar a {name} de {room}? Dejará de ser miembro explícito de esta sala.",
+      "member_added": "Se añadió a {name} a la sala",
+      "add_member_failed": "No se pudo añadir al miembro: {error}",
+      "member_removed": "Se quitó a {name} de la sala",
+      "remove_member_failed": "No se pudo quitar al miembro: {error}"
     },
     "security": {
       "title": "Seguridad",

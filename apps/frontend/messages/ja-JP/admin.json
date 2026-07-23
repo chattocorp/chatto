@@ -217,7 +217,18 @@
       "archive_room_failed": "ルームのアーカイブに失敗しました: {error}",
       "unarchive_room_failed": "ルームのアーカイブを解除できませんでした: {error}",
       "save_link_failed": "リンクの保存に失敗しました: {error}",
-      "delete_link_failed": "リンクの削除に失敗しました: {error}"
+      "delete_link_failed": "リンクの削除に失敗しました: {error}",
+      "universal_members_description": "ユニバーサルルームのメンバーシップは自動です。このルームへのアクセス権限を持つ全員が含まれます。",
+      "archived_members_description": "このルームがアーカイブされている間はメンバーシップを変更できません。",
+      "add_member": "メンバーを追加",
+      "adding_member": "メンバーを追加中...",
+      "load_members_failed": "ルームメンバーの読み込みに失敗しました: {error}",
+      "remove_member": "メンバーを削除",
+      "remove_member_prompt": "{name}を{room}から削除しますか？このルームの明示的なメンバーではなくなります。",
+      "member_added": "{name}をルームに追加しました",
+      "add_member_failed": "メンバーの追加に失敗しました: {error}",
+      "member_removed": "{name}をルームから削除しました",
+      "remove_member_failed": "メンバーの削除に失敗しました: {error}"
     },
     "security": {
       "title": "セキュリティ",

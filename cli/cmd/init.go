@@ -13,6 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 var initConfigFile string
@@ -113,7 +114,7 @@ var initCmd = &cobra.Command{
 				Replicas: 1,
 				Client: config.NATSClientConfig{
 					URL:        "nats://nats.example.com:4222",
-					AuthMethod: config.NATSAuthToken,
+					AuthMethod: natsauth.AuthToken,
 					Token:      "replace-me",
 				},
 				Embedded: config.EmbeddedNATSConfig{

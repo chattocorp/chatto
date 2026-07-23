@@ -614,11 +614,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// messageBodyKey retained as a label for log lines and downstream
-	// notifications that historically logged the compound key — the
-	// projection-keyed event_id is the new canonical identifier.
-	messageBodyKey := event.Id
-	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "message_body_key", messageBodyKey, "sequence_id", sequenceID, "user_id", user_id)
+	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
 	// published event is the new last root. For thread replies, we look up
@@ -832,11 +828,9 @@ func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomK
 // compliance while preserving the event in the stream for audit. For echoes,
 // the same durable MessageRetractedEvent hides only the echo artifact from the
 // room timeline; the original thread reply remains readable.
-// The messageBodyKey parameter is the legacy body key or canonical event ID.
 // Authorization: Caller must verify the actor is the message author OR
 // CanManageOthersMessage before calling.
-func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey string) error {
-	eventID := eventIDFromBodyKey(messageBodyKey)
+func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string) error {
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
@@ -905,14 +899,12 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 
 // EditMessage edits a message body. Updates the body content and sets updated_at.
 // Publishes a MessageEditedEvent to notify connected clients in real-time.
-// The messageBodyKey parameter is the full compound key ({userId}.{bodyId}) stored in the event.
-//
 // Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
 // Non-authors (moderators with message.manage) can edit at any time.
 //
 // Authorization: Caller must verify the actor is the author OR
 // CanManageOthersMessage before calling.
-func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, newBody string, opts ...EditMessageOption) error {
+func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, newBody string, opts ...EditMessageOption) error {
 	options := collectEditMessageOptions(opts)
 	if len(newBody) > MaxMessageBodyLength {
 		return ErrMessageTooLong
@@ -927,7 +919,6 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return ErrRoomArchived
 	}
 
-	eventID := eventIDFromBodyKey(messageBodyKey)
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
@@ -1324,10 +1315,9 @@ func (c *ChattoCore) editEmbeddedBody(
 	ctx context.Context,
 	actorID string,
 	kind RoomKind,
-	roomID, messageBodyKey string,
+	roomID, eventID string,
 	mutate func(*corev1.MessageBody) error,
 ) error {
-	eventID := eventIDFromBodyKey(messageBodyKey)
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
@@ -1395,9 +1385,9 @@ func (c *ChattoCore) editEmbeddedBody(
 // message. Only the message author can delete their attachments.
 // Emits a MessageEditedEvent with the attachment removed; also
 // deletes the file from the asset store best-effort.
-func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, attachmentID string) error {
+func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, attachmentID string) error {
 	var removed *corev1.Attachment
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, func(body *corev1.MessageBody) error {
 		// Resolve the attachment (new bodies hold IDs; older bodies hold
 		// embedded protos). Then trim from whichever shape holds it.
 		for _, att := range c.mediaModel.MessageBodyAttachments(body) {
@@ -1434,12 +1424,12 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 		if err := c.assetModel.RecordAssetDeleted(ctx, actorID, roomID, removed.GetId()); err != nil {
 			c.logger.Warn("Failed to publish asset deletion event",
 				"attachment_id", attachmentID,
-				"message_body_key", messageBodyKey,
+				"event_id", eventID,
 				"error", err)
 		} else if delErr := c.DeleteAttachmentFromStorage(ctx, removed); delErr != nil {
 			c.logger.Warn("Failed to delete attachment file after removing from message",
 				"attachment_id", attachmentID,
-				"message_body_key", messageBodyKey,
+				"event_id", eventID,
 				"error", delErr)
 		}
 	}
@@ -1447,7 +1437,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 	c.logger.Debug("Attachment deleted from message",
 		"kind", kind,
 		"room_id", roomID,
-		"message_body_key", messageBodyKey,
+		"event_id", eventID,
 		"attachment_id", attachmentID,
 		"actor_id", actorID)
 	return nil
@@ -1456,8 +1446,8 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 // DeleteLinkPreviewFromMessage removes a link preview from a message.
 // Only the message author can delete link previews from their
 // messages.
-func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, messageBodyKey, previewURL string) error {
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, messageBodyKey, func(body *corev1.MessageBody) error {
+func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, previewURL string) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, func(body *corev1.MessageBody) error {
 		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
 			return fmt.Errorf("link preview not found in message: %w", ErrMessageLinkPreviewNotFound)
 		}
@@ -1470,7 +1460,7 @@ func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID s
 	c.logger.Debug("Link preview deleted from message",
 		"kind", kind,
 		"room_id", roomID,
-		"message_body_key", messageBodyKey,
+		"event_id", eventID,
 		"link_preview_removed", true,
 		"actor_id", actorID)
 	return nil

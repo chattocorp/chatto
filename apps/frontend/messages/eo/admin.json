@@ -217,7 +217,18 @@
       "archive_room_failed": "Malsukcesis arkivi ĉambron: {error}",
       "unarchive_room_failed": "Malsukcesis malarkivi ĉambron: {error}",
       "save_link_failed": "Malsukcesis konservi ligilon: {error}",
-      "delete_link_failed": "Malsukcesis forigi ligilon: {error}"
+      "delete_link_failed": "Malsukcesis forigi ligilon: {error}",
+      "universal_members_description": "Membreco estas aŭtomata en universalaj ĉambroj. Ĉiu kun permeso aliri ĉi tiun ĉambron estas inkluzivita.",
+      "archived_members_description": "Membreco ne povas esti ŝanĝita dum ĉi tiu ĉambro estas arkivita.",
+      "add_member": "Aldoni membron",
+      "adding_member": "Aldonante membron...",
+      "load_members_failed": "Malsukcesis ŝargi ĉambromembrojn: {error}",
+      "remove_member": "Forigi membron",
+      "remove_member_prompt": "Ĉu forigi {name} el {room}? Tiu persono ne plu estos eksplicita membro de ĉi tiu ĉambro.",
+      "member_added": "{name} estis aldonita al la ĉambro",
+      "add_member_failed": "Malsukcesis aldoni membron: {error}",
+      "member_removed": "{name} estis forigita el la ĉambro",
+      "remove_member_failed": "Malsukcesis forigi membron: {error}"
     },
     "security": {
       "title": "Sekureco",

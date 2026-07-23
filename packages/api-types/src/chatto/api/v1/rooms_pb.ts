@@ -914,7 +914,7 @@ export class AddMemberRequest extends Message<AddMemberRequest> {
   roomId = "";
 
   /**
-   * Required. User to add as an explicit room member.
+   * Required. Human user to add as an explicit room member.
    *
    * @generated from field: string user_id = 2;
    */

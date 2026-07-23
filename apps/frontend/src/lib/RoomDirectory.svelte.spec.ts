@@ -80,9 +80,8 @@ describe('RoomDirectory', () => {
     const joinedRow = [...container.querySelectorAll('li')].find((item) =>
       item.textContent?.includes('r1')
     ) as HTMLElement;
-    expect(joinedRow.className).toContain('rounded-md');
-    expect(joinedRow.className).toContain('hover:bg-surface/70');
-    expect(joinedRow.className).not.toContain('hover:bg-surface-emphasized');
+    expect(joinedRow.className).toContain('selectable-list-item');
+    expect(joinedRow.className).not.toContain('hover:bg-surface/70');
   });
 
   it('renders universal joined rooms without a leave action', () => {

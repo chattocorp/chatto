@@ -222,7 +222,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		message.ChannelEchoEventId = echoID
 	}
 
-	body, err := h.api.core.GetFullMessageBodyByEventID(ctx, event.Id)
+	body, err := h.api.core.GetFullMessageBody(ctx, event.Id)
 	if err != nil {
 		if !errors.Is(err, core.ErrMessageBodyCorrupt) {
 			return nil, err

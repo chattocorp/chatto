@@ -1791,15 +1791,6 @@ func roomNameIndexKey(name string) string {
 	return fmt.Sprintf("room_name_index.%s", strings.ToLower(strings.TrimSpace(name)))
 }
 
-// eventIDFromBodyKey extracts the event ID portion from a message body key.
-// Body keys have the format {userId}.{eventId}.
-func eventIDFromBodyKey(bodyKey string) string {
-	if idx := strings.IndexByte(bodyKey, '.'); idx >= 0 && idx < len(bodyKey)-1 {
-		return bodyKey[idx+1:]
-	}
-	return bodyKey
-}
-
 // ============================================================================
 // Event Publishing Helpers
 // ============================================================================

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 func TestReadConfig_WithoutConfigFile(t *testing.T) {
@@ -1747,7 +1748,7 @@ func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
 	if cfg.NATS.Client.URL != "nats://127.0.0.1:4222" {
 		t.Fatalf("derived NATS client URL = %q", cfg.NATS.Client.URL)
 	}
-	if cfg.NATS.Client.AuthMethod != NATSAuthToken || cfg.NATS.Client.Token != "nats-token" {
+	if cfg.NATS.Client.AuthMethod != natsauth.AuthToken || cfg.NATS.Client.Token != "nats-token" {
 		t.Fatalf("derived NATS client auth = %q/%q", cfg.NATS.Client.AuthMethod, cfg.NATS.Client.Token)
 	}
 	if cfg.LiveKit.ServerID != "legacy-server-id" {
@@ -1807,7 +1808,7 @@ func TestChattoConfig_Validate_NATSClientTokenMatchesEmbedded(t *testing.T) {
 		AuthToken: "embedded-token",
 	}
 	cfg.NATS.Client = NATSClientConfig{
-		AuthMethod: NATSAuthToken,
+		AuthMethod: natsauth.AuthToken,
 		Token:      "other-token",
 	}
 

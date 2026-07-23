@@ -501,6 +501,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.api.v1",
 		"chatto.api.bots.v1",
 		"chatto.api.message-search.v1",
+		"chatto.api.room-manager-member-reads.v1",
 		"chatto.admin.v1",
 		"chatto.realtime.v1",
 		"chatto.realtime.projection.v1",
@@ -4383,6 +4384,32 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("list-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-manager", "Room Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, manager.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission manager room.manage: %v", err)
+	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, manager.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission manager room.join: %v", err)
+	}
+	managerCtx := withCaller(env.ctx, manager)
+	if _, err := env.rooms.ListMembers(managerCtx, req); err != nil {
+		t.Fatalf("manager ListMembers: %v", err)
+	}
+	if _, err := env.rooms.GetMember(managerCtx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+		RoomId: room.Id,
+		UserId: member.Id,
+	})); err != nil {
+		t.Fatalf("manager GetMember: %v", err)
+	}
+	if _, err := env.rooms.BatchGetMembers(managerCtx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
+		RoomId:  room.Id,
+		UserIds: []string{member.Id},
+	})); err != nil {
+		t.Fatalf("manager BatchGetMembers: %v", err)
+	}
 
 	resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), req)
 	if err != nil {
@@ -5290,7 +5317,7 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	if message == nil {
 		t.Fatalf("CreateMessage message = nil")
 	}
-	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, message.GetId())
+	body, err := env.core.GetFullMessageBody(env.ctx, message.GetId())
 	if err != nil {
 		t.Fatalf("GetFullMessageBody: %v", err)
 	}
@@ -6209,7 +6236,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if authorResp.Msg.GetMessage().GetBody() != "author edit" {
 		t.Fatalf("author UpdateMessage response = %+v, want hydrated edited event", authorResp.Msg)
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {
+	if body, err := env.core.GetMessageBody(env.ctx, original.Id); err != nil || body != "author edit" {
 		t.Fatalf("body after author edit = %q, %v; want author edit, nil", body, err)
 	}
 
@@ -6241,7 +6268,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("moderator UpdateMessage: %v", err)
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, moderated.Id); err != nil || body != "moderator edit" {
+	if body, err := env.core.GetMessageBody(env.ctx, moderated.Id); err != nil || body != "moderator edit" {
 		t.Fatalf("body after moderator edit = %q, %v; want moderator edit, nil", body, err)
 	}
 
@@ -6295,7 +6322,7 @@ func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	if !resp.Msg.Deleted {
 		t.Fatal("moderator DeleteMessage Deleted = false, want true")
 	}
-	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, target.Id); err != nil || body != "" {
+	if body, err := env.core.GetMessageBody(env.ctx, target.Id); err != nil || body != "" {
 		t.Fatalf("body after moderator delete = %q, %v; want empty, nil", body, err)
 	}
 
@@ -6361,7 +6388,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("author DeleteAttachment: %v", err)
 	}
-	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, attachmentEvent.Id)
+	body, err := env.core.GetFullMessageBody(env.ctx, attachmentEvent.Id)
 	if err != nil {
 		t.Fatalf("GetFullMessageBody attachment: %v", err)
 	}
@@ -6376,7 +6403,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("author DeleteLinkPreview: %v", err)
 	}
-	body, err = env.core.GetFullMessageBody(env.ctx, core.KindChannel, previewEvent.Id)
+	body, err = env.core.GetFullMessageBody(env.ctx, previewEvent.Id)
 	if err != nil {
 		t.Fatalf("GetFullMessageBody preview: %v", err)
 	}
@@ -6743,10 +6770,14 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	env.post(room.Id, replier.Id, "reply", root.Id)
-	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", env.viewer.Id); err != nil {
+	if _, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: env.viewer.Id, RoomID: room.Id, MessageEventID: root.Id, Emoji: "thumbsup",
+	}); err != nil {
 		t.Fatalf("AddReaction viewer: %v", err)
 	}
-	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", replier.Id); err != nil {
+	if _, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: replier.Id, RoomID: room.Id, MessageEventID: root.Id, Emoji: "thumbsup",
+	}); err != nil {
 		t.Fatalf("AddReaction replier: %v", err)
 	}
 
@@ -7119,7 +7150,7 @@ func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 		t.Fatalf("PostMessage bad: %v", err)
 	}
 	corruptMessageBody(t, env, dm.Id, bad.Id, env.viewer.Id)
-	if _, err := env.core.GetFullMessageBodyByEventID(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
+	if _, err := env.core.GetFullMessageBody(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
 		t.Fatalf("corrupt message body hydration error = %v, want ErrMessageBodyCorrupt", err)
 	}
 

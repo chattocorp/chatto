@@ -104,6 +104,12 @@ when the operator disables the feature. Compatible clients use
 provider readiness rather than interpreting the protocol capability as an
 enablement flag.
 
+`chatto.api.room-manager-member-reads.v1` advertises that effective
+`room.manage` grants channel-room `ListMembers`, `GetMember`, and
+`BatchGetMembers` reads without requiring the manager to join. Current clients
+gate the room-member management surface on this contract; version comparison is
+used only for legacy servers that omit capability metadata.
+
 Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol
 headers are not implicitly trusted. `webserver.trusted_proxies` affects client

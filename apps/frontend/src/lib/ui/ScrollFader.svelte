@@ -40,6 +40,8 @@ scroll container; children render inside the scroll container.
     scrollClass?: string;
     /** Bound to the inner scroll container so callers can reference it. */
     scrollEl?: HTMLDivElement;
+    /** Keep the scroll viewport in the tab order for keyboard scrolling. */
+    keyboardFocusable?: boolean;
     [key: string]: unknown;
   };
 
@@ -55,6 +57,7 @@ scroll container; children render inside the scroll container.
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
+    keyboardFocusable = true,
     ...rest
   }: Props = $props();
 
@@ -139,6 +142,7 @@ scroll container; children render inside the scroll container.
   class={className}
   {scrollClass}
   bind:scrollEl
+  {keyboardFocusable}
   scrollAttachment={trackScrollEdges}
   overlay={fades}
   {...rest}

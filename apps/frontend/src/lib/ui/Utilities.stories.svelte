@@ -61,6 +61,44 @@
 </Story>
 
 <Story
+  name="selectable list"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          '`selectable-list` and `selectable-list-item` provide the canonical inset, independently rounded treatment for navigable or actionable records.'
+      }
+    }
+  }}
+>
+  <div class="max-w-md rounded-lg bg-background selectable-list">
+    <a href="https://example.com/alice" class="selectable-list-item flex items-center gap-3 p-3">
+      <span
+        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
+        >A</span
+      >
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-medium">Alice</span>
+        <span class="block truncate text-sm text-muted">@alice</span>
+      </span>
+      <span class="iconify text-muted uil--angle-right" aria-hidden="true"></span>
+    </a>
+    <a href="https://example.com/bob" class="selectable-list-item flex items-center gap-3 p-3">
+      <span
+        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
+        >B</span
+      >
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-medium">Bob</span>
+        <span class="block truncate text-sm text-muted">@bob</span>
+      </span>
+      <span class="iconify text-muted uil--angle-right" aria-hidden="true"></span>
+    </a>
+  </div>
+</Story>
+
+<Story
   name="link"
   asChild
   parameters={{

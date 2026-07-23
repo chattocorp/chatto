@@ -468,7 +468,7 @@
 
             <div class="px-1 pb-1">
               <div
-                class="min-h-12 overflow-hidden panel-inset p-2"
+                class="min-h-12 overflow-hidden panel-inset selectable-list"
                 use:dragHandleZone={{
                   items: group.items,
                   flipDurationMs: 200,
@@ -487,7 +487,7 @@
                   <div
                     animate:flip={{ duration: 200 }}
                     class={[
-                      'group flex cursor-grab items-center gap-3 rounded-lg py-2 pr-2 pl-3 hover:bg-surface',
+                      'group selectable-list-item flex cursor-grab items-center gap-3 py-2 pr-2 pl-3',
                       room.kind === 'room' && room.room.archived && 'opacity-60'
                     ]}
                   >

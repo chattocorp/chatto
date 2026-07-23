@@ -26,6 +26,19 @@ This order is a decision aid, not a ban on native elements. Specialized chat,
 media, menu, and toolbar controls often need native buttons combined with a
 semantic utility because their behavior is not a committed form action.
 
+## Selectable Record Collections
+
+Selectable or directly actionable records use the same inset-box treatment as
+message search results:
+
+- Use `selectable-list` on non-table collections and `selectable-list-item` on
+  each navigable, draggable, or directly actionable record.
+- Rows rest transparently on the owning `background` work plane. Hover and
+  keyboard focus rise exactly one level to `surface`; do not introduce ruled
+  separators or a stronger surface jump.
+- Each row owns its rounded shape. The collection owns only the 1px inset and
+  gap, so selections never merge into a single slab.
+
 ## Choosing A Primitive
 
 | Need                                      | Use                                                                        | Avoid                                                        |
@@ -34,6 +47,7 @@ semantic utility because their behavior is not a committed form action.
 | Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
 | One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
 | Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
+| Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
 | Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
@@ -129,13 +143,44 @@ recommended path and `neutral-action` for an emphasized control that should not
 compete with it. Retired `accent` and `primary` color utilities are rejected by
 the design-system guardrail.
 
+Focused form fields use the action colour for their border without an additional
+glow. Invalid fields follow the same treatment with the error-coloured border.
+
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-white labels. Light-theme action buttons share the friendly action blue; dark
-mode uses deeper button fills so white labels remain clear without darkening
-the brighter semantic tones used for links, focus rings, and status UI.
+contrast-safe labels. The action colour is the single blue accent in each theme:
+primary buttons, links, focus borders, selection indicators, and compact status
+UI all derive from that same token rather than maintaining a separate button blue.
+Each theme's action token must retain WCAG AA contrast both as text on its
+surrounding work surfaces and with its paired `on-action` button label.
+Buttons frame their fills with a tight inset related to `SegmentedControl`.
+Prominent semantic buttons tint the outer border to match their fill; quieter
+secondary and ghost buttons retain the input-coloured border. The tight inset
+keeps a standalone button from looking double-framed. The frame is part of the
+standard button geometry: do not remove it from individual variants or reproduce
+it with feature-local wrappers.
+
+A one-pixel black outer ring keeps framed controls legible on mid-tone surfaces.
+Buttons, form inputs, and `SegmentedControl` share the `control-frame` utility,
+which owns their radius, one-pixel border, and non-layout outer ring. Individual
+controls only add semantic border colours and their appropriate inset treatment.
+
+Button frames and `SegmentedControl` use one pixel for both the outer border and
+the inset gap. Keep these dimensions aligned so adjacent controls share the same
+optical height and edge rhythm.
 
 Surfaces form a small semantic ladder:
+
+### Surface Escalation Rule — Mandatory
+
+> [!IMPORTANT]
+> **NEVER INCREASE A NESTED ELEMENT BY MORE THAN ONE SURFACE LEVEL.** A child on
+> `background` may use `surface`; a child on `surface` may use
+> `surface-emphasized`; a child on `surface-emphasized` may use
+> `surface-strong`. Never jump directly from `background` to
+> `surface-emphasized` or from `surface` to `surface-strong`. If one level does
+> not provide enough separation, add an appropriate border or revise the
+> surrounding composition instead of skipping a level.
 
 - Light and dark mode are intentionally asymmetric. Do not infer elevation by
   mechanically reversing luminance between themes.
@@ -166,10 +211,14 @@ the frame gap from visually adding to the title band's bottom padding. Untitled
 edge-to-edge panels use the same rule so the gap does not add to a table header's
 top padding. Untitled padded panels retain `p-1`. Custom shells such as draggable
 room groups must compose the same structure instead of approximating it.
-`DataTable` owns only its scrollable table viewport. Dense matrices may keep an
-intrinsic content width inside it; ordinary record tables fill it. Standard
-record-table headings use `table-header-cell`; matrix headings remain bespoke
-because their vertical labels have different spatial needs.
+`DataTable` owns only its scrollable table viewport and keeps a radius when used
+standalone or inside padded content. Inside `Panel noPadding`, the panel owns the
+single outer radius and clipping boundary: the table viewport becomes square so
+preceding controls or notices meet its header without an inset corner. Do not
+add feature-local radius overrides for this composition. Dense matrices may keep
+an intrinsic content width inside the viewport; ordinary record tables fill it.
+Standard record-table headings use `table-header-cell`; matrix headings remain
+bespoke because their vertical labels have different spatial needs.
 
 Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
 `p-5` panel content after accounting for the frame, while keeping the band

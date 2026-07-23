@@ -157,8 +157,12 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 	if room.GetArchived() {
 		return nil, ErrRoomArchived
 	}
-	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+	target, err := c.GetUser(ctx, targetUserID)
+	if err != nil {
 		return nil, err
+	}
+	if isBotAccount(target) {
+		return nil, invalidArgument("bot accounts cannot be added as room members")
 	}
 
 	membership := &corev1.RoomMembership{
@@ -699,10 +703,21 @@ func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, room
 }
 
 // ListRoomMemberReferencesForList authorizes the public room-member listing.
-// Existing members may list their room. A channel-room nonmember may list only
-// when both room.list and room.join resolve to allow at that room; DMs retain
-// their membership-only privacy boundary.
+// Existing members and channel-room managers may list their room. Other
+// channel-room nonmembers need both room.list and room.join; DMs retain their
+// membership-only privacy boundary.
 func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+	return c.listRoomMemberReferencesForRead(ctx, actorID, roomID, true)
+}
+
+// ListRoomMemberReferencesForLookup authorizes singular and batch member
+// hydration. Existing members and channel-room managers may hydrate rows; DMs
+// retain their membership-only privacy boundary.
+func (c *ChattoCore) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+	return c.listRoomMemberReferencesForRead(ctx, actorID, roomID, false)
+}
+
+func (c *ChattoCore) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*corev1.User, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err == nil {
 		return c.roomMemberReferences(ctx, kind, room.GetId())
@@ -716,7 +731,17 @@ func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorI
 		return nil, err
 	}
 	kind = KindOfRoom(room)
-	if kind == KindDM || room.GetArchived() {
+	if kind == KindDM {
+		return nil, ErrNotRoomMember
+	}
+	canManage, err := c.hasRoomPermission(ctx, kind, room.GetId(), actorID, PermRoomManage)
+	if err != nil {
+		return nil, err
+	}
+	if canManage {
+		return c.roomMemberReferences(ctx, kind, room.GetId())
+	}
+	if !allowDiscoverableNonmember || room.GetArchived() {
 		return nil, ErrNotRoomMember
 	}
 	canList, err := c.hasRoomPermission(ctx, kind, room.GetId(), actorID, PermRoomList)

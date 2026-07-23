@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   compareReleaseVersions,
   evaluateServerCompatibility,
-  hasProtocolCapability
+  hasProtocolCapability,
+  ROOM_MANAGER_MEMBER_READS_CAPABILITY,
+  supportsRoomManagerMemberReads
 } from './compatibility';
 
 describe('server compatibility evaluation', () => {
@@ -160,5 +162,15 @@ describe('server compatibility evaluation', () => {
     expect(hasProtocolCapability(null, 'chatto.realtime.v1')).toBeNull();
     expect(hasProtocolCapability([], 'chatto.realtime.v1')).toBe(false);
     expect(hasProtocolCapability(['chatto.realtime.v1'], 'chatto.realtime.v1')).toBe(true);
+  });
+
+  it('gates manager member reads by capability with a legacy version fallback', () => {
+    expect(supportsRoomManagerMemberReads([ROOM_MANAGER_MEMBER_READS_CAPABILITY], '0.4.0')).toBe(
+      true
+    );
+    expect(supportsRoomManagerMemberReads(['chatto.api.v1'], '0.5.0')).toBe(false);
+    expect(supportsRoomManagerMemberReads(null, '0.5.0')).toBe(true);
+    expect(supportsRoomManagerMemberReads(null, '0.4.12')).toBe(false);
+    expect(supportsRoomManagerMemberReads(null, 'custom-build')).toBe(false);
   });
 });
