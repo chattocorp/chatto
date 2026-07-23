@@ -10,7 +10,7 @@
       docs: {
         description: {
           component:
-            'Animated WebGL picture shown while a video is queued or being prepared. Pass progress from 0 to 1 to resolve the simulated TV signal; omit it for a one-way ambient refinement.'
+            'Animated low-frequency canvas picture shown while a video is queued or being prepared. Pass progress from 0 to 1 to resolve the simulated TV signal; omit it for a one-way ambient refinement.'
         }
       }
     }
