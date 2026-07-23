@@ -3,6 +3,17 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.15](https://github.com/chattocorp/chatto/compare/v0.4.14...v0.4.15) (2026-07-23)
+
+
+### Bug Fixes
+
+* **frontend:** correct My Threads unread badge ([#1638](https://github.com/chattocorp/chatto/issues/1638)) ([fd204f1](https://github.com/chattocorp/chatto/commit/fd204f153f145b3b3a975f16e82a3bcfb156b5cb))
+* **frontend:** parse pasted markdown in composer ([#1711](https://github.com/chattocorp/chatto/issues/1711)) ([2aef711](https://github.com/chattocorp/chatto/commit/2aef711a184fa7e36cddef4da2cdeb32e2e2fd54))
+* **frontend:** preserve video playback on reactions ([#1619](https://github.com/chattocorp/chatto/issues/1619)) ([e445af0](https://github.com/chattocorp/chatto/commit/e445af067a9c9e8b8f6f25333408ecc7bc9e631f))
+* **frontend:** restore message editor accessible label ([#1640](https://github.com/chattocorp/chatto/issues/1640)) ([62456aa](https://github.com/chattocorp/chatto/commit/62456aa1cbb8bc893b162c372a3e43d8d8f65c94))
+* **frontend:** stabilise composer word wrapping ([#1636](https://github.com/chattocorp/chatto/issues/1636)) ([bf3b0e6](https://github.com/chattocorp/chatto/commit/bf3b0e6490a34aecaf6f051f44e41a0a90ced8c5))
+
 ## [0.4.14](https://github.com/chattocorp/chatto/compare/v0.4.13...v0.4.14) (2026-07-19)
 
 
