@@ -2,6 +2,7 @@
   import { tick, onMount } from 'svelte';
   import type { VideoProcessingStatus } from '$lib/render/types';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
+  import VideoProcessingAnimation from './VideoProcessingAnimation.svelte';
   import {
     configureBundledHLSProvider,
     recoverFatalHLS,
@@ -349,11 +350,10 @@
     </media-player>
   </div>
 {:else if status === 'PENDING' || status === 'PROCESSING'}
-  <div class="embed-frame flex items-center gap-3 px-4 py-3" style={frameStyle}>
-    <div class="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-transparent"></div>
-    <div class="text-sm text-muted">
-      {status === 'PENDING' ? m['media.video_queued']() : m['media.video_processing']()}
-    </div>
+  <div class="embed-frame" style={frameStyle}>
+    <VideoProcessingAnimation
+      label={status === 'PENDING' ? m['media.video_queued']() : m['media.video_processing']()}
+    />
   </div>
 {:else if status === 'FAILED'}
   <div class="embed-frame flex items-center gap-3 px-4 py-3" style={frameStyle}>
