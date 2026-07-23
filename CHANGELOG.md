@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.16](https://github.com/chattocorp/chatto/compare/v0.4.15...v0.4.16) (2026-07-23)
+
+
+### Bug Fixes
+
+* **threads:** distinguish unread and notified thread badges ([#1715](https://github.com/chattocorp/chatto/issues/1715)) ([7f9c3d1](https://github.com/chattocorp/chatto/commit/7f9c3d10521a11aac2ce9e8c6e9a3909c227a597))
+
 ## [0.4.15](https://github.com/chattocorp/chatto/compare/v0.4.14...v0.4.15) (2026-07-23)
 
 
