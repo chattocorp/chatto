@@ -119,8 +119,8 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists effective room members. Existing members may list their room;
-     * nonmembers of a channel room need both room.list and room.join.
+     * Lists effective room members. Existing members and room.manage holders may
+     * list a channel room; other nonmembers need both room.list and room.join.
      *
      * @generated from rpc chatto.api.v1.RoomService.ListMembers
      */
@@ -131,8 +131,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one explicit member of a room. The caller must be a member of the
-     * room. Returns NOT_FOUND when the target is unknown or not a room member.
+     * Gets one explicit member of a room. Existing members and room.manage
+     * holders may read channel-room members; DMs remain membership-only. Returns
+     * NOT_FOUND when the target is unknown or not a room member.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetMember
      */
@@ -143,8 +144,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets explicit room member rows for multiple users. The caller must be a
-     * member of the room.
+     * Gets explicit room member rows for multiple users. Existing members and
+     * room.manage holders may read channel-room members; DMs remain
+     * membership-only.
      *
      * @generated from rpc chatto.api.v1.RoomService.BatchGetMembers
      */
