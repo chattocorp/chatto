@@ -2715,17 +2715,26 @@ func (x *ProjectedVerifiedEmailSnapshot) GetVerifiedAt() *timestamppb.Timestamp 
 }
 
 type RoomTimelineProjectionSnapshot struct {
-	state              protoimpl.MessageState         `protogen:"open.v1"`
-	Entries            []*TimelineEntrySnapshot       `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	Bodies             []*TimelineBodySnapshot        `protobuf:"bytes,2,rep,name=bodies,proto3" json:"bodies,omitempty"`
-	TombstonedAt       []*StringTimestampSnapshot     `protobuf:"bytes,3,rep,name=tombstoned_at,json=tombstonedAt,proto3" json:"tombstoned_at,omitempty"`
-	ShreddedAt         []*StringTimestampSnapshot     `protobuf:"bytes,4,rep,name=shredded_at,json=shreddedAt,proto3" json:"shredded_at,omitempty"`
-	RetractedEventIds  []string                       `protobuf:"bytes,5,rep,name=retracted_event_ids,json=retractedEventIds,proto3" json:"retracted_event_ids,omitempty"`
-	HiddenEchoEventIds []string                       `protobuf:"bytes,6,rep,name=hidden_echo_event_ids,json=hiddenEchoEventIds,proto3" json:"hidden_echo_event_ids,omitempty"`
-	ShreddedUserIds    []string                       `protobuf:"bytes,7,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
-	ReplayGuard        *ProjectionReplayGuardSnapshot `protobuf:"bytes,11,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state              protoimpl.MessageState     `protogen:"open.v1"`
+	Entries            []*TimelineEntrySnapshot   `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Bodies             []*TimelineBodySnapshot    `protobuf:"bytes,2,rep,name=bodies,proto3" json:"bodies,omitempty"`
+	TombstonedAt       []*StringTimestampSnapshot `protobuf:"bytes,3,rep,name=tombstoned_at,json=tombstonedAt,proto3" json:"tombstoned_at,omitempty"`
+	ShreddedAt         []*StringTimestampSnapshot `protobuf:"bytes,4,rep,name=shredded_at,json=shreddedAt,proto3" json:"shredded_at,omitempty"`
+	RetractedEventIds  []string                   `protobuf:"bytes,5,rep,name=retracted_event_ids,json=retractedEventIds,proto3" json:"retracted_event_ids,omitempty"`
+	HiddenEchoEventIds []string                   `protobuf:"bytes,6,rep,name=hidden_echo_event_ids,json=hiddenEchoEventIds,proto3" json:"hidden_echo_event_ids,omitempty"`
+	ShreddedUserIds    []string                   `protobuf:"bytes,7,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
+	// Compatibility-only fields written by the v1 snapshot contract. The v2
+	// contract leaves them empty because AssetProjection owns this state.
+	//
+	// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+	LegacyAssets *AssetProjectionSnapshot `protobuf:"bytes,8,opt,name=legacy_assets,json=legacyAssets,proto3" json:"legacy_assets,omitempty"`
+	// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+	AssetMessageOwners []*AssetMessageOwnerSnapshot `protobuf:"bytes,9,rep,name=asset_message_owners,json=assetMessageOwners,proto3" json:"asset_message_owners,omitempty"`
+	// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+	PublicLinkPreviewAssetIds []string                       `protobuf:"bytes,10,rep,name=public_link_preview_asset_ids,json=publicLinkPreviewAssetIds,proto3" json:"public_link_preview_asset_ids,omitempty"`
+	ReplayGuard               *ProjectionReplayGuardSnapshot `protobuf:"bytes,11,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *RoomTimelineProjectionSnapshot) Reset() {
@@ -2803,6 +2812,30 @@ func (x *RoomTimelineProjectionSnapshot) GetHiddenEchoEventIds() []string {
 func (x *RoomTimelineProjectionSnapshot) GetShreddedUserIds() []string {
 	if x != nil {
 		return x.ShreddedUserIds
+	}
+	return nil
+}
+
+// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+func (x *RoomTimelineProjectionSnapshot) GetLegacyAssets() *AssetProjectionSnapshot {
+	if x != nil {
+		return x.LegacyAssets
+	}
+	return nil
+}
+
+// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+func (x *RoomTimelineProjectionSnapshot) GetAssetMessageOwners() []*AssetMessageOwnerSnapshot {
+	if x != nil {
+		return x.AssetMessageOwners
+	}
+	return nil
+}
+
+// Deprecated: Marked as deprecated in chatto/core/v1/projection_snapshots.proto.
+func (x *RoomTimelineProjectionSnapshot) GetPublicLinkPreviewAssetIds() []string {
+	if x != nil {
+		return x.PublicLinkPreviewAssetIds
 	}
 	return nil
 }
@@ -3282,7 +3315,7 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x06digest\x18\x01 \x01(\tR\x06digest\x12J\n" +
 	"\x05value\x18\x02 \x01(\v24.chatto.core.v1.ProjectedEncryptedUserStringSnapshotR\x05value\x12;\n" +
 	"\vverified_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"verifiedAt\"\xee\x04\n" +
+	"verifiedAt\"\x91\x06\n" +
 	"\x1eRoomTimelineProjectionSnapshot\x12?\n" +
 	"\aentries\x18\x01 \x03(\v2%.chatto.core.v1.TimelineEntrySnapshotR\aentries\x12<\n" +
 	"\x06bodies\x18\x02 \x03(\v2$.chatto.core.v1.TimelineBodySnapshotR\x06bodies\x12L\n" +
@@ -3292,9 +3325,11 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x13retracted_event_ids\x18\x05 \x03(\tR\x11retractedEventIds\x121\n" +
 	"\x15hidden_echo_event_ids\x18\x06 \x03(\tR\x12hiddenEchoEventIds\x12*\n" +
 	"\x11shredded_user_ids\x18\a \x03(\tR\x0fshreddedUserIds\x12P\n" +
-	"\freplay_guard\x18\v \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuardJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vR\rlegacy_assetsR\x14asset_message_ownersR\x1dpublic_link_preview_asset_ids\"m\n" +
+	"\rlegacy_assets\x18\b \x01(\v2'.chatto.core.v1.AssetProjectionSnapshotB\x02\x18\x01R\flegacyAssets\x12_\n" +
+	"\x14asset_message_owners\x18\t \x03(\v2).chatto.core.v1.AssetMessageOwnerSnapshotB\x02\x18\x01R\x12assetMessageOwners\x12D\n" +
+	"\x1dpublic_link_preview_asset_ids\x18\n" +
+	" \x03(\tB\x02\x18\x01R\x19publicLinkPreviewAssetIds\x12P\n" +
+	"\freplay_guard\x18\v \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"m\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
 	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12+\n" +
 	"\x05event\x18\x02 \x01(\v2\x15.chatto.core.v1.EventR\x05event\"\xd7\x01\n" +
@@ -3465,15 +3500,17 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	41, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
 	42, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
 	42, // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	7,  // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	58, // 74: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
-	62, // 75: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
-	44, // 76: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	77, // [77:77] is the sub-list for method output_type
-	77, // [77:77] is the sub-list for method input_type
-	77, // [77:77] is the sub-list for extension type_name
-	77, // [77:77] is the sub-list for extension extendee
-	0,  // [0:77] is the sub-list for field type_name
+	24, // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.legacy_assets:type_name -> chatto.core.v1.AssetProjectionSnapshot
+	43, // 74: chatto.core.v1.RoomTimelineProjectionSnapshot.asset_message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
+	7,  // 75: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
+	58, // 76: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	62, // 77: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	44, // 78: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	79, // [79:79] is the sub-list for method output_type
+	79, // [79:79] is the sub-list for method input_type
+	79, // [79:79] is the sub-list for extension type_name
+	79, // [79:79] is the sub-list for extension extendee
+	0,  // [0:79] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }

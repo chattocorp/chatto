@@ -297,9 +297,6 @@ message ProjectedVerifiedEmailSnapshot {
 }
 
 message RoomTimelineProjectionSnapshot {
-  reserved 8, 9, 10;
-  reserved "legacy_assets", "asset_message_owners", "public_link_preview_asset_ids";
-
   repeated TimelineEntrySnapshot entries = 1;
   repeated TimelineBodySnapshot bodies = 2;
   repeated StringTimestampSnapshot tombstoned_at = 3;
@@ -307,6 +304,11 @@ message RoomTimelineProjectionSnapshot {
   repeated string retracted_event_ids = 5;
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
+  // Compatibility-only fields written by the v1 snapshot contract. The v2
+  // contract leaves them empty because AssetProjection owns this state.
+  AssetProjectionSnapshot legacy_assets = 8 [deprecated = true];
+  repeated AssetMessageOwnerSnapshot asset_message_owners = 9 [deprecated = true];
+  repeated string public_link_preview_asset_ids = 10 [deprecated = true];
   ProjectionReplayGuardSnapshot replay_guard = 11;
 }
 
