@@ -178,7 +178,7 @@ func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.
 		return nil, err
 	}
 
-	users, err := s.api.core.ListRoomMemberReferences(ctx, caller.UserID, req.Msg.GetRoomId())
+	users, err := s.api.core.ListRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -199,7 +199,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 		return nil, err
 	}
 
-	users, err := s.api.core.ListRoomMemberReferences(ctx, caller.UserID, req.Msg.GetRoomId())
+	users, err := s.api.core.ListRoomMemberReferencesForLookup(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -47,7 +47,7 @@ message search results:
 | Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
 | One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
 | Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
-| Selectable non-table collection            | `selectable-list` and `selectable-list-item`                                | Feature-local hover recipes                            |
+| Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
 | Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
@@ -211,10 +211,14 @@ the frame gap from visually adding to the title band's bottom padding. Untitled
 edge-to-edge panels use the same rule so the gap does not add to a table header's
 top padding. Untitled padded panels retain `p-1`. Custom shells such as draggable
 room groups must compose the same structure instead of approximating it.
-`DataTable` owns only its scrollable table viewport. Dense matrices may keep an
-intrinsic content width inside it; ordinary record tables fill it. Standard
-record-table headings use `table-header-cell`; matrix headings remain bespoke
-because their vertical labels have different spatial needs.
+`DataTable` owns only its scrollable table viewport and keeps a radius when used
+standalone or inside padded content. Inside `Panel noPadding`, the panel owns the
+single outer radius and clipping boundary: the table viewport becomes square so
+preceding controls or notices meet its header without an inset corner. Do not
+add feature-local radius overrides for this composition. Dense matrices may keep
+an intrinsic content width inside the viewport; ordinary record tables fill it.
+Standard record-table headings use `table-header-cell`; matrix headings remain
+bespoke because their vertical labels have different spatial needs.
 
 Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
 `p-5` panel content after accounting for the frame, while keeping the band

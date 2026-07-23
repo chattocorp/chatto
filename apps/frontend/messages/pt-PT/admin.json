@@ -217,7 +217,18 @@
       "archive_room_failed": "Falha ao arquivar a sala: {error}",
       "unarchive_room_failed": "Falha ao desarquivar a sala: {error}",
       "save_link_failed": "Falha ao guardar link: {error}",
-      "delete_link_failed": "Falha ao eliminar ligação: {error}"
+      "delete_link_failed": "Falha ao eliminar ligação: {error}",
+      "universal_members_description": "A participação é automática em salas universais. Todas as pessoas com permissão para aceder a esta sala são incluídas.",
+      "archived_members_description": "A participação não pode ser alterada enquanto esta sala estiver arquivada.",
+      "add_member": "Adicionar membro",
+      "adding_member": "A adicionar membro...",
+      "load_members_failed": "Falha ao carregar membros da sala: {error}",
+      "remove_member": "Remover membro",
+      "remove_member_prompt": "Remover {name} de {room}? Esta pessoa deixará de ser membro explícito desta sala.",
+      "member_added": "{name} foi adicionado à sala",
+      "add_member_failed": "Falha ao adicionar membro: {error}",
+      "member_removed": "{name} foi removido da sala",
+      "remove_member_failed": "Falha ao remover membro: {error}"
     },
     "security": {
       "title": "Segurança",

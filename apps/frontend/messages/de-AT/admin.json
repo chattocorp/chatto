@@ -217,7 +217,18 @@
       "archive_room_failed": "Raum konnte nicht archiviert werden: {error}",
       "unarchive_room_failed": "Raum konnte nicht wiederhergestellt werden: {error}",
       "save_link_failed": "Link konnte nicht gespeichert werden: {error}",
-      "delete_link_failed": "Link konnte nicht gelöscht werden: {error}"
+      "delete_link_failed": "Link konnte nicht gelöscht werden: {error}",
+      "universal_members_description": "Die Mitgliedschaft in universellen Räumen erfolgt automatisch. Alle Personen mit Zugriffsberechtigung für diesen Raum sind enthalten.",
+      "archived_members_description": "Die Mitgliedschaft kann nicht geändert werden, solange dieser Raum archiviert ist.",
+      "add_member": "Mitglied hinzufügen",
+      "adding_member": "Mitglied wird hinzugefügt...",
+      "load_members_failed": "Raummitglieder konnten nicht geladen werden: {error}",
+      "remove_member": "Mitglied entfernen",
+      "remove_member_prompt": "{name} aus {room} entfernen? Die Person ist dann kein ausdrückliches Mitglied dieses Raums mehr.",
+      "member_added": "{name} wurde dem Raum hinzugefügt",
+      "add_member_failed": "Mitglied konnte nicht hinzugefügt werden: {error}",
+      "member_removed": "{name} wurde aus dem Raum entfernt",
+      "remove_member_failed": "Mitglied konnte nicht entfernt werden: {error}"
     },
     "security": {
       "title": "Sicherheit",

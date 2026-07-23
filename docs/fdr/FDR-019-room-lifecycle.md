@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-07-23
 
 ## Overview
 
@@ -20,7 +20,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
-- **Manage members** — `room.manage` holders can add or remove explicit members of non-Universal channel rooms. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first.
+- **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
@@ -89,18 +89,18 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 11. Member listing follows membership or discovery-and-join eligibility
 
-**Decision:** Existing room members may list the room's effective members. A channel-room non-member may list them only when both `room.list` and `room.join` allow it at that room. DMs remain membership-only. The pre-join screen requests the first five alphabetically sorted members and uses the list's total count for its compact preview.
-**Why:** Room membership is an existing paginated resource and should use its own authorization contract instead of adding a preview-specific shape to room-directory reads. Requiring both discovery and join eligibility limits nonmember access to rooms they can knowingly enter.
-**Tradeoff:** An eligible nonmember can paginate the full member directory even though the join screen displays only five samples. Messages, files, activity, and other membership-gated room content remain inaccessible until joining.
+**Decision:** Existing room members and effective `room.manage` holders may list a channel room's effective members and hydrate individual member rows. Other channel-room non-members may list members only when both `room.list` and `room.join` allow it at that room. DMs remain membership-only. The pre-join screen requests the first five alphabetically sorted members and uses the list's total count for its compact preview.
+**Why:** Room managers need the same member resource they are authorised to change, even when management authority deliberately does not grant room participation. Room membership remains an existing paginated resource instead of adding a preview- or management-specific shape. Requiring both discovery and join eligibility for other nonmembers limits access to rooms they can knowingly enter.
+**Tradeoff:** A manager or eligible nonmember can paginate the full member directory without joining. Messages, files, activity, and other membership-gated room content remain inaccessible until joining, and DM participant privacy is unchanged.
 
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
-- `room.manage` — edit, archive, unarchive, delete, change Universal state, and add/remove explicit members for a channel room. Configurable per group and per room.
+- `room.manage` — edit, archive, unarchive, delete, change Universal state, and list, inspect, add, or remove members for a channel room. Configurable per group and per room.
 - `role.manage` — configure role permission decisions at room scope without granting general room-management authority.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
-- `room.list` + `room.join` — together allow a channel-room nonmember to list its effective members. Existing members do not need these grants for member listing.
+- `room.list` + `room.join` — together allow a channel-room nonmember without `room.manage` to list its effective members. Existing members and room managers do not need these grants for member listing.
 
 ## Related
 

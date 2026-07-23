@@ -4,6 +4,7 @@
   import Panel from './Panel.svelte';
   import CopyId from './CopyId.svelte';
   import Pill from '$lib/ui/Pill.svelte';
+  import { Button } from '$lib/ui/form';
 
   type SpaceRow = {
     id: string;
@@ -25,9 +26,10 @@
   })) satisfies SpaceRow[];
 
   const componentDescription = `
-  Admin table primitive with a rounded scroll viewport, contrasting header and
-  body, empty state row, optional row hover/click affordance, and automatic
-  load-more support. Place it inside \`Panel noPadding\`; Panel owns the shared frame.
+  Admin table primitive with a standalone rounded scroll viewport, contrasting
+  header and body, empty state row, optional row hover/click affordance, and
+  automatic load-more support. Inside \`Panel noPadding\`, the panel owns the
+  shared radius and the table meets adjacent content at square internal seams.
   `.trim();
 
   const { Story } = defineMeta({
@@ -70,12 +72,42 @@
 </Story>
 
 <Story
+  name="Following controls"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'When controls or notices precede an edge-to-edge table, the panel keeps one outer radius and the internal boundary remains square.'
+      }
+    }
+  }}
+>
+  <div class="max-w-3xl">
+    <Panel title="Members" noPadding>
+      <div class="flex items-center justify-between gap-3 border-b border-border p-5">
+        <span class="text-sm text-muted">Add people who should have access to this space.</span>
+        <Button size="sm" variant="secondary">Add member</Button>
+      </div>
+      <DataTable
+        items={rows}
+        columns={4}
+        getKey={(row) => row.id}
+        header={tableHeader}
+        row={tableRow}
+      />
+    </Panel>
+  </div>
+</Story>
+
+<Story
   name="Sticky header"
   asChild
   parameters={{
     docs: {
       description: {
-        story: 'Dense matrices and long administrative tables can retain their column labels in a bounded scrolling viewport.'
+        story:
+          'Dense matrices and long administrative tables can retain their column labels in a bounded scrolling viewport.'
       }
     }
   }}

@@ -6,6 +6,7 @@
   import { createRoomDirectoryAPI, type DirectoryRoomDetails } from '$lib/api-client/roomDirectory';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
@@ -13,7 +14,7 @@
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import { EmptyState } from '$lib/ui';
+  import { EmptyState, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -23,6 +24,8 @@
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { buildRoomSettingsUpdate } from './roomSettings';
+  import RoomMembersPanel from './RoomMembersPanel.svelte';
+  import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
 
   const roomId = $derived(page.params.roomId!);
@@ -43,6 +46,23 @@
   let originalDescription = $state('');
   let originalUniversal = $state(false);
   let loadId = 0;
+  let scrollContainer = $state<HTMLDivElement>();
+
+  const memberManagement = new RoomMemberManagementStore(() => {
+    const conn = connection();
+    return {
+      directory: createMemberDirectoryAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }),
+      commands: createRoomCommandAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      })
+    };
+  });
 
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);
@@ -218,54 +238,67 @@
       showMobileNav
     />
 
-    <div class="flex flex-col gap-6 overflow-y-auto p-6">
-      {#if canManageRoom}
-        <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
-          <form class="flex max-w-2xl flex-col gap-4" onsubmit={saveGeneralSettings}>
-            <TextInput
-              id="room-settings-name"
-              label={m['rbac.role_form.name']()}
-              bind:value={name}
-              required
-              disabled={saving}
-              error={nameError}
-            />
-            <TextArea
-              id="room-settings-description"
-              label={m['rbac.role_form.description']()}
-              bind:value={description}
-              rows={3}
-              disabled={saving}
-              placeholder={m['admin.rooms_admin.room_description_placeholder']()}
-            />
-            <Checkbox
-              id="room-settings-universal"
-              bind:checked={universal}
-              disabled={saving}
-              label={m['admin.rooms_admin.universal_room']()}
-              description={UNIVERSAL_ROOM_HELP_TEXT}
-            />
-            <div class="flex justify-end">
-              <Button
-                type="submit"
-                loading={saving}
-                disabled={!name.trim() || !!nameError || !changed}
-              >
-                {m['admin.permissions.save_changes']()}
-              </Button>
-            </div>
-          </form>
-        </Panel>
-      {/if}
+    <PaneContent bind:scrollContainer>
+      <div class="flex flex-col gap-6">
+        {#if canManageRoom}
+          <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
+            <form class="flex max-w-2xl flex-col gap-4" onsubmit={saveGeneralSettings}>
+              <TextInput
+                id="room-settings-name"
+                label={m['rbac.role_form.name']()}
+                bind:value={name}
+                required
+                disabled={saving}
+                error={nameError}
+              />
+              <TextArea
+                id="room-settings-description"
+                label={m['rbac.role_form.description']()}
+                bind:value={description}
+                rows={3}
+                disabled={saving}
+                placeholder={m['admin.rooms_admin.room_description_placeholder']()}
+              />
+              <Checkbox
+                id="room-settings-universal"
+                bind:checked={universal}
+                disabled={saving}
+                label={m['admin.rooms_admin.universal_room']()}
+                description={UNIVERSAL_ROOM_HELP_TEXT}
+              />
+              <div class="flex justify-end">
+                <Button
+                  type="submit"
+                  loading={saving}
+                  disabled={!name.trim() || !!nameError || !changed}
+                >
+                  {m['admin.permissions.save_changes']()}
+                </Button>
+              </div>
+            </form>
+          </Panel>
+        {/if}
 
-      <div class="flex flex-col gap-4">
-        <h2 class="text-lg font-semibold text-text-top">
-          {m['admin.rooms_admin.room_permissions_title_fallback']()}
-        </h2>
-        <Hint>{m['admin.rooms_admin.room_permissions_hint']()}</Hint>
-        <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
-        <PermissionMatrix {roomId} />
+        <RoomMembersPanel
+          serverId={activeServerId}
+          {roomId}
+          roomName={room.name}
+          isUniversal={room.isUniversal}
+          archived={room.archived}
+          canManageMembers={canManageRoom}
+          scrollRoot={scrollContainer}
+          store={memberManagement}
+        />
+
+        <div class="flex flex-col gap-4">
+          <h2 class="text-lg font-semibold text-text-top">
+            {m['admin.rooms_admin.room_permissions_title_fallback']()}
+          </h2>
+          <Hint>{m['admin.rooms_admin.room_permissions_hint']()}</Hint>
+          <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
+          <PermissionMatrix {roomId} />
+        </div>
       </div>
-    </div>
+    </PaneContent>
   </div>
 {/if}

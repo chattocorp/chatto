@@ -35,22 +35,14 @@
   --color-background: var(--color-gray-100);
   --color-text: var(--color-gray-600);
   --color-text-top: var(--color-black);
-  --color-muted: color-mix(
-    in srgb,
-    var(--color-gray-500),
-    var(--color-gray-600) 75%
-  );
+  --color-muted: color-mix(in srgb, var(--color-gray-500), var(--color-gray-600) 75%);
 
   --color-border: var(--color-gray-200);
   /* Light mode is deliberately not a luminance mirror of dark mode. The pale
      background is the primary work plane; cool gray surfaces make anchored
      chrome and controls feel inset and substantial instead of pasted on. */
   --color-surface: var(--color-gray-200);
-  --color-surface-emphasized: color-mix(
-    in srgb,
-    var(--color-gray-200),
-    var(--color-gray-300) 55%
-  );
+  --color-surface-emphasized: color-mix(in srgb, var(--color-gray-200), var(--color-gray-300) 55%);
   --color-surface-strong: var(--color-gray-300);
   --color-surface-selected: var(--color-gray-300);
 
@@ -211,6 +203,22 @@
   @apply rounded-md bg-background;
 }
 
+/* Edge-to-edge panel content is clipped to the work plane's outer radius.
+ * Nested table viewports become square so controls, notices, and table headers
+ * meet at a clean internal boundary instead of stacking rounded corners.
+ */
+@utility panel-inset-flush {
+  @apply overflow-hidden;
+}
+
+@utility data-table-viewport {
+  @apply rounded-md bg-background;
+}
+
+.panel-inset-flush > .data-table-viewport {
+  border-radius: 0;
+}
+
 /* Standard record-table header cell. Matrix headers remain deliberately
  * bespoke because their vertical labels encode a different interaction.
  */
@@ -307,7 +315,7 @@
 }
 
 @utility btn {
-  @apply control-frame inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 px-4 py-1.5 font-medium;
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 control-frame px-4 py-1.5 font-medium;
   @apply transition-[background-color,border-color,color,box-shadow,scale] duration-150 active:scale-[0.97];
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
@@ -379,7 +387,7 @@
 
 /* Form input utilities */
 @utility input {
-  @apply control-frame min-h-10 w-full bg-input px-3 py-1.5 text-text;
+  @apply min-h-10 w-full control-frame bg-input px-3 py-1.5 text-text;
   @apply placeholder:text-muted/70;
   @apply transition-colors duration-100;
   @apply focus:border-action focus:outline-none;

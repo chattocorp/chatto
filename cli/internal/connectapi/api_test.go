@@ -4177,6 +4177,32 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("list-denied outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-manager", "Room Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, manager.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission manager room.manage: %v", err)
+	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, manager.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission manager room.join: %v", err)
+	}
+	managerCtx := withCaller(env.ctx, manager)
+	if _, err := env.rooms.ListMembers(managerCtx, req); err != nil {
+		t.Fatalf("manager ListMembers: %v", err)
+	}
+	if _, err := env.rooms.GetMember(managerCtx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+		RoomId: room.Id,
+		UserId: member.Id,
+	})); err != nil {
+		t.Fatalf("manager GetMember: %v", err)
+	}
+	if _, err := env.rooms.BatchGetMembers(managerCtx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
+		RoomId:  room.Id,
+		UserIds: []string{member.Id},
+	})); err != nil {
+		t.Fatalf("manager BatchGetMembers: %v", err)
+	}
 
 	resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), req)
 	if err != nil {

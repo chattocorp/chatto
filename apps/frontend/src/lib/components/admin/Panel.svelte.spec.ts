@@ -37,7 +37,7 @@ describe('Panel inset structure', () => {
     const { container } = renderPanel(true);
     const inset = container.querySelector('.panel-shell > div:last-child > div') as HTMLElement;
 
-    expect(inset.className).toContain('overflow-hidden');
+    expect(inset.className).toContain('panel-inset-flush');
     expect(inset.className).not.toContain('p-5');
   });
 
@@ -75,7 +75,9 @@ describe('Panel inset structure', () => {
       }
     });
 
-    expect(container.querySelector('[data-testid="subtitle-link"]')?.getAttribute('href')).toBe('/rooms');
+    expect(container.querySelector('[data-testid="subtitle-link"]')?.getAttribute('href')).toBe(
+      '/rooms'
+    );
   });
 
   it('can fill a flex page while preserving its inset structure', () => {
@@ -90,5 +92,4 @@ describe('Panel inset structure', () => {
     expect(frame.className).toContain('flex-1');
     expect(inset.className).toContain('flex-1');
   });
-
 });

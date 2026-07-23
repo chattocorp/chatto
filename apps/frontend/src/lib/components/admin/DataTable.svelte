@@ -129,12 +129,7 @@
 </script>
 
 {#snippet tableContent()}
-  <table
-    class={[
-      fitContent ? 'w-max' : 'w-full',
-      '[&_thead_th]:whitespace-nowrap'
-    ]}
-  >
+  <table class={[fitContent ? 'w-max' : 'w-full', '[&_thead_th]:whitespace-nowrap']}>
     <thead class={stickyHeader ? 'sticky top-0 z-20' : ''}>
       <tr class="panel-header text-left text-sm text-muted">
         {@render header()}
@@ -194,12 +189,12 @@
     bottom
     scrollX
     topFadeOffset={stickyHeaderFadeOffset}
-    class={`rounded-md bg-background ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
+    class={`data-table-viewport ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
   >
     {@render tableContent()}
   </ScrollFader>
 {:else}
-  <div class="overflow-x-auto rounded-md bg-background">
+  <div class="overflow-x-auto data-table-viewport">
     {@render tableContent()}
   </div>
 {/if}

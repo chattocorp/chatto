@@ -217,7 +217,18 @@
       "archive_room_failed": "Nie udało się zarchiwizować pokoju: {error}",
       "unarchive_room_failed": "Nie udało się przywrócić archiwum pokoju: {error}",
       "save_link_failed": "Nie udało się zapisać linku: {error}",
-      "delete_link_failed": "Nie udało się usunąć linku: {error}"
+      "delete_link_failed": "Nie udało się usunąć linku: {error}",
+      "universal_members_description": "Członkostwo w pokojach uniwersalnych jest automatyczne. Obejmuje każdą osobę z uprawnieniem dostępu do tego pokoju.",
+      "archived_members_description": "Nie można zmieniać członkostwa, gdy ten pokój jest zarchiwizowany.",
+      "add_member": "Dodaj członka",
+      "adding_member": "Dodawanie członka...",
+      "load_members_failed": "Nie udało się wczytać członków pokoju: {error}",
+      "remove_member": "Usuń członka",
+      "remove_member_prompt": "Usunąć użytkownika {name} z {room}? Nie będzie już bezpośrednim członkiem tego pokoju.",
+      "member_added": "Dodano użytkownika {name} do pokoju",
+      "add_member_failed": "Nie udało się dodać członka: {error}",
+      "member_removed": "Usunięto użytkownika {name} z pokoju",
+      "remove_member_failed": "Nie udało się usunąć członka: {error}"
     },
     "security": {
       "title": "Bezpieczeństwo",

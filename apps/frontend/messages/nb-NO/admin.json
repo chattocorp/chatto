@@ -217,7 +217,18 @@
       "archive_room_failed": "Kunne ikke arkivere rommet: {error}",
       "unarchive_room_failed": "Kunne ikke dearkivere rom: {error}",
       "save_link_failed": "Kunne ikke lagre koblingen: {error}",
-      "delete_link_failed": "Kunne ikke slette linken: {error}"
+      "delete_link_failed": "Kunne ikke slette linken: {error}",
+      "universal_members_description": "Medlemskap er automatisk i universelle rom. Alle med tilgang til rommet blir inkludert.",
+      "archived_members_description": "Medlemskapet kan ikke endres mens rommet er arkivert.",
+      "add_member": "Legg til medlem",
+      "adding_member": "Legger til medlem...",
+      "load_members_failed": "Kunne ikke laste rommedlemmer: {error}",
+      "remove_member": "Fjern medlem",
+      "remove_member_prompt": "Fjerne {name} fra {room}? Personen vil ikke lenger være eksplisitt medlem av rommet.",
+      "member_added": "{name} ble lagt til i rommet",
+      "add_member_failed": "Kunne ikke legge til medlemmet: {error}",
+      "member_removed": "{name} ble fjernet fra rommet",
+      "remove_member_failed": "Kunne ikke fjerne medlemmet: {error}"
     },
     "security": {
       "title": "Sikkerhet",

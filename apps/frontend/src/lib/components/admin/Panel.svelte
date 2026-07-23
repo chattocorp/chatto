@@ -58,11 +58,13 @@
       {/if}
     </div>
   {/if}
-  <div class={[title || noPadding ? 'px-1 pb-1' : 'p-1', fillHeight && 'flex min-h-0 flex-1 flex-col']}>
+  <div
+    class={[title || noPadding ? 'px-1 pb-1' : 'p-1', fillHeight && 'flex min-h-0 flex-1 flex-col']}
+  >
     <div
       class={[
         'panel-inset',
-        noPadding ? 'overflow-hidden' : 'p-5',
+        noPadding ? 'panel-inset-flush' : 'p-5',
         fillHeight && 'flex min-h-0 flex-1 flex-col'
       ]}
     >

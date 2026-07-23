@@ -23,6 +23,10 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
+	manager, err := core.CreateUser(ctx, SystemActorID, "room-read-manager", "Room Read Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "room-read-auth", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
@@ -47,6 +51,29 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, room.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("join-denied ListRoomMemberReferencesForList error = %v, want ErrPermissionDenied", err)
 	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomList); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.list: %v", err)
+	}
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission room.join: %v", err)
+	}
+	managerMembers, err := core.ListRoomMemberReferencesForList(ctx, manager.Id, room.Id)
+	if err != nil {
+		t.Fatalf("manager ListRoomMemberReferencesForList: %v", err)
+	}
+	if !userRefsContain(managerMembers, member.Id) {
+		t.Fatalf("manager list member references = %+v, want member %s", managerMembers, member.Id)
+	}
+	managerLookups, err := core.ListRoomMemberReferencesForLookup(ctx, manager.Id, room.Id)
+	if err != nil {
+		t.Fatalf("manager ListRoomMemberReferencesForLookup: %v", err)
+	}
+	if !userRefsContain(managerLookups, member.Id) {
+		t.Fatalf("manager lookup member references = %+v, want member %s", managerLookups, member.Id)
+	}
 	members, err := core.ListRoomMemberReferences(ctx, member.Id, room.Id)
 	if err != nil {
 		t.Fatalf("ListRoomMemberReferences member: %v", err)
@@ -64,6 +91,15 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("DM outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
 	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, dm.Id, outsider.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission DM room.manage: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("DM manager ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForLookup(ctx, outsider.Id, dm.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("DM manager ListRoomMemberReferencesForLookup error = %v, want ErrNotRoomMember", err)
+	}
 	archivedRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "room-read-archived", "")
 	if err != nil {
 		t.Fatalf("CreateRoom archived: %v", err)
@@ -73,6 +109,15 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	}
 	if _, err := core.ListRoomMemberReferencesForList(ctx, outsider.Id, archivedRoom.Id); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("archived outsider ListRoomMemberReferencesForList error = %v, want ErrNotRoomMember", err)
+	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, archivedRoom.Id, manager.Id, PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission archived room.manage: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForList(ctx, manager.Id, archivedRoom.Id); err != nil {
+		t.Fatalf("archived manager ListRoomMemberReferencesForList: %v", err)
+	}
+	if _, err := core.ListRoomMemberReferencesForLookup(ctx, manager.Id, archivedRoom.Id); err != nil {
+		t.Fatalf("archived manager ListRoomMemberReferencesForLookup: %v", err)
 	}
 
 	if _, err := core.CreateNotification(ctx, member.Id, actor.Id, &corev1.Notification{

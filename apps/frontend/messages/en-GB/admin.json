@@ -217,7 +217,18 @@
       "archive_room_failed": "Failed to archive room: {error}",
       "unarchive_room_failed": "Failed to unarchive room: {error}",
       "save_link_failed": "Failed to save link: {error}",
-      "delete_link_failed": "Failed to delete link: {error}"
+      "delete_link_failed": "Failed to delete link: {error}",
+      "universal_members_description": "Membership is automatic in Universal rooms. Everyone with permission to access this room is included.",
+      "archived_members_description": "Membership cannot be changed while this room is archived.",
+      "add_member": "Add member",
+      "adding_member": "Adding member...",
+      "load_members_failed": "Failed to load room members: {error}",
+      "remove_member": "Remove member",
+      "remove_member_prompt": "Remove {name} from {room}? They will no longer be an explicit member of this room.",
+      "member_added": "Added {name} to the room",
+      "add_member_failed": "Failed to add member: {error}",
+      "member_removed": "Removed {name} from the room",
+      "remove_member_failed": "Failed to remove member: {error}"
     },
     "security": {
       "title": "Security",

@@ -217,7 +217,18 @@
       "archive_room_failed": "Échec de l'archivage de la salle : {error}",
       "unarchive_room_failed": "Échec de la désarchive de la salle : {error}",
       "save_link_failed": "Échec de l'enregistrement du lien : {error}",
-      "delete_link_failed": "Échec de la suppression du lien : {error}"
+      "delete_link_failed": "Échec de la suppression du lien : {error}",
+      "universal_members_description": "L’adhésion est automatique dans les salons universels. Toute personne autorisée à accéder à ce salon en fait partie.",
+      "archived_members_description": "L’adhésion ne peut pas être modifiée tant que ce salon est archivé.",
+      "add_member": "Ajouter un membre",
+      "adding_member": "Ajout du membre...",
+      "load_members_failed": "Échec du chargement des membres du salon : {error}",
+      "remove_member": "Retirer le membre",
+      "remove_member_prompt": "Retirer {name} de {room} ? Cette personne ne sera plus membre explicite de ce salon.",
+      "member_added": "{name} a été ajouté au salon",
+      "add_member_failed": "Échec de l’ajout du membre : {error}",
+      "member_removed": "{name} a été retiré du salon",
+      "remove_member_failed": "Échec du retrait du membre : {error}"
     },
     "security": {
       "title": "Sécurité",

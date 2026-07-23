@@ -217,7 +217,18 @@
       "archive_room_failed": "Не вдалося заархівувати кімнату: {error}",
       "unarchive_room_failed": "Не вдалося розархівувати кімнату: {error}",
       "save_link_failed": "Не вдалося зберегти посилання: {error}",
-      "delete_link_failed": "Не вдалося видалити посилання: {error}"
+      "delete_link_failed": "Не вдалося видалити посилання: {error}",
+      "universal_members_description": "Участь в універсальних кімнатах надається автоматично. До них входять усі, хто має дозвіл на доступ до кімнати.",
+      "archived_members_description": "Не можна змінювати учасників, доки цю кімнату заархівовано.",
+      "add_member": "Додати учасника",
+      "adding_member": "Додавання учасника...",
+      "load_members_failed": "Не вдалося завантажити учасників кімнати: {error}",
+      "remove_member": "Видалити учасника",
+      "remove_member_prompt": "Видалити {name} з {room}? Ця особа більше не буде безпосереднім учасником кімнати.",
+      "member_added": "{name} додано до кімнати",
+      "add_member_failed": "Не вдалося додати учасника: {error}",
+      "member_removed": "{name} видалено з кімнати",
+      "remove_member_failed": "Не вдалося видалити учасника: {error}"
     },
     "security": {
       "title": "Безпека",

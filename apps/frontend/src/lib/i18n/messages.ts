@@ -1488,6 +1488,29 @@ const msg_admin_rooms_admin_save_link_failed = (
 const msg_admin_rooms_admin_delete_link_failed = (
   inputs: Parameters<LocaleMessages['admin_rooms_admin_delete_link_failed']>[0]
 ): LocalizedString => messages().admin_rooms_admin_delete_link_failed(inputs);
+const msg_admin_rooms_admin_universal_members_description = (): LocalizedString => messages().admin_rooms_admin_universal_members_description(empty());
+const msg_admin_rooms_admin_archived_members_description = (): LocalizedString => messages().admin_rooms_admin_archived_members_description(empty());
+const msg_admin_rooms_admin_add_member = (): LocalizedString => messages().admin_rooms_admin_add_member(empty());
+const msg_admin_rooms_admin_adding_member = (): LocalizedString => messages().admin_rooms_admin_adding_member(empty());
+const msg_admin_rooms_admin_load_members_failed = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_load_members_failed']>[0]
+): LocalizedString => messages().admin_rooms_admin_load_members_failed(inputs);
+const msg_admin_rooms_admin_remove_member = (): LocalizedString => messages().admin_rooms_admin_remove_member(empty());
+const msg_admin_rooms_admin_remove_member_prompt = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_remove_member_prompt']>[0]
+): LocalizedString => messages().admin_rooms_admin_remove_member_prompt(inputs);
+const msg_admin_rooms_admin_member_added = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_member_added']>[0]
+): LocalizedString => messages().admin_rooms_admin_member_added(inputs);
+const msg_admin_rooms_admin_add_member_failed = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_add_member_failed']>[0]
+): LocalizedString => messages().admin_rooms_admin_add_member_failed(inputs);
+const msg_admin_rooms_admin_member_removed = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_member_removed']>[0]
+): LocalizedString => messages().admin_rooms_admin_member_removed(inputs);
+const msg_admin_rooms_admin_remove_member_failed = (
+  inputs: Parameters<LocaleMessages['admin_rooms_admin_remove_member_failed']>[0]
+): LocalizedString => messages().admin_rooms_admin_remove_member_failed(inputs);
 const msg_admin_security_title = (): LocalizedString => messages().admin_security_title(empty());
 const msg_admin_security_subtitle = (): LocalizedString => messages().admin_security_subtitle(empty());
 const msg_admin_security_blocked_usernames = (): LocalizedString => messages().admin_security_blocked_usernames(empty());
@@ -2872,6 +2895,17 @@ export { msg_admin_rooms_admin_archive_room_failed as 'admin.rooms_admin.archive
 export { msg_admin_rooms_admin_unarchive_room_failed as 'admin.rooms_admin.unarchive_room_failed' };
 export { msg_admin_rooms_admin_save_link_failed as 'admin.rooms_admin.save_link_failed' };
 export { msg_admin_rooms_admin_delete_link_failed as 'admin.rooms_admin.delete_link_failed' };
+export { msg_admin_rooms_admin_universal_members_description as 'admin.rooms_admin.universal_members_description' };
+export { msg_admin_rooms_admin_archived_members_description as 'admin.rooms_admin.archived_members_description' };
+export { msg_admin_rooms_admin_add_member as 'admin.rooms_admin.add_member' };
+export { msg_admin_rooms_admin_adding_member as 'admin.rooms_admin.adding_member' };
+export { msg_admin_rooms_admin_load_members_failed as 'admin.rooms_admin.load_members_failed' };
+export { msg_admin_rooms_admin_remove_member as 'admin.rooms_admin.remove_member' };
+export { msg_admin_rooms_admin_remove_member_prompt as 'admin.rooms_admin.remove_member_prompt' };
+export { msg_admin_rooms_admin_member_added as 'admin.rooms_admin.member_added' };
+export { msg_admin_rooms_admin_add_member_failed as 'admin.rooms_admin.add_member_failed' };
+export { msg_admin_rooms_admin_member_removed as 'admin.rooms_admin.member_removed' };
+export { msg_admin_rooms_admin_remove_member_failed as 'admin.rooms_admin.remove_member_failed' };
 export { msg_admin_security_title as 'admin.security.title' };
 export { msg_admin_security_subtitle as 'admin.security.subtitle' };
 export { msg_admin_security_blocked_usernames as 'admin.security.blocked_usernames' };
