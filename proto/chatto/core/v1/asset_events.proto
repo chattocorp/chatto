@@ -47,7 +47,7 @@ enum AssetDerivativeRole {
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
 // time, before any message exists. Message ownership of an asset is derived
-// from MessagePostedEvent.asset_ids in the room-timeline projection.
+// from MessageBodyEvent.asset_ids in the asset projection.
 message AssetCreatedEvent {
   // Tag 4 was message_event_id, removed before this event type shipped —
   // message ownership is derived from MessagePostedEvent.asset_ids instead.

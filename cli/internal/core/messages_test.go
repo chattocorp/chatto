@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -56,6 +57,34 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	}
 	if fetchedBody != messageBody {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
+	}
+}
+
+func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "asset-wait-user", "Asset Wait User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "asset-wait-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	var waited events.StreamPosition
+	core.assetModel.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
+		waited = pos
+		return core.AssetsProjector.WaitFor(ctx, pos)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if waited.Seq == 0 || waited.SubjectFilter != events.RoomAggregate(room.Id).Subject(events.EventMessageBody) {
+		t.Fatalf("asset projection wait = %+v, want message_body position", waited)
 	}
 }
 

@@ -52,13 +52,7 @@ type RoomTimelineProjection struct {
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly
 	// retracted. A direct echo retract removes the room-timeline copy
 	// without deleting the original thread reply's content.
-	hiddenEchoes map[string]struct{}
-	// These asset indexes are a compatibility bridge for 0.1.0 beta histories
-	// that wrote asset lifecycle events under evt.room.* before assets moved to
-	// evt.asset.*. New runtime reads should use AssetProjection; RoomTimeline
-	// keeps just enough legacy asset state to route old room-scoped asset events
-	// during replay.
-	assets        *roomTimelineAssetIndex
+	hiddenEchoes  map[string]struct{}
 	shreddedUsers map[string]struct{}
 }
 
@@ -118,7 +112,6 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		attachmentMessageRoom:      make(map[string]string),
 		echoLinks:                  make(map[string][]string),
 		hiddenEchoes:               make(map[string]struct{}),
-		assets:                     newRoomTimelineAssetIndex(),
 		shreddedUsers:              make(map[string]struct{}),
 	}
 }
@@ -154,7 +147,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	roomID := p.roomIDOfEventLocked(event)
+	roomID := roomIDOfEvent(event)
 	if roomID == "" {
 		return nil
 	}
@@ -193,7 +186,6 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 					p.refreshAttachmentMessageLocked(roomID, targetID, body)
 				}
 			}
-			p.assets.rememberMessageBodyAssets(roomID, targetID, body)
 		}
 		return nil
 	}
@@ -258,7 +250,6 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			p.removeAttachmentMessageLocked(targetID)
 		}
 	}
-	p.assets.applyLifecycleEvent(event)
 	return nil
 }
 
@@ -273,9 +264,6 @@ func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 		return false
 	}
 	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil {
-		return true
-	}
-	if isAssetLifecycleEvent(event) {
 		return true
 	}
 	return shouldIndexRoomTimelineEvent(event) || isVisibleRoomTimelineEntry(event)
@@ -318,13 +306,6 @@ func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.T
 	if existing, ok := p.tombstonedAt[eventID]; !ok || at.Before(existing) {
 		p.tombstonedAt[eventID] = at
 	}
-}
-
-func (p *RoomTimelineProjection) roomIDOfEventLocked(event *corev1.Event) string {
-	if isAssetLifecycleEvent(event) {
-		return p.assets.roomIDOfLifecycleEvent(event)
-	}
-	return roomIDOfEvent(event)
 }
 
 // RoomEvents returns up to `limit` entries from a room's timeline in
@@ -505,15 +486,6 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 		})
 	}
 	return out
-}
-
-// IsPublicLinkPreviewAsset reports whether durable message history references
-// assetID as a server-fetched link-preview image. Preview images are public
-// server assets; ordinary message attachments are deliberately excluded.
-func (p *RoomTimelineProjection) IsPublicLinkPreviewAsset(assetID string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.isPublicLinkPreviewAsset(assetID)
 }
 
 func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *corev1.MessageBody) {
@@ -747,61 +719,6 @@ func (p *RoomTimelineProjection) LinkedChannelEchoEventID(originalEventID string
 	return "", false
 }
 
-// VideoAttachmentManifest returns the latest durable processing outcome for
-// the original video attachment ID, if one has been projected. The returned
-// protos are clones so callers can inspect or adapt them freely.
-func (p *RoomTimelineProjection) VideoAttachmentManifest(attachmentID string) (*VideoAttachmentManifest, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.videoAttachmentManifest(attachmentID)
-}
-
-// AssetCreation returns the durable creation event for an asset.
-func (p *RoomTimelineProjection) AssetCreation(attachmentID string) (*corev1.AssetCreatedEvent, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.assetCreation(attachmentID)
-}
-
-// AssetRoomID returns the room that owns an asset. For derivatives, it walks up
-// the parent chain when needed so callers can authorize thumbnail and variant
-// assets using the original room scope.
-func (p *RoomTimelineProjection) AssetRoomID(assetID string) (string, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.assetRoomID(assetID)
-}
-
-// AssetMessageOwner returns the room and message that own an asset, derived
-// from the MessagePostedEvent that referenced it. Reports ok=false when no
-// projected message has claimed the asset yet (e.g. an upload that was never
-// posted, or whose message hasn't been projected). The deprecated
-// AssetCreatedEvent.message_event_id is not consulted — new uploads never
-// set it.
-func (p *RoomTimelineProjection) AssetMessageOwner(assetID string) (roomID, messageEventID string, ok bool) {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.assetMessageOwner(assetID)
-}
-
-func (p *RoomTimelineProjection) MessageAssetsByAuthor(userID string) []MessageAssetRef {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.messageAssetsByAuthor(userID, p.entryByEventIDLocked)
-}
-
-func (p *RoomTimelineProjection) MessageAssetOwners() []MessageAssetRef {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.messageAssetOwners()
-}
-
-func (p *RoomTimelineProjection) AssetSubtreeIDs(assetID string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.assetSubtreeIDs(assetID)
-}
-
 func (p *RoomTimelineProjection) MessageTombstoned(eventID string) bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -827,16 +744,6 @@ func (p *RoomTimelineProjection) messageTombstonedAtLocked(eventID string) (time
 		return at, ok
 	}
 	return time.Time{}, false
-}
-
-// UnmanifestedVideoAttachments returns message-owned video/GIF assets that
-// do not yet have a durable processed/failed manifest. Ownership comes from
-// the posting message (assetMessageOwner), not the deprecated
-// AssetCreatedEvent.message_event_id, which new uploads never set.
-func (p *RoomTimelineProjection) UnmanifestedVideoAttachments() []VideoProcessingRequest {
-	p.RLock()
-	defer p.RUnlock()
-	return p.assets.unmanifestedVideoAttachments(p.retractedFlags)
 }
 
 func cloneMessageBody(body *corev1.MessageBody) *corev1.MessageBody {

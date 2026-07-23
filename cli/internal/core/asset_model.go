@@ -644,11 +644,11 @@ func (s *AssetModel) AssetSubtreeIDs(assetID string) []string {
 }
 
 func (s *AssetModel) MessageAssetsByAuthor(userID string) []MessageAssetRef {
-	return s.RoomTimeline.MessageAssetsByAuthor(userID)
+	return s.Assets.MessageAssetsByAuthor(userID)
 }
 
 func (s *AssetModel) MessageAssetOwners() []MessageAssetRef {
-	return s.RoomTimeline.MessageAssetOwners()
+	return s.Assets.MessageAssetOwners()
 }
 
 func (s *AssetModel) MessageTombstoned(eventID string) bool {

@@ -871,7 +871,7 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 			legacyDeclaredPublic = true
 		}
 	}
-	if c.RoomTimeline != nil && c.RoomTimeline.IsPublicLinkPreviewAsset(assetID) {
+	if c.Assets != nil && c.Assets.IsPublicLinkPreviewAsset(assetID) {
 		legacyDeclaredPublic = true
 	}
 	if legacyDeclaredPublic && legacyNATSExists {
@@ -1268,10 +1268,8 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomGroups := roomGroupLayout.Groups
 	roomLayout := roomGroupLayout.Layout
 
-	// Per-room event-log + per-thread event-log projections (#597
-	// phase 2). Both consume the full evt.room.> firehose; resolvers
-	// do all filtering and rendering at query time. v1 shape — we
-	// iterate significantly on this once we observe read patterns.
+	// Per-room event-log + per-thread event-log projections (#597 phase 2).
+	// Each owns an independent consumer and logical readiness contract.
 	roomTimeline := NewRoomTimelineProjection()
 	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
 

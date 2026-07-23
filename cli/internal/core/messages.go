@@ -85,6 +85,13 @@ func (options postMessageOptions) shouldScheduleVideoProcessingForID(assetID str
 
 const maxThreadCreateAppendAttempts = 5
 
+func (c *ChattoCore) waitForMessageBodyAssets(ctx context.Context, subject string, seq uint64) error {
+	if c.assetModel == nil || c.assetModel.AssetsProjector == nil {
+		return nil
+	}
+	return c.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))
+}
+
 func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events.Aggregate, threadRootEventID string) (bool, error) {
 	if threadRootEventID == "" {
 		return false, nil
@@ -127,6 +134,9 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggreg
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -228,6 +238,9 @@ func (c *ChattoCore) appendThreadReplyEcho(
 		if err == nil {
 			echoSeq := seqs[len(seqs)-1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
+				return echoID, true, err
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
 				return echoID, true, err
 			}
 			c.logger.Debug("Thread reply echo posted",
@@ -338,6 +351,9 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 		if err == nil {
 			messageSeq := seqs[len(seqs)-1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[1]); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -1152,6 +1168,9 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 		})
 		if err == nil {
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
+				return err
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
 				return err
 			}
 			return nil

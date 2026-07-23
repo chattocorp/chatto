@@ -107,7 +107,7 @@ func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID, r
 
 // AssetEventTimelineTarget resolves the current room timeline row affected by
 // a durable asset lifecycle event. Processing events carry their owning
-// message directly. Deletions recover ownership from the room timeline's
+// message directly. Deletions recover ownership from the asset projection's
 // durable message-to-asset index, including a processed derivative referenced
 // by an original message asset's manifest.
 func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, messageEventID string, ok bool) {
@@ -127,10 +127,10 @@ func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, mess
 	case *corev1.Event_AssetProcessingFailed:
 		messageEventID = payload.AssetProcessingFailed.GetMessageEventId()
 	case *corev1.Event_AssetDeleted:
-		if ownerRoomID, ownerMessageEventID, found := c.RoomTimeline.AssetMessageOwner(assetID); found {
+		if ownerRoomID, ownerMessageEventID, found := c.Assets.AssetMessageOwner(assetID); found {
 			return ownerRoomID, ownerMessageEventID, true
 		}
-		for _, owner := range c.RoomTimeline.MessageAssetOwners() {
+		for _, owner := range c.Assets.MessageAssetOwners() {
 			manifest, found := c.Assets.VideoAttachmentManifest(owner.AssetID)
 			if !found || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo() == nil {
 				continue

@@ -65,9 +65,11 @@ The bundled search provider owns the first locally checkpointed projection. It
 is registered by its runtime unit rather than by `ChattoCore`. It consumes only
 message body, message posting, message retraction, room deletion, user DEK
 generation, and user key shredding event families, and uses projector key
-`message_search`. During captured startup replay it commits up to 256 ordered
-events and the final checkpoint in one Bleve transaction, including a smaller
-final batch; once current, each relevant live event is committed immediately.
+`message_search`.
+
+During captured startup replay it commits up to 256 ordered events and the
+final checkpoint in one Bleve transaction, including a smaller final batch;
+once current, each relevant live event is committed immediately.
 Its checkpoint contract starts with `bleve-message-index-v8-` and includes a
 stable fingerprint of the configured language analyzer set, so changing that
 set forces a cold EVT replay.
@@ -154,7 +156,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
-| Threads, Room Directory, Server Config, Room Group Layout, Room Timeline, Call State, Assets, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Threads, Room Directory, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Room Timeline, Assets | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
@@ -163,8 +166,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
-| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
-| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
+| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, and direct message-post lookup |
+| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
@@ -190,12 +193,17 @@ OCC positions, such as Reactions and Call State. Threads reports the focused
 logical subjects above for waits and diagnostics; non-thread room facts are
 skipped before `Apply`.
 
-Room Timeline and Threads physically replay through one `evt.>` filter. Their
-logical room and key-shredding subjects still determine readiness and
-application. The projector rejects other subjects before protobuf decoding.
-This avoids JetStream's expensive multi-filter scan for a broad room wildcard
-combined with a sparse user event while preserving independent consumers and
-projection-local replay frontiers.
+Room Timeline, Threads, and Assets physically replay through one `evt.>` filter.
+Their narrower logical subjects still determine readiness and application. The
+projector rejects other subjects before protobuf decoding. This avoids
+JetStream's expensive multi-filter scans while preserving independent
+consumers and projection-local replay frontiers.
+
+Assets owns every asset-derived index. Message-body facts establish immutable
+message, room, and author ownership plus public link-preview references.
+Room Timeline retains only timeline rendering, body lifecycle, tombstone, echo,
+and current room-file indexes; it does not duplicate asset lifecycle state.
+Message-body writers wait for both projectors before returning.
 
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable projections decrypt login and email values only transiently

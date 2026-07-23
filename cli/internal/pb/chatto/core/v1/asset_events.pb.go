@@ -144,7 +144,7 @@ func (AssetProcessingFailureCode) EnumDescriptor() ([]byte, []int) {
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
 // time, before any message exists. Message ownership of an asset is derived
-// from MessagePostedEvent.asset_ids in the room-timeline projection.
+// from MessageBodyEvent.asset_ids in the asset projection.
 type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The asset record (content identity + storage).

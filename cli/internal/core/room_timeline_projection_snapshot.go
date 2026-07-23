@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomTimelineSnapshotContractID = "v1"
+const roomTimelineSnapshotContractID = "v2"
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -52,33 +52,6 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	}
 	snapshot.TombstonedAt = appendTimes(p.tombstonedAt)
 	snapshot.ShreddedAt = appendTimes(p.shreddedAt)
-	legacy := &corev1.AssetProjectionSnapshot{}
-	for _, assetID := range sortedMapKeys(p.assets.assetCreations) {
-		legacy.Creations = append(legacy.Creations, proto.Clone(p.assets.assetCreations[assetID]).(*corev1.AssetCreatedEvent))
-	}
-	for _, parentID := range sortedMapKeys(p.assets.assetChildren) {
-		legacy.Children = append(legacy.Children, &corev1.AssetChildrenSnapshot{ParentAssetId: parentID, ChildAssetIds: slices.Clone(p.assets.assetChildren[parentID])})
-	}
-	for _, assetID := range sortedMapKeys(p.assets.videoManifests) {
-		manifest := p.assets.videoManifests[assetID]
-		row := &corev1.AssetManifestSnapshot{AssetId: assetID}
-		if manifest.Started != nil {
-			row.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
-		}
-		if manifest.Succeeded != nil {
-			row.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
-		}
-		if manifest.Failed != nil {
-			row.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
-		}
-		legacy.Manifests = append(legacy.Manifests, row)
-	}
-	snapshot.LegacyAssets = legacy
-	for _, assetID := range sortedMapKeys(p.assets.messageOwners) {
-		owner := p.assets.messageOwners[assetID]
-		snapshot.AssetMessageOwners = append(snapshot.AssetMessageOwners, &corev1.AssetMessageOwnerSnapshot{AssetId: assetID, RoomId: owner.roomID, MessageEventId: owner.messageEventID})
-	}
-	snapshot.PublicLinkPreviewAssetIds = sortedMapKeys(p.assets.publicLinkPreviewAssets)
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
@@ -188,62 +161,6 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
-	assets := newRoomTimelineAssetIndex()
-	legacy := snapshot.GetLegacyAssets()
-	if legacy != nil {
-		for _, creation := range legacy.GetCreations() {
-			assetID := creation.GetAsset().GetId()
-			if assetID == "" {
-				return fmt.Errorf("room timeline snapshot has legacy asset without ID")
-			}
-			if _, duplicate := assets.assetCreations[assetID]; duplicate {
-				return fmt.Errorf("room timeline snapshot repeats legacy asset %q", assetID)
-			}
-			assets.assetCreations[assetID] = proto.Clone(creation).(*corev1.AssetCreatedEvent)
-		}
-		for _, row := range legacy.GetChildren() {
-			if row.GetParentAssetId() == "" {
-				return fmt.Errorf("room timeline snapshot has empty legacy asset parent")
-			}
-			if _, duplicate := assets.assetChildren[row.GetParentAssetId()]; duplicate {
-				return fmt.Errorf("room timeline snapshot repeats legacy asset parent")
-			}
-			assets.assetChildren[row.GetParentAssetId()] = slices.Clone(row.GetChildAssetIds())
-		}
-		for _, row := range legacy.GetManifests() {
-			if row.GetAssetId() == "" {
-				return fmt.Errorf("room timeline snapshot has empty legacy manifest ID")
-			}
-			if row.GetSucceeded() != nil && row.GetFailed() != nil {
-				return fmt.Errorf("room timeline snapshot legacy manifest has two outcomes")
-			}
-			manifest := &VideoAttachmentManifest{}
-			if row.GetStarted() != nil {
-				manifest.Started = proto.Clone(row.GetStarted()).(*corev1.AssetProcessingStartedEvent)
-			}
-			if row.GetSucceeded() != nil {
-				manifest.Succeeded = proto.Clone(row.GetSucceeded()).(*corev1.AssetProcessingSucceededEvent)
-			}
-			if row.GetFailed() != nil {
-				manifest.Failed = proto.Clone(row.GetFailed()).(*corev1.AssetProcessingFailedEvent)
-			}
-			assets.videoManifests[row.GetAssetId()] = manifest
-		}
-	}
-	for _, row := range snapshot.GetAssetMessageOwners() {
-		if row.GetAssetId() == "" || row.GetRoomId() == "" || row.GetMessageEventId() == "" {
-			return fmt.Errorf("room timeline snapshot has invalid asset owner")
-		}
-		if _, duplicate := assets.messageOwners[row.GetAssetId()]; duplicate {
-			return fmt.Errorf("room timeline snapshot repeats asset owner")
-		}
-		assets.messageOwners[row.GetAssetId()] = assetMessageRef{roomID: row.GetRoomId(), messageEventID: row.GetMessageEventId()}
-	}
-	assets.publicLinkPreviewAssets, err = fillSet(snapshot.GetPublicLinkPreviewAssetIds())
-	if err != nil {
-		return fmt.Errorf("room timeline public preview assets: %w", err)
-	}
-	restored.assets = assets
 	for messageID, body := range restored.latestBody {
 		entry, ok := restored.entryByEventIDLocked(messageID)
 		if !ok || entry.Event == nil {
@@ -253,7 +170,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.refreshAttachmentMessageLocked(roomID, messageID, body)
 	}
 	p.Lock()
-	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.replayGuard, p.latestBody, p.bodyEventSeqs, p.currentBodySeq, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.assets, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.replayGuard, restored.latestBody, restored.bodyEventSeqs, restored.currentBodySeq, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.assets, restored.shreddedUsers
+	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.replayGuard, p.latestBody, p.bodyEventSeqs, p.currentBodySeq, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.replayGuard, restored.latestBody, restored.bodyEventSeqs, restored.currentBodySeq, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
 	p.Unlock()
 	return nil
 }

@@ -204,6 +204,8 @@ message AssetProjectionSnapshot {
   repeated AssetManifestSnapshot manifests = 3;
   repeated DeletedAssetSnapshot deleted_assets = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated AssetMessageOwnerSnapshot message_owners = 6;
+  repeated string public_link_preview_asset_ids = 7;
 }
 
 message AssetChildrenSnapshot {
@@ -295,6 +297,9 @@ message ProjectedVerifiedEmailSnapshot {
 }
 
 message RoomTimelineProjectionSnapshot {
+  reserved 8, 9, 10;
+  reserved "legacy_assets", "asset_message_owners", "public_link_preview_asset_ids";
+
   repeated TimelineEntrySnapshot entries = 1;
   repeated TimelineBodySnapshot bodies = 2;
   repeated StringTimestampSnapshot tombstoned_at = 3;
@@ -302,9 +307,6 @@ message RoomTimelineProjectionSnapshot {
   repeated string retracted_event_ids = 5;
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
-  AssetProjectionSnapshot legacy_assets = 8;
-  repeated AssetMessageOwnerSnapshot asset_message_owners = 9;
-  repeated string public_link_preview_asset_ids = 10;
   ProjectionReplayGuardSnapshot replay_guard = 11;
 }
 
@@ -329,4 +331,5 @@ message AssetMessageOwnerSnapshot {
   string asset_id = 1;
   string room_id = 2;
   string message_event_id = 3;
+  string author_id = 4;
 }

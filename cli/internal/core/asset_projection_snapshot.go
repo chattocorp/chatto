@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const assetSnapshotContractID = "v1"
+const assetSnapshotContractID = "v2"
 
 func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContractID }
 
@@ -42,6 +42,16 @@ func (p *AssetProjection) Snapshot() ([]byte, error) {
 	for _, assetID := range sortedMapKeys(p.deletedAssets) {
 		snapshot.DeletedAssets = append(snapshot.DeletedAssets, &corev1.DeletedAssetSnapshot{AssetId: assetID, RoomId: p.deletedAssetRoom[assetID]})
 	}
+	for _, assetID := range sortedMapKeys(p.messageOwners) {
+		owner := p.messageOwners[assetID]
+		snapshot.MessageOwners = append(snapshot.MessageOwners, &corev1.AssetMessageOwnerSnapshot{
+			AssetId:        assetID,
+			RoomId:         owner.roomID,
+			MessageEventId: owner.messageEventID,
+			AuthorId:       owner.authorID,
+		})
+	}
+	snapshot.PublicLinkPreviewAssetIds = sortedMapKeys(p.publicLinkPreviewAssets)
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
@@ -127,8 +137,32 @@ func (p *AssetProjection) Restore(data []byte) error {
 			deletedRooms[row.GetAssetId()] = row.GetRoomId()
 		}
 	}
+	messageOwners := make(map[string]assetMessageRef, len(snapshot.GetMessageOwners()))
+	for _, row := range snapshot.GetMessageOwners() {
+		if row.GetAssetId() == "" || row.GetRoomId() == "" || row.GetMessageEventId() == "" {
+			return fmt.Errorf("asset snapshot has invalid message owner")
+		}
+		if _, duplicate := messageOwners[row.GetAssetId()]; duplicate {
+			return fmt.Errorf("asset snapshot repeats message owner %q", row.GetAssetId())
+		}
+		messageOwners[row.GetAssetId()] = assetMessageRef{
+			roomID:         row.GetRoomId(),
+			messageEventID: row.GetMessageEventId(),
+			authorID:       row.GetAuthorId(),
+		}
+	}
+	publicLinkPreviewAssets := make(map[string]struct{}, len(snapshot.GetPublicLinkPreviewAssetIds()))
+	for _, assetID := range snapshot.GetPublicLinkPreviewAssetIds() {
+		if assetID == "" {
+			return fmt.Errorf("asset snapshot has empty public link preview asset ID")
+		}
+		if _, duplicate := publicLinkPreviewAssets[assetID]; duplicate {
+			return fmt.Errorf("asset snapshot repeats public link preview asset %q", assetID)
+		}
+		publicLinkPreviewAssets[assetID] = struct{}{}
+	}
 	p.Lock()
-	p.assetCreations, p.assetChildren, p.videoManifests, p.deletedAssets, p.deletedAssetRoom, p.replayGuard = creations, children, manifests, deleted, deletedRooms, guard
+	p.assetCreations, p.assetChildren, p.videoManifests, p.deletedAssets, p.deletedAssetRoom, p.messageOwners, p.publicLinkPreviewAssets, p.replayGuard = creations, children, manifests, deleted, deletedRooms, messageOwners, publicLinkPreviewAssets, guard
 	p.Unlock()
 	return nil
 }

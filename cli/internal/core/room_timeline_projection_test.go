@@ -790,23 +790,6 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 	applyAll(t, p, []*corev1.Event{
 		post,
 		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", []string{"A-video"}, 2),
-		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
-		&corev1.Event{
-			Id: "ENV-VIDEO-START",
-			Event: &corev1.Event_AssetProcessingStarted{
-				AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A-video", MessageEventId: "ENV-M1"},
-			},
-		},
-		&corev1.Event{
-			Id: "ENV-VIDEO-OK",
-			Event: &corev1.Event_AssetProcessingSucceeded{
-				AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-					AssetId:        "A-video",
-					MessageEventId: "ENV-M1",
-					Video:          &corev1.AssetProcessedVideo{DurationMs: 1200},
-				},
-			},
-		},
 		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-M1", at: 6}),
 		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-M1", at: 7}),
 		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 8),
@@ -821,9 +804,6 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"message_posts_by_room_index",
 		"applied_event_ids",
 		"body_event_seqs",
-		"asset_creations",
-		"video_manifests",
-		"asset_message_owner_index",
 		"hidden_echoes",
 		"tombstoned_at_index",
 	} {
@@ -859,148 +839,6 @@ func TestRoomTimeline_Idempotency(t *testing.T) {
 	}
 	if got := p.RoomEventCount("R1"); got != 1 {
 		t.Errorf("RoomEventCount after duplicate Apply = %d, want 1", got)
-	}
-}
-
-func TestRoomTimeline_VideoManifestTerminalStateDoesNotRegress(t *testing.T) {
-	p := NewRoomTimelineProjection()
-	processed := &corev1.Event{
-		Id: "ENV-VIDEO-OK",
-		Event: &corev1.Event_AssetProcessingSucceeded{
-			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId: "A-video",
-				Video: &corev1.AssetProcessedVideo{
-					DurationMs: 1200,
-					Width:      640,
-					Height:     360,
-					Variants: []*corev1.AssetVideoVariant{{
-						Quality: "480p",
-						AssetId: "A-video-480",
-					}},
-				},
-			},
-		},
-	}
-	failed := &corev1.Event{
-		Id: "ENV-VIDEO-FAIL",
-		Event: &corev1.Event_AssetProcessingFailed{
-			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{
-				AssetId:     "A-video",
-				FailureCode: corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING,
-			},
-		},
-	}
-
-	applyAll(t, p, []*corev1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), processed, failed})
-	manifest, ok := p.VideoAttachmentManifest("A-video")
-	if !ok || manifest.Succeeded == nil {
-		t.Fatalf("VideoAttachmentManifest = %#v, want original processed manifest", manifest)
-	}
-	video := manifest.Succeeded.GetVideo()
-	if video.GetDurationMs() != 1200 || len(video.GetVariants()) != 1 {
-		t.Errorf("processed manifest = %+v, want duration and one variant", manifest.Succeeded)
-	}
-
-	manifest.Succeeded.GetVideo().Variants[0].Quality = "mutated"
-	again, _ := p.VideoAttachmentManifest("A-video")
-	if again.Succeeded.GetVideo().Variants[0].Quality != "480p" {
-		t.Error("VideoAttachmentManifest should return clones")
-	}
-}
-
-func TestRoomTimeline_UnmanifestedVideoAttachments(t *testing.T) {
-	p := NewRoomTimelineProjection()
-	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-	processed := &corev1.Event{
-		Id: "ENV-VIDEO-OK",
-		Event: &corev1.Event_AssetProcessingSucceeded{
-			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
-				AssetId: "A-video",
-				Video:   &corev1.AssetProcessedVideo{},
-			},
-		},
-	}
-
-	// New uploads emit AssetCreatedEvent with an empty message_event_id
-	// (the message doesn't exist yet at upload time). Message ownership is
-	// reconstructed from the posting message's body asset_ids, so recovery must
-	// still find A-video without relying on the deprecated field.
-	applyAll(t, p, []*corev1.Event{
-		post,
-		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video", "A-image"}, 2),
-		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
-		attachmentDeclaredEvent("R1", "A-image", "image/png"),
-	})
-	got := p.UnmanifestedVideoAttachments()
-	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
-		t.Fatalf("UnmanifestedVideoAttachments before manifest = %+v, want A-video", got)
-	}
-	if got[0].RoomID != "R1" || got[0].MessageEventID != "ENV-M1" {
-		t.Fatalf("UnmanifestedVideoAttachments ownership = room %q msg %q, want R1/ENV-M1", got[0].RoomID, got[0].MessageEventID)
-	}
-	applyAll(t, p, []*corev1.Event{processed})
-	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
-		t.Fatalf("UnmanifestedVideoAttachments after manifest = %+v, want none", got)
-	}
-}
-
-// A retracted message's video must not be re-enqueued by boot recovery —
-// it's no longer visible, so transcoding it again is wasted work.
-func TestRoomTimeline_UnmanifestedVideoAttachments_SkipsRetracted(t *testing.T) {
-	p := NewRoomTimelineProjection()
-	post := postedEvent(postedOpts{envelopeID: "ENV-M1", eventID: "M1", roomID: "R1", actorID: "U1", at: 1})
-
-	applyAll(t, p, []*corev1.Event{
-		post,
-		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "", []string{"A-video"}, 2),
-		attachmentDeclaredEvent("R1", "A-video", "video/mp4"),
-	})
-	if got := p.UnmanifestedVideoAttachments(); len(got) != 1 {
-		t.Fatalf("UnmanifestedVideoAttachments before retract = %+v, want A-video", got)
-	}
-
-	retract := &corev1.Event{
-		Id: "ENV-RETRACT",
-		Event: &corev1.Event_MessageRetracted{
-			MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "ENV-M1"},
-		},
-	}
-	applyAll(t, p, []*corev1.Event{retract})
-	if got := p.UnmanifestedVideoAttachments(); len(got) != 0 {
-		t.Fatalf("UnmanifestedVideoAttachments after retract = %+v, want none", got)
-	}
-}
-
-// A cyclic derivative parent chain in (corrupt/replayed) EVT data must not
-// loop forever while the projection mutex is held — the room walk is
-// cycle-guarded.
-func TestRoomTimeline_RoomIDOfAssetCreated_CycleGuardDoesNotHang(t *testing.T) {
-	p := NewRoomTimelineProjection()
-	// Two roomless derivatives that name each other as parent. Applying the
-	// second triggers the full A→B→A walk; without the guard this recurses
-	// forever. The test simply has to return.
-	cyclicAsset := func(id, parentID string) *corev1.Event {
-		return &corev1.Event{
-			Id: "ENV-" + id,
-			Event: &corev1.Event_AssetCreated{
-				AssetCreated: &corev1.AssetCreatedEvent{
-					Asset:         &corev1.AssetRecord{Id: id, ContentType: "video/mp4"},
-					ParentAssetId: parentID,
-				},
-			},
-		}
-	}
-	applyAll(t, p, []*corev1.Event{cyclicAsset("A", "B"), cyclicAsset("B", "A")})
-	// A processing event for the cyclic asset resolves its room via the walk;
-	// the guard yields "" and the event is dropped rather than hanging.
-	started := &corev1.Event{
-		Id: "ENV-START",
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A"},
-		},
-	}
-	if err := p.Apply(started, 3); err != nil {
-		t.Fatalf("Apply started: %v", err)
 	}
 }
 
