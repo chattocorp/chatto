@@ -1526,7 +1526,7 @@ func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
 			t.Fatalf("ArchiveRoom failed: %v", err)
 		}
 
-		_, err = core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		_, err = core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if !errors.Is(err, ErrRoomArchived) {
 			t.Errorf("Expected ErrRoomArchived reacting in archived room, got: %v", err)
 		}

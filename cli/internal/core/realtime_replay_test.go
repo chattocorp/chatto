@@ -208,10 +208,10 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 		t.Fatalf("initial replay plan = %+v", before)
 	}
 
-	if added, err := chatto.AddReaction(ctx, KindChannel, room.Id, messageEventID, "thumbsup", user.Id); err != nil || !added {
+	if added, err := chatto.ReactionModel().addReaction(ctx, KindChannel, room.Id, messageEventID, "thumbsup", user.Id); err != nil || !added {
 		t.Fatalf("AddReaction = %v, %v", added, err)
 	}
-	if removed, err := chatto.RemoveReaction(ctx, KindChannel, room.Id, messageEventID, "thumbsup", user.Id); err != nil || !removed {
+	if removed, err := chatto.ReactionModel().removeReaction(ctx, KindChannel, room.Id, messageEventID, "thumbsup", user.Id); err != nil || !removed {
 		t.Fatalf("RemoveReaction = %v, %v", removed, err)
 	}
 

@@ -21,9 +21,8 @@ func (c *ChattoCore) ReactionModel() *ReactionModel {
 	return c.reactionModel
 }
 
-// ReactionModel owns user-facing reaction mutations. Lower-level ChattoCore
-// helpers still perform the event-sourced write and OCC behavior, while this
-// model centralizes public API authorization.
+// ReactionModel owns user-facing reaction authorization, event-sourced writes,
+// OCC retries, and projection readiness.
 type ReactionModel struct {
 	core *ChattoCore
 }
@@ -35,7 +34,7 @@ func (s *ReactionModel) AddReaction(ctx context.Context, input ReactionMutationI
 	if err != nil {
 		return false, err
 	}
-	return s.core.AddReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
+	return s.addReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
 }
 
 // RemoveReaction removes actorID's reaction from a message. Authorization:
@@ -45,7 +44,7 @@ func (s *ReactionModel) RemoveReaction(ctx context.Context, input ReactionMutati
 	if err != nil {
 		return false, err
 	}
-	return s.core.RemoveReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
+	return s.removeReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
 }
 
 func (s *ReactionModel) authorizeReaction(ctx context.Context, input ReactionMutationInput) (RoomKind, error) {

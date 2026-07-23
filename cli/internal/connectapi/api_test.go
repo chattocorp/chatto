@@ -6537,10 +6537,14 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	env.post(room.Id, replier.Id, "reply", root.Id)
-	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", env.viewer.Id); err != nil {
+	if _, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: env.viewer.Id, RoomID: room.Id, MessageEventID: root.Id, Emoji: "thumbsup",
+	}); err != nil {
 		t.Fatalf("AddReaction viewer: %v", err)
 	}
-	if _, err := env.core.AddReaction(env.ctx, core.KindChannel, room.Id, root.Id, "thumbsup", replier.Id); err != nil {
+	if _, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{
+		ActorID: replier.Id, RoomID: room.Id, MessageEventID: root.Id, Emoji: "thumbsup",
+	}); err != nil {
 		t.Fatalf("AddReaction replier: %v", err)
 	}
 
