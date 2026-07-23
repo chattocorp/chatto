@@ -1832,6 +1832,22 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleAssign); err != nil {
 		t.Fatalf("GrantServerPermission role.assign: %v", err)
 	}
+	threadRoot := env.post(room.Id, env.viewer.Id, "viewer thread root", "")
+	if err := env.core.FollowThread(env.ctx, core.KindChannel, env.viewer.Id, room.Id, threadRoot.Id); err != nil {
+		t.Fatalf("FollowThread viewer: %v", err)
+	}
+	if _, err := env.core.CreateNotification(env.ctx, env.viewer.Id, core.SystemActorID, &corev1.Notification{
+		Notification: &corev1.Notification_Reply{
+			Reply: &corev1.ReplyNotification{
+				RoomId:      room.Id,
+				EventId:     "viewer-thread-reply",
+				InReplyToId: threadRoot.Id,
+				InThread:    threadRoot.Id,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("CreateNotification viewer thread: %v", err)
+	}
 
 	resp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
@@ -1874,6 +1890,9 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	if apiCapabilityGranted(resp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
 		t.Fatalf("viewer system capability = true for regular viewer, want false")
+	}
+	if !resp.Msg.GetCapabilities().GetHasPendingFollowedThreadNotifications() {
+		t.Fatal("viewer pending followed-thread notifications = false, want true")
 	}
 	if resp.Msg.GetViewerPermissions() == nil {
 		t.Fatal("ViewerPermissions = nil")
@@ -5039,6 +5058,9 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	if echoEvent == nil || echoEvent.GetMessagePosted() == nil {
 		t.Fatalf("echo event %s missing from room page", echoID)
 	}
+	if got := echoEvent.GetMessagePosted().GetMessage().GetThread(); got != nil {
+		t.Fatalf("echo thread summary = %+v, want nil", got)
+	}
 	if got := echoEvent.GetMessagePosted().GetMessage().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
 		t.Fatalf("echo reactions = %+v, want thumbsup count 1 hasReacted", got)
 	}
@@ -7300,9 +7322,29 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	if got := rootMessage.GetBody(); got != "root body" {
 		t.Fatalf("root message body = %q, want root body", got)
 	}
+	if !rootMessage.GetThread().GetViewerState().GetHasUnread() {
+		t.Fatal("root message thread viewer state has_unread = false, want true")
+	}
 	users := resp.Msg.GetIncludes().GetUsers()
 	if users[env.viewer.Id] == nil || users[participant.Id] == nil {
 		t.Fatalf("includes users missing viewer or participant: got %d included users", len(users))
+	}
+
+	if _, err := env.core.SetThreadLastOpened(env.ctx, core.KindChannel, env.viewer.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("SetThreadLastOpened: %v", err)
+	}
+	resp, err = env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page:       &apiv1.PageRequest{Limit: 20},
+		UnreadOnly: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads unread only: %v", err)
+	}
+	if len(resp.Msg.GetThreads()) != 0 || resp.Msg.GetPage().GetTotalCount() != 0 {
+		t.Fatalf("read thread returned by unread-only list: threads %d total %d", len(resp.Msg.GetThreads()), resp.Msg.GetPage().GetTotalCount())
+	}
+	if !resp.Msg.GetUnreadOnly() {
+		t.Fatal("unread-only response did not confirm that the filter was applied")
 	}
 }
 

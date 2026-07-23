@@ -240,7 +240,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		}
 	}
 
-	if payload.GetInThread() == "" {
+	if payload.GetInThread() == "" && payload.GetEchoOfEventId() == "" {
 		thread := &apiv1.ThreadSummary{
 			ThreadRootEventId: event.Id,
 		}
@@ -261,7 +261,21 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		if err != nil {
 			return nil, err
 		}
-		thread.ViewerState = &apiv1.ThreadViewerState{IsFollowing: &following}
+		hasUnread := false
+		if metadata != nil {
+			hasUnread = h.api.core.ThreadHasUnread(
+				ctx,
+				h.kind,
+				h.viewerID,
+				payload.GetRoomId(),
+				event.Id,
+				metadata.LastReplyAt,
+			)
+		}
+		thread.ViewerState = &apiv1.ThreadViewerState{
+			IsFollowing: &following,
+			HasUnread:   &hasUnread,
+		}
 		message.Thread = thread
 	}
 

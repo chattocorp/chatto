@@ -42,7 +42,8 @@
     pendingReply = null,
     onHighlightComplete,
     onQuoteConsumed,
-    onReplyConsumed
+    onReplyConsumed,
+    onMarkedRead
   }: {
     roomId: string;
     roomName: string;
@@ -57,6 +58,7 @@
     onHighlightComplete?: () => void;
     onQuoteConsumed?: () => void;
     onReplyConsumed?: () => void;
+    onMarkedRead?: () => void;
   } = $props();
 
   const connection = useConnection();
@@ -314,6 +316,7 @@
         bearerToken: conn.bearerToken
       }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
       void serverStore.rooms.refreshUnreadFollowedThreads();
+      onMarkedRead?.();
       return result;
     } catch (err) {
       console.error('Failed to mark thread as read:', err);

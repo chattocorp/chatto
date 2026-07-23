@@ -331,6 +331,8 @@
           <MyThreadsNavItem
             active={isMyThreadsActive}
             hasUnread={serverRegistry.getStore(getActiveServer()).rooms.hasUnreadFollowedThreads}
+            hasNotification={serverRegistry.getStore(getActiveServer()).rooms
+              .hasPendingFollowedThreadNotifications}
           />
         </nav>
 

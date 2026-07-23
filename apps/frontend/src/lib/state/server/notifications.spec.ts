@@ -312,9 +312,19 @@ describe('NotificationStore', () => {
       summary: 'sent you a message',
       room: { id: 'dm-room' }
     } as unknown as NotificationItem;
+    const threadMention = {
+      kind: NotificationItemKind.Mention,
+      id: 'thread-mention-kind',
+      createdAt: new Date().toISOString(),
+      actor: null,
+      summary: 'mentioned you',
+      mentionRoom: { id: 'room-kind', name: 'general' },
+      mentionEventId: 'mention-event',
+      mentionInThread: 'mentioned-thread-root'
+    } as unknown as NotificationItem;
 
     const store = new NotificationStore(makeAPI());
-    store.notifications = [threadReply, dm];
+    store.notifications = [threadReply, threadMention, dm];
 
     expect(notificationTarget(threadReply)).toMatchObject({
       isDM: false,
@@ -323,6 +333,7 @@ describe('NotificationStore', () => {
       threadRootId: 'thread-root'
     });
     expect(store.hasThreadNotification('thread-root')).toBe(true);
+    expect(store.hasThreadNotification('mentioned-thread-root')).toBe(true);
     expect(store.hasDMRoomNotification('dm-room')).toBe(true);
   });
 

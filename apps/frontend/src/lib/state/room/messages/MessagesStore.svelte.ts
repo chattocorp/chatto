@@ -328,6 +328,24 @@ export class MessagesStore {
     };
   }
 
+  /** Clear unread state on a known thread root after its read marker advances. */
+  markThreadRead(threadRootEventId: string): void {
+    const idx = this.events.findIndex((event) => event.id === threadRootEventId);
+    if (idx === -1) return;
+
+    const rootEvent = this.events[idx];
+    if (!isMessagePostedPayload(rootEvent.event)) return;
+    if (rootEvent.event.viewerHasUnreadThread === false) return;
+
+    this.events[idx] = {
+      ...rootEvent,
+      event: {
+        ...rootEvent.event,
+        viewerHasUnreadThread: false
+      }
+    };
+  }
+
   /** Fetch an off-window event for previews. Transient errors are not cached. */
   ensureEvent(eventId: string): Promise<void> | undefined {
     if (!this.roomId) return undefined;
@@ -1351,6 +1369,7 @@ export class MessagesStore {
         replyCount: rootEvent.event.replyCount + 1,
         lastReplyAt: spaceEvent.createdAt,
         viewerIsFollowingThread,
+        viewerHasUnreadThread: !viewerIsReplier,
         threadParticipants:
           isNewParticipant && spaceEvent.actor
             ? [...existingParticipants, spaceEvent.actor]

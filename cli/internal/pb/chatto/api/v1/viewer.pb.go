@@ -233,8 +233,10 @@ type ViewerCapabilities struct {
 	Grants []*CapabilityGrant `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
 	// Whether the user has unread followed threads.
 	HasUnreadFollowedThreads bool `protobuf:"varint,2,opt,name=has_unread_followed_threads,json=hasUnreadFollowedThreads,proto3" json:"has_unread_followed_threads,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Whether a followed channel thread has a pending notification.
+	HasPendingFollowedThreadNotifications bool `protobuf:"varint,3,opt,name=has_pending_followed_thread_notifications,json=hasPendingFollowedThreadNotifications,proto3" json:"has_pending_followed_thread_notifications,omitempty"`
+	unknownFields                         protoimpl.UnknownFields
+	sizeCache                             protoimpl.SizeCache
 }
 
 func (x *ViewerCapabilities) Reset() {
@@ -277,6 +279,13 @@ func (x *ViewerCapabilities) GetGrants() []*CapabilityGrant {
 func (x *ViewerCapabilities) GetHasUnreadFollowedThreads() bool {
 	if x != nil {
 		return x.HasUnreadFollowedThreads
+	}
+	return false
+}
+
+func (x *ViewerCapabilities) GetHasPendingFollowedThreadNotifications() bool {
+	if x != nil {
+		return x.HasPendingFollowedThreadNotifications
 	}
 	return false
 }
@@ -575,10 +584,11 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
 	"\aprofile\x18\v \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12!\n" +
 	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
-	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
+	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\xe5\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
 	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
-	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\"[\n" +
+	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\x12X\n" +
+	")has_pending_followed_thread_notifications\x18\x03 \x01(\bR%hasPendingFollowedThreadNotifications\"[\n" +
 	"\x17ServerViewerPermissions\x12@\n" +
 	"\vpermissions\x18\x01 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\"=\n" +
 	"\x11ServerViewerState\x12(\n" +

@@ -233,6 +233,77 @@ func TestCreateNotification(t *testing.T) {
 	})
 }
 
+func TestHasPendingFollowedThreadNotifications(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "thread-notifications", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	follower, err := core.CreateUser(ctx, SystemActorID, "thread-follower", "Thread Follower", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser follower: %v", err)
+	}
+	author, err := core.CreateUser(ctx, SystemActorID, "thread-author", "Thread Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, follower.Id, KindChannel, follower.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom follower: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if err := core.FollowThread(ctx, KindChannel, follower.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+
+	hasPending, err := core.HasPendingFollowedThreadNotifications(ctx, follower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)})
+	if err != nil {
+		t.Fatalf("HasPendingFollowedThreadNotifications before notification: %v", err)
+	}
+	if hasPending {
+		t.Fatal("HasPendingFollowedThreadNotifications = true before notification")
+	}
+
+	if _, err := core.CreateNotification(ctx, follower.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Reply{
+			Reply: &corev1.ReplyNotification{
+				RoomId:      room.Id,
+				EventId:     "reply-event",
+				InReplyToId: root.Id,
+				InThread:    root.Id,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("CreateNotification: %v", err)
+	}
+
+	hasPending, err = core.HasPendingFollowedThreadNotifications(ctx, follower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)})
+	if err != nil {
+		t.Fatalf("HasPendingFollowedThreadNotifications after notification: %v", err)
+	}
+	if !hasPending {
+		t.Fatal("HasPendingFollowedThreadNotifications = false for followed thread notification")
+	}
+
+	if err := core.UnfollowThread(ctx, KindChannel, follower.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("UnfollowThread: %v", err)
+	}
+	hasPending, err = core.HasPendingFollowedThreadNotifications(ctx, follower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)})
+	if err != nil {
+		t.Fatalf("HasPendingFollowedThreadNotifications after unfollow: %v", err)
+	}
+	if hasPending {
+		t.Fatal("HasPendingFollowedThreadNotifications = true for unfollowed thread")
+	}
+}
+
 func TestGetNotifications(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()

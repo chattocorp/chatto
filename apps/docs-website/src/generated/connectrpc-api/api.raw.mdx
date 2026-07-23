@@ -2834,6 +2834,7 @@ Request for a page of followed threads for the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `unread_only` | `bool` | When true, returns only threads with unread replies. |
 
 
 <a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
@@ -2847,6 +2848,7 @@ Response containing one followed-thread page.
 | `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
 | `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `unread_only` | `bool` | True when the response is restricted to threads with unread replies. |
 
 
 <a id="chatto-api-v1-ThreadService-FollowThread"></a>
@@ -3513,6 +3515,7 @@ Permission-derived capabilities for the authenticated user.
 | --- | --- | --- |
 | `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
 | `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+| `has_pending_followed_thread_notifications` | `bool` | Whether a followed channel thread has a pending notification. |
 
 
 

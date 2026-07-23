@@ -23,7 +23,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	}
 
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultFollowedThreadLimit, maxFollowedThreadLimit)
-	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, limit, offset)
+	page, err := s.api.core.ThreadFollows().ListFollowedThreads(ctx, caller.UserID, req.Msg.GetUnreadOnly(), limit, offset)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -32,6 +32,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, connectError(err)
 	}
+	resp.UnreadOnly = req.Msg.GetUnreadOnly()
 	return connect.NewResponse(resp), nil
 }
 

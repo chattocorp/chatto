@@ -137,6 +137,7 @@ describe('getCurrentUserViaConnect', () => {
       },
       capabilities: {
         hasUnreadFollowedThreads: true,
+        hasPendingFollowedThreadNotifications: true,
         grants: [
           { capability: 'admin.view', granted: true },
           { capability: 'dm.start', granted: true },
@@ -190,6 +191,7 @@ describe('getCurrentUserViaConnect', () => {
         canAdminViewAudit: true,
         canManageUserPermissions: true,
         viewerHasUnreadFollowedThreads: true,
+        viewerHasPendingFollowedThreadNotifications: true,
         serverNotificationPreference: {
           level: NotificationLevel.AllMessages,
           effectiveLevel: NotificationLevel.AllMessages

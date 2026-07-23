@@ -1534,7 +1534,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.ingestEvent(returnedReply as never);
     store.ingestServerEvent(returnedReply as never);
 
-    expect(store.rootEvents[0].event).toMatchObject({ replyCount: 1 });
+    expect(store.rootEvents[0].event).toMatchObject({
+      replyCount: 1,
+      viewerHasUnreadThread: true
+    });
+    store.markThreadRead('t1');
+    expect(store.rootEvents[0].event).toMatchObject({ viewerHasUnreadThread: false });
     store.dispose();
   });
 

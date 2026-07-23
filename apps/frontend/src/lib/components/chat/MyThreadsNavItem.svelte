@@ -5,7 +5,11 @@
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import * as m from '$lib/i18n/messages';
 
-  let { active, hasUnread }: { active: boolean; hasUnread: boolean } = $props();
+  let {
+    active,
+    hasUnread,
+    hasNotification
+  }: { active: boolean; hasUnread: boolean; hasNotification: boolean } = $props();
 </script>
 
 <a
@@ -14,7 +18,9 @@
 >
   <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
   {m['chat.threads.title']()}
-  {#if hasUnread}
+  {#if hasNotification}
     <UnreadDot class="ml-auto" testid="my-threads-unread-dot" />
+  {:else if hasUnread}
+    <UnreadDot color="primary" class="ml-auto" testid="my-threads-unread-dot" />
   {/if}
 </a>

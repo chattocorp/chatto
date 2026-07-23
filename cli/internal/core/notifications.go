@@ -315,6 +315,73 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 	return count, nil
 }
 
+// HasPendingFollowedThreadNotifications reports whether a pending notification
+// belongs to a thread the user currently follows in one of the requested
+// spaces.
+func (c *ChattoCore) HasPendingFollowedThreadNotifications(ctx context.Context, userID string, spaceIDs []string) (bool, error) {
+	notifications, err := c.GetNotifications(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	allowedKinds := make(map[RoomKind]struct{}, len(spaceIDs))
+	for _, spaceID := range spaceIDs {
+		allowedKinds[RoomKindFromLegacySpaceID(spaceID)] = struct{}{}
+	}
+
+	for _, notification := range notifications {
+		roomID, threadRootEventID := notificationThreadTarget(notification)
+		if roomID == "" || threadRootEventID == "" {
+			continue
+		}
+
+		room, err := c.FindRoomByID(ctx, roomID)
+		if err != nil {
+			c.logger.Warn("Skipping followed-thread notification with unavailable room",
+				"room_id", roomID,
+				"thread_root_event_id", threadRootEventID,
+				"error", err)
+			continue
+		}
+		kind := KindOfRoom(room)
+		if _, ok := allowedKinds[kind]; !ok {
+			continue
+		}
+
+		isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
+		if err != nil {
+			return false, err
+		}
+		if !isMember {
+			continue
+		}
+
+		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
+		if err != nil {
+			return false, err
+		}
+		if following {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func notificationThreadTarget(notification *corev1.Notification) (roomID, threadRootEventID string) {
+	if notification == nil {
+		return "", ""
+	}
+	switch payload := notification.GetNotification().(type) {
+	case *corev1.Notification_Mention:
+		return payload.Mention.GetRoomId(), payload.Mention.GetInThread()
+	case *corev1.Notification_Reply:
+		return payload.Reply.GetRoomId(), payload.Reply.GetInThread()
+	default:
+		return "", ""
+	}
+}
+
 func (c *ChattoCore) GetRoomNotificationsForMember(ctx context.Context, actorID, roomID string) ([]*corev1.Notification, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err

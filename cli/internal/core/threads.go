@@ -798,7 +798,7 @@ func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, room
 // spaces, sorted by last activity (newest first).
 // Authorization: Caller must verify space membership before calling.
 func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
-	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, 0, 0)
+	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, false, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -806,11 +806,11 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 }
 
 // ListFollowedThreadsPage returns followed threads for the user in the given
-// spaces, sorted by last activity (newest first), with pagination applied before
-// per-thread read-marker lookups.
+// spaces, sorted by last activity (newest first). When unreadOnly is true, the
+// unread filter is applied before pagination.
 //
 // Authorization: Caller must verify space membership before calling.
-func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, limit, offset int) (*FollowedThreadsPage, error) {
+func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, unreadOnly bool, limit, offset int) (*FollowedThreadsPage, error) {
 	var allThreads []*FollowedThread
 
 	for _, spaceID := range spaceIDs {
@@ -833,6 +833,17 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 		return allThreads[i].LastReplyAt.After(*allThreads[j].LastReplyAt)
 	})
 
+	if unreadOnly {
+		unreadThreads := make([]*FollowedThread, 0, len(allThreads))
+		for _, thread := range allThreads {
+			thread.HasUnread = c.followedThreadHasUnread(ctx, userID, thread)
+			if thread.HasUnread {
+				unreadThreads = append(unreadThreads, thread)
+			}
+		}
+		allThreads = unreadThreads
+	}
+
 	totalCount := len(allThreads)
 	if offset < 0 {
 		offset = 0
@@ -854,8 +865,10 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 		pageThreads = allThreads[offset:]
 	}
 
-	for _, thread := range pageThreads {
-		thread.HasUnread = c.followedThreadHasUnread(ctx, userID, thread)
+	if !unreadOnly {
+		for _, thread := range pageThreads {
+			thread.HasUnread = c.followedThreadHasUnread(ctx, userID, thread)
+		}
 	}
 
 	return &FollowedThreadsPage{
@@ -899,6 +912,11 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 			continue
 		}
 
+		if _, err := c.requireThreadRoot(ctx, kind, roomID, threadRootEventID); err != nil {
+			c.logger.Warn("Skipping followed thread with invalid root", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
+			continue
+		}
+
 		// Get thread metadata (reply count, last reply, participants)
 		metadata, err := c.GetThreadMetadata(ctx, kind, roomID, threadRootEventID)
 		if err != nil {
@@ -924,11 +942,21 @@ func (c *ChattoCore) followedThreadHasUnread(ctx context.Context, userID string,
 		return false
 	}
 	kind := RoomKindFromLegacySpaceID(thread.SpaceID)
-	lastOpened, err := c.GetThreadLastOpened(ctx, kind, userID, thread.RoomID, thread.ThreadRootEventID)
+	return c.ThreadHasUnread(ctx, kind, userID, thread.RoomID, thread.ThreadRootEventID, thread.LastReplyAt)
+}
+
+// ThreadHasUnread reports whether the latest reply is newer than the viewer's
+// read marker. Read-marker lookup failures are treated conservatively as
+// unread.
+func (c *ChattoCore) ThreadHasUnread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, lastReplyAt *time.Time) bool {
+	if lastReplyAt == nil {
+		return false
+	}
+	lastOpened, err := c.GetThreadLastOpened(ctx, kind, userID, roomID, threadRootEventID)
 	if err != nil {
 		return true
 	}
-	return lastOpened.IsZero() || thread.LastReplyAt.After(lastOpened)
+	return lastOpened.IsZero() || lastReplyAt.After(lastOpened)
 }
 
 // HasUnreadFollowedThreads reports whether any followed thread has unread

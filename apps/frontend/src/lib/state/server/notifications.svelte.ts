@@ -155,8 +155,9 @@ export class NotificationStore {
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
     for (const n of this.notifications) {
-      if (isReplyNotification(n) && n.replyInThread) {
-        threadIds.add(n.replyInThread);
+      const threadRootId = notificationTarget(n).threadRootId;
+      if (threadRootId) {
+        threadIds.add(threadRootId);
       }
     }
     return threadIds;
@@ -166,9 +167,9 @@ export class NotificationStore {
    * Check if a specific thread has pending notifications.
    */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.notifications.some(
-      (n) => isReplyNotification(n) && n.replyInThread === threadRootId
-    );
+    return this.notifications.some((notification) => {
+      return notificationTarget(notification).threadRootId === threadRootId;
+    });
   }
 
   /**

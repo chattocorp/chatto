@@ -812,7 +812,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("returns a paged followed thread list", func(t *testing.T) {
-		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 0)
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 0)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread page: %v", err)
 		}
@@ -829,7 +829,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
 		}
 
-		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 1)
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, false, 1, 1)
 		if err != nil {
 			t.Fatalf("Failed to list followed thread second page: %v", err)
 		}
@@ -914,6 +914,19 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
+	t.Run("filters unread threads before pagination", func(t *testing.T) {
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, true, 1, 0)
+		if err != nil {
+			t.Fatalf("Failed to list unread followed threads: %v", err)
+		}
+		if page.TotalCount != 1 || page.HasMore {
+			t.Fatalf("unread page metadata = total %d hasMore %v, want total 1 hasMore false", page.TotalCount, page.HasMore)
+		}
+		if len(page.Threads) != 1 || page.Threads[0].ThreadRootEventID != rootMsg1.Id {
+			t.Fatalf("unread page = %+v, want older unread thread %q", page.Threads, rootMsg1.Id)
+		}
+	})
+
 	t.Run("excludes unfollowed threads", func(t *testing.T) {
 		// User A unfollows thread 1
 		core.UnfollowThread(ctx, KindChannel, userA.Id, room1.Id, rootMsg1.Id)
@@ -951,7 +964,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("orphaned follow key is skipped gracefully", func(t *testing.T) {
-		// Manually follow a thread that has no metadata (orphaned)
+		// Simulate legacy/corrupt follow state that references a missing event.
 		core.FollowThread(ctx, KindChannel, userA.Id, room1.Id, "nonexistent-thread-id")
 
 		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
@@ -959,22 +972,41 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
 
-		// Should still work, including the orphaned thread (with zero metadata)
-		foundOrphan := false
 		for _, thread := range threads {
 			if thread.ThreadRootEventID == "nonexistent-thread-id" {
-				foundOrphan = true
-				if thread.ReplyCount != 0 {
-					t.Errorf("Expected 0 replies for orphaned thread, got %d", thread.ReplyCount)
-				}
+				t.Fatal("orphaned follow state appeared in followed thread list")
 			}
-		}
-		if !foundOrphan {
-			t.Error("Expected orphaned thread to still appear in list (with zero metadata)")
 		}
 
 		// Clean up
 		core.UnfollowThread(ctx, KindChannel, userA.Id, room1.Id, "nonexistent-thread-id")
+	})
+
+	t.Run("echo follow state is skipped gracefully", func(t *testing.T) {
+		reply, err := core.PostMessage(ctx, KindChannel, room2.Id, userB.Id, "Echoed reply", nil, rootMsg2.Id, rootMsg2.Id, nil, true)
+		if err != nil {
+			t.Fatalf("PostMessage echoed reply: %v", err)
+		}
+		echoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id)
+		if !ok {
+			t.Fatal("expected channel echo for reply")
+		}
+
+		// Low-level follow APIs historically allowed invalid IDs, so restored
+		// data can contain an echo reference even though public mutations reject it.
+		if err := core.FollowThread(ctx, KindChannel, userA.Id, room2.Id, echoID); err != nil {
+			t.Fatalf("FollowThread echo: %v", err)
+		}
+
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
+		if err != nil {
+			t.Fatalf("ListFollowedThreads: %v", err)
+		}
+		for _, thread := range threads {
+			if thread.ThreadRootEventID == echoID {
+				t.Fatal("echo appeared in followed thread list as a thread root")
+			}
+		}
 	})
 
 	t.Run("returns empty list for empty spaceIDs slice", func(t *testing.T) {
@@ -1318,7 +1350,7 @@ func TestChattoCore_LegacyThreadFollowValueStillLists(t *testing.T) {
 		t.Fatal("legacy positive value should still count as following")
 	}
 
-	page, err := second.ListFollowedThreadsPage(ctx, legacyFollower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)}, 10, 0)
+	page, err := second.ListFollowedThreadsPage(ctx, legacyFollower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)}, false, 10, 0)
 	if err != nil {
 		t.Fatalf("ListFollowedThreadsPage: %v", err)
 	}

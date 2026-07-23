@@ -53,6 +53,8 @@ message ViewerCapabilities {
   repeated CapabilityGrant grants = 1;
   // Whether the user has unread followed threads.
   bool has_unread_followed_threads = 2;
+  // Whether a followed channel thread has a pending notification.
+  bool has_pending_followed_thread_notifications = 3;
 }
 
 // Effective server/channel permission decisions for the authenticated user.

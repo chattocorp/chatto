@@ -198,6 +198,7 @@ export type RoomEventPayload =
       threadParticipantCount?: number;
       threadParticipants: UserAvatarUserView[];
       viewerIsFollowingThread?: boolean | null;
+      viewerHasUnreadThread?: boolean | null;
     }
   | {
       kind: 'messageRetracted';
