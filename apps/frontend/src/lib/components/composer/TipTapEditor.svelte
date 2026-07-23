@@ -717,6 +717,21 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     );
   }
 
+  function applyDestinationMarks(node: ProseMirrorNode, marks: readonly Mark[]): ProseMirrorNode {
+    const children: ProseMirrorNode[] = [];
+
+    node.forEach((child) => {
+      if (child.isText) {
+        const combinedMarks = marks.reduce((current, mark) => mark.addToSet(current), child.marks);
+        children.push(child.mark(node.type.allowedMarks(combinedMarks)));
+      } else {
+        children.push(applyDestinationMarks(child, marks));
+      }
+    });
+
+    return node.copy(Fragment.fromArray(children));
+  }
+
   function createClipboardInlineContent(
     text: string,
     schema: Schema,
@@ -769,34 +784,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         return paragraphType.create(null, inlineNodes);
       })
     );
-  }
-
-  function parseCompleteFencedCodeBlock(
-    text: string,
-    schema: Schema,
-    parseMarkdown: (markdown: string) => JSONContent
-  ): Fragment | null {
-    const lines = text.split('\n');
-    if (lines.at(-1) === '') lines.pop();
-    if (lines.length < 2) return null;
-
-    const openingFence = lines[0]?.match(/^ {0,3}(`{3,}|~{3,})[^\n]*$/)?.[1];
-    if (!openingFence) return null;
-
-    const fenceCharacter = openingFence[0];
-    const closingFence = lines.at(-1)?.match(/^ {0,3}(`+|~+)[ \t]*$/)?.[1];
-    if (
-      !closingFence ||
-      closingFence[0] !== fenceCharacter ||
-      closingFence.length < openingFence.length
-    ) {
-      return null;
-    }
-
-    const document = schema.nodeFromJSON(parseMarkdown(escapeMarkdownHtml(text)));
-    if (document.childCount !== 1 || document.firstChild?.type.name !== 'codeBlock') return null;
-
-    return document.content;
   }
 
   function hasDefaultEmptyDocument(e: Editor): boolean {
@@ -1380,19 +1367,16 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               const normalizedText = text.replace(/\r\n?/g, '\n');
               const markdown = editor?.markdown;
               const destinationMarks = view.state.storedMarks ?? context.marks();
-              const fencedCode = markdown
-                ? parseCompleteFencedCodeBlock(
-                    normalizedText,
-                    view.state.schema,
-                    markdown.parse.bind(markdown)
+              const document = markdown
+                ? view.state.schema.nodeFromJSON(
+                    markdown.parse(prepareMarkdownForEditor(normalizedText))
                   )
                 : null;
-              // Keep ordinary clipboard text literal while recognizing the same link syntax as
-              // typed input. ProseMirror's default parser also turns every pasted line into a
-              // paragraph, which creates an extra rendered blank line.
               const content =
-                fencedCode ??
-                createClipboardContent(normalizedText, view.state.schema, destinationMarks);
+                document && document.content.size > 0
+                  ? applyDestinationMarks(document, destinationMarks).content
+                  : createClipboardContent(normalizedText, view.state.schema, destinationMarks);
+
               return Slice.maxOpen(content);
             },
             handlePaste: (view, event) => {
@@ -1402,7 +1386,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               const html = event.clipboardData?.getData('text/html');
               if (!text || !html || editor?.isActive('codeBlock')) return false;
 
-              // Prefer the textual Markdown representation when the source also supplies HTML.
+              // Prefer and Markdown-parse the textual representation when the clipboard also
+              // supplies HTML.
               view.pasteText(text);
               return true;
             }
