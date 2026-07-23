@@ -1864,6 +1864,23 @@ describe('MessageComposer', () => {
       expect(await renderMarkdown(submittedBody)).toContain('<table>');
     });
 
+    it('converts pasted blockquote Markdown and posts it as a rendered quote', async () => {
+      const body = '> moo';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('blockquote')?.textContent).toBe('moo');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
     it('preserves active inline formatting when pasting plain text', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
