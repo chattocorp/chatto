@@ -101,11 +101,12 @@ func (p *ThreadProjection) Subjects() []string {
 	}
 }
 
-// ReplaySubjects uses one broad room filter because it is cheaper on current
-// self-host scale than a larger multi-filter consumer. The Threads projector
-// still rejects non-thread events before decoding or applying them.
+// ReplaySubjects uses one stream-wide physical filter because JetStream's
+// multi-filter scan is expensive when it combines the broad room wildcard with
+// the sparse user-key-shredded family. The Projector rejects unrelated subjects
+// before decoding or applying them.
 func (p *ThreadProjection) ReplaySubjects() []string {
-	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
+	return []string{events.EventSubjectFilter()}
 }
 
 // Apply implements events.Projection.

@@ -58,6 +58,14 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{events.RoomSubjectFilter()},
 		},
 		{
+			name: "room timeline uses room aggregate namespace plus key shredding",
+			got:  NewRoomTimelineProjection().Subjects(),
+			want: []string{
+				events.RoomSubjectFilter(),
+				events.UserEventTypeFilter(events.EventUserKeyShredded),
+			},
+		},
+		{
 			name: "threads use focused room event families plus key shredding",
 			got:  NewThreadProjection().Subjects(),
 			want: []string{
@@ -136,10 +144,17 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	}
 }
 
-func TestThreadProjectionReplaySubjectsUseSharedRoomReplay(t *testing.T) {
-	got := NewThreadProjection().ReplaySubjects()
-	want := []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
-	if !slices.Equal(got, want) {
-		t.Fatalf("ReplaySubjects() = %v, want %v", got, want)
+func TestBroadRoomAndSparseUserProjectionsUseSinglePhysicalReplayFilter(t *testing.T) {
+	for name, projection := range map[string]events.ReplaySubjectProjection{
+		"room timeline": NewRoomTimelineProjection(),
+		"threads":       NewThreadProjection(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := projection.ReplaySubjects()
+			want := []string{events.EventSubjectFilter()}
+			if !slices.Equal(got, want) {
+				t.Fatalf("ReplaySubjects() = %v, want %v", got, want)
+			}
+		})
 	}
 }

@@ -163,7 +163,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
-| Room timeline      | Room Timeline        | `evt.room.>`                                               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
+| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
@@ -189,6 +189,13 @@ filters remain intentional for projections whose snapshots expose room-tail
 OCC positions, such as Reactions and Call State. Threads reports the focused
 logical subjects above for waits and diagnostics; non-thread room facts are
 skipped before `Apply`.
+
+Room Timeline and Threads physically replay through one `evt.>` filter. Their
+logical room and key-shredding subjects still determine readiness and
+application. The projector rejects other subjects before protobuf decoding.
+This avoids JetStream's expensive multi-filter scan for a broad room wildcard
+combined with a sparse user event while preserving independent consumers and
+projection-local replay frontiers.
 
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable projections decrypt login and email values only transiently
