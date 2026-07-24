@@ -38,7 +38,7 @@ const { mocks } = vi.hoisted(() => {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
           unreadNotificationCount: 0,
-          getSpaceNotification: vi.fn().mockReturnValue(null),
+          getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
           dismiss: vi.fn(),
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
@@ -218,7 +218,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.setUnreadNotificationCount.mockClear();
     mocks.store.notifications.unreadNotificationCount = 0;
-    mocks.store.notifications.getSpaceNotification.mockReturnValue(null);
+    mocks.store.notifications.getNonDMNotification.mockReturnValue(null);
     mocks.store.notifications.getDMNotification.mockReturnValue(null);
     mocks.store.notifications.dismiss.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
@@ -450,7 +450,7 @@ describe('ServerSidebarEntry', () => {
     };
     mocks.store.serverIndicator.mockReturnValue('notification');
     mocks.store.notifications.unreadNotificationCount = 1;
-    mocks.store.notifications.getSpaceNotification.mockReturnValue(notification);
+    mocks.store.notifications.getNonDMNotification.mockReturnValue(notification);
     mocks.store.notifications.getCleanPath.mockReturnValue(
       '/chat/remote.example.com/room-1/thread-1'
     );
