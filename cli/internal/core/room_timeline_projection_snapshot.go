@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -24,20 +23,15 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	for _, entry := range p.entries {
 		snapshot.Entries = append(snapshot.Entries, &corev1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*corev1.Event)})
 	}
-	bodyIDs := make(map[string]struct{}, len(p.latestBody)+len(p.bodyEventSeqs)+len(p.currentBodySeq))
-	for id := range p.latestBody {
-		bodyIDs[id] = struct{}{}
-	}
-	for id := range p.bodyEventSeqs {
-		bodyIDs[id] = struct{}{}
-	}
-	for id := range p.currentBodySeq {
-		bodyIDs[id] = struct{}{}
-	}
-	for _, id := range sortedMapKeys(bodyIDs) {
-		row := &corev1.TimelineBodySnapshot{MessageEventId: id, BodyEventSequences: slices.Clone(p.bodyEventSeqs[id]), CurrentBodySequence: p.currentBodySeq[id]}
-		if p.latestBody[id] != nil {
-			row.Body = cloneMessageBody(p.latestBody[id])
+	for _, id := range sortedMapKeys(p.bodyStates) {
+		state := p.bodyStates[id]
+		row := &corev1.TimelineBodySnapshot{
+			MessageEventId:      id,
+			BodyEventSequences:  appendBodySequences(nil, state),
+			CurrentBodySequence: state.currentSequence,
+		}
+		if state.body != nil {
+			row.Body = cloneMessageBody(state.body)
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
@@ -102,14 +96,18 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if id == "" {
 			return fmt.Errorf("room timeline snapshot has empty body message ID")
 		}
-		if _, duplicate := restored.bodyEventSeqs[id]; duplicate {
+		if _, duplicate := restored.bodyStates[id]; duplicate {
 			return fmt.Errorf("room timeline snapshot repeats body %q", id)
 		}
-		if row.GetBody() != nil {
-			restored.latestBody[id] = cloneMessageBody(row.GetBody())
+		sequences := row.GetBodyEventSequences()
+		if len(sequences) == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
+			return fmt.Errorf("room timeline snapshot body %q has inconsistent sequence history", id)
 		}
-		restored.bodyEventSeqs[id] = slices.Clone(row.GetBodyEventSequences())
-		restored.currentBodySeq[id] = row.GetCurrentBodySequence()
+		restored.bodyStates[id] = timelineBodyState{
+			body:                cloneMessageBody(row.GetBody()),
+			currentSequence:     row.GetCurrentBodySequence(),
+			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
+		}
 	}
 	restoreTimes := func(rows []*corev1.StringTimestampSnapshot) (map[string]time.Time, error) {
 		values := make(map[string]time.Time, len(rows))
@@ -161,16 +159,16 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
-	for messageID, body := range restored.latestBody {
+	for messageID, state := range restored.bodyStates {
 		entry, ok := restored.entryByEventIDLocked(messageID)
-		if !ok || entry.Event == nil {
+		if !ok || entry.Event == nil || state.body == nil {
 			continue
 		}
 		roomID := roomIDOfEvent(entry.Event)
-		restored.refreshAttachmentMessageLocked(roomID, messageID, body)
+		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
 	}
 	p.Lock()
-	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.replayGuard, p.latestBody, p.bodyEventSeqs, p.currentBodySeq, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.replayGuard, restored.latestBody, restored.bodyEventSeqs, restored.currentBodySeq, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
+	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
 	p.Unlock()
 	return nil
 }

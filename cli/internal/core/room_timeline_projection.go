@@ -22,14 +22,10 @@ type RoomTimelineProjection struct {
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
 	replayGuard        projectionReplayGuard
-	// latestBody is the derived current-body index. Updated as
-	// MessageEdited / MessageRetracted entries are applied so that
-	// LatestBody resolves in O(1) instead of an O(room size) walk
-	// of byRoom. A nil entry means "retracted"; absent means "no
-	// body payload / not yet projected".
-	latestBody     map[string]*corev1.MessageBody
-	bodyEventSeqs  map[string][]uint64
-	currentBodySeq map[string]uint64
+	// bodyStates keeps the current encrypted body and its EVT lifecycle in one
+	// entry per message. supersededSequences stays nil until the first edit,
+	// avoiding a slice allocation for the common single-body case.
+	bodyStates     map[string]timelineBodyState
 	retractedFlags map[string]struct{}
 	// tombstonedAt records when message content first became unavailable
 	// through a durable retraction or user key-shred fact. It deliberately does
@@ -70,6 +66,12 @@ type projectedRoomAttachmentMessage struct {
 	Body  *corev1.MessageBody
 }
 
+type timelineBodyState struct {
+	body                *corev1.MessageBody
+	currentSequence     uint64
+	supersededSequences []uint64
+}
+
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *corev1.Event) int {
 	idx := len(p.entries)
 	p.entries = append(p.entries, TimelineEntry{StreamSeq: seq, Event: event})
@@ -102,9 +104,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
 		replayGuard:                newProjectionReplayGuard(),
-		latestBody:                 make(map[string]*corev1.MessageBody),
-		bodyEventSeqs:              make(map[string][]uint64),
-		currentBodySeq:             make(map[string]uint64),
+		bodyStates:                 make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
 		tombstonedAt:               make(map[string]time.Time),
 		shreddedAt:                 make(map[string]time.Time),
@@ -170,7 +170,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			}
 			if authorID := body.GetAuthorId(); authorID != "" {
 				if _, shredded := p.shreddedUsers[authorID]; shredded {
-					delete(p.latestBody, targetID)
+					p.clearBodyLocked(targetID)
 					p.retractedFlags[targetID] = struct{}{}
 					p.setTombstonedAtLocked(targetID, p.shreddedAt[authorID])
 					p.removeAttachmentMessageLocked(targetID)
@@ -179,9 +179,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 					if body.GetBodyEventId() == "" {
 						body.BodyEventId = event.GetId()
 					}
-					p.latestBody[targetID] = body
-					p.bodyEventSeqs[targetID] = append(p.bodyEventSeqs[targetID], seq)
-					p.currentBodySeq[targetID] = seq
+					p.setCurrentBodyLocked(targetID, body, seq)
 					delete(p.retractedFlags, targetID)
 					p.refreshAttachmentMessageLocked(roomID, targetID, body)
 				}
@@ -218,14 +216,14 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		if targetID != "" {
 			authorID := messageAuthorID(event)
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
-				delete(p.latestBody, targetID)
+				p.clearBodyLocked(targetID)
 				p.retractedFlags[targetID] = struct{}{}
 				p.setTombstonedAtLocked(targetID, p.shreddedAt[authorID])
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if body := p.latestBody[targetID]; body != nil {
-			p.refreshAttachmentMessageLocked(roomID, targetID, body)
+		if state, ok := p.bodyStates[targetID]; ok && state.body != nil {
+			p.refreshAttachmentMessageLocked(roomID, targetID, state.body)
 		}
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
@@ -239,13 +237,13 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			p.setTombstonedAtLocked(targetID, eventCreatedAt(event))
 			if origID := p.echoOriginalIDLocked(targetID); origID != "" {
 				if _, originalRetracted := p.retractedFlags[origID]; !originalRetracted {
-					delete(p.latestBody, targetID)
+					p.clearBodyLocked(targetID)
 					p.hiddenEchoes[targetID] = struct{}{}
 					p.removeAttachmentMessageLocked(targetID)
 					return nil
 				}
 			}
-			delete(p.latestBody, targetID)
+			p.clearBodyLocked(targetID)
 			p.retractedFlags[targetID] = struct{}{}
 			p.removeAttachmentMessageLocked(targetID)
 		}
@@ -292,11 +290,30 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 		if messageAuthorID(entry.Event) != userID {
 			continue
 		}
-		delete(p.latestBody, eventID)
+		p.clearBodyLocked(eventID)
 		p.retractedFlags[eventID] = struct{}{}
 		p.setTombstonedAtLocked(eventID, at)
 		p.removeAttachmentMessageLocked(eventID)
 	}
+}
+
+func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *corev1.MessageBody, sequence uint64) {
+	state, exists := p.bodyStates[eventID]
+	if exists {
+		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
+	}
+	state.body = body
+	state.currentSequence = sequence
+	p.bodyStates[eventID] = state
+}
+
+func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
+	state, exists := p.bodyStates[eventID]
+	if !exists {
+		return
+	}
+	state.body = nil
+	p.bodyStates[eventID] = state
 }
 
 func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.Time) {
@@ -422,7 +439,7 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 // Returns (nil, false, false) if the event_id isn't known to the
 // projection (caller can treat as "not found yet").
 //
-// O(1): consults the derived latestBody / retractedFlags indexes
+// O(1): consults the derived bodyStates / retractedFlags indexes
 // that Apply keeps in lockstep with byRoom.
 func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.MessageBody, retracted bool, ok bool) {
 	p.RLock()
@@ -444,8 +461,8 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.Messag
 			return nil, true, true
 		}
 	}
-	if b, has := p.latestBody[eventID]; has {
-		return cloneMessageBody(b), false, true
+	if state, has := p.bodyStates[eventID]; has && state.body != nil {
+		return cloneMessageBody(state.body), false, true
 	}
 	return nil, false, true
 }
@@ -476,7 +493,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 				continue
 			}
 		}
-		body := p.latestBody[eventID]
+		body := p.bodyStates[eventID].body
 		if !messageBodyReferencesAttachments(body) {
 			continue
 		}
@@ -575,8 +592,14 @@ func (p *RoomTimelineProjection) BodyEventSeqs(eventID string) (seqs []uint64, c
 	if _, exists := p.byEventID[eventID]; !exists {
 		return nil, 0, false
 	}
-	seqs = append([]uint64(nil), p.bodyEventSeqs[eventID]...)
-	return seqs, p.currentBodySeq[eventID], true
+	state, hasBodyState := p.bodyStates[eventID]
+	if !hasBodyState {
+		return nil, 0, true
+	}
+	seqs = make([]uint64, 0, len(state.supersededSequences)+1)
+	seqs = append(seqs, state.supersededSequences...)
+	seqs = append(seqs, state.currentSequence)
+	return seqs, state.currentSequence, true
 }
 
 // ObsoleteBodyEventSeqs returns body event sequences that can be securely
@@ -589,24 +612,17 @@ func (p *RoomTimelineProjection) ObsoleteBodyEventSeqs(eventID string) []uint64 
 	if eventID == "" {
 		return nil
 	}
-	all := p.bodyEventSeqs[eventID]
-	if len(all) == 0 {
+	state, ok := p.bodyStates[eventID]
+	if !ok {
 		return nil
 	}
 	if _, retracted := p.retractedFlags[eventID]; retracted {
-		return append([]uint64(nil), all...)
+		return appendBodySequences(nil, state)
 	}
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
-		return append([]uint64(nil), all...)
+		return appendBodySequences(nil, state)
 	}
-	current := p.currentBodySeq[eventID]
-	out := make([]uint64, 0, len(all))
-	for _, seq := range all {
-		if seq != current {
-			out = append(out, seq)
-		}
-	}
-	return out
+	return append([]uint64(nil), state.supersededSequences...)
 }
 
 // AllObsoleteBodyEventSeqs returns every projected MessageBodyEvent seq
@@ -615,26 +631,23 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 	p.RLock()
 	defer p.RUnlock()
 	var out []uint64
-	for eventID, all := range p.bodyEventSeqs {
-		if len(all) == 0 {
-			continue
-		}
+	for eventID, state := range p.bodyStates {
 		if _, retracted := p.retractedFlags[eventID]; retracted {
-			out = append(out, all...)
+			out = appendBodySequences(out, state)
 			continue
 		}
 		if _, hidden := p.hiddenEchoes[eventID]; hidden {
-			out = append(out, all...)
+			out = appendBodySequences(out, state)
 			continue
 		}
-		current := p.currentBodySeq[eventID]
-		for _, seq := range all {
-			if seq != current {
-				out = append(out, seq)
-			}
-		}
+		out = append(out, state.supersededSequences...)
 	}
 	return out
+}
+
+func appendBodySequences(dst []uint64, state timelineBodyState) []uint64 {
+	dst = append(dst, state.supersededSequences...)
+	return append(dst, state.currentSequence)
 }
 
 func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {

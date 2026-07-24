@@ -117,7 +117,10 @@ event families.
 
 The projector framework atomically captures each projection's explicit
 protobuf state with its latest applied logical EVT sequence. Room Timeline
-retains encrypted body envelopes and rebuilds derived indexes. Mentionables
+retains one body-state entry per message: the current encrypted envelope and
+EVT sequence are inline, while a sequence slice is allocated only after an
+edit. Its snapshot codec preserves the complete body-event sequence history.
+Mentionables
 retains encrypted login source events and wrapped DEK records rather than
 plaintext handles or lookup digests. The Users codec retains encrypted login,
 display-name, and verified-email values, lookup digests, wrapped DEK records,

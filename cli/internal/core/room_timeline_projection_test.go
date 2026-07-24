@@ -509,6 +509,9 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if !ok || current != 1 || len(seqs) != 1 || seqs[0] != 1 {
 		t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1], 1, true)", seqs, current, ok)
 	}
+	if got := p.bodyStates["ENV-M1"].supersededSequences; got != nil {
+		t.Fatalf("first body superseded sequences = %v, want nil", got)
+	}
 
 	if err := p.Apply(bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3), 3); err != nil {
 		t.Fatalf("Apply replacement body event: %v", err)
@@ -523,6 +526,9 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs active = %v, want [1]", got)
 	}
+	if got := p.bodyStates["ENV-M1"].supersededSequences; !slices.Equal(got, []uint64{1}) {
+		t.Fatalf("edited body superseded sequences = %v, want [1]", got)
+	}
 
 	if err := p.Apply(retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4), 4); err != nil {
 		t.Fatalf("Apply retraction: %v", err)
@@ -532,6 +538,36 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	}
 	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
 		t.Fatalf("ObsoleteBodyEventSeqs retracted = %v, want [1 3]", got)
+	}
+}
+
+func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1),
+		bodylessPostedEvent("ENV-M1", "R1", "U1", 2),
+		bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3),
+		retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4),
+	})
+
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+
+	seqs, current, ok := restored.BodyEventSeqs("ENV-M1")
+	if !ok || current != 3 || !slices.Equal(seqs, []uint64{1, 3}) {
+		t.Fatalf("BodyEventSeqs after restore = (%v, %d, %v), want ([1 3], 3, true)", seqs, current, ok)
+	}
+	if got := restored.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
+		t.Fatalf("ObsoleteBodyEventSeqs after restore = %v, want [1 3]", got)
+	}
+	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
+		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
 	}
 }
 
@@ -790,6 +826,7 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 	applyAll(t, p, []*corev1.Event{
 		post,
 		bodyEventWithAssets("ENV-BODY-M1", "ENV-M1", "R1", "U1", "1 edited", []string{"A-video"}, 2),
+		bodyEventWithAssets("ENV-BODY-M1-2", "ENV-M1", "R1", "U1", "1 edited again", []string{"A-video"}, 3),
 		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-M1", at: 6}),
 		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-M1", at: 7}),
 		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 8),
@@ -803,7 +840,8 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"event_id_retained_entries",
 		"message_posts_by_room_index",
 		"applied_event_ids",
-		"body_event_seqs",
+		"body_state_index",
+		"superseded_body_event_seqs",
 		"hidden_echoes",
 		"tombstoned_at_index",
 	} {
