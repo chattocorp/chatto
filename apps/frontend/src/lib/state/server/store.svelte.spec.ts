@@ -162,7 +162,14 @@ const { soundMocks, apiMocks } = vi.hoisted(() => ({
     listRoomAttachments: vi.fn<
       () => Promise<{ items: RoomFileItem[]; totalCount: number; hasMore: boolean }>
     >(() => Promise.resolve({ items: [], totalCount: 0, hasMore: false })),
-    refreshAssetUrls: vi.fn(() => Promise.resolve(new Map()))
+    refreshAssetUrls: vi.fn(() => Promise.resolve(new Map())),
+    listRoles: vi.fn(() =>
+      Promise.resolve({
+        roles: [],
+        viewerCanManageRoles: false,
+        viewerCanAssignRoles: false
+      })
+    )
   }
 }));
 
@@ -220,6 +227,12 @@ vi.mock('$lib/api-client/notifications', () => ({
     listNotificationCounts: apiMocks.listNotificationCounts,
     dismissNotification: vi.fn(),
     dismissAllNotifications: vi.fn()
+  }))
+}));
+
+vi.mock('$lib/api-client/roles', () => ({
+  createRoleAPI: vi.fn(() => ({
+    listRoles: apiMocks.listRoles
   }))
 }));
 

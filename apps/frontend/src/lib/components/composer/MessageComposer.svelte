@@ -4,7 +4,6 @@
   import type { RoomEventView } from '$lib/render/types';
   import { createMessageAPI, type AttachmentUploadUpdate } from '$lib/api-client/messages';
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
-  import { createRoleAPI } from '$lib/api-client/roles';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -93,6 +92,7 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
   const roomUnreadStore = stores.roomUnread;
+  const mentionRolesStore = stores.mentionRoles;
 
   export type MessageComposerApi = {
     addFiles: (files: File[]) => void;
@@ -197,10 +197,7 @@
     () => mentionCandidateMembers,
     () => mentionRoles
   );
-  let mentionRoles = $state<MentionRole[]>([]);
-  let mentionRolesLoadComplete = $state(false);
-  let mentionRolesLoadFailed = $state(false);
-  let mentionRolesLoadPromise: Promise<boolean> | null = null;
+  const mentionRoles = $derived<MentionRole[]>(mentionRolesStore.roles);
 
   $effect(() => {
     const query = autocomplete.mention?.query ?? null;
@@ -306,45 +303,7 @@
   });
 
   $effect(() => {
-    const conn = connection();
-    const api = createRoleAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-    let cancelled = false;
-    mentionRoles = [];
-    mentionRolesLoadComplete = false;
-    mentionRolesLoadFailed = false;
-
-    async function loadMentionRoles() {
-      let roles;
-      try {
-        roles = (await api.listRoles()).roles;
-      } catch {
-        if (!cancelled) {
-          mentionRoles = [];
-          mentionRolesLoadFailed = true;
-          mentionRolesLoadComplete = true;
-        }
-        return false;
-      }
-      if (cancelled) return false;
-      mentionRoles =
-        roles.map((role) => ({
-          name: role.name,
-          isSystem: role.isSystem,
-          position: role.position,
-          pingable: role.pingable
-        })) ?? [];
-      mentionRolesLoadFailed = false;
-      mentionRolesLoadComplete = true;
-      return true;
-    }
-
-    mentionRolesLoadPromise = loadMentionRoles();
-    return () => {
-      cancelled = true;
-    };
+    void mentionRolesStore.load();
   });
 
   let loading = $state(false);
@@ -681,14 +640,14 @@
   let roleMentionConfirmationLoading = $state(false);
 
   async function ensureMentionRolesLoadedForConfirmation(): Promise<boolean> {
-    if (mentionRolesLoadComplete) return !mentionRolesLoadFailed;
-    return (await mentionRolesLoadPromise) ?? false;
+    if (mentionRolesStore.status === 'failed') return false;
+    return mentionRolesStore.load();
   }
 
   function postMentionsRoleOrVirtualTarget(post: PreparedPost, rolesAvailable: boolean): boolean {
     const hasKnownRoleOrVirtualMention = hasRoleOrVirtualMention(
       post.bodyToSend,
-      mentionRoles.filter((role) => role.name !== 'everyone').map((role) => role.name)
+      mentionRoles.map((role) => role.name)
     );
     if (hasKnownRoleOrVirtualMention) return true;
     if (rolesAvailable) return false;
@@ -820,8 +779,13 @@
       alsoSendToChannel
     };
 
-    let rolesAvailable = mentionRolesLoadComplete && !mentionRolesLoadFailed;
-    if (hasBody && bodyToSend.includes('@') && !mentionRolesLoadComplete) {
+    let rolesAvailable = mentionRolesStore.status === 'ready';
+    if (
+      hasBody &&
+      bodyToSend.includes('@') &&
+      mentionRolesStore.status !== 'ready' &&
+      mentionRolesStore.status !== 'failed'
+    ) {
       roleMentionCheckLoading = true;
       try {
         rolesAvailable = await ensureMentionRolesLoadedForConfirmation();

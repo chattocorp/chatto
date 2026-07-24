@@ -10,6 +10,7 @@ import { PresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { renderMarkdown } from '$lib/markdown';
 import type { CreateMessageInput } from '$lib/api-client/messages';
+import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -79,6 +80,7 @@ const roomStateMock = vi.hoisted(() => ({
 }));
 
 // Mock instance state
+let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 const mockInstanceStores = {
   currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
   serverInfo: {
@@ -88,6 +90,9 @@ const mockInstanceStores = {
   },
   roomUnread: {
     setRoomUnread: vi.fn()
+  },
+  get mentionRoles() {
+    return mentionRolesStore;
   }
 };
 
@@ -404,6 +409,7 @@ describe('MessageComposer', () => {
     fetchLinkPreviewConnectMock.mockResolvedValue(null);
     listRolesConnectMock.mockReset();
     listRolesConnectMock.mockResolvedValue({ roles: [] });
+    mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();

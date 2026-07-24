@@ -75,7 +75,11 @@ const { mocks } = vi.hoisted(() => {
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
       projectedMembersForRoom: vi.fn(() => []),
-      hasCompleteProjectedRoomMembership: vi.fn(() => true)
+      hasCompleteProjectedRoomMembership: vi.fn(() => true),
+      mentionRoles: {
+        roles: [],
+        refresh: vi.fn().mockResolvedValue(true)
+      }
     }
   };
 });
@@ -194,6 +198,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
       rooms: mocks.rooms,
+      mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
       restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
